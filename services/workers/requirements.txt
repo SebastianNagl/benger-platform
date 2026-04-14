@@ -1,4 +1,4 @@
-celery==5.6.2
+celery==5.6.3
 redis>=5.0.0,<5.4.0
 cryptography>=41.0.0
 psycopg2-binary>=2.9.10
@@ -20,11 +20,11 @@ pytest==8.4.2
 pytest-asyncio==0.26.0
 # AI service dependencies
 openai==1.109.1
-anthropic==0.84.0
+anthropic==0.94.1
 google-genai>=1.0.0
 mistralai>=1.2.0  # Mistral AI models
 cohere>=5.11.0  # Cohere models
-aiohttp==3.13.3
+aiohttp==3.13.5
 # Neural metrics (GPU on-demand)
 bert-score>=0.3.13
 sentence-transformers>=3.2.0  # Updated for ONNX backend support
