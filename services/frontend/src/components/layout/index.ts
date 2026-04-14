@@ -1,0 +1,17 @@
+export { ConditionalLayout } from './ConditionalLayout'
+export { Footer } from './Footer'
+export { Header } from './Header'
+export { Layout } from './Layout'
+export { Logo } from './Logo'
+export { MinimalLayout } from './MinimalLayout'
+export { MobileNavigation } from './MobileNavigation'
+export { Navigation } from './Navigation'
+export { SectionProvider } from './SectionProvider'
+
+// Newly moved navigation/header components
+export { LanguageSwitcher } from './LanguageSwitcher'
+export { NotificationBell } from './NotificationBell'
+export { NotificationDropdown } from './NotificationDropdown'
+export { OrganizationSwitcher } from './OrganizationSwitcher'
+export { SimpleI18nProvider } from './SimpleI18n'
+export { ThemeToggle } from './ThemeToggle'

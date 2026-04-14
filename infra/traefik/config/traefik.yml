@@ -1,0 +1,27 @@
+# Enable API and ping for health checks
+api:
+  dashboard: true
+  insecure: true
+
+# Enable ping endpoint for health checks  
+ping: {}
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+  file:
+    directory: "/etc/traefik"
+    watch: true
+
+# Standardeinstellungen für TLS
+tls:
+  certificates:
+    - certFile: "/certs/local-cert.pem"
+      keyFile: "/certs/local-key.pem" 

@@ -1,0 +1,56 @@
+# WebSocket specific configuration for Traefik
+http:
+  middlewares:
+    # WebSocket headers middleware
+    websocket-headers:
+      headers:
+        customRequestHeaders:
+          Connection: "upgrade"
+          Upgrade: "websocket"
+        customResponseHeaders:
+          Connection: "upgrade"
+          Upgrade: "websocket"
+    
+    # WebSocket timeout configuration
+    websocket-timeout:
+      buffering:
+        maxRequestBodyBytes: 0  # Disable buffering for WebSocket
+        memRequestBodyBytes: 0
+        retryExpression: ""
+
+  services:
+    # WebSocket service configuration
+    websocket-service:
+      loadBalancer:
+        servers:
+          - url: "http://api:8000"
+        passHostHeader: true
+        sticky:
+          cookie:
+            name: websocket_affinity
+            httpOnly: true
+            sameSite: none
+            secure: true
+
+  routers:
+    # WebSocket router for annotations
+    websocket-annotations:
+      rule: "Host(`benger.localhost`) && PathPrefix(`/ws/annotations`)"
+      entryPoints:
+        - web
+      service: websocket-service
+      middlewares:
+        - websocket-headers
+        - websocket-timeout
+      priority: 200  # Higher priority than regular routes
+    
+    # WebSocket router for production
+    websocket-annotations-prod:
+      rule: "Host(`what-a-benger.net`) && PathPrefix(`/ws/annotations`)"
+      entryPoints:
+        - web
+      service: websocket-service
+      middlewares:
+        - websocket-headers
+        - websocket-timeout
+      priority: 200

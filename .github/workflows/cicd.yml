@@ -1,0 +1,1202 @@
+name: CI/CD
+#
+# Skip tests:
+#   - For PRs: add the "skip-tests" label to the PR
+#   - For manual dispatch: set skip_tests=true in the workflow_dispatch form
+#   - Tests should be run locally (`make test`) before using skip
+#
+# Force deploy (manual dispatch only):
+#   set force_deploy=true to rebuild+deploy all services regardless of changes
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deployment even without changes'
+        required: false
+        default: false
+        type: boolean
+      skip_tests:
+        description: 'Skip test suite (devs already tested locally)'
+        required: false
+        default: false
+        type: boolean
+
+# PRs: cancel previous runs for same branch. Push to master: queue deployments.
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.head_ref) || 'trunk-deployment' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: write
+  checks: write
+  issues: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: sebastiannagl/benger
+
+jobs:
+  # ============================================================
+  # PR JOBS: validate → test → build staging → deploy staging
+  # ============================================================
+
+  # Detect which services changed (skip for dependabot — tested via nightly batch)
+  detect-changes:
+    name: Detect Service Changes
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      api-changed: ${{ steps.changes.outputs.api }}
+      frontend-changed: ${{ steps.changes.outputs.frontend }}
+      workers-changed: ${{ steps.changes.outputs.workers }}
+      api-build-changed: ${{ steps.changes.outputs.api-build }}
+      frontend-build-changed: ${{ steps.changes.outputs.frontend-build }}
+      workers-build-changed: ${{ steps.changes.outputs.workers-build }}
+      workers-base-changed: ${{ steps.changes.outputs.workers-base-changed }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changes
+        run: |
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          CHANGED_FILES=$(git diff --name-only $BASE_SHA..HEAD)
+
+          # Check if any file changed in a service dir (triggers tests)
+          check_changes() {
+            local dir=$1
+            local shared_check=$2
+
+            if echo "$CHANGED_FILES" | grep -q "^$dir/"; then
+              echo "true"
+              return
+            fi
+
+            if [ "$shared_check" = "true" ]; then
+              if echo "$CHANGED_FILES" | grep -q "^services/shared/"; then
+                echo "true"
+                return
+              fi
+            fi
+
+            if echo "$CHANGED_FILES" | grep -qE "^infra/helm/|^scripts/"; then
+              echo "true"
+              return
+            fi
+
+            echo "false"
+          }
+
+          # Check if non-test files changed in a service dir (triggers image builds)
+          # Excludes: tests/, __tests__/, *.test.*, *.spec.*, pytest.ini, jest.config.*
+          check_build_changes() {
+            local dir=$1
+            local shared_check=$2
+
+            if echo "$CHANGED_FILES" | grep "^$dir/" | \
+               grep -vE '(/tests/|/__tests__/|\.test\.|\.spec\.|pytest\.ini$|jest\.config\.)' | \
+               grep -q .; then
+              echo "true"
+              return
+            fi
+
+            if [ "$shared_check" = "true" ]; then
+              if echo "$CHANGED_FILES" | grep -q "^services/shared/"; then
+                echo "true"
+                return
+              fi
+            fi
+
+            if echo "$CHANGED_FILES" | grep -qE "^infra/helm/|^scripts/"; then
+              echo "true"
+              return
+            fi
+
+            echo "false"
+          }
+
+          API_CHANGED=$(check_changes "services/api" "true")
+          FRONTEND_CHANGED=$(check_changes "services/frontend" "false")
+          WORKERS_CHANGED=$(check_changes "services/workers" "true")
+
+          API_BUILD_CHANGED=$(check_build_changes "services/api" "true")
+          FRONTEND_BUILD_CHANGED=$(check_build_changes "services/frontend" "false")
+          WORKERS_BUILD_CHANGED=$(check_build_changes "services/workers" "true")
+
+          # Check if workers base image needs rebuild (deps/models changed, not just app code)
+          WORKERS_BASE_CHANGED="false"
+          if echo "$CHANGED_FILES" | grep -qE "^services/workers/(requirements\.txt|Dockerfile\.base)$"; then
+            WORKERS_BASE_CHANGED="true"
+          fi
+
+          echo "api=$API_CHANGED" >> $GITHUB_OUTPUT
+          echo "frontend=$FRONTEND_CHANGED" >> $GITHUB_OUTPUT
+          echo "workers=$WORKERS_CHANGED" >> $GITHUB_OUTPUT
+          echo "api-build=$API_BUILD_CHANGED" >> $GITHUB_OUTPUT
+          echo "frontend-build=$FRONTEND_BUILD_CHANGED" >> $GITHUB_OUTPUT
+          echo "workers-build=$WORKERS_BUILD_CHANGED" >> $GITHUB_OUTPUT
+          echo "workers-base-changed=$WORKERS_BASE_CHANGED" >> $GITHUB_OUTPUT
+
+          echo "Change Detection Results:"
+          echo "  API:      changed=$API_CHANGED  build=$API_BUILD_CHANGED"
+          echo "  Frontend: changed=$FRONTEND_CHANGED  build=$FRONTEND_BUILD_CHANGED"
+          echo "  Workers:  changed=$WORKERS_CHANGED  build=$WORKERS_BUILD_CHANGED"
+
+  # PR Size and Feature Flag Validation
+  pr-validation:
+    name: PR Validation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check PR size (informational only)
+        run: |
+          echo "PR size check (informational)..."
+
+          LINES_CHANGED=$(git diff --numstat origin/master..HEAD | \
+            grep -v -E '\.(md|json|yml|yaml|lock)$' | \
+            awk '{sum += $1 + $2} END {print sum+0}')
+
+          echo "Lines changed: $LINES_CHANGED"
+
+          if [ "$LINES_CHANGED" -gt 1000 ]; then
+            echo "Large PR detected ($LINES_CHANGED lines)"
+          else
+            echo "PR size: $LINES_CHANGED lines"
+          fi
+
+      - name: Check feature flag usage (informational)
+        continue-on-error: true
+        run: |
+          echo "Checking feature flag usage for new features..."
+
+          NEW_COMPONENTS=$(git diff --name-only origin/master..HEAD | \
+            grep -E '\.(tsx?|vue|py)$' | head -10)
+
+          if [ -z "$NEW_COMPONENTS" ]; then
+            echo "No source files changed"
+            exit 0
+          fi
+
+          echo "Checking files: $NEW_COMPONENTS"
+
+          POTENTIAL_FEATURES=$(git diff origin/master..HEAD -- $NEW_COMPONENTS | \
+            grep -E '\+.*\b(component|endpoint|route|feature)\b' | head -5)
+
+          if [ -n "$POTENTIAL_FEATURES" ]; then
+            echo "New features detected. Checking for feature flags..."
+
+            FEATURE_FLAGS=$(git diff origin/master..HEAD | \
+              grep -E '\+.*\b(featureFlag|FEATURE_|isEnabled)\b')
+
+            if [ -z "$FEATURE_FLAGS" ]; then
+              echo "New features found but no feature flags detected"
+              echo "Consider wrapping new features in feature flags for safer deployment"
+            else
+              echo "Feature flags found in changes"
+            fi
+          else
+            echo "No new user-facing features detected"
+          fi
+
+      - name: Check branch age
+        run: |
+          echo "Checking branch age..."
+
+          BRANCH_NAME="${{ github.head_ref }}"
+          BRANCH_COMMIT=$(git rev-parse HEAD)
+          MASTER_COMMIT=$(git rev-parse origin/master)
+
+          FIRST_COMMIT_TIME=$(git log --reverse --format=%ct "$MASTER_COMMIT".."$BRANCH_COMMIT" | head -1)
+          CURRENT_TIME=$(date +%s)
+          AGE_HOURS=$(( (CURRENT_TIME - FIRST_COMMIT_TIME) / 3600 ))
+
+          echo "Branch age: $AGE_HOURS hours"
+
+          if [ "$AGE_HOURS" -gt 24 ]; then
+            echo "Branch is older than 24 hours ($AGE_HOURS hours)"
+            echo "Consider rebasing on latest master for trunk-based development"
+          else
+            echo "Branch age acceptable ($AGE_HOURS hours)"
+          fi
+
+  # ============================================================
+  # BUILD ONCE: Build all images first, reuse for tests and deploy
+  # ============================================================
+
+  build-images:
+    name: Build Images
+    needs: [detect-changes]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tag }}
+      api-tag: ${{ steps.tags.outputs.api }}
+      frontend-tag: ${{ steps.tags.outputs.frontend }}
+      workers-tag: ${{ steps.tags.outputs.workers }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tags
+        id: meta
+        run: |
+          BRANCH_NAME=$(echo "${{ github.head_ref || github.ref_name }}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+          SHA_SHORT=$(git rev-parse --short HEAD)
+          TAG="staging-${BRANCH_NAME}-${SHA_SHORT}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Determine image tags to use
+        id: tags
+        run: |
+          get_latest_tag() {
+            local service=$1
+            local repo="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/$service"
+            # Reuse the global staging--latest tag (pushed by every build)
+            docker pull $repo:staging--latest >/dev/null 2>&1 && echo "staging--latest" || echo "${{ steps.meta.outputs.tag }}"
+          }
+
+          if [ "${{ needs.detect-changes.outputs.api-build-changed }}" = "true" ]; then
+            API_TAG="${{ steps.meta.outputs.tag }}"
+          else
+            API_TAG=$(get_latest_tag "api")
+          fi
+
+          if [ "${{ needs.detect-changes.outputs.frontend-build-changed }}" = "true" ]; then
+            FRONTEND_TAG="${{ steps.meta.outputs.tag }}"
+          else
+            FRONTEND_TAG=$(get_latest_tag "frontend")
+          fi
+
+          if [ "${{ needs.detect-changes.outputs.workers-build-changed }}" = "true" ]; then
+            WORKERS_TAG="${{ steps.meta.outputs.tag }}"
+          else
+            WORKERS_TAG=$(get_latest_tag "workers")
+          fi
+
+          echo "api=$API_TAG" >> $GITHUB_OUTPUT
+          echo "frontend=$FRONTEND_TAG" >> $GITHUB_OUTPUT
+          echo "workers=$WORKERS_TAG" >> $GITHUB_OUTPUT
+          echo "API: $API_TAG, Frontend: $FRONTEND_TAG, Workers: $WORKERS_TAG"
+
+      - name: Prepare build contexts
+        run: |
+          cp -r ./services/shared ./services/api/shared
+          cp -r ./services/shared ./services/workers/shared
+
+      - name: Build and push API image (if changed)
+        if: needs.detect-changes.outputs.api-build-changed == 'true'
+        uses: docker/build-push-action@v7
+        timeout-minutes: 45
+        with:
+          context: ./services/api
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:staging--latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Frontend image (if changed)
+        if: needs.detect-changes.outputs.frontend-build-changed == 'true'
+        uses: docker/build-push-action@v7
+        timeout-minutes: 30
+        with:
+          context: ./services/frontend
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:staging--latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Free disk space for Workers build
+        if: needs.detect-changes.outputs.workers-build-changed == 'true'
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/local/share/chromium || true
+          docker builder prune -af || true
+
+      - name: Build and push workers-base image (if deps changed)
+        if: needs.detect-changes.outputs.workers-base-changed == 'true'
+        uses: docker/build-push-action@v7
+        timeout-minutes: 45
+        with:
+          context: ./services/workers
+          file: ./services/workers/Dockerfile.base
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/workers-base:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/workers-base:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/workers-base:buildcache,mode=max
+
+      - name: Build and push Workers app image (if changed)
+        if: needs.detect-changes.outputs.workers-build-changed == 'true'
+        uses: docker/build-push-action@v7
+        timeout-minutes: 45
+        with:
+          context: ./services/workers
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/workers:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/workers:staging--latest
+          build-args: |
+            WORKERS_BASE_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/workers-base:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================
+  # PARALLEL GATE TESTS: Run against pre-built images
+  # ============================================================
+
+  # Frontend Jest tests (no Docker needed, runs in parallel from the start)
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    needs: [pr-validation, detect-changes]
+    if: |
+      needs.detect-changes.outputs.frontend-changed == 'true' &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-tests')
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: services/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: services/frontend
+        run: npm ci
+
+      - name: Run Jest tests
+        working-directory: services/frontend
+        run: npm test
+
+  # API + Worker + E2E tests (needs pre-built images)
+  # Smoke tests: verify changed services start and respond (full suite runs nightly)
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [build-images, detect-changes]
+    if: |
+      needs.build-images.result == 'success' &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-tests') &&
+      (needs.detect-changes.outputs.api-changed == 'true' || needs.detect-changes.outputs.workers-changed == 'true')
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Pull pre-built images
+        env:
+          REGISTRY: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        run: |
+          API_TAG="${{ needs.build-images.outputs.api-tag }}"
+          WORKERS_TAG="${{ needs.build-images.outputs.workers-tag }}"
+
+          if [ "${{ needs.detect-changes.outputs.api-changed }}" = "true" ]; then
+            docker pull ${REGISTRY}/api:${API_TAG}
+            echo "API_IMAGE=${REGISTRY}/api:${API_TAG}" >> $GITHUB_ENV
+          fi
+          if [ "${{ needs.detect-changes.outputs.workers-changed }}" = "true" ]; then
+            docker pull ${REGISTRY}/workers:${WORKERS_TAG}
+            echo "WORKERS_IMAGE=${REGISTRY}/workers:${WORKERS_TAG}" >> $GITHUB_ENV
+          fi
+
+      - name: Start minimal test infrastructure
+        timeout-minutes: 5
+        working-directory: infra
+        run: |
+          # Start only DB + Redis + changed services (not all 7 containers)
+          SERVICES="test-db test-redis"
+          if [ "${{ needs.detect-changes.outputs.api-changed }}" = "true" ]; then
+            SERVICES="$SERVICES test-api"
+          fi
+          if [ "${{ needs.detect-changes.outputs.workers-changed }}" = "true" ]; then
+            SERVICES="$SERVICES test-worker"
+          fi
+
+          echo "Starting: $SERVICES"
+          docker compose -f docker-compose.test.yml -f docker-compose.test.ci.yml up -d $SERVICES
+
+          echo "Waiting for services..."
+          sleep 10
+          for i in $(seq 1 30); do
+            if docker ps --filter "name=benger-test" --filter "health=healthy" --format "{{.Names}}" 2>/dev/null | grep -q "test-db"; then
+              echo "DB healthy"
+              break
+            fi
+            sleep 3
+          done
+
+      - name: Verify API starts and responds
+        if: needs.detect-changes.outputs.api-changed == 'true'
+        run: |
+          echo "Waiting for API health..."
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:8002/health > /dev/null 2>&1; then
+              echo "API health check passed"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "API failed to start"
+          docker logs benger-test-test-api-1 --tail 30 2>&1 || true
+          exit 1
+
+      - name: Verify Worker starts
+        if: needs.detect-changes.outputs.workers-changed == 'true'
+        run: |
+          echo "Checking worker container..."
+          sleep 10
+          if docker ps --filter "name=test-worker" --filter "status=running" --format "{{.Names}}" | grep -q "worker"; then
+            echo "Worker container running"
+            docker logs benger-test-test-worker-1 --tail 5 2>&1 || true
+          else
+            echo "Worker container not running"
+            docker logs benger-test-test-worker-1 --tail 30 2>&1 || true
+            exit 1
+          fi
+
+      - name: Cleanup
+        if: always()
+        working-directory: infra
+        run: |
+          docker compose -f docker-compose.test.yml -f docker-compose.test.ci.yml down -v --remove-orphans 2>/dev/null || true
+
+  # Summary check for branch protection
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    needs: [smoke-tests, frontend-tests]
+    if: always() && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    steps:
+      - name: Evaluate results
+        run: |
+          echo "Smoke Tests: ${{ needs.smoke-tests.result }}"
+          echo "Frontend Tests: ${{ needs.frontend-tests.result }}"
+
+          if [ "${{ needs.smoke-tests.result }}" = "failure" ] || \
+             [ "${{ needs.frontend-tests.result }}" = "failure" ] || \
+             [ "${{ needs.smoke-tests.result }}" = "cancelled" ] || \
+             [ "${{ needs.frontend-tests.result }}" = "cancelled" ]; then
+            echo "Checks failed or cancelled"
+            exit 1
+          fi
+
+          echo "All checks passed or were appropriately skipped"
+
+  # Deploy to staging K8s namespace (only on PRs after images are built and checks pass/skipped)
+  deploy-to-staging:
+    name: Deploy to Staging
+    runs-on: [self-hosted, deploy]
+    needs: [build-images, smoke-tests, frontend-tests]
+    if: |
+      always() &&
+      github.event_name == 'pull_request' &&
+      needs.build-images.result == 'success' &&
+      (needs.smoke-tests.result == 'success' || needs.smoke-tests.result == 'skipped') &&
+      (needs.frontend-tests.result == 'success' || needs.frontend-tests.result == 'skipped') &&
+      needs.smoke-tests.result != 'failure' && needs.frontend-tests.result != 'failure'
+    timeout-minutes: 30
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Deploy to staging environment
+        timeout-minutes: 30
+        env:
+          GITHUB_TOKEN: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: |
+          echo "Deploying to staging"
+          echo "  API tag: ${{ needs.build-images.outputs.api-tag }}"
+          echo "  Frontend tag: ${{ needs.build-images.outputs.frontend-tag }}"
+          echo "  Workers tag: ${{ needs.build-images.outputs.workers-tag }}"
+
+          cat > /tmp/deploy-staging.sh << 'EOF'
+          #!/bin/bash
+          set -e
+
+          API_TAG="$1"
+          FRONTEND_TAG="$2"
+          WORKERS_TAG="$3"
+
+          echo "Staging Deployment"
+          echo "================================"
+          echo "API Tag: $API_TAG"
+          echo "Frontend Tag: $FRONTEND_TAG"
+          echo "Workers Tag: $WORKERS_TAG"
+
+          kubectl create namespace benger-staging --dry-run=client -o yaml | kubectl apply -f -
+
+          if kubectl get secret benger-staging-postgresql -n benger-staging >/dev/null 2>&1; then
+              POSTGRES_PASSWORD=$(kubectl get secret benger-staging-postgresql -n benger-staging -o jsonpath='{.data.postgres-password}' | base64 -d)
+              echo "Using existing PostgreSQL password from deployment"
+          else
+              POSTGRES_PASSWORD="postgres_password"
+              echo "Using default PostgreSQL password for new deployment"
+          fi
+
+          kubectl delete secret benger-postgres-credentials -n benger-staging --ignore-not-found
+          kubectl create secret generic benger-postgres-credentials \
+              --namespace=benger-staging \
+              --from-literal=uri="postgresql://postgres:${POSTGRES_PASSWORD}@benger-staging-postgresql:5432/benger_staging" \
+              --from-literal=host="benger-staging-postgresql" \
+              --from-literal=port="5432" \
+              --from-literal=database="benger_staging" \
+              --from-literal=username="postgres" \
+              --from-literal=password="${POSTGRES_PASSWORD}"
+
+          if kubectl get secret benger-staging-redis -n benger-staging >/dev/null 2>&1; then
+              REDIS_PASSWORD=$(kubectl get secret benger-staging-redis -n benger-staging -o jsonpath='{.data.redis-password}' | base64 -d)
+              echo "Using existing Redis password"
+          else
+              REDIS_PASSWORD="redis_password"
+              echo "Using default Redis password for new deployment"
+          fi
+
+          kubectl delete secret benger-redis-credentials -n benger-staging --ignore-not-found
+          kubectl create secret generic benger-redis-credentials \
+              --namespace=benger-staging \
+              --from-literal=uri="redis://:${REDIS_PASSWORD}@benger-staging-redis-master:6379/0" \
+              --from-literal=host="benger-staging-redis-master" \
+              --from-literal=port="6379" \
+              --from-literal=password="${REDIS_PASSWORD}"
+
+          if kubectl get secret benger-api-secrets -n benger >/dev/null 2>&1; then
+              kubectl delete secret benger-api-secrets -n benger-staging --ignore-not-found
+              kubectl get secret benger-api-secrets -n benger -o yaml | \
+                  sed 's/namespace: benger/namespace: benger-staging/' | \
+                  kubectl create -f -
+          else
+              kubectl delete secret benger-api-secrets -n benger-staging --ignore-not-found
+              kubectl create secret generic benger-api-secrets \
+                  --namespace=benger-staging \
+                  --from-literal=secret_key="staging-secret-key-not-for-production"
+          fi
+
+          if kubectl get secret benger-llm-credentials -n benger >/dev/null 2>&1; then
+              kubectl delete secret benger-llm-credentials -n benger-staging --ignore-not-found
+              kubectl get secret benger-llm-credentials -n benger -o yaml | \
+                  sed 's/namespace: benger/namespace: benger-staging/' | \
+                  kubectl create -f -
+          else
+              kubectl delete secret benger-llm-credentials -n benger-staging --ignore-not-found
+              kubectl create secret generic benger-llm-credentials \
+                  --namespace=benger-staging \
+                  --from-literal=openai_api_key="staging-openai-key" \
+                  --from-literal=anthropic_api_key="staging-anthropic-key"
+          fi
+
+          kubectl delete secret ghcr-secret -n benger-staging --ignore-not-found
+          if [ -n "${GITHUB_TOKEN}" ]; then
+              kubectl create secret docker-registry ghcr-secret \
+                  --namespace=benger-staging \
+                  --docker-server=ghcr.io \
+                  --docker-username=${GITHUB_ACTOR} \
+                  --docker-password=${GITHUB_TOKEN}
+          fi
+
+          cd ./infra/helm/benger
+          helm dependency update
+          cd -
+
+          HELM_STATUS=$(helm status benger-staging -n benger-staging -o json 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin)['info']['status'])" 2>/dev/null || echo "not-found")
+          echo "Current Helm release status: $HELM_STATUS"
+          if [[ "$HELM_STATUS" == "pending-"* ]]; then
+              echo "Found stuck release in $HELM_STATUS state, rolling back..."
+              LAST_GOOD=$(helm history benger-staging -n benger-staging --max 10 -o json | python3 -c "import json,sys; revs=[r for r in json.load(sys.stdin) if r['status']=='deployed']; print(revs[-1]['revision'] if revs else '')" 2>/dev/null)
+              if [ -n "$LAST_GOOD" ]; then
+                  helm rollback benger-staging "$LAST_GOOD" -n benger-staging
+                  echo "Rolled back to revision $LAST_GOOD"
+              else
+                  echo "No deployed revision found, uninstalling..."
+                  helm uninstall benger-staging -n benger-staging || true
+              fi
+          fi
+
+          helm upgrade --install benger-staging ./infra/helm/benger \
+              --namespace benger-staging \
+              --values ./infra/helm/benger/values-staging.yaml \
+              --set api.image.tag=${API_TAG} \
+              --set frontend.image.tag=${FRONTEND_TAG} \
+              --set workers.image.tag=${WORKERS_TAG} \
+              --set global.imagePullSecrets[0].name=ghcr-secret \
+              --wait --timeout=1200s
+
+          echo "Staging deployment complete!"
+          kubectl get pods -n benger-staging
+          EOF
+
+          chmod +x /tmp/deploy-staging.sh
+
+          /tmp/deploy-staging.sh \
+              "${{ needs.build-images.outputs.api-tag }}" \
+              "${{ needs.build-images.outputs.frontend-tag }}" \
+              "${{ needs.build-images.outputs.workers-tag }}"
+
+      - name: Quick health check
+        timeout-minutes: 5
+        run: |
+          echo "Waiting for all staging pods to be ready..."
+          for i in $(seq 1 24); do
+            NOT_READY=$(kubectl get pods -n benger-staging --no-headers 2>/dev/null | grep -v "Running" | grep -v "Completed" | wc -l)
+            if [ "$NOT_READY" -eq 0 ]; then
+              echo "All pods ready!"
+              break
+            fi
+            echo "  Attempt $i/24: $NOT_READY pod(s) not ready..."
+            sleep 10
+          done
+
+          kubectl get pods -n benger-staging
+
+          echo ""
+          echo "Staging URLs:"
+          echo "  Frontend: https://staging.what-a-benger.net"
+          echo "  API: https://api.staging.what-a-benger.net"
+
+      - name: Generate staging deployment report
+        if: always()
+        timeout-minutes: 3
+        run: |
+          echo "Staging Deployment Report"
+          echo "============================"
+          echo "Image Tag: ${{ needs.build-images.outputs.image-tag }}"
+          echo "API Tag: ${{ needs.build-images.outputs.api-tag }}"
+          echo "Frontend Tag: ${{ needs.build-images.outputs.frontend-tag }}"
+          echo "Workers Tag: ${{ needs.build-images.outputs.workers-tag }}"
+          echo "Deployment Time: $(date)"
+          echo "PR: ${{ github.event.number }}"
+          echo "Branch: ${{ github.head_ref }}"
+          echo ""
+          echo "Staging URLs:"
+          echo "  Frontend: https://staging.what-a-benger.net"
+          echo "  API: https://api.staging.what-a-benger.net"
+          echo ""
+          echo "Pod Status:"
+          kubectl get pods -n benger-staging -o wide || echo "Could not get pod status"
+          echo ""
+          echo "Recent Events:"
+          kubectl get events -n benger-staging --sort-by='.lastTimestamp' | tail -5 || echo "Could not get events"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f /tmp/deploy-staging.sh || true
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const imageTag = '${{ needs.build-images.outputs.image-tag }}';
+            const apiTag = '${{ needs.build-images.outputs.api-tag }}';
+            const frontendTag = '${{ needs.build-images.outputs.frontend-tag }}';
+            const workersTag = '${{ needs.build-images.outputs.workers-tag }}';
+            const prNumber = context.issue.number;
+
+            const comment = `## Staging Deployment Complete
+
+            **Image Tags:**
+            - API: \`${apiTag}\`
+            - Frontend: \`${frontendTag}\`
+            - Workers: \`${workersTag}\`
+
+            **Environment:** https://staging.what-a-benger.net
+            **API:** https://api.staging.what-a-benger.net
+
+            **Changes Deployed:**
+            - API: ${{ needs.detect-changes.outputs.api-build-changed == 'true' && 'Rebuilt' || 'Reused existing image' }}
+            - Frontend: ${{ needs.detect-changes.outputs.frontend-build-changed == 'true' && 'Rebuilt' || 'Reused existing image' }}
+            - Workers: ${{ needs.detect-changes.outputs.workers-build-changed == 'true' && 'Rebuilt' || 'Reused existing image' }}
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # ============================================================
+  # MASTER JOBS: quick check → promote (PR merge) or build (hotfix/force) → deploy to prod
+  # ============================================================
+
+  # Quick safety checks + classify push type (PR merge vs hotfix)
+  quick-safety-check:
+    name: Quick Safety Check
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    timeout-minutes: 5
+    outputs:
+      is-pr-merge: ${{ steps.classify.outputs.is_pr_merge }}
+      ci-only: ${{ steps.classify.outputs.ci_only }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Critical syntax checks
+        run: |
+          echo "Running critical safety checks..."
+
+          if find services/api services/workers -name "*.py" -exec python3 -m py_compile {} + 2>&1 | grep -E "SyntaxError|IndentationError"; then
+            echo "Python syntax errors found!"
+            exit 1
+          fi
+
+          echo "Basic safety checks passed"
+
+      - name: Check for secrets
+        if: github.event_name == 'push'
+        run: |
+          echo "Checking for exposed secrets..."
+
+          if git diff HEAD~1..HEAD | grep -E "(api_key|secret|password|token)\s*=\s*['\"][^'\"]+['\"]" | grep -v -E "(test|example|placeholder)"; then
+            echo "Potential secrets detected - please review"
+          fi
+
+          echo "Secret scan completed"
+
+      - name: Classify push type
+        id: classify
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Check if only CI/infra config files changed (no deploy needed)
+          CI_ONLY="false"
+          if [ "${{ github.event_name }}" == "push" ]; then
+            CHANGED_FILES=$(git diff --name-only HEAD~1..HEAD)
+            if echo "$CHANGED_FILES" | grep -qvE '^(\.github/|Makefile$|\.gitignore$|CLAUDE\.md$|docs/)'; then
+              CI_ONLY="false"
+            else
+              CI_ONLY="true"
+              echo "CI/config-only change detected -- skipping build and deploy"
+            fi
+          fi
+          echo "ci_only=$CI_ONLY" >> $GITHUB_OUTPUT
+
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ github.event.inputs.force_deploy }}" == "true" ]; then
+              echo "is_pr_merge=false" >> $GITHUB_OUTPUT
+              echo "Manual dispatch with force_deploy -- will build fresh images"
+            else
+              echo "is_pr_merge=true" >> $GITHUB_OUTPUT
+              echo "Manual dispatch -- will promote staging images"
+            fi
+          else
+            PR_NUMBER=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }}/pulls \
+              --jq '.[0].number // empty' 2>/dev/null || echo "")
+            if [ -n "$PR_NUMBER" ]; then
+              echo "is_pr_merge=true" >> $GITHUB_OUTPUT
+              echo "PR #${PR_NUMBER} merge detected -- will promote staging images"
+            else
+              echo "is_pr_merge=false" >> $GITHUB_OUTPUT
+              echo "Direct push detected (hotfix) -- will build fresh images"
+            fi
+          fi
+
+  # Promote staging images to production (PR merges only)
+  # Uses crane to retag staging--latest → prod tag (no rebuild, <10s)
+  promote-images:
+    name: Promote Staging Images to Production
+    runs-on: ubuntu-latest
+    needs: [quick-safety-check]
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/master' &&
+       needs.quick-safety-check.outputs.is-pr-merge == 'true') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.force_deploy != 'true')
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - name: Generate deployment tag
+        id: meta
+        run: |
+          echo "tag=v$(date +%Y%m%d)-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: Set up crane
+        uses: imjasonh/setup-crane@v0.5
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GHCR_TOKEN }}" | crane auth login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      - name: Resolve staging digests and promote
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          REGISTRY="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
+          for SERVICE in api frontend workers; do
+            # Resolve staging--latest to immutable digest FIRST (prevents race condition)
+            DIGEST=$(crane digest ${REGISTRY}/${SERVICE}:staging--latest 2>/dev/null || echo "")
+            if [ -z "$DIGEST" ]; then
+              echo "ERROR: ${SERVICE}:staging--latest not found in registry"
+              echo "Run workflow_dispatch with force_deploy=true to build from scratch"
+              exit 1
+            fi
+            echo "${SERVICE}:staging--latest -> ${DIGEST}"
+
+            # Promote by digest (immutable, race-safe)
+            crane tag ${REGISTRY}/${SERVICE}@${DIGEST} ${TAG}
+            crane tag ${REGISTRY}/${SERVICE}@${DIGEST} latest
+            echo "Promoted ${SERVICE} to :${TAG} and :latest"
+          done
+
+  # Build production images (hotfixes + force deploys only)
+  # Selective: only rebuilds services with actual changes, retags unchanged ones
+  build-prod-images:
+    name: Build Production Images
+    runs-on: ubuntu-latest
+    needs: [quick-safety-check]
+    if: |
+      needs.quick-safety-check.outputs.ci-only != 'true' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/master' &&
+        needs.quick-safety-check.outputs.is-pr-merge == 'false') ||
+       (github.event_name == 'workflow_dispatch' && github.event.inputs.force_deploy == 'true'))
+    timeout-minutes: 45
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Need full history to diff against previous master HEAD
+
+      - name: Detect changed services
+        id: changes
+        run: |
+          # force_deploy rebuilds everything
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "api=true" >> $GITHUB_OUTPUT
+            echo "frontend=true" >> $GITHUB_OUTPUT
+            echo "workers=true" >> $GITHUB_OUTPUT
+            echo "Force deploy: rebuilding all services"
+            exit 0
+          fi
+
+          # Use github.event.before (previous master HEAD) for accurate change detection.
+          # HEAD~1 is wrong for merge commits: it diffs against the first parent,
+          # missing changes from the merged branch entirely.
+          BEFORE_SHA="${{ github.event.before }}"
+          if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            CHANGED_FILES=$(git diff --name-only ${BEFORE_SHA}..HEAD)
+          else
+            # Fallback for edge cases (initial push, manual dispatch)
+            CHANGED_FILES=$(git diff --name-only HEAD~1..HEAD)
+          fi
+
+          check_build_changes() {
+            local dir=$1
+            local shared_check=$2
+
+            if echo "$CHANGED_FILES" | grep "^$dir/" | \
+               grep -vE '(/tests/|/__tests__/|\.test\.|\.spec\.|pytest\.ini$|jest\.config\.)' | \
+               grep -q .; then
+              echo "true"
+              return
+            fi
+
+            if [ "$shared_check" = "true" ]; then
+              if echo "$CHANGED_FILES" | grep -q "^services/shared/"; then
+                echo "true"
+                return
+              fi
+            fi
+
+            echo "false"
+          }
+
+          API_CHANGED=$(check_build_changes "services/api" "true")
+          FRONTEND_CHANGED=$(check_build_changes "services/frontend" "false")
+          WORKERS_CHANGED=$(check_build_changes "services/workers" "true")
+
+          echo "api=$API_CHANGED" >> $GITHUB_OUTPUT
+          echo "frontend=$FRONTEND_CHANGED" >> $GITHUB_OUTPUT
+          echo "workers=$WORKERS_CHANGED" >> $GITHUB_OUTPUT
+
+          echo "Hotfix Change Detection:"
+          echo "  API:      $API_CHANGED"
+          echo "  Frontend: $FRONTEND_CHANGED"
+          echo "  Workers:  $WORKERS_CHANGED"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Generate deployment tag
+        id: meta
+        run: |
+          echo "tag=v$(date +%Y%m%d)-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: Prepare build contexts
+        run: |
+          cp -r ./services/shared ./services/api/shared
+          cp -r ./services/shared ./services/workers/shared
+
+      - name: Build and push API
+        if: steps.changes.outputs.api == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: services/api
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Frontend
+        if: steps.changes.outputs.frontend == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: services/frontend
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Free disk space for Workers build
+        if: steps.changes.outputs.workers == 'true'
+        run: |
+          echo "Freeing disk for Workers PyTorch build..."
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/local/share/chromium || true
+          docker builder prune -af || true
+          df -h /
+
+      - name: Build and push Workers
+        if: steps.changes.outputs.workers == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: services/workers
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/workers:${{ steps.meta.outputs.tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/workers:latest
+          cache-from: type=gha
+          # No cache-to: Workers image has PyTorch (~4.5GB) which exceeds
+          # GHA cache limits and causes timeouts during cache export
+
+      # Retag unchanged services: deploy expects all three images at the new tag
+      - name: Set up crane
+        uses: imjasonh/setup-crane@v0.5
+
+      - name: Retag unchanged services
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          REGISTRY="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
+          retag_if_unchanged() {
+            local service=$1
+            local changed=$2
+            if [ "$changed" != "true" ]; then
+              echo "Retagging ${service}:latest -> :${TAG} (unchanged)"
+              crane tag ${REGISTRY}/${service}:latest ${TAG}
+            fi
+          }
+
+          retag_if_unchanged "api" "${{ steps.changes.outputs.api }}"
+          retag_if_unchanged "frontend" "${{ steps.changes.outputs.frontend }}"
+          retag_if_unchanged "workers" "${{ steps.changes.outputs.workers }}"
+
+  # Deploy to production via Helm (same approach as staging)
+  # Migrations run automatically via Helm pre-upgrade hook (job-migrations.yaml)
+  deploy-to-prod:
+    name: Deploy to Production
+    runs-on: [self-hosted, deploy]
+    needs: [promote-images, build-prod-images]
+    if: |
+      !cancelled() &&
+      github.ref == 'refs/heads/master' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      (needs.promote-images.result == 'success' || needs.build-prod-images.result == 'success')
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Resolve image tag
+        id: resolve
+        run: |
+          PROMOTE_TAG="${{ needs.promote-images.outputs.tag }}"
+          BUILD_TAG="${{ needs.build-prod-images.outputs.tag }}"
+          TAG="${PROMOTE_TAG:-$BUILD_TAG}"
+          if [ -z "$TAG" ]; then
+            echo "No tag from either promote or build job"
+            exit 1
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Using image tag: $TAG"
+
+      - name: Deploy to Kubernetes
+        timeout-minutes: 15
+        run: |
+          TAG="${{ steps.resolve.outputs.tag }}"
+          echo "Deploying to production with tag: $TAG"
+
+          cd ./infra/helm/benger
+          helm dependency update
+          cd -
+
+          # Handle stuck releases (same pattern as staging)
+          HELM_STATUS=$(helm status benger -n benger -o json 2>/dev/null | \
+            python3 -c "import json,sys; print(json.load(sys.stdin)['info']['status'])" 2>/dev/null || echo "not-found")
+          echo "Current Helm release status: $HELM_STATUS"
+          if [[ "$HELM_STATUS" == "pending-"* ]]; then
+            echo "Found stuck release in $HELM_STATUS state, rolling back..."
+            LAST_GOOD=$(helm history benger -n benger --max 10 -o json | \
+              python3 -c "import json,sys; revs=[r for r in json.load(sys.stdin) if r['status']=='deployed']; print(revs[-1]['revision'] if revs else '')" 2>/dev/null)
+            if [ -n "$LAST_GOOD" ]; then
+              helm rollback benger "$LAST_GOOD" -n benger
+              echo "Rolled back to revision $LAST_GOOD"
+            else
+              echo "No deployed revision found"
+              exit 1
+            fi
+          fi
+
+          helm upgrade --install benger ./infra/helm/benger \
+            --namespace benger \
+            --values ./infra/helm/benger/values-production.yaml \
+            --set api.image.tag=${TAG} \
+            --set frontend.image.tag=${TAG} \
+            --set workers.image.tag=${TAG} \
+            --set global.imagePullSecrets[0].name=ghcr-secret \
+            --reset-values \
+            --atomic --timeout=1200s
+
+          echo "Deployment completed"
+          kubectl get pods -n benger
+
+      - name: Health validation
+        timeout-minutes: 10
+        run: |
+          echo "Validating deployment health..."
+
+          for i in {1..12}; do
+            if curl -f -s --max-time 5 "https://what-a-benger.net/api/health" > /dev/null; then
+              echo "API health check passed"
+              break
+            fi
+            echo "Waiting for API... ($i/12)"
+            sleep 5
+          done
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://what-a-benger.net/api/feature-flags")
+          if [ "$HTTP_STATUS" = "401" ]; then
+            echo "Feature flags endpoint working (returns 401 for unauthenticated)"
+          else
+            echo "Feature flags endpoint returned $HTTP_STATUS"
+          fi
+
+          echo "Health validation completed"
+
+  # Post-deployment verification
+  post-deployment:
+    name: Post-Deployment Verification
+    needs: [deploy-to-prod]
+    runs-on: [self-hosted, deploy]
+    if: always() && needs.deploy-to-prod.result == 'success'
+    timeout-minutes: 10
+    steps:
+      - name: Verify feature flag system
+        run: |
+          echo "Verifying feature flag system..."
+
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "https://what-a-benger.net/api/feature-flags" \
+            -H "Content-Type: application/json" \
+            -d '{"name": "TEST_FLAG", "description": "Test"}')
+
+          if [ "$STATUS" = "401" ] || [ "$STATUS" = "403" ]; then
+            echo "Feature flag API properly secured"
+          else
+            echo "Feature flag API returned unexpected status: $STATUS"
+          fi
+
+      - name: Monitor deployment impact
+        run: |
+          echo "Monitoring deployment impact..."
+
+          FAILING_PODS=$(kubectl get pods -n benger --field-selector=status.phase=Failed --no-headers | wc -l)
+          if [ "$FAILING_PODS" -gt 0 ]; then
+            echo "$FAILING_PODS pods in failed state"
+            kubectl get pods -n benger --field-selector=status.phase=Failed
+          else
+            echo "No failed pods detected"
+          fi
+
+          echo "Current resource usage:"
+          kubectl top pods -n benger || echo "Metrics not available"
+
+      - name: Success notification
+        if: success()
+        run: |
+          echo "Deployment completed successfully!"
+          echo "Frontend: https://what-a-benger.net"
+          echo "API: https://api.what-a-benger.net"
+          echo "Feature Flags: https://what-a-benger.net/admin/feature-flags"
+
+

@@ -1,0 +1,10 @@
+[bandit]
+# Exclude test directories from security scanning
+exclude_dirs = tests,test_env,.venv,venv,__pycache__,alembic,htmlcov
+# Skip common false positives in development and test environments
+# B101: assert_used (normal in tests)
+# B105,B106: hardcoded passwords (false positives in tests/configs)
+# B110: try_except_pass (acceptable in some contexts)
+# B311: random (acceptable for test data generation)
+# B113: requests_without_timeout (acceptable in tests)
+skips = B101,B105,B106,B110,B311,B113 

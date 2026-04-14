@@ -1,0 +1,119 @@
+# Development overrides for docker-compose.yml
+# Use: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+name: benger
+version: '3.8'
+
+services:
+  # API Development Configuration - Hot Reload with Optimizations
+  api:
+    command: [
+      "uvicorn", "main:app",
+      "--host", "0.0.0.0",
+      "--port", "8000",
+      "--reload",
+      "--reload-include", "*.py",
+      "--reload-exclude", "tests/*",
+      "--reload-exclude", "alembic/*",
+      "--reload-exclude", "scripts/*",
+      "--reload-exclude", "htmlcov/*",
+      "--reload-exclude", "templates/*",
+      "--reload-exclude", "localization/*",
+      "--reload-exclude", "init_complete.py",
+      "--reload-exclude", "*.pyc",
+      "--reload-exclude", "__pycache__",
+      "--reload-exclude", ".pytest_cache",
+      "--reload-exclude", ".coverage",
+      "--reload-exclude", "coverage.*",
+      "--reload-exclude", "test.db",
+      "--reload-delay", "3",
+      "--timeout-graceful-shutdown", "3"
+    ]
+    volumes:
+      # Override to read-write for development hot reload
+      - ../services/api:/app:rw
+    environment:
+      # Development specific settings
+      LOG_LEVEL: DEBUG
+      ENVIRONMENT: development
+      PYTHONUNBUFFERED: 1
+      PYTHONDONTWRITEBYTECODE: 1  # Prevent .pyc files from triggering reloads
+      
+  # Frontend Development Configuration  
+  frontend-dev:
+    build:
+      context: ../services/frontend
+      dockerfile: Dockerfile.dev
+    hostname: frontend-dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"  # Direct access for development
+    env_file:
+      - ../services/frontend/.env.local
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_NODE_ENV: development
+      NEXT_PUBLIC_DISABLE_AUTO_LOGIN: ${DISABLE_AUTO_LOGIN:-false}
+      # Don't set NEXT_PUBLIC_API_URL - let it use the proxy at /api
+      WATCHPACK_POLLING: true  # Better file watching in Docker
+      WATCHPACK_POLLING_INTERVAL: 2000  # Poll every 2s to reduce load
+      CHOKIDAR_INTERVAL: 2000  # Reduce file watching frequency
+      CHOKIDAR_USEPOLLING: true
+      # Disable React Strict Mode in development to prevent double renders
+      NEXT_PUBLIC_REACT_STRICT_MODE: false
+      # Optimize Next.js compilation
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_BUILD_OUTPUT_TRACE: false
+    volumes:
+      - ../services/frontend:/app:rw
+      - /app/node_modules  # Anonymous volume for node_modules
+      - /app/.next  # Anonymous volume for Next.js cache
+      # Note: Cannot exclude individual files with Docker volumes
+    networks:
+      - benger-network
+    labels:
+      - "traefik.enable=true"
+      
+      # Main frontend route with wildcard subdomain support
+      - "traefik.http.routers.frontend-dev.rule=Host(`benger.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$$`)"
+      - "traefik.http.routers.frontend-dev.entrypoints=web"
+      - "traefik.http.routers.frontend-dev.priority=200"
+      - "traefik.http.routers.frontend-dev.service=frontend-dev"
+
+      # Critical: SSE route with highest priority to override backend API routes
+      - "traefik.http.routers.frontend-dev-sse.rule=(Host(`benger.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$$`)) && PathPrefix(`/api/notifications/stream`)"
+      - "traefik.http.routers.frontend-dev-sse.entrypoints=web"
+      - "traefik.http.routers.frontend-dev-sse.priority=300"
+      - "traefik.http.routers.frontend-dev-sse.service=frontend-dev"
+      
+      # Service definition
+      - "traefik.http.services.frontend-dev.loadbalancer.server.port=3000"
+      - "traefik.http.services.frontend-dev.loadbalancer.healthcheck.path=/api/health"
+      - "traefik.http.services.frontend-dev.loadbalancer.healthcheck.interval=30s"
+      - "traefik.http.services.frontend-dev.loadbalancer.healthcheck.timeout=10s"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 1G
+
+  # Worker Development Configuration - Volume mount for source code
+  worker:
+    volumes:
+      - ../services/workers:/app:rw
+      - ../services/shared:/shared:rw
+    environment:
+      LOG_LEVEL: DEBUG
+      ENVIRONMENT: development
+
+  # Disable production frontend in development to avoid conflicts
+  frontend:
+    deploy:
+      replicas: 0

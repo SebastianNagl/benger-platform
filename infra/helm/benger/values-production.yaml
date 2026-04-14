@@ -1,0 +1,11 @@
+# Production overrides for BenGER
+# Use this file with: helm upgrade --install benger ./benger -f values-production.yaml
+#
+# PostgreSQL and Redis are managed as standalone Helm releases,
+# not as subcharts of the main BenGER chart.
+postgresql:
+  enabled: false
+
+redis:
+  enabled: false
+

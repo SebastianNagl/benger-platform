@@ -1,0 +1,11 @@
+This is a plain text file for testing file upload functionality.
+It contains multiple lines of text that should be imported as separate tasks.
+
+Line 1: Was ist ein Vertrag nach deutschem Recht?
+Line 2: Wie lange ist die Kündigungsfrist bei einem Mietvertrag?
+Line 3: Was bedeutet das Prinzip der Gewaltenteilung?
+Line 4: Wann tritt ein Testament in Kraft?
+Line 5: Was ist der Unterschied zwischen Vorsatz und Fahrlässigkeit?
+
+This file tests the system's ability to handle plain text imports
+where each line becomes a separate task in the annotation system.

@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+title: "BenGER: A Benchmark for German Legal NLP"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - alias: psch0rr95
+license: Apache-2.0
+repository-code: "https://github.com/psch0rr95/benger"
+keywords:
+  - benchmarking
+  - legal-nlp
+  - german
+  - large-language-models
+  - evaluation

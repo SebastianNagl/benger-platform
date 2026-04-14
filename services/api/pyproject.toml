@@ -1,0 +1,129 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "benger-api"
+version = "0.1.0"
+description = "BenGER API Gateway"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.135.1",
+    "uvicorn[standard]==0.41.0",
+    "pydantic==2.12.5",
+    "python-multipart==0.0.22",
+    "PyJWT[crypto]==2.11.0",
+    "cryptography>=43.0.0",
+    "bcrypt==4.3.0",
+    "python-dotenv==1.2.2",
+    "httpx==0.28.1",
+    "celery==5.6.2",
+    "redis==5.3.1",
+    "sqlalchemy==2.0.48",
+    "psycopg2-binary==2.9.11",
+    "alembic==1.18.4",
+    "email-validator==2.3.0",
+    # starlette version is managed by fastapi
+    "anyio==4.12.1",
+    "openai==1.109.1",
+    "anthropic==0.84.0",
+    "google-genai>=1.0.0",
+    "aiohttp==3.13.3",
+    "python-jose[cryptography]==3.5.0",
+    "jinja2==3.1.6",
+    "python-dateutil==2.9.0.post0",
+    "pytz>=2023.3",
+    "jsonschema==4.26.0",
+    # Statistical computing for confidence intervals and significance testing
+    "numpy>=1.24.0",
+    "scipy>=1.11.0",
+    # SSE for real-time streaming
+    "sse-starlette==2.4.1"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.21.1",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.0.0"
+]
+test = [
+    "pytest>=7.4.3",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.1",
+    "pytest-mock>=3.12.0",
+    "pytest-xdist>=3.5.0",
+    "pytest-html>=4.1.1",
+    "pytest-benchmark>=4.0.0",
+    "requests-mock>=1.11.0",
+    "factory-boy>=3.3.0",
+    "responses>=0.24.1",
+    "freezegun>=1.2.2",
+    "coverage[toml]>=7.3.2"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[tool.black]
+target-version = ["py311"]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+# Production-ready but pragmatic settings
+disallow_untyped_defs = false  # Too many functions to fix at once
+disallow_incomplete_defs = false  # Allow gradual typing
+check_untyped_defs = false
+warn_redundant_casts = false
+warn_unused_ignores = false
+ignore_missing_imports = true
+strict_optional = false  # Avoid Optional[Any] issues
+no_implicit_optional = false  # Allow implicit Optional
+# Still catch important errors
+warn_unreachable = true
+warn_no_return = true
+# SQLAlchemy plugin not available in this environment
+# Exclude problematic files from checking entirely
+exclude = [
+    "alembic/",
+    "migration_utils.py", 
+    "add_sample_data.py",
+    "init_db.py",
+    "models.py",  # Skip models due to SQLAlchemy complexity
+    "database.py"  # Skip database due to dynamic setattr usage
+]
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    ".venv/*",
+    "venv/*",
+    "__pycache__/*",
+    "*/migrations/*",
+    "alembic/*",
+    "*/test_*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:"
+]
+show_missing = true
+skip_covered = true 

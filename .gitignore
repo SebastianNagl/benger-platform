@@ -1,0 +1,258 @@
+# macOS
+.DS_Store
+
+# Environment files
+.env
+.env.development
+.env.local
+.env.production
+.env.*
+!.env.ci
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv/
+venv/
+env/
+# Python lib directories in virtual environments
+**/venv/lib/
+**/env/lib/
+**/.venv/lib/
+
+# Testing and Coverage
+.coverage
+coverage.xml
+htmlcov/
+test-reports/
+.pytest_cache/
+.benchmarks/
+*.cover
+.hypothesis/
+
+# Additional test artifacts
+bandit-report.json
+safety-report.json
+bandit-results.json
+test-results/
+playwright-report/
+test_artifacts/
+
+# Test files from development
+cookies*.txt
+headers*.txt
+jar.txt
+*_export.json
+*_roundtrip_test_export.json
+
+# MyPy cache
+.mypy_cache/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+.next/
+out/
+
+# TypeScript
+*.tsbuildinfo
+
+# Jest cache
+.jest-cache/
+
+# Helm
+charts/*.tgz
+
+# Data and Archives (only root-level directories)
+/data/
+/archive/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+
+# Logs and debug output
+logs/
+*.log
+
+# Test output and debug files
+*-debug.txt
+*-test.txt
+test-output*.txt
+*-output*.txt
+debug-*.txt
+*-debug-*.txt
+permission-*.txt
+final-*.txt
+targeted-*.txt
+role-scenarios-*.txt
+single-test-*.txt
+
+# Docker
+.dockerignore
+
+# Kubernetes
+kubeconfig.yaml
+
+# Database files (local development)
+*.db
+*.sqlite
+*.sqlite3
+
+# Additional cleanup patterns
+*.tmp
+*.temp
+.pytest_cache/
+.coverage
+coverage.xml
+
+# Excluding testing data and paper folder for now (only root-level)
+/data/
+/reports/
+/archiv/
+/docs/examples/
+
+# Production security files
+ssl_certificates/
+private_keys/
+*.pem
+*.key
+*.crt
+*.csr
+
+# Backup and temporary files
+*.backup
+*.bak
+*.swp
+*.swo
+*~
+
+# Production configuration that might contain secrets
+docker-compose.prod.yml
+docker-compose.production.yml
+k8s-secrets.yaml
+secrets.yaml
+
+# Local uploads and user data
+uploads/
+user_data/
+temp_uploads/
+
+# Temporary fix/cleanup scripts
+fix_*.py
+!scripts/fix_migration_chain.py  # Keep this migration fix tool
+# Don't ignore migration cleanup files!
+*_cleanup.py
+!services/api/alembic/versions/*_cleanup.py
+targeted_fix.py
+
+# Test data and JSON files in root
+# Ignore all .json files by default, then unignore specific ones
+*.json
+
+# Unignore essential frontend configuration files
+!services/frontend/package.json
+!services/frontend/package-lock.json
+!services/frontend/tsconfig.json
+
+# Unignore frontend translation files
+!services/frontend/src/locales/de/common.json
+!services/frontend/src/locales/en/common.json
+
+# Unignore root-level JSON files that are meant to be tracked
+!package.json
+!package-lock.json
+!tsconfig.json
+!.eslintrc.json
+
+# Analysis and report files in root (should go in docs/archive/)
+*_analysis_*.json
+*_analysis_*.md
+comprehensive_*.py
+comprehensive_*.md
+issue*_*.md
+*_completion_report.md
+*_closure_summary.md
+
+# Auth and debug scripts in root (should go in scripts/debug/)
+auth_helper.py
+get_auth_token.py
+test_api_authentication.py
+*_debug.py
+*_heal.py
+debug_*.py
+clear-auth-state.html
+
+# Operational scripts in root (should go in scripts/)
+run_existing_evaluation.py
+import_*_task.py
+*_evaluation_run.py
+
+# Investigation documents in root (should go in docs/archive/)
+*_INVESTIGATION.md
+*_SETUP.md
+
+# Test scripts in root
+test_*.py
+!services/*/tests/test_*.py
+!services/**/tests/test_*.py
+!services/**/tests/**/test_*.py
+!services/api/routers/test_seeding.py
+
+# Virtual environments
+test_env/
+**/test_env/
+
+# Test HTML files
+test_*.html
+
+# Migration and debug scripts
+*_migrate.py
+!services/*/migrations/.benger_token
+
+# Academic records and publications
+/reports/
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+
+# Coverage baseline
+services/frontend/coverage-baseline.txt
+
+# macOS plist
+*.plist
+
+# Security scan reports (may contain local environment secrets)
+docs/security-reports/

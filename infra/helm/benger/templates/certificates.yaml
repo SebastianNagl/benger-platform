@@ -1,0 +1,31 @@
+{{- if eq .Values.global.environment "production" }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: benger-wildcard-tls
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: benger-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - "what-a-benger.net"
+  - "*.what-a-benger.net"
+{{- end }}
+---
+{{- if eq .Values.global.environment "staging" }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: benger-staging-wildcard-tls
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: benger-staging-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - "staging.what-a-benger.net"
+  - "*.staging.what-a-benger.net"
+{{- end }}

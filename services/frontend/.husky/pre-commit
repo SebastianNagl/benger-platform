@@ -1,0 +1,14 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Check for Vitest usage before committing
+echo "🔍 Checking for Vitest usage..."
+npm run enforce-jest --quiet
+
+if [ $? -ne 0 ]; then
+  echo "❌ Vitest usage detected! Please use Jest instead."
+  echo "   Run 'npm run enforce-jest:fix' to automatically fix these issues."
+  exit 1
+fi
+
+echo "✅ No Vitest usage found - proceeding with commit"

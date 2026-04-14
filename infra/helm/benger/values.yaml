@@ -1,0 +1,362 @@
+global:
+  environment: production
+  # Use specific image tags for production deployments (e.g., commit hash or semantic version)
+  # imageTag: "v1.2.3" # Override this value during deployment
+  imagePullSecrets:
+    - name: ghcr-secret
+  domain: what-a-benger.net
+  tlsSecretName: benger-tls
+
+api:
+  name: api
+  replicaCount: 1
+  workers: 1  # uvicorn workers (keep at 1 — multiple workers hang on startup)
+  deploymentStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  image:
+    repository: ghcr.io/sebastiannagl/benger/api
+    pullPolicy: IfNotPresent
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 8000
+  ingress:
+    enabled: true
+    annotations:
+      traefik.ingress.kubernetes.io/router.priority: "200"
+      # cert-manager annotation removed: using wildcard Certificate resource
+      # in templates/certificates.yaml — no need for per-ingress cert provisioning
+    hosts:
+      - host: api.what-a-benger.net
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: benger-tls
+        hosts:
+          - api.what-a-benger.net
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1536Mi
+    requests:
+      cpu: 200m
+      memory: 768Mi
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 80
+  env:
+    - name: ENVIRONMENT
+      value: "production"  # IMPORTANT: Must be 'production' for proper authentication
+    - name: FRONTEND_URL
+      value: "https://{{ .Values.global.domain }}"
+    - name: DATABASE_URI
+      valueFrom:
+        secretKeyRef:
+          name: benger-postgres-credentials
+          key: uri
+    - name: REDIS_URI
+      valueFrom:
+        secretKeyRef:
+          name: benger-redis-credentials
+          key: uri
+    - name: SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: secret_key
+    # Schema validation mode for API (can be overridden for staging)
+    - name: SCHEMA_VALIDATION_MODE
+      value: "strict"
+    # SendGrid configuration for production
+    - name: SENDGRID_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: SENDGRID_API_KEY
+          optional: true
+    - name: EMAIL_FROM_ADDRESS
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_FROM_ADDRESS
+          optional: true
+    - name: EMAIL_FROM_NAME
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_FROM_NAME
+          optional: true
+    - name: EMAIL_ENABLED
+      value: "true"
+    # Mail server configuration (Stalwart) - backup
+    - name: MAIL_ENABLED
+      value: "true"
+    - name: MAIL_SMTP_HOST
+      value: "mail"
+    - name: MAIL_SMTP_PORT
+      value: "25"
+    - name: MAIL_FROM_EMAIL
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_FROM_ADDRESS
+          optional: true
+    - name: MAIL_FROM_NAME
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_FROM_NAME
+          optional: true
+    - name: COOKIE_DOMAIN
+      value: ".what-a-benger.net"
+
+workers:
+  name: workers
+  replicaCount: 1
+  concurrency: 8  # Increased for 100-user event: each Falllösung eval is I/O-bound on LLM API
+  deploymentStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  image:
+    repository: ghcr.io/sebastiannagl/benger/workers
+    pullPolicy: IfNotPresent
+    tag: latest
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 3Gi
+    requests:
+      cpu: 500m
+      memory: 1536Mi
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 2
+    targetCPUUtilizationPercentage: 80
+  env:
+    - name: ENVIRONMENT
+      value: "production"  # IMPORTANT: Must be 'production' for proper authentication
+    - name: FRONTEND_URL
+      value: "https://{{ .Values.global.domain }}"
+    - name: DATABASE_URI
+      valueFrom:
+        secretKeyRef:
+          name: benger-postgres-credentials
+          key: uri
+    - name: REDIS_URI
+      valueFrom:
+        secretKeyRef:
+          name: benger-redis-credentials
+          key: uri
+    - name: SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: secret_key
+    - name: OPENAI_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-llm-credentials
+          key: openai_api_key
+    - name: ANTHROPIC_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-llm-credentials
+          key: anthropic_api_key
+    # SendGrid configuration for workers
+    - name: SENDGRID_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: SENDGRID_API_KEY
+          optional: true
+    - name: EMAIL_FROM_ADDRESS
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_FROM_ADDRESS
+          optional: true
+    - name: EMAIL_FROM_NAME
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_FROM_NAME
+          optional: true
+    - name: EMAIL_ENABLED
+      value: "true"
+    # Mail server configuration (Stalwart) - backup
+    - name: MAIL_ENABLED
+      value: "true"
+    - name: MAIL_SMTP_HOST
+      value: "mail"
+    - name: MAIL_SMTP_PORT
+      value: "25"
+    - name: MAIL_FROM_EMAIL
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_FROM_ADDRESS
+          optional: true
+    - name: MAIL_FROM_NAME
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_FROM_NAME
+          optional: true
+
+frontend:
+  name: frontend
+  replicaCount: 1
+  deploymentStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  image:
+    repository: ghcr.io/sebastiannagl/benger/frontend
+    pullPolicy: IfNotPresent
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 3000
+  ingress:
+    enabled: true
+    annotations:
+      traefik.ingress.kubernetes.io/router.priority: "100"
+      # cert-manager annotation removed: using explicit Certificate resource
+      # in templates/certificates.yaml for wildcard support
+    hosts:
+      - host: what-a-benger.net
+        paths:
+          - path: /
+            pathType: Prefix
+      - host: "*.what-a-benger.net"
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: benger-tls
+        hosts:
+          - what-a-benger.net
+          - "*.what-a-benger.net"
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 2
+    targetCPUUtilizationPercentage: 80
+  env:
+    - name: NEXT_PUBLIC_API_URL
+      value: "https://api.{{ .Values.global.domain }}"
+    - name: INTERNAL_API_URL
+      value: "http://benger-api:8000"
+
+# Native annotation system only - Label Studio completely removed
+
+postgresql:
+  enabled: true
+  auth:
+    username: postgres
+    # password: # Generated automatically or set via external secrets
+    database: benger
+  primary:
+    extendedConfiguration: |
+      max_connections = 200
+    persistence:
+      enabled: true
+      size: 5Gi
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 250m
+        memory: 512Mi
+
+redis:
+  enabled: true
+  auth:
+    enabled: true
+    # password: # Generated automatically or set via external secrets
+  replica:
+    replicaCount: 0
+  master:
+    persistence:
+      enabled: true
+      size: 2Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+# Database migrations configuration
+# Migrations run as a Helm pre-upgrade/pre-install hook before deployments
+migrations:
+  # Enable automatic migrations (disable for manual control)
+  enabled: true
+  # Number of retry attempts on failure
+  backoffLimit: 3
+  # Timeout in seconds for migration job
+  timeoutSeconds: 300
+  # Time to keep completed job before cleanup
+  ttlSecondsAfterFinished: 300
+  # Resource limits for migration job
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Database backup configuration
+# Backups run as a K8s CronJob using pg_dump
+backup:
+  enabled: true
+  # Cron schedule (default: daily at 02:00 UTC)
+  schedule: "0 2 * * *"
+  image: "postgres:15-alpine"
+  # Host path on the node to store backups
+  hostPath: "/opt/benger-backups"
+  # Retention policy
+  retention:
+    daily: 7
+    weekly: 4
+    monthly: 6
+  backoffLimit: 1
+  timeoutSeconds: 1800
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Traefik middleware configuration
+# Creates Middleware CRDs for security headers, compression, etc.
+middleware:
+  enabled: true
+  securityHeaders:
+    stsSeconds: 31536000
+    stsIncludeSubdomains: true
+    stsPreload: false

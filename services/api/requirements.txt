@@ -1,0 +1,41 @@
+fastapi==0.135.1
+uvicorn[standard]==0.41.0
+pydantic>=2.9.0
+python-multipart==0.0.22
+PyJWT[crypto]>=2.8.0,<2.12.0
+cryptography>=43.0.0
+bcrypt==4.3.0
+python-dotenv==1.2.2
+httpx==0.28.1
+celery==5.6.2
+redis>=5.0.0,<5.3.0
+sqlalchemy>=2.0.36
+psycopg2-binary>=2.9.10
+alembic>=1.14.0
+email-validator==2.3.0
+# starlette version is managed by fastapi
+anyio==4.12.1
+openai==1.109.1
+anthropic==0.84.0
+google-genai>=1.0.0
+mistralai>=1.2.0  # Mistral AI models
+cohere>=5.11.0  # Cohere models
+aiohttp==3.13.3
+jinja2>=3.1.0
+pytz>=2023.3
+boto3>=1.35.0
+botocore>=1.35.0
+requests>=2.32.0
+pyopenssl>=23.3.0
+cryptography>=41.0.0
+jsonschema==4.26.0
+# Scientific computing for statistics
+numpy>=1.24.0
+scipy>=1.11.0
+# Monitoring and testing tools
+psutil==5.9.8  # For system and memory monitoring
+locust==2.43.3  # For load testing
+
+# Async testing dependencies
+aiosqlite==0.22.1  # For async SQLite database testing
+sse-starlette==2.4.1  # For Server-Sent Events streaming
