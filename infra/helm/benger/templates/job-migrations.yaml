@@ -1,0 +1,70 @@
+{{- if .Values.migrations.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-migrations
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}-migrations
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: migrations
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+  annotations:
+    # Run before deployments are updated
+    "helm.sh/hook": pre-upgrade,pre-install
+    # Run migrations before other hooks
+    "helm.sh/hook-weight": "-5"
+    # Clean up: delete previous job before creating new one, delete after success or failure
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded,hook-failed
+spec:
+  # Auto-cleanup after 5 minutes
+  ttlSecondsAfterFinished: {{ .Values.migrations.ttlSecondsAfterFinished | default 300 }}
+  # Retry up to N times on failure
+  backoffLimit: {{ .Values.migrations.backoffLimit | default 3 }}
+  # Timeout for the job
+  activeDeadlineSeconds: {{ .Values.migrations.timeoutSeconds | default 300 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Release.Name }}-migrations
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: migrations
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      restartPolicy: Never
+      containers:
+        - name: migrations
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy | default "IfNotPresent" }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Starting database migrations..."
+              echo "Current alembic version:"
+              alembic current || echo "No current version (fresh database)"
+              echo ""
+              echo "Running alembic upgrade head..."
+              alembic upgrade head
+              echo ""
+              echo "Migration completed. Final version:"
+              alembic current
+              echo "Migrations finished successfully!"
+          workingDir: /app
+          env:
+            - name: DATABASE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: benger-postgres-credentials
+                  key: uri
+          resources:
+            requests:
+              memory: {{ .Values.migrations.resources.requests.memory | default "256Mi" | quote }}
+              cpu: {{ .Values.migrations.resources.requests.cpu | default "100m" | quote }}
+            limits:
+              memory: {{ .Values.migrations.resources.limits.memory | default "512Mi" | quote }}
+              cpu: {{ .Values.migrations.resources.limits.cpu | default "500m" | quote }}
+{{- end }}

@@ -1,0 +1,447 @@
+# Unified Test Infrastructure
+# Single environment for ALL tests: unit, integration, and E2E
+#
+# Usage:
+#   make test-start    - Start all services
+#   make test-stop     - Stop and cleanup
+#   make test          - Full cycle (start -> test -> stop)
+#
+# Ports (isolated from dev):
+#   PostgreSQL: 5433
+#   Redis: 6380
+#   API: 8002
+#   Frontend: 8090 (via Traefik)
+#   Traefik Dashboard: 8091
+
+name: benger-test
+
+services:
+  # ==================== Core Infrastructure ====================
+
+  # PostgreSQL Test Database (Ephemeral)
+  test-db:
+    image: postgres:15-alpine
+    hostname: test-db
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_test
+      POSTGRES_DB: test_benger
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=512MB"
+      - "-c"
+      - "synchronous_commit=off"
+      - "-c"
+      - "full_page_writes=off"
+    # Ephemeral - no persistent volumes
+    tmpfs:
+      - /var/lib/postgresql/data:size=2G
+    networks:
+      - benger-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d test_benger"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Redis Test Cache (Ephemeral)
+  test-redis:
+    image: redis:7-alpine
+    hostname: test-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly no --save ""
+    networks:
+      - benger-test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # ==================== Application Services ====================
+
+  # Traefik Reverse Proxy
+  test-traefik:
+    image: traefik:v3.0
+    hostname: test-traefik
+    restart: unless-stopped
+    ports:
+      - "8090:80"      # HTTP
+      - "8091:8080"    # Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/config:/etc/traefik:ro
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=benger-test_benger-test-network"
+      - "--providers.file.directory=/etc/traefik"
+      - "--providers.file.watch=true"
+      - "--entrypoints.web.address=:80"
+      - "--global.sendanonymoususage=false"
+      - "--log.level=WARN"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard-test.rule=Host(`traefik-test.localhost`)"
+      - "traefik.http.routers.dashboard-test.entrypoints=web"
+      - "traefik.http.routers.dashboard-test.service=api@internal"
+    networks:
+      - benger-test-network
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # FastAPI Application
+  test-api:
+    build:
+      context: ../services/api
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 0
+    hostname: test-api
+    restart: unless-stopped
+    ports:
+      - "8002:8000"
+    command: [
+      "uvicorn", "main:app",
+      "--host", "0.0.0.0",
+      "--port", "8000",
+      "--reload",
+      "--reload-include", "*.py",
+      "--reload-exclude", "tests/*",
+      "--reload-exclude", "alembic/*",
+      "--reload-exclude", "*.pyc",
+      "--reload-exclude", "__pycache__",
+      "--reload-delay", "3"
+    ]
+    depends_on:
+      test-db:
+        condition: service_healthy
+      test-redis:
+        condition: service_healthy
+    environment:
+      # Database
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_test
+      POSTGRES_DB: test_benger
+      POSTGRES_HOST: test-db
+      POSTGRES_PORT: 5432
+      DATABASE_URI: postgresql://postgres:postgres_test@test-db:5432/test_benger
+      # Redis
+      REDIS_HOST: test-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_URI: redis://test-redis:6379/0
+      REDIS_URL: redis://test-redis:6379/0
+      # Celery
+      CELERY_BROKER_URL: redis://test-redis:6379/0
+      CELERY_RESULT_BACKEND: redis://test-redis:6379/0
+      # JWT
+      JWT_SECRET_KEY: test-jwt-secret-key
+      # App settings
+      ENVIRONMENT: test
+      TESTING: "true"
+      E2E_TEST_MODE: "true"
+      DEBUG: "false"
+      DEBUG_DISABLE_RATE_LIMITING: "true"
+      FRONTEND_URL: http://benger-test.localhost:8090
+      ROOT_PATH: ""
+      SCHEMA_VALIDATION_MODE: lenient
+      ACCESS_TOKEN_EXPIRE_MINUTES: 60
+      INTERNAL_SERVICE_API_KEY: test-internal-service-key
+      PYTHONDONTWRITEBYTECODE: 1
+      # API Keys (optional)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      DEEPINFRA_API_KEY: ${DEEPINFRAAI_API_KEY:-}
+    volumes:
+      - ../services/api:/app:rw
+      - ../services/shared:/shared:ro
+    networks:
+      - benger-test-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.test-api.rule=Host(`api-test.localhost`)"
+      - "traefik.http.routers.test-api.entrypoints=web"
+      - "traefik.http.routers.test-api.service=test-api-service"
+      - "traefik.http.services.test-api-service.loadbalancer.server.port=8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # Celery Worker
+  test-worker:
+    build:
+      context: ../services/workers
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 0
+    hostname: test-worker
+    restart: unless-stopped
+    depends_on:
+      test-db:
+        condition: service_healthy
+      test-redis:
+        condition: service_healthy
+      test-api:
+        condition: service_healthy
+    environment:
+      # Database
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_test
+      POSTGRES_DB: test_benger
+      POSTGRES_HOST: test-db
+      POSTGRES_PORT: 5432
+      DATABASE_URI: postgresql://postgres:postgres_test@test-db:5432/test_benger
+      # Redis
+      REDIS_HOST: test-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_URI: redis://test-redis:6379/0
+      REDIS_URL: redis://test-redis:6379/0
+      # Celery
+      CELERY_BROKER_URL: redis://test-redis:6379/0
+      CELERY_RESULT_BACKEND: redis://test-redis:6379/0
+      WORKER_CONCURRENCY: 2
+      INTERNAL_API_URL: http://test-api:8000
+      # JWT
+      JWT_SECRET_KEY: test-jwt-secret-key
+      INTERNAL_SERVICE_API_KEY: test-internal-service-key
+      # Environment
+      ENVIRONMENT: test
+      TESTING: "true"
+      E2E_TEST_MODE: "true"
+      # API Keys (optional)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      DEEPINFRA_API_KEY: ${DEEPINFRAAI_API_KEY:-}
+    volumes:
+      - ../services/workers:/app:ro
+      - ../services/shared:/shared:ro
+      - test-model-cache:/root/.cache  # Persist ML model downloads across test runs
+    networks:
+      - benger-test-network
+    healthcheck:
+      test: ["CMD", "celery", "-A", "tasks", "inspect", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+        reservations:
+          memory: 2G
+
+  # Celery Beat Scheduler
+  test-scheduler:
+    build:
+      context: ../services/workers
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 0
+    hostname: test-scheduler
+    restart: unless-stopped
+    working_dir: /tmp
+    command: sh -c "export PYTHONPATH=/app:$PYTHONPATH && celery -A tasks beat --loglevel=info"
+    depends_on:
+      test-db:
+        condition: service_healthy
+      test-redis:
+        condition: service_healthy
+      test-worker:
+        condition: service_healthy
+    environment:
+      # Database
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_test
+      POSTGRES_DB: test_benger
+      POSTGRES_HOST: test-db
+      POSTGRES_PORT: 5432
+      DATABASE_URI: postgresql://postgres:postgres_test@test-db:5432/test_benger
+      # Redis
+      REDIS_HOST: test-redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_URI: redis://test-redis:6379/0
+      REDIS_URL: redis://test-redis:6379/0
+      # Celery
+      CELERY_BROKER_URL: redis://test-redis:6379/0
+      CELERY_RESULT_BACKEND: redis://test-redis:6379/0
+      INTERNAL_API_URL: http://test-api:8000
+      # JWT
+      JWT_SECRET_KEY: test-jwt-secret-key
+      # Environment
+      ENVIRONMENT: test
+      TESTING: "true"
+      E2E_TEST_MODE: "true"
+      # API Keys (optional)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      DEEPINFRA_API_KEY: ${DEEPINFRAAI_API_KEY:-}
+    volumes:
+      - ../services/workers:/app:ro
+    tmpfs:
+      - /tmp
+    networks:
+      - benger-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -q 'celery.*beat'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # Next.js Frontend (production image — build-once-test-deploy)
+  # The production standalone server works for E2E tests because all API routing
+  # is server-side (getApiBaseUrl checks Host header at runtime, not NEXT_PUBLIC_*).
+  test-frontend:
+    build:
+      context: ../services/frontend
+      dockerfile: Dockerfile
+    hostname: test-frontend
+    restart: unless-stopped
+    depends_on:
+      test-api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      INTERNAL_API_URL: http://test-api:8000
+      NEXT_TELEMETRY_DISABLED: 1
+    networks:
+      - benger-test-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.test-frontend.rule=Host(`benger-test.localhost`)"
+      - "traefik.http.routers.test-frontend.entrypoints=web"
+      - "traefik.http.routers.test-frontend.priority=200"
+      - "traefik.http.routers.test-frontend.service=test-frontend"
+      - "traefik.http.services.test-frontend.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 15s        # Increased from 10s - less frequent checks during E2E
+      timeout: 10s         # Increased from 5s - more time per check
+      retries: 20          # Increased from 10 - more recovery attempts
+      start_period: 60s    # Increased from 30s - more startup time under load
+    deploy:
+      resources:
+        limits:
+          memory: 6G       # 6GB for E2E tests (16GB Docker VM, shared with dev)
+        reservations:
+          memory: 2G
+
+  # ==================== Test Runners (Profile-based) ====================
+  # These only run when explicitly invoked with --profile test
+
+  # API Test Runner
+  test-api-runner:
+    build:
+      context: ../services/api
+      dockerfile: Dockerfile
+    volumes:
+      - ../services/api:/app
+      - ../services/shared:/shared
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres_test@test-db:5432/test_benger
+      DATABASE_URI: postgresql://postgres:postgres_test@test-db:5432/test_benger
+      REDIS_URL: redis://test-redis:6379
+      TESTING: "true"
+      JWT_SECRET_KEY: test-secret-key
+      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONPATH: /app:/app/app:/shared
+    depends_on:
+      test-db:
+        condition: service_healthy
+      test-redis:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["pip install -q -r requirements-test.txt && pytest tests/ -v --tb=short --maxfail=10 --ignore=tests/e2e"]
+    networks:
+      - benger-test-network
+    profiles:
+      - test
+
+  # Workers Test Runner
+  test-workers-runner:
+    build:
+      context: ../services/workers
+      dockerfile: Dockerfile
+    mem_limit: 6g
+    volumes:
+      - ../services/workers:/app
+      - ../services/shared:/shared:ro
+    environment:
+      DATABASE_URI: postgresql://postgres:postgres_test@test-db:5432/test_benger
+      REDIS_URL: redis://test-redis:6379
+      TESTING: "true"
+      PYTHONDONTWRITEBYTECODE: 1
+      BENGER_USE_PYTORCH: "true"
+      CI: "true"  # Skip slow tests (e.g., German model download)
+    depends_on:
+      test-db:
+        condition: service_healthy
+      test-redis:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["pytest tests/ -v --tb=short --maxfail=10 --timeout=120 --cov=. --cov-branch --cov-report=term --cov-fail-under=60"]
+    networks:
+      - benger-test-network
+    profiles:
+      - test
+
+networks:
+  benger-test-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.23.0.0/16
+
+# ML model cache persists across test runs (avoids 20-min ONNX model downloads)
+volumes:
+  test-model-cache:

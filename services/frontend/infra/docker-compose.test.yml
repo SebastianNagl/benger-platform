@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # Test Database
+  db-test:
+    image: postgres:14
+    environment:
+      - POSTGRES_DB=test_db
+      - POSTGRES_USER=test
+      - POSTGRES_PASSWORD=test
+    ports:
+      - '5433:5432'
+    volumes:
+      - test-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U test']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Test Redis
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - '6380:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Test API
+  api-test:
+    build:
+      context: ../services/api
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://test:test@db-test:5432/test_db
+      - REDIS_URL=redis://redis-test:6379
+      - JWT_SECRET_KEY=test-secret-key-for-integration-testing
+      - ENVIRONMENT=test
+      - CORS_ALLOWED_ORIGINS=http://localhost:3001,http://frontend-test:3000
+    ports:
+      - '8001:8000'
+    depends_on:
+      db-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    volumes:
+      - ../services/api:/app
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      "
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Test Frontend
+  frontend-test:
+    build:
+      context: ../services/frontend
+      dockerfile: Dockerfile
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api-test:8000
+      - NODE_ENV=test
+    ports:
+      - '3001:3000'
+    depends_on:
+      api-test:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Test Workers
+  workers-test:
+    build:
+      context: ../services/workers
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://test:test@db-test:5432/test_db
+      - REDIS_URL=redis://redis-test:6379
+      - CELERY_BROKER_URL=redis://redis-test:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis-test:6379/0
+    depends_on:
+      db-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    command: celery -A tasks worker --loglevel=info
+
+volumes:
+  test-postgres-data:

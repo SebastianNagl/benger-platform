@@ -1,0 +1,22 @@
+[run]
+branch = True
+source = .
+parallel = True
+concurrency = multiprocessing
+omit =
+    # Infrastructure/startup — validated by app running, not unit tests
+    */database.py
+    */init_complete.py
+    */main.py
+    */services/ssl_tls_config.py
+    */services/migration_utils.py
+    */alembic/*
+
+[report]
+show_missing = True
+precision = 2
+skip_covered = False
+skip_empty = True
+
+[html]
+title = BenGER Test Coverage Report

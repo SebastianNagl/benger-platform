@@ -1,0 +1,60 @@
+# Workers Base Image: Python + PyTorch + ML models + NLTK data
+# Rebuild when: requirements.txt changes, or weekly via CI schedule
+# App code is NOT included — see Dockerfile which builds on top of this.
+FROM python:3.11-slim
+
+# System dependencies (procps for health checks, gcc/g++ for C extensions)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    procps \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv for dependency management
+RUN pip install uv
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN uv pip install --system --no-cache-dir -r requirements.txt
+
+# Set PYTHONPATH so local modules can be imported
+ENV PYTHONPATH=/app
+
+# Pre-download ALL ML models and NLTK data.
+# This layer is cached and only invalidated when requirements.txt changes.
+RUN python -c "\
+import nltk; \
+nltk.download('punkt'); \
+nltk.download('punkt_tab'); \
+nltk.download('averaged_perceptron_tagger'); \
+nltk.download('averaged_perceptron_tagger_eng'); \
+nltk.download('maxent_ne_chunker'); \
+nltk.download('words'); \
+nltk.download('wordnet'); \
+nltk.download('omw-1.4'); \
+\
+from transformers import AutoTokenizer, AutoModelForQuestionAnswering, AutoModel, AutoModelForSequenceClassification, T5Tokenizer, T5ForConditionalGeneration; \
+\
+print('Downloading QAGS models...'); \
+AutoTokenizer.from_pretrained('distilbert-base-cased-distilled-squad'); \
+AutoModelForQuestionAnswering.from_pretrained('distilbert-base-cased-distilled-squad'); \
+T5Tokenizer.from_pretrained('t5-small'); \
+T5ForConditionalGeneration.from_pretrained('t5-small'); \
+\
+print('Downloading BERTScore model (roberta-large)...'); \
+AutoTokenizer.from_pretrained('roberta-large'); \
+AutoModel.from_pretrained('roberta-large'); \
+\
+print('Downloading sentence-transformers model...'); \
+from sentence_transformers import SentenceTransformer; \
+SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2'); \
+\
+print('Downloading FactCC/SummaC models...'); \
+AutoTokenizer.from_pretrained('tals/albert-xlarge-vitaminc-mnli'); \
+AutoModelForSequenceClassification.from_pretrained('tals/albert-xlarge-vitaminc-mnli'); \
+AutoTokenizer.from_pretrained('manueldeprada/FactCC'); \
+AutoModelForSequenceClassification.from_pretrained('manueldeprada/FactCC'); \
+\
+print('All models downloaded successfully.')"

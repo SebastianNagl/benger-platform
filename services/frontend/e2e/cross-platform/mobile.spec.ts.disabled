@@ -1,0 +1,433 @@
+import { devices, expect, Page, test } from '@playwright/test'
+import { TestHelpers } from '../helpers/test-helpers'
+
+const mobileDevices = [
+  { name: 'iPhone 12', device: devices['iPhone 12'] },
+  { name: 'Pixel 5', device: devices['Pixel 5'] },
+  { name: 'iPad Pro', device: devices['iPad Pro'] },
+]
+
+const browsers = ['chromium', 'firefox', 'webkit'] as const
+
+mobileDevices.forEach(({ name, device }) => {
+  test.describe(`Mobile Testing - ${name}`, () => {
+    test.use(device)
+
+    let page: Page
+    let helpers: TestHelpers
+    let testProjectId: string | null = null
+
+    test.beforeEach(async ({ page: testPage }) => {
+      page = testPage
+      helpers = new TestHelpers(page)
+
+      await helpers.login('admin', 'admin')
+    })
+
+    test.afterEach(async () => {
+      if (testProjectId) {
+        await helpers.deleteTestProject(testProjectId)
+        testProjectId = null
+      }
+    })
+
+    test('responsive annotation interface', async () => {
+      await test.step('1. Create project with tasks', async () => {
+        testProjectId = await helpers.createTestProject(`Mobile Test ${name}`)
+        expect(testProjectId).toBeTruthy()
+      })
+
+      await test.step('2. Navigate to annotation on mobile', async () => {
+        await page.goto(`/projects/${testProjectId}/annotate`)
+        await page.waitForTimeout(3000)
+      })
+
+      await test.step('3. Test mobile menu', async () => {
+        const hamburgerMenu = page.locator(
+          '.mobile-menu-button, .menu-toggle, button[aria-label*="menu"]'
+        )
+        if ((await hamburgerMenu.count()) > 0) {
+          await hamburgerMenu.click()
+          await page.waitForTimeout(1500)
+
+          const mobileNav = page.locator('.mobile-nav, .mobile-menu, .drawer')
+          await expect(mobileNav).toBeVisible()
+
+          const closeButton = page.locator(
+            '.close-menu, button[aria-label*="close"]'
+          )
+          if ((await closeButton.count()) > 0) {
+            await closeButton.click()
+          } else {
+            await page.click('body')
+          }
+
+          await page.waitForTimeout(1500)
+        }
+      })
+
+      await test.step('4. Test touch interactions', async () => {
+        const taskCard = page.locator('.task-card, .task-item').first()
+        if ((await taskCard.count()) > 0) {
+          await taskCard.tap()
+          await page.waitForTimeout(2000)
+
+          const taskDetail = page.locator('.task-detail, .task-content, form')
+          await expect(taskDetail.first()).toBeVisible()
+        }
+      })
+
+      await test.step('5. Test mobile form input', async () => {
+        const textArea = page.locator('textarea, input[type="text"]').first()
+        if ((await textArea.count()) > 0) {
+          await textArea.tap()
+          await page.waitForTimeout(1000)
+
+          await textArea.fill('Mobile test annotation')
+
+          const virtualKeyboard = page.locator('.keyboard, input:focus')
+          const hasKeyboardFocus = (await virtualKeyboard.count()) > 0
+          expect(hasKeyboardFocus).toBeTruthy()
+        }
+      })
+
+      await test.step('6. Test swipe navigation if available', async () => {
+        const swipeArea = page
+          .locator('.swipe-area, .task-content, main')
+          .first()
+
+        if ((await swipeArea.count()) > 0) {
+          const box = await swipeArea.boundingBox()
+          if (box) {
+            await page.touchscreen.tap(
+              box.x + box.width / 2,
+              box.y + box.height / 2
+            )
+            await page.waitForTimeout(500)
+
+            await page.touchscreen.tap(
+              box.x + box.width - 50,
+              box.y + box.height / 2
+            )
+            await page.waitForTimeout(1500)
+          }
+        }
+      })
+
+      await test.step('7. Test responsive layout', async () => {
+        const sidebar = page.locator('.sidebar, .navigation-sidebar')
+        const isSidebarHidden = await sidebar.isHidden().catch(() => true)
+
+        const mobileLayout = page.locator(
+          '.mobile-layout, .responsive-container'
+        )
+        const hasMobileLayout = (await mobileLayout.count()) > 0
+
+        expect(isSidebarHidden || hasMobileLayout).toBeTruthy()
+      })
+    })
+
+    test('mobile project management', async () => {
+      await test.step('1. Navigate to projects list', async () => {
+        await page.goto('/projects')
+        await page.waitForTimeout(3000)
+      })
+
+      await test.step('2. Test mobile table/card view', async () => {
+        const cardView = page.locator('.project-card, .card-view')
+        const hasCardView = (await cardView.count()) > 0
+
+        const responsiveTable = page.locator('.responsive-table, .mobile-table')
+        const hasResponsiveTable = (await responsiveTable.count()) > 0
+
+        expect(hasCardView || hasResponsiveTable).toBeTruthy()
+      })
+
+      await test.step('3. Test mobile create project', async () => {
+        const createButton = page
+          .locator('button')
+          .filter({ hasText: /create|new|\+/i })
+        await createButton.first().tap()
+        await page.waitForTimeout(2000)
+
+        const modal = page.locator('.modal, .dialog, .drawer')
+        const hasModal = (await modal.count()) > 0
+
+        const mobileForm = page.locator('form').first()
+        const hasForm = (await mobileForm.count()) > 0
+
+        expect(hasModal || hasForm).toBeTruthy()
+
+        const closeButton = page
+          .locator('button')
+          .filter({ hasText: /cancel|close/i })
+        if ((await closeButton.count()) > 0) {
+          await closeButton.tap()
+        } else {
+          await page.keyboard.press('Escape')
+        }
+      })
+
+      await test.step('4. Test mobile filtering', async () => {
+        const filterButton = page
+          .locator('button')
+          .filter({ hasText: /filter/i })
+        if ((await filterButton.count()) > 0) {
+          await filterButton.tap()
+          await page.waitForTimeout(1500)
+
+          const filterPanel = page.locator('.filter-panel, .filter-drawer')
+          const hasFilterPanel = (await filterPanel.count()) > 0
+          expect(hasFilterPanel).toBeTruthy()
+        }
+      })
+    })
+
+    test('mobile viewport adjustments', async () => {
+      const viewports = [
+        { width: 320, height: 568, name: 'Small Phone' },
+        { width: 375, height: 667, name: 'iPhone SE' },
+        { width: 414, height: 896, name: 'iPhone 11' },
+        { width: 768, height: 1024, name: 'iPad' },
+      ]
+
+      for (const viewport of viewports) {
+        await test.step(`Test ${viewport.name} viewport`, async () => {
+          await page.setViewportSize({
+            width: viewport.width,
+            height: viewport.height,
+          })
+          await page.goto('/projects')
+          await page.waitForTimeout(2000)
+
+          const mobileMenu = page.locator('.mobile-menu, .hamburger')
+          const hasMobileMenu =
+            viewport.width < 768
+              ? (await mobileMenu.count()) > 0
+              : (await mobileMenu.count()) === 0
+
+          const sidebar = page.locator('.sidebar')
+          const sidebarVisible = await sidebar.isVisible().catch(() => false)
+          const sidebarExpected = viewport.width >= 768
+
+          if (viewport.width < 768) {
+            expect(hasMobileMenu).toBeTruthy()
+            expect(sidebarVisible).toBeFalsy()
+          } else {
+            expect(sidebarVisible).toBe(sidebarExpected)
+          }
+        })
+      }
+    })
+  })
+})
+
+browsers.forEach((browserName) => {
+  test.describe(`Cross-browser Testing - ${browserName}`, () => {
+    test.use({ browserName })
+
+    let page: Page
+    let helpers: TestHelpers
+    let testProjectId: string | null = null
+
+    test.beforeEach(async ({ page: testPage }) => {
+      page = testPage
+      helpers = new TestHelpers(page)
+
+      await helpers.login('admin', 'admin')
+    })
+
+    test.afterEach(async () => {
+      if (testProjectId) {
+        await helpers.deleteTestProject(testProjectId)
+        testProjectId = null
+      }
+    })
+
+    test('consistent behavior across browsers', async () => {
+      await test.step('1. Test file upload', async () => {
+        testProjectId = await helpers.createTestProject(
+          `${browserName} Test Project`
+        )
+
+        await page.goto(`/projects/${testProjectId}/data`)
+        await page.waitForTimeout(2000)
+
+        const importButton = page
+          .locator('button')
+          .filter({ hasText: /import/i })
+        if ((await importButton.count()) > 0) {
+          await importButton.click()
+          await page.waitForTimeout(2000)
+        }
+
+        const fileInput = page.locator('input[type="file"]')
+        const testData = JSON.stringify({
+          tasks: [{ text: 'Browser test task' }],
+        })
+
+        await fileInput.setInputFiles({
+          name: 'browser-test.json',
+          mimeType: 'application/json',
+          buffer: Buffer.from(testData),
+        })
+
+        await page.waitForTimeout(2000)
+
+        const preview = page.locator('.file-preview, .import-preview')
+        const hasPreview = (await preview.count()) > 0
+        expect(hasPreview).toBeTruthy()
+      })
+
+      await test.step('2. Test WebSocket connection', async () => {
+        const wsConnected = await page.evaluate(() => {
+          return new Promise((resolve) => {
+            if (typeof WebSocket === 'undefined') {
+              resolve(false)
+              return
+            }
+
+            try {
+              const ws = new WebSocket('ws://localhost:8000/ws')
+              ws.onopen = () => {
+                ws.close()
+                resolve(true)
+              }
+              ws.onerror = () => resolve(false)
+
+              setTimeout(() => resolve(false), 5000)
+            } catch {
+              resolve(false)
+            }
+          })
+        })
+
+        console.log(`WebSocket support in ${browserName}: ${wsConnected}`)
+      })
+
+      await test.step('3. Test localStorage', async () => {
+        await page.evaluate(() => {
+          localStorage.setItem('browser-test', 'test-value')
+        })
+
+        await page.reload()
+        await page.waitForTimeout(2000)
+
+        const storedValue = await page.evaluate(() => {
+          return localStorage.getItem('browser-test')
+        })
+
+        expect(storedValue).toBe('test-value')
+
+        await page.evaluate(() => {
+          localStorage.removeItem('browser-test')
+        })
+      })
+
+      await test.step('4. Test IndexedDB', async () => {
+        const indexedDBSupported = await page.evaluate(() => {
+          return 'indexedDB' in window
+        })
+
+        expect(indexedDBSupported).toBeTruthy()
+
+        if (indexedDBSupported) {
+          const dbOperationSuccess = await page.evaluate(() => {
+            return new Promise((resolve) => {
+              try {
+                const request = indexedDB.open('TestDB', 1)
+                request.onsuccess = () => {
+                  request.result.close()
+                  indexedDB.deleteDatabase('TestDB')
+                  resolve(true)
+                }
+                request.onerror = () => resolve(false)
+              } catch {
+                resolve(false)
+              }
+            })
+          })
+
+          expect(dbOperationSuccess).toBeTruthy()
+        }
+      })
+
+      await test.step('5. Test CSS rendering', async () => {
+        await page.goto('/projects')
+        await page.waitForTimeout(2000)
+
+        const flexboxSupport = await page.evaluate(() => {
+          const el = document.createElement('div')
+          el.style.display = 'flex'
+          return el.style.display === 'flex'
+        })
+
+        const gridSupport = await page.evaluate(() => {
+          const el = document.createElement('div')
+          el.style.display = 'grid'
+          return el.style.display === 'grid'
+        })
+
+        expect(flexboxSupport).toBeTruthy()
+        expect(gridSupport).toBeTruthy()
+      })
+
+      await test.step('6. Test form validation', async () => {
+        await page.goto('/projects/create')
+        await page.waitForTimeout(2000)
+
+        const nameInput = page
+          .locator('input[name="name"], input[required]')
+          .first()
+        if ((await nameInput.count()) > 0) {
+          await nameInput.fill('')
+
+          const submitButton = page
+            .locator('button[type="submit"], button')
+            .filter({
+              hasText: /create|next/i,
+            })
+          await submitButton.click()
+
+          await page.waitForTimeout(1500)
+
+          const validationMessage = page.locator(
+            '.error, .validation-error, :invalid'
+          )
+          const hasValidation = (await validationMessage.count()) > 0
+
+          const stillOnForm = page.url().includes('create')
+
+          expect(hasValidation || stillOnForm).toBeTruthy()
+        }
+      })
+    })
+
+    test('browser-specific features', async () => {
+      if (browserName === 'chromium') {
+        await test.step('Test Chrome DevTools Protocol features', async () => {
+          const metrics = await page.evaluate(() => performance.memory)
+          expect(metrics).toBeDefined()
+        })
+      }
+
+      if (browserName === 'firefox') {
+        await test.step('Test Firefox-specific features', async () => {
+          const mozPrefix = await page.evaluate(() => {
+            return 'mozInnerScreenX' in window
+          })
+          expect(mozPrefix).toBeDefined()
+        })
+      }
+
+      if (browserName === 'webkit') {
+        await test.step('Test WebKit-specific features', async () => {
+          const webkitPrefix = await page.evaluate(() => {
+            return 'webkitAudioContext' in window
+          })
+          expect(webkitPrefix).toBeDefined()
+        })
+      }
+    })
+  })
+})

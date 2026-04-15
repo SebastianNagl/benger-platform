@@ -1,0 +1,54 @@
+# Feature flags configuration for BenGER
+# This file defines the required feature flags for each environment
+
+feature_flags:
+  # Data Management Features
+  - name: FEATURE_UI_DATA_PAGE
+    description: "Enable access to Data Management page"
+    environments:
+      development: true
+      staging: true  
+      production: true
+    rollout_percentage: 100
+    
+  - name: FEATURE_UI_EVALUATION_PAGE
+    description: "Enable access to Evaluation page"
+    environments:
+      development: true
+      staging: true
+      production: true  
+    rollout_percentage: 100
+
+  # Advanced Dashboard Features
+  - name: FEATURE_WORKLOAD_DASHBOARD
+    description: "Enable access to Workload Dashboard for managers"
+    environments:
+      development: true
+      staging: true
+      production: false
+    rollout_percentage: 0
+    
+  - name: FEATURE_LLM_GENERATION
+    description: "Enable Generate LLM Responses functionality"
+    environments:
+      development: true
+      staging: true
+      production: false
+    rollout_percentage: 0
+    
+  - name: FEATURE_REVIEW_WORKFLOW
+    description: "Enable Review Workflow functionality"
+    environments:
+      development: true
+      staging: true
+      production: false
+    rollout_percentage: 0
+
+  # Future flags can be added here
+  # - name: new_feature
+  #   description: "Description of new feature"
+  #   environments:
+  #     development: true
+  #     staging: false
+  #     production: false
+  #   rollout_percentage: 0

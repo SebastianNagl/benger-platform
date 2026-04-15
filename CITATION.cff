@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+title: "BenGER: A Collaborative Web Platform for End-to-End Benchmarking of German Legal Tasks"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: Nagl
+    given-names: Sebastian
+    affiliation: Technical University of Munich
+  - family-names: Grabmair
+    given-names: Matthias
+    affiliation: Technical University of Munich
+license: Apache-2.0
+repository-code: "https://github.com/SebastianNagl/benger-platform"
+keywords:
+  - benchmarking
+  - legal-nlp
+  - german
+  - large-language-models
+  - evaluation
+preferred-citation:
+  type: conference-paper
+  title: "BenGER: A Collaborative Web Platform for End-to-End Benchmarking of German Legal Tasks"
+  authors:
+    - family-names: Nagl
+      given-names: Sebastian
+    - family-names: Grabmair
+      given-names: Matthias
+  collection-title: "Proceedings of the International Conference on Artificial Intelligence and Law (ICAIL)"
+  year: 2026
+  conference:
+    name: "ICAIL 2026"
+    city: Singapore

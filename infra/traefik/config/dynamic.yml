@@ -1,0 +1,117 @@
+# Dynamic Traefik Configuration
+http:
+  # Routers configuration
+  routers:
+    # Auth proxy: route /api/auth through Next.js for cross-subdomain cookie handling
+    auth-proxy:
+      rule: "(Host(`benger.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$`)) && PathPrefix(`/api/auth`)"
+      service: frontend-dev-service
+      entryPoints:
+        - web
+      priority: 400
+
+    # Auth proxy for production domain
+    auth-proxy-prod:
+      rule: "(Host(`what-a-benger.net`) || HostRegexp(`^[a-z0-9-]+\\.what-a-benger\\.net$`)) && PathPrefix(`/api/auth`)"
+      service: frontend-dev-service
+      entryPoints:
+        - web
+      priority: 400
+
+    # API proxy from frontend domain to API service (with wildcard subdomain support)
+    api-proxy:
+      rule: "(Host(`benger.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$`)) && PathPrefix(`/api`)"
+      service: benger-api-service
+      entryPoints:
+        - web
+      middlewares:
+        - gzip-compression
+      priority: 300
+
+    # API proxy for production domain (with wildcard subdomain support)
+    api-proxy-prod:
+      rule: "(Host(`what-a-benger.net`) || HostRegexp(`^[a-z0-9-]+\\.what-a-benger\\.net$`)) && PathPrefix(`/api`)"
+      service: benger-api-service
+      entryPoints:
+        - web
+      middlewares:
+        - gzip-compression
+      priority: 300
+
+    # Frontend dev route (catch-all for benger.localhost + wildcard subdomains)
+    frontend-dev:
+      rule: "Host(`benger.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$`)"
+      service: frontend-dev-service
+      entryPoints:
+        - web
+      priority: 100
+
+  # Services configuration
+  services:
+    benger-api-service:
+      loadBalancer:
+        servers:
+          - url: "http://api:8000"
+        healthCheck:
+          path: "/health"
+          interval: "30s"
+          timeout: "5s"
+          scheme: "http"
+
+    frontend-dev-service:
+      loadBalancer:
+        servers:
+          - url: "http://frontend-dev:3000"
+        healthCheck:
+          path: "/api/health"
+          interval: "30s"
+          timeout: "10s"
+          scheme: "http"
+
+  middlewares:
+    # Strip /api prefix when forwarding to backend
+    strip-api-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api"
+    
+    # Rate limiting middleware
+    rate-limit:
+      rateLimit:
+        burst: 100
+        average: 50
+        period: 1m
+    
+    # CORS is handled by FastAPI CORSMiddleware — do not duplicate here
+
+    # Compression middleware
+    gzip-compression:
+      compress: {}
+    
+    # IP whitelist for development (optional)
+    local-only:
+      ipWhiteList:
+        sourceRange:
+          - "127.0.0.1/32"
+          - "10.0.0.0/8"
+          - "172.16.0.0/12"
+          - "192.168.0.0/16"
+    
+    # Circuit breaker middleware for stability
+    circuit-breaker:
+      circuitBreaker:
+        expression: "NetworkErrorRatio() > 0.3"
+        checkPeriod: "10s"
+        fallbackDuration: "10s"
+        recoveryDuration: "20s"
+
+# TLS Configuration
+tls:
+  options:
+    default:
+      minVersion: "VersionTLS12"
+      maxVersion: "VersionTLS13"
+      cipherSuites:
+        - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+        - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256" 

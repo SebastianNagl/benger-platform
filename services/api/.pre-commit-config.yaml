@@ -1,0 +1,34 @@
+# Pre-commit hooks for API service
+# Focus on preventing F821 (undefined name) errors in tests
+
+repos:
+  # Critical: Check for undefined names (F821)
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        name: flake8-no-undefined-names
+        args: ['--select=F821', '--count']
+        files: ^tests/.*\.py$
+        language_version: python3
+        description: "Prevent undefined name errors in test files"
+        # This will fail the commit if any F821 errors are found
+        
+  # Optional: Auto-fix unused imports
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.2.1
+    hooks:
+      - id: autoflake
+        name: autoflake-remove-unused-imports
+        args: [
+          '--in-place',
+          '--remove-all-unused-imports',
+          '--ignore-init-module-imports'
+        ]
+        files: ^tests/.*\.py$
+        description: "Remove unused imports from test files"
+
+# Only run on commit (not on push)
+default_stages: [commit]
+# Stop at first failure
+fail_fast: true

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tasks>
+  <task>
+    <question>Was ist ein Vertrag nach deutschem Recht?</question>
+    <context>Grundlagen des deutschen Vertragsrechts</context>
+    <answer>Ein Vertrag ist eine rechtsgültige Vereinbarung zwischen zwei oder mehr Parteien.</answer>
+    <category>contract_law</category>
+    <metadata>
+      <difficulty>beginner</difficulty>
+      <source>BGB</source>
+      <verified>true</verified>
+    </metadata>
+  </task>
+  <task>
+    <question>Wie lange ist die Kündigungsfrist bei einem Mietvertrag?</question>
+    <context>Mietrecht in Deutschland</context>
+    <answer>Die Kündigungsfrist beträgt in der Regel drei Monate zum Monatsende.</answer>
+    <category>rental_law</category>
+    <metadata>
+      <difficulty>intermediate</difficulty>
+      <source>BGB § 573c</source>
+      <verified>true</verified>
+    </metadata>
+  </task>
+  <task>
+    <question>Was bedeutet das Prinzip der Gewaltenteilung?</question>
+    <context>Staatsrecht und Verfassung</context>
+    <answer>Die Gewaltenteilung trennt Legislative, Exekutive und Judikative zur Vermeidung von Machtmissbrauch.</answer>
+    <category>constitutional_law</category>
+    <metadata>
+      <difficulty>intermediate</difficulty>
+      <source>Grundgesetz</source>
+      <verified>true</verified>
+    </metadata>
+  </task>
+  <task>
+    <question>Wann tritt ein Testament in Kraft?</question>
+    <context>Erbrecht und Nachfolge</context>
+    <answer>Ein Testament tritt mit dem Tod des Erblassers in Kraft und regelt die Vermögensverteilung.</answer>
+    <category>inheritance_law</category>
+    <metadata>
+      <difficulty>intermediate</difficulty>
+      <source>BGB § 1922</source>
+      <verified>true</verified>
+    </metadata>
+  </task>
+  <task>
+    <question>Was ist der Unterschied zwischen Vorsatz und Fahrlässigkeit?</question>
+    <context>Strafrecht Grundlagen</context>
+    <answer>Vorsatz ist bewusstes und gewolltes Handeln, Fahrlässigkeit ist mangelnde Sorgfalt ohne Vorsatz.</answer>
+    <category>criminal_law</category>
+    <metadata>
+      <difficulty>advanced</difficulty>
+      <source>StGB § 15</source>
+      <verified>true</verified>
+    </metadata>
+  </task>
+  <task>
+    <question>Welche Rechte hat ein Arbeitnehmer bei Kündigung?</question>
+    <context>Arbeitsrecht</context>
+    <answer>Arbeitnehmer haben Anspruch auf Kündigungsschutz, ordnungsgemäße Kündigung und unter bestimmten Bedingungen Abfindung.</answer>
+    <category>labor_law</category>
+    <metadata>
+      <difficulty>intermediate</difficulty>
+      <source>KSchG</source>
+      <verified>true</verified>
+    </metadata>
+  </task>
+  <task>
+    <question>Was regelt das Bürgerliche Gesetzbuch (BGB)?</question>
+    <context>Zivilrecht in Deutschland</context>
+    <answer>Das BGB regelt das Privatrecht zwischen Bürgern, einschließlich Verträge, Schuldverhältnisse, Sachenrecht, Familienrecht und Erbrecht.</answer>
+    <category>civil_law</category>
+    <metadata>
+      <difficulty>beginner</difficulty>
+      <source>BGB</source>
+      <verified>true</verified>
+    </metadata>
+  </task>
+  <task>
+    <question>Was ist eine Schuldrechtsreform?</question>
+    <context>Entwicklung des deutschen Rechts</context>
+    <answer>Die Schuldrechtsreform von 2002 modernisierte das Vertragsrecht und passte es an europäische Standards an.</answer>
+    <category>legal_reform</category>
+    <metadata>
+      <difficulty>advanced</difficulty>
+      <source>Schuldrechtsmodernisierungsgesetz</source>
+      <verified>true</verified>
+    </metadata>
+  </task>
+  <task>
+    <question>Wann verjährt eine zivilrechtliche Forderung?</question>
+    <context>Verjährungsfristen im deutschen Recht</context>
+    <answer>Die regelmäßige Verjährungsfrist für zivilrechtliche Forderungen beträgt drei Jahre ab Kenntnis der Forderung.</answer>
+    <category>statute_of_limitations</category>
+    <metadata>
+      <difficulty>intermediate</difficulty>
+      <source>BGB § 195</source>
+      <verified>true</verified>
+    </metadata>
+  </task>
+  <task>
+    <question>Was ist ein Grundstückskaufvertrag?</question>
+    <context>Immobilienrecht</context>
+    <answer>Ein Grundstückskaufvertrag ist ein notariell zu beurkundender Vertrag über den Kauf von Immobilien oder Grundstücken.</answer>
+    <category>real_estate_law</category>
+    <metadata>
+      <difficulty>intermediate</difficulty>
+      <source>BGB § 311b</source>
+      <verified>true</verified>
+    </metadata>
+  </task>
+</tasks>

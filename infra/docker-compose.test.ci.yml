@@ -1,0 +1,19 @@
+# CI override: use pre-built images from GHCR instead of building locally.
+# Usage: docker compose -f docker-compose.test.yml -f docker-compose.test.ci.yml up -d
+#
+# Requires env vars: API_IMAGE, WORKERS_IMAGE, FRONTEND_IMAGE
+# Local dev: do NOT use this file — just use docker-compose.test.yml with --build
+
+services:
+  test-api:
+    image: ${API_IMAGE}
+  test-worker:
+    image: ${WORKERS_IMAGE}
+  test-scheduler:
+    image: ${WORKERS_IMAGE}
+  test-frontend:
+    image: ${FRONTEND_IMAGE}
+  test-api-runner:
+    image: ${API_IMAGE}
+  test-workers-runner:
+    image: ${WORKERS_IMAGE}

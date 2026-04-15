@@ -1,0 +1,224 @@
+# Staging-specific values for BenGER
+# Use this file with: helm install benger ./benger -f values-staging.yaml
+
+global:
+  environment: staging  # IMPORTANT: Use 'staging' for staging deployments
+  domain: staging.what-a-benger.net
+  tlsSecretName: benger-staging-tls
+
+api:
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 1
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+  env:
+    - name: ENVIRONMENT
+      value: "staging"  # Override to staging
+    - name: FRONTEND_URL
+      value: "https://staging.what-a-benger.net"
+    - name: DATABASE_URI
+      valueFrom:
+        secretKeyRef:
+          name: benger-postgres-credentials
+          key: uri
+    - name: REDIS_URI
+      valueFrom:
+        secretKeyRef:
+          name: benger-redis-credentials
+          key: uri
+    - name: SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: secret_key
+    - name: LOG_LEVEL
+      value: "DEBUG"
+    - name: SCHEMA_VALIDATION_MODE
+      value: "strict"
+    # SendGrid configuration for staging
+    # Note: Using production domain (what-a-benger.net) as it's verified in SendGrid
+    # Emails will show "BenGER Staging" as sender name to differentiate
+    - name: SENDGRID_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: SENDGRID_API_KEY
+          optional: true
+    - name: EMAIL_FROM_ADDRESS
+      value: "noreply@what-a-benger.net"  # Using verified domain
+    - name: EMAIL_FROM_NAME
+      value: "BenGER Staging"  # Different name to identify staging emails
+    - name: EMAIL_ENABLED
+      value: "true"
+    # Mail server configuration (Stalwart) - backup
+    - name: MAIL_ENABLED
+      value: "true"
+    - name: MAIL_SMTP_HOST
+      value: "mail"
+    - name: MAIL_SMTP_PORT
+      value: "25"
+    - name: MAIL_FROM_EMAIL
+      value: "noreply@what-a-benger.net"  # Using verified domain
+    - name: MAIL_FROM_NAME
+      value: "BenGER Staging"
+    - name: COOKIE_DOMAIN
+      value: ".staging.what-a-benger.net"
+  ingress:
+    annotations:
+      traefik.ingress.kubernetes.io/router.priority: "200"
+    hosts:
+      - host: api.staging.what-a-benger.net
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: benger-staging-tls
+        hosts:
+          - api.staging.what-a-benger.net
+
+workers:
+  replicaCount: 1
+  concurrency: 2  # Reduce worker processes for staging
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+  env:
+    - name: ENVIRONMENT
+      value: "staging"  # Override to staging
+    - name: FRONTEND_URL
+      value: "https://staging.what-a-benger.net"
+    - name: DATABASE_URI
+      valueFrom:
+        secretKeyRef:
+          name: benger-postgres-credentials
+          key: uri
+    - name: REDIS_URI
+      valueFrom:
+        secretKeyRef:
+          name: benger-redis-credentials
+          key: uri
+    - name: SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: secret_key
+    - name: OPENAI_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-llm-credentials
+          key: openai_api_key
+    - name: ANTHROPIC_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-llm-credentials
+          key: anthropic_api_key
+    # SendGrid configuration for workers
+    - name: SENDGRID_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: SENDGRID_API_KEY
+          optional: true
+    - name: EMAIL_FROM_ADDRESS
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_FROM_ADDRESS
+          optional: true
+    - name: EMAIL_FROM_NAME
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_FROM_NAME
+          optional: true
+    - name: EMAIL_ENABLED
+      value: "true"
+    # Mail server configuration (Stalwart) - backup
+    - name: MAIL_ENABLED
+      value: "true"
+    - name: MAIL_SMTP_HOST
+      value: "mail"
+    - name: MAIL_SMTP_PORT
+      value: "25"
+    - name: MAIL_FROM_EMAIL
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_FROM_ADDRESS
+          optional: true
+    - name: MAIL_FROM_NAME
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_FROM_NAME
+          optional: true
+
+frontend:
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+  env:
+    - name: NEXT_PUBLIC_API_URL
+      value: "https://api.staging.what-a-benger.net"
+    - name: INTERNAL_API_URL
+      value: "http://benger-staging-api:8000"
+  ingress:
+    annotations:
+      traefik.ingress.kubernetes.io/router.priority: "150"
+    hosts:
+      - host: staging.what-a-benger.net
+        paths:
+          - path: /
+            pathType: Prefix
+      - host: "*.staging.what-a-benger.net"
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: benger-staging-tls
+        hosts:
+          - staging.what-a-benger.net
+          - "*.staging.what-a-benger.net"
+
+# Database migrations configuration for staging
+# Migrations run as a Helm pre-upgrade/pre-install hook before deployments
+migrations:
+  enabled: true
+  # Lower resource limits for staging
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Disable backups in staging
+backup:
+  enabled: false
+
+# Staging doesn't need Redis HA - disable replicas
+redis:
+  replica:
+    replicaCount: 0
+
+# Traefik middleware
+middleware:
+  enabled: true
+  securityHeaders:
+    stsSeconds: 31536000
+    stsIncludeSubdomains: true
+    stsPreload: false

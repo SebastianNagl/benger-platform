@@ -1,0 +1,70 @@
+{{- if .Values.middleware.enabled }}
+# Security headers middleware
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-security-headers
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  headers:
+    stsSeconds: {{ .Values.middleware.securityHeaders.stsSeconds | default 300 }}
+    stsIncludeSubdomains: {{ .Values.middleware.securityHeaders.stsIncludeSubdomains | default false }}
+    stsPreload: {{ .Values.middleware.securityHeaders.stsPreload | default false }}
+    contentTypeNosniff: true
+    frameDeny: true
+    browserXssFilter: true
+    referrerPolicy: "strict-origin-when-cross-origin"
+    customResponseHeaders:
+      Server: ""
+      X-Powered-By: ""
+---
+# Compression middleware (API only — Next.js handles frontend compression)
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-compress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  compress:
+    excludedContentTypes:
+      - "text/event-stream"
+---
+# API middleware chain: security headers + compression
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-api-chain
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  chain:
+    middlewares:
+      - name: {{ .Release.Name }}-security-headers
+      - name: {{ .Release.Name }}-compress
+---
+# Frontend middleware chain: security headers only
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-frontend-chain
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  chain:
+    middlewares:
+      - name: {{ .Release.Name }}-security-headers
+{{- end }}

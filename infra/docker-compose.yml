@@ -1,0 +1,439 @@
+name: benger
+version: '3.8'
+
+services:
+  # Traefik Reverse Proxy with modern configuration
+  traefik:
+    image: traefik:v3.0
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Dashboard (disable in production)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/config:/etc/traefik:ro
+      - ./traefik/certs:/certs:ro
+    command:
+      # API and Dashboard
+      - "--api.dashboard=true"
+      - "--api.insecure=true"  # Remove in production
+      
+      # Docker provider
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=infra_benger-network"
+      
+      # File provider for additional config
+      - "--providers.file.directory=/etc/traefik"
+      - "--providers.file.watch=true"
+      
+      # Entry points
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      
+      # SSL/TLS
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@localhost}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/certs/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      
+      # Security
+      - "--global.sendanonymoususage=false"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    labels:
+      # Dashboard routing
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.dashboard.entrypoints=web"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      
+      # Security headers middleware
+      - "traefik.http.middlewares.security-headers.headers.frameDeny=true"
+      - "traefik.http.middlewares.security-headers.headers.browserXssFilter=true"
+      - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true"
+    networks:
+      - benger-network
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    hostname: db
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT:-5432}:5432"  # Configurable port for development
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-benger}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - benger-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-benger}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    hostname: redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"  # Configurable port for development
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    volumes:
+      - redis-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - benger-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+
+  # FastAPI Gateway
+  api:
+    build:
+      context: ../services/api
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 0
+    hostname: api
+    restart: unless-stopped
+    ports:
+      - "8001:8000"  # Expose API on port 8001 (maps to internal 8000)
+    env_file:
+      - ../services/api/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-benger}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DATABASE_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-benger}
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_URI: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      
+      # Celery
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      
+      # JWT
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-super-secret-key-change-in-production}
+      
+      # Schema validation mode - lenient for Pydantic 2.11 compatibility
+      SCHEMA_VALIDATION_MODE: lenient
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      INTERNAL_SERVICE_API_KEY: ${INTERNAL_SERVICE_API_KEY:-dev-internal-service-key-change-in-production}
+      
+      # App settings
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: ${DEBUG:-false}
+      DEBUG_DISABLE_RATE_LIMITING: "true"  # Temporarily disable rate limiting for debugging
+      FRONTEND_URL: ${FRONTEND_URL:-http://benger.localhost}
+      ROOT_PATH: ""  # No root path prefix for standalone API access
+      
+      # OpenAI
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      
+      # Anthropic
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      
+      # Google
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      
+      # DeepInfra (map from DEEPINFRAAI_API_KEY in root .env to DEEPINFRA_API_KEY expected by code)
+      DEEPINFRA_API_KEY: ${DEEPINFRAAI_API_KEY:-}
+
+      # E2E Test Mode - enables mock LLM responses for testing
+      E2E_TEST_MODE: ${E2E_TEST_MODE:-false}
+
+      # Mail Service Configuration (configured via docker-compose.mailhog.yml or docker-compose.mail.yml)
+      # No hardcoded mail settings here - they come from the mail compose overlays
+    volumes:
+      - ../services/api:/app:ro  # Read-only for security
+      - ../services/shared:/shared:ro  # Shared services directory
+    networks:
+      - benger-network
+    labels:
+      - "traefik.enable=true"
+      
+      # API service - standalone domain (api.localhost)
+      - "traefik.http.routers.benger-api.rule=Host(`api.localhost`)"
+      - "traefik.http.routers.benger-api.entrypoints=web"
+      - "traefik.http.routers.benger-api.service=benger-api-service"
+      
+      # API service - production domain (api.what-a-benger.net) - HTTP only to fix TLS issues
+      - "traefik.http.routers.benger-api-prod.rule=Host(`api.what-a-benger.net`)"
+      - "traefik.http.routers.benger-api-prod.entrypoints=web"
+      - "traefik.http.routers.benger-api-prod.service=benger-api-service"
+      
+      # Service definition
+      - "traefik.http.services.benger-api-service.loadbalancer.server.port=8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Celery Worker
+  worker:
+    build:
+      context: ../services/workers
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 0
+    hostname: worker
+    restart: unless-stopped
+    env_file:
+      - ../services/workers/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-benger}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DATABASE_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-benger}
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_URI: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      
+      # Worker settings
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
+      INTERNAL_API_URL: http://api:8000
+
+      # JWT (needed for API key encryption/decryption)
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-super-secret-key-change-in-production}
+
+      # API Keys
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      DEEPINFRA_API_KEY: ${DEEPINFRAAI_API_KEY:-}
+      INTERNAL_SERVICE_API_KEY: ${INTERNAL_SERVICE_API_KEY:-dev-internal-service-key-change-in-production}
+
+      # E2E Test Mode - enables mock LLM responses for testing
+      E2E_TEST_MODE: ${E2E_TEST_MODE:-false}
+
+      # Mail Service Configuration (configured via docker-compose.mailhog.yml or docker-compose.mail.yml)
+      # No hardcoded mail settings here - they come from the mail compose overlays
+    volumes:
+      - ../services/workers:/app:ro  # Read-only for security
+      - ../services/shared:/shared:ro  # Shared services directory
+    networks:
+      - benger-network
+    healthcheck:
+      test: ["CMD", "celery", "-A", "tasks", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+        reservations:
+          memory: 2G
+
+  # Celery Beat Scheduler
+  scheduler:
+    build:
+      context: ../services/workers
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 0
+    hostname: scheduler
+    restart: unless-stopped
+    working_dir: /tmp
+    command: sh -c "export PYTHONPATH=/app:$PYTHONPATH && celery -A tasks beat --loglevel=info"
+    env_file:
+      - ../services/workers/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      worker:
+        condition: service_healthy
+    environment:
+      # Database
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-benger}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DATABASE_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-benger}
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_URI: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      
+      # Scheduler settings
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+      INTERNAL_API_URL: http://api:8000
+
+      # JWT (needed for API key encryption/decryption)
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-super-secret-key-change-in-production}
+
+      # API Keys
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      DEEPINFRA_API_KEY: ${DEEPINFRAAI_API_KEY:-}
+
+      # E2E Test Mode - enables mock LLM responses for testing
+      E2E_TEST_MODE: ${E2E_TEST_MODE:-false}
+    volumes:
+      - ../services/workers:/app:ro  # Read-only for security
+      - scheduler-data:/tmp  # Writable volume for celerybeat schedule file
+    networks:
+      - benger-network
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -q 'celery.*beat'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+
+  # Frontend Application (Production Build)
+  frontend:
+    build:
+      context: ../services/frontend
+      dockerfile: Dockerfile
+      args:
+        BUILDKIT_INLINE_CACHE: 0
+        DOCKER_BUILD: true
+        NEXT_PUBLIC_DISABLE_AUTO_LOGIN: ${DISABLE_AUTO_LOGIN:-false}  # Pass at build time
+        # NEXT_PUBLIC_API_URL: http://api.localhost  # Removed to use proxy instead
+    hostname: frontend
+    restart: unless-stopped
+    # No port mapping - only accessible via Traefik at benger.localhost
+    environment:
+      # NEXT_PUBLIC_API_URL: http://api.localhost  # Commented out to use proxy instead
+      INTERNAL_API_URL: http://api:8000  # Internal Docker network access
+      REACT_APP_ENVIRONMENT: ${ENVIRONMENT:-development}
+      NODE_ENV: production  # Keep production for built container
+      NEXT_PUBLIC_DISABLE_AUTO_LOGIN: ${DISABLE_AUTO_LOGIN:-false}  # Disable auto-login when set to true
+    networks:
+      - benger-network
+    labels:
+      - "traefik.enable=true"
+      
+      # Frontend service - local development
+      - "traefik.http.routers.frontend-local.rule=Host(`benger.localhost`)"
+      - "traefik.http.routers.frontend-local.entrypoints=web"
+      - "traefik.http.routers.frontend-local.priority=200"  # Higher priority for local dev
+      - "traefik.http.routers.frontend-local.service=frontend-local"
+      - "traefik.http.services.frontend-local.loadbalancer.server.port=3000"
+      - "traefik.http.services.frontend-local.loadbalancer.healthcheck.path=/api/health"
+      - "traefik.http.services.frontend-local.loadbalancer.healthcheck.interval=30s"
+      - "traefik.http.services.frontend-local.loadbalancer.healthcheck.timeout=10s"
+      
+      # Frontend service - production domain  
+      - "traefik.http.routers.frontend-prod.rule=Host(`what-a-benger.net`)"
+      - "traefik.http.routers.frontend-prod.entrypoints=web"
+      - "traefik.http.routers.frontend-prod.priority=100"  # Lower priority than local
+      - "traefik.http.routers.frontend-prod.service=frontend-prod"
+      # - "traefik.http.routers.frontend-prod.middlewares=circuit-breaker"  # Middleware not defined
+      - "traefik.http.services.frontend-prod.loadbalancer.server.port=3000"
+      - "traefik.http.services.frontend-prod.loadbalancer.healthcheck.path=/api/health"
+      - "traefik.http.services.frontend-prod.loadbalancer.healthcheck.interval=30s"
+      - "traefik.http.services.frontend-prod.loadbalancer.healthcheck.timeout=10s"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+networks:
+  benger-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  scheduler-data:
+    driver: local 

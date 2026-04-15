@@ -1,0 +1,195 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Typography scale matching protocol-ts */
+:root {
+  /* Font sizes with line heights */
+  --text-2xs: 0.75rem;
+  --text-2xs--line-height: 1.25rem;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.5rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.5rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.75rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 2.25rem;
+  --text-4xl: 2.25rem;
+  --text-4xl--line-height: 2.5rem;
+
+  /* Shiki code highlighting */
+  --shiki-color-text: white;
+  --shiki-token-constant: rgb(110 231 183);
+  --shiki-token-string: rgb(110 231 183);
+  --shiki-token-comment: rgb(113 113 122);
+  --shiki-token-keyword: rgb(125 211 252);
+  --shiki-token-parameter: rgb(244 114 182);
+  --shiki-token-function: rgb(196 181 253);
+  --shiki-token-string-expression: rgb(110 231 183);
+  --shiki-token-punctuation: rgb(228 228 231);
+}
+
+/* Custom utility classes */
+@layer base {
+  /* Reset browser defaults */
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  [inert] ::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Better default list styling for dark mode */
+  .dark ul li,
+  .dark ol li {
+    @apply text-zinc-300;
+  }
+
+  .dark ul li::marker,
+  .dark ol li::marker {
+    @apply text-zinc-300;
+  }
+
+  /* Checkbox styling - use emerald color for checked state */
+  input[type='checkbox'] {
+    @apply accent-emerald-600 dark:accent-emerald-500;
+  }
+
+  input[type='checkbox']:checked {
+    @apply bg-emerald-600 dark:bg-emerald-500;
+  }
+
+  input[type='checkbox']:focus {
+    @apply ring-2 ring-emerald-500 ring-offset-0;
+  }
+}
+
+@layer components {
+  .text-2xs {
+    font-size: var(--text-2xs);
+    line-height: var(--text-2xs--line-height);
+  }
+
+  .shadow-glow {
+    box-shadow: 0 0 4px rgb(0 0 0 / 0.1);
+  }
+
+  /* Better contrast text utilities for dark mode */
+  .text-secondary {
+    @apply text-zinc-600 dark:text-zinc-300;
+  }
+
+  .text-muted {
+    @apply text-zinc-500 dark:text-zinc-300;
+  }
+
+  .text-subtle {
+    @apply text-zinc-400 dark:text-zinc-400;
+  }
+
+  .text-label {
+    @apply text-zinc-500 dark:text-zinc-300;
+  }
+
+  .text-caption {
+    @apply text-zinc-500 dark:text-zinc-300;
+  }
+
+  /* List utilities with good contrast */
+  .list-readable {
+    @apply text-zinc-700 dark:text-zinc-300;
+  }
+
+  .list-readable li {
+    @apply text-zinc-700 dark:text-zinc-300;
+  }
+
+  .list-readable li::marker {
+    @apply text-zinc-500 dark:text-zinc-300;
+  }
+}
+
+@layer utilities {
+  /* Support for CSS custom property opacity syntax */
+  .bg-white\/\(--bg-opacity-light\) {
+    background-color: rgba(255, 255, 255, var(--bg-opacity-light));
+  }
+
+  .dark .bg-zinc-900\/\(--bg-opacity-dark\) {
+    background-color: rgba(39, 39, 42, var(--bg-opacity-dark));
+  }
+}
+
+/* ConsolidatedTaskDataTable styles */
+.consolidated-table table {
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.consolidated-table td,
+.consolidated-table th {
+  border-right: 1px solid rgba(228, 228, 231, 0.5);
+  border-bottom: 1px solid rgba(228, 228, 231, 0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.consolidated-table td:last-child,
+.consolidated-table th:last-child {
+  border-right: none;
+}
+
+/* Dark mode styles for consolidated table */
+.dark .consolidated-table td,
+.dark .consolidated-table th {
+  border-right: 1px solid rgba(63, 63, 70, 0.5);
+  border-bottom: 1px solid rgba(63, 63, 70, 0.5);
+}
+
+/* Custom scrollbar styles for dropdowns */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  @apply rounded bg-zinc-100 dark:bg-zinc-800;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  @apply rounded bg-zinc-400 hover:bg-zinc-500 dark:bg-zinc-600 dark:hover:bg-zinc-500;
+}
+
+/* Alternative without custom classes - direct styling */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 8px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-zinc-300 dark:bg-zinc-700;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  @apply bg-zinc-400 dark:bg-zinc-600;
+}

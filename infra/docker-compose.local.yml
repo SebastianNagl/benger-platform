@@ -1,0 +1,53 @@
+# Local development overrides for docker-compose.yml
+# This file adds local routing without changing the production setup
+# Use: docker-compose -f docker-compose.yml -f docker-compose.local.yml up
+
+name: benger
+version: '3.8'
+
+services:
+  # Add local routing to existing frontend container
+  frontend:
+    labels:
+      - "traefik.enable=true"
+      
+      # Keep production routing
+      - "traefik.http.routers.frontend-prod.rule=Host(`what-a-benger.net`)"
+      - "traefik.http.routers.frontend-prod.entrypoints=web"
+      - "traefik.http.routers.frontend-prod.priority=100"
+      - "traefik.http.routers.frontend-prod.service=frontend-prod"
+      - "traefik.http.routers.frontend-prod.middlewares=circuit-breaker"
+      
+      # Add local development routing
+      - "traefik.http.routers.frontend-local.rule=Host(`benger.localhost`)"
+      - "traefik.http.routers.frontend-local.entrypoints=web"
+      - "traefik.http.routers.frontend-local.priority=150"
+      - "traefik.http.routers.frontend-local.service=frontend-prod"  # Use same service
+      
+      # Service definition (shared by both routers)
+      - "traefik.http.services.frontend-prod.loadbalancer.server.port=3000"
+      - "traefik.http.services.frontend-prod.loadbalancer.healthcheck.path=/api/health"
+      - "traefik.http.services.frontend-prod.loadbalancer.healthcheck.interval=30s"
+      - "traefik.http.services.frontend-prod.loadbalancer.healthcheck.timeout=10s"
+
+  # Add local routing for API as well
+  api:
+    labels:
+      - "traefik.enable=true"
+      
+      # Keep existing API routing
+      - "traefik.http.routers.benger-api.rule=Host(`api.localhost`)"
+      - "traefik.http.routers.benger-api.entrypoints=web"
+      - "traefik.http.routers.benger-api.service=benger-api-service"
+      
+      - "traefik.http.routers.benger-api-prod.rule=Host(`api.what-a-benger.net`)"
+      - "traefik.http.routers.benger-api-prod.entrypoints=web"
+      - "traefik.http.routers.benger-api-prod.service=benger-api-service"
+      
+      # Add alternative local API routing
+      - "traefik.http.routers.benger-api-local.rule=Host(`api.benger.localhost`)"
+      - "traefik.http.routers.benger-api-local.entrypoints=web"
+      - "traefik.http.routers.benger-api-local.service=benger-api-service"
+      
+      # Service definition
+      - "traefik.http.services.benger-api-service.loadbalancer.server.port=8000"

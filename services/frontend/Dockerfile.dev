@@ -1,0 +1,34 @@
+# Frontend Development Dockerfile
+# Optimized for hot reloading and development workflow
+
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install dependencies for native modules and curl for health checks
+RUN apk add --no-cache libc6-compat curl
+
+# Copy package files and install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Copy source code
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Set development environment
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Use entrypoint for better startup coordination
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+
+# Start development server with hot reloading
+CMD ["npm", "run", "dev"]

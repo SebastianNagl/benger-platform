@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.workers.name }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.workers.name }}
+    app.kubernetes.io/name: {{ .Release.Name }}-{{ .Values.workers.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: workers
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  {{- if not .Values.workers.autoscaling.enabled }}
+  replicas: {{ .Values.workers.replicaCount }}
+  {{- end }}
+  strategy:
+    {{- toYaml .Values.workers.deploymentStrategy | nindent 4 }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.workers.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.workers.name }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Values.workers.name }}
+          image: "{{ .Values.workers.image.repository }}:{{ .Values.workers.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.workers.image.pullPolicy }}
+          command: ["celery", "-A", "tasks", "worker", "--loglevel=info", "--concurrency={{ .Values.workers.concurrency | default 4 }}", "-Q", "celery,emails,default,generation"]
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "celery -A tasks inspect ping --timeout=15"
+            initialDelaySeconds: 240
+            periodSeconds: 90
+            timeoutSeconds: 30
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "celery -A tasks inspect ping --timeout=10"
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            timeoutSeconds: 20
+            failureThreshold: 5
+            successThreshold: 1
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "python -c 'from tasks import app; print(\"Celery app initialized\")'"
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            timeoutSeconds: 15
+            failureThreshold: 30
+          env:
+            {{- range .Values.workers.env }}
+            - name: {{ .name }}
+              {{- if .value }}
+              {{- if eq .name "FRONTEND_URL" }}
+              value: {{ tpl .value $ | quote }}
+              {{- else }}
+              value: {{ .value | quote }}
+              {{- end }}
+              {{- else if .valueFrom }}
+              valueFrom:
+                {{- toYaml .valueFrom | nindent 16 }}
+              {{- end }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.workers.resources | nindent 12 }}
+---
+{{- if .Values.workers.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.workers.name }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.workers.name }}
+    app.kubernetes.io/name: {{ .Release.Name }}-{{ .Values.workers.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: workers
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Release.Name }}-{{ .Values.workers.name }}
+  minReplicas: {{ .Values.workers.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.workers.autoscaling.maxReplicas }}
+  metrics:
+    {{- if .Values.workers.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.workers.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+{{- end }} 
