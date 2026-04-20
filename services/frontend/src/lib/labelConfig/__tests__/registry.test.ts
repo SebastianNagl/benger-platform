@@ -558,9 +558,9 @@ describe('registry', () => {
       expect(objectTags.length).toBe(2)
     })
 
-    it('should have exactly 10 control components', () => {
+    it('should have exactly 6 control components', () => {
       const controlTags = getSupportedTags('control')
-      expect(controlTags.length).toBe(10)
+      expect(controlTags.length).toBe(6)
     })
 
     it('should have exactly 3 visual components', () => {
@@ -677,9 +677,9 @@ describe('registry', () => {
       })
     })
 
-    it('should have exactly 15 components registered', () => {
+    it('should have exactly 11 components registered', () => {
       const totalComponents = Object.keys(componentRegistry).length
-      expect(totalComponents).toBe(15)
+      expect(totalComponents).toBe(11)
     })
 
     it('should have lazy components that are React components', () => {

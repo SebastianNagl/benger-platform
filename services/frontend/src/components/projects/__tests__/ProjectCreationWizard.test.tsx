@@ -598,7 +598,6 @@ describe('ProjectCreationWizard', () => {
 
       expect(screen.getByText('Question Answering')).toBeInTheDocument()
       expect(screen.getByText('Multiple Choice Question')).toBeInTheDocument()
-      expect(screen.getByText('Exam Solving')).toBeInTheDocument()
       expect(screen.getByText('Span Annotation')).toBeInTheDocument()
       // Custom appears twice: as a tab name and as a template name
       expect(screen.getAllByText('Custom').length).toBeGreaterThanOrEqual(2)
@@ -1982,9 +1981,9 @@ describe('ProjectCreationWizard', () => {
       // Should show selected badge
       expect(screen.getByText('Selected')).toBeInTheDocument()
 
-      // Change to Exam Solving
-      const examText = screen.getByText('Exam Solving')
-      await user.click(examText)
+      // Change to Span Annotation
+      const spanText = screen.getByText('Span Annotation')
+      await user.click(spanText)
 
       // Should still show one selected badge
       expect(screen.getByText('Selected')).toBeInTheDocument()

@@ -125,6 +125,8 @@ const defaultProps = {
   availableFields: {
     model_response_fields: ['model_answer', 'gpt4_response'],
     human_annotation_fields: ['human_answer'],
+    all_fields: ['model_answer', 'gpt4_response', 'human_answer', 'reference'],
+    reference_fields: ['reference', 'human_answer'],
   },
   evaluations: [] as any[],
   onEvaluationsChange: jest.fn(),

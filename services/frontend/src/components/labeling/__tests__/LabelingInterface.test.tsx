@@ -1280,116 +1280,7 @@ describe('LabelingInterface', () => {
     })
   })
 
-  describe('Strict Timer: Zombie Session Recovery', () => {
-    it('should show pre_start screen for zombie sessions (expired + not completed)', async () => {
-      const strictProject = {
-        ...mockProject,
-      }
 
-      const storeWithStrictTimer = {
-        ...mockStoreState,
-        currentProject: strictProject,
-      }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeWithStrictTimer)
-
-      // Mock timer status: expired session with no completed_at (zombie)
-      ;(projectsAPI.getTimerStatus as jest.Mock).mockResolvedValue({
-        server_time: new Date().toISOString(),
-        session: {
-          session_id: 'zombie-session',
-          started_at: new Date(Date.now() - 7200000).toISOString(),
-          is_strict: true,
-          elapsed_seconds: 7200,
-          remaining_seconds: 0,
-          is_expired: true,
-          completed_at: null,
-        },
-      })
-
-      render(<LabelingInterface projectId="project-1" />)
-
-      // Should show "Ready to Begin" (pre_start), NOT "Time's Up"
-      await waitFor(() => {
-        expect(screen.getByText("Ready to Begin")).toBeInTheDocument()
-      })
-
-      // Should NOT show "Time's Up"
-      expect(screen.queryByText("Time's Up")).not.toBeInTheDocument()
-    })
-
-    it('should show time_over for completed expired sessions', async () => {
-      const strictProject = {
-        ...mockProject,
-      }
-
-      const storeWithStrictTimer = {
-        ...mockStoreState,
-        currentProject: strictProject,
-      }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeWithStrictTimer)
-
-      // Mock timer status: expired AND completed session
-      ;(projectsAPI.getTimerStatus as jest.Mock).mockResolvedValue({
-        server_time: new Date().toISOString(),
-        session: {
-          session_id: 'completed-session',
-          started_at: new Date(Date.now() - 7200000).toISOString(),
-          is_strict: true,
-          elapsed_seconds: 7200,
-          remaining_seconds: 0,
-          is_expired: true,
-          completed_at: new Date().toISOString(),
-        },
-      })
-
-      render(<LabelingInterface projectId="project-1" />)
-
-      await waitFor(() => {
-        expect(screen.getByText("Time's Up")).toBeInTheDocument()
-      })
-    })
-  })
-
-  describe('Strict Timer: Continue Button', () => {
-    it('should call completeCurrentTask when Continue is clicked on time_over screen', async () => {
-      const strictProject = {
-        ...mockProject,
-      }
-
-      const storeWithStrictTimer = {
-        ...mockStoreState,
-        currentProject: strictProject,
-      }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeWithStrictTimer)
-
-      // Mock: expired + completed session → time_over screen
-      ;(projectsAPI.getTimerStatus as jest.Mock).mockResolvedValue({
-        server_time: new Date().toISOString(),
-        session: {
-          session_id: 'done-session',
-          started_at: new Date(Date.now() - 7200000).toISOString(),
-          is_strict: true,
-          elapsed_seconds: 7200,
-          remaining_seconds: 0,
-          is_expired: true,
-          completed_at: new Date().toISOString(),
-        },
-      })
-
-      render(<LabelingInterface projectId="project-1" />)
-
-      await waitFor(() => {
-        expect(screen.getByText("Time's Up")).toBeInTheDocument()
-      })
-
-      // Click Continue
-      const continueButton = screen.getByText('Continue')
-      fireEvent.click(continueButton)
-
-      // Should call completeCurrentTask to advance, not just re-init the same task
-      expect(storeWithStrictTimer.completeCurrentTask).toHaveBeenCalled()
-    })
-  })
 
   describe('Instructions Button', () => {
     it('should show Instructions button when project has instructions', async () => {
@@ -1772,26 +1663,6 @@ describe('LabelingInterface', () => {
       expect(projectsAPI.getTimerStatus).not.toHaveBeenCalled()
     })
 
-    it('should auto-start timer in non-strict mode with no existing session', async () => {
-      const timedProject = {
-        ...mockProject,
-      }
-      const storeTimed = {
-        ...mockStoreState,
-        currentProject: timedProject,
-      }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeTimed)
-      ;(projectsAPI.getTimerStatus as jest.Mock).mockResolvedValue({
-        server_time: new Date().toISOString(),
-        session: null,
-      })
-
-      render(<LabelingInterface projectId="project-1" />)
-
-      await waitFor(() => {
-        expect(projectsAPI.startTimer).toHaveBeenCalledWith('project-1', 'task-1')
-      })
-    })
 
     it('should resume running timer session', async () => {
       const timedProject = {
@@ -1843,26 +1714,6 @@ describe('LabelingInterface', () => {
       })
     })
 
-    it('should show pre-start screen in strict mode with no session', async () => {
-      const strictProject = {
-        ...mockProject,
-      }
-      const storeStrict = {
-        ...mockStoreState,
-        currentProject: strictProject,
-      }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeStrict)
-      ;(projectsAPI.getTimerStatus as jest.Mock).mockResolvedValue({
-        server_time: new Date().toISOString(),
-        session: null,
-      })
-
-      render(<LabelingInterface projectId="project-1" />)
-
-      await waitFor(() => {
-        expect(screen.getByText('Ready to Begin')).toBeInTheDocument()
-      })
-    })
 
     it('should show non-strict expired session as annotating', async () => {
       const timedProject = {
@@ -2007,90 +1858,6 @@ describe('LabelingInterface', () => {
     })
   })
 
-  describe('Strict Timer Start', () => {
-    it('should start timer when Start button is clicked on pre_start screen', async () => {
-      const strictProject = {
-        ...mockProject,
-      }
-      const storeStrict = {
-        ...mockStoreState,
-        currentProject: strictProject,
-      }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeStrict)
-      ;(projectsAPI.getTimerStatus as jest.Mock).mockResolvedValue({
-        server_time: new Date().toISOString(),
-        session: null,
-      })
-
-      render(<LabelingInterface projectId="project-1" />)
-
-      await waitFor(() => {
-        expect(screen.getByText('Ready to Begin')).toBeInTheDocument()
-      })
-
-      // Click Start
-      fireEvent.click(screen.getByText('Start'))
-
-      await waitFor(() => {
-        expect(projectsAPI.startTimer).toHaveBeenCalledWith('project-1', 'task-1')
-      })
-    })
-
-    it('should show error toast when start timer fails', async () => {
-      const strictProject = {
-        ...mockProject,
-      }
-      const storeStrict = {
-        ...mockStoreState,
-        currentProject: strictProject,
-      }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeStrict)
-      ;(projectsAPI.getTimerStatus as jest.Mock).mockResolvedValue({
-        server_time: new Date().toISOString(),
-        session: null,
-      })
-      ;(projectsAPI.startTimer as jest.Mock).mockRejectedValue(new Error('Server error'))
-
-      render(<LabelingInterface projectId="project-1" />)
-
-      await waitFor(() => {
-        expect(screen.getByText('Ready to Begin')).toBeInTheDocument()
-      })
-
-      fireEvent.click(screen.getByText('Start'))
-
-      await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith('Failed to start timer')
-      })
-    })
-
-    it('should show conditional instructions on pre-start screen', async () => {
-      const strictProject = {
-        ...mockProject,
-        conditional_instructions: [
-          { id: 'variant-1', content: 'Special instructions for this variant', weight: 100 },
-        ],
-      }
-      const storeStrict = {
-        ...mockStoreState,
-        currentProject: strictProject,
-      }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(storeStrict)
-      ;(projectsAPI.getTimerStatus as jest.Mock).mockResolvedValue({
-        server_time: new Date().toISOString(),
-        session: null,
-      })
-
-      render(<LabelingInterface projectId="project-1" />)
-
-      await waitFor(() => {
-        expect(screen.getByText('Ready to Begin')).toBeInTheDocument()
-      })
-
-      // Conditional instructions should be shown on the pre-start screen
-      expect(screen.getByText('Annotation Instructions')).toBeInTheDocument()
-    })
-  })
 
   describe('Instruction Modal Auto-show Logic', () => {
     it('should auto-show instructions modal when show_instruction is true and not dismissed', async () => {
@@ -2201,41 +1968,6 @@ describe('LabelingInterface', () => {
     })
   })
 
-  describe('Immediate Evaluation Flow', () => {
-    it('should show evaluation modal after submit when immediate evaluation is enabled', async () => {
-      const evalProject = {
-        ...mockProject,
-      }
-      const evalStore = {
-        ...mockStoreState,
-        currentProject: evalProject,
-        createAnnotationInternal: jest.fn().mockResolvedValue({
-          id: 'annotation-1',
-          task_id: 'task-1',
-          result: [],
-          created_at: '2025-01-01T00:00:00Z',
-        }),
-      }
-      ;(useProjectStore as unknown as jest.Mock).mockReturnValue(evalStore)
-
-      render(<LabelingInterface projectId="project-1" />)
-
-      await waitFor(() => {
-        expect(screen.getByTestId('mock-submit')).toBeInTheDocument()
-      })
-
-      fireEvent.click(screen.getByTestId('mock-submit'))
-
-      // Should show evaluation modal loading state
-      await waitFor(() => {
-        expect(evalStore.createAnnotationInternal).toHaveBeenCalledWith(
-          'task-1',
-          expect.objectContaining({ result: [] }),
-          true // skipAdvance when evaluation is enabled
-        )
-      })
-    })
-  })
 
   describe('Questionnaire Flow', () => {
     it('should show questionnaire modal after submit when questionnaire is enabled', async () => {

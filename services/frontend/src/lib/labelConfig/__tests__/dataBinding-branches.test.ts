@@ -50,8 +50,6 @@ describe('buildAnnotationResult', () => {
     const result = buildAnnotationResult('num', 'Number', 42, 'target')
     expect(result.type).toBe('number')
   })
-
-  })
 })
 
 describe('mapLegacyAnnotation', () => {

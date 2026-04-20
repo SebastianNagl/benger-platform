@@ -128,7 +128,7 @@ describe('UniversalDataImport', () => {
       const jsonExample = screen.getByText('Example JSON structure')
       expect(jsonExample).toBeInTheDocument()
       fireEvent.click(jsonExample)
-      const examples = screen.getAllByText(/fallnummer/)
+      const examples = screen.getAllByText(/plaintiff claims/)
       expect(examples.length).toBeGreaterThan(0)
     })
 
@@ -137,7 +137,7 @@ describe('UniversalDataImport', () => {
       const csvExample = screen.getByText('Example CSV format')
       expect(csvExample).toBeInTheDocument()
       fireEvent.click(csvExample)
-      const examples = screen.getAllByText(/2025-BGH-001/)
+      const examples = screen.getAllByText(/plaintiff claims/)
       expect(examples.length).toBeGreaterThan(0)
     })
   })

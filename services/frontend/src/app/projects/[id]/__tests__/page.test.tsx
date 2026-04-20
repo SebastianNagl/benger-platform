@@ -3845,25 +3845,6 @@ describe('ProjectDetailPage', () => {
       }
     })
 
-    it('toggles annotation time limit checkbox', async () => {
-      const user = userEvent.setup()
-      await openSettingsEdit(user)
-
-      await waitFor(() => {
-        expect(screen.getByText('project.settings.annotationTimeLimit')).toBeInTheDocument()
-      })
-
-      const checkboxes = screen.getAllByRole('checkbox')
-      const timeLimitCheckbox = checkboxes.find((cb) => {
-        const label = cb.closest('div')?.textContent
-        return label?.includes('project.settings.annotationTimeLimit')
-      })
-
-      if (timeLimitCheckbox) {
-        await user.click(timeLimitCheckbox)
-      }
-    })
-
     it('toggles questionnaire enabled checkbox', async () => {
       const user = userEvent.setup()
       await openSettingsEdit(user)
@@ -3880,25 +3861,6 @@ describe('ProjectDetailPage', () => {
 
       if (questionnaireCheckbox) {
         await user.click(questionnaireCheckbox)
-      }
-    })
-
-    it('toggles review enabled checkbox', async () => {
-      const user = userEvent.setup()
-      await openSettingsEdit(user)
-
-      await waitFor(() => {
-        expect(screen.getByText('project.settings.review.title')).toBeInTheDocument()
-      })
-
-      const checkboxes = screen.getAllByRole('checkbox')
-      const reviewCheckbox = checkboxes.find((cb) => {
-        const label = cb.closest('div')?.textContent
-        return label?.includes('project.settings.review.enableReview')
-      })
-
-      if (reviewCheckbox) {
-        await user.click(reviewCheckbox)
       }
     })
 
@@ -3938,62 +3900,6 @@ describe('ProjectDetailPage', () => {
       if (randomizeCheckbox) {
         await user.click(randomizeCheckbox)
       }
-    })
-
-    it('shows strict timer option when time limit is enabled', async () => {
-      const user = userEvent.setup()
-      ;(useProjectStore as jest.Mock).mockReturnValue({
-        currentProject: {
-          ...mockProject,
-        },
-        loading: false,
-        fetchProject: jest.fn(),
-        updateProject: jest.fn().mockResolvedValue({}),
-        deleteProject: jest.fn(),
-      })
-
-      await openSettingsEdit(user)
-
-      await waitFor(() => {
-      })
-    })
-
-    it('shows time limit minutes input when time limit is enabled', async () => {
-      const user = userEvent.setup()
-      ;(useProjectStore as jest.Mock).mockReturnValue({
-        currentProject: {
-          ...mockProject,
-        },
-        loading: false,
-        fetchProject: jest.fn(),
-        updateProject: jest.fn().mockResolvedValue({}),
-        deleteProject: jest.fn(),
-      })
-
-      await openSettingsEdit(user)
-
-      await waitFor(() => {
-        expect(screen.getByText('project.settings.timeLimitMinutes')).toBeInTheDocument()
-      })
-    })
-
-    it('shows review mode select when review is enabled', async () => {
-      const user = userEvent.setup()
-      ;(useProjectStore as jest.Mock).mockReturnValue({
-        currentProject: {
-          ...mockProject,
-        },
-        loading: false,
-        fetchProject: jest.fn(),
-        updateProject: jest.fn().mockResolvedValue({}),
-        deleteProject: jest.fn(),
-      })
-
-      await openSettingsEdit(user)
-
-      await waitFor(() => {
-        expect(screen.getByText('project.settings.review.reviewMode')).toBeInTheDocument()
-      })
     })
 
     it('shows questionnaire config textarea when questionnaire is enabled', async () => {

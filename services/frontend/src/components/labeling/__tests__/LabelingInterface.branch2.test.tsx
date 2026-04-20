@@ -75,8 +75,6 @@ jest.mock('../DynamicAnnotationInterface', () => ({
   },
 }))
 
-}))
-
 // Mock PostAnnotationQuestionnaireModal
 jest.mock('@/components/labeling/PostAnnotationQuestionnaireModal', () => ({
   PostAnnotationQuestionnaireModal: () => null,
@@ -290,8 +288,6 @@ describe('LabelingInterface - branch2 coverage', () => {
 
     render(<LabelingInterface projectId="proj-1" />)
     expect(screen.getByTestId('require-confirm-prop')).toHaveTextContent('true')
-  })
-
   })
 
   it('renders elapsed time when no time limit', () => {

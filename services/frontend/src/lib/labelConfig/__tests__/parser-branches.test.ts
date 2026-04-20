@@ -115,8 +115,6 @@ describe('validateParsedConfig', () => {
     expect(result.errors.some((e) => e.includes('Choice component requires \'value\''))).toBe(true)
   })
 
-  })
-
   it('should return valid for correct configuration', () => {
     const config: ParsedComponent = {
       type: 'View',
