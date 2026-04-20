@@ -59,5 +59,8 @@ def on_annotation_created(db, task_id, user_id, annotation_id, project_id):
     Extended package uses this to complete timer sessions and clean up drafts.
     No-op if extended is not loaded.
     """
-    if _extended and hasattr(_extended, "on_annotation_created"):
-        _extended.on_annotation_created(db, task_id, user_id, annotation_id, project_id)
+    if _extended and hasattr(_extended, "get_hooks"):
+        hooks = _extended.get_hooks()
+        hook = hooks.get("on_annotation_created")
+        if hook:
+            hook(db, task_id, user_id, annotation_id, project_id)

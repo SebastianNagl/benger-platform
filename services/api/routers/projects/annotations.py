@@ -141,6 +141,10 @@ async def create_annotation(
     db.commit()
     db.refresh(db_annotation)
 
+    # Notify extended features (e.g. timer session completion)
+    from extensions import on_annotation_created
+    on_annotation_created(db, task_id, current_user.id, db_annotation.id, task.project_id)
+
     # Mark task assignment as completed in manual/auto mode
     if (
         project

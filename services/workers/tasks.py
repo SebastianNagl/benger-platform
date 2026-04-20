@@ -286,6 +286,13 @@ else:
 app.conf.broker_url = os.getenv("CELERY_BROKER_URL", broker_url)
 app.conf.result_backend = os.getenv("CELERY_RESULT_BACKEND", result_backend)
 
+# Load extended Celery tasks if available
+try:
+    from benger_extended.workers import register_tasks
+    register_tasks(app)
+except ImportError:
+    pass
+
 
 def _extract_field_value_from_annotation(annotation_results: List[Dict], field_name: str) -> Any:
     """Extract value for a specific field from annotation results."""
