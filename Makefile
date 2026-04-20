@@ -22,6 +22,7 @@ help: ## Show this help message
 DOCKER_COMPOSE_CMD := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
 DOCKER_COMPOSE := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml
 DOCKER_COMPOSE_DEV := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml -f infra/docker-compose.dev.yml
+DOCKER_COMPOSE_EXTENDED := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml -f infra/docker-compose.dev.yml -f infra/docker-compose.extended.yml
 DOCKER_COMPOSE_TEST := $(DOCKER_COMPOSE_CMD) -f $(CURDIR)/infra/docker-compose.test.yml
 API_DIR := services/api
 FRONTEND_DIR := services/frontend
@@ -89,16 +90,30 @@ install-hooks: ## Install git hooks
 
 .PHONY: dev
 dev: ## Start all services in development mode with hot reload
-	@echo "$(BLUE)🚀 Starting development environment with hot reload...$(NC)"
+	@echo "$(BLUE)Starting development environment (community edition)...$(NC)"
 	@$(DOCKER_COMPOSE_DEV) up -d
-	@echo "$(GREEN)✅ Development environment running$(NC)"
+	@echo "$(GREEN)Development environment running$(NC)"
 	@echo ""
-	@echo "  📍 Frontend: http://benger.localhost (hot reload enabled)"
-	@echo "  📍 API: http://api.localhost"
-	@echo "  📍 API Docs: http://api.localhost/docs"
-	@echo "  📍 Traefik Dashboard: http://traefik.localhost:8080"
+	@echo "  Frontend: http://benger.localhost (hot reload enabled)"
+	@echo "  API: http://api.localhost"
+	@echo "  API Docs: http://api.localhost/docs"
+	@echo "  Traefik Dashboard: http://traefik.localhost:8080"
 	@echo ""
-	@echo "  📧 For email testing, run: make dev-mail"
+	@echo "Run 'make logs' to see logs or 'make stop' to stop services"
+
+.PHONY: dev-extended
+dev-extended: ## Start with extended features (requires ../benger-extended)
+	@if [ ! -d "../benger-extended/benger_extended" ]; then \
+		echo "$(RED)Error: benger-extended not found at ../benger-extended$(NC)"; \
+		echo "Clone it: git clone git@github.com:SebastianNagl/benger-extended.git ../benger-extended"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Starting development environment (extended edition)...$(NC)"
+	@$(DOCKER_COMPOSE_EXTENDED) up -d
+	@echo "$(GREEN)Extended development environment running$(NC)"
+	@echo ""
+	@echo "  Frontend: http://benger.localhost (extended features enabled)"
+	@echo "  API: http://api.localhost (extended routers loaded)"
 	@echo ""
 	@echo "Run 'make logs' to see logs or 'make stop' to stop services"
 

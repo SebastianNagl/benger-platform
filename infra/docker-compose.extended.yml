@@ -1,0 +1,30 @@
+# Extended edition overrides
+# Mounts benger-extended package into API and workers for local development.
+#
+# Usage:
+#   cd infra/
+#   docker-compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.extended.yml up -d
+#
+# Requires: benger-extended repo cloned at ../../benger-extended (sibling of benger-platform)
+
+name: benger
+version: '3.8'
+
+services:
+  api:
+    volumes:
+      - ../../benger-extended/benger_extended:/app/benger_extended:ro
+    environment:
+      BENGER_EDITION: extended
+
+  workers:
+    volumes:
+      - ../../benger-extended/benger_extended:/app/benger_extended:ro
+    environment:
+      BENGER_EDITION: extended
+
+  frontend-dev:
+    volumes:
+      - ../../benger-extended/frontend:/app/benger-extended-frontend:ro
+    environment:
+      NEXT_PUBLIC_BENGER_EDITION: extended
