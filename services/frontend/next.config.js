@@ -87,9 +87,12 @@ const nextConfig = {
 
   // Webpack configuration (legacy fallback when not using --turbo)
   webpack: (config, { dev, isServer }) => {
-    // Resolve @benger/extended to mounted volume in extended edition
+    // Extended edition: resolve @benger/extended to mounted volume
+    // Community edition: ignore the import entirely (it's in a try/catch)
     if (isExtended) {
       config.resolve.alias['@benger/extended'] = '/app/benger-extended-frontend'
+    } else {
+      config.resolve.alias['@benger/extended'] = false
     }
 
     // Disable MDX processing (not used in BenGER)
