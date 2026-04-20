@@ -28,10 +28,10 @@ class TestExtractPrimaryScore:
     def test_empty_metrics(self):
         assert _extract_primary_score({}) is None
 
-    def test_custom_llm_judge_second_priority(self):
+    def test_custom_llm_judge_first_priority(self):
         metrics = {
             "llm_judge_custom": 0.75,
-            "llm_judge_custom": 0.6,
+            "llm_judge_coherence": 0.6,
             "score": 0.9,
         }
         assert _extract_primary_score(metrics) == 0.75
@@ -150,7 +150,6 @@ class TestGetTaskDataAvailability:
 class TestBuildAllTasksResponse:
     """Tests for _build_all_tasks_response."""
 
-    @patch("routers.evaluations.results._get_task_data_availability")
     @patch("routers.evaluations.results._get_task_data_availability")
     def test_empty_project(self, mock_availability):
         mock_availability.return_value = (set(), {})

@@ -68,6 +68,7 @@ class TestSerializeAnnotation:
             "lead_time": 10.5, "active_duration_ms": 5000,
             "focused_duration_ms": 4000, "tab_switches": 2,
             "task_id": "t1", "project_id": "p1", "draft": None,
+            "prediction_scores": None,
         }
         defaults.update(overrides)
         return SimpleNamespace(**defaults)

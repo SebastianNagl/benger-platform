@@ -467,14 +467,14 @@ class TestExtractPrimaryScore:
         from routers.evaluations.results import _extract_primary_score
         assert _extract_primary_score({}) is None
 
-    def test_grade_points_priority(self):
+    def test_custom_llm_judge_priority(self):
         from routers.evaluations.results import _extract_primary_score
         metrics = {
-            "llm_judge_custom": 15,
             "llm_judge_custom": 0.9,
+            "llm_judge_coherence": 0.7,
             "score": 0.5,
         }
-        assert _extract_primary_score(metrics) == 15
+        assert _extract_primary_score(metrics) == 0.9
 
     def test_custom_llm_judge(self):
         from routers.evaluations.results import _extract_primary_score

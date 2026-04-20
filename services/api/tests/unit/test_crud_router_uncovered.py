@@ -487,12 +487,6 @@ class TestUpdateProjectHappyPath:
         assert result.id == "proj-1"
 
     @pytest.mark.asyncio
-    async def test_update_disable_timer(self):
-        result = await self._run_update(
-        )
-        assert result.id == "proj-1"
-
-    @pytest.mark.asyncio
     async def test_update_label_config_with_versioning(self):
         new_config = "<View><Text name='text' value='$text'/><Choices name='c' toName='text'><Choice value='A'/></Choices></View>"
         result = await self._run_update({"label_config": new_config})
