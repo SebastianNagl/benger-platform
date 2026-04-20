@@ -28,8 +28,9 @@ import {
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-hot-toast'
+import { getSlot } from '@/lib/extensions/slots'
 import { DynamicAnnotationInterface } from './DynamicAnnotationInterface'
 
 interface LabelingInterfaceProps {
@@ -41,6 +42,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   const searchParams = useSearchParams()
   const { t } = useI18n()
   const { user } = useAuth()
+  const TimerSlot = useMemo(() => getSlot('TimerIntegration'), [])
   const {
     currentProject,
     currentTask,
@@ -587,6 +589,22 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             </div>
           </div>
         </div>
+
+        {/* Timer integration (extended feature) */}
+        {TimerSlot && currentProject?.annotation_time_limit_enabled && (
+          <TimerSlot
+            project={currentProject}
+            task={currentTask}
+            annotations={annotations}
+            onAutoSubmit={async (result: any[]) => {
+              // Auto-submit handler for timer expiry
+              await projectsAPI.createAnnotation(currentProject.id, currentTask.id, {
+                result,
+                was_cancelled: false,
+              })
+            }}
+          />
+        )}
 
         {/* Task content */}
         <div className="flex-1 overflow-auto p-6">
