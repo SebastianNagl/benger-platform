@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { SessionValidator } from '@/components/auth/SessionValidator'
 import { GlobalErrorBoundary } from '@/components/shared/GlobalErrorBoundary'
 import { ToastProvider } from '@/components/shared/Toast'
@@ -9,9 +10,13 @@ import { HydrationProvider } from '@/contexts/HydrationContext'
 import { I18nProvider } from '@/contexts/I18nContext'
 import { ProgressProvider } from '@/contexts/ProgressContext'
 import { DialogProvider } from '@/hooks/useDialogs'
+import { loadExtended } from '@/lib/extensions'
 import { ThemeProvider } from 'next-themes'
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    loadExtended()
+  }, [])
   return (
     <GlobalErrorBoundary>
       <HydrationProvider>

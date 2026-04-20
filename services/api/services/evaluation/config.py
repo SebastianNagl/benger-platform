@@ -185,6 +185,21 @@ ANSWER_TYPE_TO_METRICS = {
     ],
 }
 
+# Extension point: extended package can register additional metrics per answer type
+_extended_metrics: dict[str, list[str]] = {}
+
+
+def register_extended_metrics(answer_type: str, metrics: list[str]):
+    """Register additional metrics for an answer type (called by benger_extended)."""
+    _extended_metrics.setdefault(answer_type, []).extend(metrics)
+
+
+def get_metrics_for_answer_type(answer_type: AnswerType) -> list[str]:
+    """Get all metrics for an answer type, including extended metrics."""
+    base = ANSWER_TYPE_TO_METRICS.get(answer_type, [])
+    extended = _extended_metrics.get(answer_type.value, [])
+    return base + extended
+
 
 class AnswerTypeDetector:
     """Detects answer types from Label Studio label configuration XML."""
@@ -393,8 +408,8 @@ def lookup_available_methods(answer_types: List[Dict[str, Any]]) -> Dict[str, An
         except ValueError:
             answer_type = AnswerType.CUSTOM
 
-        # Get metrics for this answer type (now a flat list)
-        metrics = ANSWER_TYPE_TO_METRICS.get(answer_type, ANSWER_TYPE_TO_METRICS[AnswerType.CUSTOM])
+        # Get metrics for this answer type (core + extended)
+        metrics = get_metrics_for_answer_type(answer_type)
 
         available_methods[field_name] = {
             "type": answer_type.value,
@@ -496,7 +511,7 @@ def validate_metric_selection(answer_type: str, metric_name: str) -> bool:
     except ValueError:
         answer_type_enum = AnswerType.CUSTOM
 
-    available_metrics = ANSWER_TYPE_TO_METRICS.get(answer_type_enum, [])
+    available_metrics = get_metrics_for_answer_type(answer_type_enum)
     return metric_name in available_metrics
 
 

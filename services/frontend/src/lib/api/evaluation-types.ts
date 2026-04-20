@@ -833,3 +833,38 @@ export const GROUPED_METRICS: MetricCategory[] = [
     ],
   },
 ]
+
+// =============================================================================
+// Extension points for extended metrics
+// =============================================================================
+
+const _extendedMetrics: Record<string, AvailableMetric> = {}
+const _extendedGroups: MetricCategory[] = []
+
+/**
+ * Register an additional metric definition (called by @benger/extended).
+ */
+export function registerMetric(key: string, definition: AvailableMetric) {
+  _extendedMetrics[key] = definition
+}
+
+/**
+ * Register an additional metric group for UI display (called by @benger/extended).
+ */
+export function registerMetricGroup(group: MetricCategory) {
+  _extendedGroups.push(group)
+}
+
+/**
+ * Get all metric definitions (core + extended).
+ */
+export function getMetricDefinitions(): Record<string, AvailableMetric> {
+  return { ...METRIC_DEFINITIONS, ..._extendedMetrics }
+}
+
+/**
+ * Get all metric groups (core + extended).
+ */
+export function getGroupedMetrics(): MetricCategory[] {
+  return [...GROUPED_METRICS, ..._extendedGroups]
+}

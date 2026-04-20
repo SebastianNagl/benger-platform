@@ -295,13 +295,13 @@ async def get_supported_metrics(
     Get all supported evaluation metrics.
     Returns a comprehensive list of all available automated and human evaluation metrics.
     """
-    from evaluation_config import ANSWER_TYPE_TO_METRICS, AnswerType
+    from evaluation_config import AnswerType, get_metrics_for_answer_type
 
-    # Get all unique automated metrics from the CUSTOM type (most comprehensive)
+    # Get all unique metrics across all answer types (core + extended)
     all_metrics = set()
     for answer_type in AnswerType:
-        metrics = ANSWER_TYPE_TO_METRICS.get(answer_type, {})
-        all_metrics.update(metrics.get("automated", []))
+        metrics = get_metrics_for_answer_type(answer_type)
+        all_metrics.update(metrics)
 
     # Sort and return
     sorted_metrics = sorted(list(all_metrics))

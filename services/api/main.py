@@ -342,6 +342,13 @@ app.include_router(projects_router)  # Projects API
 app.include_router(leaderboards_router)  # Leaderboards for annotation performance (Issue #790)
 app.include_router(test_seeding_router)  # Test seeding endpoints (guarded by env check + superadmin)
 
+# Load extended features if available
+from extensions import load_extended, get_extended_routers
+
+if load_extended():
+    for router, kwargs in get_extended_routers():
+        app.include_router(router, **kwargs)
+
 
 # Root endpoint
 @app.get("/")

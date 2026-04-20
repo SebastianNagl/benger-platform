@@ -33,10 +33,10 @@ import {
   generateEvaluationId,
   getDimensionDisplayName,
   getFieldDisplayName,
-  GROUPED_METRICS,
+  getGroupedMetrics,
+  getMetricDefinitions,
   LLM_JUDGE_DIMENSIONS,
   LLM_JUDGE_TEMPLATES,
-  METRIC_DEFINITIONS,
   type AvailableEvaluationFields,
   type FieldTypeInfo,
   type EvaluationConfig,
@@ -355,7 +355,7 @@ export function EvaluationBuilder({
       return
     }
 
-    const metricDef = METRIC_DEFINITIONS[newEvaluation.metric]
+    const metricDef = getMetricDefinitions()[newEvaluation.metric]
     const newConfig: EvaluationConfig = {
       id: editingId || generateEvaluationId(newEvaluation.metric),
       metric: newEvaluation.metric,
@@ -506,7 +506,7 @@ export function EvaluationBuilder({
       }
     }
 
-    const def = METRIC_DEFINITIONS[metric]
+    const def = getMetricDefinitions()[metric]
     if (!def?.parameter_schema) return {}
 
     const defaults: Record<string, any> = {}
@@ -570,7 +570,7 @@ export function EvaluationBuilder({
 
     // Skip parameters step if metric doesn't support parameters
     if (currentStep === 'reference_fields') {
-      const metricDef = METRIC_DEFINITIONS[newEvaluation.metric]
+      const metricDef = getMetricDefinitions()[newEvaluation.metric]
       if (!metricDef?.supports_parameters) {
         setCurrentStep('review')
         return
@@ -594,7 +594,7 @@ export function EvaluationBuilder({
 
     // Skip parameters step if metric doesn't support parameters
     if (currentStep === 'review') {
-      const metricDef = METRIC_DEFINITIONS[newEvaluation.metric]
+      const metricDef = getMetricDefinitions()[newEvaluation.metric]
       if (!metricDef?.supports_parameters) {
         setCurrentStep('reference_fields')
         return
@@ -618,7 +618,7 @@ export function EvaluationBuilder({
               {t('evaluationBuilder.steps.metric.description')}
             </p>
             <div className="max-h-[400px] space-y-3 overflow-y-auto">
-              {GROUPED_METRICS.map((group) => (
+              {getGroupedMetrics().map((group) => (
                 <div
                   key={group.name}
                   className="rounded-lg border p-3 dark:border-gray-700"
@@ -631,7 +631,7 @@ export function EvaluationBuilder({
                   </p>
                   <div className="space-y-1">
                     {group.metrics.map((metric) => {
-                      const def = METRIC_DEFINITIONS[metric]
+                      const def = getMetricDefinitions()[metric]
                       if (!def) return null
                       const isSelected = newEvaluation.metric === metric
 
@@ -821,7 +821,7 @@ export function EvaluationBuilder({
         )
 
       case 'parameters':
-        const metricDef = METRIC_DEFINITIONS[newEvaluation.metric]
+        const metricDef = getMetricDefinitions()[newEvaluation.metric]
         return (
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -1622,7 +1622,7 @@ export function EvaluationBuilder({
         )
 
       case 'review':
-        const reviewMetricDef = METRIC_DEFINITIONS[newEvaluation.metric]
+        const reviewMetricDef = getMetricDefinitions()[newEvaluation.metric]
         return (
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -1777,7 +1777,7 @@ export function EvaluationBuilder({
       {evaluations.length > 0 ? (
         <div className="space-y-3">
           {evaluations.map((evaluation) => {
-            const metricDef = METRIC_DEFINITIONS[evaluation.metric]
+            const metricDef = getMetricDefinitions()[evaluation.metric]
             return (
               <div
                 key={evaluation.id}
