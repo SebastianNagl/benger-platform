@@ -64,3 +64,16 @@ def on_annotation_created(db, task_id, user_id, annotation_id, project_id):
         hook = hooks.get("on_annotation_created")
         if hook:
             hook(db, task_id, user_id, annotation_id, project_id)
+
+
+def on_draft_saved(db, task_id, user_id, project_id, draft_result):
+    """Hook called after a draft is saved.
+
+    Extended package uses this to mirror drafts to timer sessions
+    for server-side auto-submit. No-op if extended is not loaded.
+    """
+    if _extended and hasattr(_extended, "get_hooks"):
+        hooks = _extended.get_hooks()
+        hook = hooks.get("on_draft_saved")
+        if hook:
+            hook(db, task_id, user_id, project_id, draft_result)

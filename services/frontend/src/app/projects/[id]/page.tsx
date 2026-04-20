@@ -2674,7 +2674,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           {t('project.settings.interface.requireConfirmBeforeSubmit', { defaultValue: 'Require confirmation before submit' })}
                         </Label>
                         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                          {t('project.settings.interface.requireConfirmBeforeSubmitHelp', { defaultValue: 'Annotators must check a confirmation checkbox before submitting. Bypassed on auto-submit after timer expiry.' })}
+                          {t('project.settings.interface.requireConfirmBeforeSubmitHelp', { defaultValue: 'Annotators must check a confirmation checkbox before submitting.' })}
                         </p>
                       </div>
                       <input

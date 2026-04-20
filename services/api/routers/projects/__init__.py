@@ -22,6 +22,7 @@ from routers.projects import (
     assignments,
     bulk,
     crud,
+    drafts,
     generation,
     import_export,
     label_config_versions,
@@ -49,5 +50,6 @@ router.include_router(assignments.router)
 router.include_router(organizations.router)
 router.include_router(members.router)
 router.include_router(generation.router)
+router.include_router(drafts.router)
 router.include_router(questionnaire.router)
 router.include_router(label_config_versions.router)

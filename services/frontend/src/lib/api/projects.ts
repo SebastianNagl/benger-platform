@@ -16,10 +16,8 @@ import {
   Project,
   ProjectCreate,
   ProjectUpdate,
-  StartTimerResponse,
   Task,
   TaskAssignment,
-  TimerStatusResponse,
 } from '@/types/labelStudio'
 
 export const projectsAPI = {
@@ -587,37 +585,8 @@ export const projectsAPI = {
   },
 
   /**
-   * Start an annotation timer session (Issue #1205)
-   * Idempotent: returns existing session if already started
-   */
-  startTimer: async (
-    projectId: string,
-    taskId: string
-  ): Promise<StartTimerResponse> => {
-    const response = await apiClient.post(
-      `/projects/${projectId}/tasks/${taskId}/start-timer`
-    )
-    return response
-  },
-
-  /**
-   * Get timer status for a task (Issue #1205)
-   * Returns the active session or null
-   */
-  getTimerStatus: async (
-    projectId: string,
-    taskId: string
-  ): Promise<TimerStatusResponse> => {
-    const response = await apiClient.get(
-      `/projects/${projectId}/tasks/${taskId}/timer-status`
-    )
-    return response
-  },
-
-  /**
    * Save draft annotation data to the server.
    * Called periodically (every 30s) for all projects when annotations change.
-   * Also mirrors to timer session for strict timer auto-submit.
    */
   saveDraft: async (
     projectId: string,

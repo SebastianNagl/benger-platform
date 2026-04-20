@@ -601,7 +601,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 showSubmitButton={currentProject?.show_submit_button !== false}
                 requireConfirmBeforeSubmit={currentProject?.require_confirm_before_submit === true}
                 startTime={startTime} // Pass start time for auto-save lead_time tracking
-                onChange={(results) => setAnnotations(results)} // Keep parent in sync for strict timer auto-submit (#1238)
+                onChange={(results) => setAnnotations(results)}
                 onSubmit={async (results) => {
                   try {
                     if (hasSubmittedRef.current) {
