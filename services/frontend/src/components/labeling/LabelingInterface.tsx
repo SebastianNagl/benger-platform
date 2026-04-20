@@ -43,6 +43,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   const { t } = useI18n()
   const { user } = useAuth()
   const TimerSlot = useMemo(() => getSlot('TimerIntegration'), [])
+  const ImmediateEvalSlot = useMemo(() => getSlot('ImmediateEvaluation'), [])
   const {
     currentProject,
     currentTask,
@@ -828,6 +829,15 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           annotationId={questionnaireAnnotationId}
           onComplete={proceedAfterQuestionnaire}
           onSubmitResponse={handleQuestionnaireSubmit}
+        />
+      )}
+
+      {/* Immediate evaluation (extended feature) */}
+      {ImmediateEvalSlot && currentProject?.immediate_evaluation_enabled && questionnaireAnnotationId && (
+        <ImmediateEvalSlot
+          projectId={projectId}
+          taskId={currentTask?.id}
+          annotationId={questionnaireAnnotationId}
         />
       )}
 

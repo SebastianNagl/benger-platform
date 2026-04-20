@@ -90,7 +90,7 @@ const nextConfig = {
     // Extended edition: resolve @benger/extended to mounted volume
     // Community edition: ignore the import entirely (it's in a try/catch)
     if (isExtended) {
-      config.resolve.alias['@benger/extended'] = '/app/benger-extended-frontend'
+      config.resolve.alias['@benger/extended'] = '/app/node_modules/@benger/extended'
     } else {
       config.resolve.alias['@benger/extended'] = false
     }
