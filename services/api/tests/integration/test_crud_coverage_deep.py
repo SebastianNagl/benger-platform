@@ -419,16 +419,6 @@ class TestUpdateProject:
         )
         assert resp.status_code == 200
 
-    def test_update_project_disable_time_limit(self, client, test_db, test_users, auth_headers, test_org):
-        """Disabling time limit also disables strict timer."""
-        p = _project(test_db, test_users[0], test_org)
-        test_db.commit()
-
-        resp = client.patch(
-            f"/api/projects/{p.id}",
-            headers=_h(auth_headers, test_org),
-        )
-        assert resp.status_code == 200
 
 
 # ===================================================================

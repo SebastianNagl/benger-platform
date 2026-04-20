@@ -173,13 +173,13 @@ class TestScoreExtraction:
 
     def test_priority_order(self):
         from routers.evaluations.results import _extract_primary_score
-        # grade_points has highest priority
+        # llm_judge_custom has highest priority over score/overall_score
         result = _extract_primary_score({
-            "llm_judge_custom": 15,
-            "llm_judge_custom": 0.5,
+            "llm_judge_custom": 0.95,
             "score": 0.3,
+            "overall_score": 0.4,
         })
-        assert result == 15
+        assert result == 0.95
 
 
 # -----------------------------------------------------------------

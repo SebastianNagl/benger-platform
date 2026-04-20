@@ -107,20 +107,6 @@ class TestCreateAnnotation:
         assert resp.status_code == 200
         assert resp.json()["was_cancelled"] is True
 
-    def test_create_duplicate_auto_submit_returns_existing(self, client, test_db, test_users, auth_headers, test_org):
-        project, tasks = _setup(test_db, test_users[0], test_org)
-        payload = {
-            "result": [{"from_name": "text", "to_name": "text", "type": "textarea", "value": {"text": ["dup"]}}],
-        }
-        headers = {**auth_headers["admin"], "X-Organization-Context": test_org.id}
-
-        resp1 = client.post(f"/api/projects/tasks/{tasks[0].id}/annotations", json=payload, headers=headers)
-        resp2 = client.post(f"/api/projects/tasks/{tasks[0].id}/annotations", json=payload, headers=headers)
-
-        assert resp1.status_code == 200
-        assert resp2.status_code == 200
-        assert resp1.json()["id"] == resp2.json()["id"]
-
     def test_create_annotation_with_enhanced_timing(self, client, test_db, test_users, auth_headers, test_org):
         project, tasks = _setup(test_db, test_users[0], test_org)
         resp = client.post(

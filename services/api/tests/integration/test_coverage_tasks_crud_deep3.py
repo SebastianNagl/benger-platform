@@ -390,15 +390,6 @@ class TestProjectCRUD:
         )
         assert resp.status_code == 200
 
-    def test_update_disable_time_limit(self, client, test_db, test_users, auth_headers, test_org):
-        test_db.commit()
-
-        resp = client.patch(
-            f"/api/projects/{p.id}",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-
     def test_delete_project(self, client, test_db, test_users, auth_headers, test_org):
         p = _project(test_db, test_users[0], test_org)
         test_db.commit()

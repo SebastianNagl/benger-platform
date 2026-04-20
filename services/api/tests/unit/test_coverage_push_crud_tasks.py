@@ -33,8 +33,9 @@ from project_models import (
 )
 
 
-def create_project_fixture(db, questionnaire_enabled=False,
-                          num_tasks=3, is_private=False):
+def create_project_fixture(db, users, questionnaire_enabled=False,
+                          num_tasks=3, is_private=False,
+                          assignment_mode="open"):
     """Create a complete project with org, membership, and tasks."""
     org = Organization(
         id=str(uuid.uuid4()),
@@ -94,6 +95,11 @@ def create_project_fixture(db, questionnaire_enabled=False,
     db.commit()
 
     return {"project": p, "tasks": tasks, "org": org}
+
+
+def _setup_full_project(db, users, **kwargs):
+    """Wrapper around create_project_fixture for backward compatibility."""
+    return create_project_fixture(db, users, **kwargs)
 
 
 # =================== CRUD Tests ===================

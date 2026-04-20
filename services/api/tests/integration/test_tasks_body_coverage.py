@@ -93,6 +93,7 @@ def _tasks(db, project, admin, count=5, labeled_count=0):
     return tasks
 
 
+def _annotate(db, project, tasks, user_id, count=None, cancelled=False):
     anns = []
     for t in (tasks[:count] if count else tasks):
         ann = Annotation(
