@@ -443,7 +443,8 @@ class TestTryPatternMatch:
         assert result.status == "failed"
 
     def test_freeform_text_single_text_field(self):
-        """Test fallback for German legal text fields when no structured data found."""
+        """Test fallback for freeform text when no structured data found."""
+        config = '<View><TextArea name="answer" toName="text"/></View>'
         parser = ResponseParser({}, config)
         result = parser._try_pattern_match("Die Klage ist begründet, weil...")
         assert result.status == "success"

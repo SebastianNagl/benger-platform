@@ -12,6 +12,8 @@ import os
 import tempfile
 import time
 
+import pytest
+
 workers_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, workers_root)
 
