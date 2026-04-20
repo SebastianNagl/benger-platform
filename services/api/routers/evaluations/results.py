@@ -1118,65 +1118,6 @@ async def get_project_results_by_task_model(
 
 
 
-def _metric_display_name(eval_record) -> str:
-    """Extract a display name from a TaskEvaluation's metrics dict."""
-    metrics = eval_record.metrics or {}
-    skip_keys = {"raw_score", "error"}
-    for key in metrics:
-        if key in skip_keys or key.endswith("_details") or key.endswith("_raw") or key.endswith("_grade_points") or key.endswith("_passed"):
-            continue
-        if isinstance(metrics[key], (int, float)):
-            return key.replace("_", " ").title()
-    return eval_record.field_name or "Evaluation"
-
-
-def _build_field_results(eval_records) -> list:
-    """Build FieldEvaluationResult list from TaskEvaluation records."""
-    field_results = []
-    for eval_record in eval_records:
-        metrics = eval_record.metrics or {}
-        is_error = metrics.get("error", False) or bool(eval_record.error_message)
-
-        metric_results = []
-
-        if is_error:
-            details = {"error": eval_record.error_message or "Evaluation failed"}
-            metric_results.append(
-                MetricResult(
-                    metric_name="error",
-                    display_name="Error",
-                    value=None,
-                    passed=None,
-                    details=details,
-                )
-            )
-        else:
-            skip_keys = {"raw_score", "error"}
-            for key, val in metrics.items():
-                if key in skip_keys or key.endswith("_details"):
-                    continue
-                if isinstance(val, (int, float)):
-                    metric_details = metrics.get(f"{key}_details")
-                    metric_results.append(
-                        MetricResult(
-                            metric_name=key,
-                            display_name=key.replace("_", " ").title(),
-                            value=float(val),
-                            passed=eval_record.passed if not is_error else None,
-                            details=metric_details,
-                        )
-                    )
-
-        if metric_results:
-            field_results.append(
-                FieldEvaluationResult(
-                    field_name=eval_record.field_name or "field",
-                    display_name=eval_record.field_name or "Evaluation",
-                    metrics=metric_results,
-                )
-            )
-
-    return field_results
 
 
 @router.get("/sample-result")
