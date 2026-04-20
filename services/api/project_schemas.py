@@ -495,6 +495,123 @@ class PostAnnotationResponseOut(BaseModel):
         from_attributes = True
 
 
+# Review/Feedback schemas (used by extended package routers)
+class ReviewSubmit(BaseModel):
+    """Schema for submitting a review action"""
+
+    action: str = Field(..., description="Review action: approve, fix, reject, independent")
+    result: Optional[List[Dict[str, Any]]] = Field(
+        None, description="Updated/independent annotation result"
+    )
+    comment: Optional[str] = Field(None, description="Reviewer feedback comment")
+
+
+class ReviewResponse(BaseModel):
+    """Schema for review action response"""
+
+    annotation_id: str
+    review_result: str
+    reviewed_by: str
+    reviewed_at: datetime
+    review_comment: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ReviewPendingItem(BaseModel):
+    """Schema for an annotation pending review"""
+
+    annotation: AnnotationResponse
+    task: TaskResponse
+
+
+class FeedbackCommentCreate(BaseModel):
+    """Schema for creating a feedback comment"""
+
+    target_type: str = Field(..., description="Target type: annotation, generation, or evaluation")
+    target_id: str = Field(..., description="ID of the target entity")
+    parent_id: Optional[str] = Field(None, description="Parent comment ID for replies")
+    text: str = Field(..., description="Comment text")
+    highlight_start: Optional[int] = Field(None, description="Highlight start offset")
+    highlight_end: Optional[int] = Field(None, description="Highlight end offset")
+    highlight_text: Optional[str] = Field(None, description="Selected text content")
+    highlight_label: Optional[str] = Field(None, description="Highlight label")
+
+    @field_validator("target_type")
+    @classmethod
+    def validate_target_type(cls, v):
+        if v not in ("annotation", "generation", "evaluation"):
+            raise ValueError("target_type must be annotation, generation, or evaluation")
+        return v
+
+
+class FeedbackCommentUpdate(BaseModel):
+    """Schema for updating a feedback comment"""
+
+    text: str = Field(..., description="Updated comment text")
+
+
+class FeedbackCommentResponse(BaseModel):
+    """Schema for feedback comment response"""
+
+    id: str
+    project_id: str
+    task_id: str
+    target_type: str
+    target_id: str
+    parent_id: Optional[str] = None
+    text: str
+    highlight_start: Optional[int] = None
+    highlight_end: Optional[int] = None
+    highlight_text: Optional[str] = None
+    highlight_label: Optional[str] = None
+    is_resolved: bool = False
+    resolved_at: Optional[datetime] = None
+    resolved_by: Optional[str] = None
+    created_by: str
+    created_by_name: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    replies: List["FeedbackCommentResponse"] = []
+
+    class Config:
+        from_attributes = True
+
+
+class FeedbackStats(BaseModel):
+    """Schema for feedback statistics"""
+
+    total_tasks: int
+    tasks_with_feedback: int
+    tasks_without_feedback: int
+    total_comments: int
+    unresolved_comments: int
+    feedback_enabled: bool
+
+
+class FeedbackPendingItem(BaseModel):
+    """Schema for a task in the feedback list"""
+
+    task: TaskResponse
+    annotation_count: int = 0
+    generation_count: int = 0
+    evaluation_count: int = 0
+    feedback_count: int = 0
+    unresolved_feedback_count: int = 0
+
+
+class FeedbackTaskDetail(BaseModel):
+    """Schema for full task data in feedback view"""
+
+    task: TaskResponse
+    annotations: List[Dict[str, Any]] = []
+    generations: List[Dict[str, Any]] = []
+    evaluations: List[Dict[str, Any]] = []
+    feedback_config: Optional[List[Dict[str, Any]]] = None
+    annotator_name: Optional[str] = None
+
+
 # Import/Export schemas
 class ProjectImportData(BaseModel):
     """Schema for importing basic task data into a project"""

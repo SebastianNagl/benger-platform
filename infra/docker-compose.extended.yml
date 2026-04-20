@@ -17,7 +17,7 @@ services:
     environment:
       BENGER_EDITION: extended
 
-  workers:
+  worker:
     volumes:
       - ../../benger-extended/benger_extended:/app/benger_extended:ro
     environment:
