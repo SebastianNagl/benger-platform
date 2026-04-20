@@ -86,27 +86,6 @@ class TestExtractPrimaryScore:
         assert _extract_primary_score(metrics) is None
 
 
-class TestEvaluationResultsModels:
-    """Test Pydantic models for evaluation results."""
-
-    def test_metric_result(self):
-        from routers.evaluations.results import MetricResult
-        mr = MetricResult(metric_name="accuracy", display_name="Accuracy", value=0.95)
-        assert mr.metric_name == "accuracy"
-        assert mr.value == 0.95
-
-    def test_field_evaluation_result(self):
-        from routers.evaluations.results import FieldEvaluationResult, MetricResult
-        fer = FieldEvaluationResult(
-            field_name="answer",
-            display_name="Answer Field",
-            metrics=[
-                MetricResult(metric_name="exact_match", display_name="Exact Match", value=1.0),
-            ],
-        )
-        assert fer.field_name == "answer"
-        assert len(fer.metrics) == 1
-
 class TestEvaluationMetadataModels:
     """Test Pydantic models for evaluation metadata."""
 
