@@ -33,7 +33,7 @@ from project_models import (
 )
 
 
-                          questionnaire_enabled=False, timer_enabled=False,
+def create_project_fixture(db, questionnaire_enabled=False,
                           num_tasks=3, is_private=False):
     """Create a complete project with org, membership, and tasks."""
     org = Organization(

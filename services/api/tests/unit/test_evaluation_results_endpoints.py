@@ -15,8 +15,6 @@ from routers.evaluations.results import (
     _build_all_tasks_response,
     _metric_display_name,
     _build_field_results,
-    MetricResult,
-    FieldEvaluationResult,
 )
 
 
