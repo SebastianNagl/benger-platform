@@ -21,7 +21,8 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@benger/extended": ["../../benger-extended/frontend/index.ts"]
     }
   },
   "include": [

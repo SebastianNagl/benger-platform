@@ -14,11 +14,17 @@ const useNewConfig = process.env.FEATURE_FLAG_NEW_CONFIG !== 'false'
  * Follows 2025 industry standards with feature flag support
  * NOTE: This is a copy of config/next/next.config.js for Docker build compatibility
  */
+// Extended edition support
+const isExtended = process.env.NEXT_PUBLIC_BENGER_EDITION === 'extended'
+
 const nextConfig = {
   // Core Next.js settings
   pageExtensions: ['js', 'jsx', 'ts', 'tsx'],
   poweredByHeader: false,
   compress: true,
+
+  // Transpile extended package when running in extended edition
+  transpilePackages: isExtended ? ['@benger/extended'] : [],
 
   // Use standalone output for smaller deployments
   output: 'standalone',
@@ -81,6 +87,11 @@ const nextConfig = {
 
   // Webpack configuration (legacy fallback when not using --turbo)
   webpack: (config, { dev, isServer }) => {
+    // Resolve @benger/extended to mounted volume in extended edition
+    if (isExtended) {
+      config.resolve.alias['@benger/extended'] = '/app/benger-extended-frontend'
+    }
+
     // Disable MDX processing (not used in BenGER)
     config.module.rules = config.module.rules.filter(
       (rule) => !rule.test?.toString().includes('mdx')
