@@ -25,6 +25,6 @@ services:
 
   frontend-dev:
     volumes:
-      - ../../benger-extended/frontend:/app/benger-extended-frontend:ro
+      - ../../benger-extended/frontend:/app/node_modules/@benger/extended:ro
     environment:
       NEXT_PUBLIC_BENGER_EDITION: extended
