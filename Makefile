@@ -23,6 +23,8 @@ DOCKER_COMPOSE_CMD := $(shell docker compose version >/dev/null 2>&1 && echo "do
 DOCKER_COMPOSE := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml
 DOCKER_COMPOSE_DEV := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml -f infra/docker-compose.dev.yml
 DOCKER_COMPOSE_EXTENDED := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml -f infra/docker-compose.dev.yml -f infra/docker-compose.extended.yml
+DOCKER_COMPOSE_ALT := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.alt-ports.yml
+DOCKER_COMPOSE_ALT_EXTENDED := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.alt-ports.yml -f infra/docker-compose.extended.yml
 DOCKER_COMPOSE_TEST := $(DOCKER_COMPOSE_CMD) -f $(CURDIR)/infra/docker-compose.test.yml
 API_DIR := services/api
 FRONTEND_DIR := services/frontend
@@ -116,6 +118,39 @@ dev-extended: ## Start with extended features (requires ../benger-extended)
 	@echo "  API: http://api.localhost (extended routers loaded)"
 	@echo ""
 	@echo "Run 'make logs' to see logs or 'make stop' to stop services"
+
+.PHONY: dev-alt
+dev-alt: ## Start community edition on alt ports (9000/9001) alongside old BenGer
+	@echo "$(BLUE)Starting community edition on alternate ports...$(NC)"
+	@$(DOCKER_COMPOSE_ALT) up -d
+	@echo "$(GREEN)Community edition running (alt ports)$(NC)"
+	@echo ""
+	@echo "  Frontend: http://localhost:9000"
+	@echo "  API:      http://localhost:9001"
+	@echo "  DB:       localhost:9432"
+	@echo "  Redis:    localhost:9379"
+	@echo ""
+
+.PHONY: dev-alt-extended
+dev-alt-extended: ## Start extended edition on alt ports (9000/9001) alongside old BenGer
+	@if [ ! -d "../benger-extended/benger_extended" ]; then \
+		echo "$(RED)Error: benger-extended not found at ../benger-extended$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Starting extended edition on alternate ports...$(NC)"
+	@$(DOCKER_COMPOSE_ALT_EXTENDED) up -d
+	@echo "$(GREEN)Extended edition running (alt ports)$(NC)"
+	@echo ""
+	@echo "  Frontend: http://localhost:9000 (extended features)"
+	@echo "  API:      http://localhost:9001 (extended routers)"
+	@echo "  DB:       localhost:9432"
+	@echo "  Redis:    localhost:9379"
+	@echo ""
+
+.PHONY: stop-alt
+stop-alt: ## Stop alt-port platform instance
+	@$(DOCKER_COMPOSE_ALT) down 2>/dev/null || $(DOCKER_COMPOSE_ALT_EXTENDED) down 2>/dev/null
+	@echo "$(GREEN)Alt-port platform stopped$(NC)"
 
 .PHONY: dev-api
 dev-api: ## Start API in development mode (standalone)

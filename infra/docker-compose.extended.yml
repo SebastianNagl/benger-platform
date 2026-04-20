@@ -7,7 +7,6 @@
 #
 # Requires: benger-extended repo cloned at ../../benger-extended (sibling of benger-platform)
 
-name: benger
 version: '3.8'
 
 services:

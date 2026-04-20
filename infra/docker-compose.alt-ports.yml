@@ -1,0 +1,109 @@
+# Standalone compose for running benger-platform on alternate ports.
+# Runs alongside old BenGer without port conflicts.
+#
+# Usage:
+#   make dev-alt           -> community edition on ports 9000/9001
+#   make dev-alt-extended  -> extended edition on ports 9000/9001
+#   make stop-alt          -> stop
+
+name: benger-platform
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    ports:
+      - "9432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: benger
+    volumes:
+      - platform-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "9379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ../services/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "9001:8000"
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ../services/api:/app:rw
+      - ../services/shared:/shared:ro
+    env_file:
+      - ../services/api/.env
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URI: postgresql://postgres:changeme@db:5432/benger
+      REDIS_URI: redis://redis:6379/0
+      PYTHONUNBUFFERED: 1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ../services/workers
+      dockerfile: Dockerfile
+      args:
+        WORKERS_BASE_IMAGE: ghcr.io/sebastiannagl/benger/workers-base:latest
+    restart: unless-stopped
+    volumes:
+      - ../services/workers:/app:rw
+      - ../services/shared:/shared:ro
+    env_file:
+      - ../services/workers/.env
+    environment:
+      DATABASE_URI: postgresql://postgres:changeme@db:5432/benger
+      REDIS_URI: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import celery; app = celery.Celery(); app.config_from_object(\"tasks\"); app.control.inspect().ping()' 2>/dev/null || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  frontend-dev:
+    build:
+      context: ../services/frontend
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "9000:3000"
+    volumes:
+      - ../services/frontend:/app:rw
+      - /app/node_modules
+      - /app/.next
+    env_file:
+      - ../services/frontend/.env.local
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:9001
+      WATCHPACK_POLLING: "true"
+
+volumes:
+  platform-postgres-data:
