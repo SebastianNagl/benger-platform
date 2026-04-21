@@ -24,7 +24,7 @@ DOCKER_COMPOSE := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml
 DOCKER_COMPOSE_DEV := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml -f infra/docker-compose.dev.yml
 DOCKER_COMPOSE_EXTENDED := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml -f infra/docker-compose.dev.yml -f infra/docker-compose.extended.yml
 DOCKER_COMPOSE_ALT := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.alt-ports.yml
-DOCKER_COMPOSE_ALT_EXTENDED := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.alt-ports.yml -f infra/docker-compose.extended.yml
+DOCKER_COMPOSE_ALT_EXT := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.alt-ports-extended.yml -f infra/docker-compose.extended.yml
 DOCKER_COMPOSE_TEST := $(DOCKER_COMPOSE_CMD) -f $(CURDIR)/infra/docker-compose.test.yml
 API_DIR := services/api
 FRONTEND_DIR := services/frontend
@@ -132,25 +132,32 @@ dev-alt: ## Start community edition on alt ports (9000/9001) alongside old BenGe
 	@echo ""
 
 .PHONY: dev-alt-extended
-dev-alt-extended: ## Start extended edition on alt ports (9000/9001) alongside old BenGer
+dev-alt-extended: ## Start extended edition on alt ports (9100/9101) alongside core
 	@if [ ! -d "../benger-extended/benger_extended" ]; then \
 		echo "$(RED)Error: benger-extended not found at ../benger-extended$(NC)"; \
 		exit 1; \
 	fi
 	@echo "$(BLUE)Starting extended edition on alternate ports...$(NC)"
-	@$(DOCKER_COMPOSE_ALT_EXTENDED) up -d
-	@echo "$(GREEN)Extended edition running (alt ports)$(NC)"
+	@$(DOCKER_COMPOSE_ALT_EXT) up -d
+	@echo "$(GREEN)Extended edition running$(NC)"
 	@echo ""
-	@echo "  Frontend: http://localhost:9000 (extended features)"
-	@echo "  API:      http://localhost:9001 (extended routers)"
-	@echo "  DB:       localhost:9432"
-	@echo "  Redis:    localhost:9379"
+	@echo "  Frontend: http://localhost:9100 (extended features)"
+	@echo "  API:      http://localhost:9101 (extended routers)"
+	@echo "  DB:       localhost:9532"
+	@echo "  Redis:    localhost:9479"
 	@echo ""
 
+.PHONY: dev-both
+dev-both: dev-alt dev-alt-extended ## Start BOTH core and extended side by side
+	@echo "$(GREEN)Both editions running:$(NC)"
+	@echo "  Core:     http://localhost:9000 (frontend)  http://localhost:9001 (API)"
+	@echo "  Extended: http://localhost:9100 (frontend)  http://localhost:9101 (API)"
+
 .PHONY: stop-alt
-stop-alt: ## Stop alt-port platform instance
-	@$(DOCKER_COMPOSE_ALT) down 2>/dev/null || $(DOCKER_COMPOSE_ALT_EXTENDED) down 2>/dev/null
-	@echo "$(GREEN)Alt-port platform stopped$(NC)"
+stop-alt: ## Stop all alt-port instances (core + extended)
+	@$(DOCKER_COMPOSE_ALT) down 2>/dev/null; true
+	@$(DOCKER_COMPOSE_ALT_EXT) down 2>/dev/null; true
+	@echo "$(GREEN)Alt-port instances stopped$(NC)"
 
 .PHONY: dev-api
 dev-api: ## Start API in development mode (standalone)
