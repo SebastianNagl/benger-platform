@@ -2012,6 +2012,39 @@ def run_evaluation(
 
             logger.info(f"Loaded {len(tasks)} tasks for evaluation")
 
+            # Pre-compute expected field keys from enabled configs
+            all_expected_field_keys = {
+                f"{c.get('id', 'unknown')}:{pf}:{rf}"
+                for c in enabled_configs
+                for pf in c.get("prediction_fields", [])
+                for rf in c.get("reference_fields", [])
+            }
+
+            # Bulk-load successfully evaluated (generation_id, field_name) pairs
+            # Single query replaces N per-generation queries in the loop
+            evaluated_by_gen: dict[str, set[str]] = {}
+            if evaluate_missing_only:
+                task_id_list = [t.id for t in tasks]
+                existing = (
+                    db.query(
+                        TaskEvaluation.generation_id,
+                        TaskEvaluation.field_name,
+                        TaskEvaluation.metrics,
+                    )
+                    .filter(
+                        TaskEvaluation.task_id.in_(task_id_list),
+                        TaskEvaluation.generation_id.isnot(None),
+                    )
+                    .all()
+                )
+                for r in existing:
+                    if (r.metrics or {}).get("raw_score") is not None:
+                        evaluated_by_gen.setdefault(r.generation_id, set()).add(r.field_name)
+                logger.info(
+                    f"Loaded existing evaluations: {sum(len(v) for v in evaluated_by_gen.values())} "
+                    f"results across {len(evaluated_by_gen)} generations"
+                )
+
             # Build field configs for SampleEvaluator
             field_configs = {}
             metric_parameters = {}
@@ -2087,35 +2120,15 @@ def run_evaluation(
 
                 # Evaluate each generation against each config
                 for generation in generations:
-                    # Skip already-evaluated generations if evaluate_missing_only is True
-                    # Check if this generation has been successfully evaluated
-                    # (re-run if previous evaluation failed, i.e., raw_score is null)
+                    # Skip fully-evaluated generations (all configs done)
                     if evaluate_missing_only:
-                        existing_result = (
-                            db.query(TaskEvaluation)
-                            .filter(
-                                TaskEvaluation.generation_id == generation.id,
-                            )
-                            .first()
-                        )
-                        if existing_result:
-                            # Check if the existing result has an actual score
-                            # (not a failed evaluation)
-                            metrics = existing_result.metrics or {}
-                            raw_score = metrics.get("raw_score")
-
-                            if raw_score is not None:
-                                # Successfully evaluated - skip
-                                logger.info(
-                                    f"Skipping already-evaluated generation {generation.id} "
-                                    f"(model: {generation.model_id})"
-                                )
-                                continue
-                            # raw_score is null = failed evaluation - re-evaluate
+                        gen_done = evaluated_by_gen.get(generation.id, set())
+                        if all_expected_field_keys and all_expected_field_keys.issubset(gen_done):
                             logger.info(
-                                f"Re-evaluating failed generation {generation.id} "
+                                f"Skipping fully-evaluated generation {generation.id} "
                                 f"(model: {generation.model_id})"
                             )
+                            continue
 
                     for config in enabled_configs:
                         config_id = config.get("id", "unknown")
@@ -2126,6 +2139,12 @@ def run_evaluation(
                         # Evaluate each field pair
                         for pred_field in prediction_fields:
                             for ref_field in reference_fields:
+                                field_key = f"{config_id}:{pred_field}:{ref_field}"
+
+                                # Skip already-evaluated config+field pairs
+                                if evaluate_missing_only and field_key in evaluated_by_gen.get(generation.id, set()):
+                                    continue
+
                                 # Extract ground truth - from task.data if prefixed with "task."
                                 if ref_field.startswith("task."):
                                     # Extract from task.data (e.g., "task.binary_solution" -> task.data['binary_solution'])
@@ -2161,7 +2180,6 @@ def run_evaluation(
                                     continue
 
                                 # Evaluate this sample
-                                field_key = f"{config_id}:{pred_field}:{ref_field}"
                                 # Allow unparsed generations when using __all_model__ (raw response_content)
                                 allow_unparsed = pred_field == "__all_model__"
                                 try:
