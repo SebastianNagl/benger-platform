@@ -1,12 +1,12 @@
 'use client'
 
-import { getSlot } from '@/lib/extensions/slots'
+import { useSlot } from '@/lib/extensions/slots'
 import { useParams } from 'next/navigation'
 
 export default function ReviewPage() {
   const params = useParams()
   const projectId = params.id as string
-  const ReviewComponent = getSlot('ReviewPage')
+  const ReviewComponent = useSlot('ReviewPage')
 
   if (!ReviewComponent) {
     return (

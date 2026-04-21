@@ -5,26 +5,20 @@ import { LLMLeaderboardTable } from '@/components/leaderboards/LLMLeaderboardTab
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useI18n } from '@/contexts/I18nContext'
-import { getSlot } from '@/lib/extensions/slots'
+import { useSlot } from '@/lib/extensions/slots'
 import {
   CpuChipIcon,
   UserGroupIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline'
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react'
-import { Suspense, useMemo } from 'react'
+import { Suspense } from 'react'
 
 function LeaderboardsContent() {
   const { t } = useI18n()
 
-  const AnnotatorLeaderboardTab = useMemo(
-    () => getSlot('AnnotatorLeaderboardTab'),
-    []
-  )
-  const CoCreationLeaderboardTab = useMemo(
-    () => getSlot('CoCreationLeaderboardTab'),
-    []
-  )
+  const AnnotatorLeaderboardTab = useSlot('AnnotatorLeaderboardTab')
+  const CoCreationLeaderboardTab = useSlot('CoCreationLeaderboardTab')
 
   const hasTabs = AnnotatorLeaderboardTab || CoCreationLeaderboardTab
 

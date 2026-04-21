@@ -28,9 +28,9 @@ import {
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'react-hot-toast'
-import { getSlot } from '@/lib/extensions/slots'
+import { useSlot } from '@/lib/extensions/slots'
 import { DynamicAnnotationInterface } from './DynamicAnnotationInterface'
 
 interface LabelingInterfaceProps {
@@ -42,8 +42,8 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   const searchParams = useSearchParams()
   const { t } = useI18n()
   const { user } = useAuth()
-  const TimerSlot = useMemo(() => getSlot('TimerIntegration'), [])
-  const ImmediateEvalSlot = useMemo(() => getSlot('ImmediateEvaluation'), [])
+  const TimerSlot = useSlot('TimerIntegration')
+  const ImmediateEvalSlot = useSlot('ImmediateEvaluation')
   const {
     currentProject,
     currentTask,

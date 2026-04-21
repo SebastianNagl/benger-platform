@@ -10,7 +10,7 @@
  * returning null/empty.
  */
 
-export { registerSlot, getSlot, hasSlot } from './slots'
+export { registerSlot, getSlot, useSlot, hasSlot } from './slots'
 
 let extendedLoaded = false
 

@@ -1,12 +1,12 @@
 'use client'
 
-import { getSlot } from '@/lib/extensions/slots'
+import { useSlot } from '@/lib/extensions/slots'
 import { useParams } from 'next/navigation'
 
 export default function FeedbackPage() {
   const params = useParams()
   const projectId = params.id as string
-  const FeedbackComponent = getSlot('FeedbackPage')
+  const FeedbackComponent = useSlot('FeedbackPage')
 
   if (!FeedbackComponent) {
     return (
