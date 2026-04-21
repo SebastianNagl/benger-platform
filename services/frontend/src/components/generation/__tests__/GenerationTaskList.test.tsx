@@ -441,10 +441,9 @@ describe('GenerationTaskList', () => {
     it('uses wss protocol for https URLs', async () => {
       // Override window.location to simulate production https environment
       const originalLocation = window.location
-      Object.defineProperty(window, 'location', {
-        writable: true,
-        value: { ...originalLocation, protocol: 'https:', host: 'api.example.com' },
-      })
+      // @ts-ignore -- jsdom doesn't allow defineProperty on location
+      delete (window as any).location
+      window.location = { ...originalLocation, protocol: 'https:', host: 'api.example.com' } as Location
 
       render(<GenerationTaskList projectId="test-project" />)
 
@@ -455,10 +454,7 @@ describe('GenerationTaskList', () => {
       })
 
       // Restore
-      Object.defineProperty(window, 'location', {
-        writable: true,
-        value: originalLocation,
-      })
+      window.location = originalLocation
     })
   })
 
