@@ -6115,6 +6115,30 @@
       "placeholder": "Eigene Notizen und Anmerkungen...",
       "edit": "Notizen bearbeiten",
       "create": "Notizen anlegen"
+    },
+    "immediateEvaluation": {
+      "evaluating": "Ihre Annotation wird evaluiert...",
+      "successTitle": "Annotation gespeichert",
+      "errorTitle": "Evaluierungsfehler",
+      "evaluationServiceError": "Die Evaluierung konnte nicht durchgeführt werden. Bitte versuchen Sie es erneut.",
+      "resultsTitle": "Evaluierungsergebnisse",
+      "passed": "Bestanden",
+      "failed": "Nicht bestanden",
+      "evaluationTime": "Evaluiert in {time}ms",
+      "continueToNext": "Weiter zur nächsten Aufgabe",
+      "continueAnyway": "Trotzdem fortfahren",
+      "retry": "Evaluierung wiederholen",
+      "falloesung": {
+        "gradePoints": "Notenpunkte",
+        "rawPoints": "Punkte",
+        "passed": "Bestanden",
+        "notPassed": "Nicht bestanden",
+        "dimensions": "Bewertungsdimensionen",
+        "overallAssessment": "Gesamtbewertung",
+        "improvementTips": "Verbesserungsbereiche"
+      },
+      "allMethods": "Alle",
+      "skipEvaluation": "Evaluierung überspringen"
     }
   },
   "annotationTab": {

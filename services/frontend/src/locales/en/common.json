@@ -6135,6 +6135,30 @@
       "placeholder": "Your notes and comments...",
       "edit": "Edit notes",
       "create": "Create notes"
+    },
+    "immediateEvaluation": {
+      "evaluating": "Evaluating your annotation...",
+      "successTitle": "Annotation Saved",
+      "errorTitle": "Evaluation Error",
+      "evaluationServiceError": "The evaluation could not be performed. Please try again.",
+      "resultsTitle": "Evaluation Results",
+      "passed": "Passed",
+      "failed": "Failed",
+      "evaluationTime": "Evaluated in {time}ms",
+      "continueToNext": "Continue to Next Task",
+      "continueAnyway": "Continue Anyway",
+      "retry": "Retry Evaluation",
+      "falloesung": {
+        "gradePoints": "Grade Points",
+        "rawPoints": "Points",
+        "passed": "Passed",
+        "notPassed": "Not Passed",
+        "dimensions": "Evaluation Dimensions",
+        "overallAssessment": "Overall Assessment",
+        "improvementTips": "Improvement Areas"
+      },
+      "allMethods": "All",
+      "skipEvaluation": "Skip Evaluation"
     }
   },
   "annotationTab": {
