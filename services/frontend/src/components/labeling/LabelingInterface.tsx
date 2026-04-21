@@ -125,6 +125,8 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // Post-annotation questionnaire state (Issue #1208)
   const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false)
   const [questionnaireAnnotationId, setQuestionnaireAnnotationId] = useState<string | null>(null)
+  // Last submitted annotation ID (for immediate evaluation slot)
+  const [lastSubmittedAnnotationId, setLastSubmittedAnnotationId] = useState<string | null>(null)
   const isQuestionnaireEnabled =
     currentProject?.questionnaire_enabled && currentProject?.questionnaire_config
 
@@ -657,6 +659,11 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     // Mark as submitted only after successful API call
                     hasSubmittedRef.current = true
 
+                    // Track annotation ID for immediate evaluation slot
+                    if (annotation) {
+                      setLastSubmittedAnnotationId(annotation.id)
+                    }
+
                     // Show questionnaire first if enabled (Issue #1208)
                     if (hasQuestionnaire && annotation) {
                       setQuestionnaireAnnotationId(annotation.id)
@@ -833,11 +840,11 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       )}
 
       {/* Immediate evaluation (extended feature) */}
-      {ImmediateEvalSlot && currentProject?.immediate_evaluation_enabled && questionnaireAnnotationId && (
+      {ImmediateEvalSlot && currentProject?.immediate_evaluation_enabled && lastSubmittedAnnotationId && (
         <ImmediateEvalSlot
           projectId={projectId}
           taskId={currentTask?.id}
-          annotationId={questionnaireAnnotationId}
+          annotationId={lastSubmittedAnnotationId}
         />
       )}
 
