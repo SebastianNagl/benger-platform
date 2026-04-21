@@ -349,7 +349,7 @@ describe('GenerationTaskList', () => {
 
       await waitFor(() => {
         expect(global.WebSocket).toHaveBeenCalledWith(
-          'ws://localhost:8000/api/ws/projects/test-project/generation-progress'
+          'ws://localhost/api/ws/projects/test-project/generation-progress'
         )
       })
     })
