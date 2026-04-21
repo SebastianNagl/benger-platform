@@ -3525,6 +3525,35 @@
       "removeHighlight": "Markierung entfernen",
       "instructionsLabel": "Anleitung",
       "instructionsText": "Text zum Markieren auswaehlen. Zifferntasten (1-{max}) fuer schnelle Label-Auswahl. Entf-Taste zum Entfernen der ausgewaehlten Markierung."
+    },
+    "gliederung": {
+      "placeholder": "Gliederung im Markdown-Format eingeben...",
+      "hideHelp": "Hilfe ausblenden",
+      "showFormat": "Gliederungsformat anzeigen",
+      "allowedLevels": "Erlaubte Gliederungsebenen (hierarchisch):",
+      "markdownInstructions": "Verwenden Sie Markdown-Überschriften (# bis ######) mit dem entsprechenden juristischen Präfix.",
+      "example": "Beispiel",
+      "editOutline": "Gliederung bearbeiten",
+      "createOutline": "Gliederung anlegen"
+    },
+    "legalMarkdown": {
+      "savedToDb": "Änderungen in Datenbank gespeichert",
+      "saveFailed": "Speichern fehlgeschlagen",
+      "saved": "Änderungen gespeichert",
+      "previousField": "Vorheriges Feld (Alt+Links)",
+      "previousFieldAria": "Zum vorherigen Feld navigieren",
+      "nextField": "Nächstes Feld (Alt+Rechts)",
+      "nextFieldAria": "Zum nächsten Feld navigieren",
+      "closeEscape": "Schließen (Escape)",
+      "closeModal": "Modal schließen",
+      "placeholder": "Inhalt eingeben...",
+      "toNavigate": "zum Navigieren",
+      "toSave": "zum Speichern",
+      "toCancel": "zum Abbrechen",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "expandToFullscreen": "Vollbild oeffnen",
+      "enterContent": "Inhalt eingeben..."
     }
   },
   "modals": {
@@ -6053,6 +6082,39 @@
         "no": "Nein",
         "showFullText": "Vollständigen Text anzeigen"
       }
+    },
+    "angabe": {
+      "edit": "Angabe bearbeiten",
+      "view": "Angabe ansehen",
+      "open": "Angabe öffnen",
+      "labelPrefix": "Markierung:",
+      "comment": "Kommentar",
+      "selected": "Markiert:",
+      "highlights": "Markierungen",
+      "highlightsCount": "Markierungen ({count})",
+      "addComment": "Kommentar hinzufügen",
+      "removeHighlight": "Markierung entfernen",
+      "commentsCount": "{count} Kommentar",
+      "commentsCountPlural": "{count} Kommentare",
+      "commentOnHighlight": "Kommentar zur Markierung",
+      "textComment": "Textbezogener Kommentar [{start}-{end}]",
+      "generalComment": "Allgemeiner Kommentar",
+      "textComments": "Textbezogene Kommentare",
+      "textCommentsCount": "Textbezogene Kommentare ({count})",
+      "generalComments": "Allgemeine Kommentare",
+      "generalCommentsCount": "Allgemeine Kommentare ({count})",
+      "general": "Allgemein",
+      "addGeneralComment": "Allgemeiner Kommentar",
+      "commentPlaceholder": "Kommentar eingeben...",
+      "submitComment": "Speichern",
+      "changeLabel": "Label ändern",
+      "addCommentToHighlight": "Kommentar hinzufügen"
+    },
+    "notizen": {
+      "label": "Notizen",
+      "placeholder": "Eigene Notizen und Anmerkungen...",
+      "edit": "Notizen bearbeiten",
+      "create": "Notizen anlegen"
     }
   },
   "annotationTab": {

@@ -3545,6 +3545,35 @@
       "removeHighlight": "Remove highlight",
       "instructionsLabel": "Instructions",
       "instructionsText": "Select text to highlight. Use number keys (1-{max}) for quick label selection. Press Delete to remove selected highlight."
+    },
+    "gliederung": {
+      "placeholder": "Gliederung im Markdown-Format eingeben...",
+      "hideHelp": "Hilfe ausblenden",
+      "showFormat": "Gliederungsformat anzeigen",
+      "allowedLevels": "Erlaubte Gliederungsebenen (hierarchisch):",
+      "markdownInstructions": "Use Markdown headings (# to ######) with the appropriate legal prefix.",
+      "example": "Example",
+      "editOutline": "Gliederung bearbeiten",
+      "createOutline": "Gliederung anlegen"
+    },
+    "legalMarkdown": {
+      "savedToDb": "Changes saved to database",
+      "saveFailed": "Save failed",
+      "saved": "Changes saved",
+      "previousField": "Previous field (Alt+Left)",
+      "previousFieldAria": "Navigate to previous field",
+      "nextField": "Next field (Alt+Right)",
+      "nextFieldAria": "Navigate to next field",
+      "closeEscape": "Close (Escape)",
+      "closeModal": "Close modal",
+      "placeholder": "Enter your content...",
+      "toNavigate": "to navigate",
+      "toSave": "to save",
+      "toCancel": "to cancel",
+      "cancel": "Cancel",
+      "save": "Save",
+      "expandToFullscreen": "Expand to fullscreen",
+      "enterContent": "Enter content..."
     }
   },
   "modals": {
@@ -6073,6 +6102,39 @@
         "no": "No",
         "showFullText": "Show full text"
       }
+    },
+    "angabe": {
+      "edit": "Edit Angabe",
+      "view": "View Angabe",
+      "open": "Open Angabe",
+      "labelPrefix": "Label:",
+      "comment": "Comment",
+      "selected": "Selected:",
+      "highlights": "Highlights",
+      "highlightsCount": "Highlights ({count})",
+      "addComment": "Add comment",
+      "removeHighlight": "Remove highlight",
+      "commentsCount": "{count} comment",
+      "commentsCountPlural": "{count} comments",
+      "commentOnHighlight": "Comment on highlight",
+      "textComment": "Text comment [{start}-{end}]",
+      "generalComment": "General comment",
+      "textComments": "Text comments",
+      "textCommentsCount": "Text comments ({count})",
+      "generalComments": "General comments",
+      "generalCommentsCount": "General comments ({count})",
+      "general": "General",
+      "addGeneralComment": "General comment",
+      "commentPlaceholder": "Enter comment...",
+      "submitComment": "Save",
+      "changeLabel": "Change label",
+      "addCommentToHighlight": "Add comment"
+    },
+    "notizen": {
+      "label": "Notes (Notizen)",
+      "placeholder": "Your notes and comments...",
+      "edit": "Edit notes",
+      "create": "Create notes"
     }
   },
   "annotationTab": {
