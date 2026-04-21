@@ -136,6 +136,52 @@ export interface LLMModelComparison {
 
 export class LeaderboardsClient extends BaseApiClient {
   /**
+   * Get annotator leaderboard (extended feature)
+   */
+  async getAnnotatorLeaderboard(params?: {
+    project_ids?: string[]
+    period?: 'overall' | 'monthly' | 'weekly'
+    metric?: string
+    aggregation?: 'average' | 'sum'
+    limit?: number
+    offset?: number
+  }): Promise<LeaderboardResponse> {
+    const queryParams = new URLSearchParams()
+    if (params?.project_ids?.length) {
+      params.project_ids.forEach((id) => queryParams.append('project_ids', id))
+    }
+    if (params?.period) queryParams.append('period', params.period)
+    if (params?.metric) queryParams.append('metric', params.metric)
+    if (params?.aggregation) queryParams.append('aggregation', params.aggregation)
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    if (params?.offset !== undefined) queryParams.append('offset', params.offset.toString())
+    return this.get(`/leaderboards/annotators?${queryParams.toString()}`)
+  }
+
+  /**
+   * Get co-creation leaderboard (extended feature)
+   */
+  async getCoCreationLeaderboard(params?: {
+    project_ids?: string[]
+    period?: 'overall' | 'monthly' | 'weekly'
+    metric?: string
+    aggregation?: 'average' | 'sum'
+    limit?: number
+    offset?: number
+  }): Promise<LeaderboardResponse> {
+    const queryParams = new URLSearchParams()
+    if (params?.project_ids?.length) {
+      params.project_ids.forEach((id) => queryParams.append('project_ids', id))
+    }
+    if (params?.period) queryParams.append('period', params.period)
+    if (params?.metric) queryParams.append('metric', params.metric)
+    if (params?.aggregation) queryParams.append('aggregation', params.aggregation)
+    if (params?.limit) queryParams.append('limit', params.limit.toString())
+    if (params?.offset !== undefined) queryParams.append('offset', params.offset.toString())
+    return this.get(`/leaderboards/co-creation?${queryParams.toString()}`)
+  }
+
+  /**
    * Get current user's rank with context
    */
   async getMyRank(params?: {
