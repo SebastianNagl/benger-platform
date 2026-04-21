@@ -204,6 +204,17 @@ class ProjectUpdate(BaseModel):
     )
     is_published: Optional[bool] = None
     is_archived: Optional[bool] = None
+    # Extended feature flags
+    annotation_time_limit_enabled: Optional[bool] = None
+    annotation_time_limit_seconds: Optional[int] = None
+    strict_timer_enabled: Optional[bool] = None
+    review_enabled: Optional[bool] = None
+    review_mode: Optional[str] = None
+    allow_self_review: Optional[bool] = None
+    feedback_enabled: Optional[bool] = None
+    feedback_config: Optional[List[Dict[str, Any]]] = None
+    immediate_evaluation_enabled: Optional[bool] = None
+
     # Task assignment
     assignment_mode: Optional[str] = Field(
         None, pattern="^(open|manual|auto)$",
@@ -285,6 +296,17 @@ class ProjectResponse(ProjectBase):
     generation_config: Optional[Dict[str, Any]] = Field(
         None, description="Generation configuration including model selection"
     )
+
+    # Extended feature flags (DB columns with defaults, used by extended package)
+    annotation_time_limit_enabled: bool = False
+    annotation_time_limit_seconds: Optional[int] = None
+    strict_timer_enabled: bool = False
+    review_enabled: bool = False
+    review_mode: Optional[str] = "in_place"
+    allow_self_review: bool = False
+    feedback_enabled: bool = False
+    feedback_config: Optional[List[Dict[str, Any]]] = None
+    immediate_evaluation_enabled: bool = False
 
     # Task assignment
     assignment_mode: str = "open"
