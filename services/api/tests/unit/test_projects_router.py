@@ -124,8 +124,16 @@ class TestProjectsRouter:
         project.generation_models_count = 0
         project.generation_completed = False
         project.is_private = False
-        # Strict timer mode
-        # Review settings
+        # Extended feature flags
+        project.annotation_time_limit_enabled = False
+        project.annotation_time_limit_seconds = None
+        project.strict_timer_enabled = False
+        project.review_enabled = False
+        project.review_mode = "in_place"
+        project.allow_self_review = False
+        project.feedback_enabled = False
+        project.feedback_config = None
+        project.immediate_evaluation_enabled = False
         # Post-annotation questionnaire
         project.questionnaire_enabled = False
         project.questionnaire_config = None
@@ -564,8 +572,16 @@ class TestProjectsRouter:
             created_project.generation_models_count = 0
             created_project.generation_completed = False
             created_project.is_private = False
-            # Strict timer mode
-            # Review settings
+            # Extended feature flags
+            created_project.annotation_time_limit_enabled = False
+            created_project.annotation_time_limit_seconds = None
+            created_project.strict_timer_enabled = False
+            created_project.review_enabled = False
+            created_project.review_mode = "in_place"
+            created_project.allow_self_review = False
+            created_project.feedback_enabled = False
+            created_project.feedback_config = None
+            created_project.immediate_evaluation_enabled = False
             # Post-annotation questionnaire
             created_project.questionnaire_enabled = False
             created_project.questionnaire_config = None
