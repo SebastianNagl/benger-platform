@@ -88,6 +88,46 @@ services:
       retries: 3
       start_period: 30s
 
+  scheduler:
+    build:
+      context: ../services/workers
+      dockerfile: Dockerfile
+      args:
+        WORKERS_BASE_IMAGE: ghcr.io/sebastiannagl/benger/workers-base:latest
+    restart: unless-stopped
+    working_dir: /tmp
+    command: sh -c "export PYTHONPATH=/app:$$PYTHONPATH && celery -A tasks beat --loglevel=info"
+    volumes:
+      - ../services/workers:/app:rw
+      - ../services/shared:/shared:ro
+    env_file:
+      - ../services/workers/.env
+    environment:
+      DATABASE_URI: postgresql://postgres:changeme@db:5432/benger
+      REDIS_URI: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  traefik:
+    image: traefik:v3.0
+    restart: unless-stopped
+    ports:
+      - "9080:80"
+      - "9090:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--global.sendanonymoususage=false"
+      - "--log.level=WARN"
+
   frontend-dev:
     build:
       context: ../services/frontend
