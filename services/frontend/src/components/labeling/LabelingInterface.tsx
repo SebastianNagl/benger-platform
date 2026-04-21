@@ -842,6 +842,8 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       {/* Immediate evaluation (extended feature) */}
       {ImmediateEvalSlot && currentProject?.immediate_evaluation_enabled && lastSubmittedAnnotationId && (
         <ImmediateEvalSlot
+          isOpen={true}
+          onClose={() => setLastSubmittedAnnotationId(null)}
           projectId={projectId}
           taskId={currentTask?.id}
           annotationId={lastSubmittedAnnotationId}
