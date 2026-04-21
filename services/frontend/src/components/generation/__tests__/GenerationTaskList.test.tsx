@@ -439,8 +439,12 @@ describe('GenerationTaskList', () => {
     })
 
     it('uses wss protocol for https URLs', async () => {
-      const { getApiUrl } = require('@/lib/api/client')
-      getApiUrl.mockReturnValueOnce('https://api.example.com')
+      // Override window.location to simulate production https environment
+      const originalLocation = window.location
+      Object.defineProperty(window, 'location', {
+        writable: true,
+        value: { ...originalLocation, protocol: 'https:', host: 'api.example.com' },
+      })
 
       render(<GenerationTaskList projectId="test-project" />)
 
@@ -448,6 +452,12 @@ describe('GenerationTaskList', () => {
         expect(global.WebSocket).toHaveBeenCalledWith(
           'wss://api.example.com/api/ws/projects/test-project/generation-progress'
         )
+      })
+
+      // Restore
+      Object.defineProperty(window, 'location', {
+        writable: true,
+        value: originalLocation,
       })
     })
   })
