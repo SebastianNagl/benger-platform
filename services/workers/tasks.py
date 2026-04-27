@@ -15,6 +15,17 @@ from response_parser import ResponseParser
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+def _get_insensitive(d: dict, key: str, default=""):
+    """Get a value from dict with case-insensitive key lookup. Prefers exact match."""
+    if key in d:
+        return d[key]
+    lower = key.lower()
+    for k in d:
+        if k.lower() == lower:
+            return d[k]
+    return default
+
 # Add current directory to Python path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
@@ -286,13 +297,6 @@ else:
 app.conf.broker_url = os.getenv("CELERY_BROKER_URL", broker_url)
 app.conf.result_backend = os.getenv("CELERY_RESULT_BACKEND", result_backend)
 
-# Load extended Celery tasks if available
-try:
-    from benger_extended.workers import register_tasks
-    register_tasks(app)
-except ImportError:
-    pass
-
 
 def _extract_field_value_from_annotation(annotation_results: List[Dict], field_name: str) -> Any:
     """Extract value for a specific field from annotation results."""
@@ -367,6 +371,99 @@ def cleanup_project_data(project_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error cleaning up project data: {str(e)}")
         return {"status": "error", "project_id": project_id, "message": str(e)}
+
+
+@app.task(name="tasks.auto_submit_expired_timer")
+def auto_submit_expired_timer(session_id: str) -> Dict[str, Any]:
+    """Server-side auto-submit when a strict timer expires.
+
+    Scheduled at timer session creation with eta = started_at + time_limit_seconds.
+    If the client already submitted (user was present), this is a no-op.
+    """
+    if not HAS_DATABASE:
+        return {"status": "error", "message": "Database not available"}
+
+    from datetime import datetime, timezone
+
+    db = SessionLocal()
+    try:
+        from project_models import Annotation, AnnotationTimerSession, Project, Task
+
+        session = db.query(AnnotationTimerSession).filter(
+            AnnotationTimerSession.id == session_id
+        ).first()
+
+        if not session:
+            return {"status": "skipped", "reason": "session not found"}
+        if session.completed_at:
+            return {"status": "skipped", "reason": "already completed"}
+
+        # Check if user already has an annotation for this task (client beat us)
+        existing = db.query(Annotation).filter(
+            Annotation.task_id == session.task_id,
+            Annotation.completed_by == session.user_id,
+        ).first()
+        if existing:
+            now = datetime.now(timezone.utc)
+            session.completed_at = now
+            session.auto_submitted = True
+            db.commit()
+            return {"status": "skipped", "reason": "annotation already exists"}
+
+        # Use draft if available: try timer session first, then task_drafts table
+        result = session.draft_result
+        if not result:
+            from project_models import TaskDraft
+            draft = db.query(TaskDraft).filter(
+                TaskDraft.task_id == session.task_id,
+                TaskDraft.user_id == session.user_id,
+            ).first()
+            result = draft.draft_result if draft and draft.draft_result else []
+
+        import uuid
+        now = datetime.now(timezone.utc)
+
+        annotation = Annotation(
+            id=str(uuid.uuid4()),
+            task_id=session.task_id,
+            project_id=session.project_id,
+            completed_by=session.user_id,
+            result=result,
+            auto_submitted=True,
+            lead_time=float(session.time_limit_seconds),
+        )
+        db.add(annotation)
+
+        # Update task counters
+        task = db.query(Task).filter(Task.id == session.task_id).first()
+        if task and result and len(result) > 0:
+            task.total_annotations = (task.total_annotations or 0) + 1
+            project = db.query(Project).filter(Project.id == session.project_id).first()
+            if project:
+                from sqlalchemy import String, cast, func
+                non_cancelled = db.query(Annotation).filter(
+                    Annotation.task_id == session.task_id,
+                    Annotation.was_cancelled == False,
+                    Annotation.result.isnot(None),
+                    func.length(cast(Annotation.result, String)) > 2,
+                ).count() + 1  # +1 for the annotation being created
+                if non_cancelled >= project.min_annotations_per_task:
+                    task.is_labeled = True
+
+        # Complete the timer session
+        session.completed_at = now
+        session.auto_submitted = True
+        db.commit()
+
+        logger.info(f"Server-side auto-submit for session {session_id}: annotation {annotation.id}")
+        return {"status": "submitted", "annotation_id": annotation.id}
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Auto-submit failed for session {session_id}: {e}")
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
 
 
 @app.task(name="tasks.generate_synthetic_data")
@@ -2014,14 +2111,15 @@ def run_evaluation(
 
             # Pre-compute expected field keys from enabled configs
             all_expected_field_keys = {
-                f"{c.get('id', 'unknown')}:{pf}:{rf}"
+                f"{c.get('id', 'unknown')}|{pf}|{rf}"
                 for c in enabled_configs
                 for pf in c.get("prediction_fields", [])
                 for rf in c.get("reference_fields", [])
             }
 
             # Bulk-load successfully evaluated (generation_id, field_name) pairs
-            # Single query replaces N per-generation queries in the loop
+            # Checks ALL evaluation runs (not just current) so interrupted runs can be resumed
+            # field_name includes config_id so different configs won't collide
             evaluated_by_gen: dict[str, set[str]] = {}
             if evaluate_missing_only:
                 task_id_list = [t.id for t in tasks]
@@ -2038,7 +2136,11 @@ def run_evaluation(
                     .all()
                 )
                 for r in existing:
-                    if (r.metrics or {}).get("raw_score") is not None:
+                    has_score = any(
+                        k != "error" and isinstance(v, (int, float))
+                        for k, v in (r.metrics or {}).items()
+                    )
+                    if has_score:
                         evaluated_by_gen.setdefault(r.generation_id, set()).add(r.field_name)
                 logger.info(
                     f"Loaded existing evaluations: {sum(len(v) for v in evaluated_by_gen.values())} "
@@ -2056,7 +2158,7 @@ def run_evaluation(
                 # For each prediction-reference field pair
                 for pred_field in config.get("prediction_fields", []):
                     for ref_field in config.get("reference_fields", []):
-                        field_key = f"{config_id}:{pred_field}:{ref_field}"
+                        field_key = f"{config_id}|{pred_field}|{ref_field}"
                         field_configs[field_key] = {"type": "text"}
                         if params:
                             metric_parameters[field_key] = {metric: params}
@@ -2138,8 +2240,12 @@ def run_evaluation(
 
                         # Evaluate each field pair
                         for pred_field in prediction_fields:
+                            # Skip human annotation fields — handled in annotation section below
+                            if pred_field.startswith("human:") or pred_field == "__all_human__":
+                                continue
+
                             for ref_field in reference_fields:
-                                field_key = f"{config_id}:{pred_field}:{ref_field}"
+                                field_key = f"{config_id}|{pred_field}|{ref_field}"
 
                                 # Skip already-evaluated config+field pairs
                                 if evaluate_missing_only and field_key in evaluated_by_gen.get(generation.id, set()):
@@ -2163,7 +2269,16 @@ def run_evaluation(
                                     # No annotation — try task.data directly
                                     ground_truth = task.data.get(ref_field) if task.data else None
                                 if ground_truth is None:
+                                    logger.warning(
+                                        f"Evaluation skip: reference field '{ref_field}' not found "
+                                        f"for task {task.id} (config {config_id})"
+                                    )
                                     continue
+
+                                # Strip model: prefix for extraction from parsed_annotation
+                                base_field = pred_field
+                                if pred_field.startswith("model:"):
+                                    base_field = pred_field[6:]
 
                                 # Extract prediction from generation
                                 # Handle special __all_model__ field - use raw response_content
@@ -2171,12 +2286,16 @@ def run_evaluation(
                                     prediction = generation.response_content
                                 else:
                                     prediction = _extract_field_value_from_parsed_annotation(
-                                        generation.parsed_annotation, pred_field
+                                        generation.parsed_annotation, base_field
                                     )
                                     # Fallback to response_content if parsed_annotation is empty/null
                                     if prediction is None and generation.response_content:
                                         prediction = generation.response_content
                                 if prediction is None:
+                                    logger.warning(
+                                        f"Evaluation skip: prediction field '{pred_field}' not found "
+                                        f"for task {task.id}, model {generation.model_id} (config {config_id})"
+                                    )
                                     continue
 
                                 # Evaluate this sample
@@ -2191,12 +2310,18 @@ def run_evaluation(
                                         llm_judge = llm_judge_evaluators[config_id]
                                         # Get context from task data
                                         context = (
-                                            task.data.get("text", "")
-                                            or task.data.get("input", "")
+                                            _get_insensitive(task.data, "text")
+                                            or _get_insensitive(task.data, "input")
+                                            or _get_insensitive(task.data, "sachverhalt")
                                             or ""
                                         )
 
+                                        # Falloesung: override ground_truth from task data
                                         eval_ground_truth = str(ground_truth) if ground_truth else ""
+                                        if metric == "llm_judge_falloesung" and task.data:
+                                            muster = _get_insensitive(task.data, "musterloesung") or _get_insensitive(task.data, "musterlösung")
+                                            if muster:
+                                                eval_ground_truth = str(muster)
 
                                         # Determine criterion from metric name
                                         criterion = metric.replace("llm_judge_", "")
@@ -2266,7 +2391,18 @@ def run_evaluation(
                                             "metrics": {
                                                 metric: score,
                                                 "raw_score": raw_score,
-                                                f"{metric}_response": result,
+                                                f"{metric}_response": result,  # Store ENTIRE LLM response
+                                                # Extra Falloesung metrics
+                                                **(
+                                                    {f"{metric}_grade_points": result["grade_points"]}
+                                                    if result and result.get("grade_points") is not None
+                                                    else {}
+                                                ),
+                                                **(
+                                                    {f"{metric}_passed": 1.0 if result["passed"] else 0.0}
+                                                    if result and "passed" in result
+                                                    else {}
+                                                ),
                                             },
                                             "passed": (
                                                 result.get("passed", score > 0.5)
@@ -2298,7 +2434,7 @@ def run_evaluation(
                                         samples_failed += 1
 
                                     # Accumulate primary metric score only (not raw_score or sub-metrics)
-                                    metric_key = f"{field_key}:{metric}"
+                                    metric_key = f"{field_key}|{metric}"
                                     primary_value = sample_result["metrics"].get(metric)
                                     if primary_value is not None and isinstance(
                                         primary_value, (int, float)
@@ -2307,35 +2443,27 @@ def run_evaluation(
                                             aggregate_metrics[metric_key] = []
                                         aggregate_metrics[metric_key].append(primary_value)
 
-                                    # Aggregate LLM judge sub-metrics under their own keys
+                                    # Aggregate Falloesung sub-metrics under their own keys
                                     for suffix in ("_grade_points", "_passed"):
                                         sub_key_name = f"{metric}{suffix}"
                                         sub_value = sample_result["metrics"].get(sub_key_name)
                                         if sub_value is not None and isinstance(
                                             sub_value, (int, float)
                                         ):
-                                            sub_metric_key = f"{field_key}:{sub_key_name}"
+                                            sub_metric_key = f"{field_key}|{sub_key_name}"
                                             if sub_metric_key not in aggregate_metrics:
                                                 aggregate_metrics[sub_metric_key] = []
                                             aggregate_metrics[sub_metric_key].append(sub_value)
 
-                                    # Commit after each result to keep DB connection alive
-                                    # during long-running LLM judge evaluations (~30s per call)
-                                    # and prevent data loss from connection drops
-                                    BATCH_SIZE = 1
-                                    if len(sample_results) >= BATCH_SIZE:
+                                    # Commit each result immediately so the frontend
+                                    # can show live progress via SSE stream
+                                    if sample_results:
                                         for result in sample_results:
-                                            sample_record = TaskEvaluation(**result)
-                                            db.add(sample_record)
-                                        db.commit()
-                                        logger.info(
-                                            f"📦 Stored batch of {len(sample_results)} results (total: {samples_evaluated})"
-                                        )
-                                        # Update evaluation progress
+                                            db.add(TaskEvaluation(**result))
                                         evaluation.samples_evaluated = samples_evaluated
                                         evaluation.has_sample_results = True
                                         db.commit()
-                                        sample_results = []  # Reset for next batch
+                                        sample_results = []
 
                                 except ValueError as e:
                                     logger.warning(f"Skipping sample: {e}")
@@ -2359,6 +2487,264 @@ def run_evaluation(
                                     samples_evaluated += 1
                                     samples_failed += 1
                                     continue
+
+            # Evaluate human annotations for configs with human: fields or __all_human__
+            # Also handles backward compat: llm_judge_falloesung with unprefixed prediction fields
+            from annotation_utils import extract_all_field_values as _extract_all_fields
+            import uuid as _ann_uuid
+
+            # Pre-load all annotations once (avoids N+1 queries per config x task)
+            task_id_list = [t.id for t in tasks]
+            all_annotations = db.query(Annotation).filter(
+                Annotation.task_id.in_(task_id_list),
+                Annotation.was_cancelled == False,
+            ).all()
+            annotations_by_task: dict[str, list] = {}
+            for ann in all_annotations:
+                annotations_by_task.setdefault(ann.task_id, []).append(ann)
+
+            # Pre-load existing annotation evaluations once (shared across all configs)
+            evaluated_by_ann: dict[str, set[str]] = {}
+            if evaluate_missing_only:
+                existing_ann = (
+                    db.query(
+                        TaskEvaluation.annotation_id,
+                        TaskEvaluation.field_name,
+                        TaskEvaluation.metrics,
+                    )
+                    .filter(
+                        TaskEvaluation.task_id.in_(task_id_list),
+                        TaskEvaluation.annotation_id.isnot(None),
+                    )
+                    .all()
+                )
+                for r in existing_ann:
+                    has_score = any(
+                        k != "error" and isinstance(v, (int, float))
+                        for k, v in (r.metrics or {}).items()
+                    )
+                    if has_score:
+                        evaluated_by_ann.setdefault(r.annotation_id, set()).add(r.field_name)
+
+            for config in enabled_configs:
+                config_id = config.get("id", "unknown")
+                metric = config.get("metric", "")
+                prediction_fields = config.get("prediction_fields", [])
+                reference_fields = config.get("reference_fields", [])
+
+                # Collect human prediction fields from this config
+                human_pred_fields = []
+                for pf in prediction_fields:
+                    if pf.startswith("human:"):
+                        human_pred_fields.append(("human:" + pf[6:], pf[6:]))  # (prefixed, base)
+                    elif pf == "__all_human__":
+                        human_pred_fields.append(("__all_human__", "__all_human__"))
+
+                # Backward compat: llm_judge_falloesung with unprefixed fields evaluates annotations
+                if not human_pred_fields and metric == "llm_judge_falloesung":
+                    for pf in prediction_fields:
+                        if not pf.startswith("model:") and pf not in ("__all_model__", "__all_human__"):
+                            human_pred_fields.append((f"human:{pf}", pf))
+
+                if not human_pred_fields:
+                    continue
+
+                logger.info(f"Evaluating human annotations for config {config_id} (metric: {metric})...")
+
+                # Ground truth cache per (task_id, ref_field) — same for all annotations
+                gt_cache: dict[tuple, any] = {}
+
+                for task in tasks:
+                    annotations = annotations_by_task.get(task.id, [])
+
+                    for annotation in annotations:
+                        for pred_field_prefixed, base_field in human_pred_fields:
+                            # Extract prediction from annotation
+                            if base_field == "__all_human__":
+                                all_values = _extract_all_fields(annotation.result or [])
+                                field_predictions = [
+                                    (f"human:{fn}", v) for fn, v in all_values.items()
+                                    if isinstance(v, str)
+                                ]
+                            else:
+                                value = _extract_field_value_from_annotation(
+                                    annotation.result or [], base_field
+                                )
+                                field_predictions = [(pred_field_prefixed, value)] if value else []
+
+                            for actual_pred_field, prediction in field_predictions:
+                                for ref_field in reference_fields:
+                                    field_key = f"{config_id}|{actual_pred_field}|{ref_field}"
+
+                                    # Skip already-evaluated (using pre-loaded set)
+                                    if evaluate_missing_only and field_key in evaluated_by_ann.get(annotation.id, set()):
+                                        continue
+
+                                    # Extract ground truth (cached per task+ref_field)
+                                    gt_key = (task.id, ref_field)
+                                    if gt_key not in gt_cache:
+                                        if ref_field.startswith("task."):
+                                            data_field = ref_field[5:]
+                                            gt_cache[gt_key] = task.data.get(data_field) if task.data else None
+                                        else:
+                                            gt_cache[gt_key] = task.data.get(ref_field) if task.data else None
+                                    ground_truth = gt_cache[gt_key]
+                                    if ground_truth is None:
+                                        continue
+
+                                    try:
+                                        if metric.startswith("llm_judge_") and config_id in llm_judge_evaluators:
+                                            llm_judge = llm_judge_evaluators[config_id]
+                                            context = (
+                                                _get_insensitive(task.data, "text")
+                                                or _get_insensitive(task.data, "input")
+                                                or _get_insensitive(task.data, "sachverhalt")
+                                                or ""
+                                            ) if task.data else ""
+
+                                            eval_ground_truth = str(ground_truth) if ground_truth else ""
+                                            if metric == "llm_judge_falloesung" and task.data:
+                                                muster = _get_insensitive(task.data, "musterloesung") or _get_insensitive(task.data, "musterlösung")
+                                                if muster:
+                                                    eval_ground_truth = str(muster)
+
+                                            criterion = metric.replace("llm_judge_", "")
+                                            if criterion == "custom":
+                                                criterion = "correctness"
+                                            elif criterion == "overall":
+                                                criterion = "correctness"
+
+                                            result = llm_judge._evaluate_single_criterion(
+                                                context=context,
+                                                ground_truth=eval_ground_truth,
+                                                prediction=str(prediction) if prediction else "",
+                                                criterion=criterion,
+                                                task_data=task.data,
+                                            )
+
+                                            judge_prompts = (
+                                                result.pop("_judge_prompts_used", None)
+                                                if result
+                                                else None
+                                            )
+
+                                            raw_score = result["score"] if result is not None else None
+                                            error_msg = None
+                                            if raw_score is not None:
+                                                if llm_judge.score_scale == "0-1":
+                                                    score = raw_score
+                                                elif llm_judge.score_scale == "0-100":
+                                                    score = raw_score / 100.0
+                                                else:
+                                                    score = (raw_score - 1) / 4
+                                            else:
+                                                score = None
+                                                error_msg = "LLM judge evaluation failed"
+
+                                            annotation_result = {
+                                                "id": str(_ann_uuid.uuid4()),
+                                                "evaluation_id": evaluation_id,
+                                                "task_id": task.id,
+                                                "generation_id": None,
+                                                "annotation_id": annotation.id,
+                                                "field_name": field_key,
+                                                "answer_type": "text",
+                                                "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                                "prediction": str(prediction)[:1000] if prediction else "",
+                                                "metrics": {
+                                                    metric: score,
+                                                    "raw_score": raw_score,
+                                                    f"{metric}_response": result,
+                                                    **(
+                                                        {f"{metric}_grade_points": result["grade_points"]}
+                                                        if result and result.get("grade_points") is not None
+                                                        else {}
+                                                    ),
+                                                    **(
+                                                        {f"{metric}_passed": 1.0 if result["passed"] else 0.0}
+                                                        if result and "passed" in result
+                                                        else {}
+                                                    ),
+                                                },
+                                                "passed": (
+                                                    result.get("passed", score > 0.5)
+                                                    if result and "passed" in result
+                                                    else (score > 0.5 if score is not None else False)
+                                                ),
+                                                "error_message": error_msg,
+                                                "judge_prompts_used": judge_prompts,
+                                            }
+                                        else:
+                                            # Standard metric (ROUGE, BLEU, etc.)
+                                            annotation_result = sample_evaluator.evaluate_sample(
+                                                task_id=task.id,
+                                                field_name=field_key,
+                                                ground_truth=ground_truth,
+                                                prediction=prediction,
+                                                metrics_to_compute=[metric],
+                                                annotation_id=annotation.id,
+                                            )
+                                            annotation_result["annotation_id"] = annotation.id
+                                            annotation_result["generation_id"] = None
+
+                                        sample_results.append(annotation_result)
+                                        samples_evaluated += 1
+                                        if annotation_result.get("passed"):
+                                            samples_passed += 1
+                                        else:
+                                            samples_failed += 1
+
+                                        # Accumulate primary metric only (match generation loop pattern)
+                                        metric_key = f"{field_key}|{metric}"
+                                        primary_value = annotation_result.get("metrics", {}).get(metric)
+                                        if primary_value is not None and isinstance(primary_value, (int, float)):
+                                            if metric_key not in aggregate_metrics:
+                                                aggregate_metrics[metric_key] = []
+                                            aggregate_metrics[metric_key].append(primary_value)
+
+                                        # Aggregate Falloesung sub-metrics
+                                        for suffix in ("_grade_points", "_passed"):
+                                            sub_key_name = f"{metric}{suffix}"
+                                            sub_value = annotation_result.get("metrics", {}).get(sub_key_name)
+                                            if sub_value is not None and isinstance(sub_value, (int, float)):
+                                                sub_metric_key = f"{field_key}|{sub_key_name}"
+                                                if sub_metric_key not in aggregate_metrics:
+                                                    aggregate_metrics[sub_metric_key] = []
+                                                aggregate_metrics[sub_metric_key].append(sub_value)
+
+                                        # Commit each result immediately so the frontend
+                                        # can show live progress via SSE stream
+                                        if sample_results:
+                                            for sr in sample_results:
+                                                db.add(TaskEvaluation(**sr))
+                                            evaluation.samples_evaluated = samples_evaluated
+                                            evaluation.has_sample_results = True
+                                            db.commit()
+                                            sample_results = []
+
+                                    except ValueError as e:
+                                        logger.warning(f"Skipping annotation sample: {e}")
+                                        continue
+                                    except Exception as e:
+                                        logger.warning(
+                                            f"Annotation eval failed for annotation {annotation.id}: {e}"
+                                        )
+                                        sample_results.append({
+                                            "id": str(_ann_uuid.uuid4()),
+                                            "evaluation_id": evaluation_id,
+                                            "task_id": task.id,
+                                            "generation_id": None,
+                                            "annotation_id": annotation.id,
+                                            "field_name": field_key,
+                                            "answer_type": "text",
+                                            "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                            "prediction": str(prediction)[:1000] if prediction else "",
+                                            "metrics": {},
+                                            "passed": False,
+                                            "error_message": str(e),
+                                        })
+                                        samples_evaluated += 1
+                                        samples_failed += 1
 
             # Store remaining sample results (not yet stored in batches)
             if sample_results:
@@ -2516,9 +2902,259 @@ def _get_provider_from_model(model_id: str) -> str:
 
 
 # =============================================================================
-# Unified Single-Sample Evaluation Task (below)
+# Immediate Falllösung Evaluation Task
 # =============================================================================
 
+
+def _immediate_eval_metadata():
+    """Return standard eval_metadata and metrics for immediate EvaluationRun records."""
+    return {
+        "metrics": {"llm_judge_falloesung": True},
+        "eval_metadata": {
+            "evaluation_type": "llm_judge",
+            "evaluation_configs": [{
+                "id": "immediate_llm_judge_falloesung",
+                "metric": "llm_judge_falloesung",
+                "display_name": "LLM Judge Falllösung",
+                "enabled": True,
+            }],
+        },
+    }
+
+
+def _ensure_immediate_eval_run(db, immediate_eval_id, project_id, user_id):
+    """Get or create the EvaluationRun for immediate evaluations, backfilling metadata if needed."""
+    from models import EvaluationRun
+
+    existing_run = db.query(EvaluationRun).filter(
+        EvaluationRun.id == immediate_eval_id
+    ).first()
+    if not existing_run:
+        meta = _immediate_eval_metadata()
+        immediate_run = EvaluationRun(
+            id=immediate_eval_id,
+            project_id=project_id,
+            model_id="immediate",
+            evaluation_type_ids=["llm_judge_falloesung"],
+            status="completed",
+            created_by=user_id,
+            **meta,
+        )
+        db.add(immediate_run)
+        db.flush()
+    elif not existing_run.eval_metadata:
+        # Backfill metadata on records that predate this fix
+        from sqlalchemy.orm.attributes import flag_modified
+        meta = _immediate_eval_metadata()
+        existing_run.eval_metadata = meta["eval_metadata"]
+        existing_run.metrics = meta["metrics"]
+        flag_modified(existing_run, "eval_metadata")
+        flag_modified(existing_run, "metrics")
+        db.flush()
+
+
+def _persist_immediate_eval_error(
+    db, evaluation_record_id, project_id, task_id,
+    annotation_id, user_id, field_name, musterloesung, prediction, error_msg,
+    **kwargs,
+):
+    """Persist an error record for immediate evaluation so polling endpoint can detect failure."""
+    from models import TaskEvaluation
+
+    immediate_eval_id = f"immediate_{project_id}"
+    # If caller provides an explicit eval_run_id, use it; otherwise fall back to shared ID
+    eval_run_id = kwargs.get("eval_run_id", immediate_eval_id)
+    if eval_run_id == immediate_eval_id:
+        _ensure_immediate_eval_run(db, immediate_eval_id, project_id, user_id)
+
+    error_record = TaskEvaluation(
+        id=evaluation_record_id,
+        evaluation_id=eval_run_id,
+        task_id=task_id,
+        annotation_id=annotation_id,
+        generation_id=None,
+        field_name=field_name,
+        answer_type="long_text",
+        ground_truth=musterloesung if musterloesung else "",
+        prediction=prediction if prediction else "",
+        metrics={"error": True},
+        passed=False,
+        error_message=error_msg,
+    )
+    db.add(error_record)
+    db.commit()
+    logger.info(f"[Falloesung Celery] Persisted error record {evaluation_record_id}")
+
+
+@app.task(name="tasks.run_immediate_falloesung", bind=True)
+def run_immediate_falloesung(
+    self,
+    evaluation_record_id: str,
+    project_id: str,
+    task_id: str,
+    annotation_id: str,
+    user_id: str,
+    judge_model: str,
+    sachverhalt: str,
+    musterloesung: str,
+    prediction: str,
+    field_name: str = "loesung",
+    metric_parameters: Optional[Dict[str, Any]] = None,
+    organization_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Run Falllösung LLM judge evaluation asynchronously via Celery.
+
+    Dispatched from the API immediate evaluation endpoint to avoid blocking
+    the API worker during the 5-15s LLM call.
+
+    Returns result dict with score, grade_points, passed, dimensions.
+    """
+    import time
+    import uuid
+
+    from falloesung_constants import (
+        FALLOESUNG_PROMPT_TEMPLATE,
+        FALLOESUNG_SYSTEM_PROMPT,
+        parse_falloesung_response,
+    )
+
+    params = metric_parameters or {}
+    temperature = params.get("temperature", 0.0)
+    max_tokens = params.get("max_tokens", 4096)
+    thinking_budget = params.get("thinking_budget")
+    reasoning_effort = params.get("reasoning_effort")
+    max_retries = 3
+
+    db = SessionLocal()
+    try:
+        from models import EvaluationRun, TaskEvaluation
+
+        provider = _get_provider_from_model(judge_model)
+
+        if not HAS_AI_SERVICES:
+            logger.error("[Falloesung Celery] AI services not available")
+            return {"status": "error", "message": "AI services not available"}
+
+        try:
+            ai_service = user_aware_ai_service.get_ai_service_for_user(
+                db, user_id, provider, organization_id=organization_id
+            )
+        except Exception as e:
+            logger.error(f"[Falloesung Celery] Failed to create AI service: {e}")
+            return {"status": "error", "message": f"API key error: {e}"}
+
+        if ai_service is None:
+            msg = f"No API key found for provider '{provider}'"
+            if organization_id:
+                msg += f" (org: {organization_id})"
+            else:
+                msg += f" (user: {user_id})"
+            logger.error(f"[Falloesung Celery] {msg}")
+            # Persist error record so polling endpoint can detect failure
+            _persist_immediate_eval_error(
+                db, evaluation_record_id, project_id, task_id,
+                annotation_id, user_id, field_name, musterloesung, prediction, msg
+            )
+            return {"status": "error", "evaluation_record_id": evaluation_record_id, "message": msg}
+
+        prompt = FALLOESUNG_PROMPT_TEMPLATE.format(
+            context=sachverhalt or "(Kein Sachverhalt angegeben)",
+            ground_truth=musterloesung or "(Keine Musterlösung angegeben)",
+            prediction=prediction or "(Keine Studierendenlösung angegeben)",
+        )
+
+        result = None
+        for attempt in range(max_retries):
+            try:
+                extra_kwargs = {}
+                if thinking_budget:
+                    extra_kwargs["thinking_budget"] = thinking_budget
+                if reasoning_effort:
+                    extra_kwargs["reasoning_effort"] = reasoning_effort
+
+                logger.info(f"[Falloesung Celery] Calling {provider}/{judge_model} (attempt {attempt + 1})")
+                response = ai_service.generate(
+                    prompt=prompt,
+                    system_prompt=FALLOESUNG_SYSTEM_PROMPT,
+                    model_name=judge_model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    **extra_kwargs,
+                )
+
+                if not response.get("success"):
+                    logger.warning(f"[Falloesung Celery] LLM call failed: {response.get('error')}")
+                    continue
+
+                content = response.get("content", "")
+                logger.info(f"[Falloesung Celery] Got response ({len(content)} chars)")
+                result = parse_falloesung_response(content)
+
+                if result is not None:
+                    logger.info(
+                        f"[Falloesung Celery] Score: {result['total_score']}/100, "
+                        f"Grade: {result['grade_points']}/18, Passed: {result['passed']}"
+                    )
+                    break
+            except Exception as e:
+                logger.warning(f"[Falloesung Celery] Attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(1 * (attempt + 1))
+
+        if result is None:
+            _persist_immediate_eval_error(
+                db, evaluation_record_id, project_id, task_id,
+                annotation_id, user_id, field_name, musterloesung, prediction,
+                "All evaluation attempts failed"
+            )
+            return {"status": "error", "evaluation_record_id": evaluation_record_id, "message": "All evaluation attempts failed"}
+
+        # Persist TaskEvaluation
+        total_score = result.get("score", 0)
+        normalized_score = total_score / 100.0
+        immediate_eval_id = f"immediate_{project_id}"
+
+        _ensure_immediate_eval_run(db, immediate_eval_id, project_id, user_id)
+
+        eval_record = TaskEvaluation(
+            id=evaluation_record_id,
+            evaluation_id=immediate_eval_id,
+            task_id=task_id,
+            annotation_id=annotation_id,
+            generation_id=None,
+            field_name=field_name,
+            answer_type="long_text",
+            ground_truth=musterloesung if musterloesung else "",
+            prediction=prediction if prediction else "",
+            metrics={
+                "llm_judge_falloesung": normalized_score,
+                "llm_judge_falloesung_raw": total_score,
+                "llm_judge_falloesung_grade_points": result.get("grade_points", 0),
+                "llm_judge_falloesung_passed": 1.0 if result.get("passed") else 0.0,
+                "llm_judge_falloesung_details": result,
+            },
+            passed=result.get("passed", False),
+        )
+        db.add(eval_record)
+        db.commit()
+        logger.info(f"[Falloesung Celery] Persisted TaskEvaluation {evaluation_record_id}")
+
+        return {
+            "status": "completed",
+            "evaluation_record_id": evaluation_record_id,
+            "result": result,
+            "total_score": total_score,
+            "grade_points": result.get("grade_points", 0),
+            "passed": result.get("passed", False),
+        }
+
+    except Exception as e:
+        logger.error(f"[Falloesung Celery] Task failed: {e}")
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
 
 
 # =============================================================================
@@ -2543,7 +3179,7 @@ def run_single_sample_evaluation(
     Run evaluation for a single annotation against configured metrics via Celery.
 
     This is the unified immediate evaluation task that replaces both the synchronous
-    compute_metric_value() approximations.
+    compute_metric_value() approximations and the specialized run_immediate_falloesung task.
     All metrics use real implementations (NLTK BLEU, rouge-score, bert-score, etc.).
 
     Args:
@@ -2620,7 +3256,25 @@ def run_single_sample_evaluation(
             record_id = str(uuid.uuid4())
 
             try:
-                if metric_type.startswith("llm_judge_"):
+                if metric_type == "llm_judge_falloesung":
+                    # Delegate to falloesung-specific logic
+                    result = _evaluate_falloesung_single(
+                        db=db,
+                        record_id=record_id,
+                        immediate_eval_id=dispatch_eval_id,
+                        project_id=project_id,
+                        task_id=task_id,
+                        annotation_id=annotation_id,
+                        user_id=user_id,
+                        field_name=field_name,
+                        prediction=str(prediction_value),
+                        task_data=task_data,
+                        metric_params=metric_params,
+                        organization_id=organization_id,
+                    )
+                    results.append(result)
+
+                elif metric_type.startswith("llm_judge_"):
                     # Other LLM judge metrics — use LLMJudgeEvaluator
                     result = _evaluate_llm_judge_single(
                         db=db,
@@ -2683,6 +3337,14 @@ def run_single_sample_evaluation(
 
             except Exception as e:
                 logger.error(f"[SingleSampleEval] {metric_type} failed: {e}")
+                _persist_immediate_eval_error(
+                    db, record_id, project_id, task_id,
+                    annotation_id, user_id or "system", field_name,
+                    str(reference_value) if reference_value else "",
+                    str(prediction_value) if prediction_value else "",
+                    str(e),
+                    eval_run_id=dispatch_eval_id,
+                )
                 results.append({
                     "status": "error",
                     "record_id": record_id,
@@ -2751,6 +3413,122 @@ def run_single_sample_evaluation(
         return {"status": "error", "message": str(e)}
     finally:
         db.close()
+
+
+def _evaluate_falloesung_single(
+    db, record_id, immediate_eval_id, project_id, task_id,
+    annotation_id, user_id, field_name, prediction, task_data,
+    metric_params, organization_id,
+):
+    """Run Falllösung LLM judge evaluation for a single sample."""
+    import time
+
+    from falloesung_constants import (
+        FALLOESUNG_PROMPT_TEMPLATE,
+        FALLOESUNG_SYSTEM_PROMPT,
+        parse_falloesung_response,
+    )
+    from models import TaskEvaluation
+
+    params = metric_params or {}
+    judge_model = params.get("judge_model", "gpt-4o")
+    temperature = params.get("temperature", 0.0)
+    max_tokens = params.get("max_tokens", 4096)
+    thinking_budget = params.get("thinking_budget")
+    reasoning_effort = params.get("reasoning_effort")
+
+    sachverhalt = _get_insensitive(task_data, "sachverhalt") if task_data else ""
+    musterloesung = ""
+    if task_data:
+        musterloesung = str(
+            _get_insensitive(task_data, "musterloesung")
+            or _get_insensitive(task_data, "musterlösung")
+            or ""
+        )
+
+    provider = _get_provider_from_model(judge_model)
+
+    if not HAS_AI_SERVICES:
+        raise RuntimeError("AI services not available")
+
+    ai_service = user_aware_ai_service.get_ai_service_for_user(
+        db, user_id, provider, organization_id=organization_id
+    )
+    if ai_service is None:
+        raise RuntimeError(f"No API key found for provider '{provider}'")
+
+    prompt = FALLOESUNG_PROMPT_TEMPLATE.format(
+        context=sachverhalt or "(Kein Sachverhalt angegeben)",
+        ground_truth=musterloesung or "(Keine Musterlösung angegeben)",
+        prediction=prediction or "(Keine Studierendenlösung angegeben)",
+    )
+
+    result = None
+    for attempt in range(3):
+        try:
+            extra_kwargs = {}
+            if thinking_budget:
+                extra_kwargs["thinking_budget"] = thinking_budget
+            if reasoning_effort:
+                extra_kwargs["reasoning_effort"] = reasoning_effort
+
+            response = ai_service.generate(
+                prompt=prompt,
+                system_prompt=FALLOESUNG_SYSTEM_PROMPT,
+                model_name=judge_model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                **extra_kwargs,
+            )
+
+            if not response.get("success"):
+                continue
+
+            content = response.get("content", "")
+            result = parse_falloesung_response(content)
+            if result is not None:
+                break
+        except Exception as e:
+            logger.warning(f"[Falloesung] Attempt {attempt + 1} failed: {e}")
+            if attempt < 2:
+                time.sleep(1 * (attempt + 1))
+
+    if result is None:
+        raise RuntimeError("All Falllösung evaluation attempts failed")
+
+    total_score = result.get("score", 0)
+    normalized_score = total_score / 100.0
+
+    eval_record = TaskEvaluation(
+        id=record_id,
+        evaluation_id=immediate_eval_id,
+        task_id=task_id,
+        annotation_id=annotation_id,
+        generation_id=None,
+        field_name=field_name,
+        answer_type="long_text",
+        ground_truth=musterloesung,
+        prediction=prediction,
+        metrics={
+            "llm_judge_falloesung": normalized_score,
+            "llm_judge_falloesung_raw": total_score,
+            "llm_judge_falloesung_grade_points": result.get("grade_points", 0),
+            "llm_judge_falloesung_passed": 1.0 if result.get("passed") else 0.0,
+            "llm_judge_falloesung_details": result,
+        },
+        passed=result.get("passed", False),
+    )
+    db.add(eval_record)
+    db.commit()
+
+    return {
+        "status": "completed",
+        "record_id": record_id,
+        "metric": "llm_judge_falloesung",
+        "score": normalized_score,
+        "grade_points": result.get("grade_points", 0),
+        "passed": result.get("passed", False),
+    }
 
 
 def _evaluate_llm_judge_single(

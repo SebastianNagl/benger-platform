@@ -288,18 +288,40 @@ async def get_available_fields(
                 if to_name:
                     reference_fields.add(to_name)
 
-        # Extract fields from a sample generation
-        sample_gen = (
-            db.query(Generation)
-            .join(Task, Generation.task_id == Task.id)
-            .filter(Task.project_id == project_id, Generation.parse_status == "success")
-            .first()
-        )
-        if sample_gen and sample_gen.parsed_annotation:
-            for result in sample_gen.parsed_annotation:
-                from_name = result.get("from_name", "")
-                if from_name:
-                    model_fields.add(from_name)
+        # Extract distinct model fields from ALL successful generations
+        from sqlalchemy import text as sa_text
+        try:
+            model_field_rows = (
+                db.query(
+                    func.jsonb_array_elements(Generation.parsed_annotation)
+                    .op('->>')(sa_text("'from_name'"))
+                    .label("fn")
+                )
+                .join(Task, Generation.task_id == Task.id)
+                .filter(
+                    Task.project_id == project_id,
+                    Generation.parse_status == "success",
+                    Generation.parsed_annotation != None,  # noqa: E711
+                )
+                .distinct()
+                .all()
+            )
+            for row in model_field_rows:
+                if row.fn:
+                    model_fields.add(row.fn)
+        except Exception:
+            # Fallback: sample a single generation (for DBs without jsonb support)
+            sample_gen = (
+                db.query(Generation)
+                .join(Task, Generation.task_id == Task.id)
+                .filter(Task.project_id == project_id, Generation.parse_status == "success")
+                .first()
+            )
+            if sample_gen and sample_gen.parsed_annotation:
+                for result in sample_gen.parsed_annotation:
+                    from_name = result.get("from_name", "")
+                    if from_name:
+                        model_fields.add(from_name)
 
         # Extract fields from a sample annotation
         sample_task = db.query(Task).filter(Task.project_id == project_id).first()
@@ -407,35 +429,49 @@ async def get_project_evaluation_results(
             # Parse metrics by field combination
             parsed_results = {}
             for key, value in (evaluation.metrics or {}).items():
-                # Key format: config_id:pred_field:ref_field:metric_name
-                parts = key.split(":")
+                # Key format: config_id|pred_field|ref_field|metric_name
+                # Pred_field may contain : (e.g., human:loesung), so | is the structural separator
+                parts = key.split("|")
                 if len(parts) >= 4:
                     config_id = parts[0]
                     pred_field = parts[1]
                     ref_field = parts[2]
-                    metric_name = ":".join(parts[3:])  # Handle metric names with colons
-                    if config_id not in parsed_results:
-                        parsed_results[config_id] = {"field_results": [], "aggregate_score": None}
+                    metric_name = "|".join(parts[3:])
+                elif len(parts) == 1 and ":" in key:
+                    # Backward compat: old format used : as separator
+                    old_parts = key.split(":")
+                    if len(old_parts) >= 4:
+                        config_id = old_parts[0]
+                        pred_field = old_parts[1]
+                        ref_field = old_parts[2]
+                        metric_name = ":".join(old_parts[3:])
+                    else:
+                        continue
+                else:
+                    continue
 
-                    # Find or create field result entry
-                    combo_key = f"{pred_field}_vs_{ref_field}"
-                    existing = next(
-                        (
-                            r
-                            for r in parsed_results[config_id]["field_results"]
-                            if r.get("combo_key") == combo_key
-                        ),
-                        None,
-                    )
-                    if not existing:
-                        existing = {
-                            "combo_key": combo_key,
-                            "prediction_field": pred_field,
-                            "reference_field": ref_field,
-                            "scores": {},
-                        }
-                        parsed_results[config_id]["field_results"].append(existing)
-                    existing["scores"][metric_name] = value
+                if config_id not in parsed_results:
+                    parsed_results[config_id] = {"field_results": [], "aggregate_score": None}
+
+                # Find or create field result entry
+                combo_key = f"{pred_field}_vs_{ref_field}"
+                existing = next(
+                    (
+                        r
+                        for r in parsed_results[config_id]["field_results"]
+                        if r.get("combo_key") == combo_key
+                    ),
+                    None,
+                )
+                if not existing:
+                    existing = {
+                        "combo_key": combo_key,
+                        "prediction_field": pred_field,
+                        "reference_field": ref_field,
+                        "scores": {},
+                    }
+                    parsed_results[config_id]["field_results"].append(existing)
+                existing["scores"][metric_name] = value
 
             # Calculate aggregate scores per config
             for config_id, config_data in parsed_results.items():
@@ -552,16 +588,31 @@ async def get_evaluation_run_results(
         # Parse metrics by field combination
         parsed_results = {}
         for key, value in (evaluation.metrics or {}).items():
-            # Key format: config_id:pred_field:ref_field:metric_name
-            parts = key.split(":")
-            if len(parts) == 4:
-                config_id, pred_field, ref_field, metric_name = parts
-                if config_id not in parsed_results:
-                    parsed_results[config_id] = {}
-                combo_key = f"{pred_field}_vs_{ref_field}"
-                if combo_key not in parsed_results[config_id]:
-                    parsed_results[config_id][combo_key] = {}
-                parsed_results[config_id][combo_key][metric_name] = value
+            # Key format: config_id|pred_field|ref_field|metric_name
+            parts = key.split("|")
+            if len(parts) >= 4:
+                config_id = parts[0]
+                pred_field = parts[1]
+                ref_field = parts[2]
+                metric_name = "|".join(parts[3:])
+            elif len(parts) == 1 and ":" in key:
+                # Backward compat: old format used : as separator
+                old_parts = key.split(":")
+                if len(old_parts) >= 4:
+                    config_id = old_parts[0]
+                    pred_field = old_parts[1]
+                    ref_field = old_parts[2]
+                    metric_name = ":".join(old_parts[3:])
+                else:
+                    continue
+            else:
+                continue
+            if config_id not in parsed_results:
+                parsed_results[config_id] = {}
+            combo_key = f"{pred_field}_vs_{ref_field}"
+            if combo_key not in parsed_results[config_id]:
+                parsed_results[config_id][combo_key] = {}
+            parsed_results[config_id][combo_key][metric_name] = value
 
         return {
             "evaluation_id": evaluation.id,

@@ -51,12 +51,17 @@ export function FieldMappingSettings({
     setTemplateFields(uniqueFields)
   }, [currentTemplate])
 
+  const includesInsensitive = (arr: string[], target: string): boolean => {
+    const lower = target.toLowerCase()
+    return arr.some((item) => item.toLowerCase() === lower)
+  }
+
   const validateFieldMapping = () => {
     const missingFields = templateFields.filter(
-      (field) => !availableFields.includes(field)
+      (field) => !includesInsensitive(availableFields, field)
     )
     const unusedFields = availableFields.filter(
-      (field) => !templateFields.includes(field)
+      (field) => !includesInsensitive(templateFields, field)
     )
 
     return {
@@ -131,12 +136,12 @@ export function FieldMappingSettings({
               <Badge
                 key={field}
                 variant={
-                  availableFields.includes(field) ? 'default' : 'destructive'
+                  includesInsensitive(availableFields, field) ? 'default' : 'destructive'
                 }
                 className="text-xs"
               >
                 ${field}
-                {availableFields.includes(field) ? (
+                {includesInsensitive(availableFields, field) ? (
                   <CheckCircleIcon className="ml-1 h-3 w-3" />
                 ) : (
                   <ExclamationTriangleIcon className="ml-1 h-3 w-3" />

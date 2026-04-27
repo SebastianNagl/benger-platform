@@ -124,7 +124,9 @@ def serialize_task_evaluation(
     }
     if mode == "data":
         config_id = (
-            te.field_name.split(":")[0]
+            te.field_name.split("|")[0]
+            if te.field_name and "|" in te.field_name
+            else te.field_name.split(":")[0]  # Backward compat
             if te.field_name and ":" in te.field_name
             else None
         )
