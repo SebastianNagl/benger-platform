@@ -713,7 +713,7 @@ class TestProjectEvaluationResults:
 
 @pytest.mark.integration
 class TestEvaluationResultsByProject:
-    """GET /api/evaluations/evaluations/results/{project_id}"""
+    """GET /api/evaluations/results/{project_id}"""
 
     def test_results_include_automated_evaluations(
         self, client, test_db, test_users, test_org, auth_headers
@@ -722,7 +722,7 @@ class TestEvaluationResultsByProject:
         data = _create_evaluation_project(test_db, test_users, test_org)
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{data['project'].id}",
+            f"/api/evaluations/results/{data['project'].id}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -739,7 +739,7 @@ class TestEvaluationResultsByProject:
         data = _create_evaluation_project(test_db, test_users, test_org)
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{data['project'].id}?include_human=false",
+            f"/api/evaluations/results/{data['project'].id}?include_human=false",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -763,7 +763,7 @@ class TestEvaluationResultsByProject:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{project.id}",
+            f"/api/evaluations/results/{project.id}",
             headers=auth_headers["annotator"],
         )
         assert resp.status_code == 403
@@ -771,7 +771,7 @@ class TestEvaluationResultsByProject:
 
 @pytest.mark.integration
 class TestEvaluationSamples:
-    """GET /api/evaluations/evaluations/{evaluation_id}/samples"""
+    """GET /api/evaluations/{evaluation_id}/samples"""
 
     def test_samples_returns_paginated_results(
         self, client, test_db, test_users, test_org, auth_headers
@@ -781,7 +781,7 @@ class TestEvaluationSamples:
         eval_id = data["evaluation_runs"][0].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{eval_id}/samples?page=1&page_size=10",
+            f"/api/evaluations/{eval_id}/samples?page=1&page_size=10",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -803,7 +803,7 @@ class TestEvaluationSamples:
         eval_id = data["evaluation_runs"][0].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{eval_id}/samples?passed=true",
+            f"/api/evaluations/{eval_id}/samples?passed=true",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -819,7 +819,7 @@ class TestEvaluationSamples:
         eval_id = data["evaluation_runs"][0].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{eval_id}/samples?field_name=answer_type",
+            f"/api/evaluations/{eval_id}/samples?field_name=answer_type",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -831,7 +831,7 @@ class TestEvaluationSamples:
         self, client, test_db, test_users, test_org, auth_headers
     ):
         resp = client.get(
-            f"/api/evaluations/evaluations/{uuid.uuid4()}/samples",
+            f"/api/evaluations/{uuid.uuid4()}/samples",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 404
@@ -844,7 +844,7 @@ class TestEvaluationSamples:
         eval_id = data["evaluation_runs"][0].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{eval_id}/samples?page=1&page_size=2",
+            f"/api/evaluations/{eval_id}/samples?page=1&page_size=2",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -860,7 +860,7 @@ class TestEvaluationSamples:
 
 @pytest.mark.integration
 class TestEvaluationsList:
-    """GET /api/evaluations/evaluations"""
+    """GET /api/evaluations/"""
 
     def test_list_evaluations_returns_all_accessible(
         self, client, test_db, test_users, test_org, auth_headers
@@ -869,7 +869,7 @@ class TestEvaluationsList:
         data = _create_evaluation_project(test_db, test_users, test_org)
 
         resp = client.get(
-            "/api/evaluations/evaluations",
+            "/api/evaluations/",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -891,7 +891,7 @@ class TestEvaluationsList:
         # Annotator is not a superadmin, so with no projects they see nothing
         # But test_org membership may give access; this test verifies the structure
         resp = client.get(
-            "/api/evaluations/evaluations",
+            "/api/evaluations/",
             headers=auth_headers["annotator"],
         )
         assert resp.status_code == 200
@@ -1043,7 +1043,7 @@ class TestSupportedMetrics:
 
 @pytest.mark.integration
 class TestValidateConfig:
-    """POST /api/evaluations/evaluations/validate-config"""
+    """POST /api/evaluations/validate-config"""
 
     def test_validate_config_matching_fields(
         self, client, test_db, test_users, test_org, auth_headers
@@ -1073,7 +1073,7 @@ class TestValidateConfig:
         )
 
         resp = client.post(
-            f"/api/evaluations/evaluations/validate-config?project_id={data['project'].id}",
+            f"/api/evaluations/validate-config?project_id={data['project'].id}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -1111,7 +1111,7 @@ class TestValidateConfig:
         )
 
         resp = client.post(
-            f"/api/evaluations/evaluations/validate-config?project_id={data['project'].id}",
+            f"/api/evaluations/validate-config?project_id={data['project'].id}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -1126,7 +1126,7 @@ class TestValidateConfig:
         self, client, test_db, test_users, test_org, auth_headers
     ):
         resp = client.post(
-            f"/api/evaluations/evaluations/validate-config?project_id={uuid.uuid4()}",
+            f"/api/evaluations/validate-config?project_id={uuid.uuid4()}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 404
@@ -1154,7 +1154,7 @@ class TestValidateConfig:
         )
 
         resp = client.post(
-            f"/api/evaluations/evaluations/validate-config?project_id={data['project'].id}",
+            f"/api/evaluations/validate-config?project_id={data['project'].id}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -1332,7 +1332,7 @@ class TestConfiguredMethods:
 
 @pytest.mark.integration
 class TestHumanEvaluationConfig:
-    """GET /api/evaluations/evaluations/human/config/{project_id}"""
+    """GET /api/evaluations/human/config/{project_id}"""
 
     def test_human_config_returns_methods_and_dimensions(
         self, client, test_db, test_users, test_org, auth_headers
@@ -1365,7 +1365,7 @@ class TestHumanEvaluationConfig:
         )
 
         resp = client.get(
-            f"/api/evaluations/evaluations/human/config/{data['project'].id}",
+            f"/api/evaluations/human/config/{data['project'].id}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -1389,7 +1389,7 @@ class TestHumanEvaluationConfig:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/human/config/{data['project'].id}",
+            f"/api/evaluations/human/config/{data['project'].id}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -1420,7 +1420,7 @@ class TestHumanEvaluationConfig:
         )
 
         resp = client.get(
-            f"/api/evaluations/evaluations/human/config/{data['project'].id}",
+            f"/api/evaluations/human/config/{data['project'].id}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -1433,7 +1433,7 @@ class TestHumanEvaluationConfig:
         self, client, test_db, test_users, test_org, auth_headers
     ):
         resp = client.get(
-            f"/api/evaluations/evaluations/human/config/{uuid.uuid4()}",
+            f"/api/evaluations/human/config/{uuid.uuid4()}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 404
@@ -1441,7 +1441,7 @@ class TestHumanEvaluationConfig:
 
 @pytest.mark.integration
 class TestHumanEvaluationSessions:
-    """GET /api/evaluations/evaluations/human/sessions/{project_id}"""
+    """GET /api/evaluations/human/sessions/{project_id}"""
 
     def test_list_sessions_returns_created_sessions(
         self, client, test_db, test_users, test_org, auth_headers
@@ -1468,7 +1468,7 @@ class TestHumanEvaluationSessions:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/human/sessions/{data['project'].id}",
+            f"/api/evaluations/human/sessions/{data['project'].id}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -1494,7 +1494,7 @@ class TestHumanEvaluationSessions:
         )
 
         resp = client.get(
-            f"/api/evaluations/evaluations/human/sessions/{data['project'].id}",
+            f"/api/evaluations/human/sessions/{data['project'].id}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -1515,7 +1515,7 @@ class TestHumanEvaluationSessions:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/human/sessions/{project.id}",
+            f"/api/evaluations/human/sessions/{project.id}",
             headers=auth_headers["annotator"],
         )
         assert resp.status_code == 403
@@ -1523,7 +1523,7 @@ class TestHumanEvaluationSessions:
 
 @pytest.mark.integration
 class TestStartHumanEvaluationSession:
-    """POST /api/evaluations/evaluations/human/session/start"""
+    """POST /api/evaluations/human/session/start"""
 
     def test_superadmin_can_start_session(
         self, client, test_db, test_users, test_org, auth_headers
@@ -1536,7 +1536,7 @@ class TestStartHumanEvaluationSession:
         )
 
         resp = client.post(
-            "/api/evaluations/evaluations/human/session/start",
+            "/api/evaluations/human/session/start",
             json={
                 "project_id": data["project"].id,
                 "session_type": "likert",
@@ -1565,7 +1565,7 @@ class TestStartHumanEvaluationSession:
         )
 
         resp = client.post(
-            "/api/evaluations/evaluations/human/session/start",
+            "/api/evaluations/human/session/start",
             json={
                 "project_id": data["project"].id,
                 "session_type": "likert",
@@ -1578,7 +1578,7 @@ class TestStartHumanEvaluationSession:
         self, client, test_db, test_users, test_org, auth_headers
     ):
         resp = client.post(
-            "/api/evaluations/evaluations/human/session/start",
+            "/api/evaluations/human/session/start",
             json={
                 "project_id": str(uuid.uuid4()),
                 "session_type": "likert",
@@ -1590,7 +1590,7 @@ class TestStartHumanEvaluationSession:
 
 @pytest.mark.integration
 class TestSessionProgress:
-    """GET /api/evaluations/evaluations/human/session/{session_id}/progress"""
+    """GET /api/evaluations/human/session/{session_id}/progress"""
 
     def test_get_session_progress(
         self, client, test_db, test_users, test_org, auth_headers
@@ -1615,7 +1615,7 @@ class TestSessionProgress:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/human/session/{session.id}/progress",
+            f"/api/evaluations/human/session/{session.id}/progress",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -1629,7 +1629,7 @@ class TestSessionProgress:
         self, client, test_db, test_users, test_org, auth_headers
     ):
         resp = client.get(
-            f"/api/evaluations/evaluations/human/session/{uuid.uuid4()}/progress",
+            f"/api/evaluations/human/session/{uuid.uuid4()}/progress",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 404
@@ -1657,7 +1657,7 @@ class TestSessionProgress:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/human/session/{session.id}/progress",
+            f"/api/evaluations/human/session/{session.id}/progress",
             headers=auth_headers["annotator"],
         )
         assert resp.status_code == 403
@@ -1665,7 +1665,7 @@ class TestSessionProgress:
 
 @pytest.mark.integration
 class TestDeleteHumanEvaluationSession:
-    """DELETE /api/evaluations/evaluations/human/session/{session_id}"""
+    """DELETE /api/evaluations/human/session/{session_id}"""
 
     def test_superadmin_can_delete_session(
         self, client, test_db, test_users, test_org, auth_headers
@@ -1703,7 +1703,7 @@ class TestDeleteHumanEvaluationSession:
         test_db.commit()
 
         resp = client.delete(
-            f"/api/evaluations/evaluations/human/session/{session.id}",
+            f"/api/evaluations/human/session/{session.id}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -1744,7 +1744,7 @@ class TestDeleteHumanEvaluationSession:
         test_db.commit()
 
         resp = client.delete(
-            f"/api/evaluations/evaluations/human/session/{session.id}",
+            f"/api/evaluations/human/session/{session.id}",
             headers=auth_headers["annotator"],
         )
         assert resp.status_code == 403
@@ -1753,7 +1753,7 @@ class TestDeleteHumanEvaluationSession:
         self, client, test_db, test_users, test_org, auth_headers
     ):
         resp = client.delete(
-            f"/api/evaluations/evaluations/human/session/{uuid.uuid4()}",
+            f"/api/evaluations/human/session/{uuid.uuid4()}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 404
@@ -1837,7 +1837,7 @@ class TestEvaluationRunResults:
 
 @pytest.mark.integration
 class TestExportResults:
-    """POST /api/evaluations/evaluations/export/{project_id}"""
+    """POST /api/evaluations/export/{project_id}"""
 
     def test_export_json(
         self, client, test_db, test_users, test_org, auth_headers
@@ -1846,7 +1846,7 @@ class TestExportResults:
         data = _create_evaluation_project(test_db, test_users, test_org)
 
         resp = client.post(
-            f"/api/evaluations/evaluations/export/{data['project'].id}?format=json",
+            f"/api/evaluations/export/{data['project'].id}?format=json",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -1862,7 +1862,7 @@ class TestExportResults:
         data = _create_evaluation_project(test_db, test_users, test_org)
 
         resp = client.post(
-            f"/api/evaluations/evaluations/export/{data['project'].id}?format=csv",
+            f"/api/evaluations/export/{data['project'].id}?format=csv",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -1883,7 +1883,7 @@ class TestExportResults:
         test_db.commit()
 
         resp = client.post(
-            f"/api/evaluations/evaluations/export/{project.id}?format=json",
+            f"/api/evaluations/export/{project.id}?format=json",
             headers=auth_headers["annotator"],
         )
         assert resp.status_code == 403

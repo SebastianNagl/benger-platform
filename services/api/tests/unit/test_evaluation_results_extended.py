@@ -110,7 +110,7 @@ class TestGetProjectEvaluationResults:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             with patch("routers.evaluations.results.check_project_accessible", return_value=False):
-                resp = client.get("/api/evaluations/evaluations/results/p-1")
+                resp = client.get("/api/evaluations/results/p-1")
                 assert resp.status_code == 403
         finally:
             app.dependency_overrides.clear()
@@ -131,7 +131,7 @@ class TestGetProjectEvaluationResults:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             with patch("routers.evaluations.results.check_project_accessible", return_value=True):
-                resp = client.get("/api/evaluations/evaluations/results/p-1")
+                resp = client.get("/api/evaluations/results/p-1")
                 assert resp.status_code == 200
         finally:
             app.dependency_overrides.clear()
@@ -150,7 +150,7 @@ class TestGetEvaluationSamples:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.get("/api/evaluations/evaluations/nonexistent/samples")
+            resp = client.get("/api/evaluations/nonexistent/samples")
             assert resp.status_code == 404
         finally:
             app.dependency_overrides.clear()
@@ -173,7 +173,7 @@ class TestGetEvaluationSamples:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             with patch("routers.evaluations.results.check_project_accessible", return_value=False):
-                resp = client.get("/api/evaluations/evaluations/eval-1/samples")
+                resp = client.get("/api/evaluations/eval-1/samples")
                 assert resp.status_code == 403
         finally:
             app.dependency_overrides.clear()
@@ -192,7 +192,7 @@ class TestGetMetricDistribution:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.get("/api/evaluations/evaluations/nonexistent/metrics/bleu/distribution")
+            resp = client.get("/api/evaluations/nonexistent/metrics/bleu/distribution")
             assert resp.status_code == 404
         finally:
             app.dependency_overrides.clear()
@@ -215,7 +215,7 @@ class TestGetMetricDistribution:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             with patch("routers.evaluations.results.check_project_accessible", return_value=False):
-                resp = client.get("/api/evaluations/evaluations/eval-1/metrics/bleu/distribution")
+                resp = client.get("/api/evaluations/eval-1/metrics/bleu/distribution")
                 assert resp.status_code == 403
         finally:
             app.dependency_overrides.clear()
@@ -236,7 +236,7 @@ class TestExportEvaluations:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             with patch("routers.evaluations.results.check_project_accessible", return_value=False):
-                resp = client.post("/api/evaluations/evaluations/export/p-1")
+                resp = client.post("/api/evaluations/export/p-1")
                 assert resp.status_code == 403
         finally:
             app.dependency_overrides.clear()
