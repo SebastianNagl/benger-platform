@@ -41,11 +41,19 @@ jobs:
       - name: Checkout platform
         uses: actions/checkout@v4
 
+      - name: Generate token for extended repo access
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: benger-extended
+
       - name: Checkout extended
         uses: actions/checkout@v4
         with:
           repository: SebastianNagl/benger-extended
-          token: ${{ secrets.EXTENDED_REPO_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           path: benger-extended
 
       - name: Set image tag
@@ -82,14 +90,13 @@ jobs:
 
       - name: Build and push Frontend image
         run: |
-          mkdir -p services/frontend/node_modules/@benger/extended
-          cp -r benger-extended/frontend/* services/frontend/node_modules/@benger/extended/
+          cp -r benger-extended/frontend services/frontend/benger-extended-frontend
           docker build \
             --build-arg NEXT_PUBLIC_BENGER_EDITION=extended \
             -t $REGISTRY/$IMAGE_NAME/frontend:${{ steps.meta.outputs.tag }} \
             services/frontend
           docker push $REGISTRY/$IMAGE_NAME/frontend:${{ steps.meta.outputs.tag }}
-          rm -rf services/frontend/node_modules/@benger/extended
+          rm -rf services/frontend/benger-extended-frontend
 
   # ============================================================
   # DEPLOY TO PRODUCTION: on push to main
