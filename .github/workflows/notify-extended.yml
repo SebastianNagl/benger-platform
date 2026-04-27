@@ -1,0 +1,26 @@
+name: Notify Extended
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  notify:
+    name: Trigger extended edition rebuild
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Generate token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: benger-extended
+
+      - name: Dispatch rebuild
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          repository: SebastianNagl/benger-extended
+          event-type: core-updated
