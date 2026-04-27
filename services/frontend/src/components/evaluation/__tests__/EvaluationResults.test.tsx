@@ -99,6 +99,10 @@ jest.mock('@/contexts/I18nContext', () => ({
         'evaluation.multiFieldResults.noAnnotationResults': 'No annotation results',
         'evaluation.multiFieldResults.cancelled': 'Cancelled',
         'evaluation.multiFieldResults.default': 'Default',
+        'common.tasks': 'tasks',
+        'common.models': 'models',
+        'common.model': 'model',
+        'common.export': 'Export',
       }
       return translations[key] || key
     },
@@ -1276,14 +1280,26 @@ describe('EvaluationResults', () => {
       const eval2 = makeEvaluationResult({
         evaluation_id: 'eval-2',
         model_id: 'claude-3',
+        evaluation_configs: [
+          {
+            id: 'config-2',
+            metric: 'f1_score',
+            display_name: 'F1 Score',
+            metric_type: 'automated',
+            metric_parameters: {},
+            prediction_fields: ['answer'],
+            reference_fields: ['gold_answer'],
+            enabled: true,
+          },
+        ],
         results_by_config: {
-          'config-1': {
+          'config-2': {
             field_results: [
               {
                 combo_key: 'a_vs_b',
                 prediction_field: 'answer',
                 reference_field: 'gold_answer',
-                scores: { exact_match: 0.75 },
+                scores: { f1_score: 0.75 },
               },
             ],
             aggregate_score: 0.75,
@@ -1297,10 +1313,14 @@ describe('EvaluationResults', () => {
 
       render(<EvaluationResults projectId="project-123" />)
 
+      // Component deduplicates by metric and shows one eval at a time with a dropdown.
+      // Both evals with different metrics should appear as options in the dropdown
+      // and both should have cards rendered.
       await waitFor(() => {
         expect(screen.getByText('gpt-4')).toBeInTheDocument()
-        expect(screen.getByText('claude-3')).toBeInTheDocument()
       })
+      // The second eval card should also be visible since it has a different metric
+      expect(screen.getByText('claude-3')).toBeInTheDocument()
     })
   })
 
@@ -1570,8 +1590,9 @@ describe('EvaluationResults', () => {
       )
 
       await waitFor(() => {
-        // The LLM judge evaluation should appear
-        expect(screen.getByText(/LLM Judge/)).toBeInTheDocument()
+        // The LLM judge evaluation should appear (in both dropdown and card)
+        const matches = screen.getAllByText(/LLM Judge/)
+        expect(matches.length).toBeGreaterThanOrEqual(1)
       })
     })
 
@@ -1608,7 +1629,9 @@ describe('EvaluationResults', () => {
       )
 
       await waitFor(() => {
-        expect(screen.getByText(/Human Agreement/)).toBeInTheDocument()
+        // Human Agreement appears in both dropdown and card
+        const matches = screen.getAllByText(/Human Agreement/)
+        expect(matches.length).toBeGreaterThanOrEqual(1)
       })
     })
   })

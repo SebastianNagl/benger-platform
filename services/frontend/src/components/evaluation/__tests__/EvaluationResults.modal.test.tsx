@@ -56,6 +56,7 @@ jest.mock('@/components/tasks/TaskDataViewModal', () => ({
 }))
 
 jest.mock('@heroicons/react/24/outline', () => ({
+  ArrowDownTrayIcon: () => <span data-testid="arrow-down-tray-icon" />,
   ArrowPathIcon: () => <span data-testid="arrow-path-icon" />,
   CheckCircleIcon: () => <span data-testid="check-circle-icon" />,
   ClockIcon: () => <span data-testid="clock-icon" />,
