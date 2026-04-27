@@ -17,7 +17,7 @@ import {
   Squares2X2Icon,
   TableCellsIcon,
 } from '@heroicons/react/24/outline'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 export type ChartType = 'data' | 'bar' | 'radar' | 'box' | 'heatmap' | 'table'
 
@@ -108,16 +108,19 @@ export function ChartTypeSelector({
   const dropdownRef = useRef<HTMLDivElement>(null)
   const hasLoadedPreference = useRef(false)
 
-  const CHART_TYPES = getChartTypes(t)
+  const CHART_TYPES = useMemo(() => getChartTypes(t), [t])
 
   // Load preference from localStorage after hydration
+  // Only apply if current selection is the default (no URL override)
   useEffect(() => {
     if (!mounted || hasLoadedPreference.current) return
     hasLoadedPreference.current = true
 
+    // Don't override if URL already set a non-default chart type
+    if (selectedType !== 'data') return
+
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved && CHART_TYPES.some((ct) => ct.type === saved)) {
-      // Only apply saved preference if it's available
       const savedType = saved as ChartType
       if (
         !disabledTypes.includes(savedType) &&
@@ -126,7 +129,7 @@ export function ChartTypeSelector({
         onChange(savedType)
       }
     }
-  }, [mounted, availableTypes, disabledTypes, onChange])
+  }, [mounted, availableTypes, disabledTypes, onChange, selectedType])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -157,7 +160,7 @@ export function ChartTypeSelector({
 
   const selectedConfig = CHART_TYPES.find((ct) => ct.type === selectedType)
 
-  const buttonPadding = size === 'sm' ? 'px-4 py-2' : 'px-4 py-2'
+  const buttonPadding = size === 'sm' ? 'px-3 py-1.5' : 'px-4 py-2'
   const iconSize = size === 'sm' ? 'h-4 w-4' : 'h-5 w-5'
   const textSize = size === 'sm' ? 'text-xs' : 'text-sm'
 
@@ -166,7 +169,7 @@ export function ChartTypeSelector({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-between gap-2 whitespace-nowrap rounded-full bg-white ${buttonPadding} ${textSize} font-medium text-zinc-900 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:hover:ring-white/20`}
+        className={`flex h-8 items-center justify-between gap-2 whitespace-nowrap rounded-full bg-white ${buttonPadding} ${textSize} font-medium text-zinc-900 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:hover:ring-white/20`}
       >
         <span>{selectedConfig?.label || t('evaluation.chartType.selectView')}</span>
         <ChevronDownIcon

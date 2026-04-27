@@ -217,6 +217,33 @@ async def import_project_data(
                 if old_er_id:
                     evaluation_run_id_mapping[old_er_id] = new_er_id
 
+        # Create stub users for any referenced user IDs that don't exist locally
+        # This preserves original annotator IDs from the export
+        from models import User as DBUser
+        import_user_ids = set()
+        for item in data.data:
+            if isinstance(item, dict):
+                for ann in item.get("annotations", []):
+                    if ann.get("completed_by"):
+                        import_user_ids.add(ann["completed_by"])
+                    if ann.get("reviewed_by"):
+                        import_user_ids.add(ann["reviewed_by"])
+        if import_user_ids:
+            existing_ids = {u.id for u in db.query(DBUser.id).filter(DBUser.id.in_(import_user_ids)).all()}
+            missing_ids = import_user_ids - existing_ids
+            for uid in missing_ids:
+                stub = DBUser(
+                    id=uid,
+                    username=f"imported-{uid[:8]}",
+                    email=f"imported-{uid[:8]}@import.local",
+                    name=f"Imported User {uid[:8]}",
+                    email_verified=True,
+                )
+                db.add(stub)
+            if missing_ids:
+                db.flush()
+                logger.info(f"Created {len(missing_ids)} stub users for imported annotations")
+
         for item in data.data:
             # Handle Label Studio format
             task_data = item
