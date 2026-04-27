@@ -382,7 +382,7 @@ describe('extractFieldPairsFromConfig', () => {
     const configs = [
       {
         id: 'config-1',
-        prediction_fields: ['annotator_answer'],
+        prediction_fields: ['human:answer'],
         reference_fields: ['answer'],
       },
     ]

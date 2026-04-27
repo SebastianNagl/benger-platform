@@ -324,8 +324,8 @@ describe('EvaluationResults - modal and handler coverage', () => {
       await waitFor(() => expect(screen.getByTestId('dialog')).toBeInTheDocument())
 
       // Verify the modal is open and APIs were called
+      // Note: getTaskAnnotations is only called for annotator cells, not model cells
       await waitFor(() => {
-        expect(mockGetTaskAnnotations).toHaveBeenCalled()
         expect(mockApiClientGet).toHaveBeenCalled()
         expect(mockGetTaskEvaluation).toHaveBeenCalled()
       })
@@ -368,7 +368,24 @@ describe('EvaluationResults - modal and handler coverage', () => {
     }
   })
 
-  it('calls annotation API with empty result', async () => {
+  it('calls annotation API for annotator cells', async () => {
+    mockGetProjectResultsByTaskModel.mockResolvedValue({
+      evaluation_id: 'eval-001',
+      models: ['annotator:user-1'],
+      model_names: { 'annotator:user-1': 'User 1' },
+      tasks: [
+        {
+          task_id: 'task-111',
+          task_preview: 'Test question 1',
+          scores: { 'annotator:user-1': 0.9 },
+          has_annotation: true,
+          generation_models: [],
+        },
+      ],
+      summary: {
+        'annotator:user-1': { avg: 0.9, count: 1, model_name: 'User 1' },
+      },
+    })
     mockGetTaskAnnotations.mockResolvedValue([])
     await renderDataView()
 
