@@ -161,43 +161,32 @@ test.describe('LLM Judge Answer Type Configuration', () => {
   /**
    * Test switching between answer types updates criteria
    */
-  test('switching answer types updates displayed criteria', async () => {
+  test('switching answer types updates displayed template', async () => {
     await evalHelpers.openEvaluationConfigSection()
     await evalHelpers.navigateToParametersStep()
 
-    // Count checkboxes for text type
+    // Select text type and capture display value
     await evalHelpers.selectAnswerType('text')
     await page.waitForTimeout(500)
-    const textCheckboxCount = await page
-      .locator('input[type="checkbox"]')
-      .count()
-    console.log('Text type checkbox count:', textCheckboxCount)
+    const textValue = await evalHelpers.getSelectedAnswerType()
+    console.log('Text type selected:', textValue)
 
     // Switch to span_selection
     await evalHelpers.selectAnswerType('span_selection')
     await page.waitForTimeout(500)
-    const spanCheckboxCount = await page
-      .locator('input[type="checkbox"]')
-      .count()
-    console.log('Span type checkbox count:', spanCheckboxCount)
+    const spanValue = await evalHelpers.getSelectedAnswerType()
+    console.log('Span type selected:', spanValue)
 
     // Switch to choices
     await evalHelpers.selectAnswerType('choices')
     await page.waitForTimeout(500)
-    const choicesCheckboxCount = await page
-      .locator('input[type="checkbox"]')
-      .count()
-    console.log('Choices type checkbox count:', choicesCheckboxCount)
+    const choicesValue = await evalHelpers.getSelectedAnswerType()
+    console.log('Choices type selected:', choicesValue)
 
-    // Verify the counts are different (different criteria for different types)
-    console.log(
-      `Checkbox counts: text=${textCheckboxCount}, span=${spanCheckboxCount}, choices=${choicesCheckboxCount}`
-    )
-
-    // The UI should respond to type changes (we don't require specific counts)
-    expect(textCheckboxCount).toBeGreaterThan(0)
-    expect(spanCheckboxCount).toBeGreaterThan(0)
-    expect(choicesCheckboxCount).toBeGreaterThan(0)
+    // Verify the displayed template changes between types
+    expect(textValue).not.toBe(spanValue)
+    expect(spanValue).not.toBe(choicesValue)
+    console.log(`Templates: "${textValue}" → "${spanValue}" → "${choicesValue}"`)
 
     // Close wizard
     await evalHelpers.clickCancel()
