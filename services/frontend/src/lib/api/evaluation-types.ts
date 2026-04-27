@@ -19,6 +19,38 @@ export type FieldSpecifier =
   (typeof FIELD_SPECIFIERS)[keyof typeof FIELD_SPECIFIERS]
 
 /**
+ * Source prefixes for prediction fields.
+ * All prediction fields are prefixed with their source for clarity:
+ * - model:fieldname — from model generation parsed_annotation
+ * - human:fieldname — from human annotation result
+ */
+export const MODEL_FIELD_PREFIX = 'model:'
+export const HUMAN_FIELD_PREFIX = 'human:'
+
+export function isHumanField(field: string): boolean {
+  return field.startsWith(HUMAN_FIELD_PREFIX) || field === FIELD_SPECIFIERS.ALL_HUMAN
+}
+
+export function isModelField(field: string): boolean {
+  return (
+    field.startsWith(MODEL_FIELD_PREFIX) ||
+    field === FIELD_SPECIFIERS.ALL_MODEL ||
+    // Backward compat: unprefixed fields are treated as model fields
+    (!field.startsWith(HUMAN_FIELD_PREFIX) &&
+      field !== FIELD_SPECIFIERS.ALL_HUMAN &&
+      field !== FIELD_SPECIFIERS.ALL_MODEL)
+  )
+}
+
+export function getBaseFieldName(field: string): string {
+  if (field.startsWith(MODEL_FIELD_PREFIX))
+    return field.substring(MODEL_FIELD_PREFIX.length)
+  if (field.startsWith(HUMAN_FIELD_PREFIX))
+    return field.substring(HUMAN_FIELD_PREFIX.length)
+  return field
+}
+
+/**
  * Custom criteria definition for LLM-as-Judge
  * Allows users to define their own evaluation criteria with rubrics
  * Issue #1083 - Custom LLM Judge Prompts
@@ -551,6 +583,8 @@ export function getFieldDisplayName(field: string): string {
     case FIELD_SPECIFIERS.ALL_HUMAN:
       return 'All human annotations'
     default:
+      if (field === 'model:__response__' || field === '__response__')
+        return 'Model Response (unstructured)'
       return field
   }
 }
@@ -833,6 +867,26 @@ export const GROUPED_METRICS: MetricCategory[] = [
     ],
   },
 ]
+
+/**
+ * Flat metric order derived from GROUPED_METRICS.
+ * Used to sort metric dropdowns consistently across the app.
+ */
+export const METRIC_ORDER: string[] = GROUPED_METRICS.flatMap((g) => g.metrics)
+
+/** Falloesung evaluation dimensions for the info panel */
+export const FALLOESUNG_DIMENSIONS = [
+  { key: 'ergebnisrichtigkeit', name: 'Ergebnisrichtigkeit', max: 20 },
+  { key: 'vollstaendigkeit', name: 'Vollständigkeit & Problemidentifikation', max: 10 },
+  { key: 'rechtsgrundlagen', name: 'Rechtsgrundlagen & Prüfungssystematik', max: 10 },
+  { key: 'rechtskenntnis', name: 'Rechtskenntnis (Definitionen, Normen, Streitstände)', max: 15 },
+  { key: 'subsumtion', name: 'Subsumtion & Argumentationsqualität (Fallbezug)', max: 15 },
+  { key: 'schwerpunktsetzung', name: 'Schwerpunktsetzung & Problemtiefe', max: 10 },
+  { key: 'methodischer_stil', name: 'Methodischer Stil (ODSE)', max: 10 },
+  { key: 'gliederung', name: 'Gliederung & Leseführung', max: 5 },
+  { key: 'sprache', name: 'Sprache & Terminologie', max: 3 },
+  { key: 'formalia', name: 'Formalia & Sorgfalt', max: 2 },
+] as const
 
 // =============================================================================
 // Extension points for extended metrics

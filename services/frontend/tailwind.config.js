@@ -213,5 +213,10 @@ module.exports = {
       }),
     },
   },
-  plugins: [require('@tailwindcss/typography')],
+  plugins: [
+    require('@tailwindcss/typography'),
+    require('@tailwindcss/forms')({
+      strategy: 'class', // Only apply form styles when Tailwind classes are used
+    }),
+  ],
 }

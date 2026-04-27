@@ -42,7 +42,20 @@ export function resolveDataBinding(
 }
 
 /**
- * Get nested value from object using dot notation
+ * Find a key in an object matching case-insensitively.
+ * Prefers exact match; falls back to first case-insensitive match.
+ */
+function findKeyInsensitive(
+  obj: Record<string, any>,
+  key: string
+): string | undefined {
+  if (key in obj) return key
+  const lowerKey = key.toLowerCase()
+  return Object.keys(obj).find((k) => k.toLowerCase() === lowerKey)
+}
+
+/**
+ * Get nested value from object using dot notation (case-insensitive keys)
  */
 function getNestedValue(obj: any, path: string): any {
   const parts = path.split('.')
@@ -52,7 +65,9 @@ function getNestedValue(obj: any, path: string): any {
     if (current == null || typeof current !== 'object') {
       return undefined
     }
-    current = current[part]
+    const actualKey = findKeyInsensitive(current, part)
+    if (actualKey === undefined) return undefined
+    current = current[actualKey]
   }
 
   return current
