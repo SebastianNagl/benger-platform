@@ -329,7 +329,7 @@ class TestEvaluationEndpoints:
 
     def test_get_evaluations(self, client, auth_headers, test_org):
         """Test getting evaluations"""
-        response = client.get("/api/evaluations/evaluations", headers=auth_headers["annotator"])
+        response = client.get("/api/evaluations/", headers=auth_headers["annotator"])
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert isinstance(data, list)

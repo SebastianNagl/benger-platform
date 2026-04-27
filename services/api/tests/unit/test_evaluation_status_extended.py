@@ -136,7 +136,7 @@ class TestGetEvaluations:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             with patch("routers.evaluations.status.get_accessible_project_ids", return_value=None):
-                resp = client.get("/api/evaluations/evaluations")
+                resp = client.get("/api/evaluations/")
                 assert resp.status_code == 200
                 assert resp.json() == []
         finally:
@@ -167,7 +167,7 @@ class TestGetEvaluations:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             with patch("routers.evaluations.status.get_accessible_project_ids", return_value=None):
-                resp = client.get("/api/evaluations/evaluations")
+                resp = client.get("/api/evaluations/")
                 assert resp.status_code == 200
                 data = resp.json()
                 assert len(data) == 1
@@ -184,7 +184,7 @@ class TestGetEvaluations:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             with patch("routers.evaluations.status.get_accessible_project_ids", return_value=[]):
-                resp = client.get("/api/evaluations/evaluations")
+                resp = client.get("/api/evaluations/")
                 assert resp.status_code == 200
                 assert resp.json() == []
         finally:
@@ -215,7 +215,7 @@ class TestGetEvaluations:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             with patch("routers.evaluations.status.get_accessible_project_ids", return_value=["p-1"]):
-                resp = client.get("/api/evaluations/evaluations")
+                resp = client.get("/api/evaluations/")
                 assert resp.status_code == 200
                 assert len(resp.json()) == 1
         finally:

@@ -60,7 +60,7 @@ class TestStartHumanEvaluationSession:
         try:
             with patch("routers.projects.helpers.check_user_can_edit_project", return_value=False):
                 resp = client.post(
-                    "/api/evaluations/evaluations/human/session/start",
+                    "/api/evaluations/human/session/start",
                     json={"project_id": "p-1", "session_type": "likert"},
                 )
                 assert resp.status_code == 403
@@ -76,7 +76,7 @@ class TestStartHumanEvaluationSession:
         try:
             with patch("routers.projects.helpers.check_user_can_edit_project", return_value=True):
                 resp = client.post(
-                    "/api/evaluations/evaluations/human/session/start",
+                    "/api/evaluations/human/session/start",
                     json={"project_id": "p-1", "session_type": "likert"},
                 )
                 assert resp.status_code == 404
@@ -102,7 +102,7 @@ class TestStartHumanEvaluationSession:
         try:
             with patch("routers.projects.helpers.check_user_can_edit_project", return_value=True):
                 resp = client.post(
-                    "/api/evaluations/evaluations/human/session/start",
+                    "/api/evaluations/human/session/start",
                     json={
                         "project_id": "p-1",
                         "session_type": "likert",
@@ -135,7 +135,7 @@ class TestStartHumanEvaluationSession:
         try:
             with patch("routers.projects.helpers.check_user_can_edit_project", return_value=True):
                 resp = client.post(
-                    "/api/evaluations/evaluations/human/session/start",
+                    "/api/evaluations/human/session/start",
                     json={"project_id": "p-1", "session_type": "preference"},
                 )
                 assert resp.status_code == 200
@@ -158,7 +158,7 @@ class TestGetNextEvaluationItem:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.get("/api/evaluations/evaluations/human/next-item?session_id=nonexistent")
+            resp = client.get("/api/evaluations/human/next-item?session_id=nonexistent")
             assert resp.status_code == 404
         finally:
             app.dependency_overrides.clear()
@@ -181,7 +181,7 @@ class TestGetNextEvaluationItem:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.get("/api/evaluations/evaluations/human/next-item?session_id=s-1")
+            resp = client.get("/api/evaluations/human/next-item?session_id=s-1")
             assert resp.status_code == 400
         finally:
             app.dependency_overrides.clear()
@@ -217,7 +217,7 @@ class TestGetNextEvaluationItem:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.get("/api/evaluations/evaluations/human/next-item?session_id=s-1")
+            resp = client.get("/api/evaluations/human/next-item?session_id=s-1")
             assert resp.status_code == 404
             assert "completed" in resp.json()["detail"].lower()
         finally:
@@ -243,7 +243,7 @@ class TestSubmitLikertRating:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             resp = client.post(
-                "/api/evaluations/evaluations/human/likert",
+                "/api/evaluations/human/likert",
                 json={
                     "session_id": "nonexistent",
                     "task_id": "t-1",
@@ -276,7 +276,7 @@ class TestSubmitLikertRating:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             resp = client.post(
-                "/api/evaluations/evaluations/human/likert",
+                "/api/evaluations/human/likert",
                 json={
                     "session_id": "s-1",
                     "task_id": "t-1",
@@ -306,7 +306,7 @@ class TestSubmitPreferenceRanking:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             resp = client.post(
-                "/api/evaluations/evaluations/human/preference",
+                "/api/evaluations/human/preference",
                 json={
                     "session_id": "nonexistent",
                     "task_id": "t-1",
@@ -340,7 +340,7 @@ class TestSubmitPreferenceRanking:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             resp = client.post(
-                "/api/evaluations/evaluations/human/preference",
+                "/api/evaluations/human/preference",
                 json={
                     "session_id": "s-1",
                     "task_id": "t-1",
@@ -370,7 +370,7 @@ class TestSessionProgress:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.get("/api/evaluations/evaluations/human/session/nonexistent/progress")
+            resp = client.get("/api/evaluations/human/session/nonexistent/progress")
             assert resp.status_code == 404
         finally:
             app.dependency_overrides.clear()
@@ -392,7 +392,7 @@ class TestSessionProgress:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.get("/api/evaluations/evaluations/human/session/s-1/progress")
+            resp = client.get("/api/evaluations/human/session/s-1/progress")
             assert resp.status_code == 403
         finally:
             app.dependency_overrides.clear()
@@ -421,7 +421,7 @@ class TestSessionProgress:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.get("/api/evaluations/evaluations/human/session/s-1/progress")
+            resp = client.get("/api/evaluations/human/session/s-1/progress")
             assert resp.status_code == 200
             data = resp.json()
             assert data["items_evaluated"] == 3
@@ -444,7 +444,7 @@ class TestGetSessionsForProject:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             with patch("routers.evaluations.human.check_project_accessible", return_value=False):
-                resp = client.get("/api/evaluations/evaluations/human/sessions/p-1")
+                resp = client.get("/api/evaluations/human/sessions/p-1")
                 assert resp.status_code == 403
         finally:
             app.dependency_overrides.clear()
@@ -475,7 +475,7 @@ class TestGetSessionsForProject:
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             with patch("routers.evaluations.human.check_project_accessible", return_value=True):
-                resp = client.get("/api/evaluations/evaluations/human/sessions/p-1")
+                resp = client.get("/api/evaluations/human/sessions/p-1")
                 assert resp.status_code == 200
                 assert len(resp.json()) == 1
         finally:
@@ -495,7 +495,7 @@ class TestGetHumanEvaluationConfig:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.get("/api/evaluations/evaluations/human/config/nonexistent")
+            resp = client.get("/api/evaluations/human/config/nonexistent")
             assert resp.status_code == 404
         finally:
             app.dependency_overrides.clear()
@@ -519,7 +519,7 @@ class TestGetHumanEvaluationConfig:
         try:
             with patch("routers.evaluations.human.auth_service") as mock_auth:
                 mock_auth.check_project_access.return_value = True
-                resp = client.get("/api/evaluations/evaluations/human/config/p-1")
+                resp = client.get("/api/evaluations/human/config/p-1")
                 assert resp.status_code == 200
                 assert resp.json()["human_methods"] == {}
         finally:
@@ -552,7 +552,7 @@ class TestGetHumanEvaluationConfig:
         try:
             with patch("routers.evaluations.human.auth_service") as mock_auth:
                 mock_auth.check_project_access.return_value = True
-                resp = client.get("/api/evaluations/evaluations/human/config/p-1")
+                resp = client.get("/api/evaluations/human/config/p-1")
                 assert resp.status_code == 200
                 data = resp.json()
                 assert "answer" in data["human_methods"]
@@ -573,7 +573,7 @@ class TestDeleteHumanEvaluationSession:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.delete("/api/evaluations/evaluations/human/session/nonexistent")
+            resp = client.delete("/api/evaluations/human/session/nonexistent")
             assert resp.status_code == 404
         finally:
             app.dependency_overrides.clear()
@@ -596,7 +596,7 @@ class TestDeleteHumanEvaluationSession:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.delete("/api/evaluations/evaluations/human/session/s-1")
+            resp = client.delete("/api/evaluations/human/session/s-1")
             assert resp.status_code == 403
         finally:
             app.dependency_overrides.clear()
@@ -619,7 +619,7 @@ class TestDeleteHumanEvaluationSession:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.delete("/api/evaluations/evaluations/human/session/s-1")
+            resp = client.delete("/api/evaluations/human/session/s-1")
             assert resp.status_code == 200
             assert "deleted" in resp.json()["message"].lower()
         finally:

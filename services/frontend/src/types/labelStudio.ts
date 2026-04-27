@@ -46,6 +46,13 @@ export interface Project {
   assignment_mode?: 'open' | 'manual' | 'auto'
   randomize_task_order?: boolean
 
+  // Review & Feedback
+  review_enabled?: boolean
+  review_mode?: 'in_place' | 'independent' | 'both'
+  allow_self_review?: boolean
+  feedback_enabled?: boolean
+  feedback_config?: Array<{ value: string; background: string }>
+
   // BenGER specific
   llm_model_ids?: string[]
   generation_config?: GenerationConfig
@@ -109,6 +116,11 @@ export interface ProjectUpdate extends Partial<ProjectCreate> {
   organization_ids?: string[]
   instructions_always_visible?: boolean
   conditional_instructions?: Array<{ id: string; content: string; weight: number; ai_allowed?: boolean }> | null
+  review_enabled?: boolean
+  review_mode?: 'in_place' | 'independent' | 'both'
+  allow_self_review?: boolean
+  feedback_enabled?: boolean
+  feedback_config?: Array<{ value: string; background: string }>
 }
 
 // Task Assignment types

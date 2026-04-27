@@ -353,7 +353,7 @@ class TestEvaluationMetadata:
 
     def test_list_evaluations(self, client, test_users, test_db, auth_headers):
         resp = client.get(
-            "/api/evaluations/evaluations",
+            "/api/evaluations/",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
