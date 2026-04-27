@@ -113,7 +113,9 @@ export function DynamicAnnotationInterface({
   )
 
   // Load draft from localStorage on mount (Issue #1110 - restore drafts after page refresh)
+  // Skip when auto-save is disabled (e.g. review mode) — initialValues take precedence
   useEffect(() => {
+    if (!enableAutoSave) return
     const draft = autoSave.loadDraft()
     if (draft && draft.componentValues && Object.keys(draft.componentValues).length > 0) {
       // Restore componentValues from draft
