@@ -88,11 +88,19 @@ export function EvaluationControlModal({
     try {
       setLoading(true)
 
-      await apiClient.evaluations.runEvaluation({
-        project_id: projectId,
-        evaluation_configs: evaluationConfigs.map(c => ({ ...c, enabled: c.enabled !== false })),
-        force_rerun: forceRerun,
-      })
+      // Run each config as its own evaluation run so results appear
+      // as each metric completes independently
+      const enabledConfigs = evaluationConfigs
+        .filter(c => c.enabled !== false)
+        .map(c => ({ ...c, enabled: true }))
+
+      for (const config of enabledConfigs) {
+        await apiClient.evaluations.runEvaluation({
+          project_id: projectId,
+          evaluation_configs: [config],
+          force_rerun: forceRerun,
+        })
+      }
 
       addToast(t('toasts.project.evaluationStarted'), 'success')
       onSuccess?.()

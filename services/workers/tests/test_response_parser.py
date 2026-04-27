@@ -104,16 +104,23 @@ def number_label_config():
 
 @pytest.fixture
 def loesung_label_config():
+    """German legal annotation config with Loesung field."""
     return """
     <View>
+        <Text name="sachverhalt" value="$sachverhalt"/>
+        <Loesung name="loesung" toName="sachverhalt"/>
     </View>
     """
 
 
 @pytest.fixture
 def gliederung_loesung_label_config():
+    """Config with both Gliederung and Loesung."""
     return """
     <View>
+        <Text name="sachverhalt" value="$sachverhalt"/>
+        <Gliederung name="gliederung" toName="sachverhalt"/>
+        <Loesung name="loesung" toName="sachverhalt"/>
     </View>
     """
 
@@ -151,6 +158,16 @@ class TestLabelConfigParsing:
         """Text elements (display-only) must not appear in the output field map."""
         parser = ResponseParser(generation_structure={}, label_config=choices_label_config)
         assert "text" not in parser.label_config_map
+
+    def test_loesung_parsed(self, loesung_label_config):
+        parser = ResponseParser(generation_structure={}, label_config=loesung_label_config)
+        assert "loesung" in parser.label_config_map
+        assert parser.label_config_map["loesung"]["type"] == "Loesung"
+
+    def test_gliederung_parsed(self, gliederung_loesung_label_config):
+        parser = ResponseParser(generation_structure={}, label_config=gliederung_loesung_label_config)
+        assert "gliederung" in parser.label_config_map
+        assert parser.label_config_map["gliederung"]["type"] == "Gliederung"
 
     def test_invalid_xml_returns_empty(self):
         parser = ResponseParser(generation_structure={}, label_config="<not valid xml")
@@ -227,6 +244,13 @@ class TestBuildJsonSchema:
         )
         assert parser.json_schema == {}
 
+    def test_schema_from_label_config_gliederung(self, gliederung_loesung_label_config):
+        parser = ResponseParser(generation_structure={}, label_config=gliederung_loesung_label_config)
+        schema = parser.json_schema
+        assert schema["properties"]["gliederung"]["type"] == "string"
+        assert schema["properties"]["loesung"]["type"] == "string"
+
+
 # ---------------------------------------------------------------------------
 # JSON parsing
 # ---------------------------------------------------------------------------
@@ -255,11 +279,12 @@ class TestJsonParsing:
         assert "validation" in result.error.lower()
 
     def test_parse_invalid_enum_value_top_level(self, choices_label_config):
-        """Top-level parse() fails when JSON has invalid enum and pattern match also fails."""
+        """Top-level parse() returns __response__ when JSON has invalid enum and pattern match falls back."""
         parser = ResponseParser(generation_structure={}, label_config=choices_label_config)
         result = parser.parse('{"sentiment": "invalid_value"}')
-        # JSON validation fails, pattern match also fails -> "failed"
-        assert result.status == "failed"
+        # JSON validation fails, pattern match extracts no fields -> __response__ fallback
+        assert result.status == "success"
+        assert any(a["from_name"] == "__response__" for a in result.parsed_annotation)
 
     def test_parse_invalid_json_falls_through(self, textarea_label_config):
         parser = ResponseParser(generation_structure={}, label_config=textarea_label_config)
@@ -323,11 +348,12 @@ class TestPatternMatching:
         assert result.status == "success"
 
     def test_pattern_match_no_fields(self):
-        """Completely unstructured text with no matching fields."""
+        """Completely unstructured text with no matching fields falls back to __response__."""
         config = "<View><Text name='t' value='$t'/><Number name='score' toName='t'/></View>"
         parser = ResponseParser(generation_structure={}, label_config=config)
         result = parser._try_pattern_match("Random text with no structure")
-        assert result.status == "failed"
+        assert result.status == "success"
+        assert any(a["from_name"] == "__response__" for a in result.parsed_annotation)
 
     def test_pattern_match_from_generation_structure(self):
         gs = {"fields": {"answer": {"type": "text"}}}
@@ -336,6 +362,23 @@ class TestPatternMatching:
         response = "answer: My detailed analysis"
         result = parser._try_pattern_match(response)
         assert result.status == "success"
+
+    def test_freeform_text_single_loesung(self, loesung_label_config):
+        """Free-form text should map to a single Loesung field."""
+        parser = ResponseParser(generation_structure={}, label_config=loesung_label_config)
+        response = "Dies ist eine detaillierte Loesung des Falles."
+        result = parser._try_pattern_match(response)
+        assert result.status == "success"
+
+    def test_freeform_text_multi_fields_uses_generic_response(self, gliederung_loesung_label_config):
+        """With multiple text fields, free-form text maps to __response__ instead of a specific field."""
+        parser = ResponseParser(generation_structure={}, label_config=gliederung_loesung_label_config)
+        response = "Dies ist die gesamte Antwort."
+        result = parser._try_pattern_match(response)
+        assert result.status == "success"
+        ann = next(a for a in result.parsed_annotation if a["from_name"] == "__response__")
+        assert ann["value"]["text"] == ["Dies ist die gesamte Antwort."]
+
 
 # ---------------------------------------------------------------------------
 # Full parse() integration
@@ -356,13 +399,13 @@ class TestParseIntegration:
         result = parser.parse("answer: This is my analysis of the case.")
         assert result.status == "success"
 
-    def test_both_fail(self):
-        """When both JSON and pattern matching fail."""
+    def test_both_fail_falls_back_to_response(self):
+        """When JSON fails and pattern match extracts no fields, falls back to __response__."""
         config = "<View><Text name='t' value='$t'/><Number name='score' toName='t'/></View>"
         parser = ResponseParser(generation_structure={}, label_config=config)
         result = parser.parse("Completely unrelated gibberish")
-        assert result.status == "failed"
-        assert "Unable to parse" in result.error
+        assert result.status == "success"
+        assert any(a["from_name"] == "__response__" for a in result.parsed_annotation)
 
 
 # ---------------------------------------------------------------------------
@@ -397,6 +440,12 @@ class TestTransformToLabelStudio:
         annotation = parser._transform_to_label_studio({"score": 42})
         assert annotation[0]["type"] == "number"
         assert annotation[0]["value"]["number"] == 42
+
+    def test_loesung_transform(self, loesung_label_config):
+        parser = ResponseParser(generation_structure={}, label_config=loesung_label_config)
+        annotation = parser._transform_to_label_studio({"loesung": "Antwort"})
+        assert annotation[0]["type"] == "textarea"
+        assert annotation[0]["value"]["text"] == ["Antwort"]
 
     def test_unknown_field_skipped(self, choices_label_config):
         parser = ResponseParser(generation_structure={}, label_config=choices_label_config)

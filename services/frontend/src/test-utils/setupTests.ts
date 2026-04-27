@@ -861,7 +861,8 @@ if (typeof window !== 'undefined') {
 }
 
 // Mock File.prototype.text() globally for all tests
-if (!File.prototype.text) {
+// Guard with typeof check since File may not be defined in all Jest projects (e.g. Node/server)
+if (typeof File !== 'undefined' && !File.prototype.text) {
   File.prototype.text = function (this: File) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()

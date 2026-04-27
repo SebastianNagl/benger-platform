@@ -218,12 +218,44 @@
           },
           "dataImport": {
             "name": "Data Import",
-            "description": "Upload your data (optional)"
+            "description": "Upload your data"
           },
           "labelingSetup": {
             "name": "Labeling Setup",
             "description": "Configure annotation interface"
+          },
+          "annotationInstructions": {
+            "name": "Instructions",
+            "description": "Annotation instructions for annotators"
+          },
+          "models": {
+            "name": "Models",
+            "description": "Select LLM models for generation"
+          },
+          "prompts": {
+            "name": "Prompts",
+            "description": "Configure generation prompts"
+          },
+          "evaluation": {
+            "name": "Evaluation",
+            "description": "Select evaluation metrics"
+          },
+          "settings": {
+            "name": "Settings",
+            "description": "Configure project settings"
           }
+        },
+        "features": {
+          "title": "Project Features",
+          "editLater": "Can be edited later",
+          "annotation": "Annotation",
+          "annotationDescription": "Labeling setup and annotation instructions",
+          "dataImport": "Data Import",
+          "dataImportDescription": "Upload or paste data into the project",
+          "llmGeneration": "LLM Generation",
+          "llmGenerationDescription": "Configure models and prompts for generation",
+          "evaluation": "Evaluation",
+          "evaluationDescription": "Set up evaluation metrics and methods"
         },
         "step1": {
           "title": "Create New Project",
@@ -265,7 +297,8 @@
           "cloud": {
             "comingSoon": "Cloud storage integration coming soon"
           },
-          "note": "Note: You can skip this step and import data later from the project dashboard"
+          "note": "Note: You can skip this step and import data later from the project dashboard",
+          "detectedColumns": "Detected columns:"
         },
         "step3": {
           "title": "Configure Labeling",
@@ -290,6 +323,118 @@
             "viewXml": "View XML Configuration"
           }
         },
+        "step4": {
+          "title": "Annotation Instructions",
+          "subtitle": "Provide instructions for annotators",
+          "instructionsLabel": "General Instructions",
+          "instructionsPlaceholder": "Enter instructions that annotators will see when working on tasks...",
+          "variantsTitle": "Conditional Instruction Variants",
+          "variantsDescription": "Define different instruction variants for A/B testing",
+          "variant": "Variant",
+          "variantId": "Variant ID",
+          "variantWeight": "Weight",
+          "variantContent": "Content",
+          "variantContentPlaceholder": "Instructions for this variant...",
+          "aiAllowed": "AI assistance allowed",
+          "displaySettings": "Display Settings",
+          "showInstructions": "Show Instructions",
+          "showInstructionsHint": "Display instructions to annotators when working on tasks",
+          "alwaysShowInstructions": "Always Show Instructions",
+          "alwaysShowInstructionsHint": "Show instructions on every task, even if annotator dismissed them",
+          "showSkipButton": "Show Skip Button",
+          "showSkipButtonHint": "Allow annotators to skip tasks",
+          "weightError": "Weights must sum to 100% (currently {sum}%)",
+          "addVariant": "Add Variant"
+        },
+        "step5": {
+          "title": "Select LLM Models",
+          "subtitle": "Choose models for AI-assisted generation",
+          "loading": "Loading available models...",
+          "noApiKeys": "No API keys configured",
+          "noApiKeysHint": "Configure API keys in your profile settings to enable model selection.",
+          "selectedCount": "{count} of {total} models selected",
+          "temperature": "Temperature",
+          "maxTokens": "Max Tokens",
+          "batchSize": "Batch Size",
+          "defaultParams": "Default Generation Parameters"
+        },
+        "step6": {
+          "title": "Configure Prompts",
+          "subtitle": "Set up system and instruction prompts for generation",
+          "systemPromptLabel": "System Prompt",
+          "systemPromptHint": "Defines the AI's role and behavior",
+          "systemPromptPlaceholder": "You are a legal expert assistant...",
+          "instructionPromptLabel": "Instruction Prompt",
+          "instructionPromptHint": "Instructions for the generation task",
+          "instructionPromptPlaceholder": "Given the following legal text, provide a detailed analysis...",
+          "templateLabel": "Prompt Template",
+          "templates": {
+            "qa": {
+              "name": "Question Answering",
+              "description": "Answer questions from context"
+            },
+            "legal": {
+              "name": "Legal Analysis",
+              "description": "German legal case analysis"
+            },
+            "classification": {
+              "name": "Classification",
+              "description": "Text classification"
+            },
+            "custom": {
+              "name": "Custom",
+              "description": "Write your own prompts"
+            }
+          },
+          "noVariablesNote": "Import data or configure labeling to see available template variables."
+        },
+        "step7": {
+          "title": "Evaluation Setup",
+          "subtitle": "Select metrics to evaluate model outputs",
+          "immediateEvaluation": "Immediate Evaluation",
+          "immediateEvaluationHint": "Automatically evaluate annotations immediately after submission",
+          "falloesungConfig": "Standard Fallloesung Configuration",
+          "points": "Pts",
+          "maxTokens": "Max Tokens",
+          "allModelOutputs": "All model outputs",
+          "predictionField": "Prediction Field",
+          "referenceField": "Reference Field",
+          "judgeModel": "Judge Model",
+          "selectJudgeModel": "Select judge model...",
+          "noFieldsNote": "Import data and configure labeling to enable field mapping for metrics.",
+          "advancedNote": "Advanced evaluation configuration (metric parameters, LLM Judge settings) is available on the project page after creation."
+        },
+        "stepSettings": {
+          "title": "Project Settings",
+          "subtitle": "Configure annotation behavior and project settings",
+          "assignmentMode": "Assignment Mode",
+          "assignmentModeHint": "How tasks are distributed to annotators",
+          "modes": {
+            "open": "Open",
+            "manual": "Manual",
+            "auto": "Auto"
+          },
+          "modesHint": {
+            "open": "Annotators pick tasks freely",
+            "manual": "Admins assign tasks to annotators",
+            "auto": "Tasks are auto-assigned based on availability"
+          },
+          "maxAnnotations": "Max Annotations per Task",
+          "minAnnotations": "Min Annotations for Completion",
+          "unlimited": "Unlimited",
+          "requireConfirm": "Require Confirmation Before Submit",
+          "requireConfirmHint": "Annotators must confirm before submitting their annotation",
+          "randomizeOrder": "Randomize Task Order",
+          "randomizeOrderHint": "Each annotator sees tasks in a different random order",
+          "timeLimit": "Annotation Time Limit",
+          "timeLimitHint": "Set a time limit for each annotation task",
+          "minutes": "minutes",
+          "strictTimer": "Strict Timer",
+          "strictTimerHint": "Auto-submit annotation when time expires",
+          "advancedNote": "Additional settings (review mode, feedback) are available on the project page after creation."
+        },
+        "evalSaveFailed": "Failed to save evaluation configuration",
+        "promptStructureSaveFailed": "Failed to save prompt structure (prompts are still saved in generation config)",
         "navigation": {
           "cancel": "Cancel",
           "back": "Back",
@@ -3476,7 +3621,12 @@
     "copy": "Copy",
     "disable": "Disable",
     "enable": "Enable",
-    "remove": "Remove"
+    "remove": "Remove",
+    "tasks": "Tasks",
+    "task": "Task",
+    "model": "Model",
+    "models": "Models",
+    "export": "Export"
   },
   "validation": {
     "required": "This field is required",
@@ -4693,7 +4843,9 @@
         "failed": "Evaluation failed",
         "unknownError": "Unknown error",
         "connectionLost": "Connection lost",
-        "unableToTrack": "Unable to track status"
+        "unableToTrack": "Unable to track status",
+        "reconnecting": "Reconnecting...",
+        "attempt": "Attempt"
       },
       "modal": {
         "close": "Close",
@@ -5046,7 +5198,11 @@
       "reEvaluateQueued": "Re-evaluation queued for this task",
       "reEvaluateFailed": "Failed to start re-evaluation",
       "selectMetrics": "Select metrics to re-evaluate",
-      "close": "Close"
+      "close": "Close",
+      "showHistory": "History",
+      "withResults": "with results",
+      "includeHistory": "Include history",
+      "selectMetric": "Select metric"
     },
     "dashboardTemplates": {
       "title": "Dashboard Template",

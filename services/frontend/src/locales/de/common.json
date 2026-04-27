@@ -218,12 +218,44 @@
           },
           "dataImport": {
             "name": "Datenimport",
-            "description": "Laden Sie Ihre Daten hoch (optional)"
+            "description": "Daten hochladen"
           },
           "labelingSetup": {
             "name": "Annotation einrichten",
             "description": "Konfigurieren Sie die Annotationsoberfläche"
+          },
+          "annotationInstructions": {
+            "name": "Anweisungen",
+            "description": "Annotationsanweisungen für Annotatoren"
+          },
+          "models": {
+            "name": "Modelle",
+            "description": "LLM-Modelle für Generierung auswählen"
+          },
+          "prompts": {
+            "name": "Prompts",
+            "description": "Generierungs-Prompts konfigurieren"
+          },
+          "evaluation": {
+            "name": "Evaluation",
+            "description": "Evaluationsmetriken auswählen"
+          },
+          "settings": {
+            "name": "Einstellungen",
+            "description": "Projekteinstellungen konfigurieren"
           }
+        },
+        "features": {
+          "title": "Projektfunktionen",
+          "editLater": "Kann später bearbeitet werden",
+          "annotation": "Annotation",
+          "annotationDescription": "Annotationseinrichtung und Anweisungen",
+          "dataImport": "Datenimport",
+          "dataImportDescription": "Daten in das Projekt hochladen oder einfügen",
+          "llmGeneration": "LLM-Generierung",
+          "llmGenerationDescription": "Modelle und Prompts für Generierung konfigurieren",
+          "evaluation": "Evaluation",
+          "evaluationDescription": "Evaluationsmetriken und -methoden einrichten"
         },
         "step1": {
           "title": "Neues Projekt erstellen",
@@ -265,7 +297,8 @@
           "cloud": {
             "comingSoon": "Cloud-Speicher-Integration kommt bald"
           },
-          "note": "Hinweis: Sie können diesen Schritt überspringen und Daten später vom Projekt-Dashboard aus importieren"
+          "note": "Hinweis: Sie können diesen Schritt überspringen und Daten später vom Projekt-Dashboard aus importieren",
+          "detectedColumns": "Erkannte Spalten:"
         },
         "step3": {
           "title": "Annotation konfigurieren",
@@ -290,6 +323,118 @@
             "viewXml": "XML-Konfiguration anzeigen"
           }
         },
+        "step4": {
+          "title": "Annotationsanweisungen",
+          "subtitle": "Anweisungen für Annotatoren bereitstellen",
+          "instructionsLabel": "Allgemeine Anweisungen",
+          "instructionsPlaceholder": "Geben Sie Anweisungen ein, die Annotatoren bei der Bearbeitung von Aufgaben sehen...",
+          "variantsTitle": "Bedingte Anweisungsvarianten",
+          "variantsDescription": "Verschiedene Anweisungsvarianten für A/B-Tests definieren",
+          "variant": "Variante",
+          "variantId": "Varianten-ID",
+          "variantWeight": "Gewicht",
+          "variantContent": "Inhalt",
+          "variantContentPlaceholder": "Anweisungen für diese Variante...",
+          "aiAllowed": "KI-Unterstützung erlaubt",
+          "displaySettings": "Anzeigeeinstellungen",
+          "showInstructions": "Anweisungen anzeigen",
+          "showInstructionsHint": "Anweisungen beim Bearbeiten von Aufgaben anzeigen",
+          "alwaysShowInstructions": "Anweisungen immer anzeigen",
+          "alwaysShowInstructionsHint": "Anweisungen bei jeder Aufgabe anzeigen, auch wenn sie geschlossen wurden",
+          "showSkipButton": "Überspringen-Button anzeigen",
+          "showSkipButtonHint": "Annotatoren erlauben, Aufgaben zu überspringen",
+          "weightError": "Gewichte müssen 100% ergeben (aktuell {sum}%)",
+          "addVariant": "Variante hinzufügen"
+        },
+        "step5": {
+          "title": "LLM-Modelle auswählen",
+          "subtitle": "Modelle für KI-gestützte Generierung auswählen",
+          "loading": "Verfügbare Modelle werden geladen...",
+          "noApiKeys": "Keine API-Schlüssel konfiguriert",
+          "noApiKeysHint": "Konfigurieren Sie API-Schlüssel in Ihren Profileinstellungen, um die Modellauswahl zu aktivieren.",
+          "selectedCount": "{count} von {total} Modellen ausgewählt",
+          "temperature": "Temperatur",
+          "maxTokens": "Max Tokens",
+          "batchSize": "Batch-Größe",
+          "defaultParams": "Standard-Generierungsparameter"
+        },
+        "step6": {
+          "title": "Prompts konfigurieren",
+          "subtitle": "System- und Instruktions-Prompts für die Generierung einrichten",
+          "systemPromptLabel": "System-Prompt",
+          "systemPromptHint": "Definiert die Rolle und das Verhalten der KI",
+          "systemPromptPlaceholder": "Sie sind ein juristischer Expertenassistent...",
+          "instructionPromptLabel": "Instruktions-Prompt",
+          "instructionPromptHint": "Anweisungen für die Generierungsaufgabe",
+          "instructionPromptPlaceholder": "Analysieren Sie den folgenden juristischen Text im Detail...",
+          "templateLabel": "Prompt-Vorlage",
+          "templates": {
+            "qa": {
+              "name": "Frage-Antwort",
+              "description": "Fragen aus Kontext beantworten"
+            },
+            "legal": {
+              "name": "Juristische Analyse",
+              "description": "Deutsche Falllösung"
+            },
+            "classification": {
+              "name": "Klassifizierung",
+              "description": "Textklassifizierung"
+            },
+            "custom": {
+              "name": "Benutzerdefiniert",
+              "description": "Eigene Prompts schreiben"
+            }
+          },
+          "noVariablesNote": "Importieren Sie Daten oder konfigurieren Sie die Annotation, um verfügbare Vorlagenvariablen zu sehen."
+        },
+        "step7": {
+          "title": "Evaluation einrichten",
+          "subtitle": "Metriken zur Bewertung von Modellausgaben auswählen",
+          "immediateEvaluation": "Sofortige Evaluation",
+          "immediateEvaluationHint": "Annotationen automatisch sofort nach dem Absenden evaluieren",
+          "falloesungConfig": "Standard-Falllösung-Konfiguration",
+          "points": "Pkt",
+          "maxTokens": "Max Tokens",
+          "allModelOutputs": "Alle Modellausgaben",
+          "predictionField": "Vorhersagefeld",
+          "referenceField": "Referenzfeld",
+          "judgeModel": "Judge-Modell",
+          "selectJudgeModel": "Judge-Modell auswählen...",
+          "noFieldsNote": "Importieren Sie Daten und konfigurieren Sie die Annotation, um Feldzuordnungen für Metriken zu aktivieren.",
+          "advancedNote": "Erweiterte Evaluationskonfiguration (Metrikparameter, LLM-Judge-Einstellungen) ist nach der Erstellung auf der Projektseite verfügbar."
+        },
+        "stepSettings": {
+          "title": "Projekteinstellungen",
+          "subtitle": "Annotationsverhalten und Projekteinstellungen konfigurieren",
+          "assignmentMode": "Zuweisungsmodus",
+          "assignmentModeHint": "Wie Aufgaben an Annotatoren verteilt werden",
+          "modes": {
+            "open": "Offen",
+            "manual": "Manuell",
+            "auto": "Automatisch"
+          },
+          "modesHint": {
+            "open": "Annotatoren wählen Aufgaben frei aus",
+            "manual": "Admins weisen Annotatoren Aufgaben zu",
+            "auto": "Aufgaben werden automatisch nach Verfügbarkeit zugewiesen"
+          },
+          "maxAnnotations": "Max. Annotationen pro Aufgabe",
+          "minAnnotations": "Min. Annotationen für Abschluss",
+          "unlimited": "Unbegrenzt",
+          "requireConfirm": "Bestätigung vor dem Absenden erforderlich",
+          "requireConfirmHint": "Annotatoren müssen vor dem Absenden bestätigen",
+          "randomizeOrder": "Aufgabenreihenfolge zufällig",
+          "randomizeOrderHint": "Jeder Annotator sieht Aufgaben in einer anderen zufälligen Reihenfolge",
+          "timeLimit": "Zeitlimit für Annotation",
+          "timeLimitHint": "Zeitlimit für jede Annotationsaufgabe festlegen",
+          "minutes": "Minuten",
+          "strictTimer": "Strikter Timer",
+          "strictTimerHint": "Annotation automatisch absenden, wenn die Zeit abläuft",
+          "advancedNote": "Weitere Einstellungen (Review-Modus, Feedback) sind nach der Erstellung auf der Projektseite verfügbar."
+        },
+        "evalSaveFailed": "Evaluationskonfiguration konnte nicht gespeichert werden",
+        "promptStructureSaveFailed": "Prompt-Struktur konnte nicht gespeichert werden (Prompts sind weiterhin in der Generierungskonfiguration gespeichert)",
         "navigation": {
           "cancel": "Abbrechen",
           "back": "Zurück",
@@ -3456,7 +3601,12 @@
     "copy": "Kopieren",
     "disable": "Deaktivieren",
     "enable": "Aktivieren",
-    "remove": "Entfernen"
+    "remove": "Entfernen",
+    "tasks": "Aufgaben",
+    "task": "Aufgabe",
+    "model": "Modell",
+    "models": "Modelle",
+    "export": "Exportieren"
   },
   "validation": {
     "required": "Dieses Feld ist erforderlich",
@@ -4673,7 +4823,9 @@
         "failed": "Evaluierung fehlgeschlagen",
         "unknownError": "Unbekannter Fehler",
         "connectionLost": "Verbindung unterbrochen",
-        "unableToTrack": "Status kann nicht verfolgt werden"
+        "unableToTrack": "Status kann nicht verfolgt werden",
+        "reconnecting": "Verbindung wird wiederhergestellt...",
+        "attempt": "Versuch"
       },
       "modal": {
         "close": "Schließen",
@@ -5026,7 +5178,11 @@
       "reEvaluateQueued": "Neu-Evaluierung für diese Aufgabe eingereiht",
       "reEvaluateFailed": "Neu-Evaluierung konnte nicht gestartet werden",
       "selectMetrics": "Metriken für die Neu-Evaluierung auswählen",
-      "close": "Schließen"
+      "close": "Schließen",
+      "showHistory": "Verlauf",
+      "withResults": "mit Ergebnissen",
+      "includeHistory": "Verlauf einbeziehen",
+      "selectMetric": "Metrik auswählen"
     },
     "dashboardTemplates": {
       "title": "Dashboard-Vorlage",

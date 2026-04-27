@@ -77,6 +77,18 @@ class TestParseLabelConfig:
         assert parser.label_config_map["ner"]["type"] == "Labels"
         assert parser.label_config_map["ner"]["labels"] == ["PER", "ORG"]
 
+    def test_gliederung_field(self):
+        config = '<View><Gliederung name="outline" toName="text"/></View>'
+        parser = ResponseParser({}, config)
+        assert "outline" in parser.label_config_map
+        assert parser.label_config_map["outline"]["type"] == "Gliederung"
+
+    def test_loesung_field(self):
+        config = '<View><Loesung name="solution" toName="text"/></View>'
+        parser = ResponseParser({}, config)
+        assert "solution" in parser.label_config_map
+        assert parser.label_config_map["solution"]["type"] == "Loesung"
+
     def test_required_field(self):
         config = '<View><TextArea name="x" toName="text" required="true"/></View>'
         parser = ResponseParser({}, config)
@@ -167,6 +179,16 @@ class TestBuildJsonSchema:
         assert parser.json_schema["properties"]["ner"]["type"] == "array"
         assert parser.json_schema["properties"]["ner"]["items"]["properties"]["type"]["enum"] == ["PER"]
 
+    def test_schema_from_label_config_gliederung(self):
+        config = '<View><Gliederung name="g" toName="t"/></View>'
+        parser = ResponseParser({}, config)
+        assert parser.json_schema["properties"]["g"]["type"] == "string"
+
+    def test_schema_from_label_config_loesung(self):
+        config = '<View><Loesung name="l" toName="t"/></View>'
+        parser = ResponseParser({}, config)
+        assert parser.json_schema["properties"]["l"]["type"] == "string"
+
     def test_empty_schema_when_no_fields(self):
         parser = ResponseParser({}, "<View></View>")
         assert parser.json_schema == {}
@@ -203,6 +225,20 @@ class TestTransformToLabelStudio:
         result = parser._transform_to_label_studio({"n": 42})
         assert result[0]["type"] == "number"
         assert result[0]["value"]["number"] == 42
+
+    def test_gliederung_value(self):
+        config = '<View><Gliederung name="g" toName="t"/></View>'
+        parser = ResponseParser({}, config)
+        result = parser._transform_to_label_studio({"g": "I. Einleitung"})
+        assert result[0]["type"] == "textarea"
+        assert result[0]["value"]["text"] == ["I. Einleitung"]
+
+    def test_loesung_value(self):
+        config = '<View><Loesung name="l" toName="t"/></View>'
+        parser = ResponseParser({}, config)
+        result = parser._transform_to_label_studio({"l": "Die Klage ist begründet."})
+        assert result[0]["type"] == "textarea"
+        assert result[0]["value"]["text"] == ["Die Klage ist begründet."]
 
     def test_textarea_value(self):
         config = '<View><TextArea name="c" toName="t"/></View>'
@@ -378,13 +414,14 @@ class TestParse:
         result = parser.parse("comment: This is a test")
         assert result.status == "success"
 
-    def test_parse_both_fail(self):
+    def test_parse_both_fail_falls_back_to_response(self):
         config = '<View><Choices name="q" toName="t"><Choice value="A"/></Choices></View>'
         gen_struct = {"fields": {"q": {"type": "choices", "options": ["A"]}}}
         parser = ResponseParser(gen_struct, config)
-        # Random gibberish that can't be parsed
+        # Random gibberish that can't be parsed as JSON or structured fields -> __response__
         result = parser.parse("@#$%^&*")
-        assert result.status in ("failed", "validation_error")
+        assert result.status == "success"
+        assert any(a["from_name"] == "__response__" for a in result.parsed_annotation)
 
     def test_parse_json_validation_error(self):
         """Validation error from _try_json_parse is visible in the direct call."""
@@ -440,14 +477,30 @@ class TestTryPatternMatch:
         config = '<View></View>'
         parser = ResponseParser(gen_struct, config)
         result = parser._try_pattern_match("abc: something")
-        assert result.status == "failed"
+        assert result.status == "success"
+        assert any(a["from_name"] == "__response__" for a in result.parsed_annotation)
 
     def test_freeform_text_single_text_field(self):
-        """Test fallback for freeform text when no structured data found."""
-        config = '<View><TextArea name="answer" toName="text"/></View>'
+        """Test fallback for German legal text fields when no structured data found."""
+        config = '<View><Loesung name="loesung" toName="text"/></View>'
         parser = ResponseParser({}, config)
         result = parser._try_pattern_match("Die Klage ist begründet, weil...")
         assert result.status == "success"
+
+    def test_freeform_text_multiple_text_fields_loesung(self):
+        """When multiple text fields, prioritize Loesung."""
+        config = '<View><Gliederung name="gliederung" toName="text"/><Loesung name="loesung" toName="text"/></View>'
+        parser = ResponseParser({}, config)
+        result = parser._try_pattern_match("Die Klage ist begründet, weil...")
+        assert result.status == "success"
+
+    def test_freeform_text_multiple_text_fields_no_loesung(self):
+        """Multiple text fields but no Loesung -> falls back to __response__."""
+        config = '<View><Gliederung name="gliederung" toName="text"/><TextArea name="comment" toName="text"/></View>'
+        parser = ResponseParser({}, config)
+        result = parser._try_pattern_match("Some random text")
+        assert result.status == "success"
+        assert any(a["from_name"] == "__response__" for a in result.parsed_annotation)
 
     def test_pattern_match_equals_sign(self):
         gen_struct = {"fields": {"answer": {"type": "text"}}}
