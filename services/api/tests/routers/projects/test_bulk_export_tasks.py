@@ -678,7 +678,7 @@ class TestBulkExportTasks:
             passed=True,
         )
         session.add(task_eval)
-        session.commit()
+        session.flush()
 
         # Export
         task_ids = [t.id for t in data["tasks"]]
