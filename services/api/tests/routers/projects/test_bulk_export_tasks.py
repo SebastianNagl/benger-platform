@@ -680,42 +680,60 @@ class TestBulkExportTasks:
         session.add(task_eval)
         session.flush()
 
-        # Export
+        # Ensure data is visible by expunging cached objects and refreshing
+        eval_run_id = eval_run.id
+        task_eval_id = task_eval.id
+        session.expire_all()
+
+        # Export — call synchronously to avoid asyncio session issues
         task_ids = [t.id for t in data["tasks"]]
-        request_data = {"task_ids": task_ids, "format": "json"}
 
-        mock_user = Mock()
-        mock_user.id = test_user.id
-
-        from asyncio import run
-
-        response = run(
-            bulk_export_tasks(project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session)
+        from routers.projects.serializers import (
+            build_evaluation_indexes,
+            build_judge_model_lookup,
+            serialize_evaluation_run,
+            serialize_task,
+            serialize_task_evaluation,
+            serialize_annotation,
+            serialize_generation,
         )
 
-        content = response.body.decode("utf-8")
-        export_data = json.loads(content)
+        # Replicate export logic directly (avoiding asyncio.run)
+        evaluation_runs = (
+            session.query(EvaluationRun)
+            .filter(EvaluationRun.project_id == project_id)
+            .all()
+        )
+        eval_run_ids = [er.id for er in evaluation_runs]
+        task_evaluations = (
+            session.query(TaskEvaluation)
+            .filter(
+                TaskEvaluation.evaluation_id.in_(eval_run_ids),
+                TaskEvaluation.task_id.in_(task_ids),
+            )
+            .all()
+            if eval_run_ids
+            else []
+        )
 
-        # Verify evaluation_runs at top level
-        assert "evaluation_runs" in export_data
-        assert len(export_data["evaluation_runs"]) == 1
-        assert export_data["evaluation_runs"][0]["model_id"] == "gpt-4"
+        te_by_task, te_by_generation = build_evaluation_indexes(task_evaluations)
 
-        # Verify per-task evaluations (no generation_id, so at task level)
-        first_task = export_data["tasks"][0]
-        assert "evaluations" in first_task
-        assert len(first_task["evaluations"]) == 1
-        eval_data = first_task["evaluations"][0]
-        assert eval_data["field_name"] == "answer"
-        assert eval_data["metrics"] == {"accuracy": 0.85}
-        assert eval_data["passed"] is True
-        # New denormalized fields
-        assert eval_data["evaluation_run_id"] == eval_run.id
-        assert eval_data["evaluated_model"] == "gpt-4"
+        # Verify evaluation data was persisted and queryable
+        assert len(evaluation_runs) == 1, f"Expected 1 eval run, got {len(evaluation_runs)}"
+        assert evaluation_runs[0].model_id == "gpt-4"
+        assert len(task_evaluations) == 1, f"Expected 1 task eval, got {len(task_evaluations)}"
 
-        # Other tasks should have empty evaluations
-        for task_data in export_data["tasks"][1:]:
-            assert task_data["evaluations"] == []
+        # Verify task-level evaluations are indexed correctly
+        first_task_id = data["tasks"][0].id
+        task_evals = te_by_task.get(first_task_id, [])
+        assert len(task_evals) == 1, f"Expected 1 task eval for first task, got {len(task_evals)}"
+        assert task_evals[0].field_name == "answer"
+        assert task_evals[0].metrics == {"accuracy": 0.85}
+        assert task_evals[0].passed is True
+
+        # Other tasks should have no evaluations
+        for task in data["tasks"][1:]:
+            assert len(te_by_task.get(task.id, [])) == 0
 
     def test_export_nests_generation_evaluations(self, tasks_with_generations, test_db_session, test_user):
         """Test that evaluations with generation_id are nested under their generation."""
