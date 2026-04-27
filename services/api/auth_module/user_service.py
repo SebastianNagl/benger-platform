@@ -671,7 +671,7 @@ def init_demo_users(db: Session):
     import os
     import uuid
 
-    from models import Organization, OrganizationMembership
+    from models import Organization, OrganizationMembership, User
 
     environment = os.getenv("ENVIRONMENT", "development").lower()
 
