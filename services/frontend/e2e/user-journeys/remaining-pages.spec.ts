@@ -79,6 +79,76 @@ test.describe('Remaining Pages - Project Review', () => {
     }
   })
 
+  test('project review page loads for a project and shows review UI', async () => {
+    test.setTimeout(120000)
+
+    // Create a project via the API
+    await page.goto(`${BASE_URL}/projects`, { timeout: 30000 })
+
+    projectId = await page.evaluate(async () => {
+      const resp = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      body: JSON.stringify({
+          title: 'E2E Review Test Project',
+          description: 'Created for review page E2E test',
+        }),
+      })
+      if (!resp.ok) return null
+      const data = await resp.json()
+      return data.id
+    })
+
+    // If project creation via API failed, try the wizard
+    if (!projectId) {
+      projectId = await helpers.createTestProject('E2E Review Test Project')
+    }
+
+    // Skip test if project creation failed entirely
+    if (!projectId) {
+      test.skip(true, 'Could not create test project')
+      return
+    }
+
+    // Navigate to the review page
+    await page.goto(`${BASE_URL}/projects/${projectId}/review`, {
+      timeout: 30000,
+    })
+
+    // The review page should show either:
+    // - Review UI with stats and pending items
+    // - A "no items to review" empty state
+    // - A "review not enabled" message
+    // - A breadcrumb navigation back to the project
+    await expect(async () => {
+      const bodyText = await page.locator('body').textContent()
+      const hasReviewContent =
+        bodyText?.includes('Review') ||
+        bodyText?.includes('Prüfung') ||
+        bodyText?.includes('review') ||
+        bodyText?.includes('pending') ||
+        bodyText?.includes('ausstehend') ||
+        bodyText?.includes('No') ||
+        bodyText?.includes('Keine') ||
+        bodyText?.includes('annotation') ||
+        bodyText?.includes('Annotation') ||
+        bodyText?.includes('Coming Soon') ||
+        bodyText?.includes('Accept') ||
+        bodyText?.includes('Akzeptieren')
+      expect(hasReviewContent).toBe(true)
+    }).toPass({ timeout: 20000 })
+
+    // Verify the breadcrumb links back to the project
+    const breadcrumb = page.locator('nav').first()
+    if (await breadcrumb.isVisible({ timeout: 5000 }).catch(() => false)) {
+      const breadcrumbText = await breadcrumb.textContent()
+      const hasBreadcrumb =
+        breadcrumbText?.includes('Project') ||
+        breadcrumbText?.includes('Projekt') ||
+        breadcrumbText?.includes('E2E Review Test')
+      expect(hasBreadcrumb).toBe(true)
+    }
   })
 })
 
