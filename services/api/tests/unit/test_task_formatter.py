@@ -226,6 +226,56 @@ class TestTaskFormatter:
         assert result["data"]["extra_field_3"]["nested"] == "data"
 
 
+class TestTaskFormatterCaseInsensitive:
+    """Test case-insensitive variable resolution"""
+
+    def test_label_config_resolves_lowercase_var_against_capitalized_key(self):
+        """$sachverhalt should match Sachverhalt in task data (German noun casing)."""
+        task_data = {"Sachverhalt": "Legal case text", "Musterloesung": "Expected solution"}
+        label_config = """
+        <View>
+            <Text name="sv" value="$sachverhalt"/>
+        </View>
+        """
+        result = TaskFormatter.format_task(
+            task_data=task_data, label_config=label_config, presentation_mode="label_config"
+        )
+        assert result["data"]["sv"] == "Legal case text"
+
+    def test_label_config_resolves_capitalized_var_against_lowercase_key(self):
+        """$Sachverhalt should match sachverhalt in task data."""
+        task_data = {"sachverhalt": "Legal case text"}
+        label_config = """
+        <View>
+            <Text name="sv" value="$Sachverhalt"/>
+        </View>
+        """
+        result = TaskFormatter.format_task(
+            task_data=task_data, label_config=label_config, presentation_mode="label_config"
+        )
+        assert result["data"]["sv"] == "Legal case text"
+
+    def test_label_config_prefers_exact_match(self):
+        """Exact case match should be preferred over case-insensitive match."""
+        task_data = {"sachverhalt": "lowercase", "Sachverhalt": "capitalized"}
+        label_config = """
+        <View>
+            <Text name="sv" value="$sachverhalt"/>
+        </View>
+        """
+        result = TaskFormatter.format_task(
+            task_data=task_data, label_config=label_config, presentation_mode="label_config"
+        )
+        assert result["data"]["sv"] == "lowercase"
+
+    def test_auto_mode_case_insensitive(self):
+        """Auto mode should find common fields case-insensitively."""
+        task_data = {"Text": "This is content"}
+        result = TaskFormatter.format_task(task_data=task_data, presentation_mode="auto")
+        assert result["data"]["text"] == "This is content"
+        assert result["detected_type"] == "text"
+
+
 class TestTaskFormatterEdgeCases:
     """Test edge cases and error conditions"""
 

@@ -1,6 +1,5 @@
 /**
- * Branch coverage tests for ProjectCreationWizard
- * Targets uncovered branches at lines: 344, 538-540, 578-579, 641-642, 651, 872
+ * Branch coverage tests for ProjectCreationWizard (dynamic wizard)
  *
  * @jest-environment jsdom
  */
@@ -29,13 +28,34 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.creation.wizard.steps.dataImport.description': 'Upload data',
         'projects.creation.wizard.steps.labelingSetup.name': 'Labeling Setup',
         'projects.creation.wizard.steps.labelingSetup.description': 'Configure labels',
+        'projects.creation.wizard.steps.annotationInstructions.name': 'Instructions',
+        'projects.creation.wizard.steps.annotationInstructions.description': 'Annotation instructions',
+        'projects.creation.wizard.steps.models.name': 'Models',
+        'projects.creation.wizard.steps.models.description': 'Select models',
+        'projects.creation.wizard.steps.prompts.name': 'Prompts',
+        'projects.creation.wizard.steps.prompts.description': 'Configure prompts',
+        'projects.creation.wizard.steps.evaluation.name': 'Evaluation',
+        'projects.creation.wizard.steps.evaluation.description': 'Select metrics',
+        'projects.creation.wizard.steps.settings.name': 'Settings',
+        'projects.creation.wizard.steps.settings.description': 'Configure settings',
         'projects.creation.wizard.step1.title': 'Project Information',
         'projects.creation.wizard.step1.subtitle': 'Enter basic project details',
         'projects.creation.wizard.step1.projectName': 'Project Name',
         'projects.creation.wizard.step1.projectNamePlaceholder': 'Enter project name',
         'projects.creation.wizard.step1.description': 'Description',
         'projects.creation.wizard.step1.optional': '(Optional)',
+        'projects.creation.wizard.step1.descriptionPlaceholder': 'Enter description',
         'projects.creation.wizard.step1.validation.nameRequired': 'Project name is required',
+        'projects.creation.wizard.features.title': 'Project Features',
+        'projects.creation.wizard.features.editLater': 'Can be edited later',
+        'projects.creation.wizard.features.annotation': 'Annotation',
+        'projects.creation.wizard.features.annotationDescription': 'Labels and instructions',
+        'projects.creation.wizard.features.dataImport': 'Data Import',
+        'projects.creation.wizard.features.dataImportDescription': 'Upload or paste data',
+        'projects.creation.wizard.features.llmGeneration': 'LLM Generation',
+        'projects.creation.wizard.features.llmGenerationDescription': 'Models and prompts',
+        'projects.creation.wizard.features.evaluation': 'Evaluation',
+        'projects.creation.wizard.features.evaluationDescription': 'Metrics and methods',
         'projects.creation.wizard.step2.title': 'Import Data',
         'projects.creation.wizard.step2.subtitle': 'Upload or paste data',
         'projects.creation.wizard.step2.tabs.upload': 'Upload',
@@ -61,7 +81,7 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.creation.wizard.step3.tabs.templates': 'Templates',
         'projects.creation.wizard.step3.tabs.custom': 'Custom',
         'projects.creation.wizard.step3.templates.label': 'Choose a template',
-        'projects.creation.wizard.step3.templates.description': 'Select from predefined templates',
+        'projects.creation.wizard.step3.templates.description': 'Select from templates',
         'projects.creation.wizard.step3.templates.selected': 'Selected',
         'projects.creation.wizard.step3.custom.label': 'Custom Configuration',
         'projects.creation.wizard.step3.custom.description': 'Write your own config',
@@ -94,6 +114,26 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.wizard.customConfigName': 'Custom Config',
         'projects.wizard.customConfigDescription': 'Custom configuration',
         'projects.wizard.labelStudioDocs': 'Label Studio docs',
+        'projects.creation.wizard.stepSettings.title': 'Project Settings',
+        'projects.creation.wizard.stepSettings.subtitle': 'Configure settings',
+        'projects.creation.wizard.stepSettings.assignmentMode': 'Assignment Mode',
+        'projects.creation.wizard.stepSettings.assignmentModeHint': 'How tasks are distributed',
+        'projects.creation.wizard.stepSettings.modes.open': 'Open',
+        'projects.creation.wizard.stepSettings.modes.manual': 'Manual',
+        'projects.creation.wizard.stepSettings.modes.auto': 'Auto',
+        'projects.creation.wizard.stepSettings.modesHint.open': 'Pick freely',
+        'projects.creation.wizard.stepSettings.modesHint.manual': 'Admins assign',
+        'projects.creation.wizard.stepSettings.modesHint.auto': 'Auto-assigned',
+        'projects.creation.wizard.stepSettings.maxAnnotations': 'Max Annotations',
+        'projects.creation.wizard.stepSettings.minAnnotations': 'Min Annotations',
+        'projects.creation.wizard.stepSettings.unlimited': 'Unlimited',
+        'projects.creation.wizard.stepSettings.showSkipButton': 'Show Skip Button',
+        'projects.creation.wizard.stepSettings.showSkipButtonHint': 'Allow skipping',
+        'projects.creation.wizard.stepSettings.showInstructions': 'Show Instructions',
+        'projects.creation.wizard.stepSettings.showInstructionsHint': 'Display instructions',
+        'projects.creation.wizard.stepSettings.randomizeOrder': 'Randomize Order',
+        'projects.creation.wizard.stepSettings.randomizeOrderHint': 'Random order',
+        'projects.creation.wizard.stepSettings.advancedNote': 'More settings on project page.',
       }
       return translations[key] || key
     },
@@ -114,10 +154,28 @@ jest.mock('@/stores/projectStore', () => ({
 jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
     importData: jest.fn().mockResolvedValue({}),
+    update: jest.fn().mockResolvedValue({}),
   },
 }))
 
-// Mock toast
+jest.mock('@/lib/api/client', () => ({
+  apiClient: {
+    put: jest.fn().mockResolvedValue({}),
+  },
+}))
+
+jest.mock('@/hooks/useModels', () => ({
+  useModels: () => ({
+    models: [],
+    loading: false,
+    error: null,
+    refetch: jest.fn(),
+    hasApiKeys: false,
+    apiKeyStatus: null,
+  }),
+  default: () => ({}),
+}))
+
 const mockToastSuccess = jest.fn()
 const mockToastError = jest.fn()
 jest.mock('react-hot-toast', () => ({
@@ -133,28 +191,47 @@ describe('ProjectCreationWizard branch coverage', () => {
     mockCreateProject.mockResolvedValue({ id: 'new-project-id' })
   })
 
-  // Helper to navigate to paste tab on step 2
+  // Helper to navigate to Settings (always last) and click Create
+  async function navigateToSettingsAndSubmit(user: ReturnType<typeof userEvent.setup>) {
+    // Click Next until we reach the submit button (Settings is always last)
+    for (let i = 0; i < 10; i++) {
+      const submitBtn = screen.queryByTestId('project-create-submit-button')
+      if (submitBtn) {
+        await user.click(submitBtn)
+        return
+      }
+      const nextBtn = screen.queryByTestId('project-create-next-button')
+      if (nextBtn) {
+        await user.click(nextBtn)
+        await waitFor(() => {})
+      } else {
+        break
+      }
+    }
+  }
+
+  // Helper to enable a feature and navigate to data import paste tab
   async function navigateToPasteTab(user: ReturnType<typeof userEvent.setup>, title: string) {
     const titleInput = screen.getByTestId('project-create-name-input')
     await user.type(titleInput, title)
+
+    // Enable data import feature
+    await user.click(screen.getByTestId('wizard-feature-dataImport').querySelector('input[type="checkbox"]')!)
+
     await user.click(screen.getByTestId('project-create-next-button'))
 
-    // Wait for step 2 to appear
     await waitFor(() => {
       expect(screen.getByText('Import Data')).toBeInTheDocument()
     })
 
-    // Click the Paste tab by text
     const pasteTab = screen.getByText('Paste')
     await user.click(pasteTab)
 
-    // Wait for paste area to appear
     await waitFor(() => {
       expect(screen.getByTestId('project-create-paste-data-textarea')).toBeInTheDocument()
     })
   }
 
-  // Line 344: parseData - tsv format branch
   it('creates project with TSV pasted data', async () => {
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)
@@ -163,19 +240,13 @@ describe('ProjectCreationWizard branch coverage', () => {
     const pasteArea = screen.getByTestId('project-create-paste-data-textarea')
     await user.type(pasteArea, 'col1\tcol2\nval1\tval2')
 
-    await user.click(screen.getByTestId('project-create-next-button'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('project-create-submit-button')).toBeInTheDocument()
-    })
-    await user.click(screen.getByTestId('project-create-submit-button'))
+    await navigateToSettingsAndSubmit(user)
 
     await waitFor(() => {
       expect(mockCreateProject).toHaveBeenCalled()
     })
   })
 
-  // Line 344: parseData - csv detection
   it('creates project with CSV pasted data', async () => {
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)
@@ -184,76 +255,28 @@ describe('ProjectCreationWizard branch coverage', () => {
     const pasteArea = screen.getByTestId('project-create-paste-data-textarea')
     await user.type(pasteArea, 'col1,col2\nval1,val2')
 
-    await user.click(screen.getByTestId('project-create-next-button'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('project-create-submit-button')).toBeInTheDocument()
-    })
-    await user.click(screen.getByTestId('project-create-submit-button'))
+    await navigateToSettingsAndSubmit(user)
 
     await waitFor(() => {
       expect(mockCreateProject).toHaveBeenCalled()
     })
   })
 
-  // Lines 538-540: handleFinish with selectedFile
-  it('creates project with uploaded file', async () => {
-    const user = userEvent.setup()
-    render(<ProjectCreationWizard />)
-
-    // Step 1
-    const titleInput = screen.getByTestId('project-create-name-input')
-    await user.type(titleInput, 'File Project')
-    await user.click(screen.getByTestId('project-create-next-button'))
-
-    // Step 2 - upload a file
-    await waitFor(() => {
-      expect(screen.getByTestId('project-create-file-input')).toBeInTheDocument()
-    })
-
-    const fileInput = screen.getByTestId('project-create-file-input')
-    const file = new File(['[{"text":"hello"}]'], 'data.json', { type: 'application/json' })
-    await act(async () => {
-      Object.defineProperty(fileInput, 'files', { value: [file] })
-      fileInput.dispatchEvent(new Event('change', { bubbles: true }))
-    })
-
-    await user.click(screen.getByTestId('project-create-next-button'))
-
-    // Step 3 - submit
-    await waitFor(() => {
-      expect(screen.getByTestId('project-create-submit-button')).toBeInTheDocument()
-    })
-    await user.click(screen.getByTestId('project-create-submit-button'))
-
-    await waitFor(() => {
-      expect(mockCreateProject).toHaveBeenCalled()
-    })
-  })
-
-  // Line 578-579: handleFinish - JSON pasted data (starts with '[' or '{')
   it('creates project with JSON pasted data', async () => {
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)
 
     await navigateToPasteTab(user, 'JSON Project')
     const pasteArea = screen.getByTestId('project-create-paste-data-textarea')
-    // Use fireEvent instead of userEvent.type to avoid keyboard shortcut parsing
     fireEvent.change(pasteArea, { target: { value: '[{"text":"hello"}]' } })
 
-    await user.click(screen.getByTestId('project-create-next-button'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('project-create-submit-button')).toBeInTheDocument()
-    })
-    await user.click(screen.getByTestId('project-create-submit-button'))
+    await navigateToSettingsAndSubmit(user)
 
     await waitFor(() => {
       expect(mockCreateProject).toHaveBeenCalled()
     })
   })
 
-  // Line 641-642: handleFinish - plain text data
   it('creates project with plain text pasted data', async () => {
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)
@@ -262,19 +285,13 @@ describe('ProjectCreationWizard branch coverage', () => {
     const pasteArea = screen.getByTestId('project-create-paste-data-textarea')
     await user.type(pasteArea, 'line one\nline two\nline three')
 
-    await user.click(screen.getByTestId('project-create-next-button'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('project-create-submit-button')).toBeInTheDocument()
-    })
-    await user.click(screen.getByTestId('project-create-submit-button'))
+    await navigateToSettingsAndSubmit(user)
 
     await waitFor(() => {
       expect(mockCreateProject).toHaveBeenCalled()
     })
   })
 
-  // Line 651: validate button - tsv detection
   it('detects TSV format on validate', async () => {
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)
@@ -292,7 +309,6 @@ describe('ProjectCreationWizard branch coverage', () => {
     })
   })
 
-  // Line 651: validate button - csv detection
   it('detects CSV format on validate', async () => {
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)
@@ -310,10 +326,6 @@ describe('ProjectCreationWizard branch coverage', () => {
     })
   })
 
-  // Line 872: renderCurrentStep - default case (should never happen, returns null)
-  // This is an edge case, covered by the component's switch statement.
-
-  // handleFinish - createProject error (non-Error type)
   it('shows generic error when createProject throws non-Error', async () => {
     const user = userEvent.setup()
     mockCreateProject.mockRejectedValue('string error')
@@ -322,26 +334,14 @@ describe('ProjectCreationWizard branch coverage', () => {
 
     const titleInput = screen.getByTestId('project-create-name-input')
     await user.type(titleInput, 'Error Project')
-    await user.click(screen.getByTestId('project-create-next-button'))
 
-    // Skip step 2
-    await waitFor(() => {
-      expect(screen.getByTestId('project-create-skip-data-button')).toBeInTheDocument()
-    })
-    await user.click(screen.getByTestId('project-create-skip-data-button'))
-
-    // Step 3 - submit
-    await waitFor(() => {
-      expect(screen.getByTestId('project-create-submit-button')).toBeInTheDocument()
-    })
-    await user.click(screen.getByTestId('project-create-submit-button'))
+    await navigateToSettingsAndSubmit(user)
 
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalledWith('Failed to create project')
     })
   })
 
-  // handleFinish - createProject error (Error type)
   it('shows error message when createProject throws Error', async () => {
     const user = userEvent.setup()
     mockCreateProject.mockRejectedValue(new Error('Server error'))
@@ -350,41 +350,22 @@ describe('ProjectCreationWizard branch coverage', () => {
 
     const titleInput = screen.getByTestId('project-create-name-input')
     await user.type(titleInput, 'Error Project')
-    await user.click(screen.getByTestId('project-create-next-button'))
 
-    await waitFor(() => {
-      expect(screen.getByTestId('project-create-skip-data-button')).toBeInTheDocument()
-    })
-    await user.click(screen.getByTestId('project-create-skip-data-button'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('project-create-submit-button')).toBeInTheDocument()
-    })
-    await user.click(screen.getByTestId('project-create-submit-button'))
+    await navigateToSettingsAndSubmit(user)
 
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalledWith('Server error')
     })
   })
 
-  // handleFinish - no data, no file (no import section)
-  it('creates project without data import', async () => {
+  it('creates project without data import when no features checked', async () => {
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)
 
     const titleInput = screen.getByTestId('project-create-name-input')
     await user.type(titleInput, 'Simple Project')
-    await user.click(screen.getByTestId('project-create-next-button'))
 
-    await waitFor(() => {
-      expect(screen.getByTestId('project-create-skip-data-button')).toBeInTheDocument()
-    })
-    await user.click(screen.getByTestId('project-create-skip-data-button'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('project-create-submit-button')).toBeInTheDocument()
-    })
-    await user.click(screen.getByTestId('project-create-submit-button'))
+    await navigateToSettingsAndSubmit(user)
 
     await waitFor(() => {
       expect(mockToastSuccess).toHaveBeenCalledWith('Project created successfully')
@@ -392,18 +373,17 @@ describe('ProjectCreationWizard branch coverage', () => {
     expect(mockPush).toHaveBeenCalledWith('/projects/new-project-id')
   })
 
-  // Step 1 validation: empty title
   it('shows validation error when title is empty', async () => {
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)
 
-    // Try to go next without entering title
+    // Enable a feature so the Next button appears instead of Create
+    await user.click(screen.getByTestId('wizard-feature-dataImport').querySelector('input[type="checkbox"]')!)
     await user.click(screen.getByTestId('project-create-next-button'))
 
     expect(screen.getByText('Project name is required')).toBeInTheDocument()
   })
 
-  // Cancel button on step 1
   it('navigates to projects on cancel', async () => {
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)
@@ -412,24 +392,22 @@ describe('ProjectCreationWizard branch coverage', () => {
     expect(mockPush).toHaveBeenCalledWith('/projects')
   })
 
-  // Drop file handler
-  it('handles file drop', async () => {
+  it('handles file drop on data import step', async () => {
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)
 
     const titleInput = screen.getByTestId('project-create-name-input')
     await user.type(titleInput, 'Drop Project')
+    await user.click(screen.getByTestId('wizard-feature-dataImport').querySelector('input[type="checkbox"]')!)
     await user.click(screen.getByTestId('project-create-next-button'))
 
     await waitFor(() => {
       expect(screen.getByText('Drop files here')).toBeInTheDocument()
     })
 
-    // The drop zone is found by its role
     const dropZone = screen.getByRole('button', { name: /Drop files here/i })
     const file = new File(['data'], 'test.json', { type: 'application/json' })
 
-    // Simulate drop
     const dropEvent = new Event('drop', { bubbles: true })
     Object.defineProperty(dropEvent, 'preventDefault', { value: jest.fn() })
     Object.defineProperty(dropEvent, 'dataTransfer', {
