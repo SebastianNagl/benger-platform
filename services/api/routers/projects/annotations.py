@@ -1,9 +1,9 @@
 """Annotation management endpoints."""
 
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import String, cast
 from sqlalchemy.orm import Session
 
@@ -188,6 +188,8 @@ async def list_task_annotations(
     task_id: str,  # Accept string task IDs
     request: Request,
     all_users: bool = False,
+    completed_by_username: Optional[str] = Query(None, description="Filter by annotator username"),
+    latest_only: bool = Query(False, description="Return only the latest annotation per annotator"),
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -195,6 +197,8 @@ async def list_task_annotations(
 
     By default returns only the current user's annotations (data isolation).
     Pass all_users=true to get all annotations (for read-only result views).
+    Pass completed_by_username to filter to a specific annotator.
+    Pass latest_only=true to deduplicate to the most recent annotation per annotator.
 
     Returns submitted annotations (those with non-empty result).
     Drafts are local-only (stored in browser localStorage), not on server.
@@ -221,10 +225,28 @@ async def list_task_annotations(
         )
     )
 
-    if not all_users:
+    if completed_by_username:
+        from models import User as DBUser
+        target_user = db.query(DBUser).filter(DBUser.username == completed_by_username).first()
+        if not target_user:
+            return []
+        query = query.filter(Annotation.completed_by == target_user.id)
+    elif not all_users:
         query = query.filter(Annotation.completed_by == current_user.id)
 
-    return query.all()
+    query = query.order_by(Annotation.created_at.desc())
+    annotations = query.all()
+
+    if latest_only:
+        seen = set()
+        deduplicated = []
+        for ann in annotations:
+            if ann.completed_by not in seen:
+                seen.add(ann.completed_by)
+                deduplicated.append(ann)
+        annotations = deduplicated
+
+    return annotations
 
 
 @router.patch("/annotations/{annotation_id}", response_model=AnnotationResponse)

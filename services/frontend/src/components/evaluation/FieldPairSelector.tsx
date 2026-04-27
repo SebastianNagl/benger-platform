@@ -279,12 +279,10 @@ export function extractFieldPairsFromConfig(
         if (!seenPairs.has(pairKey)) {
           seenPairs.add(pairKey)
 
-          // Determine source based on field name patterns
-          const isModelField =
-            predField.startsWith('generation_') ||
-            predField.includes('model') ||
-            predField === '__all_model__'
-          const source: 'model' | 'human' = isModelField ? 'model' : 'human'
+          // Determine source based on prefix convention
+          const isHuman =
+            predField.startsWith('human:') || predField === '__all_human__'
+          const source: 'model' | 'human' = isHuman ? 'human' : 'model'
 
           const resultInfo = resultsMap?.[pairKey]
 

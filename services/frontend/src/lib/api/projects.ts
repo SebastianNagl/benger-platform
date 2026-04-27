@@ -184,9 +184,18 @@ export const projectsAPI = {
   /**
    * Get annotations for a task
    */
-  getTaskAnnotations: async (taskId: string, allUsers?: boolean): Promise<Annotation[]> => {
-    let url = `/projects/tasks/${taskId}/annotations`
-    if (allUsers) url += '?all_users=true'
+  getTaskAnnotations: async (
+    taskId: string,
+    allUsers?: boolean,
+    completedByUsername?: string,
+    latestOnly?: boolean,
+  ): Promise<Annotation[]> => {
+    const params = new URLSearchParams()
+    if (allUsers) params.append('all_users', 'true')
+    if (completedByUsername) params.append('completed_by_username', completedByUsername)
+    if (latestOnly) params.append('latest_only', 'true')
+    const qs = params.toString()
+    const url = `/projects/tasks/${taskId}/annotations${qs ? '?' + qs : ''}`
     const response = await apiClient.get(url)
     return response
   },

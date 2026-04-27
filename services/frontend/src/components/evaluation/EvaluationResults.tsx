@@ -24,6 +24,7 @@ import { Task as LabelStudioTask } from '@/types/labelStudio'
 import { Task } from '@/lib/api/types'
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import {
+  ArrowDownTrayIcon,
   ArrowPathIcon,
   CheckCircleIcon,
   ClockIcon,
@@ -34,7 +35,9 @@ import {
   XCircleIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { METRIC_ORDER } from '@/lib/api/evaluation-types'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 
 /** Statistics data structure from computeStatistics API */
 interface StatisticsData {
@@ -178,6 +181,61 @@ export function EvaluationResults({
   const [results, setResults] = useState<ProjectEvaluationResults | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+  const [selectedMetricRunId, setSelectedMetricRunId] = useState<string | null>(null)
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
+  const exportDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Available completed metric runs (one per metric, filtered by top-level selectedMetrics)
+  // Sorted by the evaluation config order from the project page wizard
+  const availableMetricRuns = useMemo(() => {
+    if (!results?.evaluations) return []
+    const runs = results.evaluations
+      .filter((e) => e.status === 'completed')
+      .filter((e) => {
+        if (!selectedMetrics || selectedMetrics.length === 0) return true
+        return e.evaluation_configs?.some((c: any) => selectedMetrics.includes(c.metric))
+      })
+      .map((e) => ({
+        id: e.evaluation_id,
+        metric: e.evaluation_configs?.[0]?.metric || 'unknown',
+        configId: e.evaluation_configs?.[0]?.id || '',
+        displayName: e.evaluation_configs?.[0]?.display_name || e.evaluation_configs?.[0]?.metric || 'Unknown',
+        samplesEvaluated: e.samples_evaluated,
+      }))
+
+    // Sort by GROUPED_METRICS order (same order as the evaluation wizard)
+    const orderMap = new Map(METRIC_ORDER.map((m, i) => [m, i]))
+    runs.sort((a, b) => {
+      const orderA = orderMap.get(a.metric) ?? 999
+      const orderB = orderMap.get(b.metric) ?? 999
+      return orderA - orderB
+    })
+
+    return runs
+  }, [results, selectedMetrics, evaluationConfigs])
+
+  // Auto-select metric run — restore from localStorage or default to first
+  useEffect(() => {
+    if (availableMetricRuns.length === 0) return
+
+    // If current selection is still valid, keep it
+    if (selectedMetricRunId && availableMetricRuns.some((r) => r.id === selectedMetricRunId)) {
+      return
+    }
+
+    // Try to restore from localStorage by metric name
+    const savedMetric = localStorage.getItem(`eval-selected-metric-${projectId}`)
+    if (savedMetric) {
+      const match = availableMetricRuns.find((r) => r.metric === savedMetric)
+      if (match) {
+        setSelectedMetricRunId(match.id)
+        return
+      }
+    }
+
+    // Default to first
+    setSelectedMetricRunId(availableMetricRuns[0].id)
+  }, [availableMetricRuns, selectedMetricRunId])
 
   // Per-task/model data table state
   const [taskModelData, setTaskModelData] = useState<{
@@ -266,9 +324,11 @@ export function EvaluationResults({
 
   const fetchResults = useCallback(async () => {
     try {
+      // Always fetch all runs so the metric selector can list all completed metrics.
+      // showHistory controls display filtering, not the API fetch.
       const displayData = await apiClient.getProjectEvaluationResults(
         String(projectId),
-        !showHistory
+        false
       )
       setResults(displayData)
       setError(null)
@@ -322,6 +382,33 @@ export function EvaluationResults({
       }
       return true
     }) || []
+
+  // When showHistory is off, deduplicate to latest run per metric
+  const displayEvaluations = useMemo(() => {
+    if (showHistory) return filteredEvaluations
+    const latestByMetric = new Map<string, typeof filteredEvaluations[0]>()
+    for (const evaluation of filteredEvaluations) {
+      const metric = evaluation.evaluation_configs?.[0]?.metric || 'unknown'
+      const existing = latestByMetric.get(metric)
+      if (!existing || (evaluation.created_at && existing.created_at && evaluation.created_at > existing.created_at)) {
+        latestByMetric.set(metric, evaluation)
+      }
+    }
+    return [...latestByMetric.values()]
+  }, [filteredEvaluations, showHistory])
+
+  // Close export dropdown on click outside
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
+        setExportDropdownOpen(false)
+      }
+    }
+    if (exportDropdownOpen) {
+      document.addEventListener('mousedown', handleClick)
+      return () => document.removeEventListener('mousedown', handleClick)
+    }
+  }, [exportDropdownOpen])
 
   // Initial fetch and refresh when parent signals data change
   useEffect(() => {
@@ -415,9 +502,7 @@ export function EvaluationResults({
     }
   }, [results, fetchResults])
 
-  // Fetch per-task/model data — always attempt when projectId is available
-  // Uses project-level aggregation to combine results from ALL completed evaluations
-  // (including immediate evals which may not appear in results.evaluations for old data)
+  // Fetch per-task/model data — filtered by selected metric run
   useEffect(() => {
     const fetchTaskModelData = async () => {
       if (!projectId) {
@@ -427,11 +512,10 @@ export function EvaluationResults({
 
       setTaskModelLoading(true)
       try {
-        // Use project-level aggregation instead of single evaluation
-        // This combines results from ALL completed evaluations, using the latest
-        // result per generation_id for deduplication
+        const evalIds = selectedMetricRunId ? [selectedMetricRunId] : undefined
         const data = await apiClient.getProjectResultsByTaskModel(
-          String(projectId)
+          String(projectId),
+          evalIds
         )
         setTaskModelData(data)
       } catch (err) {
@@ -443,7 +527,7 @@ export function EvaluationResults({
     }
 
     fetchTaskModelData()
-  }, [results, projectId])
+  }, [results, projectId, selectedMetricRunId])
 
   const handleRefresh = () => {
     setLoading(true)
@@ -470,6 +554,8 @@ export function EvaluationResults({
 
   // Handle score cell click to show generation and evaluation result modal
   const handleScoreClick = async (taskId: string, modelId: string) => {
+    const isAnnotatorCell = modelId.startsWith('annotator:')
+
     // Open modal and set context
     setResultModalOpen(true)
     setResultModalTaskId(taskId)
@@ -481,28 +567,41 @@ export function EvaluationResults({
     setGenerationLoading(true)
     setEvaluationLoading(true)
 
-    // Fetch annotations for this task
-    try {
-      const annotations = await projectsAPI.getTaskAnnotations(taskId, true)
-      setAnnotationData(annotations || [])
-    } catch (err) {
-      console.error('Failed to fetch annotations:', err)
-    } finally {
+    // Fetch annotations only for annotator cells
+    if (isAnnotatorCell) {
+      const annotatorUsername = modelId.split(':')[1]
+      try {
+        const annotations = await projectsAPI.getTaskAnnotations(
+          taskId,
+          true,
+          annotatorUsername,
+          !showHistory,
+        )
+        setAnnotationData(annotations || [])
+      } catch (err) {
+        console.error('Failed to fetch annotations:', err)
+      } finally {
+        setAnnotationLoading(false)
+      }
+    } else {
+      setAnnotationData([])
       setAnnotationLoading(false)
     }
 
-    // Fetch generation results (skip for annotator "models")
-    if (modelId.startsWith('annotator:')) {
+    // Fetch generation results only for model cells
+    if (isAnnotatorCell) {
       setGenerationData([])
       setGenerationLoading(false)
     } else {
       try {
         const params = new URLSearchParams({ task_id: taskId, model_id: modelId })
+        if (showHistory) {
+          params.append('include_history', 'true')
+        }
         const result = await apiClient.get(`/generation-tasks/generation-result?${params}`)
         setGenerationData(result.results || [])
       } catch (err) {
         console.error('Failed to fetch generation result:', err)
-        // Don't show toast - we'll show empty state in modal
       } finally {
         setGenerationLoading(false)
       }
@@ -510,15 +609,22 @@ export function EvaluationResults({
 
     // Fetch per-task evaluation results
     try {
-      const result = await apiClient.getTaskEvaluation(taskId, modelId)
+      const result = await apiClient.getTaskEvaluation(taskId, modelId, showHistory)
       setEvaluationData(result)
     } catch (err) {
       console.error('Failed to fetch evaluation sample result:', err)
-      // Don't show toast - we'll show empty state in modal
     } finally {
       setEvaluationLoading(false)
     }
   }
+
+  // Re-fetch modal data when showHistory toggles while modal is open
+  useEffect(() => {
+    if (resultModalOpen && resultModalTaskId && resultModalModelId) {
+      handleScoreClick(resultModalTaskId, resultModalModelId)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHistory])
 
   // Handle re-evaluate for a specific task x model cell
   const handleCellReEvaluate = useCallback(
@@ -754,12 +860,139 @@ export function EvaluationResults({
 
   return (
     <div className="space-y-4">
-      {/* Header with run and refresh buttons */}
+      {/* Header with metric selector, controls, and action buttons */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-          {t('evaluation.multiFieldResults.title')}
-        </h3>
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+            {t('evaluation.multiFieldResults.title')}
+          </h3>
+          {/* Metric selector dropdown */}
+          {availableMetricRuns.length > 0 && selectedMetricRunId && (() => {
+            const selectedRun = availableMetricRuns.find((r) => r.id === selectedMetricRunId)
+            const displayText = selectedRun
+              ? `${selectedRun.displayName} (${selectedRun.samplesEvaluated})`
+              : t('evaluation.multiFieldResults.selectMetric')
+            return (
+              <Select
+                value={selectedMetricRunId}
+                onValueChange={(v) => {
+                  setSelectedMetricRunId(v)
+                  // Persist selection by metric name for page refresh
+                  const run = availableMetricRuns.find((r) => r.id === v)
+                  if (run) localStorage.setItem(`eval-selected-metric-${projectId}`, run.metric)
+                }}
+                displayValue={displayText}
+              >
+                <SelectTrigger className="w-auto min-w-[200px]">
+                  <SelectValue placeholder={t('evaluation.multiFieldResults.selectMetric')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableMetricRuns.map((run) => (
+                    <SelectItem key={run.id} value={run.id}>
+                      {run.displayName} ({run.samplesEvaluated})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )
+          })()}
+          {/* Include history toggle */}
+          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            <input
+              type="checkbox"
+              checked={showHistory}
+              onChange={(e) => setShowHistory(e.target.checked)}
+              className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            {t('evaluation.multiFieldResults.includeHistory')}
+          </label>
+        </div>
         <div className="flex items-center gap-2">
+          {/* Export dropdown */}
+          {taskModelData && taskModelData.tasks.length > 0 && (() => {
+            const doExport = (format: 'json' | 'csv') => {
+              const displayModels = selectedModels?.length
+                ? selectedModels
+                : taskModelData.models
+              const metricName = availableMetricRuns.find(r => r.id === selectedMetricRunId)?.displayName || 'evaluation'
+              const fileName = `evaluation-${metricName.toLowerCase().replace(/\s+/g, '-')}`
+
+              if (format === 'json') {
+                const exportData = {
+                  metric: metricName,
+                  models: displayModels.map(mid => ({
+                    id: mid,
+                    name: taskModelData.model_names[mid] || mid,
+                  })),
+                  tasks: taskModelData.tasks.map(task => ({
+                    task_id: task.task_id,
+                    preview: task.task_preview,
+                    scores: Object.fromEntries(
+                      displayModels.map(mid => [
+                        taskModelData.model_names[mid] || mid,
+                        task.scores[mid] ?? null,
+                      ])
+                    ),
+                  })),
+                }
+                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `${fileName}.json`
+                a.click()
+                URL.revokeObjectURL(url)
+              } else {
+                const modelHeaders = displayModels.map(mid => taskModelData.model_names[mid] || mid)
+                const header = ['task_id', 'preview', ...modelHeaders].join(',')
+                const rows = taskModelData.tasks.map(task => {
+                  const scores = displayModels.map(mid => task.scores[mid] ?? '')
+                  return [task.task_id, `"${(task.task_preview || '').replace(/"/g, '""')}"`, ...scores].join(',')
+                })
+                const csv = [header, ...rows].join('\n')
+                const blob = new Blob([csv], { type: 'text/csv' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `${fileName}.csv`
+                a.click()
+                URL.revokeObjectURL(url)
+              }
+              setExportDropdownOpen(false)
+            }
+
+            return (
+              <div className="relative" ref={exportDropdownRef}>
+                <Button
+                  variant="outline"
+                  onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4" />
+                  {t('common.export') || 'Export'}
+                </Button>
+                {exportDropdownOpen && (
+                  <div className="absolute right-0 z-50 mt-1 w-32 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                    <button
+                      type="button"
+                      onClick={() => doExport('json')}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      <ArrowDownTrayIcon className="h-4 w-4" />
+                      JSON
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => doExport('csv')}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
+                    >
+                      <ArrowDownTrayIcon className="h-4 w-4" />
+                      CSV
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
           {onRunEvaluation && (
             <Button
               variant="filled"
@@ -812,8 +1045,8 @@ export function EvaluationResults({
               {t('evaluation.multiFieldResults.perTaskResults')}
             </h4>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {taskModelData.tasks.length} tasks • {displayModels.length} model{displayModels.length !== 1 ? 's' : ''}
-              {taskModelData.models.length > 0 && selectedModels?.length > 0 && taskModelData.models.length !== displayModels.length && ` (${taskModelData.models.length} with results)`}
+              {taskModelData.tasks.length} {t('common.tasks')} • {displayModels.length} {displayModels.length !== 1 ? t('common.models') : t('common.model')}
+              {taskModelData.models.length > 0 && selectedModels?.length > 0 && taskModelData.models.length !== displayModels.length && ` (${taskModelData.models.length} ${t('evaluation.multiFieldResults.withResults')})`}
             </p>
           </div>
           {taskModelLoading ? (
@@ -872,7 +1105,7 @@ export function EvaluationResults({
                             title={`${task.task_preview} - ${t('evaluation.multiFieldResults.clickToViewTaskData')}`}
                             onClick={() => handleTaskClick(task.task_id)}
                           >
-                            {task.task_preview || `Task ${task.task_id.slice(0, 8)}`}
+                            {task.task_preview || `${t('common.task')} ${task.task_id.slice(0, 8)}`}
                           </div>
                         </td>
                         {displayModels.map((modelId) => {
@@ -966,7 +1199,7 @@ export function EvaluationResults({
 
       {/* Evaluation cards - show in chart view */}
       {viewType !== 'data' &&
-        filteredEvaluations.map((evaluation) => (
+        displayEvaluations.map((evaluation) => (
           <Card key={evaluation.evaluation_id} className="overflow-hidden">
             {/* Evaluation header */}
             <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
@@ -1281,16 +1514,18 @@ function ResultDetailsModal({
   }>
 }) {
   const { t } = useI18n()
+  const isAnnotatorCell = modelId?.startsWith('annotator:') ?? false
   const [activeTab, setActiveTab] = useState<'annotation' | 'generation' | 'evaluation'>('annotation')
   const [copySuccess, setCopySuccess] = useState(false)
   const [selectedStructureIndex, setSelectedStructureIndex] = useState(0)
   const [selectedEvalConfigIds, setSelectedEvalConfigIds] = useState<Set<string>>(new Set())
   const [showMetricSelection, setShowMetricSelection] = useState(false)
 
-  // Reset structure index and metric selection when modal opens with new data
+  // Reset structure index, metric selection, and default tab when modal opens
   useEffect(() => {
     if (isOpen) {
       setSelectedStructureIndex(0)
+      setActiveTab(isAnnotatorCell ? 'annotation' : 'generation')
       // Select all enabled configs by default
       const enabledIds = evaluationConfigs
         .filter((c) => c.enabled !== false)
@@ -1298,7 +1533,7 @@ function ResultDetailsModal({
       setSelectedEvalConfigIds(new Set(enabledIds))
       setShowMetricSelection(false)
     }
-  }, [isOpen, generationData, evaluationConfigs])
+  }, [isOpen, generationData, evaluationConfigs, isAnnotatorCell])
 
   const handleCopyToClipboard = async () => {
     const dataToCopy = activeTab === 'annotation' ? annotationData : activeTab === 'generation' ? generationData : evaluationData
@@ -1372,35 +1607,39 @@ function ResultDetailsModal({
             </div>
           </div>
 
-          {/* Tab Navigation */}
+          {/* Tab Navigation - show only relevant tabs per cell type */}
           <div className="border-b border-zinc-200 dark:border-zinc-700">
             <nav className="flex px-6" aria-label="Tabs">
-              <button
-                onClick={() => setActiveTab('annotation')}
-                className={`relative px-4 py-3 text-sm font-medium transition-colors ${
-                  activeTab === 'annotation'
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                }`}
-              >
-                {t('evaluation.multiFieldResults.annotationResult', 'Annotation Result')}
-                {activeTab === 'annotation' && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
-                )}
-              </button>
-              <button
-                onClick={() => setActiveTab('generation')}
-                className={`relative px-4 py-3 text-sm font-medium transition-colors ${
-                  activeTab === 'generation'
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                }`}
-              >
-                {t('evaluation.multiFieldResults.generationResults')}
-                {activeTab === 'generation' && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
-                )}
-              </button>
+              {isAnnotatorCell && (
+                <button
+                  onClick={() => setActiveTab('annotation')}
+                  className={`relative px-4 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'annotation'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
+                  }`}
+                >
+                  {t('evaluation.multiFieldResults.annotationResult', 'Annotation Result')}
+                  {activeTab === 'annotation' && (
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
+                  )}
+                </button>
+              )}
+              {!isAnnotatorCell && (
+                <button
+                  onClick={() => setActiveTab('generation')}
+                  className={`relative px-4 py-3 text-sm font-medium transition-colors ${
+                    activeTab === 'generation'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
+                  }`}
+                >
+                  {t('evaluation.multiFieldResults.generationResults')}
+                  {activeTab === 'generation' && (
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
+                  )}
+                </button>
+              )}
               <button
                 onClick={() => setActiveTab('evaluation')}
                 className={`relative px-4 py-3 text-sm font-medium transition-colors ${
@@ -1799,7 +2038,7 @@ function ResultDetailsModal({
                   {/* Full JSON Section (collapsed) */}
                   <details className="group">
                     <summary className="cursor-pointer font-medium text-zinc-900 dark:text-white">
-                      Raw JSON Response
+                      {t('evaluation.multiFieldResults.rawJsonResponse')}
                     </summary>
                     <div className="mt-2 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
                       <pre className="overflow-x-auto text-xs text-zinc-700 dark:text-zinc-300">

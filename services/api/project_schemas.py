@@ -251,6 +251,13 @@ class ProjectUpdate(BaseModel):
             ai_allowed = variant.get("ai_allowed")
             if ai_allowed is not None and not isinstance(ai_allowed, bool):
                 raise ValueError(f"Variant {i} 'ai_allowed' must be a boolean")
+        # Validate weights sum to 100
+        if v:
+            total_weight = sum(variant.get("weight", 0) for variant in v)
+            if abs(total_weight - 100) > 0.01:
+                raise ValueError(
+                    f"Conditional instruction weights must sum to 100 (got {total_weight})"
+                )
         return v
 
 

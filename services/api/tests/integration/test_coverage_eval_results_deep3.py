@@ -195,7 +195,7 @@ class TestGetEvaluationResults:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{p.id}",
+            f"/api/evaluations/results/{p.id}",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -208,7 +208,7 @@ class TestGetEvaluationResults:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{p.id}?include_human=false",
+            f"/api/evaluations/results/{p.id}?include_human=false",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -218,14 +218,14 @@ class TestGetEvaluationResults:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{p.id}?include_automated=false",
+            f"/api/evaluations/results/{p.id}?include_automated=false",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
 
     def test_get_results_nonexistent_project(self, client, test_db, test_users, auth_headers):
         resp = client.get(
-            "/api/evaluations/evaluations/results/nonexistent",
+            "/api/evaluations/results/nonexistent",
             headers=auth_headers["admin"],
         )
         # Superadmin may get empty results (200) or 403/404
@@ -259,7 +259,7 @@ class TestGetEvaluationResults:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{p.id}",
+            f"/api/evaluations/results/{p.id}",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -297,7 +297,7 @@ class TestGetEvaluationResults:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{p.id}",
+            f"/api/evaluations/results/{p.id}",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -319,7 +319,7 @@ class TestExportEvaluationResults:
         test_db.commit()
 
         resp = client.post(
-            f"/api/evaluations/evaluations/export/{p.id}?format=json",
+            f"/api/evaluations/export/{p.id}?format=json",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -332,7 +332,7 @@ class TestExportEvaluationResults:
         test_db.commit()
 
         resp = client.post(
-            f"/api/evaluations/evaluations/export/{p.id}?format=csv",
+            f"/api/evaluations/export/{p.id}?format=csv",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -342,7 +342,7 @@ class TestExportEvaluationResults:
         test_db.commit()
 
         resp = client.post(
-            f"/api/evaluations/evaluations/export/nonexistent?format=json",
+            f"/api/evaluations/export/nonexistent?format=json",
             headers=auth_headers["admin"],
         )
         # Superadmin bypasses access, so might get 200 with empty results
@@ -364,7 +364,7 @@ class TestEvaluationSamples:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er.id}/samples",
+            f"/api/evaluations/{er.id}/samples",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -377,7 +377,7 @@ class TestEvaluationSamples:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er.id}/samples?field_name=answer",
+            f"/api/evaluations/{er.id}/samples?field_name=answer",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -390,7 +390,7 @@ class TestEvaluationSamples:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er.id}/samples?passed=true",
+            f"/api/evaluations/{er.id}/samples?passed=true",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -403,14 +403,14 @@ class TestEvaluationSamples:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er.id}/samples?page=1&page_size=2",
+            f"/api/evaluations/{er.id}/samples?page=1&page_size=2",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
 
     def test_get_samples_nonexistent(self, client, test_db, test_users, auth_headers):
         resp = client.get(
-            "/api/evaluations/evaluations/nonexistent/samples",
+            "/api/evaluations/nonexistent/samples",
             headers=auth_headers["admin"],
         )
         assert resp.status_code in (404, 500)
@@ -431,7 +431,7 @@ class TestMetricDistribution:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er.id}/metrics/score/distribution",
+            f"/api/evaluations/{er.id}/metrics/score/distribution",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -449,7 +449,7 @@ class TestMetricDistribution:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er.id}/metrics/score/distribution?field_name=answer",
+            f"/api/evaluations/{er.id}/metrics/score/distribution?field_name=answer",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -461,7 +461,7 @@ class TestMetricDistribution:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er.id}/metrics/nonexistent_metric/distribution",
+            f"/api/evaluations/{er.id}/metrics/nonexistent_metric/distribution",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code in (404, 500)
@@ -472,7 +472,7 @@ class TestMetricDistribution:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er.id}/metrics/score/distribution",
+            f"/api/evaluations/{er.id}/metrics/score/distribution",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code in (404, 500)
@@ -485,7 +485,7 @@ class TestMetricDistribution:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er.id}/metrics/score/distribution",
+            f"/api/evaluations/{er.id}/metrics/score/distribution",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -512,7 +512,7 @@ class TestConfusionMatrix:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er.id}/confusion-matrix?field_name=answer",
+            f"/api/evaluations/{er.id}/confusion-matrix?field_name=answer",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -533,7 +533,7 @@ class TestConfusionMatrix:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er.id}/confusion-matrix?field_name=category",
+            f"/api/evaluations/{er.id}/confusion-matrix?field_name=category",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -547,7 +547,7 @@ class TestConfusionMatrix:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er.id}/confusion-matrix?field_name=answer",
+            f"/api/evaluations/{er.id}/confusion-matrix?field_name=answer",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code in (400, 404)
@@ -786,7 +786,7 @@ class TestGetEvaluations:
         test_db.commit()
 
         resp = client.get(
-            "/api/evaluations/evaluations",
+            "/api/evaluations/",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -795,7 +795,7 @@ class TestGetEvaluations:
 
     def test_list_evaluations_empty(self, client, test_db, test_users, auth_headers, test_org):
         resp = client.get(
-            "/api/evaluations/evaluations",
+            "/api/evaluations/",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
