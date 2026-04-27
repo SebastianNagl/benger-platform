@@ -26,6 +26,7 @@ DOCKER_COMPOSE_EXTENDED := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml -f 
 DOCKER_COMPOSE_ALT := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.alt-ports.yml
 DOCKER_COMPOSE_ALT_EXT := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.alt-ports-extended.yml -f infra/docker-compose.extended.yml
 DOCKER_COMPOSE_TEST := $(DOCKER_COMPOSE_CMD) -f $(CURDIR)/infra/docker-compose.test.yml
+DOCKER_COMPOSE_TEST_EXT := $(DOCKER_COMPOSE_CMD) -f $(CURDIR)/infra/docker-compose.test.yml -f $(CURDIR)/infra/docker-compose.test.extended.yml
 API_DIR := services/api
 FRONTEND_DIR := services/frontend
 WORKERS_DIR := services/workers
@@ -474,11 +475,18 @@ test-extended: ## Run full test suite including @extended E2E tests (nightly/man
 	@echo "║            BenGER Extended Test Suite                         ║"
 	@echo "╚════════════════════════════════════════════════════════════════╝"
 	@echo ""
-	@echo "$(BLUE)🧹 Cleaning pre-existing test environment...$(NC)"
-	@$(DOCKER_COMPOSE_TEST) down -v 2>/dev/null || true
+	@if [ ! -d "../benger-extended/benger_extended" ]; then \
+		echo "$(RED)Error: benger-extended not found at ../benger-extended$(NC)"; \
+		echo "Clone it: git clone git@github.com:SebastianNagl/benger-extended.git ../benger-extended"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)Extended repo found at ../benger-extended$(NC)"
 	@echo ""
-	@echo "$(BLUE)🔨 Building and starting fresh test environment...$(NC)"
-	@$(DOCKER_COMPOSE_TEST) up -d --build 2>&1 | grep -v "orphan\|Running\|Creating\|Starting\|Started\|Created\|Pulling\|Network\|Volume\|Container\|Building" || true
+	@echo "$(BLUE)🧹 Cleaning pre-existing test environment...$(NC)"
+	@$(DOCKER_COMPOSE_TEST_EXT) down -v 2>/dev/null || true
+	@echo ""
+	@echo "$(BLUE)🔨 Building and starting fresh test environment (with extended)...$(NC)"
+	@$(DOCKER_COMPOSE_TEST_EXT) up -d --build 2>&1 | grep -v "orphan\|Running\|Creating\|Starting\|Started\|Created\|Pulling\|Network\|Volume\|Container\|Building" || true
 	@echo "$(YELLOW)⏳ Waiting for services to be healthy...$(NC)"
 	@timeout=300; while [ $$timeout -gt 0 ]; do \
 		healthy=$$(docker ps --filter "name=benger-test" --filter "health=healthy" --format "{{.Names}}" 2>/dev/null | wc -l); \
@@ -514,17 +522,17 @@ test-extended: ## Run full test suite including @extended E2E tests (nightly/man
 	exit $$EXIT_CODE
 
 .PHONY: test-all-extended
-test-all-extended: ## Run all tests including @extended E2E (requires test-start first)
+test-all-extended: ## Run all tests including @extended E2E (requires test-start first, uses extended overlay)
 	@echo "$(BLUE)🧪 Running all tests (including @extended)...$(NC)"
 	@echo ""
 	@API_RESULT=0; WORKER_RESULT=0; FRONTEND_RESULT=0; E2E_RESULT=0; \
 	\
 	echo "$(BLUE)1️⃣  API Tests$(NC)"; \
-	$(DOCKER_COMPOSE_TEST) --profile test run --rm test-api-runner && API_RESULT=0 || API_RESULT=1; \
+	$(DOCKER_COMPOSE_TEST_EXT) --profile test run --rm test-api-runner && API_RESULT=0 || API_RESULT=1; \
 	echo ""; \
 	\
 	echo "$(BLUE)2️⃣  Worker Tests$(NC)"; \
-	$(DOCKER_COMPOSE_TEST) --profile test run --rm test-workers-runner && WORKER_RESULT=0 || WORKER_RESULT=1; \
+	$(DOCKER_COMPOSE_TEST_EXT) --profile test run --rm test-workers-runner && WORKER_RESULT=0 || WORKER_RESULT=1; \
 	echo ""; \
 	\
 	echo "$(BLUE)3️⃣  Frontend Unit Tests (Jest)$(NC)"; \
