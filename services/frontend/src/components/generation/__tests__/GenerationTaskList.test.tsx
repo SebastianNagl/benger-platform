@@ -99,7 +99,7 @@ jest.mock('@/lib/api/client', () => ({
       })
     ),
   },
-  getApiUrl: jest.fn(() => 'http://localhost:8000'),
+  getApiUrl: jest.fn(() => 'http://localhost'),
 }))
 
 // Mock auth context
