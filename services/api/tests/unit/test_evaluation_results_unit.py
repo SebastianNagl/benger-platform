@@ -83,7 +83,8 @@ class TestExtractPrimaryScore:
     def test_no_matching_keys(self):
         from routers.evaluations.results import _extract_primary_score
         metrics = {"accuracy": 0.95, "f1": 0.88}
-        assert _extract_primary_score(metrics) is None
+        # Generic fallback returns the first numeric value
+        assert _extract_primary_score(metrics) == 0.95
 
 
 class TestEvaluationMetadataModels:

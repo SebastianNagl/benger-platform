@@ -15,6 +15,7 @@
 'use client'
 
 import { EvaluationBuilder } from '@/components/evaluation/EvaluationBuilder'
+import { useSlot } from '@/lib/extensions/slots'
 import { LabelConfigEditor } from '@/components/projects/LabelConfigEditor'
 import { logger } from '@/lib/utils/logger'
 import { PromptStructuresManager } from '@/components/projects/PromptStructuresManager'
@@ -220,6 +221,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   //  settings
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
+  const ProjectSettingsExtended = useSlot('project-settings-extended')
   const [advancedSettings, setAdvancedSettings] = useState({
     show_instruction: true,
     instructions_always_visible: false,
@@ -234,6 +236,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     min_annotations_per_task: 1,
     assignment_mode: 'open' as 'open' | 'manual' | 'auto',
     randomize_task_order: false,
+    review_enabled: false,
+    review_mode: 'in_place' as 'in_place' | 'independent' | 'both',
+    allow_self_review: false,
+    feedback_enabled: false,
+    feedback_config: [] as Array<{ value: string; background: string }>,
   })
 
   // Conditional instructions state
@@ -504,6 +511,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         min_annotations_per_task: currentProject.min_annotations_per_task || 1,
         assignment_mode: currentProject.assignment_mode || 'open',
         randomize_task_order: currentProject.randomize_task_order || false,
+        review_enabled: currentProject.review_enabled || false,
+        review_mode: currentProject.review_mode || 'in_place',
+        allow_self_review: currentProject.allow_self_review || false,
+        feedback_enabled: currentProject.feedback_enabled || false,
+        feedback_config: currentProject.feedback_config || [],
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Using currentProject.id instead of currentProject to prevent unnecessary re-renders
@@ -2830,6 +2842,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </div>
                 </div>
 
+                {/* Extended project settings (review, feedback) — rendered by extension slot */}
+                {ProjectSettingsExtended && (
+                  <ProjectSettingsExtended
+                    settings={advancedSettings}
+                    onSettingsChange={setAdvancedSettings}
+                    editing={editing}
+                  />
+                )}
 
                 {/* Save/Cancel buttons when editing */}
                 {editing && (
@@ -2865,6 +2885,16 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             currentProject?.assignment_mode || 'open',
                           randomize_task_order:
                             currentProject?.randomize_task_order || false,
+                          review_enabled:
+                            currentProject?.review_enabled || false,
+                          review_mode:
+                            currentProject?.review_mode || 'in_place',
+                          allow_self_review:
+                            currentProject?.allow_self_review || false,
+                          feedback_enabled:
+                            currentProject?.feedback_enabled || false,
+                          feedback_config:
+                            currentProject?.feedback_config || [],
                         })
                       }}
                       variant="outline"
@@ -2966,6 +2996,30 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   className="w-full"
                 >
                   {t('project.quickActions.evaluations')}
+                </Button>
+              )}
+
+              {canSeeQuickAction('review') && currentProject?.review_enabled && (
+                <Button
+                  href={
+                    projectId ? `/projects/${projectId}/review` : '/projects'
+                  }
+                  variant="outline"
+                  className="w-full"
+                >
+                  {t('project.quickActions.reviewWorkflow') || 'Review'}
+                </Button>
+              )}
+
+              {canSeeQuickAction('feedback') && currentProject?.feedback_enabled && (
+                <Button
+                  href={
+                    projectId ? `/projects/${projectId}/feedback` : '/projects'
+                  }
+                  variant="outline"
+                  className="w-full"
+                >
+                  {t('project.quickActions.feedback') || 'Feedback'}
                 </Button>
               )}
 

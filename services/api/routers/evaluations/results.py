@@ -72,7 +72,7 @@ def _extract_primary_score(metrics: Optional[Dict[str, Any]]) -> Optional[float]
 # ============= Endpoints =============
 
 
-@router.get("/evaluations/results/{project_id}", response_model=List[EvaluationResultsResponse])
+@router.get("/results/{project_id}", response_model=List[EvaluationResultsResponse])
 async def get_evaluation_results(
     project_id: str,
     request: Request,
@@ -202,7 +202,7 @@ async def get_evaluation_results(
         )
 
 
-@router.post("/evaluations/export/{project_id}")
+@router.post("/export/{project_id}")
 async def export_evaluation_results(
     project_id: str,
     request: Request,
@@ -295,7 +295,7 @@ async def export_evaluation_results(
         )
 
 
-@router.get("/evaluations/{evaluation_id}/samples")
+@router.get("/{evaluation_id}/samples")
 async def get_evaluation_samples(
     evaluation_id: str,
     request: Request,
@@ -374,7 +374,7 @@ async def get_evaluation_samples(
         )
 
 
-@router.get("/evaluations/{evaluation_id}/metrics/{metric_name}/distribution")
+@router.get("/{evaluation_id}/metrics/{metric_name}/distribution")
 async def get_metric_distribution(
     evaluation_id: str,
     metric_name: str,
@@ -485,7 +485,7 @@ async def get_metric_distribution(
         )
 
 
-@router.get("/evaluations/{evaluation_id}/confusion-matrix")
+@router.get("/{evaluation_id}/confusion-matrix")
 async def get_confusion_matrix(
     evaluation_id: str,
     request: Request,
