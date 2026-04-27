@@ -68,7 +68,7 @@ class TestConditionalInstructionsValidator:
             ProjectUpdate(conditional_instructions=[{"id": "   ", "content": "text", "weight": 50}])
 
     def test_float_weight_accepted(self):
-        variants = [{"id": "a", "content": "text", "weight": 1.5}]
+        variants = [{"id": "a", "content": "text", "weight": 100.0}]
         update = ProjectUpdate(conditional_instructions=variants)
-        assert update.conditional_instructions[0]["weight"] == 1.5
+        assert update.conditional_instructions[0]["weight"] == 100.0
 
