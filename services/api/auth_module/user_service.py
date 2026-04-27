@@ -730,7 +730,12 @@ def init_demo_users(db: Session):
                 db.commit()
         except Exception as e:
             print(f"Database initialization error creating admin: {e}")
-            return
+            db.rollback()
+            # Try to get existing admin by username as fallback
+            admin_user = db.query(User).filter(User.username == "admin").first()
+            if not admin_user:
+                print("Cannot find or create admin user, aborting")
+                return
     else:
         print("Demo user already exists: admin")
 
