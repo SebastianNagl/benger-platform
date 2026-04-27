@@ -442,6 +442,9 @@ test-all: ## Run all tests (requires test-start first)
 	cd $(CURDIR)/services/frontend && npm test && FRONTEND_RESULT=0 || FRONTEND_RESULT=1; \
 	echo ""; \
 	\
+	echo "$(BLUE)♻️  Restarting test containers before E2E...$(NC)"; \
+	$(DOCKER_COMPOSE_TEST) restart test-api test-frontend test-traefik 2>/dev/null; \
+	sleep 10; \
 	echo "$(BLUE)4️⃣  E2E Tests (Playwright, excluding @extended)$(NC)"; \
 	cd $(CURDIR)/services/frontend && \
 	E2E_ISOLATED=true \
