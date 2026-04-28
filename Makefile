@@ -550,6 +550,16 @@ test-all-extended: ## Run all tests including @extended E2E (requires test-start
 	cd $(CURDIR)/services/frontend && npm test && FRONTEND_RESULT=0 || FRONTEND_RESULT=1; \
 	echo ""; \
 	\
+	echo "$(BLUE)♻️  Recycling test containers before E2E...$(NC)"; \
+	$(DOCKER_COMPOSE_TEST_EXT) down 2>/dev/null; \
+	$(DOCKER_COMPOSE_TEST_EXT) up -d 2>/dev/null; \
+	timeout=300; while [ $$timeout -gt 0 ]; do \
+		healthy=$$(docker ps --filter "name=benger-test" --filter "health=healthy" --format "{{.Names}}" 2>/dev/null | wc -l | tr -d ' '); \
+		if [ "$$healthy" -ge 5 ]; then echo "  $$healthy containers healthy"; break; fi; \
+		if [ $$((timeout % 30)) -eq 0 ]; then echo "  $$healthy/5 healthy ($${timeout}s remaining)"; fi; \
+		sleep 5; timeout=$$((timeout - 5)); \
+	done; \
+	docker exec benger-test-test-api-1 python init_complete.py > /dev/null 2>&1 || true; \
 	echo "$(BLUE)4️⃣  E2E Tests (Playwright, ALL including @extended)$(NC)"; \
 	cd $(CURDIR)/services/frontend && \
 	E2E_ISOLATED=true \
