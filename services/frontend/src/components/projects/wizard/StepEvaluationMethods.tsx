@@ -14,7 +14,6 @@ import {
 import { useI18n } from '@/contexts/I18nContext'
 import {
   EvaluationConfig,
-  FALLOESUNG_DIMENSIONS,
   generateEvaluationId,
   GROUPED_METRICS,
   METRIC_DEFINITIONS,
@@ -352,23 +351,6 @@ export function StepEvaluationMethods({
           <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">
             {t('projects.creation.wizard.step7.falloesungConfig')}
           </h3>
-
-          {/* Dimensions info */}
-          <div className="space-y-1">
-            {FALLOESUNG_DIMENSIONS.map((dim) => (
-              <div
-                key={dim.key}
-                className="flex items-center justify-between text-xs"
-              >
-                <span className="text-zinc-700 dark:text-zinc-300">
-                  {dim.name}
-                </span>
-                <span className="font-mono text-zinc-500">
-                  {dim.max} {t('projects.creation.wizard.step7.points')}
-                </span>
-              </div>
-            ))}
-          </div>
 
           {/* Judge model + params */}
           <div className="grid grid-cols-2 gap-3">
