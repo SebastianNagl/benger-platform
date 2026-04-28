@@ -18,7 +18,7 @@ evaluator_registry = EvaluatorRegistry()
 evaluator_registry.register("llm_judge", LLMJudgeEvaluator)
 
 # Load extended evaluators if available
-_CORE_API_VERSION = "1.0"  # Must match extensions.py CORE_API_VERSION
+_CORE_API_VERSION = "2.0"  # Must match extensions.py CORE_API_VERSION
 
 try:
     import benger_extended

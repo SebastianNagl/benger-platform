@@ -46,12 +46,20 @@ export interface Project {
   assignment_mode?: 'open' | 'manual' | 'auto'
   randomize_task_order?: boolean
 
-  // Review & Feedback
+  // Review & Korrektur
   review_enabled?: boolean
   review_mode?: 'in_place' | 'independent' | 'both'
   allow_self_review?: boolean
-  feedback_enabled?: boolean
-  feedback_config?: Array<{ value: string; background: string }>
+  korrektur_enabled?: boolean
+  korrektur_config?: Array<{ value: string; background: string }>
+
+  // Timer (extended feature)
+  annotation_time_limit_enabled?: boolean
+  annotation_time_limit_seconds?: number | null
+  strict_timer_enabled?: boolean
+
+  // Immediate evaluation (extended feature)
+  immediate_evaluation_enabled?: boolean
 
   // BenGER specific
   llm_model_ids?: string[]
@@ -119,8 +127,8 @@ export interface ProjectUpdate extends Partial<ProjectCreate> {
   review_enabled?: boolean
   review_mode?: 'in_place' | 'independent' | 'both'
   allow_self_review?: boolean
-  feedback_enabled?: boolean
-  feedback_config?: Array<{ value: string; background: string }>
+  korrektur_enabled?: boolean
+  korrektur_config?: Array<{ value: string; background: string }>
 }
 
 // Task Assignment types
