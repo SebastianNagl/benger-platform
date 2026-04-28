@@ -12,7 +12,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-CORE_API_VERSION = "1.0"
+CORE_API_VERSION = "2.0"
 
 _extended = None
 
