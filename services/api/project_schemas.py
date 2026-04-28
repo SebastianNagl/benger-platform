@@ -446,6 +446,9 @@ class AnnotationBase(BaseModel):
     draft: Optional[List[Dict[str, Any]]] = Field(None, description="Draft annotation data")
     was_cancelled: bool = Field(False, description="Whether annotation was cancelled")
     lead_time: Optional[float] = Field(None, description="Time taken to complete (seconds)")
+    auto_submitted: Optional[bool] = Field(
+        False, description="Whether this was auto-submitted by strict timer expiry (Issue #1205)"
+    )
 
 
 class AnnotationCreate(AnnotationBase):
@@ -475,6 +478,12 @@ class AnnotationUpdate(BaseModel):
     result: Optional[List[Dict[str, Any]]] = None
     draft: Optional[List[Dict[str, Any]]] = None
     ground_truth: Optional[bool] = None
+    # Review workflow updates (review_result is one of: approved, rejected, fixed)
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    review_result: Optional[str] = None
+    review_annotation: Optional[List[Dict[str, Any]]] = None
+    review_comment: Optional[str] = None
 
 
 class AnnotationResponse(AnnotationBase):
@@ -492,6 +501,12 @@ class AnnotationResponse(AnnotationBase):
     tab_switches: int = 0
     instruction_variant: Optional[str] = None
     ai_assisted: bool = False
+    # Review workflow (extended)
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    review_result: Optional[str] = None
+    review_annotation: Optional[List[Dict[str, Any]]] = None
+    review_comment: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
