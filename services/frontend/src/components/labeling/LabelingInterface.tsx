@@ -595,29 +595,27 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   {t('annotation.instructions.showInstructions', { defaultValue: 'Instructions' })}
                 </Button>
               )}
-              <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                <ClockIcon className="h-4 w-4" />
-                {formatDistanceToNow(startTime)}
-              </div>
+              {TimerSlot && currentProject?.annotation_time_limit_enabled ? (
+                <TimerSlot
+                  project={currentProject}
+                  task={currentTask}
+                  annotations={annotations}
+                  onAutoSubmit={async (result: any[]) => {
+                    await projectsAPI.createAnnotation(currentTask.id, {
+                      result,
+                      was_cancelled: false,
+                    })
+                  }}
+                />
+              ) : (
+                <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                  <ClockIcon className="h-4 w-4" />
+                  {formatDistanceToNow(startTime)}
+                </div>
+              )}
             </div>
           </div>
         </div>
-
-        {/* Timer integration (extended feature) */}
-        {TimerSlot && currentProject?.annotation_time_limit_enabled && (
-          <TimerSlot
-            project={currentProject}
-            task={currentTask}
-            annotations={annotations}
-            onAutoSubmit={async (result: any[]) => {
-              // Auto-submit handler for timer expiry
-              await projectsAPI.createAnnotation(currentTask.id, {
-                result,
-                was_cancelled: false,
-              })
-            }}
-          />
-        )}
 
         {/* Task content */}
         <div className="flex-1 overflow-auto p-6">
@@ -790,31 +788,29 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
       {/* Instructions Modal (shown on first load if enabled and not dismissed) */}
       {showInstructionsModal && (currentProject?.instructions || selectedVariantId) && (() => {
-        // Resolve instruction content: use conditional variant if available, else regular instructions
         const conditionalVariants = currentProject?.conditional_instructions as { id: string; content: string; weight: number }[] | undefined
         const variantContent = conditionalVariants?.find(v => v.id === selectedVariantId)?.content
-        const instructionText = variantContent || currentProject?.instructions || ''
         const isAlwaysVisible = currentProject?.instructions_always_visible
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="mx-4 max-w-2xl rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-900">
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-white">
-                <ExclamationTriangleIcon className="h-5 w-5 text-emerald-600" />
-                {t('annotation.instructions.title', { defaultValue: 'Annotation Instructions' })}
-              </h3>
-              <div className="mt-4 max-h-[60vh] overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-white p-8 dark:bg-zinc-950">
+            <div className="mx-auto w-full max-w-3xl">
+              <div className="flex items-center gap-3">
+                <BookOpenIcon className="h-6 w-6 text-emerald-600" />
+                <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white">
+                  {t('annotation.instructions.title', { defaultValue: 'Annotation Instructions' })}
+                </h1>
+              </div>
+              <div className="mt-8">
                 <div className="prose prose-sm max-w-none text-zinc-700 dark:prose-invert dark:text-zinc-300">
-                  {/* Show regular instructions as header when conditional variants are active */}
                   {variantContent && currentProject?.instructions && (
                     <p className="whitespace-pre-wrap">{currentProject.instructions}</p>
                   )}
                   <p className="whitespace-pre-wrap">{variantContent || currentProject?.instructions}</p>
                 </div>
               </div>
-              {/* Hide "don't show again" when instructions are always visible, conditional (experiment protocol), or manually opened */}
               {!isAlwaysVisible && !variantContent && !manualInstructionsOpen && (
-                <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                <div className="mt-10 border-t border-zinc-200 pt-6 dark:border-zinc-800">
                   <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
                     <input
                       type="checkbox"
@@ -826,7 +822,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   </label>
                 </div>
               )}
-              <div className="mt-4 flex justify-end">
+              <div className="mt-8 flex justify-end">
                 <Button onClick={handleInstructionsModalClose} variant="filled">
                   {manualInstructionsOpen
                     ? t('annotation.instructions.close', { defaultValue: 'Close' })
