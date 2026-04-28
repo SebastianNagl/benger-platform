@@ -459,6 +459,10 @@
           "custom": {
             "name": "Custom",
             "description": "Define your own Label Studio XML configuration"
+          },
+          "examSolving": {
+            "name": "Exam Solving",
+            "description": "Annotate legal case solutions with statement, notes, outline, and solution"
           }
         }
       }
@@ -1006,12 +1010,12 @@
         "allowSelfReviewDescription": "When enabled, annotators can review their own annotations",
         "reportNotCreated": "Report not created yet"
       },
-      "feedback": {
-        "title": "Feedback Stage",
-        "enable": "Enable Feedback",
-        "enableDescription": "Allow contributors to leave feedback comments on annotations, generations, and evaluations",
+      "korrektur": {
+        "title": "Korrektur Stage",
+        "enable": "Enable Korrektur",
+        "enableDescription": "Configured in the project wizard under Evaluation Methods → Human Evaluation.",
         "highlightLabels": "Highlight Labels",
-        "highlightLabelsDescription": "Define colored labels for text highlighting in feedback",
+        "highlightLabelsDescription": "Define colored labels for text highlighting in Korrektur",
         "labelName": "Label name",
         "addLabel": "Add Label"
       }
@@ -1026,7 +1030,7 @@
       "generation": "Generation",
       "evaluations": "Evaluations",
       "reviewWorkflow": "Review Workflow",
-      "feedback": "Feedback",
+      "korrektur": "Korrektur",
       "members": "Members"
     },
     "statistics": {
@@ -7115,27 +7119,31 @@
       "generalComment": "General"
     }
   },
-  "feedbackWorkflow": {
-    "title": "Feedback",
-    "loadFailed": "Failed to load feedback data",
-    "notEnabled": "Feedback is not enabled for this project. Enable it in the project settings.",
+  "korrekturWorkflow": {
+    "title": "Korrektur",
+    "loadFailed": "Failed to load Korrektur data",
+    "notEnabled": "Korrektur is not enabled for this project. Enable it in the project wizard under Evaluation Methods → Human Evaluation.",
     "noTasks": "No tasks found",
     "stats": {
       "totalTasks": "Total Tasks",
-      "withFeedback": "With Feedback",
-      "withoutFeedback": "Without Feedback",
+      "withFeedback": "With Korrektur",
+      "withoutFeedback": "Without Korrektur",
       "totalComments": "Comments",
       "unresolvedComments": "Unresolved"
     },
     "filter": {
       "all": "All",
-      "with_feedback": "With Feedback",
-      "without_feedback": "Without Feedback"
+      "with_korrektur": "With Korrektur",
+      "without_korrektur": "Without Korrektur"
     },
     "modal": {
       "annotation": "Annotation",
       "generation": "Generation",
       "evaluation": "Evaluation"
+    },
+    "tabs": {
+      "review": "Review",
+      "falloesungGrade": "Grade (Standard Falllösung)"
     },
     "comments": {
       "title": "Comments",
@@ -7162,8 +7170,24 @@
       "groundTruth": "Ground truth",
       "prediction": "Prediction"
     },
-    "myFeedback": {
-      "title": "My Feedback"
+    "myKorrektur": {
+      "title": "My Korrektur"
+    }
+  },
+  "korrektur": {
+    "falloesung": {
+      "gradePoints": "grade points",
+      "rawPoints": "raw points",
+      "passed": "Passed",
+      "notPassed": "Not passed",
+      "justificationPlaceholder": "Justification (3–7 sentences)",
+      "overallAssessment": "Overall assessment",
+      "assessmentPlaceholder": "2–5 sentences on overall performance",
+      "improvementTips": "Improvement tips (3 items)",
+      "tipPlaceholder": "Tip",
+      "submit": "Save grade",
+      "submitting": "Saving…",
+      "submitError": "Save failed"
     }
   },
   "emptyStates": {
