@@ -40,10 +40,37 @@ def load_extended():
             _extended = None
             return False
 
+    _register_extension_field_types()
+
     logger.info(
         f"BenGER extended features loaded (core API {CORE_API_VERSION})"
     )
     return True
+
+
+def _register_extension_field_types():
+    """Forward extended-declared label-studio field types into the validator.
+
+    Extended packages declare ``get_field_type_registrations()`` returning
+    ``{"types": [...], "named_types": [...]}``. This is the only way custom
+    XML elements (e.g. ``<Angabe>``, ``<Gliederung>``) get accepted by the
+    validator.
+    """
+    if not _extended or not hasattr(_extended, "get_field_type_registrations"):
+        return
+    try:
+        registrations = _extended.get_field_type_registrations() or {}
+        from services.label_config.validator import LabelConfigValidator
+
+        LabelConfigValidator.register_field_types(
+            registrations.get("types", []),
+            named_types=registrations.get("named_types"),
+        )
+        types = registrations.get("types")
+        if types:
+            logger.info(f"Registered {len(types)} extension field types: {sorted(types)}")
+    except Exception:
+        logger.exception("Failed to register extension field types")
 
 
 def get_extended_routers():
