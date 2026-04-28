@@ -30,7 +30,7 @@ spec:
             runAsUser: 0
           containers:
             - name: backup
-              image: {{ .Values.backup.image | default "postgres:15-alpine" | quote }}
+              image: {{ .Values.backup.image | default "postgres:18-alpine" | quote }}
               imagePullPolicy: IfNotPresent
               env:
                 - name: PGHOST
@@ -71,6 +71,7 @@ spec:
                 - -c
                 - |
                   set -e
+                  set -o pipefail
 
                   DATE=$(date +%Y-%m-%d_%H-%M-%S)
                   DAY_OF_WEEK=$(date +%u)
@@ -107,6 +108,7 @@ spec:
 
                   if [ "${DUMP_TABLE_COUNT}" -lt 5 ]; then
                     echo "[$(date)] ERROR: Dump contains fewer than 5 tables - backup may be incomplete!"
+                    rm -f "${BACKUP_FILE}"
                     exit 1
                   fi
 
