@@ -4,6 +4,14 @@ module.exports = {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    // Extended-edition components are mounted into the build via Docker
+    // (next.config.js maps `@benger/extended` to either
+    // `/app/node_modules/@benger/extended` in CI builds or
+    // `/app/benger-extended-frontend` in dev). Without these globs the
+    // JIT silently drops any Tailwind class only referenced by extended
+    // (e.g. `w-[96vw]` on the Klausurlösung modals → half-width modal).
+    './node_modules/@benger/extended/**/*.{js,ts,jsx,tsx,mdx}',
+    '../../benger-extended/frontend/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   darkMode: ['class'],
   theme: {
