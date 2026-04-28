@@ -459,6 +459,10 @@
           "custom": {
             "name": "Benutzerdefiniert",
             "description": "Definieren Sie Ihre eigene Label Studio XML-Konfiguration"
+          },
+          "examSolving": {
+            "name": "Klausurlösung",
+            "description": "Annotiere juristische Falllösungen mit Angabe, Notizen, Gliederung und Lösung"
           }
         }
       }
@@ -1006,12 +1010,12 @@
         "allowSelfReviewDescription": "Wenn aktiviert, können Annotatoren ihre eigenen Annotationen überprüfen",
         "reportNotCreated": "Bericht noch nicht erstellt"
       },
-      "feedback": {
-        "title": "Feedback-Phase",
-        "enable": "Feedback aktivieren",
-        "enableDescription": "Ermöglicht Beitragenden, Feedback-Kommentare zu Annotationen, Generierungen und Evaluierungen abzugeben",
+      "korrektur": {
+        "title": "Korrektur-Phase",
+        "enable": "Korrektur aktivieren",
+        "enableDescription": "Wird im Projekt-Wizard unter Evaluation Methods → Human Evaluation aktiviert.",
         "highlightLabels": "Hervorhebungs-Labels",
-        "highlightLabelsDescription": "Farbige Labels zur Texthervorhebung im Feedback definieren",
+        "highlightLabelsDescription": "Farbige Labels zur Texthervorhebung in der Korrektur definieren",
         "labelName": "Label-Name",
         "addLabel": "Label hinzufügen"
       }
@@ -1026,7 +1030,7 @@
       "generation": "Generierung",
       "evaluations": "Evaluierungen",
       "reviewWorkflow": "Review-Workflow",
-      "feedback": "Feedback",
+      "korrektur": "Korrektur",
       "members": "Mitglieder"
     },
     "statistics": {
@@ -7165,27 +7169,31 @@
       "generalComment": "Allgemein"
     }
   },
-  "feedbackWorkflow": {
-    "title": "Feedback",
-    "loadFailed": "Feedback-Daten konnten nicht geladen werden",
-    "notEnabled": "Feedback ist für dieses Projekt nicht aktiviert. Aktivieren Sie es in den Projekteinstellungen.",
+  "korrekturWorkflow": {
+    "title": "Korrektur",
+    "loadFailed": "Korrektur-Daten konnten nicht geladen werden",
+    "notEnabled": "Korrektur ist für dieses Projekt nicht aktiviert. Aktivieren Sie es im Projekt-Wizard unter Evaluation Methods → Human Evaluation.",
     "noTasks": "Keine Aufgaben gefunden",
     "stats": {
       "totalTasks": "Aufgaben gesamt",
-      "withFeedback": "Mit Feedback",
-      "withoutFeedback": "Ohne Feedback",
+      "withFeedback": "Mit Korrektur",
+      "withoutFeedback": "Ohne Korrektur",
       "totalComments": "Kommentare",
       "unresolvedComments": "Ungelöst"
     },
     "filter": {
       "all": "Alle",
-      "with_feedback": "Mit Feedback",
-      "without_feedback": "Ohne Feedback"
+      "with_korrektur": "Mit Korrektur",
+      "without_korrektur": "Ohne Korrektur"
     },
     "modal": {
       "annotation": "Annotation",
       "generation": "Generierung",
       "evaluation": "Evaluierung"
+    },
+    "tabs": {
+      "review": "Review",
+      "falloesungGrade": "Bewertung (Standard Falllösung)"
     },
     "comments": {
       "title": "Kommentare",
@@ -7212,8 +7220,24 @@
       "groundTruth": "Referenzlösung",
       "prediction": "Vorhersage"
     },
-    "myFeedback": {
-      "title": "Mein Feedback"
+    "myKorrektur": {
+      "title": "Meine Korrektur"
+    }
+  },
+  "korrektur": {
+    "falloesung": {
+      "gradePoints": "Notenpunkte",
+      "rawPoints": "Rohpunkte",
+      "passed": "Bestanden",
+      "notPassed": "Nicht bestanden",
+      "justificationPlaceholder": "Begründung (3–7 Sätze)",
+      "overallAssessment": "Gesamtwürdigung",
+      "assessmentPlaceholder": "2–5 Sätze zur Gesamtleistung",
+      "improvementTips": "Verbesserungshinweise (3 Stück)",
+      "tipPlaceholder": "Tipp",
+      "submit": "Bewertung speichern",
+      "submitting": "Speichert…",
+      "submitError": "Speichern fehlgeschlagen"
     }
   },
   "emptyStates": {

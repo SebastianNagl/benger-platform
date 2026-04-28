@@ -144,7 +144,8 @@ async def list_project_tasks(
 
     # Apply ordering: deterministic per-user random or sequential
     if project.randomize_task_order:
-        query = query.order_by(func.md5(func.concat(Task.id, current_user.id)))
+        # hashtext (not md5) — md5() is unavailable on FIPS-restricted Postgres builds.
+        query = query.order_by(func.hashtext(func.concat(Task.id, current_user.id)))
     else:
         query = query.order_by(Task.created_at)
 
@@ -325,7 +326,7 @@ async def get_next_task(
 
             # Determine ordering: randomized per-user or sequential
             if project.randomize_task_order:
-                order_clause = func.md5(func.concat(Task.id, current_user.id))
+                order_clause = func.hashtext(func.concat(Task.id, current_user.id))
             else:
                 order_clause = Task.created_at
 
@@ -433,7 +434,7 @@ async def get_next_task(
 
         # Determine ordering: randomized per-user or sequential
         if project.randomize_task_order:
-            order_clause = func.md5(func.concat(Task.id, current_user.id))
+            order_clause = func.hashtext(func.concat(Task.id, current_user.id))
         else:
             order_clause = Task.created_at
 

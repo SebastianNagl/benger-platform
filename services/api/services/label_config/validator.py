@@ -95,8 +95,24 @@ class LabelConfigValidator:
         'List',
     }
 
+    # Field types contributed by extensions at startup. Mutated via register_field_types.
+    _EXTENSION_FIELD_TYPES: set = set()
+    _EXTENSION_NAMED_FIELD_TYPES: set = set()
+
     # Maximum config size (10KB)
     MAX_CONFIG_SIZE = 10 * 1024
+
+    @classmethod
+    def register_field_types(cls, types, named_types=None):
+        """Register additional field types contributed by an extension package.
+
+        Idempotent — safe to call multiple times. Used by the extension loader at
+        startup so that out-of-tree label-studio components (e.g. Klausurlösung)
+        can be validated without the platform whitelist knowing about them.
+        """
+        cls._EXTENSION_FIELD_TYPES.update(types)
+        if named_types:
+            cls._EXTENSION_NAMED_FIELD_TYPES.update(named_types)
 
     @classmethod
     def validate(cls, label_config: Optional[str]) -> Tuple[bool, List[str]]:
@@ -261,12 +277,18 @@ class LabelConfigValidator:
             errors: List to append errors to
             field_names: List to append field names to
         """
-        # Check if field type is supported
-        if element.tag not in cls.SUPPORTED_FIELD_TYPES:
+        # Check if field type is supported (built-in or extension-registered)
+        if (
+            element.tag not in cls.SUPPORTED_FIELD_TYPES
+            and element.tag not in cls._EXTENSION_FIELD_TYPES
+        ):
             errors.append(f"Unsupported field type: '{element.tag}'")
 
         # Check required 'name' attribute
-        if element.tag in cls.NAMED_FIELD_TYPES:
+        if (
+            element.tag in cls.NAMED_FIELD_TYPES
+            or element.tag in cls._EXTENSION_NAMED_FIELD_TYPES
+        ):
             name = element.get('name')
             if not name:
                 errors.append(f"Field type '{element.tag}' requires a 'name' attribute")
