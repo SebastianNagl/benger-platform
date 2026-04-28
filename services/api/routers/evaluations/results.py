@@ -58,12 +58,6 @@ def _extract_primary_score(metrics: Optional[Dict[str, Any]]) -> Optional[float]
     if "overall_score" in metrics and isinstance(metrics["overall_score"], (int, float)):
         return metrics["overall_score"]
 
-    # Generic fallback: return the first numeric value that isn't a sub-metric
-    skip_keys = {"raw_score", "confidence_score", "processing_time_ms"}
-    for key, val in metrics.items():
-        if key not in skip_keys and not key.endswith("_response") and isinstance(val, (int, float)):
-            return val
-
     return None
 
 
