@@ -28,7 +28,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'react-hot-toast'
 import { useSlot } from '@/lib/extensions/slots'
 import { DynamicAnnotationInterface } from './DynamicAnnotationInterface'
@@ -44,6 +44,12 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   const { user } = useAuth()
   const TimerSlot = useSlot('TimerIntegration')
   const ImmediateEvalSlot = useSlot('ImmediateEvaluation')
+  // Wraps the labeling interface so the Klausurlösung Angabe / Notizen /
+  // Gliederung / Loesung input components see a real LegalMarkdownContext
+  // (heading sync, modal navigation). Falls back to React.Fragment in
+  // community edition where the extended package isn't loaded.
+  const LegalMarkdownProvider = useSlot('LegalMarkdownProvider')
+  const AnnotationContextWrapper = LegalMarkdownProvider ?? React.Fragment
   const {
     currentProject,
     currentTask,
@@ -614,6 +620,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           <div className="mx-auto max-w-4xl space-y-6">
             {/* Dynamic annotation interface - label config is required */}
             {currentProject?.label_config ? (
+              <AnnotationContextWrapper>
               <DynamicAnnotationInterface
                 labelConfig={currentProject.label_config}
                 taskData={currentTask.data || {}}
@@ -685,6 +692,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     : undefined
                 }
               />
+              </AnnotationContextWrapper>
             ) : (
               <Card>
                 <div className="p-6">
