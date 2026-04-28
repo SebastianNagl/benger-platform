@@ -67,9 +67,9 @@ class Project(Base):
     )  # in_place, independent, both
     allow_self_review = Column(Boolean, default=False, nullable=False)
 
-    # Feedback settings
-    feedback_enabled = Column(Boolean, default=False, nullable=False)
-    feedback_config = Column(JSONB, nullable=True)  # [{value: str, background: str}]
+    # Korrektur settings (formerly "Feedback")
+    korrektur_enabled = Column(Boolean, default=False, nullable=False)
+    korrektur_config = Column(JSONB, nullable=True)  # [{value: str, background: str}]
 
     # UI behavior
     show_submit_button = Column(Boolean, default=True, nullable=False)
@@ -172,9 +172,9 @@ class Task(Base):
     last_comment_updated_at = Column(DateTime(timezone=True), nullable=True)
     comment_authors = Column(JSONB, nullable=True)
 
-    # Feedback tracking
-    feedback_count = Column(Integer, default=0, nullable=False)
-    unresolved_feedback_count = Column(Integer, default=0, nullable=False)
+    # Korrektur tracking (formerly "feedback")
+    korrektur_count = Column(Integer, default=0, nullable=False)
+    unresolved_korrektur_count = Column(Integer, default=0, nullable=False)
 
     # Additional fields
     file_upload_id = Column(String, nullable=True)
@@ -618,16 +618,16 @@ class PostAnnotationResponse(Base):
         return f"<PostAnnotationResponse(id={self.id}, annotation_id={self.annotation_id})>"
 
 
-class FeedbackComment(Base):
+class KorrekturComment(Base):
     """
-    Feedback comment on annotations, generations, or evaluations.
+    Korrektur comment on annotations, generations, or evaluations.
 
     Supports text highlights (anchored to character offsets in source text)
     and general comments. Threaded via parent_id (1-level deep replies).
     Aligns with Label Studio's flat comment model with resolution tracking.
     """
 
-    __tablename__ = "feedback_comments"
+    __tablename__ = "korrektur_comments"
 
     # Core fields
     id = Column(String, primary_key=True, index=True)
@@ -649,7 +649,7 @@ class FeedbackComment(Base):
     # Threading
     parent_id = Column(
         String,
-        ForeignKey("feedback_comments.id", ondelete="CASCADE"),
+        ForeignKey("korrektur_comments.id", ondelete="CASCADE"),
         nullable=True,
     )
 
@@ -675,16 +675,16 @@ class FeedbackComment(Base):
     # Relationships
     project = relationship("Project")
     task = relationship("Task")
-    parent = relationship("FeedbackComment", remote_side="FeedbackComment.id", backref="replies")
+    parent = relationship("KorrekturComment", remote_side="KorrekturComment.id", backref="replies")
     author = relationship("User", foreign_keys=[created_by])
     resolver = relationship("User", foreign_keys=[resolved_by])
 
     __table_args__ = (
-        sa.Index("ix_feedback_comments_project_task", "project_id", "task_id"),
-        sa.Index("ix_feedback_comments_target", "target_type", "target_id"),
-        sa.Index("ix_feedback_comments_parent", "parent_id"),
-        sa.Index("ix_feedback_comments_created_by", "created_by"),
+        sa.Index("ix_korrektur_comments_project_task", "project_id", "task_id"),
+        sa.Index("ix_korrektur_comments_target", "target_type", "target_id"),
+        sa.Index("ix_korrektur_comments_parent", "parent_id"),
+        sa.Index("ix_korrektur_comments_created_by", "created_by"),
     )
 
     def __repr__(self):
-        return f"<FeedbackComment(id={self.id}, target_type={self.target_type}, target_id={self.target_id})>"
+        return f"<KorrekturComment(id={self.id}, target_type={self.target_type}, target_id={self.target_id})>"
