@@ -270,18 +270,22 @@ frontend:
 postgresql:
   enabled: true
   image:
-    # Pin by digest. The bitnami/postgresql:15.3.0-debian-11-r17 tag was
-    # rewritten by Broadcom post-acquisition to ship Photon OS + PG 18 +
-    # FIPS-OpenSSL content (image revision 27, build 2026-02-14, vendor
-    # "Broadcom, Inc."). Pinning the digest makes the runtime immutable
-    # so a containerd cache eviction can't silently shift PG version
-    # again. Reverting to the original PG 15 content is destructive
-    # because the prod data directory is already in PG 18 format.
-    # See workspace CLAUDE.md → "Postgres image content drift" for
-    # context and the planned PG-version review.
+    # NOTE: the bitnami/postgresql:15.3.0-debian-11-r17 tag was rewritten by
+    # Broadcom post-acquisition to ship Photon OS + PG 18 + FIPS-OpenSSL
+    # under the same label. The cluster's data dir is already in PG 18
+    # format, so reverting to the original PG 15 content is destructive.
+    # See workspace CLAUDE.md → "Postgres image content drift".
+    #
+    # Earlier attempt to pin by digest (PR #16, sha256:e6d86d16…) used a
+    # digest that does not exist on Docker Hub and put prod into
+    # ImagePullBackOff. Until we either (a) discover a valid digest for
+    # the rewritten image, or (b) migrate to bitnamilegacy/postgresql
+    # explicitly, leave the tag floating — it resolves to whatever
+    # Broadcom currently ships under this label, which is the
+    # PG-18+FIPS variant we've already mitigated for in app code
+    # (func.hashtext + pg_dump 18-alpine).
     repository: bitnami/postgresql
     tag: "15.3.0-debian-11-r17"
-    digest: "sha256:e6d86d16516120a3a7a56268c663c8158cdffb77278f44c7adfd4cf8980810f2"
     pullPolicy: IfNotPresent
   auth:
     username: postgres
