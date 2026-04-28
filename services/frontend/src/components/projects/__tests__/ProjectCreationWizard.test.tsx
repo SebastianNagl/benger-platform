@@ -649,7 +649,9 @@ describe('ProjectCreationWizard', () => {
       expect(
         screen.getByText('Multiple Choice Question')
       ).toBeInTheDocument()
-      expect(screen.getByText('Exam Solving')).toBeInTheDocument()
+      // 'Exam Solving' (Klausurlösung) is registered by benger-extended via
+      // registerWizardTemplate at runtime; not present in the public wizard.
+      expect(screen.queryByText('Exam Solving')).not.toBeInTheDocument()
       expect(screen.getByText('Span Annotation')).toBeInTheDocument()
     })
 
