@@ -785,7 +785,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
               )}
               {TimerSlot &&
               currentProject?.annotation_time_limit_enabled &&
-              (!isStrictMode || strictTimerPhase === 'annotating') ? (
+              strictTimerPhase === 'annotating' ? (
                 <TimerSlot
                   project={currentProject}
                   task={currentTask}
