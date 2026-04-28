@@ -874,20 +874,6 @@ export const GROUPED_METRICS: MetricCategory[] = [
  */
 export const METRIC_ORDER: string[] = GROUPED_METRICS.flatMap((g) => g.metrics)
 
-/** Falloesung evaluation dimensions for the info panel */
-export const FALLOESUNG_DIMENSIONS = [
-  { key: 'ergebnisrichtigkeit', name: 'Ergebnisrichtigkeit', max: 20 },
-  { key: 'vollstaendigkeit', name: 'Vollständigkeit & Problemidentifikation', max: 10 },
-  { key: 'rechtsgrundlagen', name: 'Rechtsgrundlagen & Prüfungssystematik', max: 10 },
-  { key: 'rechtskenntnis', name: 'Rechtskenntnis (Definitionen, Normen, Streitstände)', max: 15 },
-  { key: 'subsumtion', name: 'Subsumtion & Argumentationsqualität (Fallbezug)', max: 15 },
-  { key: 'schwerpunktsetzung', name: 'Schwerpunktsetzung & Problemtiefe', max: 10 },
-  { key: 'methodischer_stil', name: 'Methodischer Stil (ODSE)', max: 10 },
-  { key: 'gliederung', name: 'Gliederung & Leseführung', max: 5 },
-  { key: 'sprache', name: 'Sprache & Terminologie', max: 3 },
-  { key: 'formalia', name: 'Formalia & Sorgfalt', max: 2 },
-] as const
-
 // =============================================================================
 // Extension points for extended metrics
 // =============================================================================
