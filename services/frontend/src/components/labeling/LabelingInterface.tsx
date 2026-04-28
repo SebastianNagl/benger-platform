@@ -356,19 +356,23 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     }
   }, [allTasksCompleted, projectId, router, resetAnnotationCompletion, TASK_POSITION_KEY, TASK_ID_KEY])
 
-  // Compute conditional instruction variant when task changes
+  // Compute conditional-instruction variant for this user. Bucket on
+  // (user, project) — NOT on task — so the assignment is stable for the
+  // whole project. Per-task bucketing would re-roll on every task and
+  // break the A/B experiment design (each user is expected to stay in
+  // exactly one cohort across all tasks).
   useEffect(() => {
-    if (!user?.id || !currentTask?.id || !currentProject?.conditional_instructions?.length) {
+    if (!user?.id || !currentProject?.id || !currentProject?.conditional_instructions?.length) {
       setSelectedVariantId(null)
       return
     }
     const variantId = selectVariant(
       user.id,
-      currentTask.id,
+      currentProject.id,
       currentProject.conditional_instructions as { id: string; weight: number }[]
     )
     setSelectedVariantId(variantId)
-  }, [user?.id, currentTask?.id, currentProject?.conditional_instructions])
+  }, [user?.id, currentProject?.id, currentProject?.conditional_instructions])
 
   // Show instructions modal on first load if enabled and not dismissed
   useEffect(() => {
