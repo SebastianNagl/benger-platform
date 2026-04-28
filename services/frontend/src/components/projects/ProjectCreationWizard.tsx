@@ -14,6 +14,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
 import { getRegisteredWizardTemplates } from '@/lib/extensions'
+import { deriveKorrekturProjectFields } from '@/lib/korrektur/wizardDerive'
 import { extractFieldsFromLabelConfig } from '@/lib/labelConfig/fieldExtractor'
 import { useProjectStore } from '@/stores/projectStore'
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
@@ -429,20 +430,12 @@ export function ProjectCreationWizard() {
         updatePayload.immediate_evaluation_enabled = wizardData.immediate_evaluation_enabled
 
         // Korrektur (formerly "Feedback") is enabled when the wizard's eval
-        // configs include korrektur_classic or korrektur_falloesung.
-        const korrekturClassic = wizardData.evaluationConfigs.find(
-          (c: any) => c?.metric === 'korrektur_classic',
+        // configs include korrektur_classic or korrektur_falloesung. Pure
+        // logic lives in lib/korrektur/wizardDerive so it's unit-tested.
+        Object.assign(
+          updatePayload,
+          deriveKorrekturProjectFields(wizardData.evaluationConfigs),
         )
-        const korrekturFalloesung = wizardData.evaluationConfigs.find(
-          (c: any) => c?.metric === 'korrektur_falloesung',
-        )
-        if (korrekturClassic || korrekturFalloesung) {
-          updatePayload.korrektur_enabled = true
-          const labels = (korrekturClassic?.metric_parameters as any)?.highlight_labels
-          if (Array.isArray(labels) && labels.length > 0) {
-            updatePayload.korrektur_config = labels
-          }
-        }
       }
 
       // Always include settings
