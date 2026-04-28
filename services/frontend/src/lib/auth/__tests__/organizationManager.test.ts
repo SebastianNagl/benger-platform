@@ -42,7 +42,10 @@ describe('OrganizationManager', () => {
       expect(manager.getOrganizations()).toEqual(orgs)
     })
 
-    it('should auto-select first organization when none is selected', () => {
+    it('does NOT auto-select an organization — caller decides', () => {
+      // Regression: silently auto-picking orgs[0] flipped the API context
+      // away from "private" while the UI still rendered "Privat", causing
+      // 403s on org-only endpoints.
       const orgs = [
         { id: 'org1', name: 'Org 1', slug: 'org1' },
         { id: 'org2', name: 'Org 2', slug: 'org2' },
@@ -50,35 +53,25 @@ describe('OrganizationManager', () => {
 
       manager.setOrganizations(orgs)
 
-      expect(manager.getCurrentOrganization()).toEqual(orgs[0])
+      expect(manager.getCurrentOrganization()).toBeNull()
+      expect(manager.getOrganizationContext()).toBe('private')
     })
 
-    it('should NOT auto-select if an organization is already selected', () => {
+    it('preserves an explicitly-set current org across setOrganizations', () => {
       const existingOrg = { id: 'existing', name: 'Existing', slug: 'existing' } as any
       manager.setCurrentOrganization(existingOrg)
 
-      const orgs = [
+      manager.setOrganizations([
         { id: 'org1', name: 'Org 1', slug: 'org1' },
-        { id: 'org2', name: 'Org 2', slug: 'org2' },
-      ] as any[]
+      ] as any[])
 
-      manager.setOrganizations(orgs)
-
-      // Should keep the existing org, not replace with org1
       expect(manager.getCurrentOrganization()).toEqual(existingOrg)
     })
 
-    it('should NOT auto-select when organizations list is empty', () => {
+    it('leaves currentOrganization null when given an empty list', () => {
       manager.setOrganizations([])
 
       expect(manager.getCurrentOrganization()).toBeNull()
-    })
-
-    it('should handle single organization', () => {
-      const orgs = [{ id: 'only', name: 'Only Org', slug: 'only' }] as any[]
-      manager.setOrganizations(orgs)
-
-      expect(manager.getCurrentOrganization()).toEqual(orgs[0])
     })
   })
 
@@ -115,7 +108,8 @@ describe('OrganizationManager', () => {
 
       expect(result).toEqual(mockOrgs)
       expect(manager.getOrganizations()).toEqual(mockOrgs)
-      expect(manager.getCurrentOrganization()).toEqual(mockOrgs[0])
+      // currentOrganization stays null — AuthContext picks based on subdomain.
+      expect(manager.getCurrentOrganization()).toBeNull()
     })
 
     it('should clear state on fetch failure', async () => {
@@ -158,8 +152,9 @@ describe('OrganizationManager', () => {
 
   describe('clear', () => {
     it('should clear all organization state', () => {
-      const orgs = [{ id: 'org1', name: 'Org 1', slug: 'org1' }] as any[]
-      manager.setOrganizations(orgs)
+      const org = { id: 'org1', name: 'Org 1', slug: 'org1' } as any
+      manager.setOrganizations([org])
+      manager.setCurrentOrganization(org)
 
       expect(manager.getOrganizations()).toHaveLength(1)
       expect(manager.getCurrentOrganization()).not.toBeNull()
@@ -218,12 +213,12 @@ describe('OrganizationManager', () => {
         getOrganizations: jest.fn().mockResolvedValue(mockOrgs),
       } as any
 
-      // Fetch sets orgs and auto-selects first
+      // Fetch sets orgs but does NOT auto-select — caller must pick.
       await manager.fetchOrganizations(mockApiClient)
       expect(manager.getOrganizations()).toEqual(mockOrgs)
-      expect(manager.getCurrentOrganization()?.id).toBe('org1')
+      expect(manager.getCurrentOrganization()).toBeNull()
 
-      // Switch to second org
+      // Caller picks an org explicitly
       manager.setCurrentOrganization(mockOrgs[1])
       expect(manager.getCurrentOrganization()?.id).toBe('org2')
 
