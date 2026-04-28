@@ -6129,6 +6129,16 @@
       "expired": "Zeit abgelaufen",
       "expiredToast": "Zeitlimit erreicht"
     },
+    "strictTimer": {
+      "readyTitle": "Bereit zu beginnen",
+      "readyDescription": "Sie haben {minutes} Minuten Zeit, um diese Annotation abzuschließen. Der Timer startet, wenn Sie auf Start klicken, und kann nicht pausiert oder neu gestartet werden.",
+      "readyWarning": "Ein Neuladen der Seite setzt den Timer nicht zurück.",
+      "startButton": "Starten",
+      "startError": "Timer konnte nicht gestartet werden",
+      "timeOverTitle": "Zeit abgelaufen",
+      "timeOverDescription": "Ihre Zeit ist abgelaufen. Ihre Arbeit wurde in der zuletzt gespeicherten Form abgesendet.",
+      "continueButton": "Weiter"
+    },
     "questionnaire": {
       "title": "Post-Annotations-Feedback",
       "description": "Bitte geben Sie Feedback zur soeben abgeschlossenen Annotation.",

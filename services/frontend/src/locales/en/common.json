@@ -6149,6 +6149,16 @@
       "expired": "Time expired",
       "expiredToast": "Time limit reached"
     },
+    "strictTimer": {
+      "readyTitle": "Ready to Begin",
+      "readyDescription": "You will have {minutes} minutes to complete this annotation. The timer starts when you click Start and cannot be paused or restarted.",
+      "readyWarning": "Page refresh will not reset the timer.",
+      "startButton": "Start",
+      "startError": "Failed to start timer",
+      "timeOverTitle": "Time's Up",
+      "timeOverDescription": "Your time is over. Your work so far has been submitted in its latest form.",
+      "continueButton": "Continue"
+    },
     "questionnaire": {
       "title": "Post-Annotation Feedback",
       "description": "Please provide feedback on the annotation you just completed.",
