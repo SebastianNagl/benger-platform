@@ -332,7 +332,12 @@ backup:
   enabled: true
   # Cron schedule (default: daily at 02:00 UTC)
   schedule: "0 2 * * *"
-  image: "postgres:15-alpine"
+  # pg_dump version must be >= the running server's major version, otherwise
+  # backups silently produce a 0-table dump (we caught this on 2026-04-28 after
+  # the server move bumped the runtime binary to PG 18 while the chart still
+  # shipped postgres:15-alpine). Keep this in sync with the bitnami postgresql
+  # image's actual binary version, not the image tag.
+  image: "postgres:18-alpine"
   # Host path on the node to store backups
   hostPath: "/opt/benger-backups"
   # Retention policy
