@@ -112,7 +112,7 @@ export default function MyTasksPage() {
 
   const startAnnotating = (task: MyTask) => {
     if (task.has_feedback) {
-      router.push(`/projects/${projectId}/my-feedback/${task.id}`)
+      router.push(`/projects/${projectId}/my-korrektur/${task.id}`)
       return
     }
     // Save task ID so the labeling interface loads this specific task

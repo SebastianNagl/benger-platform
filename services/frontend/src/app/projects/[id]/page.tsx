@@ -239,8 +239,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     review_enabled: false,
     review_mode: 'in_place' as 'in_place' | 'independent' | 'both',
     allow_self_review: false,
-    feedback_enabled: false,
-    feedback_config: [] as Array<{ value: string; background: string }>,
+    korrektur_enabled: false,
+    korrektur_config: [] as Array<{ value: string; background: string }>,
   })
 
   // Conditional instructions state
@@ -514,8 +514,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         review_enabled: currentProject.review_enabled || false,
         review_mode: currentProject.review_mode || 'in_place',
         allow_self_review: currentProject.allow_self_review || false,
-        feedback_enabled: currentProject.feedback_enabled || false,
-        feedback_config: currentProject.feedback_config || [],
+        korrektur_enabled: currentProject.korrektur_enabled || false,
+        korrektur_config: currentProject.korrektur_config || [],
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Using currentProject.id instead of currentProject to prevent unnecessary re-renders
@@ -2891,10 +2891,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             currentProject?.review_mode || 'in_place',
                           allow_self_review:
                             currentProject?.allow_self_review || false,
-                          feedback_enabled:
-                            currentProject?.feedback_enabled || false,
-                          feedback_config:
-                            currentProject?.feedback_config || [],
+                          korrektur_enabled:
+                            currentProject?.korrektur_enabled || false,
+                          korrektur_config:
+                            currentProject?.korrektur_config || [],
                         })
                       }}
                       variant="outline"
@@ -3011,15 +3011,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 </Button>
               )}
 
-              {canSeeQuickAction('feedback') && currentProject?.feedback_enabled && (
+              {canSeeQuickAction('feedback') && currentProject?.korrektur_enabled && (
                 <Button
                   href={
-                    projectId ? `/projects/${projectId}/feedback` : '/projects'
+                    projectId ? `/projects/${projectId}/korrektur` : '/projects'
                   }
                   variant="outline"
                   className="w-full"
                 >
-                  {t('project.quickActions.feedback') || 'Feedback'}
+                  {t('project.quickActions.korrektur') || 'Korrektur'}
                 </Button>
               )}
 

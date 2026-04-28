@@ -601,7 +601,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             annotations={annotations}
             onAutoSubmit={async (result: any[]) => {
               // Auto-submit handler for timer expiry
-              await projectsAPI.createAnnotation(currentProject.id, currentTask.id, {
+              await projectsAPI.createAnnotation(currentTask.id, {
                 result,
                 was_cancelled: false,
               })

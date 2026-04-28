@@ -129,6 +129,33 @@ export function StepEvaluationMethods({
   const falloesungConfig = evaluationConfigs.find(
     (c) => c.metric === 'llm_judge_falloesung'
   )
+  const isKorrekturClassicSelected = selectedMetrics.has('korrektur_classic')
+  const korrekturClassicConfig = evaluationConfigs.find(
+    (c) => c.metric === 'korrektur_classic'
+  )
+
+  const DEFAULT_KORREKTUR_LABELS = [
+    { value: 'Error', background: '#FF6B6B' },
+    { value: 'Correct', background: '#4ECDC4' },
+    { value: 'Suggestion', background: '#FFEAA7' },
+  ]
+
+  const getKorrekturLabels = (): Array<{ value: string; background: string }> => {
+    const params = (korrekturClassicConfig?.metric_parameters as any) || {}
+    const labels = params.highlight_labels
+    if (Array.isArray(labels) && labels.length > 0) return labels
+    return DEFAULT_KORREKTUR_LABELS
+  }
+
+  const setKorrekturLabels = (
+    labels: Array<{ value: string; background: string }>,
+  ) => {
+    if (!korrekturClassicConfig) return
+    updateConfig('korrektur_classic', 'metric_parameters', {
+      ...(korrekturClassicConfig.metric_parameters as any),
+      highlight_labels: labels,
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -429,6 +456,79 @@ export function StepEvaluationMethods({
                 </Select>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Korrektur Classic config: editable highlight labels */}
+      {isKorrekturClassicSelected && korrekturClassicConfig && (
+        <div className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">
+              Korrektur (Classic) — Highlight-Labels
+            </h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Farben und Bezeichnungen für Markierungen, die Korrektoren beim
+              Kommentieren verwenden können.
+            </p>
+          </div>
+          <div className="space-y-2">
+            {getKorrekturLabels().map((label, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={label.background}
+                  onChange={(e) => {
+                    const updated = [...getKorrekturLabels()]
+                    updated[index] = { ...updated[index], background: e.target.value }
+                    setKorrekturLabels(updated)
+                  }}
+                  className="h-8 w-8 cursor-pointer rounded border border-zinc-300 dark:border-zinc-600"
+                />
+                <input
+                  type="text"
+                  value={label.value}
+                  onChange={(e) => {
+                    const updated = [...getKorrekturLabels()]
+                    updated[index] = { ...updated[index], value: e.target.value }
+                    setKorrekturLabels(updated)
+                  }}
+                  placeholder="Label-Name"
+                  className="flex-1 rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setKorrekturLabels(
+                      getKorrekturLabels().filter((_, i) => i !== index),
+                    )
+                  }}
+                  className="text-zinc-400 hover:text-red-500"
+                  aria-label="Label entfernen"
+                >
+                  &times;
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                const existing = getKorrekturLabels()
+                const next = DEFAULT_KORREKTUR_LABELS[
+                  existing.length % DEFAULT_KORREKTUR_LABELS.length
+                ]
+                setKorrekturLabels([
+                  ...existing,
+                  {
+                    value: `Label ${existing.length + 1}`,
+                    background: next.background,
+                  },
+                ])
+              }}
+              className="text-sm text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+            >
+              + Label hinzufügen
+            </button>
           </div>
         </div>
       )}

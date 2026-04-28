@@ -131,8 +131,8 @@ class TestProjectsRouter:
         project.review_enabled = False
         project.review_mode = "in_place"
         project.allow_self_review = False
-        project.feedback_enabled = False
-        project.feedback_config = None
+        project.korrektur_enabled = False
+        project.korrektur_config = None
         project.immediate_evaluation_enabled = False
         # Post-annotation questionnaire
         project.questionnaire_enabled = False
@@ -579,8 +579,8 @@ class TestProjectsRouter:
             created_project.review_enabled = False
             created_project.review_mode = "in_place"
             created_project.allow_self_review = False
-            created_project.feedback_enabled = False
-            created_project.feedback_config = None
+            created_project.korrektur_enabled = False
+            created_project.korrektur_config = None
             created_project.immediate_evaluation_enabled = False
             # Post-annotation questionnaire
             created_project.questionnaire_enabled = False
