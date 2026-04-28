@@ -109,6 +109,19 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   const isStrictMode = !!(
     currentProject?.strict_timer_enabled && currentProject?.annotation_time_limit_enabled
   )
+  // Reset phase synchronously during render when the task changes — otherwise
+  // the previous task's 'annotating' phase carries through the render that
+  // bumps currentTask.id, TimerSlot stays mounted, and its own useEffect
+  // fires POST /start-timer for the NEW task before the init effect below
+  // can route to pre_start. setState-during-render is the React-blessed way
+  // to derive state from props without a render lag.
+  const lastSeenTaskIdRef = useRef<string | null>(null)
+  if (currentTask?.id && currentTask.id !== lastSeenTaskIdRef.current) {
+    lastSeenTaskIdRef.current = currentTask.id
+    if (strictTimerPhase !== 'loading') {
+      setStrictTimerPhase('loading')
+    }
+  }
 
   // Load existing annotations when task changes
   useEffect(() => {
