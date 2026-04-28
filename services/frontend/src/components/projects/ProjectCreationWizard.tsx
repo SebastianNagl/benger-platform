@@ -13,6 +13,7 @@ import { Card } from '@/components/shared/Card'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
+import { getRegisteredWizardTemplates } from '@/lib/extensions'
 import { extractFieldsFromLabelConfig } from '@/lib/labelConfig/fieldExtractor'
 import { useProjectStore } from '@/stores/projectStore'
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
@@ -46,42 +47,6 @@ export function ProjectCreationWizard() {
 
   const nlpTemplates: LabelingTemplate[] = useMemo(
     () => [
-      {
-        id: 'exam-solving',
-        name: t('projects.creation.wizard.templates.examSolving.name'),
-        description: t(
-          'projects.creation.wizard.templates.examSolving.description'
-        ),
-        icon: '\uD83D\uDCDA',
-        category: 'NLP',
-        config: `<View>
-  <Header value="Angabe"/>
-  <Angabe name="angabe" value="$sachverhalt" toName="sachverhalt"
-          linkedTo="gliederung">
-    <Label value="Wichtig" background="#fef08a"/>
-    <Label value="Problematisch" background="#fca5a5"/>
-    <Label value="Zu pruefen" background="#fed7aa"/>
-    <Label value="Begruendung" background="#bbf7d0"/>
-    <Label value="Norm" background="#bfdbfe"/>
-    <Label value="Sonstiges" background="#e9d5ff"/>
-  </Angabe>
-
-  <Header value="Notizen"/>
-  <Notizen name="notizen" toName="sachverhalt"
-           placeholder="Eigene Notizen und Anmerkungen..."/>
-
-  <Header value="Gliederung"/>
-  <Gliederung name="gliederung" toName="sachverhalt"
-              placeholder="A. Anspruch des X gegen Y..."
-              required="true"/>
-
-  <Header value="Loesung"/>
-  <Loesung name="loesung" toName="sachverhalt"
-           linkedTo="gliederung"
-           placeholder="A. Anspruch des X gegen Y auf Schadensersatz..."
-           required="true"/>
-</View>`,
-      },
       {
         id: 'question-answering',
         name: t('projects.creation.wizard.templates.questionAnswering.name'),
@@ -151,6 +116,11 @@ export function ProjectCreationWizard() {
   <!-- Add your components here -->
 </View>`,
       },
+      ...getRegisteredWizardTemplates().map((r) => ({
+        ...r,
+        name: t(r.nameKey),
+        description: t(r.descriptionKey),
+      })),
     ],
     [t]
   )
@@ -457,6 +427,22 @@ export function ProjectCreationWizard() {
       // Evaluation settings
       if (wizardData.features.evaluation) {
         updatePayload.immediate_evaluation_enabled = wizardData.immediate_evaluation_enabled
+
+        // Korrektur (formerly "Feedback") is enabled when the wizard's eval
+        // configs include korrektur_classic or korrektur_falloesung.
+        const korrekturClassic = wizardData.evaluationConfigs.find(
+          (c: any) => c?.metric === 'korrektur_classic',
+        )
+        const korrekturFalloesung = wizardData.evaluationConfigs.find(
+          (c: any) => c?.metric === 'korrektur_falloesung',
+        )
+        if (korrekturClassic || korrekturFalloesung) {
+          updatePayload.korrektur_enabled = true
+          const labels = (korrekturClassic?.metric_parameters as any)?.highlight_labels
+          if (Array.isArray(labels) && labels.length > 0) {
+            updatePayload.korrektur_config = labels
+          }
+        }
       }
 
       // Always include settings
