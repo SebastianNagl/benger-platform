@@ -41,7 +41,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { t } = useI18n()
-  const { user } = useAuth()
+  const { user, apiClient } = useAuth()
   const TimerSlot = useSlot('TimerIntegration')
   const ImmediateEvalSlot = useSlot('ImmediateEvaluation')
   // Wraps the labeling interface so the Klausurlösung Angabe / Notizen /
@@ -94,6 +94,17 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // Conditional instruction variant (determined by hash of userId + taskId)
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null)
 
+  // Strict-timer state machine. The timer endpoints live in extended; in
+  // community edition the GET 404s and we stay in 'annotating' (the early
+  // returns below are gated on isStrictMode anyway, which requires both
+  // strict_timer_enabled and annotation_time_limit_enabled — both extended).
+  type StrictTimerPhase = 'loading' | 'pre_start' | 'annotating' | 'time_over'
+  const [strictTimerPhase, setStrictTimerPhase] = useState<StrictTimerPhase>('annotating')
+  const pendingTimeOverRef = useRef(false)
+  const isStrictMode = !!(
+    currentProject?.strict_timer_enabled && currentProject?.annotation_time_limit_enabled
+  )
+
   // Load existing annotations when task changes
   useEffect(() => {
     const loadExistingAnnotations = async () => {
@@ -127,6 +138,79 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
     loadExistingAnnotations()
   }, [currentTask?.id])
+
+  // Strict-timer phase init: runs on every task change. Decides whether to
+  // show pre_start (block on a Start button), time_over (just auto-submitted),
+  // or annotating (normal flow). Mirrors BenGer_old/services/frontend/src/
+  // components/labeling/LabelingInterface.tsx:268-345.
+  useEffect(() => {
+    if (!currentProject || !currentTask) return
+
+    // Auto-submit just fired and advanced us; show the time_over screen
+    // before re-initializing for the new task.
+    if (pendingTimeOverRef.current) {
+      pendingTimeOverRef.current = false
+      setStrictTimerPhase('time_over')
+      return
+    }
+
+    if (!currentProject.annotation_time_limit_enabled) {
+      setStrictTimerPhase('annotating')
+      return
+    }
+
+    let cancelled = false
+
+    const initPhase = async () => {
+      setStrictTimerPhase('loading')
+      try {
+        const status = await apiClient.get(
+          `/projects/${currentProject.id}/tasks/${currentTask.id}/timer-status`
+        ) as { session: any | null; server_time: string }
+        if (cancelled) return
+
+        const serverNow = new Date(status.server_time).getTime()
+        setServerClockOffset(serverNow - Date.now())
+
+        if (status.session) {
+          if (status.session.completed_at) {
+            // already submitted (auto or manual). In strict mode, the user
+            // shouldn't be back here — but if they navigate manually, show
+            // time_over rather than letting them re-annotate.
+            setStrictTimerPhase(isStrictMode ? 'time_over' : 'annotating')
+          } else if (status.session.is_expired) {
+            // zombie: never auto-submitted (e.g. server-side Celery missed it).
+            // Strict mode: send them back to pre_start; the next start_timer
+            // call will replace the zombie session.
+            setStrictTimerPhase(isStrictMode ? 'pre_start' : 'annotating')
+          } else {
+            setStrictTimerPhase('annotating')
+          }
+        } else {
+          // No session yet. In strict mode, gate on the Start button so
+          // reading the instructions doesn't burn timer seconds.
+          setStrictTimerPhase(isStrictMode ? 'pre_start' : 'annotating')
+        }
+      } catch (err) {
+        // 404 = endpoint missing (community edition) — assume non-strict flow.
+        // Other errors: don't strand the user; let them annotate.
+        if (!cancelled) setStrictTimerPhase('annotating')
+      }
+    }
+
+    initPhase()
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentTask?.id, currentProject?.id, currentProject?.annotation_time_limit_enabled, isStrictMode, apiClient])
+
+  // Strict-mode pre_start "Start" handler. Just flips the phase; the
+  // TimerSlot's own POST /start-timer fires when it mounts, which is
+  // gated below on strictTimerPhase === 'annotating'.
+  const handleStrictTimerStart = useCallback(() => {
+    setStrictTimerPhase('annotating')
+  }, [])
 
   // Post-annotation questionnaire state (Issue #1208)
   const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false)
@@ -554,6 +638,105 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     )
   }
 
+  // Strict-timer pre-start screen: in strict mode, hold the timer at zero
+  // until the user explicitly clicks Start. Mirrors BenGer_old/services/
+  // frontend/src/components/labeling/LabelingInterface.tsx:788-850.
+  if (isStrictMode && strictTimerPhase === 'pre_start') {
+    const conditionalVariants = currentProject?.conditional_instructions as { id: string; content: string; weight: number }[] | undefined
+    const variantContent = conditionalVariants?.find(v => v.id === selectedVariantId)?.content
+    const minutes = Math.round((currentProject?.annotation_time_limit_seconds || 0) / 60)
+    return (
+      <div className="bg-background flex min-h-screen flex-col" data-testid="klausur-pre-start">
+        <div className="border-b px-6 py-4">
+          <Button variant="text" onClick={() => router.push(`/projects/${projectId}`)}>
+            <ArrowLeftIcon className="mr-2 h-4 w-4" />
+            {t('annotation.backToProject', { defaultValue: 'Back to Project' })}
+          </Button>
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          <Card className="mx-auto max-w-lg text-center">
+            <div className="space-y-6 p-8">
+              <ClockIcon className="mx-auto h-16 w-16 text-emerald-600" />
+              <h2 className="text-2xl font-bold">
+                {t('annotation.strictTimer.readyTitle', { defaultValue: 'Ready to Begin' })}
+              </h2>
+              {variantContent && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-left dark:border-emerald-800 dark:bg-emerald-950">
+                  <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
+                    {t('annotation.instructions.title', { defaultValue: 'Annotation Instructions' })}
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-700 dark:text-emerald-300">
+                    {variantContent}
+                  </p>
+                </div>
+              )}
+              <p className="text-muted-foreground">
+                {t('annotation.strictTimer.readyDescription', {
+                  defaultValue: `You will have ${minutes} minutes to complete this annotation. The timer starts when you click Start and cannot be paused or restarted.`,
+                  minutes,
+                })}
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {t('annotation.strictTimer.readyWarning', {
+                  defaultValue: 'Page refresh will not reset the timer.',
+                })}
+              </p>
+              <Button variant="filled" onClick={handleStrictTimerStart}>
+                {t('annotation.strictTimer.startButton', { defaultValue: 'Start' })}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  // Strict-timer time-over screen: shown after the timer expires and the
+  // auto-submit fires. Gated on !showQuestionnaireModal so the questionnaire
+  // flow takes precedence. Mirrors BenGer_old/.../LabelingInterface.tsx:853-908.
+  if (isStrictMode && strictTimerPhase === 'time_over' && !showQuestionnaireModal && !allTasksCompleted) {
+    return (
+      <div className="bg-background flex min-h-screen flex-col">
+        <div className="border-b px-6 py-4">
+          <Button variant="text" onClick={() => router.push(`/projects/${projectId}`)}>
+            <ArrowLeftIcon className="mr-2 h-4 w-4" />
+            {t('annotation.backToProject', { defaultValue: 'Back to Project' })}
+          </Button>
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          <Card className="mx-auto max-w-lg text-center">
+            <div className="space-y-6 p-8">
+              <ExclamationTriangleIcon className="mx-auto h-16 w-16 text-amber-500" />
+              <h2 className="text-2xl font-bold">
+                {t('annotation.strictTimer.timeOverTitle', { defaultValue: "Time's Up" })}
+              </h2>
+              <p className="text-muted-foreground">
+                {t('annotation.strictTimer.timeOverDescription', {
+                  defaultValue: 'Your time is over. Your work so far has been submitted in its latest form.',
+                })}
+              </p>
+              <div className="flex flex-col gap-3">
+                <Button
+                  variant="filled"
+                  onClick={() => {
+                    hasSubmittedRef.current = false
+                    setStrictTimerPhase('loading')
+                    completeCurrentTask()
+                  }}
+                >
+                  {t('annotation.strictTimer.continueButton', { defaultValue: 'Continue' })}
+                </Button>
+                <Button variant="outline" onClick={() => router.push(`/projects/${projectId}`)}>
+                  {t('annotation.backToProject', { defaultValue: 'Back to Project' })}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-background flex min-h-screen">
       {/* Main content */}
@@ -595,16 +778,28 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   {t('annotation.instructions.showInstructions', { defaultValue: 'Instructions' })}
                 </Button>
               )}
-              {TimerSlot && currentProject?.annotation_time_limit_enabled ? (
+              {TimerSlot &&
+              currentProject?.annotation_time_limit_enabled &&
+              (!isStrictMode || strictTimerPhase === 'annotating') ? (
                 <TimerSlot
                   project={currentProject}
                   task={currentTask}
                   annotations={annotations}
+                  paused={showQuestionnaireModal}
                   onAutoSubmit={async (result: any[]) => {
+                    if (hasSubmittedRef.current) return
+                    hasSubmittedRef.current = true
+                    // Bridge to the next task's init: skip re-init and show
+                    // time_over instead — but only when no questionnaire/eval
+                    // flow will intercept first.
+                    pendingTimeOverRef.current = !isQuestionnaireEnabled
                     await projectsAPI.createAnnotation(currentTask.id, {
                       result,
                       was_cancelled: false,
-                    })
+                      auto_submitted: true,
+                      lead_time: currentProject.annotation_time_limit_seconds || 0,
+                    } as any)
+                    if (isStrictMode) setStrictTimerPhase('time_over')
                   }}
                 />
               ) : (
@@ -793,15 +988,13 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
         const isAlwaysVisible = currentProject?.instructions_always_visible
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-white p-8 dark:bg-zinc-950">
-            <div className="mx-auto w-full max-w-3xl">
-              <div className="flex items-center gap-3">
-                <BookOpenIcon className="h-6 w-6 text-emerald-600" />
-                <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white">
-                  {t('annotation.instructions.title', { defaultValue: 'Annotation Instructions' })}
-                </h1>
-              </div>
-              <div className="mt-8">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="mx-4 max-w-2xl rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-900">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-white">
+                <ExclamationTriangleIcon className="h-5 w-5 text-emerald-600" />
+                {t('annotation.instructions.title', { defaultValue: 'Annotation Instructions' })}
+              </h3>
+              <div className="mt-4 max-h-[60vh] overflow-y-auto">
                 <div className="prose prose-sm max-w-none text-zinc-700 dark:prose-invert dark:text-zinc-300">
                   {variantContent && currentProject?.instructions && (
                     <p className="whitespace-pre-wrap">{currentProject.instructions}</p>
@@ -810,7 +1003,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 </div>
               </div>
               {!isAlwaysVisible && !variantContent && !manualInstructionsOpen && (
-                <div className="mt-10 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+                <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
                   <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
                     <input
                       type="checkbox"
@@ -822,7 +1015,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   </label>
                 </div>
               )}
-              <div className="mt-8 flex justify-end">
+              <div className="mt-4 flex justify-end">
                 <Button onClick={handleInstructionsModalClose} variant="filled">
                   {manualInstructionsOpen
                     ? t('annotation.instructions.close', { defaultValue: 'Close' })
