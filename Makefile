@@ -442,13 +442,14 @@ test-all: ## Run all tests (requires test-start first)
 	cd $(CURDIR)/services/frontend && npm test && FRONTEND_RESULT=0 || FRONTEND_RESULT=1; \
 	echo ""; \
 	\
-	echo "$(BLUE)♻️  Restarting test infrastructure before E2E...$(NC)"; \
-	$(DOCKER_COMPOSE_TEST) down 2>/dev/null; \
-	$(DOCKER_COMPOSE_TEST) up -d 2>/dev/null; \
-	timeout=120; while [ $$timeout -gt 0 ]; do \
+	echo "$(BLUE)♻️  Restarting test containers before E2E...$(NC)"; \
+	docker restart $$(docker ps --filter "name=benger-test" --format "{{.Names}}" 2>/dev/null | tr '\n' ' ') 2>/dev/null; \
+	echo "  Waiting for containers to be healthy..."; \
+	timeout=180; while [ $$timeout -gt 0 ]; do \
 		healthy=$$(docker ps --filter "name=benger-test" --filter "health=healthy" --format "{{.Names}}" 2>/dev/null | wc -l | tr -d ' '); \
-		if [ "$$healthy" -ge 5 ]; then break; fi; \
-		sleep 5; timeout=$$((timeout - 5)); \
+		if [ "$$healthy" -ge 5 ]; then echo "  $$healthy containers healthy"; break; fi; \
+		echo "  $$healthy/5 healthy ($${timeout}s remaining)"; \
+		sleep 10; timeout=$$((timeout - 10)); \
 	done; \
 	echo "$(BLUE)4️⃣  E2E Tests (Playwright, excluding @extended)$(NC)"; \
 	cd $(CURDIR)/services/frontend && \
