@@ -99,7 +99,12 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // returns below are gated on isStrictMode anyway, which requires both
   // strict_timer_enabled and annotation_time_limit_enabled — both extended).
   type StrictTimerPhase = 'loading' | 'pre_start' | 'annotating' | 'time_over'
-  const [strictTimerPhase, setStrictTimerPhase] = useState<StrictTimerPhase>('annotating')
+  // Start in 'loading' so TimerSlot doesn't briefly mount and fire a
+  // premature POST /start-timer before the init useEffect can route the
+  // user to pre_start. The init effect always resolves this to one of
+  // pre_start | annotating | time_over (or stays 'annotating' on error /
+  // community edition).
+  const [strictTimerPhase, setStrictTimerPhase] = useState<StrictTimerPhase>('loading')
   const pendingTimeOverRef = useRef(false)
   const isStrictMode = !!(
     currentProject?.strict_timer_enabled && currentProject?.annotation_time_limit_enabled
