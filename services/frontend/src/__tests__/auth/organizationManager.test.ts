@@ -61,10 +61,12 @@ describe('OrganizationManager', () => {
       expect(orgManager.getOrganizations()).toEqual(mockOrgs)
     })
 
-    it('should auto-select first organization if none selected', () => {
+    it('does not auto-select after setOrganizations (caller picks)', () => {
       orgManager.setOrganizations(mockOrgs)
 
-      expect(orgManager.getCurrentOrganization()).toEqual(mockOrgs[0])
+      // PR #15: setOrganizations no longer silently picks the first org —
+      // AuthContext is the source of truth and decides private vs. picked.
+      expect(orgManager.getCurrentOrganization()).toBeNull()
     })
 
     it('should not change current organization if already selected', () => {
@@ -106,7 +108,8 @@ describe('OrganizationManager', () => {
       expect(mockApiClient.getOrganizations).toHaveBeenCalled()
       expect(result).toEqual(mockOrgs)
       expect(orgManager.getOrganizations()).toEqual(mockOrgs)
-      expect(orgManager.getCurrentOrganization()).toEqual(mockOrgs[0])
+      // PR #15: fetchOrganizations populates the list but does not auto-pick.
+      expect(orgManager.getCurrentOrganization()).toBeNull()
     })
 
     it('should handle fetch error gracefully', async () => {
