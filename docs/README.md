@@ -22,7 +22,6 @@ Welcome to the BenGER documentation! This guide will help you understand, use, a
 - [**Testing Guide**](./development/TESTING.md) - Complete testing documentation
 - [**Migration Management**](./development/MIGRATION_MANAGEMENT.md) - Database migrations
 - [**API Documentation**](./api-docs/README.md) - API reference
-- [**Architecture Decisions**](./architecture/decisions/) - Design decisions (ADRs)
 
 ### Setup & Configuration
 - [**Authentication Setup**](./setup/authentication.md) - Auth configuration
@@ -63,23 +62,7 @@ cd services/api && alembic revision -m "description"  # Create migration
 - **Redis**: `localhost:6379`
 
 ### Environment Variables
-```bash
-# Required
-POSTGRES_USER=benger
-POSTGRES_PASSWORD=your-password
-POSTGRES_DB=benger_db
-JWT_SECRET_KEY=your-secret-key
-REDIS_URL=redis://localhost:6379
-
-# Optional (LLM APIs)
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=...
-DEEPINFRA_API_KEY=...
-
-# Codecov (for CI)
-CODECOV_TOKEN=...
-```
+Per-service env files live at `services/{api,workers,frontend}/.env(.local)`. Bootstrap them from the committed `.env.example` templates: `bash scripts/bootstrap-env.sh`. LLM provider API keys (OpenAI/Anthropic/Google/DeepInfra) are configured per-organization in the app UI — not in env files. See `docs/setup/environment-variables.md` for the full variable reference.
 
 ## 📂 Documentation Structure
 
@@ -87,13 +70,11 @@ CODECOV_TOKEN=...
 docs/
 ├── README.md                    # This file - main index
 ├── user-guides/                 # End-user documentation
-├── architecture/                # System design docs
-├── api/                        # API documentation
-├── features/                   # Feature guides
-├── deployment/                 # Deployment docs
-├── development/                # Developer guides
-├── troubleshooting/           # Problem resolution
-└── archive/                    # Historical docs
+├── api-docs/                    # API reference
+├── features/                    # Feature guides
+├── setup/                       # Setup & deployment guides
+├── development/                 # Developer guides
+└── troubleshooting/             # Problem resolution
 ```
 
 ## 🔍 Finding Information
@@ -101,7 +82,7 @@ docs/
 ### By Role
 - **Annotator**: Start with [User Guide](./user-guides/README.md)
 - **Administrator**: See [Admin Guide](./user-guides/admin-guide.md)
-- **Developer**: Check [Architecture](./ARCHITECTURE_V3.md) and [API Docs](./api/README.md)
+- **Developer**: Check [Development Setup](./development/README.md) and [API Docs](./api-docs/README.md)
 - **DevOps**: Read [Deployment Guide](./DEPLOYMENT_GUIDE.md)
 
 ### By Task
@@ -116,7 +97,6 @@ docs/
 |---------|--------|--------------|
 | User Guides | ✅ Complete | August 2024 |
 | API Reference | ✅ Complete | August 2024 |
-| Architecture | ✅ Complete | August 2024 |
 | Deployment | ✅ Complete | August 2024 |
 | Testing | 🔄 In Progress | August 2024 |
 

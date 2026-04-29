@@ -59,8 +59,8 @@ jobs:
         run: make test-unit
         timeout-minutes: 40
 
-      - name: Run E2E tests (excluding @extended)
-        run: make test-e2e-gate
+      - name: Run E2E tests
+        run: make test-e2e
         timeout-minutes: 40
 
       - name: Upload Playwright report

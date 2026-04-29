@@ -5,7 +5,6 @@ name: Build Workers Base Image
 # This image is consumed by:
 #   - benger-platform's nightly-tests.yml (via make test-build)
 #   - OSS contributors running make test-build locally
-#   - benger-extended's cicd.yml (FROM ${WORKERS_BASE_IMAGE} in workers Dockerfile)
 # The package must be public on GHCR so anonymous pulls succeed.
 
 on:
