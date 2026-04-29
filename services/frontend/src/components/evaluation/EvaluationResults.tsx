@@ -537,10 +537,13 @@ export function EvaluationResults({
   // (PARTITION BY generation_id, field_name ORDER BY created_at DESC)
   // collapses overlapping runs to the latest score per cell, so passing
   // every run for the metric is the safe aggregation primitive.
-  const selectedRunIds = useMemo(() => {
-    if (!selectedMetricRunId) return undefined
-    return availableMetricRuns.find(r => r.id === selectedMetricRunId)?.runIds
-  }, [selectedMetricRunId, availableMetricRuns])
+  //
+  // Use a comma-joined string as the dep (stable primitive) instead of
+  // the runIds array — array references would change on every render
+  // and re-trigger the fetch in an infinite loop.
+  const selectedRunIdsKey = availableMetricRuns
+    .find(r => r.id === selectedMetricRunId)
+    ?.runIds.join(',') ?? ''
 
   useEffect(() => {
     const fetchTaskModelData = async () => {
@@ -551,9 +554,10 @@ export function EvaluationResults({
 
       setTaskModelLoading(true)
       try {
+        const runIds = selectedRunIdsKey ? selectedRunIdsKey.split(',') : undefined
         const data = await apiClient.getProjectResultsByTaskModel(
           String(projectId),
-          selectedRunIds
+          runIds
         )
         setTaskModelData(data)
       } catch (err) {
@@ -565,7 +569,7 @@ export function EvaluationResults({
     }
 
     fetchTaskModelData()
-  }, [results, projectId, selectedRunIds])
+  }, [projectId, selectedRunIdsKey])
 
   const handleRefresh = () => {
     setLoading(true)
