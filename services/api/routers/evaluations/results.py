@@ -755,12 +755,29 @@ async def get_results_by_task_model(
             annotation_ids = list(set(r.annotation_id for r in annotation_eval_results if r.annotation_id))
             if annotation_ids:
                 annotations_with_users = (
-                    db.query(Annotation.id, DBUser.username)
+                    db.query(
+                        Annotation.id,
+                        DBUser.username,
+                        DBUser.name,
+                        DBUser.pseudonym,
+                        DBUser.use_pseudonym,
+                    )
                     .join(DBUser, Annotation.completed_by == DBUser.id)
                     .filter(Annotation.id.in_(annotation_ids))
                     .all()
                 )
-                annotator_name_map = {a.id: a.username for a in annotations_with_users}
+                # Mirror the leaderboard's pseudonym resolution
+                # (benger_extended/api/routers/leaderboards_human.py:168) so
+                # annotators with use_pseudonym=true display under their
+                # pseudonym instead of their real name/username.
+                annotator_name_map = {
+                    a.id: (
+                        a.pseudonym
+                        if (a.use_pseudonym and a.pseudonym)
+                        else (a.name or a.username)
+                    )
+                    for a in annotations_with_users
+                }
 
                 # Deduplicate: keep latest per (task_id, annotation_id, field_name)
                 seen_task_annotations: dict = {}
@@ -768,15 +785,15 @@ async def get_results_by_task_model(
                     seen_task_annotations[(r.task_id, r.annotation_id, r.field_name)] = r
 
                 for r in seen_task_annotations.values():
-                    username = annotator_name_map.get(r.annotation_id, "Unknown")
-                    synthetic_model_id = f"annotator:{username}"
+                    display = annotator_name_map.get(r.annotation_id, "Unknown")
+                    synthetic_model_id = f"annotator:{display}"
                     score = _extract_primary_score(r.metrics)
 
                     if score is not None:
                         if synthetic_model_id not in model_scores_list:
                             model_scores_list[synthetic_model_id] = []
                             model_ids.append(synthetic_model_id)
-                        model_name_map[synthetic_model_id] = f"Annotator: {username}"
+                        model_name_map[synthetic_model_id] = f"Annotator: {display}"
 
                         if r.task_id not in task_model_scores:
                             task_model_scores[r.task_id] = {}
@@ -1053,12 +1070,27 @@ async def get_project_results_by_task_model(
             annotation_ids = list(set(r.annotation_id for r in annotation_eval_results if r.annotation_id))
             if annotation_ids:
                 annotations_with_users = (
-                    db.query(Annotation.id, DBUser.username)
+                    db.query(
+                        Annotation.id,
+                        DBUser.username,
+                        DBUser.name,
+                        DBUser.pseudonym,
+                        DBUser.use_pseudonym,
+                    )
                     .join(DBUser, Annotation.completed_by == DBUser.id)
                     .filter(Annotation.id.in_(annotation_ids))
                     .all()
                 )
-                annotator_name_map = {a.id: a.username for a in annotations_with_users}
+                # Mirror the leaderboard pseudonym resolution so users with
+                # use_pseudonym=true display under their pseudonym.
+                annotator_name_map = {
+                    a.id: (
+                        a.pseudonym
+                        if (a.use_pseudonym and a.pseudonym)
+                        else (a.name or a.username)
+                    )
+                    for a in annotations_with_users
+                }
 
                 # Deduplicate: keep latest per (task_id, annotation_id, field_name)
                 seen_task_annotations: dict = {}
@@ -1066,15 +1098,15 @@ async def get_project_results_by_task_model(
                     seen_task_annotations[(r.task_id, r.annotation_id, r.field_name)] = r
 
                 for r in seen_task_annotations.values():
-                    username = annotator_name_map.get(r.annotation_id, "Unknown")
-                    synthetic_model_id = f"annotator:{username}"
+                    display = annotator_name_map.get(r.annotation_id, "Unknown")
+                    synthetic_model_id = f"annotator:{display}"
                     score = _extract_primary_score(r.metrics)
 
                     if score is not None:
                         if synthetic_model_id not in model_scores:
                             model_scores[synthetic_model_id] = []
                             model_ids.append(synthetic_model_id)
-                        model_name_map[synthetic_model_id] = f"Annotator: {username}"
+                        model_name_map[synthetic_model_id] = f"Annotator: {display}"
 
                         if r.task_id not in task_scores:
                             task_scores[r.task_id] = {}
