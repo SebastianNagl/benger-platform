@@ -185,25 +185,55 @@ export function EvaluationResults({
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
 
-  // Available completed metric runs (one per metric, filtered by top-level selectedMetrics)
-  // Sorted by the evaluation config order from the project page wizard
+  // Available metric methods — one entry per evaluation method (NOT per
+  // EvaluationRun). Multiple runs of the same metric (e.g. dozens of
+  // immediate-eval submissions) collapse into a single dropdown entry.
+  // Selecting a method passes ALL matching run IDs to the by-task-model
+  // endpoint, which already deduplicates to the latest result per
+  // (generation_id, field_name) via row_number() OVER ... — so the user
+  // sees the most recent score per cell across the entire metric history.
+  // Sorted by the evaluation config order from the project page wizard.
   const availableMetricRuns = useMemo(() => {
     if (!results?.evaluations) return []
-    const runs = results.evaluations
+
+    const completed = results.evaluations
       .filter((e) => e.status === 'completed')
       .filter((e) => {
         if (!selectedMetrics || selectedMetrics.length === 0) return true
         return e.evaluation_configs?.some((c: any) => selectedMetrics.includes(c.metric))
       })
-      .map((e) => ({
-        id: e.evaluation_id,
-        metric: e.evaluation_configs?.[0]?.metric || 'unknown',
-        configId: e.evaluation_configs?.[0]?.id || '',
-        displayName: e.evaluation_configs?.[0]?.display_name || e.evaluation_configs?.[0]?.metric || 'Unknown',
-        samplesEvaluated: e.samples_evaluated,
-      }))
+
+    type MetricEntry = {
+      id: string             // metric key (e.g. "llm_judge_falloesung")
+      metric: string         // same as id
+      configId: string
+      displayName: string
+      samplesEvaluated: number
+      runIds: string[]
+    }
+
+    const byMetric = new Map<string, MetricEntry>()
+    for (const e of completed) {
+      const cfg = e.evaluation_configs?.[0]
+      const metric = cfg?.metric || 'unknown'
+      const existing = byMetric.get(metric)
+      if (existing) {
+        existing.runIds.push(e.evaluation_id)
+        existing.samplesEvaluated = Math.max(existing.samplesEvaluated, e.samples_evaluated || 0)
+      } else {
+        byMetric.set(metric, {
+          id: metric,
+          metric,
+          configId: cfg?.id || '',
+          displayName: cfg?.display_name || metric || 'Unknown',
+          samplesEvaluated: e.samples_evaluated || 0,
+          runIds: [e.evaluation_id],
+        })
+      }
+    }
 
     // Sort by GROUPED_METRICS order (same order as the evaluation wizard)
+    const runs = Array.from(byMetric.values())
     const orderMap = new Map(METRIC_ORDER.map((m, i) => [m, i]))
     runs.sort((a, b) => {
       const orderA = orderMap.get(a.metric) ?? 999
@@ -502,7 +532,16 @@ export function EvaluationResults({
     }
   }, [results, fetchResults])
 
-  // Fetch per-task/model data — filtered by selected metric run
+  // Fetch per-task/model data — filtered by ALL EvaluationRun IDs that
+  // belong to the selected metric. The backend's row_number() OVER
+  // (PARTITION BY generation_id, field_name ORDER BY created_at DESC)
+  // collapses overlapping runs to the latest score per cell, so passing
+  // every run for the metric is the safe aggregation primitive.
+  const selectedRunIds = useMemo(() => {
+    if (!selectedMetricRunId) return undefined
+    return availableMetricRuns.find(r => r.id === selectedMetricRunId)?.runIds
+  }, [selectedMetricRunId, availableMetricRuns])
+
   useEffect(() => {
     const fetchTaskModelData = async () => {
       if (!projectId) {
@@ -512,10 +551,9 @@ export function EvaluationResults({
 
       setTaskModelLoading(true)
       try {
-        const evalIds = selectedMetricRunId ? [selectedMetricRunId] : undefined
         const data = await apiClient.getProjectResultsByTaskModel(
           String(projectId),
-          evalIds
+          selectedRunIds
         )
         setTaskModelData(data)
       } catch (err) {
@@ -527,7 +565,7 @@ export function EvaluationResults({
     }
 
     fetchTaskModelData()
-  }, [results, projectId, selectedMetricRunId])
+  }, [results, projectId, selectedRunIds])
 
   const handleRefresh = () => {
     setLoading(true)
