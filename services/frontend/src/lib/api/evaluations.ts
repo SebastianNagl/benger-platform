@@ -146,7 +146,8 @@ export class EvaluationsClient extends BaseApiClient {
   // Get per-task evaluation results for a task-model combination
   async getTaskEvaluation(
     taskId: string,
-    modelId: string
+    modelId: string,
+    includeHistory: boolean = true,
   ): Promise<{
     task_id: string
     model_id: string
@@ -176,6 +177,9 @@ export class EvaluationsClient extends BaseApiClient {
       task_id: taskId,
       model_id: modelId,
     })
+    if (!includeHistory) {
+      params.append('include_history', 'false')
+    }
     return await this.request(
       `/evaluations/sample-result?${params.toString()}`,
       { method: 'GET' }
@@ -975,7 +979,7 @@ export class EvaluationsClient extends BaseApiClient {
    * in multiple runs, uses the LATEST result.
    * @param projectId - The project ID to get aggregated results for
    */
-  async getProjectResultsByTaskModel(projectId: string): Promise<{
+  async getProjectResultsByTaskModel(projectId: string, evaluationIds?: string[]): Promise<{
     project_id: string
     models: string[]
     model_names: Record<string, string>
@@ -995,8 +999,11 @@ export class EvaluationsClient extends BaseApiClient {
       }
     >
   }> {
+    const params = evaluationIds?.length
+      ? `?evaluation_ids=${evaluationIds.join(',')}`
+      : ''
     return this.request(
-      `/evaluations/projects/${projectId}/results/by-task-model`
+      `/evaluations/projects/${projectId}/results/by-task-model${params}`
     )
   }
 

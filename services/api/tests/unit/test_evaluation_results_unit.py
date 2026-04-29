@@ -83,6 +83,7 @@ class TestExtractPrimaryScore:
     def test_no_matching_keys(self):
         from routers.evaluations.results import _extract_primary_score
         metrics = {"accuracy": 0.95, "f1": 0.88}
+        # No recognized primary score key — returns None (no guessing)
         assert _extract_primary_score(metrics) is None
 
 

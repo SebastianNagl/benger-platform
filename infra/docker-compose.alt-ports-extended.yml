@@ -66,7 +66,7 @@ services:
       context: ../services/workers
       dockerfile: Dockerfile
       args:
-        WORKERS_BASE_IMAGE: ghcr.io/sebastiannagl/benger/workers-base:latest
+        WORKERS_BASE_IMAGE: ghcr.io/sebastiannagl/benger-platform/workers-base:latest
     restart: unless-stopped
     volumes:
       - ../services/workers:/app:rw
@@ -93,7 +93,7 @@ services:
       context: ../services/workers
       dockerfile: Dockerfile
       args:
-        WORKERS_BASE_IMAGE: ghcr.io/sebastiannagl/benger/workers-base:latest
+        WORKERS_BASE_IMAGE: ghcr.io/sebastiannagl/benger-platform/workers-base:latest
     restart: unless-stopped
     working_dir: /tmp
     command: sh -c "export PYTHONPATH=/app:$$PYTHONPATH && celery -A tasks beat --loglevel=info"

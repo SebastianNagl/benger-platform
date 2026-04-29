@@ -165,7 +165,7 @@ class TestGetEvaluationResults:
         _make_eval_run(test_db, p.id, test_users[0].id)
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{p.id}",
+            f"/api/evaluations/results/{p.id}",
             headers={**auth_headers["admin"], "X-Organization-Context": org.id},
         )
         assert resp.status_code == 200
@@ -173,7 +173,7 @@ class TestGetEvaluationResults:
     def test_results_no_runs(self, client, auth_headers, test_db, test_users):
         p, org = _setup_eval_project(test_db, test_users)
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{p.id}",
+            f"/api/evaluations/results/{p.id}",
             headers={**auth_headers["admin"], "X-Organization-Context": org.id},
         )
         assert resp.status_code == 200
@@ -184,7 +184,7 @@ class TestGetEvaluationResults:
         _make_eval_run(test_db, p.id, test_users[0].id, model_id="claude-3-opus")
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{p.id}",
+            f"/api/evaluations/results/{p.id}",
             headers={**auth_headers["admin"], "X-Organization-Context": org.id},
         )
         assert resp.status_code == 200
@@ -197,7 +197,7 @@ class TestGetEvaluationResults:
             error_message="Evaluation failed",
         )
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{p.id}",
+            f"/api/evaluations/results/{p.id}",
             headers={**auth_headers["admin"], "X-Organization-Context": org.id},
         )
         assert resp.status_code == 200
@@ -216,7 +216,7 @@ class TestPerSampleResults:
         _make_task_eval(test_db, run.id, t.id, predicted="A", reference="A")
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{run.id}/samples",
+            f"/api/evaluations/{run.id}/samples",
             headers={**auth_headers["admin"], "X-Organization-Context": org.id},
         )
         # The endpoint triggers complex joins; 200 or 500 both indicate the route was exercised
@@ -233,7 +233,7 @@ class TestPerSampleResults:
             _make_task_eval(test_db, run.id, t.id, predicted="A" if i % 2 == 0 else "B", reference="A")
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{run.id}/samples?page=1&page_size=2",
+            f"/api/evaluations/{run.id}/samples?page=1&page_size=2",
             headers={**auth_headers["admin"], "X-Organization-Context": org.id},
         )
         assert resp.status_code in [200, 422, 500]
@@ -253,7 +253,7 @@ class TestConfusionMatrix:
             _make_task_eval(test_db, run.id, t.id, predicted=pred, reference=ref)
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{run.id}/confusion-matrix",
+            f"/api/evaluations/{run.id}/confusion-matrix",
             headers={**auth_headers["admin"], "X-Organization-Context": org.id},
         )
         assert resp.status_code in [200, 422, 500]
@@ -278,7 +278,7 @@ class TestScoreDistribution:
             )
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{run.id}/metrics/score/distribution",
+            f"/api/evaluations/{run.id}/metrics/score/distribution",
             headers={**auth_headers["admin"], "X-Organization-Context": org.id},
         )
         assert resp.status_code == 200
@@ -297,7 +297,7 @@ class TestExportEvaluationResults:
         _make_task_eval(test_db, run.id, t.id, predicted="A", reference="A")
 
         resp = client.post(
-            f"/api/evaluations/evaluations/export/{p.id}",
+            f"/api/evaluations/export/{p.id}",
             json={"format": "csv"},
             headers={**auth_headers["admin"], "X-Organization-Context": org.id},
         )

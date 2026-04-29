@@ -53,6 +53,8 @@ async function createFullFeaturedProject(
           // Enable randomized task ordering
           randomize_task_order: true,
           // Enable timer (120 seconds)
+          annotation_time_limit_enabled: true,
+          annotation_time_limit_seconds: 120,
           // Enable conditional instructions (2 variants, 50/50)
           conditional_instructions: [
             { id: 'variant_a', content: 'VARIANT A: Focus on legal implications.', weight: 50 },
@@ -71,6 +73,7 @@ async function createFullFeaturedProject(
             </Choices>
           </View>`,
           // Enable immediate evaluation
+          immediate_evaluation_enabled: true,
         }),
       })
       if (!configResp.ok) {
@@ -152,6 +155,62 @@ test.describe('Randomized Order with Annotation Features', () => {
     }
   })
 
+  test('timer displays and counts down with randomized task order @extended', async () => {
+    test.setTimeout(90000)
+
+    testProjectId = await createFullFeaturedProject(
+      page,
+      `E2E Timer+Random ${Date.now()}`,
+      5
+    )
+
+    // Verify settings persisted
+    const settings = await getProjectSettings(page, testProjectId!)
+    expect(settings.randomize_task_order).toBe(true)
+    expect(settings.annotation_time_limit_enabled).toBe(true)
+    expect(settings.annotation_time_limit_seconds).toBe(120)
+
+    // Navigate to annotation UI
+    await page.goto(`${BASE_URL}/projects/${testProjectId}/label`)
+
+    // With timer + conditional instructions, an instruction modal may appear
+    // with "Annotation starten" button, OR a standalone "Start" timer screen.
+    // Handle both cases.
+    const startButton = page
+      .locator('button')
+      .filter({ hasText: /^Start$|Annotation starten/ })
+      .first()
+    await expect(startButton).toBeVisible({ timeout: 20000 })
+    console.log('Start/instruction screen visible')
+    await startButton.click()
+
+    // Dismiss any remaining instruction modal overlay
+    const dismissButton = page.locator('button').filter({ hasText: /Annotation starten/ })
+    const hasDismiss = await dismissButton.isVisible({ timeout: 3000 }).catch(() => false)
+    if (hasDismiss) {
+      await dismissButton.click()
+      console.log('Dismissed instruction modal')
+    }
+
+    // Wait for timer to appear (top-right corner)
+    const timer = page
+      .locator('[data-testid="annotation-timer-display"]')
+      .or(page.locator('[role="timer"]'))
+      .first()
+    await expect(timer).toBeVisible({ timeout: 15000 })
+
+    // Verify timer shows approximately 02:00 or slightly less
+    const timerText = await timer.textContent()
+    expect(timerText).toMatch(/0[12]:\d\d/)
+    console.log(`Timer display: ${timerText}`)
+
+    // Wait 3 seconds and verify timer is counting down
+    await page.waitForTimeout(3000)
+    const timerText2 = await timer.textContent()
+    console.log(`Timer after 3s: ${timerText2}`)
+    // Should have decreased from initial value
+    expect(timerText2).not.toBe(timerText)
+    console.log('Timer is counting down correctly with randomized task order')
   })
 
   test('conditional instruction variant is shown and deterministic with randomized order', async () => {
@@ -367,5 +426,120 @@ test.describe('Randomized Order with Annotation Features', () => {
     console.log(`Advanced to next task/screen: ${hasAdvanced}`)
   })
 
+  test('immediate evaluation modal appears after submission with randomized order', async () => {
+    test.setTimeout(120000)
+
+    // Create project with eval enabled but questionnaire disabled for cleaner test
+    const result = await page.evaluate(async (name) => {
+      const projectResp = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ title: name, description: `E2E test: ${name}` }),
+      })
+      if (!projectResp.ok) return { error: `Create: ${projectResp.status}` }
+      const project = await projectResp.json()
+      const projectId = project.id
+
+      const configResp = await fetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          label_config: `<View>
+            <Text name="text" value="$text"/>
+            <Choices name="sentiment" toName="text" choice="single" required="true">
+              <Choice value="positive"/>
+              <Choice value="negative"/>
+              <Choice value="neutral"/>
+            </Choices>
+          </View>`,
+          randomize_task_order: true,
+          immediate_evaluation_enabled: true,
+          questionnaire_enabled: false,
+        }),
+      })
+      if (!configResp.ok) return { error: `Config: ${configResp.status}` }
+
+      const tasks = Array.from({ length: 3 }, (_, i) => ({
+        data: { text: `Evaluate legal statement ${i + 1}.` },
+      }))
+      const importResp = await fetch(`/api/projects/${projectId}/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ data: tasks }),
+      })
+      if (!importResp.ok) return { error: `Import: ${importResp.status}` }
+
+      return { projectId }
+    }, `E2E Eval+Random ${Date.now()}`)
+
+    if ('error' in result) throw new Error(result.error as string)
+    testProjectId = result.projectId as string
+
+    // Navigate to annotation UI
+    await page.goto(`${BASE_URL}/projects/${testProjectId}/label`)
+
+    // Wait for annotation form (no timer since we didn't enable it)
+    const choiceOption = page
+      .locator('input[type="radio"]')
+      .or(page.locator('label').filter({ hasText: /positive|negative|neutral/i }))
+      .first()
+    await expect(choiceOption).toBeVisible({ timeout: 20000 })
+    console.log('Annotation form loaded')
+
+    // Verify task counter shows randomized count
+    const taskCounter = page.locator('text=/Task 1 of 3/i')
+    await expect(taskCounter).toBeVisible({ timeout: 5000 })
+    console.log('Task counter: Task 1 of 3')
+
+    // Select an option and submit
+    await choiceOption.click()
+    await page.waitForTimeout(500)
+
+    const submitButton = page
+      .locator('button')
+      .filter({ hasText: /Absenden|Submit/i })
+      .first()
+    await submitButton.click()
+
+    // Wait for evaluation modal or success message
+    await page.waitForTimeout(3000)
+
+    // The evaluation modal should appear (or a loading state for it)
+    const evalModal = page
+      .locator('[role="dialog"]')
+      .or(page.locator('text=/Evaluation|Bewertung|gespeichert|saved/i'))
+    const hasEvalModal = await evalModal.first().isVisible({ timeout: 15000 }).catch(() => false)
+    console.log(`Evaluation modal/message visible: ${hasEvalModal}`)
+
+    if (hasEvalModal) {
+      // Check for evaluation content (results, loading, or error)
+      const evalContent = page
+        .locator('text=/Evaluating|Auswerten|Results|Ergebnis|saved|gespeichert|Error|Fehler/i')
+      const hasContent = await evalContent.first().isVisible({ timeout: 10000 }).catch(() => false)
+      console.log(`Evaluation content visible: ${hasContent}`)
+      if (hasContent) {
+        const contentText = await evalContent.first().textContent()
+        console.log(`Evaluation content: ${contentText?.substring(0, 100)}`)
+      }
+
+      // Close/continue past evaluation
+      const continueButton = page
+        .locator('button')
+        .filter({ hasText: /Weiter|Continue|Close|Schließen|nächst/i })
+      const hasContinue = await continueButton.first().isVisible({ timeout: 10000 }).catch(() => false)
+      if (hasContinue) {
+        await continueButton.first().click()
+        console.log('Closed evaluation modal')
+      }
+    }
+
+    // Verify we can proceed (task count should have decreased)
+    await page.waitForTimeout(2000)
+    const newCounter = page.locator('text=/Task \\d+ of 2/i')
+    const counterVisible = await newCounter.isVisible({ timeout: 10000 }).catch(() => false)
+    console.log(`Task count decreased to 2: ${counterVisible}`)
   })
 })

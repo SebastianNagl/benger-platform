@@ -365,7 +365,7 @@ class TestHumanEvaluationSessions:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/human/sessions/{p.id}",
+            f"/api/evaluations/human/sessions/{p.id}",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -375,7 +375,7 @@ class TestHumanEvaluationSessions:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/human/config/{p.id}",
+            f"/api/evaluations/human/config/{p.id}",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code in (200, 404)
@@ -392,7 +392,7 @@ class TestEvaluationValidation:
         test_db.commit()
 
         resp = client.post(
-            "/api/evaluations/evaluations/validate-config",
+            "/api/evaluations/validate-config",
             json={
                 "project_id": p.id,
                 "evaluation_configs": [

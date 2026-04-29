@@ -200,11 +200,15 @@ async def get_evaluated_models(
         )
         models_with_evaluations = {e.model_id for e in models_from_evaluations.all()}
 
-        # Discover annotator-based models from annotation evaluations
+        # Discover annotator-based models from annotation evaluations.
+        # Resolve display name via leaderboard's pseudonym rule
+        # (benger_extended/api/routers/leaderboards_human.py:168) so
+        # use_pseudonym=true users appear under their pseudonym instead
+        # of their real name/username.
         from models import User as DBUser
         annotator_models = {}  # synthetic_id -> display_name
         annotation_evals = (
-            db.query(DBUser.username)
+            db.query(DBUser.username, DBUser.name, DBUser.pseudonym, DBUser.use_pseudonym)
             .distinct()
             .join(Annotation, Annotation.completed_by == DBUser.id)
             .join(TaskEvaluation, TaskEvaluation.annotation_id == Annotation.id)
@@ -215,9 +219,10 @@ async def get_evaluated_models(
                 TaskEvaluation.generation_id == None,  # noqa: E711
             )
         )
-        for (username,) in annotation_evals.all():
-            synthetic_id = f"annotator:{username}"
-            annotator_models[synthetic_id] = f"Annotator: {username}"
+        for username, name, pseudonym, use_pseudonym in annotation_evals.all():
+            display = pseudonym if (use_pseudonym and pseudonym) else (name or username)
+            synthetic_id = f"annotator:{display}"
+            annotator_models[synthetic_id] = f"Annotator: {display}"
 
         # Combine all model sources when include_configured is True
         # Include models from sample results and direct evaluations
@@ -921,26 +926,40 @@ async def compute_project_statistics(
             .all()
         )
 
-        # Build annotator name map and merge results
+        # Build annotator name map and merge results — apply pseudonym
+        # rule so user-facing model_id matches the leaderboard.
         sample_results = list(generation_sample_results)
         if annotation_eval_results:
             annotation_ids = list(set(r.annotation_id for r in annotation_eval_results if r.annotation_id))
             if annotation_ids:
                 annotations_with_users = (
-                    db.query(Annotation.id, DBUser.username)
+                    db.query(
+                        Annotation.id,
+                        DBUser.username,
+                        DBUser.name,
+                        DBUser.pseudonym,
+                        DBUser.use_pseudonym,
+                    )
                     .join(DBUser, Annotation.completed_by == DBUser.id)
                     .filter(Annotation.id.in_(annotation_ids))
                     .all()
                 )
-                annotator_name_map = {a.id: a.username for a in annotations_with_users}
+                annotator_name_map = {
+                    a.id: (
+                        a.pseudonym
+                        if (a.use_pseudonym and a.pseudonym)
+                        else (a.name or a.username)
+                    )
+                    for a in annotations_with_users
+                }
 
                 for r in annotation_eval_results:
-                    username = annotator_name_map.get(r.annotation_id, "Unknown")
+                    display = annotator_name_map.get(r.annotation_id, "Unknown")
                     sample_results.append(SimpleNamespace(
                         task_id=r.task_id,
                         field_name=r.field_name,
                         metrics=r.metrics,
-                        model_id=f"annotator:{username}",
+                        model_id=f"annotator:{display}",
                     ))
 
         # Filter by compare_models if specified

@@ -190,12 +190,12 @@ def _make_eval_project(db, admin, org, *, num_tasks=3, num_models=2,
 
 @pytest.mark.integration
 class TestEvalResults:
-    """GET /api/evaluations/evaluations/results/{project_id}"""
+    """GET /api/evaluations/results/{project_id}"""
 
     def test_results_with_task_evals(self, client, test_db, test_users, auth_headers, test_org):
         data = _make_eval_project(test_db, test_users[0], test_org, with_task_evals=True)
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}",
+            f"{BASE}/results/{data['project'].id}",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -206,7 +206,7 @@ class TestEvalResults:
     def test_results_filter_by_model(self, client, test_db, test_users, auth_headers, test_org):
         data = _make_eval_project(test_db, test_users[0], test_org)
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}?model_id=gpt-4o",
+            f"{BASE}/results/{data['project'].id}?model_id=gpt-4o",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -214,7 +214,7 @@ class TestEvalResults:
     def test_results_include_human_flag(self, client, test_db, test_users, auth_headers, test_org):
         data = _make_eval_project(test_db, test_users[0], test_org, with_human=False)
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}?include_human=true",
+            f"{BASE}/results/{data['project'].id}?include_human=true",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -222,7 +222,7 @@ class TestEvalResults:
     def test_results_with_limit_offset(self, client, test_db, test_users, auth_headers, test_org):
         data = _make_eval_project(test_db, test_users[0], test_org)
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}?limit=2&offset=0",
+            f"{BASE}/results/{data['project'].id}?limit=2&offset=0",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -233,7 +233,7 @@ class TestEvalResults:
             with_task_evals=False, with_generations=False, num_models=0,
         )
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}",
+            f"{BASE}/results/{data['project'].id}",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -242,12 +242,12 @@ class TestEvalResults:
 
 @pytest.mark.integration
 class TestEvalExport:
-    """POST /api/evaluations/evaluations/export/{project_id}"""
+    """POST /api/evaluations/export/{project_id}"""
 
     def test_export_json_with_data(self, client, test_db, test_users, auth_headers, test_org):
         data = _make_eval_project(test_db, test_users[0], test_org)
         resp = client.post(
-            f"{BASE}/evaluations/export/{data['project'].id}?format=json",
+            f"{BASE}/export/{data['project'].id}?format=json",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -258,7 +258,7 @@ class TestEvalExport:
     def test_export_csv_with_data(self, client, test_db, test_users, auth_headers, test_org):
         data = _make_eval_project(test_db, test_users[0], test_org)
         resp = client.post(
-            f"{BASE}/evaluations/export/{data['project'].id}?format=csv",
+            f"{BASE}/export/{data['project'].id}?format=csv",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -269,7 +269,7 @@ class TestEvalExport:
             with_task_evals=False, with_generations=False, num_models=0,
         )
         resp = client.post(
-            f"{BASE}/evaluations/export/{data['project'].id}?format=json",
+            f"{BASE}/export/{data['project'].id}?format=json",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -373,7 +373,7 @@ class TestEvalStatus:
     def test_list_evaluations_with_data(self, client, test_db, test_users, auth_headers, test_org):
         data = _make_eval_project(test_db, test_users[0], test_org)
         resp = client.get(
-            f"{BASE}/evaluations",
+            f"{BASE}/",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -435,7 +435,7 @@ class TestHumanEval:
     def test_list_sessions(self, client, test_db, test_users, auth_headers, test_org):
         data = _make_eval_project(test_db, test_users[0], test_org, with_human=False)
         resp = client.get(
-            f"{BASE}/evaluations/human/sessions/{data['project'].id}",
+            f"{BASE}/human/sessions/{data['project'].id}",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code in (200, 403)
@@ -443,7 +443,7 @@ class TestHumanEval:
     def test_list_sessions_empty(self, client, test_db, test_users, auth_headers, test_org):
         data = _make_eval_project(test_db, test_users[0], test_org, with_human=False)
         resp = client.get(
-            f"{BASE}/evaluations/human/sessions/{data['project'].id}",
+            f"{BASE}/human/sessions/{data['project'].id}",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code in (200, 403)
@@ -451,7 +451,7 @@ class TestHumanEval:
     def test_start_session(self, client, test_db, test_users, auth_headers, test_org):
         data = _make_eval_project(test_db, test_users[0], test_org)
         resp = client.post(
-            f"{BASE}/evaluations/human/session/start",
+            f"{BASE}/human/session/start",
             json={"project_id": data["project"].id, "evaluation_type": "likert"},
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )

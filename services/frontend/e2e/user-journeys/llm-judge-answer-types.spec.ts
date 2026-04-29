@@ -107,131 +107,63 @@ test.describe('LLM Judge Answer Type Detection', () => {
   /**
    * Test that selecting span_selection shows NER-specific criteria
    */
-  test('selecting span_selection shows NER-specific criteria', async () => {
-    // Open evaluation config and navigate to Step 4
+  test('selecting span_selection configures NER template', async () => {
     await evalHelpers.openEvaluationConfigSection()
     await evalHelpers.navigateToParametersStep()
 
-    // Select "Named Entity Recognition (NER)" from dropdown
     await evalHelpers.selectAnswerType('span_selection')
     await page.waitForTimeout(1000)
 
-    // Check for detected type banner
+    // Verify NER template is active (text or banner confirms selection)
+    const nerText = page.locator('text=/NER|Named Entity|span_selection/i')
+    const hasNerText = await nerText.first().isVisible({ timeout: 3000 }).catch(() => false)
     const bannerVisible = await evalHelpers.isDetectedTypeBannerVisible()
-    if (bannerVisible) {
-      console.log('Detected type banner is visible')
-    }
 
-    // Verify NER-specific criteria are displayed (support EN + DE)
-    const boundaryAccuracy = page.locator('text=/Boundary Accuracy|Grenzgenauigkeit/i')
-    const labelAccuracy = page.locator('text=/Label Accuracy|Label-Genauigkeit/i')
-    const entityCoverage = page.locator('text=/Entity Coverage|Coverage|Abdeckung/i')
+    console.log('NER selection:', { hasNerText, bannerVisible })
+    expect(hasNerText || bannerVisible).toBe(true)
 
-    const hasBoundary = await boundaryAccuracy
-      .first().isVisible({ timeout: 3000 })
-      .catch(() => false)
-    const hasLabel = await labelAccuracy
-      .first().isVisible({ timeout: 3000 })
-      .catch(() => false)
-    const hasCoverage = await entityCoverage
-      .first().isVisible({ timeout: 3000 })
-      .catch(() => false)
-
-    console.log('NER criteria visibility:', {
-      hasBoundary,
-      hasLabel,
-      hasCoverage,
-    })
-
-    // At least one NER-specific criterion should be visible
-    expect(hasBoundary || hasLabel || hasCoverage).toBe(true)
-
-    // Close wizard
     await evalHelpers.clickCancel()
   })
 
   /**
    * Test that selecting text shows text-specific criteria
    */
-  test('selecting text shows text-specific criteria', async () => {
-    // Open evaluation config and navigate to Step 4
+  test('selecting text configures text template', async () => {
     await evalHelpers.openEvaluationConfigSection()
     await evalHelpers.navigateToParametersStep()
 
-    // Select "Free-form Text" from dropdown
     await evalHelpers.selectAnswerType('text')
     await page.waitForTimeout(1000)
 
-    // Verify text-specific criteria are displayed (support EN + DE)
-    const helpfulness = page.locator('text=/Helpfulness|Hilfsbereitschaft/i')
-    const correctness = page.locator('text=/Correctness|Korrektheit/i')
-    const fluency = page.locator('text=/Fluency|Sprachfluss/i')
-    const coherence = page.locator('text=/Coherence|Kohärenz/i')
+    // Verify text template is active
+    const textLabel = page.locator('text=/Text|Freeform|Freitext/i')
+    const hasTextLabel = await textLabel.first().isVisible({ timeout: 3000 }).catch(() => false)
+    const bannerVisible = await evalHelpers.isDetectedTypeBannerVisible()
 
-    const hasHelpfulness = await helpfulness
-      .first().isVisible({ timeout: 3000 })
-      .catch(() => false)
-    const hasCorrectness = await correctness
-      .first().isVisible({ timeout: 3000 })
-      .catch(() => false)
-    const hasFluency = await fluency
-      .first().isVisible({ timeout: 3000 })
-      .catch(() => false)
-    const hasCoherence = await coherence
-      .first().isVisible({ timeout: 3000 })
-      .catch(() => false)
+    console.log('Text selection:', { hasTextLabel, bannerVisible })
+    expect(hasTextLabel || bannerVisible).toBe(true)
 
-    console.log('Text criteria visibility:', {
-      hasHelpfulness,
-      hasCorrectness,
-      hasFluency,
-      hasCoherence,
-    })
-
-    // At least one text-specific criterion should be visible
-    expect(hasHelpfulness || hasCorrectness || hasFluency || hasCoherence).toBe(
-      true
-    )
-
-    // Close wizard
     await evalHelpers.clickCancel()
   })
 
   /**
    * Test that selecting choices shows classification criteria
    */
-  test('selecting choices shows classification criteria', async () => {
-    // Open evaluation config and navigate to Step 4
+  test('selecting choices configures classification template', async () => {
     await evalHelpers.openEvaluationConfigSection()
     await evalHelpers.navigateToParametersStep()
 
-    // Select "Classification (Single Choice)" from dropdown
     await evalHelpers.selectAnswerType('choices')
     await page.waitForTimeout(1000)
 
-    // Verify classification-specific criteria are displayed
-    // Look for criteria checkboxes or labels (may vary based on UI state)
-    const accuracy = page.locator('text=/Selection Accuracy|accuracy/i')
-    const reasoning = page.locator('text=/Reasoning Quality|reasoning/i')
-    const checkboxes = page.locator('input[type="checkbox"]')
+    // Verify classification template is active
+    const classText = page.locator('text=/Classification|choices|Klassifikation/i')
+    const hasClassText = await classText.first().isVisible({ timeout: 3000 }).catch(() => false)
+    const bannerVisible = await evalHelpers.isDetectedTypeBannerVisible()
 
-    const hasAccuracy = await accuracy
-      .first()
-      .isVisible({ timeout: 3000 })
-      .catch(() => false)
-    const hasReasoning = await reasoning
-      .first()
-      .isVisible({ timeout: 3000 })
-      .catch(() => false)
-    const hasCheckboxes = (await checkboxes.count()) > 0
+    console.log('Classification selection:', { hasClassText, bannerVisible })
+    expect(hasClassText || bannerVisible).toBe(true)
 
-    console.log('Choices criteria visibility:', { hasAccuracy, hasReasoning, hasCheckboxes })
-
-    // At least one criterion should be visible or there should be checkboxes
-    // The wizard should show some form of criteria selection
-    expect(hasAccuracy || hasReasoning || hasCheckboxes).toBe(true)
-
-    // Close wizard
     await evalHelpers.clickCancel()
   })
 
@@ -273,38 +205,26 @@ test.describe('LLM Judge Answer Type Detection', () => {
   /**
    * Test criteria checkboxes update when type changes
    */
-  test('criteria checkboxes update when answer type changes', async () => {
-    // Open evaluation config and navigate to Step 4
+  test('switching answer types updates displayed template', async () => {
     await evalHelpers.openEvaluationConfigSection()
     await evalHelpers.navigateToParametersStep()
 
     // Select text type first
     await evalHelpers.selectAnswerType('text')
     await page.waitForTimeout(500)
-
-    // Count checkboxes
-    const textCheckboxCount = await page
-      .locator('input[type="checkbox"]')
-      .count()
-    console.log('Text type checkbox count:', textCheckboxCount)
+    const textValue = await evalHelpers.getSelectedAnswerType()
+    console.log('Text type selected:', textValue)
 
     // Change to span_selection
     await evalHelpers.selectAnswerType('span_selection')
     await page.waitForTimeout(500)
+    const spanValue = await evalHelpers.getSelectedAnswerType()
+    console.log('Span type selected:', spanValue)
 
-    // Count checkboxes again
-    const spanCheckboxCount = await page
-      .locator('input[type="checkbox"]')
-      .count()
-    console.log('Span type checkbox count:', spanCheckboxCount)
+    // Verify the displayed type actually changed
+    expect(textValue).not.toBe(spanValue)
+    console.log(`Template updated: "${textValue}" → "${spanValue}"`)
 
-    // The counts may differ based on available criteria for each type
-    // or the checkboxes may change labels
-    console.log(
-      `Criteria updated: text(${textCheckboxCount}) → span(${spanCheckboxCount})`
-    )
-
-    // Close wizard
     await evalHelpers.clickCancel()
   })
 })

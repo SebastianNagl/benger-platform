@@ -20,7 +20,7 @@ test.describe('Leaderboards', () => {
     await helpers.login('admin', 'admin')
   })
 
-  test('leaderboards page loads with tabs', async () => {
+  test('leaderboards page loads with tabs @extended', async () => {
     await page.goto(`${BASE_URL}/leaderboards`)
 
     const mainContent = page.locator('main').first()
@@ -34,7 +34,7 @@ test.describe('Leaderboards', () => {
     await expect(humanTab).toBeVisible({ timeout: 10000 })
   })
 
-  test('switches between Human Annotators and LLMs tabs', async () => {
+  test('switches between Human Annotators and LLMs tabs @extended', async () => {
     await page.goto(`${BASE_URL}/leaderboards`)
 
     const mainContent = page.locator('main').first()

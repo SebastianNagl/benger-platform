@@ -7,6 +7,7 @@
 
 'use client'
 
+import { METRIC_ORDER } from '@/lib/api/evaluation-types'
 import {
   AggregationLevel,
   AggregationSelector,
@@ -17,10 +18,6 @@ import {
 } from '@/components/evaluation/ChartTypeSelector'
 import { DynamicChartRenderer } from '@/components/evaluation/DynamicChartRenderer'
 import { EvaluationResultsTable } from '@/components/evaluation/EvaluationResultsTable'
-import {
-  FieldPairSelector,
-  type FieldPair,
-} from '@/components/evaluation/FieldPairSelector'
 import { EvaluationControlModal } from '@/components/evaluation/EvaluationControlModal'
 import {
   ChartData,
@@ -99,6 +96,40 @@ interface EvaluationResult {
   evaluation_type: 'automated' | 'human'
 }
 
+/**
+ * Derive evaluation configs from project eval config.
+ * Handles current format (evaluation_configs) and legacy format (selected_methods).
+ */
+function deriveEvaluationConfigs(evalConfig: any): any[] {
+  let configs = evalConfig?.evaluation_configs || evalConfig?.multi_field_evaluations || []
+
+  if (configs.length === 0) {
+    const selectedMethods = evalConfig?.selected_methods || {}
+    const hasSelectedMethods = Object.values(selectedMethods).some(
+      (m: any) => m.automated?.length > 0 || m.human?.length > 0
+    )
+    if (hasSelectedMethods) {
+      configs = Object.entries(selectedMethods)
+        .flatMap(([fieldName, selections]: [string, any]) =>
+          (selections.automated || []).map((metric: any) => {
+            const metricName = typeof metric === 'string' ? metric : metric.name
+            return {
+              id: `${fieldName}_${metricName}`,
+              metric: metricName,
+              display_name: metricName.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+              prediction_fields: [selections.field_mapping?.prediction_field || fieldName].filter(Boolean),
+              reference_fields: [selections.field_mapping?.reference_field || fieldName].filter(Boolean),
+              enabled: true,
+              metric_parameters: typeof metric === 'object' ? metric.parameters : undefined,
+            }
+          })
+        )
+    }
+  }
+
+  return configs
+}
+
 export default function EvaluationDashboard() {
   const router = useRouter()
   const { addToast } = useToast()
@@ -130,44 +161,7 @@ export default function EvaluationDashboard() {
   >([])
 
   const [chartType, setChartType] = useState<ChartType>('data')
-  const [selectedFieldPairs, setSelectedFieldPairs] = useState<string[]>([])
-  const [fieldPairs, setFieldPairs] = useState<FieldPair[]>([])
   const [showEvaluationModal, setShowEvaluationModal] = useState(false)
-
-  // Metric parameter state for metrics with configurable parameters
-  const [metricParams, setMetricParams] = useState<{
-    // ROUGE
-    rougeVariant: 'rouge1' | 'rouge2' | 'rougeL' | 'rougeLsum'
-    // BLEU
-    bleuNgram: 1 | 2 | 3 | 4
-    bleuSmoothing: 'method1' | 'method2' | 'method3' | 'method4'
-    // METEOR
-    meteorAlpha: number
-    meteorBeta: number
-    meteorGamma: number
-    // chrF
-    chrfCharOrder: number
-    chrfWordOrder: number
-    chrfBeta: number
-  }>({
-    rougeVariant: 'rougeL',
-    bleuNgram: 4,
-    bleuSmoothing: 'method1',
-    meteorAlpha: 0.9,
-    meteorBeta: 3.0,
-    meteorGamma: 0.5,
-    chrfCharOrder: 6,
-    chrfWordOrder: 0,
-    chrfBeta: 2,
-  })
-  const [metricParamsDropdownOpen, setMetricParamsDropdownOpen] =
-    useState(false)
-  const metricParamsDropdownRef = useRef<HTMLDivElement>(null)
-
-  // Helper to check which metrics with params are selected
-  const hasMetricWithParams = selectedMetrics.some((m) =>
-    ['rouge', 'bleu', 'meteor', 'chrf'].includes(m.toLowerCase())
-  )
 
   // Project evaluation config - source of truth for available eval types and metrics
   const [projectEvalConfig, setProjectEvalConfig] = useState<{
@@ -209,7 +203,6 @@ export default function EvaluationDashboard() {
   // Track if evaluation results exist (reported by EvaluationResults)
   const [hasEvaluationResults, setHasEvaluationResults] = useState(false)
   // Track if auto-run has been attempted for current project (prevents duplicate runs)
-  const [autoRunAttempted, setAutoRunAttempted] = useState(false)
   // Chart data from evaluation results
   const [evaluationChartData, setEvaluationChartData] = useState<ChartData[]>(
     []
@@ -262,12 +255,6 @@ export default function EvaluationDashboard() {
         !modelsDropdownRef.current.contains(event.target as Node)
       ) {
         setModelsDropdownOpen(false)
-      }
-      if (
-        metricParamsDropdownRef.current &&
-        !metricParamsDropdownRef.current.contains(event.target as Node)
-      ) {
-        setMetricParamsDropdownOpen(false)
       }
       if (
         metricsDropdownRef.current &&
@@ -399,61 +386,31 @@ export default function EvaluationDashboard() {
   }, [selectedProject, selectedModels, selectedMetrics, chartType, aggregationLevels, statisticalMethods, evaluatedModels.length, availableMetrics.length])
 
   // Fetch comparison data when models/metrics change (instant reactive)
+  // Debounced comparison data fetch — prevents API bursts when toggling filters
   useEffect(() => {
     if (
       selectedProject &&
       selectedModels.length > 0 &&
       selectedMetrics.length > 0
     ) {
-      fetchComparisonData()
+      const timer = setTimeout(() => fetchComparisonData(), 300)
+      return () => clearTimeout(timer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchComparisonData is stable, only re-run when filter selections change
   }, [selectedModels, selectedMetrics, selectedProject])
 
-  // Auto-compute statistics when aggregation/methods/models change
+  // Debounced statistics computation — prevents API bursts when toggling filters
   useEffect(() => {
     if (
       selectedProject &&
       selectedMetrics.length > 0 &&
       aggregationLevels.length > 0
     ) {
-      computeStatistics()
+      const timer = setTimeout(() => computeStatistics(), 300)
+      return () => clearTimeout(timer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- computeStatistics is stable, only re-run when filter selections change
   }, [aggregationLevels, statisticalMethods, selectedMetrics, selectedModels, selectedProject])
-
-  // Auto-run evaluation when configured but no results exist yet
-  useEffect(() => {
-    // Only auto-run if:
-    // 1. Project is selected
-    // 2. Has evaluation configuration
-    // 3. No evaluation results exist yet
-    // 4. Haven't attempted auto-run for this project visit
-    // 5. Not currently loading or running
-    if (
-      selectedProject &&
-      hasAnyConfiguration &&
-      !hasEvaluationResults &&
-      !autoRunAttempted &&
-      !loading &&
-      !runningEvaluation
-    ) {
-      setAutoRunAttempted(true)
-      // Small delay to ensure UI is ready
-      const timer = setTimeout(() => {
-        handleRunEvaluation()
-      }, 1000)
-      return () => clearTimeout(timer)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleRunEvaluation is stable, only re-run when conditions change
-  }, [
-    selectedProject,
-    hasAnyConfiguration,
-    hasEvaluationResults,
-    autoRunAttempted,
-    loading,
-    runningEvaluation,
-  ])
 
   const fetchProjectData = async (projectId: string) => {
     setLoading(true)
@@ -480,32 +437,7 @@ export default function EvaluationDashboard() {
       }
 
       // 3. Check if project has evaluation configuration
-      const selectedMethods = evalConfig?.selected_methods || {}
-      // Support current key (evaluation_configs) and legacy key (multi_field_evaluations)
-      let evaluationConfigs = evalConfig?.evaluation_configs || evalConfig?.multi_field_evaluations || []
-
-      // Bridge: derive evaluation configs from selected_methods for legacy projects
-      const hasSelectedMethods = Object.values(selectedMethods).some(
-        (m: any) => m.automated?.length > 0 || m.human?.length > 0
-      )
-      if (evaluationConfigs.length === 0 && hasSelectedMethods) {
-        evaluationConfigs = Object.entries(selectedMethods)
-          .flatMap(([fieldName, selections]: [string, any]) =>
-            (selections.automated || []).map((metric: any) => {
-              const metricName = typeof metric === 'string' ? metric : metric.name
-              return {
-                id: `${fieldName}_${metricName}`,
-                metric: metricName,
-                display_name: metricName.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-                prediction_fields: [selections.field_mapping?.prediction_field || fieldName].filter(Boolean),
-                reference_fields: [selections.field_mapping?.reference_field || fieldName].filter(Boolean),
-                enabled: true,
-                metric_parameters: typeof metric === 'object' ? metric.parameters : undefined,
-              }
-            })
-          )
-      }
-
+      const evaluationConfigs = deriveEvaluationConfigs(evalConfig)
       const hasConfig = evaluationConfigs.length > 0
 
       setHasAnyConfiguration(hasConfig)
@@ -528,7 +460,7 @@ export default function EvaluationDashboard() {
         const hasLlmJudgeConfig = enabledEvalConfigs.some(
           (e: any) => e.metric?.startsWith('llm_judge')
         )
-        const hasHumanConfig = Object.values(selectedMethods).some(
+        const hasHumanConfig = Object.values(evalConfig?.selected_methods || {}).some(
           (m: any) => m.human?.length > 0
         )
 
@@ -576,43 +508,41 @@ export default function EvaluationDashboard() {
           }
         )
 
-        setAvailableMetrics(uniqueMetrics)
+        // Sort by GROUPED_METRICS order (same as wizard)
+        const orderMap = new Map(METRIC_ORDER.map((m, i) => [m, i]))
+        metricsStatus.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999))
+        const sortedMetrics = metricsStatus.map(m => m.id)
+
+        setAvailableMetrics(sortedMetrics)
         // Check if URL has metrics param - if so, don't override
         const urlMetrics = searchParams?.get('metrics')
         if (!urlMetrics) {
           // Select all metrics by default
-          setSelectedMetrics(uniqueMetrics)
+          setSelectedMetrics(sortedMetrics)
         }
         setMetricsWithStatus(metricsStatus)
       }
 
-      // 5. Fetch evaluation results
-      try {
-        const resultsResponse = await apiClient.get(
-          `/evaluations/results/${projectId}`
-        )
-        setEvaluationResults(resultsResponse.data || [])
-      } catch {
+      // 5+6. Fetch evaluation results and models in parallel
+      const [resultsResult, modelsResult] = await Promise.allSettled([
+        apiClient.get(`/evaluations/results/${projectId}`),
+        apiClient.evaluations.getEvaluatedModels(projectId, true),
+      ])
+
+      if (resultsResult.status === 'fulfilled') {
+        setEvaluationResults(resultsResult.value.data || [])
+      } else {
         setEvaluationResults([])
       }
 
-      // 6. Fetch models with include_configured=true to show all configured models
-      try {
-        const modelsResponse = await apiClient.evaluations.getEvaluatedModels(
-          projectId,
-          true
-        )
-        setEvaluatedModels(modelsResponse || [])
-
-        // Check if URL has models param - if so, don't override
+      if (modelsResult.status === 'fulfilled') {
+        const modelsResponse = modelsResult.value || []
+        setEvaluatedModels(modelsResponse)
         const urlModels = searchParams?.get('models')
-        if (!urlModels) {
-          // Select ALL models by default
-          if (modelsResponse?.length > 0) {
-            setSelectedModels(modelsResponse.map((m: any) => m.model_id))
-          }
+        if (!urlModels && modelsResponse.length > 0) {
+          setSelectedModels(modelsResponse.map((m: any) => m.model_id))
         }
-      } catch {
+      } else {
         setEvaluatedModels([])
       }
 
@@ -791,15 +721,33 @@ export default function EvaluationDashboard() {
         eventSource.close()
       })
 
+      // Retry with exponential backoff on SSE errors
+      let retryCount = 0
+      const maxRetries = 3
       eventSource.addEventListener('error', () => {
-        updateEvaluation(
-          evaluationId,
-          'failed',
-          t('evaluation.viewer.status.connectionLost'),
-          t('evaluation.viewer.status.unableToTrack')
-        )
-        setRunningEvaluation(false)
-        eventSource.close()
+        retryCount++
+        if (retryCount <= maxRetries) {
+          const delay = Math.pow(2, retryCount - 1) * 1000 // 1s, 2s, 4s
+          updateEvaluation(
+            evaluationId,
+            'running',
+            t('evaluation.viewer.status.reconnecting'),
+            `${t('evaluation.viewer.status.attempt')} ${retryCount}/${maxRetries}`
+          )
+          eventSource.close()
+          setTimeout(() => {
+            subscribeToEvaluationStatus(evaluationId, configCount)
+          }, delay)
+        } else {
+          updateEvaluation(
+            evaluationId,
+            'failed',
+            t('evaluation.viewer.status.connectionLost'),
+            t('evaluation.viewer.status.unableToTrack')
+          )
+          setRunningEvaluation(false)
+          eventSource.close()
+        }
       })
 
       return eventSource
@@ -815,34 +763,7 @@ export default function EvaluationDashboard() {
     setRunningEvaluation(true)
     try {
       // Get configs from the current project's evaluation_config
-      // Support current key (evaluation_configs) and legacy key (multi_field_evaluations)
-      let evaluationConfigs =
-        projectEvalConfig?.evaluation_configs || (projectEvalConfig as any)?.multi_field_evaluations || []
-
-      // Bridge: derive from selected_methods for legacy projects
-      if (evaluationConfigs.length === 0) {
-        const sm = projectEvalConfig?.selected_methods || {}
-        const hasSM = Object.values(sm).some(
-          (m: any) => m.automated?.length > 0
-        )
-        if (hasSM) {
-          evaluationConfigs = Object.entries(sm)
-            .flatMap(([fieldName, selections]: [string, any]) =>
-              (selections.automated || []).map((metric: any) => {
-                const metricName = typeof metric === 'string' ? metric : metric.name
-                return {
-                  id: `${fieldName}_${metricName}`,
-                  metric: metricName,
-                  prediction_fields: [selections.field_mapping?.prediction_field || fieldName].filter(Boolean),
-                  reference_fields: [selections.field_mapping?.reference_field || fieldName].filter(Boolean),
-                  enabled: true,
-                  metric_parameters: typeof metric === 'object' ? metric.parameters : undefined,
-                }
-              })
-            )
-        }
-      }
-
+      const evaluationConfigs = deriveEvaluationConfigs(projectEvalConfig)
       const configs = evaluationConfigs.filter((e: any) => e.enabled !== false)
 
       if (configs.length === 0) {
@@ -890,7 +811,7 @@ export default function EvaluationDashboard() {
     if (!authLoading && !canAccessProjectData(user, { isPrivateMode })) {
       router.replace('/projects?error=no-permission')
     }
-  }, [user, authLoading, router])
+  }, [user, authLoading, router, isPrivateMode])
 
   if (authLoading) {
     return (
@@ -905,10 +826,10 @@ export default function EvaluationDashboard() {
       <div className="flex min-h-[50vh] items-center justify-center">
         <div className="text-center">
           <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {t('evaluation.accessDenied') || 'Access Denied'}
+            {t('evaluation.accessDenied')}
           </h3>
           <Button onClick={() => router.push('/projects')} className="mt-4">
-            {t('common.backToProjects') || 'Back to Projects'}
+            {t('common.backToProjects')}
           </Button>
         </div>
       </div>
@@ -1036,7 +957,7 @@ export default function EvaluationDashboard() {
             items={[
               { label: t('navigation.dashboard'), href: '/dashboard' },
               {
-                label: t('navigation.evaluation') || 'Evaluation',
+                label: t('navigation.evaluation'),
                 href: '/evaluations',
               },
             ]}
@@ -1092,7 +1013,6 @@ export default function EvaluationDashboard() {
                       onClick={() => {
                         setSelectedProject(project)
                         setProjectDropdownOpen(false)
-                        setAutoRunAttempted(false) // Reset auto-run for new project
                       }}
                       className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
                         selectedProject?.id === project.id
@@ -1296,294 +1216,6 @@ export default function EvaluationDashboard() {
               </div>
             )}
 
-            {/* Metric Parameters - show when metrics with parameters are selected */}
-            {selectedProject && hasMetricWithParams && (
-              <div className="relative" ref={metricParamsDropdownRef}>
-                <label className="mb-1 block text-xs font-medium text-gray-500">
-                  {t('evaluation.viewer.filters.params')}
-                </label>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    setMetricParamsDropdownOpen(!metricParamsDropdownOpen)
-                  }
-                  className="w-28 justify-between"
-                >
-                  <span className="truncate text-xs">
-                    {[
-                      selectedMetrics.some(
-                        (m) => m.toLowerCase() === 'rouge'
-                      ) && metricParams.rougeVariant,
-                      selectedMetrics.some((m) => m.toLowerCase() === 'bleu') &&
-                        `B${metricParams.bleuNgram}`,
-                      selectedMetrics.some(
-                        (m) => m.toLowerCase() === 'meteor'
-                      ) && 'MET',
-                      selectedMetrics.some((m) => m.toLowerCase() === 'chrf') &&
-                        `chr${metricParams.chrfCharOrder}`,
-                    ]
-                      .filter(Boolean)
-                      .join(', ') || t('evaluation.viewer.params.configure')}
-                  </span>
-                  <ChevronDownIcon
-                    className={`ml-1 h-3 w-3 opacity-70 transition-transform ${metricParamsDropdownOpen ? 'rotate-180' : ''}`}
-                  />
-                </Button>
-                {metricParamsDropdownOpen && (
-                  <div className="absolute z-50 mt-1 max-h-80 w-64 space-y-4 overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                    {/* ROUGE Parameters */}
-                    {selectedMetrics.some(
-                      (m) => m.toLowerCase() === 'rouge'
-                    ) && (
-                      <div className="space-y-2">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                          {t('evaluation.viewer.params.rouge.title')}
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
-                            {t('evaluation.viewer.params.rouge.variant')}
-                          </label>
-                          <Select
-                            value={metricParams.rougeVariant}
-                            onValueChange={(v) =>
-                              setMetricParams((prev) => ({
-                                ...prev,
-                                rougeVariant: v as any,
-                              }))
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="rouge1">{t('evaluation.viewer.params.rouge.rouge1')}</SelectItem>
-                              <SelectItem value="rouge2">{t('evaluation.viewer.params.rouge.rouge2')}</SelectItem>
-                              <SelectItem value="rougeL">{t('evaluation.viewer.params.rouge.rougeL')}</SelectItem>
-                              <SelectItem value="rougeLsum">{t('evaluation.viewer.params.rouge.rougeLsum')}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    )}
-                    {/* BLEU Parameters */}
-                    {selectedMetrics.some(
-                      (m) => m.toLowerCase() === 'bleu'
-                    ) && (
-                      <div className="space-y-2">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
-                          {t('evaluation.viewer.params.bleu.title')}
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
-                            {t('evaluation.viewer.params.bleu.ngramOrder')}
-                          </label>
-                          <Select
-                            value={metricParams.bleuNgram.toString()}
-                            onValueChange={(v) =>
-                              setMetricParams((prev) => ({
-                                ...prev,
-                                bleuNgram: parseInt(v) as any,
-                              }))
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1">{t('evaluation.viewer.params.bleu.bleu1')}</SelectItem>
-                              <SelectItem value="2">{t('evaluation.viewer.params.bleu.bleu2')}</SelectItem>
-                              <SelectItem value="3">{t('evaluation.viewer.params.bleu.bleu3')}</SelectItem>
-                              <SelectItem value="4">{t('evaluation.viewer.params.bleu.bleu4')}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
-                            {t('evaluation.viewer.params.bleu.smoothing')}
-                          </label>
-                          <Select
-                            value={metricParams.bleuSmoothing}
-                            onValueChange={(v) =>
-                              setMetricParams((prev) => ({
-                                ...prev,
-                                bleuSmoothing: v as any,
-                              }))
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="method1">{t('evaluation.viewer.params.bleu.method1')}</SelectItem>
-                              <SelectItem value="method2">{t('evaluation.viewer.params.bleu.method2')}</SelectItem>
-                              <SelectItem value="method3">{t('evaluation.viewer.params.bleu.method3')}</SelectItem>
-                              <SelectItem value="method4">{t('evaluation.viewer.params.bleu.method4')}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    )}
-                    {/* METEOR Parameters */}
-                    {selectedMetrics.some(
-                      (m) => m.toLowerCase() === 'meteor'
-                    ) && (
-                      <div className="space-y-2">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-400">
-                          {t('evaluation.viewer.params.meteor.title')}
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
-                              {t('evaluation.viewer.params.meteor.alpha')}
-                            </label>
-                            <input
-                              type="number"
-                              value={metricParams.meteorAlpha}
-                              onChange={(e) =>
-                                setMetricParams((prev) => ({
-                                  ...prev,
-                                  meteorAlpha: parseFloat(e.target.value),
-                                }))
-                              }
-                              min={0}
-                              max={1}
-                              step={0.1}
-                              className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700"
-                            />
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
-                              {t('evaluation.viewer.params.meteor.beta')}
-                            </label>
-                            <input
-                              type="number"
-                              value={metricParams.meteorBeta}
-                              onChange={(e) =>
-                                setMetricParams((prev) => ({
-                                  ...prev,
-                                  meteorBeta: parseFloat(e.target.value),
-                                }))
-                              }
-                              min={0}
-                              max={10}
-                              step={0.5}
-                              className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700"
-                            />
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
-                              {t('evaluation.viewer.params.meteor.gamma')}
-                            </label>
-                            <input
-                              type="number"
-                              value={metricParams.meteorGamma}
-                              onChange={(e) =>
-                                setMetricParams((prev) => ({
-                                  ...prev,
-                                  meteorGamma: parseFloat(e.target.value),
-                                }))
-                              }
-                              min={0}
-                              max={1}
-                              step={0.1}
-                              className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {/* chrF Parameters */}
-                    {selectedMetrics.some(
-                      (m) => m.toLowerCase() === 'chrf'
-                    ) && (
-                      <div className="space-y-2">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-400">
-                          {t('evaluation.viewer.params.chrf.title')}
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
-                              {t('evaluation.viewer.params.chrf.charNgram')}
-                            </label>
-                            <Select
-                              value={metricParams.chrfCharOrder.toString()}
-                              onValueChange={(v) =>
-                                setMetricParams((prev) => ({
-                                  ...prev,
-                                  chrfCharOrder: parseInt(v),
-                                }))
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {[1, 2, 3, 4, 5, 6].map((n) => (
-                                  <SelectItem key={n} value={n.toString()}>
-                                    {n}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
-                              {t('evaluation.viewer.params.chrf.wordNgram')}
-                            </label>
-                            <Select
-                              value={metricParams.chrfWordOrder.toString()}
-                              onValueChange={(v) =>
-                                setMetricParams((prev) => ({
-                                  ...prev,
-                                  chrfWordOrder: parseInt(v),
-                                }))
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {[0, 1, 2].map((n) => (
-                                  <SelectItem key={n} value={n.toString()}>
-                                    {n}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-xs text-gray-600 dark:text-gray-400">
-                              {t('evaluation.viewer.params.chrf.beta')}
-                            </label>
-                            <Select
-                              value={metricParams.chrfBeta.toString()}
-                              onValueChange={(v) =>
-                                setMetricParams((prev) => ({
-                                  ...prev,
-                                  chrfBeta: parseInt(v),
-                                }))
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {[1, 2, 3].map((n) => (
-                                  <SelectItem key={n} value={n.toString()}>
-                                    {n}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* View Type Selector - inline with dropdowns */}
             {selectedProject && (
               <div className="flex flex-col">
@@ -1600,15 +1232,6 @@ export default function EvaluationDashboard() {
               </div>
             )}
 
-            {/* Field Pair Selector */}
-            {selectedProject && fieldPairs.length > 0 && (
-              <FieldPairSelector
-                fieldPairs={fieldPairs}
-                selectedPairs={selectedFieldPairs}
-                onChange={setSelectedFieldPairs}
-                className="w-52"
-              />
-            )}
           </div>
         </Card>
 
@@ -1622,7 +1245,6 @@ export default function EvaluationDashboard() {
               setStatisticalMethods([])
               setSelectedModels(evaluatedModels.map((m) => m.model_id))
               setSelectedMetrics(availableMetrics)
-              setSelectedFieldPairs([])
               setSelectedEvalTypes(['automated', 'llm-judge', 'human'])
             }}
             className="mb-4 text-sm text-gray-500 transition hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/evaluations/validate-config")
+@router.post("/validate-config")
 async def validate_evaluation_config(
     project_id: str,
     request: Request,

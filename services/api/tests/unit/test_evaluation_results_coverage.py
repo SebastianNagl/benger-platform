@@ -74,6 +74,7 @@ class TestExtractPrimaryScore:
         from routers.evaluations.results import _extract_primary_score
 
         # Keys ending in _response, _passed, _details, _raw should be skipped
+        # No generic fallback — returns None when no recognized key matches
         result = _extract_primary_score({
             "llm_judge_test_response": 0.9,
             "llm_judge_test_passed": 1,

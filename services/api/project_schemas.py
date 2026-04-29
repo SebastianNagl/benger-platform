@@ -211,8 +211,8 @@ class ProjectUpdate(BaseModel):
     review_enabled: Optional[bool] = None
     review_mode: Optional[str] = None
     allow_self_review: Optional[bool] = None
-    feedback_enabled: Optional[bool] = None
-    feedback_config: Optional[List[Dict[str, Any]]] = None
+    korrektur_enabled: Optional[bool] = None
+    korrektur_config: Optional[List[Dict[str, Any]]] = None
     immediate_evaluation_enabled: Optional[bool] = None
 
     # Task assignment
@@ -251,6 +251,13 @@ class ProjectUpdate(BaseModel):
             ai_allowed = variant.get("ai_allowed")
             if ai_allowed is not None and not isinstance(ai_allowed, bool):
                 raise ValueError(f"Variant {i} 'ai_allowed' must be a boolean")
+        # Validate weights sum to 100
+        if v:
+            total_weight = sum(variant.get("weight", 0) for variant in v)
+            if abs(total_weight - 100) > 0.01:
+                raise ValueError(
+                    f"Conditional instruction weights must sum to 100 (got {total_weight})"
+                )
         return v
 
 
@@ -304,8 +311,8 @@ class ProjectResponse(ProjectBase):
     review_enabled: bool = False
     review_mode: Optional[str] = "in_place"
     allow_self_review: bool = False
-    feedback_enabled: bool = False
-    feedback_config: Optional[List[Dict[str, Any]]] = None
+    korrektur_enabled: bool = False
+    korrektur_config: Optional[List[Dict[str, Any]]] = None
     immediate_evaluation_enabled: bool = False
 
     # Task assignment
@@ -439,6 +446,9 @@ class AnnotationBase(BaseModel):
     draft: Optional[List[Dict[str, Any]]] = Field(None, description="Draft annotation data")
     was_cancelled: bool = Field(False, description="Whether annotation was cancelled")
     lead_time: Optional[float] = Field(None, description="Time taken to complete (seconds)")
+    auto_submitted: Optional[bool] = Field(
+        False, description="Whether this was auto-submitted by strict timer expiry (Issue #1205)"
+    )
 
 
 class AnnotationCreate(AnnotationBase):
@@ -468,6 +478,12 @@ class AnnotationUpdate(BaseModel):
     result: Optional[List[Dict[str, Any]]] = None
     draft: Optional[List[Dict[str, Any]]] = None
     ground_truth: Optional[bool] = None
+    # Review workflow updates (review_result is one of: approved, rejected, fixed)
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    review_result: Optional[str] = None
+    review_annotation: Optional[List[Dict[str, Any]]] = None
+    review_comment: Optional[str] = None
 
 
 class AnnotationResponse(AnnotationBase):
@@ -485,6 +501,12 @@ class AnnotationResponse(AnnotationBase):
     tab_switches: int = 0
     instruction_variant: Optional[str] = None
     ai_assisted: bool = False
+    # Review workflow (extended)
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    review_result: Optional[str] = None
+    review_annotation: Optional[List[Dict[str, Any]]] = None
+    review_comment: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -548,8 +570,8 @@ class ReviewPendingItem(BaseModel):
     task: TaskResponse
 
 
-class FeedbackCommentCreate(BaseModel):
-    """Schema for creating a feedback comment"""
+class KorrekturCommentCreate(BaseModel):
+    """Schema for creating a korrektur comment"""
 
     target_type: str = Field(..., description="Target type: annotation, generation, or evaluation")
     target_id: str = Field(..., description="ID of the target entity")
@@ -568,14 +590,14 @@ class FeedbackCommentCreate(BaseModel):
         return v
 
 
-class FeedbackCommentUpdate(BaseModel):
-    """Schema for updating a feedback comment"""
+class KorrekturCommentUpdate(BaseModel):
+    """Schema for updating a korrektur comment"""
 
     text: str = Field(..., description="Updated comment text")
 
 
-class FeedbackCommentResponse(BaseModel):
-    """Schema for feedback comment response"""
+class KorrekturCommentResponse(BaseModel):
+    """Schema for korrektur comment response"""
 
     id: str
     project_id: str
@@ -595,42 +617,42 @@ class FeedbackCommentResponse(BaseModel):
     created_by_name: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
-    replies: List["FeedbackCommentResponse"] = []
+    replies: List["KorrekturCommentResponse"] = []
 
     class Config:
         from_attributes = True
 
 
-class FeedbackStats(BaseModel):
-    """Schema for feedback statistics"""
+class KorrekturStats(BaseModel):
+    """Schema for korrektur statistics"""
 
     total_tasks: int
-    tasks_with_feedback: int
-    tasks_without_feedback: int
+    tasks_with_korrektur: int
+    tasks_without_korrektur: int
     total_comments: int
     unresolved_comments: int
-    feedback_enabled: bool
+    korrektur_enabled: bool
 
 
-class FeedbackPendingItem(BaseModel):
-    """Schema for a task in the feedback list"""
+class KorrekturPendingItem(BaseModel):
+    """Schema for a task in the korrektur list"""
 
     task: TaskResponse
     annotation_count: int = 0
     generation_count: int = 0
     evaluation_count: int = 0
-    feedback_count: int = 0
-    unresolved_feedback_count: int = 0
+    korrektur_count: int = 0
+    unresolved_korrektur_count: int = 0
 
 
-class FeedbackTaskDetail(BaseModel):
-    """Schema for full task data in feedback view"""
+class KorrekturTaskDetail(BaseModel):
+    """Schema for full task data in korrektur view"""
 
     task: TaskResponse
     annotations: List[Dict[str, Any]] = []
     generations: List[Dict[str, Any]] = []
     evaluations: List[Dict[str, Any]] = []
-    feedback_config: Optional[List[Dict[str, Any]]] = None
+    korrektur_config: Optional[List[Dict[str, Any]]] = None
     annotator_name: Optional[str] = None
 
 

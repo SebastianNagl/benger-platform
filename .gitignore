@@ -256,3 +256,6 @@ services/frontend/coverage-baseline.txt
 
 # Security scan reports (may contain local environment secrets)
 docs/security-reports/
+
+/.quarto/
+**/*.quarto_ipynb

@@ -147,7 +147,7 @@ async def stream_evaluation_status(
     return EventSourceResponse(event_generator())
 
 
-@router.get("/evaluations", response_model=List[EvaluationResult])
+@router.get("/", response_model=List[EvaluationResult])
 async def get_evaluations(
     request: Request,
     current_user: User = Depends(require_user),

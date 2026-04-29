@@ -11,6 +11,11 @@
  */
 
 export { registerSlot, getSlot, useSlot, hasSlot } from './slots'
+export {
+  registerWizardTemplate,
+  getRegisteredWizardTemplates,
+} from './wizardTemplates'
+export type { RegisteredWizardTemplate } from './wizardTemplates'
 
 let extendedLoaded = false
 

@@ -179,22 +179,21 @@ class ResponseParser:
 
             # Check if we extracted any fields
             if not parsed_data:
-                # Fallback for free-form text responses
-                # If we have a single TextArea field and no structured data, use entire response
-                text_fields = []
-                for name, config in self.label_config_map.items():
-                    field_type = config.get("type", "")
-                    if field_type in ["TextArea"]:
-                        text_fields.append((name, field_type))
-
-                # If there's a single primary text field, use the entire response for it
-                if len(text_fields) == 1:
-                    field_name, _ = text_fields[0]
-                    parsed_data[field_name] = response_text.strip()
-
-            # Check if we extracted any fields
-            if not parsed_data:
-                return ParseResult(status="failed", error="No fields could be extracted from text")
+                # Unstructured response — don't auto-map to label_config field names.
+                # Use generic __response__ field. Users evaluate via model:__response__
+                # or __all_model__. Structured responses (JSON / field:value) keep their
+                # actual field names.
+                ls_annotation = [{
+                    "from_name": "__response__",
+                    "type": "textarea",
+                    "value": {"text": [response_text.strip()]},
+                }]
+                field_values = {"__response__": response_text.strip()}
+                return ParseResult(
+                    status="success",
+                    parsed_annotation=ls_annotation,
+                    field_values=field_values,
+                )
 
             # Transform to Label Studio format
             ls_annotation = self._transform_to_label_studio(parsed_data)
@@ -253,6 +252,15 @@ class ResponseParser:
                         "from_name": field_name,
                         "type": "labels",
                         "value": {"spans": spans},
+                    }
+                )
+            elif field_type in ["Gliederung", "Loesung"]:
+                # German legal annotation fields (Issue #1041) - use textarea format
+                ls_annotation.append(
+                    {
+                        "from_name": field_name,
+                        "type": "textarea",
+                        "value": {"text": [value] if isinstance(value, str) else value},
                     }
                 )
             else:  # Default to textarea for text fields
@@ -334,7 +342,7 @@ class ResponseParser:
                     if "labels" in field_config:
                         span_schema["properties"]["type"]["enum"] = field_config["labels"]
                     properties[field_name] = {"type": "array", "items": span_schema}
-                else:  # TextArea, Text
+                else:  # TextArea, Text, Gliederung, Loesung (Issue #1041)
                     properties[field_name] = {"type": "string"}
 
                 if is_required:
@@ -367,6 +375,7 @@ class ResponseParser:
 
             # Find all annotation control elements (answer fields only, not display fields)
             # Note: "Text" elements are display-only fields (show task data), NOT answer fields
+            # Include German legal annotation elements (Issue #1041)
             for elem in root.iter():
                 if elem.tag in [
                     "Choices",
@@ -374,6 +383,8 @@ class ResponseParser:
                     "Rating",
                     "Number",
                     "Labels",
+                    "Gliederung",
+                    "Loesung",
                 ]:
                     name = elem.get("name")
                     if name:

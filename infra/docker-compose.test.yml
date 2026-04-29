@@ -268,9 +268,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 6G
+          memory: 4G
         reservations:
-          memory: 2G
+          memory: 1G
 
   # Celery Beat Scheduler
   test-scheduler:
@@ -372,7 +372,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 6G       # 6GB for E2E tests (16GB Docker VM, shared with dev)
+          memory: 4G       # Reduced from 6GB to avoid Docker OOM during make test
         reservations:
           memory: 2G
 

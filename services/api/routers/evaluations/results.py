@@ -4,7 +4,7 @@ Evaluation results, per-sample analysis, and export endpoints.
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -66,7 +66,7 @@ def _extract_primary_score(metrics: Optional[Dict[str, Any]]) -> Optional[float]
 # ============= Endpoints =============
 
 
-@router.get("/evaluations/results/{project_id}", response_model=List[EvaluationResultsResponse])
+@router.get("/results/{project_id}", response_model=List[EvaluationResultsResponse])
 async def get_evaluation_results(
     project_id: str,
     request: Request,
@@ -196,7 +196,7 @@ async def get_evaluation_results(
         )
 
 
-@router.post("/evaluations/export/{project_id}")
+@router.post("/export/{project_id}")
 async def export_evaluation_results(
     project_id: str,
     request: Request,
@@ -289,7 +289,7 @@ async def export_evaluation_results(
         )
 
 
-@router.get("/evaluations/{evaluation_id}/samples")
+@router.get("/{evaluation_id}/samples")
 async def get_evaluation_samples(
     evaluation_id: str,
     request: Request,
@@ -368,7 +368,7 @@ async def get_evaluation_samples(
         )
 
 
-@router.get("/evaluations/{evaluation_id}/metrics/{metric_name}/distribution")
+@router.get("/{evaluation_id}/metrics/{metric_name}/distribution")
 async def get_metric_distribution(
     evaluation_id: str,
     metric_name: str,
@@ -479,7 +479,7 @@ async def get_metric_distribution(
         )
 
 
-@router.get("/evaluations/{evaluation_id}/confusion-matrix")
+@router.get("/{evaluation_id}/confusion-matrix")
 async def get_confusion_matrix(
     evaluation_id: str,
     request: Request,
@@ -641,20 +641,37 @@ async def get_results_by_task_model(
                 detail="Access denied",
             )
 
-        # Get all sample results with generation and task info
-        sample_results = (
+        # Get sample results with dedup: latest per (generation_id, field_name)
+        ranked_results = (
             db.query(
                 TaskEvaluation.task_id,
                 TaskEvaluation.metrics,
                 TaskEvaluation.passed,
                 TaskEvaluation.generation_id,
                 GenerationModel.model_id,
+                func.row_number()
+                .over(
+                    partition_by=[TaskEvaluation.generation_id, TaskEvaluation.field_name],
+                    order_by=TaskEvaluation.created_at.desc(),
+                )
+                .label("rn"),
             )
             .join(
                 GenerationModel,
                 TaskEvaluation.generation_id == GenerationModel.id,
             )
             .filter(TaskEvaluation.evaluation_id == evaluation_id)
+            .subquery()
+        )
+        sample_results = (
+            db.query(
+                ranked_results.c.task_id,
+                ranked_results.c.metrics,
+                ranked_results.c.passed,
+                ranked_results.c.generation_id,
+                ranked_results.c.model_id,
+            )
+            .filter(ranked_results.c.rn == 1)
             .all()
         )
 
@@ -665,6 +682,7 @@ async def get_results_by_task_model(
             db.query(
                 TaskEvaluation.task_id,
                 TaskEvaluation.annotation_id,
+                TaskEvaluation.field_name,
                 TaskEvaluation.metrics,
                 TaskEvaluation.created_at,
             )
@@ -737,27 +755,45 @@ async def get_results_by_task_model(
             annotation_ids = list(set(r.annotation_id for r in annotation_eval_results if r.annotation_id))
             if annotation_ids:
                 annotations_with_users = (
-                    db.query(Annotation.id, DBUser.username)
+                    db.query(
+                        Annotation.id,
+                        DBUser.username,
+                        DBUser.name,
+                        DBUser.pseudonym,
+                        DBUser.use_pseudonym,
+                    )
                     .join(DBUser, Annotation.completed_by == DBUser.id)
                     .filter(Annotation.id.in_(annotation_ids))
                     .all()
                 )
-                annotator_name_map = {a.id: a.username for a in annotations_with_users}
+                # Mirror the leaderboard's pseudonym resolution
+                # (benger_extended/api/routers/leaderboards_human.py:168) so
+                # annotators with use_pseudonym=true display under their
+                # pseudonym instead of their real name/username.
+                annotator_name_map = {
+                    a.id: (
+                        a.pseudonym
+                        if (a.use_pseudonym and a.pseudonym)
+                        else (a.name or a.username)
+                    )
+                    for a in annotations_with_users
+                }
 
+                # Deduplicate: keep latest per (task_id, annotation_id, field_name)
                 seen_task_annotations: dict = {}
-                for r in sorted(annotation_eval_results, key=lambda x: x.created_at or datetime.min):
-                    seen_task_annotations[(r.task_id, r.annotation_id)] = r
+                for r in sorted(annotation_eval_results, key=lambda x: x.created_at or datetime.min.replace(tzinfo=timezone.utc)):
+                    seen_task_annotations[(r.task_id, r.annotation_id, r.field_name)] = r
 
                 for r in seen_task_annotations.values():
-                    username = annotator_name_map.get(r.annotation_id, "Unknown")
-                    synthetic_model_id = f"annotator:{username}"
+                    display = annotator_name_map.get(r.annotation_id, "Unknown")
+                    synthetic_model_id = f"annotator:{display}"
                     score = _extract_primary_score(r.metrics)
 
                     if score is not None:
                         if synthetic_model_id not in model_scores_list:
                             model_scores_list[synthetic_model_id] = []
                             model_ids.append(synthetic_model_id)
-                        model_name_map[synthetic_model_id] = f"Annotator: {username}"
+                        model_name_map[synthetic_model_id] = f"Annotator: {display}"
 
                         if r.task_id not in task_model_scores:
                             task_model_scores[r.task_id] = {}
@@ -880,6 +916,7 @@ def _get_task_preview(task_data: dict) -> str:
 async def get_project_results_by_task_model(
     project_id: str,
     request: Request,
+    evaluation_ids: Optional[str] = Query(None, description="Comma-separated evaluation run IDs to filter by"),
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -912,15 +949,16 @@ async def get_project_results_by_task_model(
                 detail="Access denied",
             )
 
-        # Get all completed evaluations for this project
-        completed_evals = (
-            db.query(DBEvaluationRun.id)
-            .filter(
-                DBEvaluationRun.project_id == project_id,
-                DBEvaluationRun.status == "completed",
-            )
-            .all()
+        # Get completed evaluations for this project, optionally filtered by IDs
+        eval_query = db.query(DBEvaluationRun.id).filter(
+            DBEvaluationRun.project_id == project_id,
+            DBEvaluationRun.status == "completed",
         )
+        if evaluation_ids:
+            filter_ids = [eid.strip() for eid in evaluation_ids.split(",") if eid.strip()]
+            if filter_ids:
+                eval_query = eval_query.filter(DBEvaluationRun.id.in_(filter_ids))
+        completed_evals = eval_query.all()
         completed_eval_ids = [e.id for e in completed_evals]
 
         if not completed_eval_ids:
@@ -932,8 +970,8 @@ async def get_project_results_by_task_model(
                 "summary": {},
             }
 
-        # Subquery: rank results by generation_id, ordered by created_at DESC
-        # This keeps only the latest result per generation
+        # Subquery: rank results by (generation_id, field_name), ordered by created_at DESC
+        # Keeps the latest result per generation per config/field combination
         ranked_results = (
             db.query(
                 TaskEvaluation.task_id,
@@ -942,7 +980,7 @@ async def get_project_results_by_task_model(
                 GenerationModel.model_id,
                 func.row_number()
                 .over(
-                    partition_by=TaskEvaluation.generation_id,
+                    partition_by=[TaskEvaluation.generation_id, TaskEvaluation.field_name],
                     order_by=TaskEvaluation.created_at.desc(),
                 )
                 .label("rn"),
@@ -975,6 +1013,7 @@ async def get_project_results_by_task_model(
             db.query(
                 TE2.task_id,
                 TE2.annotation_id,
+                TE2.field_name,
                 TE2.metrics,
                 TE2.created_at,
             )
@@ -1031,28 +1070,43 @@ async def get_project_results_by_task_model(
             annotation_ids = list(set(r.annotation_id for r in annotation_eval_results if r.annotation_id))
             if annotation_ids:
                 annotations_with_users = (
-                    db.query(Annotation.id, DBUser.username)
+                    db.query(
+                        Annotation.id,
+                        DBUser.username,
+                        DBUser.name,
+                        DBUser.pseudonym,
+                        DBUser.use_pseudonym,
+                    )
                     .join(DBUser, Annotation.completed_by == DBUser.id)
                     .filter(Annotation.id.in_(annotation_ids))
                     .all()
                 )
-                annotator_name_map = {a.id: a.username for a in annotations_with_users}
+                # Mirror the leaderboard pseudonym resolution so users with
+                # use_pseudonym=true display under their pseudonym.
+                annotator_name_map = {
+                    a.id: (
+                        a.pseudonym
+                        if (a.use_pseudonym and a.pseudonym)
+                        else (a.name or a.username)
+                    )
+                    for a in annotations_with_users
+                }
 
-                # Deduplicate: keep latest per (task_id, annotation_id)
+                # Deduplicate: keep latest per (task_id, annotation_id, field_name)
                 seen_task_annotations: dict = {}
-                for r in sorted(annotation_eval_results, key=lambda x: x.created_at or datetime.min):
-                    seen_task_annotations[(r.task_id, r.annotation_id)] = r
+                for r in sorted(annotation_eval_results, key=lambda x: x.created_at or datetime.min.replace(tzinfo=timezone.utc)):
+                    seen_task_annotations[(r.task_id, r.annotation_id, r.field_name)] = r
 
                 for r in seen_task_annotations.values():
-                    username = annotator_name_map.get(r.annotation_id, "Unknown")
-                    synthetic_model_id = f"annotator:{username}"
+                    display = annotator_name_map.get(r.annotation_id, "Unknown")
+                    synthetic_model_id = f"annotator:{display}"
                     score = _extract_primary_score(r.metrics)
 
                     if score is not None:
                         if synthetic_model_id not in model_scores:
                             model_scores[synthetic_model_id] = []
                             model_ids.append(synthetic_model_id)
-                        model_name_map[synthetic_model_id] = f"Annotator: {username}"
+                        model_name_map[synthetic_model_id] = f"Annotator: {display}"
 
                         if r.task_id not in task_scores:
                             task_scores[r.task_id] = {}
@@ -1125,6 +1179,7 @@ async def get_sample_result_by_task_model(
     request: Request,
     task_id: str = Query(..., description="Task ID"),
     model_id: str = Query(..., description="Model ID"),
+    include_history: bool = Query(True, description="Include all historical results. When false, deduplicate to latest per field_name."),
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -1199,11 +1254,25 @@ async def get_sample_result_by_task_model(
                 "message": "No evaluation results found for this task and model",
             }
 
+        # Deduplicate to latest per field_name when history is off
+        # Results are already ordered by created_at desc, so first per field wins
+        if not include_history:
+            seen_fields = set()
+            deduplicated = []
+            for sr in sample_results:
+                if sr.field_name not in seen_fields:
+                    seen_fields.add(sr.field_name)
+                    deduplicated.append(sr)
+            sample_results = deduplicated
+
         # Build response with full evaluation details
+        # Batch-load evaluation runs to avoid N+1 queries
+        eval_ids = list(set(sr.evaluation_id for sr in sample_results if sr.evaluation_id))
+        eval_map = {e.id: e for e in db.query(DBEvaluationRun).filter(DBEvaluationRun.id.in_(eval_ids)).all()} if eval_ids else {}
+
         results = []
         for sr in sample_results:
-            # Get evaluation metadata for context
-            evaluation = db.query(DBEvaluationRun).filter(DBEvaluationRun.id == sr.evaluation_id).first()
+            evaluation = eval_map.get(sr.evaluation_id)
 
             result_data = {
                 "id": sr.id,
