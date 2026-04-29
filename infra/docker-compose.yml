@@ -186,8 +186,7 @@ services:
       # E2E Test Mode - enables mock LLM responses for testing
       E2E_TEST_MODE: ${E2E_TEST_MODE:-false}
 
-      # Mail Service Configuration (configured via docker-compose.mailhog.yml or docker-compose.mail.yml)
-      # No hardcoded mail settings here - they come from the mail compose overlays
+      # SMTP outbound (worker reads SMTP_HOST/PORT/USERNAME/PASSWORD from services/workers/.env)
     volumes:
       - ../services/api:/app:ro  # Read-only for security
       - ../services/shared:/shared:ro  # Shared services directory
@@ -271,8 +270,7 @@ services:
       # E2E Test Mode - enables mock LLM responses for testing
       E2E_TEST_MODE: ${E2E_TEST_MODE:-false}
 
-      # Mail Service Configuration (configured via docker-compose.mailhog.yml or docker-compose.mail.yml)
-      # No hardcoded mail settings here - they come from the mail compose overlays
+      # SMTP outbound (worker reads SMTP_HOST/PORT/USERNAME/PASSWORD from services/workers/.env)
     volumes:
       - ../services/workers:/app:ro  # Read-only for security
       - ../services/shared:/shared:ro  # Shared services directory

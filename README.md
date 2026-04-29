@@ -22,17 +22,24 @@ Developed at the Technical University of Munich for legal NLP research.
 git clone https://github.com/SebastianNagl/benger-platform.git
 cd benger-platform
 
-# Start with Docker Compose
+# Create local env files from templates (dev-safe defaults)
+cp services/api/.env.example       services/api/.env
+cp services/workers/.env.example   services/workers/.env
+cp services/frontend/.env.example  services/frontend/.env.local
+
+# Start with Docker Compose (or `docker-compose` on Compose v1)
 cd infra/
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
 # Seed initial data (admin/admin, contributor/admin, annotator/admin)
-docker-compose exec api python init_complete.py
+docker compose exec api python init_complete.py
 
 # Access the application
 # Frontend: http://benger.localhost
 # API Docs: http://api.localhost/docs
 ```
+
+On modern macOS, Linux, and Windows, `*.localhost` resolves to 127.0.0.1 automatically — no `/etc/hosts` edit needed. To exercise LLM execution, configure provider keys in the app's organization settings after first login.
 
 ## Project Structure
 
@@ -57,11 +64,9 @@ BenGER/
 │   └── traefik/            # Reverse proxy configuration
 ├── scripts/                # Automation, deployment, maintenance scripts
 ├── docs/                   # Documentation
-│   ├── architecture/       # ADRs and system design
 │   ├── user-guides/        # User documentation
 │   ├── api-docs/           # API documentation
-│   ├── setup/              # Setup and deployment guides
-│   └── operations/         # Operations and maintenance
+│   └── setup/              # Setup and deployment guides
 └── publications/           # Academic manuscripts
 ```
 
@@ -102,11 +107,14 @@ BenGER/
 ### Docker Development (Recommended)
 
 ```bash
+# One-time: create env files from templates
+bash scripts/bootstrap-env.sh   # equivalent to: make bootstrap
+
 cd infra/
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
 # Initialize the database with seed data
-docker-compose exec api python init_complete.py
+docker compose exec api python init_complete.py
 ```
 
 Access at `http://benger.localhost`. Development mode enables auto-authentication.
@@ -116,7 +124,7 @@ Access at `http://benger.localhost`. Development mode enables auto-authenticatio
 1. **Start infrastructure services**
 ```bash
 cd infra/
-docker-compose -f docker-compose.yml up -d postgres redis
+docker compose -f docker-compose.yml up -d db redis
 ```
 
 2. **Set up the API**

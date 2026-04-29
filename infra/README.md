@@ -20,19 +20,10 @@ Modern, secure, and clean Docker Compose setup for the BenGer legal technology p
 **⚡ Quick Commands:**
 ```bash
 # Development (with hot reload)
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-
-# Development with email testing
-docker-compose -f docker-compose.yml -f docker-compose.mailhog.yml up -d
-
-# Production  
-docker-compose -f docker-compose.yml -f docker-compose.production.yml up -d
-
-# Production with mail server
-docker-compose -f docker-compose.yml -f docker-compose.mail.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
 # Status
-docker-compose ps
+docker compose ps
 ```
 
 ## 🏗️ Architecture Overview
@@ -61,36 +52,22 @@ docker-compose ps
 
 ### Development Setup
 ```bash
-# Clone and navigate to infrastructure
-cd /path/to/BenGer/infra
+# From the repo root, create env files from templates (one time)
+bash scripts/bootstrap-env.sh
 
-# Copy and configure environment
-cp .env.example .env
-# Edit .env with your settings
-
-# Start all services with development settings and hot reload
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-
-# Optional: Add email testing with MailHog
-docker-compose -f docker-compose.yml -f docker-compose.mailhog.yml up -d mailhog
+# Then bring up the stack
+cd infra/
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Stop all services
-docker-compose down
+docker compose down
 ```
 
 ### Production Deployment
-```bash
-# Configure production environment variables
-export FRONTEND_DOMAIN=yourdomain.com
-export API_DOMAIN=api.yourdomain.com
-export ACME_EMAIL=admin@yourdomain.com
-
-# Start all services with production settings
-docker-compose -f docker-compose.yml -f docker-compose.production.yml up -d
-```
+Production is deployed via Kubernetes / Helm — see `infra/helm/` and `docs/setup/deployment/DEPLOYMENT.md`. The Compose files in this directory are for local development only.
 
 ## 🌐 Service Access
 
@@ -99,12 +76,10 @@ docker-compose -f docker-compose.yml -f docker-compose.production.yml up -d
 - **API Documentation**: http://api.localhost/docs
 - **Native Annotation**: Integrated within frontend
 - **Traefik Dashboard**: http://traefik.localhost
-- **MailHog UI**: http://localhost:8025 (if enabled)
 
 ### Direct Access (Development Only)
 - **PostgreSQL Database**: localhost:5432
 - **Redis Cache**: localhost:6379
-- **MailHog SMTP**: localhost:1025 (no auth needed)
 
 ### Production URLs
 - **Frontend**: https://${FRONTEND_DOMAIN}
@@ -133,50 +108,27 @@ ACCESS_TOKEN_EXPIRE_MINUTES=60
 ANNOTATION_WEBSOCKET_ENABLED=true
 ANNOTATION_CACHE_TTL=3600
 
-# Mail Service (Development - MailHog)
-MAIL_ENABLED=true
-MAIL_SMTP_HOST=mailhog
-MAIL_SMTP_PORT=1025
-MAIL_FROM_EMAIL=noreply@what-a-benger.net
-MAIL_FROM_NAME=BenGER Platform
+# SMTP (worker uses this for outbound notification emails)
+SMTP_HOST=smtp.sendgrid.net
+SMTP_PORT=587
+SMTP_USE_TLS=true
+SENDGRID_API_KEY=your-sendgrid-key
+EMAIL_FROM_ADDRESS=noreply@what-a-benger.net
 ```
 
-**Additional for production:**
-```bash
-# Domain Configuration
-FRONTEND_DOMAIN=yourdomain.com
-API_DOMAIN=api.yourdomain.com
-
-# SSL/ACME Configuration
-ACME_EMAIL=admin@yourdomain.com
-
-# Application Settings
-ENVIRONMENT=production
-DEBUG=false
-
-# Mail Service (Production - Stalwart)
-MAIL_SMTP_HOST=mail
-MAIL_SMTP_PORT=587
-MAIL_SMTP_USER=noreply@what-a-benger.net
-MAIL_SMTP_PASSWORD=secure-password-here
-MAIL_USE_TLS=true
-```
+Production env (Helm / K8s) is managed under `infra/helm/benger/` — see the deployment guide.
 
 ### Docker Compose Files Structure
 ```
 infra/
-├── docker-compose.yml              # Base configuration
+├── docker-compose.yml              # Base configuration (services + Traefik)
 ├── docker-compose.dev.yml          # Development overrides (hot reload)
-├── docker-compose.production.yml   # Production overrides & security
-├── docker-compose.mailhog.yml      # Development email testing
-├── docker-compose.mail.yml         # Production mail server (Stalwart)
-├── traefik/
-│   ├── config/dynamic.yml         # Advanced middleware & TLS
-│   └── certs/                     # SSL certificates storage
-├── redis/redis.conf               # Redis performance tuning
-├── db/init/                       # Database initialization scripts
-├── test_email.py                  # Email testing script
-└── .env                          # Environment configuration
+├── docker-compose.local.yml        # Optional local routing tweaks
+├── docker-compose.test.yml         # Isolated test stack
+├── docker-compose.test.ci.yml      # CI override (use prebuilt images)
+├── traefik/                        # Traefik config & TLS certs
+├── redis/redis.conf                # Redis performance tuning
+├── helm/                           # Production Kubernetes Helm charts
 ```
 
 ## 🔒 Security Features & Modern Standards
@@ -249,12 +201,12 @@ Request → Traefik → Security Headers → Rate Limiting → CORS → Compress
 ### Live Development Features
 ```bash
 # Start with live reloading
-docker-compose -f docker-compose.yml -f docker-compose.development.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
 # View real-time logs
-docker-compose logs -f api
-docker-compose logs -f worker
-docker-compose logs -f frontend
+docker compose logs -f api
+docker compose logs -f worker
+docker compose logs -f frontend
 ```
 
 **Volume Mounts for Development:**

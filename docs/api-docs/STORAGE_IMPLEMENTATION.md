@@ -364,7 +364,6 @@ For issues related to the storage implementation:
 
 ## Related Documentation
 
-- [BenGER Architecture Guide](../docs/ARCHITECTURE_V3.md)
-- [Deployment Guide](../docs/DEPLOYMENT.md)
-- [Security Guide](../docs/SECURITY.md)
-- [API Documentation](http://localhost:8000/docs)
+- [Deployment Guide](../setup/deployment/DEPLOYMENT.md)
+- [Security Guide](../SECURITY.md)
+- [API Documentation](http://api.localhost/docs)

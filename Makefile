@@ -4,29 +4,16 @@
 
 .PHONY: help
 help: ## Show this help message
-	@echo "╔════════════════════════════════════════════════════════════════╗"
-	@echo "║                    BenGER Project Commands                     ║"
-	@echo "╚════════════════════════════════════════════════════════════════╝"
+	@echo "$(BLUE)BenGER — make [target]$(NC)  (try: make setup | make dev | make stop)"
 	@echo ""
-	@echo "Usage: make [target]"
-	@echo ""
-	@echo "🚀 Quick Start:"
-	@echo "  make setup          - Complete initial setup"
-	@echo "  make dev            - Start all services in development mode"
-	@echo "  make stop           - Stop all running services"
-	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
 # ==================== VARIABLES ====================
 # Auto-detect docker compose command (v2 plugin "docker compose" vs v1 standalone "docker-compose")
 DOCKER_COMPOSE_CMD := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
 DOCKER_COMPOSE := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml
 DOCKER_COMPOSE_DEV := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml -f infra/docker-compose.dev.yml
-DOCKER_COMPOSE_EXTENDED := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.yml -f infra/docker-compose.dev.yml -f infra/docker-compose.extended.yml
-DOCKER_COMPOSE_ALT := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.alt-ports.yml
-DOCKER_COMPOSE_ALT_EXT := $(DOCKER_COMPOSE_CMD) -f infra/docker-compose.alt-ports-extended.yml -f infra/docker-compose.extended.yml
 DOCKER_COMPOSE_TEST := $(DOCKER_COMPOSE_CMD) -f $(CURDIR)/infra/docker-compose.test.yml
-DOCKER_COMPOSE_TEST_EXT := $(DOCKER_COMPOSE_CMD) -f $(CURDIR)/infra/docker-compose.test.yml -f $(CURDIR)/infra/docker-compose.test.extended.yml
 API_DIR := services/api
 FRONTEND_DIR := services/frontend
 WORKERS_DIR := services/workers
@@ -62,18 +49,11 @@ install-deps: ## Install all dependencies
 	@echo "$(GREEN)✅ Dependencies installed$(NC)"
 
 .PHONY: setup-env
-setup-env: ## Setup environment files
-	@echo "$(BLUE)🔧 Setting up environment files...$(NC)"
-	@if [ ! -f .env ]; then \
-		cp .env.template .env; \
-		echo "$(YELLOW)⚠️  Created .env from .env.template - please update with your values$(NC)"; \
-	else \
-		echo "$(GREEN)✓ .env file already exists$(NC)"; \
-	fi
-	@if [ ! -f infra/.env ]; then \
-		ln -s ../.env infra/.env; \
-		echo "$(GREEN)✓ Linked .env to infra/$(NC)"; \
-	fi
+setup-env: ## Create services/*/.env files from .env.example templates (no-clobber)
+	@bash scripts/bootstrap-env.sh
+
+.PHONY: bootstrap
+bootstrap: setup-env ## Alias for setup-env
 
 .PHONY: setup-db
 setup-db: ## Initialize database with migrations
@@ -104,62 +84,6 @@ dev: ## Start all services in development mode with hot reload
 	@echo ""
 	@echo "Run 'make logs' to see logs or 'make stop' to stop services"
 
-.PHONY: dev-extended
-dev-extended: ## Start with extended features (requires ../benger-extended)
-	@if [ ! -d "../benger-extended/benger_extended" ]; then \
-		echo "$(RED)Error: benger-extended not found at ../benger-extended$(NC)"; \
-		echo "Clone it: git clone git@github.com:SebastianNagl/benger-extended.git ../benger-extended"; \
-		exit 1; \
-	fi
-	@echo "$(BLUE)Starting development environment (extended edition)...$(NC)"
-	@$(DOCKER_COMPOSE_EXTENDED) up -d
-	@echo "$(GREEN)Extended development environment running$(NC)"
-	@echo ""
-	@echo "  Frontend: http://benger.localhost (extended features enabled)"
-	@echo "  API: http://api.localhost (extended routers loaded)"
-	@echo ""
-	@echo "Run 'make logs' to see logs or 'make stop' to stop services"
-
-.PHONY: dev-alt
-dev-alt: ## Start community edition on alt ports (9000/9001) alongside old BenGer
-	@echo "$(BLUE)Starting community edition on alternate ports...$(NC)"
-	@$(DOCKER_COMPOSE_ALT) up -d
-	@echo "$(GREEN)Community edition running (alt ports)$(NC)"
-	@echo ""
-	@echo "  Frontend: http://localhost:9000"
-	@echo "  API:      http://localhost:9001"
-	@echo "  DB:       localhost:9432"
-	@echo "  Redis:    localhost:9379"
-	@echo ""
-
-.PHONY: dev-alt-extended
-dev-alt-extended: ## Start extended edition on alt ports (9100/9101) alongside core
-	@if [ ! -d "../benger-extended/benger_extended" ]; then \
-		echo "$(RED)Error: benger-extended not found at ../benger-extended$(NC)"; \
-		exit 1; \
-	fi
-	@echo "$(BLUE)Starting extended edition on alternate ports...$(NC)"
-	@$(DOCKER_COMPOSE_ALT_EXT) up -d
-	@echo "$(GREEN)Extended edition running$(NC)"
-	@echo ""
-	@echo "  Frontend: http://localhost:9100 (extended features)"
-	@echo "  API:      http://localhost:9101 (extended routers)"
-	@echo "  DB:       localhost:9532"
-	@echo "  Redis:    localhost:9479"
-	@echo ""
-
-.PHONY: dev-both
-dev-both: dev-alt dev-alt-extended ## Start BOTH core and extended side by side
-	@echo "$(GREEN)Both editions running:$(NC)"
-	@echo "  Core:     http://localhost:9000 (frontend)  http://localhost:9001 (API)"
-	@echo "  Extended: http://localhost:9100 (frontend)  http://localhost:9101 (API)"
-
-.PHONY: stop-alt
-stop-alt: ## Stop all alt-port instances (core + extended)
-	@$(DOCKER_COMPOSE_ALT) down 2>/dev/null; true
-	@$(DOCKER_COMPOSE_ALT_EXT) down 2>/dev/null; true
-	@echo "$(GREEN)Alt-port instances stopped$(NC)"
-
 .PHONY: dev-api
 dev-api: ## Start API in development mode (standalone)
 	@echo "$(BLUE)🌐 Starting API server...$(NC)"
@@ -174,22 +98,6 @@ dev-frontend: ## Start frontend in development mode (standalone)
 dev-workers: ## Start workers in development mode
 	@echo "$(BLUE)⚙️  Starting workers...$(NC)"
 	@cd $(WORKERS_DIR) && celery -A tasks worker --loglevel=info
-
-.PHONY: dev-mail
-dev-mail: ## Start development with MailHog email testing
-	@echo "$(BLUE)📧 Starting MailHog email catcher...$(NC)"
-	@$(DOCKER_COMPOSE) -f infra/docker-compose.mailhog.yml up -d mailhog
-	@echo "$(GREEN)✅ MailHog running$(NC)"
-	@echo "  📧 Web UI: http://localhost:8025"
-	@echo "  📮 SMTP: localhost:1025"
-
-.PHONY: prod-mail
-prod-mail: ## Start production mail server (Stalwart)
-	@echo "$(BLUE)📬 Starting Stalwart mail server...$(NC)"
-	@$(DOCKER_COMPOSE) -f infra/docker-compose.mail.yml up -d mail
-	@echo "$(GREEN)✅ Stalwart mail server running$(NC)"
-	@echo "  📧 Admin: http://localhost:8081"
-	@echo "  📮 SMTP: localhost:2525"
 
 .PHONY: stop
 stop: ## Stop all running services
@@ -262,11 +170,8 @@ db-restore: ## Restore database from backup (requires BACKUP_FILE=path/to/backup
 #
 # Individual Test Suites:
 #   make test-unit      - API + Workers + Frontend Jest
-#   make test-e2e       - Playwright E2E tests (all)
-#   make test-e2e-gate  - Fast E2E (excludes @extended full-workflow tests)
-#   make test-e2e-extended - Extended E2E only (@extended full-workflow tests)
-#   make test-all       - All tests excluding @extended (requires infra running)
-#   make test-extended  - Full suite including @extended (nightly/manual)
+#   make test-e2e       - Playwright E2E tests
+#   make test-all       - All tests (requires infra running)
 #
 # Ports (isolated from dev):
 #   PostgreSQL: 5433, Redis: 6380, API: 8002, Frontend: 8090
@@ -276,10 +181,7 @@ db-restore: ## Restore database from backup (requires BACKUP_FILE=path/to/backup
 
 .PHONY: test
 test: ## Run full test suite (clean -> build -> seed -> test all -> stop -> prune) - for CI/CD
-	@echo "╔════════════════════════════════════════════════════════════════╗"
-	@echo "║            BenGER Complete Test Suite                         ║"
-	@echo "╚════════════════════════════════════════════════════════════════╝"
-	@echo ""
+	@echo "$(BLUE)🧪 BenGER complete test suite$(NC)"
 	@echo "$(BLUE)🧹 Cleaning pre-existing test environment...$(NC)"
 	@$(DOCKER_COMPOSE_TEST) down -v 2>/dev/null || true
 	@echo ""
@@ -453,130 +355,18 @@ test-all: ## Run all tests (requires test-start first)
 		sleep 5; timeout=$$((timeout - 5)); \
 	done; \
 	docker exec benger-test-test-api-1 python init_complete.py > /dev/null 2>&1 || true; \
-	echo "$(BLUE)4️⃣  E2E Tests (Playwright, excluding @extended)$(NC)"; \
+	echo "$(BLUE)4️⃣  E2E Tests (Playwright)$(NC)"; \
 	cd $(CURDIR)/services/frontend && \
 	E2E_ISOLATED=true \
 	PLAYWRIGHT_BASE_URL=http://benger-test.localhost:8090 \
 	npx playwright test --grep-invert "@extended" --reporter=line && E2E_RESULT=0 || E2E_RESULT=1; \
 	echo ""; \
-	\
-	echo "╔════════════════════════════════════════════════════════════════╗"; \
-	echo "║                    TEST RESULTS SUMMARY                        ║"; \
-	echo "╚════════════════════════════════════════════════════════════════╝"; \
-	echo ""; \
+	echo "$(BLUE)─── TEST RESULTS ───$(NC)"; \
 	if [ $$API_RESULT -eq 0 ]; then echo "  $(GREEN)✅ API Tests:      PASSED$(NC)"; else echo "  $(RED)❌ API Tests:      FAILED$(NC)"; fi; \
 	if [ $$WORKER_RESULT -eq 0 ]; then echo "  $(GREEN)✅ Worker Tests:   PASSED$(NC)"; else echo "  $(RED)❌ Worker Tests:   FAILED$(NC)"; fi; \
 	if [ $$FRONTEND_RESULT -eq 0 ]; then echo "  $(GREEN)✅ Frontend Tests: PASSED$(NC)"; else echo "  $(RED)❌ Frontend Tests: FAILED$(NC)"; fi; \
 	if [ $$E2E_RESULT -eq 0 ]; then echo "  $(GREEN)✅ E2E Tests:      PASSED$(NC)"; else echo "  $(RED)❌ E2E Tests:      FAILED$(NC)"; fi; \
 	echo ""; \
-	\
-	TOTAL=$$((API_RESULT + WORKER_RESULT + FRONTEND_RESULT + E2E_RESULT)); \
-	if [ $$TOTAL -eq 0 ]; then \
-		echo "$(GREEN)🎉 All tests passed!$(NC)"; \
-		exit 0; \
-	else \
-		echo "$(RED)⚠️  $$TOTAL test suite(s) failed$(NC)"; \
-		echo "$(YELLOW)💡 Run 'make test-report' to view E2E test details$(NC)"; \
-		exit 1; \
-	fi
-
-.PHONY: test-extended
-test-extended: ## Run full test suite including @extended E2E tests (nightly/manual)
-	@echo "╔════════════════════════════════════════════════════════════════╗"
-	@echo "║            BenGER Extended Test Suite                         ║"
-	@echo "╚════════════════════════════════════════════════════════════════╝"
-	@echo ""
-	@if [ ! -d "../benger-extended/benger_extended" ]; then \
-		echo "$(RED)Error: benger-extended not found at ../benger-extended$(NC)"; \
-		echo "Clone it: git clone git@github.com:SebastianNagl/benger-extended.git ../benger-extended"; \
-		exit 1; \
-	fi
-	@echo "$(GREEN)Extended repo found at ../benger-extended$(NC)"
-	@echo ""
-	@echo "$(BLUE)🧹 Cleaning pre-existing test environment...$(NC)"
-	@$(DOCKER_COMPOSE_TEST_EXT) down -v 2>/dev/null || true
-	@echo ""
-	@echo "$(BLUE)🔨 Building and starting fresh test environment (with extended)...$(NC)"
-	@$(DOCKER_COMPOSE_TEST_EXT) up -d --build 2>&1 | grep -v "orphan\|Running\|Creating\|Starting\|Started\|Created\|Pulling\|Network\|Volume\|Container\|Building" || true
-	@echo "$(YELLOW)⏳ Waiting for services to be healthy...$(NC)"
-	@timeout=300; while [ $$timeout -gt 0 ]; do \
-		healthy=$$(docker ps --filter "name=benger-test" --filter "health=healthy" --format "{{.Names}}" 2>/dev/null | wc -l); \
-		if [ "$$healthy" -ge 7 ]; then \
-			echo "$(GREEN)  All 7 services healthy!$(NC)"; \
-			break; \
-		fi; \
-		echo "  Waiting... ($$healthy/7 healthy, $${timeout}s remaining)"; \
-		sleep 5; \
-		timeout=$$((timeout - 5)); \
-	done
-	@echo "$(YELLOW)⏳ Verifying API responds...$(NC)"
-	@for i in 1 2 3 4 5 6 7 8 9 10; do \
-		if curl -sf http://localhost:8002/health > /dev/null 2>&1; then \
-			echo "$(GREEN)  API responding!$(NC)"; \
-			break; \
-		fi; \
-		sleep 3; \
-	done
-	@echo "$(BLUE)🔧 Initializing database...$(NC)"
-	@docker exec benger-test-test-api-1 python init_complete.py > /tmp/test-init.log 2>&1; \
-	if [ $$? -ne 0 ]; then \
-		echo "$(RED)  Database initialization FAILED:$(NC)"; \
-		tail -5 /tmp/test-init.log; \
-	else \
-		grep -E "✅|Created|🎯" /tmp/test-init.log || true; \
-	fi
-	@echo ""
-	@$(MAKE) test-all-extended; EXIT_CODE=$$?; \
-	echo ""; \
-	$(MAKE) test-stop; \
-	$(MAKE) test-prune; \
-	exit $$EXIT_CODE
-
-.PHONY: test-all-extended
-test-all-extended: ## Run all tests including @extended E2E (requires test-start first, uses extended overlay)
-	@echo "$(BLUE)🧪 Running all tests (including @extended)...$(NC)"
-	@echo ""
-	@API_RESULT=0; WORKER_RESULT=0; FRONTEND_RESULT=0; E2E_RESULT=0; \
-	\
-	echo "$(BLUE)1️⃣  API Tests$(NC)"; \
-	$(DOCKER_COMPOSE_TEST_EXT) --profile test run --rm test-api-runner && API_RESULT=0 || API_RESULT=1; \
-	echo ""; \
-	\
-	echo "$(BLUE)2️⃣  Worker Tests$(NC)"; \
-	$(DOCKER_COMPOSE_TEST_EXT) --profile test run --rm test-workers-runner && WORKER_RESULT=0 || WORKER_RESULT=1; \
-	echo ""; \
-	\
-	echo "$(BLUE)3️⃣  Frontend Unit Tests (Jest)$(NC)"; \
-	cd $(CURDIR)/services/frontend && npm test && FRONTEND_RESULT=0 || FRONTEND_RESULT=1; \
-	echo ""; \
-	\
-	echo "$(BLUE)♻️  Recycling test containers before E2E...$(NC)"; \
-	$(DOCKER_COMPOSE_TEST_EXT) down 2>/dev/null; \
-	$(DOCKER_COMPOSE_TEST_EXT) up -d 2>/dev/null; \
-	timeout=300; while [ $$timeout -gt 0 ]; do \
-		healthy=$$(docker ps --filter "name=benger-test" --filter "health=healthy" --format "{{.Names}}" 2>/dev/null | wc -l | tr -d ' '); \
-		if [ "$$healthy" -ge 5 ]; then echo "  $$healthy containers healthy"; break; fi; \
-		if [ $$((timeout % 30)) -eq 0 ]; then echo "  $$healthy/5 healthy ($${timeout}s remaining)"; fi; \
-		sleep 5; timeout=$$((timeout - 5)); \
-	done; \
-	docker exec benger-test-test-api-1 python init_complete.py > /dev/null 2>&1 || true; \
-	echo "$(BLUE)4️⃣  E2E Tests (Playwright, ALL including @extended)$(NC)"; \
-	cd $(CURDIR)/services/frontend && \
-	E2E_ISOLATED=true \
-	PLAYWRIGHT_BASE_URL=http://benger-test.localhost:8090 \
-	npx playwright test --reporter=line,html && E2E_RESULT=0 || E2E_RESULT=1; \
-	echo ""; \
-	\
-	echo "╔════════════════════════════════════════════════════════════════╗"; \
-	echo "║                    TEST RESULTS SUMMARY                        ║"; \
-	echo "╚════════════════════════════════════════════════════════════════╝"; \
-	echo ""; \
-	if [ $$API_RESULT -eq 0 ]; then echo "  $(GREEN)✅ API Tests:      PASSED$(NC)"; else echo "  $(RED)❌ API Tests:      FAILED$(NC)"; fi; \
-	if [ $$WORKER_RESULT -eq 0 ]; then echo "  $(GREEN)✅ Worker Tests:   PASSED$(NC)"; else echo "  $(RED)❌ Worker Tests:   FAILED$(NC)"; fi; \
-	if [ $$FRONTEND_RESULT -eq 0 ]; then echo "  $(GREEN)✅ Frontend Tests: PASSED$(NC)"; else echo "  $(RED)❌ Frontend Tests: FAILED$(NC)"; fi; \
-	if [ $$E2E_RESULT -eq 0 ]; then echo "  $(GREEN)✅ E2E Tests:      PASSED$(NC)"; else echo "  $(RED)❌ E2E Tests:      FAILED$(NC)"; fi; \
-	echo ""; \
-	\
 	TOTAL=$$((API_RESULT + WORKER_RESULT + FRONTEND_RESULT + E2E_RESULT)); \
 	if [ $$TOTAL -eq 0 ]; then \
 		echo "$(GREEN)🎉 All tests passed!$(NC)"; \
@@ -609,31 +399,13 @@ test-unit: ## Run unit tests only (API + Workers + Frontend Jest)
 	else echo "$(RED)❌ $$TOTAL suite(s) failed$(NC)"; exit 1; fi
 
 .PHONY: test-e2e
-test-e2e: ## Run E2E Playwright tests only (use GREP="pattern" to filter, FILE="path" to target file)
+test-e2e: ## Run E2E Playwright tests (skips tests requiring optional extensions; use GREP=/FILE= to filter)
 	@echo "$(BLUE)🎭 Running E2E tests...$(NC)"
 	@cd $(FRONTEND_DIR) && npx playwright install chromium --with-deps 2>/dev/null || npx playwright install chromium
 	@cd $(FRONTEND_DIR) && \
 	E2E_ISOLATED=true \
 	PLAYWRIGHT_BASE_URL=http://benger-test.localhost:8090 \
-	npx playwright test $(if $(FILE),$(FILE),) $(if $(GREP),--grep "$(GREP)",) --reporter=line
-
-.PHONY: test-e2e-gate
-test-e2e-gate: ## Run fast E2E tests only (excludes @extended full-workflow tests)
-	@echo "$(BLUE)🎭 Running gate E2E tests (excluding @extended)...$(NC)"
-	@cd $(FRONTEND_DIR) && npx playwright install chromium --with-deps 2>/dev/null || npx playwright install chromium
-	@cd $(FRONTEND_DIR) && \
-	E2E_ISOLATED=true \
-	PLAYWRIGHT_BASE_URL=http://benger-test.localhost:8090 \
-	npx playwright test --grep-invert "@extended" --reporter=line
-
-.PHONY: test-e2e-extended
-test-e2e-extended: ## Run extended E2E tests only (@extended full-workflow tests)
-	@echo "$(BLUE)🎭 Running extended E2E tests (@extended only)...$(NC)"
-	@cd $(FRONTEND_DIR) && npx playwright install chromium --with-deps 2>/dev/null || npx playwright install chromium
-	@cd $(FRONTEND_DIR) && \
-	E2E_ISOLATED=true \
-	PLAYWRIGHT_BASE_URL=http://benger-test.localhost:8090 \
-	npx playwright test --grep "@extended" --reporter=line
+	npx playwright test $(if $(FILE),$(FILE),) $(if $(GREP),--grep "$(GREP)",--grep-invert "@extended") --reporter=line
 
 .PHONY: test-api
 test-api: ## Run API tests only (use GREP="pattern" to filter, FILE="path" to target file)
@@ -791,10 +563,6 @@ logs-frontend: ## Show frontend logs
 .PHONY: logs-workers
 logs-workers: ## Show worker logs
 	@$(DOCKER_COMPOSE) logs -f worker
-
-.PHONY: logs-mail
-logs-mail: ## Show mail service logs
-	@$(DOCKER_COMPOSE) logs -f mailhog 2>/dev/null || $(DOCKER_COMPOSE) logs -f mail 2>/dev/null || echo "$(YELLOW)⚠️  No mail service running$(NC)"
 
 .PHONY: status
 status: ## Show status of all services
