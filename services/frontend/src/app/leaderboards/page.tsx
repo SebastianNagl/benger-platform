@@ -6,13 +6,9 @@ import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useI18n } from '@/contexts/I18nContext'
 import { useSlot } from '@/lib/extensions/slots'
-import {
-  CpuChipIcon,
-  UserGroupIcon,
-  SparklesIcon,
-} from '@heroicons/react/24/outline'
-import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react'
-import { Suspense } from 'react'
+import { Suspense, useState } from 'react'
+
+type LeaderboardTab = 'human' | 'co-creation' | 'llm'
 
 function LeaderboardsContent() {
   const { t } = useI18n()
@@ -20,7 +16,18 @@ function LeaderboardsContent() {
   const AnnotatorLeaderboardTab = useSlot('AnnotatorLeaderboardTab')
   const CoCreationLeaderboardTab = useSlot('CoCreationLeaderboardTab')
 
-  const hasTabs = AnnotatorLeaderboardTab || CoCreationLeaderboardTab
+  // Default to 'human' to match the old monolith. Falls back to 'llm' in
+  // community edition where the human/co-creation slots aren't registered.
+  const [activeTab, setActiveTab] = useState<LeaderboardTab>(
+    AnnotatorLeaderboardTab ? 'human' : 'llm'
+  )
+
+  const tabClass = (tab: LeaderboardTab) =>
+    `border-b-2 py-3 text-sm font-medium transition ${
+      activeTab === tab
+        ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+        : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
+    }`
 
   return (
     <ResponsiveContainer size="xl" className="pb-10 pt-8">
@@ -44,68 +51,28 @@ function LeaderboardsContent() {
           {t('leaderboards.title') || 'Leaderboards'}
         </h1>
 
-        {hasTabs ? (
-          <TabGroup>
-            <div className="border-b border-zinc-200 dark:border-zinc-700">
-              <TabList className="-mb-px flex space-x-8">
-                <Tab
-                  className={({ selected }) =>
-                    `flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition ${
-                      selected
-                        ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                        : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
-                    }`
-                  }
-                >
-                  <CpuChipIcon className="h-5 w-5" />
-                  {t('leaderboards.llms') || 'LLMs'}
-                </Tab>
-                {AnnotatorLeaderboardTab && (
-                  <Tab
-                    className={({ selected }) =>
-                      `flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition ${
-                        selected
-                          ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                          : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
-                      }`
-                    }
-                  >
-                    <UserGroupIcon className="h-5 w-5" />
-                    {t('leaderboards.humanAnnotators') || 'Human Annotators'}
-                  </Tab>
-                )}
-                {CoCreationLeaderboardTab && (
-                  <Tab
-                    className={({ selected }) =>
-                      `flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition ${
-                        selected
-                          ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                          : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
-                      }`
-                    }
-                  >
-                    <SparklesIcon className="h-5 w-5" />
-                    {t('leaderboards.coCreation') || 'Co-Creation'}
-                  </Tab>
-                )}
-              </TabList>
-            </div>
-            <TabPanels className="mt-6">
-              <TabPanel>
-                <LLMLeaderboardTable />
-              </TabPanel>
-              {AnnotatorLeaderboardTab && (
-                <TabPanel>
-                  <AnnotatorLeaderboardTab />
-                </TabPanel>
-              )}
-              {CoCreationLeaderboardTab && (
-                <TabPanel>
-                  <CoCreationLeaderboardTab />
-                </TabPanel>
-              )}
-            </TabPanels>
-          </TabGroup>
+        <div className="mb-6 border-b border-zinc-200 dark:border-zinc-700">
+          <nav className="-mb-px flex space-x-8">
+            {AnnotatorLeaderboardTab && (
+              <button onClick={() => setActiveTab('human')} className={tabClass('human')}>
+                {t('leaderboards.humanAnnotators') || 'Human Annotators'}
+              </button>
+            )}
+            {CoCreationLeaderboardTab && (
+              <button onClick={() => setActiveTab('co-creation')} className={tabClass('co-creation')}>
+                {t('leaderboards.coCreation') || 'Co-Creation'}
+              </button>
+            )}
+            <button onClick={() => setActiveTab('llm')} className={tabClass('llm')}>
+              {t('leaderboards.llms') || 'LLMs'}
+            </button>
+          </nav>
+        </div>
+
+        {activeTab === 'human' && AnnotatorLeaderboardTab ? (
+          <AnnotatorLeaderboardTab />
+        ) : activeTab === 'co-creation' && CoCreationLeaderboardTab ? (
+          <CoCreationLeaderboardTab />
         ) : (
           <LLMLeaderboardTable />
         )}
