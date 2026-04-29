@@ -105,7 +105,11 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // pre_start | annotating | time_over (or stays 'annotating' on error /
   // community edition).
   const [strictTimerPhase, setStrictTimerPhase] = useState<StrictTimerPhase>('loading')
-  const pendingTimeOverRef = useRef(false)
+  // True when the most recent submit was a strict-timer auto-submit. Read by
+  // the ImmediateEvalSlot's onClose to decide whether closing the eval modal
+  // should advance to the next task (auto-submit case) or just clear the
+  // modal (manual-submit case, where the user may want to keep editing).
+  const autoSubmittedRef = useRef(false)
   const isStrictMode = !!(
     currentProject?.strict_timer_enabled && currentProject?.annotation_time_limit_enabled
   )
@@ -163,14 +167,6 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // components/labeling/LabelingInterface.tsx:268-345.
   useEffect(() => {
     if (!currentProject || !currentTask) return
-
-    // Auto-submit just fired and advanced us; show the time_over screen
-    // before re-initializing for the new task.
-    if (pendingTimeOverRef.current) {
-      pendingTimeOverRef.current = false
-      setStrictTimerPhase('time_over')
-      return
-    }
 
     if (!currentProject.annotation_time_limit_enabled) {
       setStrictTimerPhase('annotating')
@@ -807,16 +803,42 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   onAutoSubmit={async (result: any[]) => {
                     if (hasSubmittedRef.current) return
                     hasSubmittedRef.current = true
-                    // Bridge to the next task's init: skip re-init and show
-                    // time_over instead — but only when no questionnaire/eval
-                    // flow will intercept first.
-                    pendingTimeOverRef.current = !isQuestionnaireEnabled
-                    await projectsAPI.createAnnotation(currentTask.id, {
-                      result,
-                      was_cancelled: false,
-                      auto_submitted: true,
-                      lead_time: currentProject.annotation_time_limit_seconds || 0,
-                    } as any)
+
+                    const shouldRunImmediate = !!currentProject?.immediate_evaluation_enabled
+                    const hasQuestionnaire = !!isQuestionnaireEnabled
+
+                    let annotation: any
+                    try {
+                      annotation = await projectsAPI.createAnnotation(currentTask.id, {
+                        result,
+                        was_cancelled: false,
+                        auto_submitted: true,
+                        lead_time: currentProject.annotation_time_limit_seconds || 0,
+                      } as any)
+                    } catch (err) {
+                      logger.error('Auto-submit failed:', err)
+                      if (isStrictMode) setStrictTimerPhase('time_over')
+                      return
+                    }
+
+                    // Questionnaire takes precedence: it's the explicit closure UX.
+                    if (hasQuestionnaire && annotation) {
+                      setQuestionnaireAnnotationId(annotation.id)
+                      setShowQuestionnaireModal(true)
+                      return
+                    }
+
+                    // Immediate eval: mount ImmediateEvalSlot via setLastSubmittedAnnotationId.
+                    // autoSubmittedRef tells the slot's onClose to advance once dismissed,
+                    // mirroring the old monolith's inline auto-submit-then-eval flow.
+                    if (shouldRunImmediate && annotation) {
+                      autoSubmittedRef.current = true
+                      setLastSubmittedAnnotationId(annotation.id)
+                      return
+                    }
+
+                    // Neither modal will intercept — show time_over directly so the user
+                    // sees an explicit "your time ran out" screen before advancing.
                     if (isStrictMode) setStrictTimerPhase('time_over')
                   }}
                 />
@@ -1062,7 +1084,17 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       {ImmediateEvalSlot && currentProject?.immediate_evaluation_enabled && lastSubmittedAnnotationId && (
         <ImmediateEvalSlot
           isOpen={true}
-          onClose={() => setLastSubmittedAnnotationId(null)}
+          onClose={() => {
+            setLastSubmittedAnnotationId(null)
+            // After auto-submit-triggered eval, dismissing the modal is the
+            // user's signal to move on — advance to the next task. After a
+            // manual submit, leave them on the current task (they may want
+            // to keep editing).
+            if (autoSubmittedRef.current) {
+              autoSubmittedRef.current = false
+              completeCurrentTask()
+            }
+          }}
           projectId={projectId}
           taskId={currentTask?.id}
           annotationId={lastSubmittedAnnotationId}
