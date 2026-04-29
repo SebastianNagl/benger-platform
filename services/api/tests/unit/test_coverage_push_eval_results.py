@@ -253,14 +253,14 @@ def _setup_eval_project(db, users, *, add_human_evals=False, add_automated=True,
 
 
 class TestGetEvaluationResults:
-    """Test GET /api/evaluations/evaluations/results/{project_id}"""
+    """Test GET /api/evaluations/results/{project_id}"""
 
     def test_automated_results(self, client, test_users, test_db, auth_headers):
         data = _setup_eval_project(test_db, test_users, add_automated=True, add_human_evals=False)
         pid = data["project"].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{pid}",
+            f"/api/evaluations/results/{pid}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -273,7 +273,7 @@ class TestGetEvaluationResults:
         pid = data["project"].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{pid}",
+            f"/api/evaluations/results/{pid}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -295,7 +295,7 @@ class TestGetEvaluationResults:
         pid = data["project"].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{pid}",
+            f"/api/evaluations/results/{pid}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -309,7 +309,7 @@ class TestGetEvaluationResults:
         pid = data["project"].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{pid}?include_human=false",
+            f"/api/evaluations/results/{pid}?include_human=false",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -322,7 +322,7 @@ class TestGetEvaluationResults:
         pid = data["project"].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{pid}?include_automated=false",
+            f"/api/evaluations/results/{pid}?include_automated=false",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -335,7 +335,7 @@ class TestGetEvaluationResults:
         pid = data["project"].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/results/{pid}",
+            f"/api/evaluations/results/{pid}",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -343,14 +343,14 @@ class TestGetEvaluationResults:
 
 
 class TestExportEvaluationResults:
-    """Test POST /api/evaluations/evaluations/export/{project_id}"""
+    """Test POST /api/evaluations/export/{project_id}"""
 
     def test_export_json(self, client, test_users, test_db, auth_headers):
         data = _setup_eval_project(test_db, test_users, add_automated=True, add_human_evals=True)
         pid = data["project"].id
 
         resp = client.post(
-            f"/api/evaluations/evaluations/export/{pid}?format=json",
+            f"/api/evaluations/export/{pid}?format=json",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -363,7 +363,7 @@ class TestExportEvaluationResults:
         pid = data["project"].id
 
         resp = client.post(
-            f"/api/evaluations/evaluations/export/{pid}?format=csv",
+            f"/api/evaluations/export/{pid}?format=csv",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -374,7 +374,7 @@ class TestExportEvaluationResults:
         pid = data["project"].id
 
         resp = client.post(
-            f"/api/evaluations/evaluations/export/{pid}?format=csv",
+            f"/api/evaluations/export/{pid}?format=csv",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -384,21 +384,21 @@ class TestExportEvaluationResults:
         pid = data["project"].id
 
         resp = client.post(
-            f"/api/evaluations/evaluations/export/{pid}?format=csv",
+            f"/api/evaluations/export/{pid}?format=csv",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
 
 
 class TestGetEvaluationSamples:
-    """Test GET /api/evaluations/evaluations/{evaluation_id}/samples"""
+    """Test GET /api/evaluations/{evaluation_id}/samples"""
 
     def test_get_samples(self, client, test_users, test_db, auth_headers):
         data = _setup_eval_project(test_db, test_users)
         er_id = data["eval_runs"][0].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er_id}/samples",
+            f"/api/evaluations/{er_id}/samples",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -411,7 +411,7 @@ class TestGetEvaluationSamples:
         er_id = data["eval_runs"][0].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er_id}/samples?field_name=answer",
+            f"/api/evaluations/{er_id}/samples?field_name=answer",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -423,7 +423,7 @@ class TestGetEvaluationSamples:
         er_id = data["eval_runs"][0].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er_id}/samples?passed=true",
+            f"/api/evaluations/{er_id}/samples?passed=true",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -435,7 +435,7 @@ class TestGetEvaluationSamples:
         er_id = data["eval_runs"][0].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er_id}/samples?page=1&page_size=2",
+            f"/api/evaluations/{er_id}/samples?page=1&page_size=2",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -446,21 +446,21 @@ class TestGetEvaluationSamples:
 
     def test_get_samples_not_found(self, client, test_users, test_db, auth_headers):
         resp = client.get(
-            "/api/evaluations/evaluations/nonexistent-id/samples",
+            "/api/evaluations/nonexistent-id/samples",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 404
 
 
 class TestGetMetricDistribution:
-    """Test GET /api/evaluations/evaluations/{evaluation_id}/metrics/{metric_name}/distribution"""
+    """Test GET /api/evaluations/{evaluation_id}/metrics/{metric_name}/distribution"""
 
     def test_bleu_distribution(self, client, test_users, test_db, auth_headers):
         data = _setup_eval_project(test_db, test_users)
         er_id = data["eval_runs"][0].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er_id}/metrics/bleu/distribution",
+            f"/api/evaluations/{er_id}/metrics/bleu/distribution",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -477,7 +477,7 @@ class TestGetMetricDistribution:
         er_id = data["eval_runs"][0].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er_id}/metrics/bleu/distribution?field_name=answer",
+            f"/api/evaluations/{er_id}/metrics/bleu/distribution?field_name=answer",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -487,21 +487,21 @@ class TestGetMetricDistribution:
         er_id = data["eval_runs"][0].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er_id}/metrics/nonexistent_metric/distribution",
+            f"/api/evaluations/{er_id}/metrics/nonexistent_metric/distribution",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 404
 
     def test_distribution_eval_not_found(self, client, test_users, test_db, auth_headers):
         resp = client.get(
-            "/api/evaluations/evaluations/nonexistent/metrics/bleu/distribution",
+            "/api/evaluations/nonexistent/metrics/bleu/distribution",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 404
 
 
 class TestGetConfusionMatrix:
-    """Test GET /api/evaluations/evaluations/{evaluation_id}/confusion-matrix"""
+    """Test GET /api/evaluations/{evaluation_id}/confusion-matrix"""
 
     def test_confusion_matrix(self, client, test_users, test_db, auth_headers):
         data = _setup_eval_project(test_db, test_users, num_tasks=4)
@@ -514,7 +514,7 @@ class TestGetConfusionMatrix:
         test_db.commit()
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er_id}/confusion-matrix?field_name=answer",
+            f"/api/evaluations/{er_id}/confusion-matrix?field_name=answer",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
@@ -528,7 +528,7 @@ class TestGetConfusionMatrix:
 
     def test_confusion_matrix_not_found(self, client, test_users, test_db, auth_headers):
         resp = client.get(
-            "/api/evaluations/evaluations/nonexistent/confusion-matrix?field_name=test",
+            "/api/evaluations/nonexistent/confusion-matrix?field_name=test",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 404
@@ -538,7 +538,7 @@ class TestGetConfusionMatrix:
         er_id = data["eval_runs"][0].id
 
         resp = client.get(
-            f"/api/evaluations/evaluations/{er_id}/confusion-matrix?field_name=nonexistent_field",
+            f"/api/evaluations/{er_id}/confusion-matrix?field_name=nonexistent_field",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 404

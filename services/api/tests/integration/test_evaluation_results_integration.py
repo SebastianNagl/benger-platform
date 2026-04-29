@@ -38,15 +38,15 @@ from project_models import (
 
 BASE = "/api/evaluations"
 # Actual sub-paths used in the mounted routers:
-# Results: /api/evaluations/evaluations/results/{project_id}
-# Export:  /api/evaluations/evaluations/export/{project_id}
-# Status:  /api/evaluations/evaluations
+# Results: /api/evaluations/results/{project_id}
+# Export:  /api/evaluations/export/{project_id}
+# Status:  /api/evaluations/
 # Types:   /api/evaluations/evaluation-types
 # Config:  /api/evaluations/projects/{project_id}/evaluation-config
-# Validate:/api/evaluations/evaluations/validate-config
+# Validate:/api/evaluations/validate-config
 # Metadata:/api/evaluations/projects/{project_id}/...
 # Multi:   /api/evaluations/projects/{project_id}/available-fields
-# Human:   /api/evaluations/evaluations/human/...
+# Human:   /api/evaluations/human/...
 
 
 def _uid() -> str:
@@ -204,7 +204,7 @@ class TestGetEvaluationResults:
     def test_get_results_basic(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup_evaluation_project(test_db, test_users[0], test_org)
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}",
+            f"{BASE}/results/{data['project'].id}",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -218,7 +218,7 @@ class TestGetEvaluationResults:
             with_generations=False,
         )
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}",
+            f"{BASE}/results/{data['project'].id}",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -229,7 +229,7 @@ class TestGetEvaluationResults:
     def test_get_results_automated_only(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup_evaluation_project(test_db, test_users[0], test_org)
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}?include_human=false",
+            f"{BASE}/results/{data['project'].id}?include_human=false",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -237,14 +237,14 @@ class TestGetEvaluationResults:
     def test_get_results_limit(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup_evaluation_project(test_db, test_users[0], test_org)
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}?limit=1",
+            f"{BASE}/results/{data['project'].id}?limit=1",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
 
     def test_get_results_nonexistent_project(self, client, test_db, test_users, auth_headers):
         resp = client.get(
-            f"{BASE}/evaluations/results/nonexistent-id",
+            f"{BASE}/results/nonexistent-id",
             headers=auth_headers["admin"],
         )
         # Superadmin can access any project; returns empty list for nonexistent
@@ -262,7 +262,7 @@ class TestExportEvaluationResults:
     def test_export_json(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup_evaluation_project(test_db, test_users[0], test_org)
         resp = client.post(
-            f"{BASE}/evaluations/export/{data['project'].id}?format=json",
+            f"{BASE}/export/{data['project'].id}?format=json",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -273,7 +273,7 @@ class TestExportEvaluationResults:
     def test_export_csv(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup_evaluation_project(test_db, test_users[0], test_org)
         resp = client.post(
-            f"{BASE}/evaluations/export/{data['project'].id}?format=csv",
+            f"{BASE}/export/{data['project'].id}?format=csv",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -290,7 +290,7 @@ class TestEvaluationStatus:
     def test_list_evaluations(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup_evaluation_project(test_db, test_users[0], test_org)
         resp = client.get(
-            f"{BASE}/evaluations",
+            f"{BASE}/",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
@@ -357,7 +357,7 @@ class TestEvaluationValidation:
     def test_validate_config(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup_evaluation_project(test_db, test_users[0], test_org)
         resp = client.post(
-            f"{BASE}/evaluations/validate-config",
+            f"{BASE}/validate-config",
             json={"project_id": data["project"].id, "metrics": ["accuracy"]},
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
@@ -434,7 +434,7 @@ class TestHumanEvaluation:
     def test_create_human_eval_session(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup_evaluation_project(test_db, test_users[0], test_org)
         resp = client.post(
-            f"{BASE}/evaluations/human/session/start",
+            f"{BASE}/human/session/start",
             json={"project_id": data["project"].id, "evaluation_type": "likert"},
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
@@ -443,7 +443,7 @@ class TestHumanEvaluation:
     def test_list_human_eval_sessions(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup_evaluation_project(test_db, test_users[0], test_org)
         resp = client.get(
-            f"{BASE}/evaluations/human/sessions/{data['project'].id}",
+            f"{BASE}/human/sessions/{data['project'].id}",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code in (200, 403)
@@ -453,7 +453,7 @@ class TestHumanEvaluation:
         if data["human_sessions"]:
             session_id = data["human_sessions"][0].id
             resp = client.post(
-                f"{BASE}/evaluations/human/likert",
+                f"{BASE}/human/likert",
                 json={
                     "dimension": "quality",
                     "rating": 4,
@@ -469,7 +469,7 @@ class TestHumanEvaluation:
         if data["human_sessions"]:
             session_id = data["human_sessions"][0].id
             resp = client.post(
-                f"{BASE}/evaluations/human/preference",
+                f"{BASE}/human/preference",
                 json={
                     "winner": "gpt-4o",
                     "loser": "claude-3-sonnet",

@@ -15,6 +15,7 @@
 'use client'
 
 import { EvaluationBuilder } from '@/components/evaluation/EvaluationBuilder'
+import { useSlot } from '@/lib/extensions/slots'
 import { LabelConfigEditor } from '@/components/projects/LabelConfigEditor'
 import { logger } from '@/lib/utils/logger'
 import { PromptStructuresManager } from '@/components/projects/PromptStructuresManager'
@@ -220,6 +221,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   //  settings
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
+  const ProjectSettingsExtended = useSlot('project-settings-extended')
   const [advancedSettings, setAdvancedSettings] = useState({
     show_instruction: true,
     instructions_always_visible: false,
@@ -234,6 +236,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     min_annotations_per_task: 1,
     assignment_mode: 'open' as 'open' | 'manual' | 'auto',
     randomize_task_order: false,
+    review_enabled: false,
+    review_mode: 'in_place' as 'in_place' | 'independent' | 'both',
+    allow_self_review: false,
+    korrektur_enabled: false,
+    korrektur_config: [] as Array<{ value: string; background: string }>,
+    annotation_time_limit_enabled: false,
+    annotation_time_limit_seconds: null as number | null,
+    strict_timer_enabled: false,
+    immediate_evaluation_enabled: false,
   })
 
   // Conditional instructions state
@@ -504,6 +515,19 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         min_annotations_per_task: currentProject.min_annotations_per_task || 1,
         assignment_mode: currentProject.assignment_mode || 'open',
         randomize_task_order: currentProject.randomize_task_order || false,
+        review_enabled: currentProject.review_enabled || false,
+        review_mode: currentProject.review_mode || 'in_place',
+        allow_self_review: currentProject.allow_self_review || false,
+        korrektur_enabled: currentProject.korrektur_enabled || false,
+        korrektur_config: currentProject.korrektur_config || [],
+        annotation_time_limit_enabled:
+          (currentProject as any).annotation_time_limit_enabled || false,
+        annotation_time_limit_seconds:
+          (currentProject as any).annotation_time_limit_seconds ?? null,
+        strict_timer_enabled:
+          (currentProject as any).strict_timer_enabled || false,
+        immediate_evaluation_enabled:
+          (currentProject as any).immediate_evaluation_enabled || false,
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Using currentProject.id instead of currentProject to prevent unnecessary re-renders
@@ -2167,6 +2191,38 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
               {expandedEvaluation && (
                 <>
+                  {/* Immediate evaluation toggle */}
+                  {canEditProject() && (
+                    <div className="mb-6 flex items-center justify-between rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
+                      <div>
+                        <Label>
+                          {t(
+                            'projects.creation.wizard.step7.immediateEvaluation',
+                            'Immediate evaluation',
+                          )}
+                        </Label>
+                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                          {t(
+                            'projects.creation.wizard.step7.immediateEvaluationHint',
+                            'Run the configured evaluations as soon as an annotation is submitted',
+                          )}
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={advancedSettings.immediate_evaluation_enabled}
+                        onChange={(e) =>
+                          setAdvancedSettings((prev: any) => ({
+                            ...prev,
+                            immediate_evaluation_enabled: e.target.checked,
+                          }))
+                        }
+                        disabled={!editing}
+                        className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                      />
+                    </div>
+                  )}
+
                   {/* Evaluation Defaults */}
                   {canEditProject() && (
                     <div className="mb-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
@@ -2499,6 +2555,92 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                       />
                     </div>
+
+                    {/* Annotation timer */}
+                    <div className="space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>
+                            {t('projects.creation.wizard.stepSettings.timeLimit', 'Annotation time limit')}
+                          </Label>
+                          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                            {t('projects.creation.wizard.stepSettings.timeLimitHint', 'Limit how long annotators may spend on a single task')}
+                          </p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={advancedSettings.annotation_time_limit_enabled}
+                          onChange={(e) =>
+                            setAdvancedSettings((prev: any) => ({
+                              ...prev,
+                              annotation_time_limit_enabled: e.target.checked,
+                              annotation_time_limit_seconds: e.target.checked
+                                ? (prev.annotation_time_limit_seconds ?? 1800)
+                                : null,
+                              strict_timer_enabled: e.target.checked
+                                ? prev.strict_timer_enabled
+                                : false,
+                            }))
+                          }
+                          disabled={!editing}
+                          className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                        />
+                      </div>
+
+                      {advancedSettings.annotation_time_limit_enabled && (
+                        <>
+                          <div className="ml-4 flex items-center gap-2">
+                            <Input
+                              type="number"
+                              min={1}
+                              max={360}
+                              value={
+                                advancedSettings.annotation_time_limit_seconds
+                                  ? Math.round(
+                                      advancedSettings.annotation_time_limit_seconds / 60,
+                                    )
+                                  : 30
+                              }
+                              onChange={(e) =>
+                                setAdvancedSettings((prev: any) => ({
+                                  ...prev,
+                                  annotation_time_limit_seconds:
+                                    (parseInt(e.target.value) || 30) * 60,
+                                }))
+                              }
+                              disabled={!editing}
+                              className="w-20 text-sm"
+                            />
+                            <span className="text-sm text-zinc-500">
+                              {t('projects.creation.wizard.stepSettings.minutes', 'minutes')}
+                            </span>
+                          </div>
+
+                          <div className="ml-4 flex items-center justify-between">
+                            <div>
+                              <Label>
+                                {t('projects.creation.wizard.stepSettings.strictTimer', 'Strict timer')}
+                              </Label>
+                              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                                {t('projects.creation.wizard.stepSettings.strictTimerHint', 'Auto-submit the annotation when the time limit is reached')}
+                              </p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={advancedSettings.strict_timer_enabled}
+                              onChange={(e) =>
+                                setAdvancedSettings((prev: any) => ({
+                                  ...prev,
+                                  strict_timer_enabled: e.target.checked,
+                                }))
+                              }
+                              disabled={!editing}
+                              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -2830,6 +2972,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   </div>
                 </div>
 
+                {/* Extended project settings (review, feedback) — rendered by extension slot */}
+                {ProjectSettingsExtended && (
+                  <ProjectSettingsExtended
+                    settings={advancedSettings}
+                    onSettingsChange={setAdvancedSettings}
+                    editing={editing}
+                  />
+                )}
 
                 {/* Save/Cancel buttons when editing */}
                 {editing && (
@@ -2865,6 +3015,24 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             currentProject?.assignment_mode || 'open',
                           randomize_task_order:
                             currentProject?.randomize_task_order || false,
+                          review_enabled:
+                            currentProject?.review_enabled || false,
+                          review_mode:
+                            currentProject?.review_mode || 'in_place',
+                          allow_self_review:
+                            currentProject?.allow_self_review || false,
+                          korrektur_enabled:
+                            currentProject?.korrektur_enabled || false,
+                          korrektur_config:
+                            currentProject?.korrektur_config || [],
+                          annotation_time_limit_enabled:
+                            (currentProject as any)?.annotation_time_limit_enabled || false,
+                          annotation_time_limit_seconds:
+                            (currentProject as any)?.annotation_time_limit_seconds ?? null,
+                          strict_timer_enabled:
+                            (currentProject as any)?.strict_timer_enabled || false,
+                          immediate_evaluation_enabled:
+                            (currentProject as any)?.immediate_evaluation_enabled || false,
                         })
                       }}
                       variant="outline"
@@ -2966,6 +3134,30 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   className="w-full"
                 >
                   {t('project.quickActions.evaluations')}
+                </Button>
+              )}
+
+              {canSeeQuickAction('review') && currentProject?.review_enabled && (
+                <Button
+                  href={
+                    projectId ? `/projects/${projectId}/review` : '/projects'
+                  }
+                  variant="outline"
+                  className="w-full"
+                >
+                  {t('project.quickActions.reviewWorkflow') || 'Review'}
+                </Button>
+              )}
+
+              {canSeeQuickAction('feedback') && currentProject?.korrektur_enabled && (
+                <Button
+                  href={
+                    projectId ? `/projects/${projectId}/korrektur` : '/projects'
+                  }
+                  variant="outline"
+                  className="w-full"
+                >
+                  {t('project.quickActions.korrektur') || 'Korrektur'}
                 </Button>
               )}
 

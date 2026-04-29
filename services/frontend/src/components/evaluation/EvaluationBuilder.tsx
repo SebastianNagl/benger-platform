@@ -30,6 +30,8 @@ import {
   CustomCriteriaDefinition,
   DEFAULT_PROMPT_TEMPLATES,
   FIELD_SPECIFIERS,
+  HUMAN_FIELD_PREFIX,
+  MODEL_FIELD_PREFIX,
   generateEvaluationId,
   getDimensionDisplayName,
   getFieldDisplayName,
@@ -316,11 +318,13 @@ export function EvaluationBuilder({
     ]
 
     availableFields.model_response_fields.forEach((field) => {
-      options.push({ value: field, label: field, type: 'model' })
+      const prefixed = MODEL_FIELD_PREFIX + field
+      options.push({ value: prefixed, label: prefixed, type: 'model' })
     })
 
     availableFields.human_annotation_fields.forEach((field) => {
-      options.push({ value: field, label: field, type: 'human' })
+      const prefixed = HUMAN_FIELD_PREFIX + field
+      options.push({ value: prefixed, label: prefixed, type: 'human' })
     })
 
     return options
@@ -445,7 +449,13 @@ export function EvaluationBuilder({
         prev.metric === 'llm_judge' &&
         !isSelected
       ) {
-        const fieldTypeInfo = fieldTypes[value]
+        // Strip source prefix to look up field type info
+        const baseField = value.startsWith(MODEL_FIELD_PREFIX)
+          ? value.substring(MODEL_FIELD_PREFIX.length)
+          : value.startsWith(HUMAN_FIELD_PREFIX)
+            ? value.substring(HUMAN_FIELD_PREFIX.length)
+            : value
+        const fieldTypeInfo = fieldTypes[baseField]
         if (fieldTypeInfo) {
           const answerType = fieldTypeInfo.type
           const template = LLM_JUDGE_TEMPLATES[answerType]
@@ -707,25 +717,28 @@ export function EvaluationBuilder({
                   <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
                     {t('evaluationBuilder.fields.modelResponseFields')}
                   </p>
-                  {availableFields.model_response_fields.map((field) => (
-                    <label
-                      key={field}
-                      className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
-                    >
-                      <Checkbox
-                        checked={newEvaluation.prediction_fields.includes(
-                          field
-                        )}
-                        onChange={() =>
-                          handleFieldToggle('prediction_fields', field)
-                        }
-                      />
-                      <span className="text-sm">{field}</span>
-                      <Badge variant="secondary" className="text-[10px]">
-                        model
-                      </Badge>
-                    </label>
-                  ))}
+                  {availableFields.model_response_fields.map((field) => {
+                    const prefixed = MODEL_FIELD_PREFIX + field
+                    return (
+                      <label
+                        key={prefixed}
+                        className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      >
+                        <Checkbox
+                          checked={newEvaluation.prediction_fields.includes(
+                            prefixed
+                          )}
+                          onChange={() =>
+                            handleFieldToggle('prediction_fields', prefixed)
+                          }
+                        />
+                        <span className="text-sm">{getFieldDisplayName(prefixed)}</span>
+                        <Badge variant="secondary" className="text-[10px]">
+                          model
+                        </Badge>
+                      </label>
+                    )
+                  })}
                 </div>
               )}
 
@@ -735,25 +748,28 @@ export function EvaluationBuilder({
                   <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
                     {t('evaluationBuilder.fields.humanAnnotationFields')}
                   </p>
-                  {availableFields.human_annotation_fields.map((field) => (
-                    <label
-                      key={field}
-                      className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
-                    >
-                      <Checkbox
-                        checked={newEvaluation.prediction_fields.includes(
-                          field
-                        )}
-                        onChange={() =>
-                          handleFieldToggle('prediction_fields', field)
-                        }
-                      />
-                      <span className="text-sm">{field}</span>
-                      <Badge variant="secondary" className="text-[10px]">
-                        human
-                      </Badge>
-                    </label>
-                  ))}
+                  {availableFields.human_annotation_fields.map((field) => {
+                    const prefixed = HUMAN_FIELD_PREFIX + field
+                    return (
+                      <label
+                        key={prefixed}
+                        className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      >
+                        <Checkbox
+                          checked={newEvaluation.prediction_fields.includes(
+                            prefixed
+                          )}
+                          onChange={() =>
+                            handleFieldToggle('prediction_fields', prefixed)
+                          }
+                        />
+                        <span className="text-sm">{getFieldDisplayName(prefixed)}</span>
+                        <Badge variant="secondary" className="text-[10px]">
+                          human
+                        </Badge>
+                      </label>
+                    )
+                  })}
                 </div>
               )}
 

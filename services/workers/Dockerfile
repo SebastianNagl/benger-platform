@@ -1,7 +1,7 @@
 # Workers Application Image
 # Built on top of workers-base (which has Python deps + ML models).
 # Code-only changes rebuild in <2 min since deps/models are cached in base.
-ARG WORKERS_BASE_IMAGE=ghcr.io/sebastiannagl/benger/workers-base:latest
+ARG WORKERS_BASE_IMAGE=ghcr.io/sebastiannagl/benger-platform/workers-base:latest
 FROM ${WORKERS_BASE_IMAGE}
 
 WORKDIR /app

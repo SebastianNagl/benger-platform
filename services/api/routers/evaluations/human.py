@@ -91,7 +91,7 @@ class NextEvaluationItem(BaseModel):
 # ============= Endpoints =============
 
 
-@router.post("/evaluations/human/session/start", response_model=HumanEvaluationSessionResponse)
+@router.post("/human/session/start", response_model=HumanEvaluationSessionResponse)
 async def start_human_evaluation_session(
     request: HumanEvaluationSessionCreate,
     current_user: User = Depends(require_user),
@@ -169,7 +169,7 @@ async def start_human_evaluation_session(
         )
 
 
-@router.get("/evaluations/human/next-item", response_model=NextEvaluationItem)
+@router.get("/human/next-item", response_model=NextEvaluationItem)
 async def get_next_evaluation_item(
     session_id: str,
     current_user: User = Depends(require_user),
@@ -283,7 +283,7 @@ async def get_next_evaluation_item(
         )
 
 
-@router.post("/evaluations/human/likert")
+@router.post("/human/likert")
 async def submit_likert_rating(
     request: LikertRatingSubmit,
     current_user: User = Depends(require_user),
@@ -346,7 +346,7 @@ async def submit_likert_rating(
         )
 
 
-@router.post("/evaluations/human/preference")
+@router.post("/human/preference")
 async def submit_preference_ranking(
     request: PreferenceRankingSubmit,
     current_user: User = Depends(require_user),
@@ -410,7 +410,7 @@ async def submit_preference_ranking(
         )
 
 
-@router.get("/evaluations/human/session/{session_id}/progress")
+@router.get("/human/session/{session_id}/progress")
 async def get_human_evaluation_progress(
     session_id: str,
     current_user: User = Depends(require_user),
@@ -464,7 +464,7 @@ async def get_human_evaluation_progress(
         )
 
 
-@router.get("/evaluations/human/sessions/{project_id}")
+@router.get("/human/sessions/{project_id}")
 async def get_human_evaluation_sessions(
     project_id: str,
     request: Request,
@@ -511,7 +511,7 @@ async def get_human_evaluation_sessions(
         )
 
 
-@router.get("/evaluations/human/config/{project_id}")
+@router.get("/human/config/{project_id}")
 async def get_human_evaluation_config(
     project_id: str,
     request: Request,
@@ -591,7 +591,7 @@ async def get_human_evaluation_config(
         )
 
 
-@router.delete("/evaluations/human/session/{session_id}")
+@router.delete("/human/session/{session_id}")
 async def delete_human_evaluation_session(
     session_id: str,
     current_user: User = Depends(require_user),

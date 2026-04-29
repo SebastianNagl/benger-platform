@@ -19,6 +19,44 @@ Total: 25 tests
 from label_config_validator import LabelConfigValidator
 
 
+class TestExtensionFieldTypes:
+    """Tags registered via register_field_types are accepted by the validator."""
+
+    def teardown_method(self):
+        # Avoid leaking registrations across tests
+        LabelConfigValidator._EXTENSION_FIELD_TYPES.clear()
+        LabelConfigValidator._EXTENSION_NAMED_FIELD_TYPES.clear()
+
+    def test_unknown_tag_is_rejected_by_default(self):
+        xml = '<View><Angabe name="a" toName="x"/></View>'
+        is_valid, errors = LabelConfigValidator.validate(xml)
+        assert is_valid is False
+        assert any("Unsupported field type: 'Angabe'" in e for e in errors)
+
+    def test_registered_tag_is_accepted(self):
+        LabelConfigValidator.register_field_types(
+            ["Angabe", "Notizen", "Gliederung", "Loesung"],
+            named_types=["Angabe", "Notizen", "Gliederung", "Loesung"],
+        )
+        xml = """<View>
+  <Angabe name="angabe" toName="sachverhalt"/>
+  <Notizen name="notizen" toName="sachverhalt"/>
+  <Gliederung name="gliederung" toName="sachverhalt"/>
+  <Loesung name="loesung" toName="sachverhalt"/>
+</View>"""
+        is_valid, errors = LabelConfigValidator.validate(xml)
+        assert is_valid is True, errors
+
+    def test_registered_named_type_still_requires_name(self):
+        LabelConfigValidator.register_field_types(
+            ["Angabe"], named_types=["Angabe"]
+        )
+        xml = '<View><Angabe toName="x"/></View>'
+        is_valid, errors = LabelConfigValidator.validate(xml)
+        assert is_valid is False
+        assert any("requires a 'name' attribute" in e for e in errors)
+
+
 class TestXMLValidation:
     """Test XML parsing and well-formedness validation"""
 

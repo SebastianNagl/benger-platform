@@ -1,0 +1,149 @@
+name: Dependabot Batch
+
+# 1. Auto-approves eligible dependabot PRs on creation (no CI triggered)
+# 2. Weekly: creates a single batch PR from all approved dependabot PRs
+#    CI runs once on the batch PR — merge manually when ready
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: "0 2 * * 2"
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+    steps:
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+
+      - name: Auto-approve patch and minor updates
+        if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr review --approve "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Comment on major updates
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        run: |
+          gh pr comment "$PR_URL" --body "**Major version update** — manual review required."
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+  weekly-batch:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Close stale batch PR if exists
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          BATCH_PR=$(gh pr list --repo "$REPO" --head "dependabot/batch" \
+            --state open --json number --jq '.[0].number // empty')
+          if [ -n "$BATCH_PR" ]; then
+            echo "Closing stale batch PR #$BATCH_PR"
+            gh pr close "$BATCH_PR" --repo "$REPO" --comment "Recreating with latest dependabot PRs"
+            git push origin --delete dependabot/batch 2>/dev/null || true
+          fi
+
+      - name: Create batch from approved dependabot PRs
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          GIT_AUTHOR_NAME: "Dependabot Batch"
+          GIT_AUTHOR_EMAIL: "dependabot-batch@github.local"
+          GIT_COMMITTER_NAME: "Dependabot Batch"
+          GIT_COMMITTER_EMAIL: "dependabot-batch@github.local"
+        run: |
+          PRS=$(gh pr list \
+            --repo "$REPO" \
+            --author "app/dependabot" \
+            --state open \
+            --json number,title,headRefName,reviewDecision \
+            --jq '[.[] | select(.reviewDecision == "APPROVED")]')
+
+          COUNT=$(echo "$PRS" | jq length)
+          echo "Found $COUNT approved Dependabot PRs"
+
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No eligible PRs to batch"
+            exit 0
+          fi
+
+          git checkout main
+          git pull origin main
+          git checkout -b dependabot/batch
+
+          MERGED=0
+          FAILED=0
+          BATCH_BODY="## Dependabot Batch Update"$'\n\n'"Combines the following dependency updates:"$'\n'
+
+          for ROW in $(echo "$PRS" | jq -r '.[] | @base64'); do
+            PR=$(echo "$ROW" | base64 --decode)
+            NUMBER=$(echo "$PR" | jq -r '.number')
+            TITLE=$(echo "$PR" | jq -r '.title')
+            BRANCH=$(echo "$PR" | jq -r '.headRefName')
+
+            echo "Merging #$NUMBER ($TITLE) from $BRANCH..."
+
+            if git merge "origin/$BRANCH" --no-edit -m "Include #$NUMBER: $TITLE"; then
+              MERGED=$((MERGED + 1))
+              BATCH_BODY+="- #$NUMBER $TITLE"$'\n'
+            else
+              git merge --abort 2>/dev/null || git reset --hard HEAD
+              FAILED=$((FAILED + 1))
+              BATCH_BODY+="- ~#$NUMBER $TITLE~ (merge conflict, skipped)"$'\n'
+            fi
+          done
+
+          echo "Batch: $MERGED merged, $FAILED skipped"
+
+          if [ "$MERGED" -eq 0 ]; then
+            echo "No PRs could be merged"
+            exit 0
+          fi
+
+          git push origin dependabot/batch --force
+
+          BATCH_BODY+=$'\n'"---"$'\n'"CI runs on this batch PR. Merge manually after review."
+
+          gh pr create \
+            --repo "$REPO" \
+            --head "dependabot/batch" \
+            --base "main" \
+            --title "chore(deps): dependabot batch $(date +%Y-%m-%d)" \
+            --body "$BATCH_BODY"

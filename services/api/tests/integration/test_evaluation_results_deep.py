@@ -213,12 +213,12 @@ def _h(auth_headers, org):
 
 @pytest.mark.integration
 class TestGetEvaluationResultsDeep:
-    """GET /api/evaluations/evaluations/results/{project_id}"""
+    """GET /api/evaluations/results/{project_id}"""
 
     def test_results_automated_only(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org, with_human=False)
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}?include_human=false",
+            f"{BASE}/results/{data['project'].id}?include_human=false",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -229,7 +229,7 @@ class TestGetEvaluationResultsDeep:
     def test_results_human_only(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org, with_human=True)
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}?include_automated=false",
+            f"{BASE}/results/{data['project'].id}?include_automated=false",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -240,7 +240,7 @@ class TestGetEvaluationResultsDeep:
     def test_results_both_automated_and_human(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org, with_human=True)
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}",
+            f"{BASE}/results/{data['project'].id}",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -251,7 +251,7 @@ class TestGetEvaluationResultsDeep:
     def test_results_with_limit(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org)
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}?limit=1",
+            f"{BASE}/results/{data['project'].id}?limit=1",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -275,7 +275,7 @@ class TestGetEvaluationResultsDeep:
         test_db.commit()
 
         resp = client.get(
-            f"{BASE}/evaluations/results/{project.id}",
+            f"{BASE}/results/{project.id}",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -284,7 +284,7 @@ class TestGetEvaluationResultsDeep:
     def test_results_likert_aggregation(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org, with_human=True)
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}?include_automated=false",
+            f"{BASE}/results/{data['project'].id}?include_automated=false",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -301,7 +301,7 @@ class TestGetEvaluationResultsDeep:
     def test_results_preference_aggregation(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org, with_human=True)
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}?include_automated=false",
+            f"{BASE}/results/{data['project'].id}?include_automated=false",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -316,7 +316,7 @@ class TestGetEvaluationResultsDeep:
         data = _setup(test_db, test_users[0], test_org)
         # No org context header for non-superadmin
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}",
+            f"{BASE}/results/{data['project'].id}",
             headers=auth_headers["annotator"],
         )
         assert resp.status_code in (200, 403)
@@ -328,12 +328,12 @@ class TestGetEvaluationResultsDeep:
 
 @pytest.mark.integration
 class TestExportEvaluationResultsDeep:
-    """POST /api/evaluations/evaluations/export/{project_id}"""
+    """POST /api/evaluations/export/{project_id}"""
 
     def test_export_json_with_metrics(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org)
         resp = client.post(
-            f"{BASE}/evaluations/export/{data['project'].id}?format=json",
+            f"{BASE}/export/{data['project'].id}?format=json",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -345,7 +345,7 @@ class TestExportEvaluationResultsDeep:
     def test_export_csv_format(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org)
         resp = client.post(
-            f"{BASE}/evaluations/export/{data['project'].id}?format=csv",
+            f"{BASE}/export/{data['project'].id}?format=csv",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -357,7 +357,7 @@ class TestExportEvaluationResultsDeep:
     def test_export_csv_with_human_data(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org, with_human=True)
         resp = client.post(
-            f"{BASE}/evaluations/export/{data['project'].id}?format=csv",
+            f"{BASE}/export/{data['project'].id}?format=csv",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -381,7 +381,7 @@ class TestExportEvaluationResultsDeep:
         test_db.commit()
 
         resp = client.post(
-            f"{BASE}/evaluations/export/{project.id}?format=json",
+            f"{BASE}/export/{project.id}?format=json",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -395,13 +395,13 @@ class TestExportEvaluationResultsDeep:
 
 @pytest.mark.integration
 class TestGetEvaluationSamples:
-    """GET /api/evaluations/evaluations/{evaluation_id}/samples"""
+    """GET /api/evaluations/{evaluation_id}/samples"""
 
     def test_get_samples_basic(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org)
         eval_id = data["eval_runs"][0].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/samples",
+            f"{BASE}/{eval_id}/samples",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -413,7 +413,7 @@ class TestGetEvaluationSamples:
         data = _setup(test_db, test_users[0], test_org)
         eval_id = data["eval_runs"][0].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/samples?passed=true",
+            f"{BASE}/{eval_id}/samples?passed=true",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -426,7 +426,7 @@ class TestGetEvaluationSamples:
         data = _setup(test_db, test_users[0], test_org)
         eval_id = data["eval_runs"][0].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/samples?passed=false",
+            f"{BASE}/{eval_id}/samples?passed=false",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -438,7 +438,7 @@ class TestGetEvaluationSamples:
         data = _setup(test_db, test_users[0], test_org)
         eval_id = data["eval_runs"][0].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/samples?field_name=answer",
+            f"{BASE}/{eval_id}/samples?field_name=answer",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -452,7 +452,7 @@ class TestGetEvaluationSamples:
 
         # Page 1
         resp1 = client.get(
-            f"{BASE}/evaluations/{eval_id}/samples?page=1&page_size=3",
+            f"{BASE}/{eval_id}/samples?page=1&page_size=3",
             headers=_h(auth_headers, test_org),
         )
         assert resp1.status_code == 200
@@ -463,7 +463,7 @@ class TestGetEvaluationSamples:
 
         # Page 2
         resp2 = client.get(
-            f"{BASE}/evaluations/{eval_id}/samples?page=2&page_size=3",
+            f"{BASE}/{eval_id}/samples?page=2&page_size=3",
             headers=_h(auth_headers, test_org),
         )
         assert resp2.status_code == 200
@@ -477,7 +477,7 @@ class TestGetEvaluationSamples:
 
     def test_get_samples_nonexistent_evaluation(self, client, test_db, test_users, auth_headers, test_org):
         resp = client.get(
-            f"{BASE}/evaluations/nonexistent-eval-id/samples",
+            f"{BASE}/nonexistent-eval-id/samples",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 404
@@ -486,7 +486,7 @@ class TestGetEvaluationSamples:
         data = _setup(test_db, test_users[0], test_org)
         eval_id = data["eval_runs"][0].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/samples?page_size=1",
+            f"{BASE}/{eval_id}/samples?page_size=1",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -508,13 +508,13 @@ class TestGetEvaluationSamples:
 
 @pytest.mark.integration
 class TestMetricDistribution:
-    """GET /api/evaluations/evaluations/{evaluation_id}/metrics/{metric}/distribution"""
+    """GET /api/evaluations/{evaluation_id}/metrics/{metric}/distribution"""
 
     def test_distribution_accuracy(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org, num_tasks=10)
         eval_id = data["eval_runs"][0].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/metrics/accuracy/distribution",
+            f"{BASE}/{eval_id}/metrics/accuracy/distribution",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -534,7 +534,7 @@ class TestMetricDistribution:
         data = _setup(test_db, test_users[0], test_org, num_tasks=8)
         eval_id = data["eval_runs"][0].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/metrics/f1/distribution",
+            f"{BASE}/{eval_id}/metrics/f1/distribution",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -547,7 +547,7 @@ class TestMetricDistribution:
         data = _setup(test_db, test_users[0], test_org, num_tasks=6)
         eval_id = data["eval_runs"][0].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/metrics/accuracy/distribution?field_name=answer",
+            f"{BASE}/{eval_id}/metrics/accuracy/distribution?field_name=answer",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -556,14 +556,14 @@ class TestMetricDistribution:
         data = _setup(test_db, test_users[0], test_org)
         eval_id = data["eval_runs"][0].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/metrics/nonexistent_metric/distribution",
+            f"{BASE}/{eval_id}/metrics/nonexistent_metric/distribution",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 404
 
     def test_distribution_nonexistent_evaluation(self, client, test_db, test_users, auth_headers, test_org):
         resp = client.get(
-            f"{BASE}/evaluations/nonexistent/metrics/accuracy/distribution",
+            f"{BASE}/nonexistent/metrics/accuracy/distribution",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 404
@@ -575,13 +575,13 @@ class TestMetricDistribution:
 
 @pytest.mark.integration
 class TestConfusionMatrix:
-    """GET /api/evaluations/evaluations/{evaluation_id}/confusion-matrix"""
+    """GET /api/evaluations/{evaluation_id}/confusion-matrix"""
 
     def test_confusion_matrix_basic(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org, num_tasks=6)
         eval_id = data["eval_runs"][0].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/confusion-matrix?field_name=answer",
+            f"{BASE}/{eval_id}/confusion-matrix?field_name=answer",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -597,7 +597,7 @@ class TestConfusionMatrix:
         data = _setup(test_db, test_users[0], test_org, num_tasks=8)
         eval_id = data["eval_runs"][0].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/confusion-matrix?field_name=answer",
+            f"{BASE}/{eval_id}/confusion-matrix?field_name=answer",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -611,7 +611,7 @@ class TestConfusionMatrix:
         data = _setup(test_db, test_users[0], test_org)
         eval_id = data["eval_runs"][0].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/confusion-matrix?field_name=nonexistent",
+            f"{BASE}/{eval_id}/confusion-matrix?field_name=nonexistent",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 404
@@ -620,14 +620,14 @@ class TestConfusionMatrix:
         data = _setup(test_db, test_users[0], test_org)
         eval_id = data["eval_runs"][0].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/confusion-matrix?field_name=answer",
+            f"{BASE}/{eval_id}/confusion-matrix?field_name=answer",
             headers=auth_headers["annotator"],  # No org context
         )
         assert resp.status_code in (200, 403)
 
     def test_confusion_matrix_nonexistent_eval(self, client, test_db, test_users, auth_headers, test_org):
         resp = client.get(
-            f"{BASE}/evaluations/nonexistent/confusion-matrix?field_name=answer",
+            f"{BASE}/nonexistent/confusion-matrix?field_name=answer",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 404
@@ -637,7 +637,7 @@ class TestConfusionMatrix:
         data = _setup(test_db, test_users[0], test_org, num_tasks=8)
         eval_id = data["eval_runs"][0].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/confusion-matrix?field_name=answer",
+            f"{BASE}/{eval_id}/confusion-matrix?field_name=answer",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -658,7 +658,7 @@ class TestMultipleEvaluationRuns:
         """Results should include data from all models."""
         data = _setup(test_db, test_users[0], test_org, num_tasks=5)
         resp = client.get(
-            f"{BASE}/evaluations/results/{data['project'].id}",
+            f"{BASE}/results/{data['project'].id}",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -671,7 +671,7 @@ class TestMultipleEvaluationRuns:
         data = _setup(test_db, test_users[0], test_org, num_tasks=5)
         eval_id = data["eval_runs"][1].id  # claude-3-sonnet
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/samples",
+            f"{BASE}/{eval_id}/samples",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -682,7 +682,7 @@ class TestMultipleEvaluationRuns:
         data = _setup(test_db, test_users[0], test_org, num_tasks=8)
         eval_id = data["eval_runs"][1].id
         resp = client.get(
-            f"{BASE}/evaluations/{eval_id}/metrics/f1/distribution",
+            f"{BASE}/{eval_id}/metrics/f1/distribution",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
@@ -690,7 +690,7 @@ class TestMultipleEvaluationRuns:
     def test_export_includes_all_runs(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org)
         resp = client.post(
-            f"{BASE}/evaluations/export/{data['project'].id}?format=json",
+            f"{BASE}/export/{data['project'].id}?format=json",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200

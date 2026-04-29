@@ -87,10 +87,17 @@ const nextConfig = {
 
   // Webpack configuration (legacy fallback when not using --turbo)
   webpack: (config, { dev, isServer }) => {
-    // Extended edition: resolve @benger/extended to mounted volume
+    // Extended edition: resolve @benger/extended
+    // Docker build: /app/benger-extended-frontend (copied into build context)
+    // Dev (Turbopack): /app/node_modules/@benger/extended (Docker volume mount)
     // Community edition: ignore the import entirely (it's in a try/catch)
     if (isExtended) {
-      config.resolve.alias['@benger/extended'] = '/app/node_modules/@benger/extended'
+      const fs = require('fs')
+      if (fs.existsSync('/app/benger-extended-frontend/index.ts')) {
+        config.resolve.alias['@benger/extended'] = '/app/benger-extended-frontend'
+      } else {
+        config.resolve.alias['@benger/extended'] = '/app/node_modules/@benger/extended'
+      }
     } else {
       config.resolve.alias['@benger/extended'] = false
     }

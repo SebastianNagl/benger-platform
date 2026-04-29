@@ -198,6 +198,7 @@ class SampleEvaluator:
         prediction: Any,
         metrics_to_compute: List[str],
         generation_id: Optional[str] = None,
+        annotation_id: Optional[str] = None,
         parse_status: Optional[str] = None,
         allow_unparsed: bool = False,
     ) -> Dict[str, Any]:
@@ -211,6 +212,8 @@ class SampleEvaluator:
             prediction: Predicted value
             metrics_to_compute: List of metrics to compute
             generation_id: Optional ID of the generation that produced the prediction
+            annotation_id: Optional ID of the annotation that produced the prediction
+                (for human annotation evaluation — skips parse_status check)
             parse_status: Optional parse status of the generation (for LLM responses)
             allow_unparsed: If True, allows evaluation of generations with failed parse status
                 (useful when using raw response_content for LLM Judge evaluations)
@@ -224,7 +227,8 @@ class SampleEvaluator:
         start_time = time.time()
 
         # Verify that generation has been successfully parsed (unless allow_unparsed is set)
-        if generation_id is not None and parse_status != "success" and not allow_unparsed:
+        # Skip check for annotation-based evaluation (annotations are always valid)
+        if generation_id is not None and annotation_id is None and parse_status != "success" and not allow_unparsed:
             error_msg = (
                 f"Cannot evaluate generation {generation_id} with parse_status='{parse_status}'. "
                 f"Only generations with parse_status='success' can be evaluated. "

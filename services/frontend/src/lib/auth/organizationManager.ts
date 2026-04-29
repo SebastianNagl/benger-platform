@@ -33,15 +33,17 @@ export class OrganizationManager {
   }
 
   /**
-   * Set organizations list
+   * Set organizations list.
+   *
+   * NOTE: This intentionally does NOT auto-select the first org. The caller
+   * (AuthContext) is the source of truth for `currentOrganization` and decides
+   * whether to enter private mode (null) or pick a specific org based on the
+   * subdomain / persisted state. Auto-picking here used to silently flip the
+   * API-side org context to the alphabetically-first org while the UI still
+   * displayed "Privat", causing 403s on org-only endpoints.
    */
   setOrganizations(organizations: Organization[]): void {
     this.state.organizations = organizations
-
-    // Auto-select first organization if none selected
-    if (!this.state.currentOrganization && organizations.length > 0) {
-      this.state.currentOrganization = organizations[0]
-    }
   }
 
   /**

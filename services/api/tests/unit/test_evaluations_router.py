@@ -239,7 +239,7 @@ class TestEvaluationsRouter:
         app.dependency_overrides[get_db] = override_get_db
 
         try:
-            response = client.get("/api/evaluations/evaluations")
+            response = client.get("/api/evaluations/")
             assert response.status_code == status.HTTP_200_OK
             data = response.json()
 
@@ -292,7 +292,7 @@ class TestEvaluationsRouter:
 
         try:
             with patch("routers.evaluations.status.get_accessible_project_ids", return_value=[]):
-                response = client.get("/api/evaluations/evaluations")
+                response = client.get("/api/evaluations/")
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
 
@@ -623,7 +623,7 @@ class TestEvaluationsRouterIntegration:
             assert status_data["status"] == "completed"
 
             # Step 2: Get all evaluations
-            response = client.get("/api/evaluations/evaluations")
+            response = client.get("/api/evaluations/")
             assert response.status_code == status.HTTP_200_OK
             evaluations_data = response.json()
 
@@ -908,7 +908,7 @@ class TestEvaluationsRouterIntegration:
             app.dependency_overrides[get_db] = override_get_db_error
 
             # FastAPI TestClient with raise_server_exceptions=False returns 500 for unhandled exceptions
-            response = error_client.get("/api/evaluations/evaluations")
+            response = error_client.get("/api/evaluations/")
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
             # Test partial failures (not found scenarios)

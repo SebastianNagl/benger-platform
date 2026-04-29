@@ -131,6 +131,45 @@ describe('dataBinding', () => {
       })
     })
 
+    describe('case-insensitive key resolution', () => {
+      it('should resolve $sachverhalt when task data has Sachverhalt', () => {
+        const taskData = { Sachverhalt: 'Legal case text' }
+        expect(resolveDataBinding('$sachverhalt', taskData)).toBe(
+          'Legal case text'
+        )
+      })
+
+      it('should resolve $Sachverhalt when task data has sachverhalt', () => {
+        const taskData = { sachverhalt: 'Legal case text' }
+        expect(resolveDataBinding('$Sachverhalt', taskData)).toBe(
+          'Legal case text'
+        )
+      })
+
+      it('should prefer exact case match over case-insensitive match', () => {
+        const taskData = {
+          sachverhalt: 'lowercase',
+          Sachverhalt: 'capitalized',
+        }
+        expect(resolveDataBinding('$sachverhalt', taskData)).toBe('lowercase')
+        expect(resolveDataBinding('$Sachverhalt', taskData)).toBe('capitalized')
+      })
+
+      it('should resolve case-insensitively in nested data property', () => {
+        const taskData = { data: { Sachverhalt: 'nested case text' } }
+        expect(resolveDataBinding('$sachverhalt', taskData)).toBe(
+          'nested case text'
+        )
+      })
+
+      it('should resolve nested paths case-insensitively', () => {
+        const taskData = { Document: { Metadata: { Author: 'Test' } } }
+        expect(
+          resolveDataBinding('$document.metadata.author', taskData)
+        ).toBe('Test')
+      })
+    })
+
     describe('edge cases', () => {
       it('should handle empty string binding', () => {
         const taskData = { '': 'empty key' }
@@ -667,6 +706,28 @@ describe('dataBinding', () => {
         }
         const result = validateTaskDataFields(['context', 'question'], taskData)
 
+        expect(result.valid).toBe(true)
+        expect(result.missingFields).toEqual([])
+      })
+    })
+
+    describe('case-insensitive field validation', () => {
+      it('should validate fields present with different casing', () => {
+        const taskData = {
+          Sachverhalt: 'text',
+          Musterloesung: 'solution',
+        }
+        const result = validateTaskDataFields(
+          ['sachverhalt', 'musterloesung'],
+          taskData
+        )
+        expect(result.valid).toBe(true)
+        expect(result.missingFields).toEqual([])
+      })
+
+      it('should validate uppercase required fields against lowercase data', () => {
+        const taskData = { sachverhalt: 'text' }
+        const result = validateTaskDataFields(['Sachverhalt'], taskData)
         expect(result.valid).toBe(true)
         expect(result.missingFields).toEqual([])
       })

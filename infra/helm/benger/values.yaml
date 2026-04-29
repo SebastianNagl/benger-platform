@@ -269,6 +269,24 @@ frontend:
 
 postgresql:
   enabled: true
+  image:
+    # NOTE: the bitnami/postgresql:15.3.0-debian-11-r17 tag was rewritten by
+    # Broadcom post-acquisition to ship Photon OS + PG 18 + FIPS-OpenSSL
+    # under the same label. The cluster's data dir is already in PG 18
+    # format, so reverting to the original PG 15 content is destructive.
+    # See workspace CLAUDE.md → "Postgres image content drift".
+    #
+    # Earlier attempt to pin by digest (PR #16, sha256:e6d86d16…) used a
+    # digest that does not exist on Docker Hub and put prod into
+    # ImagePullBackOff. Until we either (a) discover a valid digest for
+    # the rewritten image, or (b) migrate to bitnamilegacy/postgresql
+    # explicitly, leave the tag floating — it resolves to whatever
+    # Broadcom currently ships under this label, which is the
+    # PG-18+FIPS variant we've already mitigated for in app code
+    # (func.hashtext + pg_dump 18-alpine).
+    repository: bitnami/postgresql
+    tag: "15.3.0-debian-11-r17"
+    pullPolicy: IfNotPresent
   auth:
     username: postgres
     # password: # Generated automatically or set via external secrets
@@ -332,7 +350,12 @@ backup:
   enabled: true
   # Cron schedule (default: daily at 02:00 UTC)
   schedule: "0 2 * * *"
-  image: "postgres:15-alpine"
+  # pg_dump version must be >= the running server's major version, otherwise
+  # backups silently produce a 0-table dump (we caught this on 2026-04-28 after
+  # the server move bumped the runtime binary to PG 18 while the chart still
+  # shipped postgres:15-alpine). Keep this in sync with the bitnami postgresql
+  # image's actual binary version, not the image tag.
+  image: "postgres:18-alpine"
   # Host path on the node to store backups
   hostPath: "/opt/benger-backups"
   # Retention policy

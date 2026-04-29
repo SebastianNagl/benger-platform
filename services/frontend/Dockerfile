@@ -32,6 +32,8 @@ ENV NODE_ENV=production
 # Accept build arguments for public environment variables
 ARG NEXT_PUBLIC_DISABLE_AUTO_LOGIN
 ENV NEXT_PUBLIC_DISABLE_AUTO_LOGIN=${NEXT_PUBLIC_DISABLE_AUTO_LOGIN}
+ARG NEXT_PUBLIC_BENGER_EDITION
+ENV NEXT_PUBLIC_BENGER_EDITION=${NEXT_PUBLIC_BENGER_EDITION}
 
 # Copy production config if it exists, otherwise use default
 RUN if [ -f "next.config.production.js" ]; then \

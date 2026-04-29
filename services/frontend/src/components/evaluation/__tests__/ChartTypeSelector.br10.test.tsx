@@ -80,7 +80,7 @@ describe('ChartTypeSelector branch coverage', () => {
     mockLocalStorage.getItem.mockReturnValueOnce('radar')
     const onChange = jest.fn()
     render(
-      <ChartTypeSelector selectedType="bar" onChange={onChange} />
+      <ChartTypeSelector selectedType="data" onChange={onChange} />
     )
     expect(onChange).toHaveBeenCalledWith('radar')
   })

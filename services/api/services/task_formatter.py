@@ -11,6 +11,17 @@ from xml.etree import ElementTree as ET
 logger = logging.getLogger(__name__)
 
 
+def _find_key_insensitive(d: Dict[str, Any], key: str) -> Optional[str]:
+    """Find a key in dict matching case-insensitively. Prefers exact match."""
+    if key in d:
+        return key
+    lower_key = key.lower()
+    for k in d:
+        if k.lower() == lower_key:
+            return k
+    return None
+
+
 class TaskFormatter:
     """
     Service to format tasks consistently for both human annotators and LLM models.
@@ -79,8 +90,9 @@ class TaskFormatter:
                         # Remove $ prefix if present
                         value_ref = value_ref.lstrip("$")
 
-                        if value_ref in task_data:
-                            result["data"][field_name] = task_data[value_ref]
+                        actual_key = _find_key_insensitive(task_data, value_ref)
+                        if actual_key is not None:
+                            result["data"][field_name] = task_data[actual_key]
 
                     # Extract choices for classification tasks
                     if element.tag == "Choices":
@@ -165,9 +177,10 @@ class TaskFormatter:
         detected_type = None
         for field_type, patterns in common_fields.items():
             for pattern in patterns:
-                if pattern in task_data:
+                actual_key = _find_key_insensitive(task_data, pattern)
+                if actual_key is not None:
                     detected_type = field_type
-                    result["data"][field_type] = task_data[pattern]
+                    result["data"][field_type] = task_data[actual_key]
                     break
             if detected_type:
                 break

@@ -110,13 +110,14 @@ class TestSpanResponseParsing:
         assert result.status in ["success", "failed"]
 
     def test_parse_invalid_json(self, parser):
-        """Test handling of invalid JSON response."""
+        """Test handling of invalid JSON response — falls back to __response__."""
         response = "This is not JSON {invalid}"
 
         result = parser.parse(response)
-        # Should fail gracefully
-        assert result.status == "failed"
-        assert result.error is not None
+        # Falls back to generic __response__ field with the raw text
+        assert result.status == "success"
+        assert result.parsed_annotation is not None
+        assert result.parsed_annotation[0]["from_name"] == "__response__"
 
     def test_parse_json_in_markdown(self, parser):
         """Test parsing JSON embedded in markdown code block."""

@@ -4,8 +4,8 @@ import { useSlot } from '@/lib/extensions/slots'
 import { useParams } from 'next/navigation'
 
 export default function ReviewPage() {
-  const params = useParams()
-  const projectId = params.id as string
+  const params = useParams<{ id: string }>()
+  const projectId = params!.id
   const ReviewComponent = useSlot('ReviewPage')
 
   if (!ReviewComponent) {

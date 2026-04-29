@@ -372,10 +372,10 @@ export function ImportDataModal({
                 <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
                 <div className="flex-1">
                   <h4 className="text-sm font-medium text-red-900 dark:text-red-100">
-                    {t('projects.importModal.validationError')}
+                    {t('tasks.importModal.validationError')}
                   </h4>
                   <p className="mt-1 text-sm text-red-800 dark:text-red-200">
-                    {t('projects.importModal.validationErrorDescription')}
+                    {t('tasks.importModal.validationErrorDescription')}
                   </p>
                   {validationErrors.map((error, index) => (
                     <p
@@ -391,10 +391,10 @@ export function ImportDataModal({
                       onClick={() => handleImport(parsedData)}
                       className="text-xs"
                     >
-                      {t('projects.importModal.importAnyway')}
+                      {t('tasks.importModal.importAnyway')}
                     </Button>
                     <span className="self-center text-xs text-red-600 dark:text-red-400">
-                      {t('projects.importModal.orUseFieldMapping')}
+                      {t('tasks.importModal.orUseFieldMapping')}
                     </span>
                   </div>
                 </div>
@@ -426,7 +426,7 @@ export function ImportDataModal({
     >
       <div className="space-y-4">
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          {t('projects.importModal.description')}
+          {t('tasks.importModal.description')}
         </p>
 
         {templateFields.length > 0 && (
@@ -435,10 +435,10 @@ export function ImportDataModal({
               <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
               <div className="flex-1">
                 <h4 className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                  {t('projects.importModal.fieldRequirements')}
+                  {t('tasks.importModal.fieldRequirements')}
                 </h4>
                 <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
-                  {t('projects.importModal.fieldRequirementsDescription')}
+                  {t('tasks.importModal.fieldRequirementsDescription')}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {templateFields.map((field) => (
@@ -451,7 +451,7 @@ export function ImportDataModal({
                   ))}
                 </div>
                 <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-                  {t('projects.importModal.missingFieldsWarning')}
+                  {t('tasks.importModal.missingFieldsWarning')}
                 </p>
               </div>
             </div>
@@ -460,9 +460,9 @@ export function ImportDataModal({
 
         <Tabs defaultValue={activeTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="upload">{t('projects.importModal.uploadFiles')}</TabsTrigger>
-            <TabsTrigger value="paste">{t('projects.importModal.pasteData')}</TabsTrigger>
-            <TabsTrigger value="cloud">{t('projects.importModal.cloudStorage')}</TabsTrigger>
+            <TabsTrigger value="upload">{t('tasks.importModal.uploadFiles')}</TabsTrigger>
+            <TabsTrigger value="paste">{t('tasks.importModal.pasteData')}</TabsTrigger>
+            <TabsTrigger value="cloud">{t('tasks.importModal.cloudStorage')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="upload" className="mt-6">
@@ -489,10 +489,10 @@ export function ImportDataModal({
                 <>
                   <CloudArrowUpIcon className="mx-auto mb-4 h-12 w-12 text-zinc-400 dark:text-zinc-500" />
                   <p className="mb-2 text-lg font-medium">
-                    {t('projects.importModal.dropFilesHere')}
+                    {t('tasks.importModal.dropFilesHere')}
                   </p>
                   <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-                    {t('projects.importModal.supportedFormats')}
+                    {t('tasks.importModal.supportedFormats')}
                   </p>
                   <input
                     type="file"
@@ -505,7 +505,7 @@ export function ImportDataModal({
                     htmlFor="file-upload"
                     className="inline-flex cursor-pointer items-center justify-center rounded-md border border-zinc-300 bg-transparent px-4 py-2 text-sm font-medium transition-colors hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
                   >
-                    {t('projects.importModal.chooseFiles')}
+                    {t('tasks.importModal.chooseFiles')}
                   </label>
                 </>
               )}
@@ -514,9 +514,9 @@ export function ImportDataModal({
 
           <TabsContent value="paste" className="mt-6">
             <div className="space-y-4">
-              <Label>{t('projects.importModal.pasteYourData')}</Label>
+              <Label>{t('tasks.importModal.pasteYourData')}</Label>
               <Textarea
-                placeholder={t('projects.importModal.pastePlaceholder')}
+                placeholder={t('tasks.importModal.pastePlaceholder')}
                 value={pastedData}
                 onChange={(e) => {
                   setPastedData(e.target.value)
@@ -529,7 +529,7 @@ export function ImportDataModal({
                 className="font-mono text-sm"
               />
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                {t('projects.importModal.csvTip')}
+                {t('tasks.importModal.csvTip')}
               </p>
             </div>
           </TabsContent>
@@ -538,7 +538,7 @@ export function ImportDataModal({
             <Card>
               <div className="p-8 text-center">
                 <p className="text-zinc-600 dark:text-zinc-400">
-                  {t('projects.importModal.cloudComingSoon')}
+                  {t('tasks.importModal.cloudComingSoon')}
                 </p>
               </div>
             </Card>
