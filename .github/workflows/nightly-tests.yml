@@ -65,8 +65,27 @@ jobs:
 
       - name: Build test infrastructure
         if: matrix.shard != 'frontend'
-        run: make test-build
-        timeout-minutes: 30
+        # `make test-build` swallows docker-build failures (it pipes the
+        # output through `grep -v ... || true`), so wrap with retry to
+        # absorb transient build crashes (e.g. @swc/core SIGBUS during
+        # in-container npm ci) and re-verify health below.
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 30
+          max_attempts: 2
+          retry_wait_seconds: 30
+          command: make test-build
+
+      - name: Verify test infrastructure is up
+        if: matrix.shard != 'frontend'
+        # Fail loudly if the silent build above didn't actually start the
+        # api container, instead of cascading into a confusing seed error.
+        run: |
+          if ! docker ps --format '{{.Names}}' | grep -q '^benger-test-test-api-1$'; then
+            echo "::error::test-api container did not come up after make test-build"
+            docker compose -f infra/docker-compose.test.yml ps
+            exit 1
+          fi
 
       - name: Seed test database
         if: matrix.shard != 'frontend'
