@@ -97,6 +97,17 @@ export class EvaluationHelpers {
         }
 
         await this.page.waitForTimeout(500)
+        // After all the soft waits the page may have client-side
+        // redirected (e.g. to /projects when project not found). Verify
+        // and surface a clear error if so.
+        const finalUrl = this.page.url()
+        if (!finalUrl.includes(`/projects/${projectId}`)) {
+          throw new Error(
+            `Navigation to /projects/${projectId} ended up at ${finalUrl} ` +
+              `— project may not exist or user lacks access`
+          )
+        }
+        console.log(`[navigateToProject] landed at ${finalUrl}`)
         return
       } catch (error) {
         lastError = error as Error
@@ -191,8 +202,19 @@ export class EvaluationHelpers {
   async openEvaluationConfigSection(): Promise<void> {
     // Wait for project page to be ready
     await this.page.waitForTimeout(1000)
+    console.log(`[openEvaluationConfigSection] starting at URL: ${this.page.url()}`)
 
-    // Try both German and English labels (exact and partial matches)
+    // Fail fast if we're not on a project detail page — the rest of the
+    // helper otherwise scrolls a wrong page silently and confuses later
+    // failures (e.g. clickNext throwing "button not found" when really
+    // the wizard never opened).
+    if (!/\/projects\/[0-9a-f-]{8,}/.test(this.page.url())) {
+      throw new Error(
+        `openEvaluationConfigSection called from ${this.page.url()}, ` +
+          `expected /projects/{id} — earlier setup step likely failed silently`
+      )
+    }
+
     const sectionLabels = [
       'Evaluierungskonfiguration',
       'Evaluation Configuration',
@@ -205,7 +227,6 @@ export class EvaluationHelpers {
       scrollAttempt <= maxScrollAttempts;
       scrollAttempt++
     ) {
-      // Try each label with exact text match
       for (const label of sectionLabels) {
         const section = this.page.locator(`text=${label}`).first()
 
@@ -216,7 +237,6 @@ export class EvaluationHelpers {
         }
       }
 
-      // Try partial match for German "Evaluierung" in heading/button
       const partialMatch = this.page.locator('text=/Evaluierung/i').first()
       if (await partialMatch.isVisible({ timeout: 1000 }).catch(() => false)) {
         await partialMatch.click()
@@ -224,14 +244,15 @@ export class EvaluationHelpers {
         return
       }
 
-      // Scroll down if not found
       if (scrollAttempt < maxScrollAttempts) {
         await this.page.evaluate(() => window.scrollBy(0, 300))
         await this.page.waitForTimeout(500)
       }
     }
 
-    throw new Error('Evaluation config section not found after scrolling')
+    throw new Error(
+      `Evaluation config section not found after scrolling at ${this.page.url()}`
+    )
   }
 
   /**
@@ -239,11 +260,24 @@ export class EvaluationHelpers {
    * Throws if button cannot be found
    */
   async openAddEvaluationWizard(): Promise<void> {
-    // First try data-testid selector (most reliable)
+    console.log(`[openAddEvaluationWizard] starting at URL: ${this.page.url()}`)
     const testIdButton = this.page.locator('[data-testid="add-evaluation-button"]')
     if (await testIdButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await testIdButton.click()
-      await this.page.waitForTimeout(1000)
+      // Confirm the wizard actually rendered before continuing — without this
+      // a misclick or stale state silently passes through and surfaces as a
+      // mysterious "Next button not found" three steps later.
+      const wizardHeader = this.page.locator(
+        '[data-testid="evaluation-wizard-header"]'
+      )
+      try {
+        await wizardHeader.waitFor({ state: 'visible', timeout: 5000 })
+      } catch {
+        throw new Error(
+          'Clicked add-evaluation-button but wizard header never appeared'
+        )
+      }
+      await this.page.waitForTimeout(500)
       return
     }
 
@@ -341,15 +375,25 @@ export class EvaluationHelpers {
    * Throws if button cannot be found
    */
   async clickNext(): Promise<void> {
-    // First try data-testid selector (most reliable)
     const testIdButton = this.page.locator('[data-testid="wizard-next-button"]')
     if (await testIdButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      const isDisabled = await testIdButton.isDisabled().catch(() => false)
+      if (isDisabled) {
+        const stepIndicator = await this.page
+          .locator('[data-testid="wizard-step-indicator"]')
+          .textContent()
+          .catch(() => '?')
+        throw new Error(
+          `wizard-next-button is disabled at step "${stepIndicator}" ` +
+            `at URL ${this.page.url()} — current step's canProceed() is false ` +
+            `(likely a previous helper clicked the wrong element)`
+        )
+      }
       await testIdButton.click()
       await this.page.waitForTimeout(1000)
       return
     }
 
-    // Fallback: Try multiple selectors for Next/Weiter button
     const selectors = [
       'button:has-text("Next")',
       'button:has-text("Weiter")',
@@ -366,10 +410,16 @@ export class EvaluationHelpers {
       }
     }
 
-    // If not found, log available buttons for debugging
+    const wizardOpen = await this.page
+      .locator('[data-testid="evaluation-wizard-header"]')
+      .isVisible({ timeout: 500 })
+      .catch(() => false)
     const allButtons = await this.page.locator('button').allTextContents()
     console.log('Available buttons:', allButtons.slice(0, 10))
-    throw new Error('Next/Weiter button not found in wizard')
+    throw new Error(
+      `Next/Weiter button not found in wizard ` +
+        `(wizard header visible: ${wizardOpen}, URL: ${this.page.url()})`
+    )
   }
 
   /**
@@ -427,7 +477,12 @@ export class EvaluationHelpers {
    * Throws if no checkbox found
    */
   async selectFirstPredictionField(): Promise<void> {
-    const checkbox = this.page.locator('input[type="checkbox"]').first()
+    // Scope to the wizard so we don't accidentally click an unrelated
+    // checkbox (e.g. a project-settings toggle) on the same page.
+    const wizard = this.page.locator(
+      '[data-testid="evaluation-wizard-header"] >> xpath=ancestor::div[1]'
+    )
+    const checkbox = wizard.locator('input[type="checkbox"]').first()
 
     if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
       await checkbox.click()
@@ -435,7 +490,9 @@ export class EvaluationHelpers {
       return
     }
 
-    throw new Error('No prediction field checkbox found')
+    throw new Error(
+      `No prediction field checkbox found inside wizard at ${this.page.url()}`
+    )
   }
 
   /**
@@ -443,7 +500,10 @@ export class EvaluationHelpers {
    * Throws if no checkbox found
    */
   async selectFirstReferenceField(): Promise<void> {
-    const checkbox = this.page.locator('input[type="checkbox"]').first()
+    const wizard = this.page.locator(
+      '[data-testid="evaluation-wizard-header"] >> xpath=ancestor::div[1]'
+    )
+    const checkbox = wizard.locator('input[type="checkbox"]').first()
 
     if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
       await checkbox.click()
@@ -451,7 +511,9 @@ export class EvaluationHelpers {
       return
     }
 
-    throw new Error('No reference field checkbox found')
+    throw new Error(
+      `No reference field checkbox found inside wizard at ${this.page.url()}`
+    )
   }
 
   /**
