@@ -1011,11 +1011,11 @@
         "reportNotCreated": "Report not created yet"
       },
       "korrektur": {
-        "title": "Korrektur Stage",
-        "enable": "Enable Korrektur",
+        "title": "Correction Stage",
+        "enable": "Enable Correction",
         "enableDescription": "Configured in the project wizard under Evaluation Methods → Human Evaluation.",
         "highlightLabels": "Highlight Labels",
-        "highlightLabelsDescription": "Define colored labels for text highlighting in Korrektur",
+        "highlightLabelsDescription": "Define colored labels for text highlighting in Correction",
         "labelName": "Label name",
         "addLabel": "Add Label"
       }
@@ -1030,7 +1030,7 @@
       "generation": "Generation",
       "evaluations": "Evaluations",
       "reviewWorkflow": "Review Workflow",
-      "korrektur": "Korrektur",
+      "korrektur": "Correction",
       "members": "Members"
     },
     "statistics": {
@@ -7094,7 +7094,8 @@
       "continueToNext": "Continue to Next",
       "reviewModeLabel": "Review mode:",
       "inPlaceCorrection": "In-place correction",
-      "independentReview": "Independent review"
+      "independentReview": "Independent review",
+      "annotatorSubmission": "Annotator's submission (read-only)"
     },
     "annotatedBy": "Annotated by",
     "addReviewerComment": "Add reviewer comment",
@@ -7130,21 +7131,21 @@
     }
   },
   "korrekturWorkflow": {
-    "title": "Korrektur",
-    "loadFailed": "Failed to load Korrektur data",
-    "notEnabled": "Korrektur is not enabled for this project. Enable it in the project wizard under Evaluation Methods → Human Evaluation.",
+    "title": "Correction",
+    "loadFailed": "Failed to load correction data",
+    "notEnabled": "Correction is not enabled for this project. Enable it in the project wizard under Evaluation Methods → Human Evaluation.",
     "noTasks": "No tasks found",
     "stats": {
       "totalTasks": "Total Tasks",
-      "withFeedback": "With Korrektur",
-      "withoutFeedback": "Without Korrektur",
+      "withFeedback": "With Correction",
+      "withoutFeedback": "Without Correction",
       "totalComments": "Comments",
       "unresolvedComments": "Unresolved"
     },
     "filter": {
       "all": "All",
-      "with_korrektur": "With Korrektur",
-      "without_korrektur": "Without Korrektur"
+      "with_korrektur": "With Correction",
+      "without_korrektur": "Without Correction"
     },
     "modal": {
       "annotation": "Annotation",
@@ -7181,7 +7182,7 @@
       "prediction": "Prediction"
     },
     "myKorrektur": {
-      "title": "My Korrektur"
+      "title": "My Correction"
     }
   },
   "korrektur": {

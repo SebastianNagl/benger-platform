@@ -164,6 +164,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [expandedModels, setExpandedModels] = useState(false)
   const [expandedInstructions, setExpandedInstructions] = useState(false)
   const [expandedEvaluation, setExpandedEvaluation] = useState(false)
+  const [expandedGenDefaults, setExpandedGenDefaults] = useState(false)
+  const [expandedEvalDefaults, setExpandedEvalDefaults] = useState(false)
 
   // Evaluation configs (Phase 8: N:M Field Mapping)
   const [evaluationConfigs, setEvaluationConfigs] = useState<
@@ -1716,72 +1718,96 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 {/* Generation Defaults */}
                 {canEditProject() && (
                   <div className="mb-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
-                          {t('project.generationDefaults.title')}
-                        </h4>
-                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                          {t('project.generationDefaults.description')}
-                        </p>
-                      </div>
-                      <Button
-                        onClick={handleSaveGenDefaults}
-                        disabled={isUpdatingGenDefaults}
-                        size="sm"
-                        variant="outline"
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedGenDefaults((v) => !v)}
+                        className="flex flex-1 items-center gap-2 text-left"
+                        aria-expanded={expandedGenDefaults}
                       >
-                        {isUpdatingGenDefaults
-                          ? t('project.editing.saving')
-                          : t('project.generationDefaults.save')}
-                      </Button>
+                        <svg
+                          className={`h-4 w-4 flex-shrink-0 text-zinc-400 transition-transform ${expandedGenDefaults ? 'rotate-90 transform' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                        <div>
+                          <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
+                            {t('project.generationDefaults.title')}
+                          </h4>
+                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            {t('project.generationDefaults.description')}
+                          </p>
+                        </div>
+                      </button>
+                      {expandedGenDefaults && (
+                        <Button
+                          onClick={handleSaveGenDefaults}
+                          disabled={isUpdatingGenDefaults}
+                          size="sm"
+                          variant="outline"
+                        >
+                          {isUpdatingGenDefaults
+                            ? t('project.editing.saving')
+                            : t('project.generationDefaults.save')}
+                        </Button>
+                      )}
                     </div>
-                    <div className="mt-4 grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                          {t('project.generationDefaults.defaultTemperature')}
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          max={2}
-                          step={0.1}
-                          value={genDefaultTemperature ?? 0}
-                          placeholder="0.0"
-                          onChange={(e) =>
-                            setGenDefaultTemperature(
-                              e.target.value ? parseFloat(e.target.value) : undefined
-                            )
-                          }
-                          className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                        />
-                        <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                          {t('project.generationDefaults.temperatureHelp')}
-                        </p>
+                    {expandedGenDefaults && (
+                      <div className="mt-4 grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                            {t('project.generationDefaults.defaultTemperature')}
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            max={2}
+                            step={0.1}
+                            value={genDefaultTemperature ?? 0}
+                            placeholder="0.0"
+                            onChange={(e) =>
+                              setGenDefaultTemperature(
+                                e.target.value ? parseFloat(e.target.value) : undefined
+                              )
+                            }
+                            className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                          />
+                          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                            {t('project.generationDefaults.temperatureHelp')}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                            {t('project.generationDefaults.defaultMaxTokens')}
+                          </label>
+                          <input
+                            type="number"
+                            min={100}
+                            max={128000}
+                            step={100}
+                            value={genDefaultMaxTokens ?? 4000}
+                            placeholder="4000"
+                            onChange={(e) =>
+                              setGenDefaultMaxTokens(
+                                e.target.value ? parseInt(e.target.value) : undefined
+                              )
+                            }
+                            className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                          />
+                          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                            {t('project.generationDefaults.maxTokensHelp')}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                          {t('project.generationDefaults.defaultMaxTokens')}
-                        </label>
-                        <input
-                          type="number"
-                          min={100}
-                          max={128000}
-                          step={100}
-                          value={genDefaultMaxTokens ?? 4000}
-                          placeholder="4000"
-                          onChange={(e) =>
-                            setGenDefaultMaxTokens(
-                              e.target.value ? parseInt(e.target.value) : undefined
-                            )
-                          }
-                          className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                        />
-                        <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                          {t('project.generationDefaults.maxTokensHelp')}
-                        </p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
@@ -2226,72 +2252,96 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   {/* Evaluation Defaults */}
                   {canEditProject() && (
                     <div className="mb-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
-                            {t('project.evaluationDefaults.title')}
-                          </h4>
-                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                            {t('project.evaluationDefaults.description')}
-                          </p>
-                        </div>
-                        <Button
-                          onClick={handleSaveEvalDefaults}
-                          disabled={isUpdatingEvalDefaults}
-                          size="sm"
-                          variant="outline"
+                      <div className="flex items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedEvalDefaults((v) => !v)}
+                          className="flex flex-1 items-center gap-2 text-left"
+                          aria-expanded={expandedEvalDefaults}
                         >
-                          {isUpdatingEvalDefaults
-                            ? t('project.editing.saving')
-                            : t('project.evaluationDefaults.save')}
-                        </Button>
+                          <svg
+                            className={`h-4 w-4 flex-shrink-0 text-zinc-400 transition-transform ${expandedEvalDefaults ? 'rotate-90 transform' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
+                          <div>
+                            <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
+                              {t('project.evaluationDefaults.title')}
+                            </h4>
+                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                              {t('project.evaluationDefaults.description')}
+                            </p>
+                          </div>
+                        </button>
+                        {expandedEvalDefaults && (
+                          <Button
+                            onClick={handleSaveEvalDefaults}
+                            disabled={isUpdatingEvalDefaults}
+                            size="sm"
+                            variant="outline"
+                          >
+                            {isUpdatingEvalDefaults
+                              ? t('project.editing.saving')
+                              : t('project.evaluationDefaults.save')}
+                          </Button>
+                        )}
                       </div>
-                      <div className="mt-4 grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                            {t('project.evaluationDefaults.defaultTemperature')}
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            max={2}
-                            step={0.1}
-                            value={evalDefaultTemperature ?? 0}
-                            placeholder="0.0"
-                            onChange={(e) =>
-                              setEvalDefaultTemperature(
-                                e.target.value ? parseFloat(e.target.value) : undefined
-                              )
-                            }
-                            className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                          />
-                          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                            {t('project.evaluationDefaults.temperatureHelp')}
-                          </p>
+                      {expandedEvalDefaults && (
+                        <div className="mt-4 grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                              {t('project.evaluationDefaults.defaultTemperature')}
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              max={2}
+                              step={0.1}
+                              value={evalDefaultTemperature ?? 0}
+                              placeholder="0.0"
+                              onChange={(e) =>
+                                setEvalDefaultTemperature(
+                                  e.target.value ? parseFloat(e.target.value) : undefined
+                                )
+                              }
+                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                            />
+                            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                              {t('project.evaluationDefaults.temperatureHelp')}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                              {t('project.evaluationDefaults.defaultMaxTokens')}
+                            </label>
+                            <input
+                              type="number"
+                              min={100}
+                              max={16000}
+                              step={100}
+                              value={evalDefaultMaxTokens ?? 500}
+                              placeholder="500"
+                              onChange={(e) =>
+                                setEvalDefaultMaxTokens(
+                                  e.target.value ? parseInt(e.target.value) : undefined
+                                )
+                              }
+                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                            />
+                            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                              {t('project.evaluationDefaults.maxTokensHelp')}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                            {t('project.evaluationDefaults.defaultMaxTokens')}
-                          </label>
-                          <input
-                            type="number"
-                            min={100}
-                            max={16000}
-                            step={100}
-                            value={evalDefaultMaxTokens ?? 500}
-                            placeholder="500"
-                            onChange={(e) =>
-                              setEvalDefaultMaxTokens(
-                                e.target.value ? parseInt(e.target.value) : undefined
-                              )
-                            }
-                            className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                          />
-                          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                            {t('project.evaluationDefaults.maxTokensHelp')}
-                          </p>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   )}
 
@@ -3157,7 +3207,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   variant="outline"
                   className="w-full"
                 >
-                  {t('project.quickActions.korrektur') || 'Korrektur'}
+                  {t('project.quickActions.korrektur') || 'Correction'}
                 </Button>
               )}
 

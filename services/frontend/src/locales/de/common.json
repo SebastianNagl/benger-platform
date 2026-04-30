@@ -7144,7 +7144,8 @@
       "continueToNext": "Weiter zur nächsten",
       "reviewModeLabel": "Überprüfungsmodus:",
       "inPlaceCorrection": "Direkte Korrektur",
-      "independentReview": "Unabhängige Überprüfung"
+      "independentReview": "Unabhängige Überprüfung",
+      "annotatorSubmission": "Einreichung des Annotators (schreibgeschützt)"
     },
     "annotatedBy": "Annotiert von",
     "addReviewerComment": "Reviewer-Kommentar hinzufuegen",
