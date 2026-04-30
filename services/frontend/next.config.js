@@ -83,6 +83,23 @@ const nextConfig = {
   // Turbopack configuration (Next.js 13+ with --turbo flag)
   turbopack: {
     resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
+    // Extended edition dev: alias @benger/extended to the in-project-root mount
+    // so Turbopack watches it for HMR. Without this, Turbopack resolves via
+    // node_modules/@benger/extended (a sibling Docker mount that lives outside
+    // its watched scope), and edits never trigger a rebuild.
+    // Mirror of the webpack `config.resolve.alias` below.
+    ...(isExtended &&
+    require('fs').existsSync('/app/benger-extended-frontend/index.ts')
+      ? {
+          // Path is relative to next.config.js (which lives at /app).
+          // Turbopack's resolveAlias treats values starting with "/" as
+          // relative imports (prepends "./") — so use the project-root
+          // relative form instead.
+          resolveAlias: {
+            '@benger/extended': './benger-extended-frontend',
+          },
+        }
+      : {}),
   },
 
   // Webpack configuration (legacy fallback when not using --turbo)
