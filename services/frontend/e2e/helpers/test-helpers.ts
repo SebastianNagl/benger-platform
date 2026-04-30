@@ -2,6 +2,7 @@
  * Test helper class for E2E tests
  */
 import { Page } from '@playwright/test'
+import { APISeedingHelper } from './api-seeding'
 
 // Simple request throttle to prevent API overload
 let lastRequestTime = 0
@@ -245,11 +246,23 @@ export class TestHelpers {
     }
   }
 
-  /**
-   * Create a test project using the 3-step wizard
-   * Uses fallback selectors for resilience across different UI states
-   */
+  // Create a test project via POST /api/projects. Default for any spec
+  // that needs a project as setup; use createTestProjectViaWizard only when
+  // you're explicitly asserting on the wizard UX.
   async createTestProject(name: string): Promise<string | null> {
+    try {
+      const seeder = new APISeedingHelper(this.page)
+      return await seeder.createProject(name)
+    } catch (err) {
+      console.error('createTestProject (API) failed:', err)
+      return null
+    }
+  }
+
+  // Walks the project-creation wizard step-by-step. Use only in specs that
+  // explicitly test the wizard UX; everything else should call the API-
+  // driven createTestProject above.
+  async createTestProjectViaWizard(name: string): Promise<string | null> {
     const currentUrl = this.page.url()
 
     try {

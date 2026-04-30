@@ -182,36 +182,16 @@ export class TestFixtures {
     labelConfig: string = SIMPLE_TEXT_CONFIG,
     taskCount: number = 5
   ): Promise<string> {
-    const maxRetries = 3
-    let lastError: Error | null = null
+    const projectName = `E2E Annotation ${Date.now()}`
+    const projectId = await this.helpers.createTestProject(projectName)
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const projectName = `E2E Annotation ${Date.now()}`
-        const projectId = await this.helpers.createTestProject(projectName)
-
-        if (!projectId) {
-          throw new Error('Project creation returned null')
-        }
-
-        // Set label config via API
-        await this.setLabelConfig(projectId, labelConfig)
-
-        // Create test tasks
-        await this.createTasks(projectId, taskCount)
-
-        return projectId
-      } catch (error) {
-        lastError = error as Error
-        console.warn(`Project creation attempt ${attempt}/${maxRetries} failed:`, error)
-        if (attempt < maxRetries) {
-          // Wait before retry with exponential backoff
-          await this.page.waitForTimeout(1000 * attempt)
-        }
-      }
+    if (!projectId) {
+      throw new Error('Failed to create test project: API returned no id')
     }
 
-    throw new Error(`Failed to create test project after ${maxRetries} attempts: ${lastError?.message}`)
+    await this.setLabelConfig(projectId, labelConfig)
+    await this.createTasks(projectId, taskCount)
+    return projectId
   }
 
   /**
