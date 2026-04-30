@@ -25,7 +25,10 @@ jobs:
   nightly:
     name: ${{ matrix.shard }}
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # Sized for the e2e shard: Playwright's globalTimeout is 90 min in
+    # isolated mode (workers=1), and the surrounding setup/teardown
+    # adds ~10–15 min, so 120 min gives real headroom.
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -99,7 +102,10 @@ jobs:
             frontend) make test-frontend ;;
             e2e)      make test-e2e ;;
           esac
-        timeout-minutes: 60
+        # E2E in isolated mode runs 200+ specs serially (workers=1) with
+        # a 90-min Playwright globalTimeout, so the step needs at least
+        # that plus a safety margin.
+        timeout-minutes: 100
 
       - name: Upload Playwright report
         if: matrix.shard == 'e2e' && failure()
