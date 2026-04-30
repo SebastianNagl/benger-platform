@@ -3,6 +3,10 @@ name: Nightly Tests
 # Comprehensive test suite — runs ALL tests (API, Workers, Frontend, E2E).
 # PR CI only runs frontend Jest + Python lint for fast feedback.
 # This nightly suite catches regressions within 24 hours.
+#
+# Each slice runs in its own matrix shard so a single slow suite
+# (typically API at ~36 min on real Postgres) doesn't starve the others
+# or trip the per-step timeout. Frontend Jest skips Docker entirely.
 
 on:
   schedule:
@@ -19,14 +23,19 @@ permissions:
 
 jobs:
   nightly:
-    name: Full Test Suite
+    name: ${{ matrix.shard }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [api, workers, frontend, e2e]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Free disk space
+        if: matrix.shard != 'frontend'
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/local/share/chromium || true
 
@@ -38,47 +47,65 @@ jobs:
           cache-dependency-path: services/frontend/package-lock.json
 
       - name: Install frontend dependencies
-        working-directory: services/frontend
-        run: npm ci
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: cd services/frontend && npm ci
 
       - name: Install Playwright Chromium
+        if: matrix.shard == 'e2e'
         working-directory: services/frontend
         run: npx playwright install chromium --with-deps
 
       - name: Add test hostname
+        if: matrix.shard == 'e2e'
         run: echo "127.0.0.1 benger-test.localhost" | sudo tee -a /etc/hosts
 
-      - name: Build and start test infrastructure
+      - name: Build test infrastructure
+        if: matrix.shard != 'frontend'
         run: make test-build
-        timeout-minutes: 20
+        timeout-minutes: 30
 
       - name: Seed test database
+        if: matrix.shard != 'frontend'
         run: make test-seed
 
-      - name: Run unit tests (API + Workers + Frontend)
-        run: make test-unit
-        timeout-minutes: 40
-
-      - name: Run E2E tests
-        run: make test-e2e
-        timeout-minutes: 40
+      - name: Run ${{ matrix.shard }} tests
+        run: |
+          case "${{ matrix.shard }}" in
+            api)      make test-api ;;
+            workers)  make test-workers ;;
+            frontend) make test-frontend ;;
+            e2e)      make test-e2e ;;
+          esac
+        timeout-minutes: 60
 
       - name: Upload Playwright report
+        if: matrix.shard == 'e2e' && failure()
         uses: actions/upload-artifact@v4
-        if: failure()
         with:
           name: nightly-playwright-report
           path: services/frontend/playwright-report/
           retention-days: 7
 
       - name: Cleanup
-        if: always()
+        if: always() && matrix.shard != 'frontend'
         run: |
           make test-stop 2>/dev/null || true
           docker image prune -f || true
 
+  report:
+    name: Report failure
+    needs: nightly
+    runs-on: ubuntu-latest
+    if: failure() && github.event_name == 'schedule'
+    permissions:
+      contents: read
+      issues: write
+    steps:
       - name: Create or update issue on failure
-        if: failure() && github.event_name == 'schedule'
         uses: actions/github-script@v7
         with:
           script: |
