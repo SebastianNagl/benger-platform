@@ -98,7 +98,10 @@ function ToastContainer({
   onRemove: (id: string) => void
 }) {
   return (
-    <div className="pointer-events-none fixed right-4 top-4 z-50 max-w-sm space-y-2">
+    <div
+      className="pointer-events-none fixed right-4 top-4 z-50 max-w-sm space-y-2"
+      data-testid="toast-container"
+    >
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
@@ -149,6 +152,9 @@ function ToastItem({
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 100, scale: 0.8 }}
       className={`${getToastStyles(toast.type)} pointer-events-auto flex min-w-0 items-center space-x-3 rounded-lg border p-4 shadow-lg`}
+      role={toast.type === 'error' ? 'alert' : 'status'}
+      data-testid="toast-item"
+      data-toast-type={toast.type}
     >
       <span className="flex-shrink-0 text-lg">{getIcon(toast.type)}</span>
       <p className="min-w-0 flex-1 text-sm font-medium">{toast.message}</p>
