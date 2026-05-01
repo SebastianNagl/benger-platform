@@ -14,29 +14,14 @@
  * - Permission boundaries (Contributor, Superadmin can update; Annotator cannot)
  */
 
-import { expect, Page, test } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { TestHelpers } from '../helpers/test-helpers'
+import {
+  clickSubmitFromAnyStep,
+  enableWizardFeatures,
+} from '../helpers/wizard-helpers'
 
 const TEST_URL = process.env.PLAYWRIGHT_BASE_URL || ''
-
-/**
- * The new feature-toggle wizard adds extra steps after labelingSetup
- * (annotationInstructions, settings); the submit button is only on the
- * very last step. Click Next until Submit becomes visible, then click it.
- */
-async function clickSubmitFromAnyStep(page: Page): Promise<void> {
-  const submit = page.locator('[data-testid="project-create-submit-button"]')
-  const next = page.locator('[data-testid="project-create-next-button"]')
-  for (let i = 0; i < 6; i++) {
-    if (await submit.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await submit.click()
-      return
-    }
-    await next.click()
-    await page.waitForTimeout(500)
-  }
-  throw new Error('Submit button never appeared in wizard after 6 Next clicks')
-}
 
 test.describe('Label Config Updates - Contributor Workflows', () => {
   test.describe.configure({ mode: 'serial' })
@@ -68,12 +53,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
       '[data-testid="project-create-description-textarea"]'
     )
     await descriptionInput.fill('Testing label config updates')
-
-    // Enable the annotation feature so the wizard renders the labelingSetup
-    // step (the new feature-toggle wizard skips it by default).
-    await page
-      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
-      .check()
+    await enableWizardFeatures(page, ['annotation'])
 
     // Go to step 2 (Data Import - skip)
     await page.locator('[data-testid="project-create-next-button"]').click()
@@ -183,12 +163,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
     await page
       .locator('[data-testid="project-create-description-textarea"]')
       .fill('Testing field addition with annotation preservation')
-
-    // Enable the annotation feature so the wizard renders the labelingSetup
-    // step (the new feature-toggle wizard skips it by default).
-    await page
-      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
-      .check()
+    await enableWizardFeatures(page, ['annotation'])
 
     // Navigate through wizard
     await page.locator('[data-testid="project-create-next-button"]').click()
@@ -312,12 +287,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
 
     const projectName = `Remove_Field_Test_${Date.now()}`
     await nameInput.fill(projectName)
-
-    // Enable the annotation feature so the wizard renders the labelingSetup
-    // step (the new feature-toggle wizard skips it by default).
-    await page
-      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
-      .check()
+    await enableWizardFeatures(page, ['annotation'])
 
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
@@ -397,12 +367,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
 
     const projectName = `Change_Field_Type_${Date.now()}`
     await nameInput.fill(projectName)
-
-    // Enable the annotation feature so the wizard renders the labelingSetup
-    // step (the new feature-toggle wizard skips it by default).
-    await page
-      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
-      .check()
+    await enableWizardFeatures(page, ['annotation'])
 
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
@@ -483,11 +448,7 @@ test.describe('Label Config Updates - Validation Tests', () => {
 
     const projectName = `Invalid_XML_Test_${Date.now()}`
     await nameInput.fill(projectName)
-
-    // Enable annotation feature so labelingSetup step renders.
-    await page
-      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
-      .check()
+    await enableWizardFeatures(page, ['annotation'])
 
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
@@ -530,11 +491,7 @@ test.describe('Label Config Updates - Validation Tests', () => {
 
     const projectName = `No_View_Test_${Date.now()}`
     await nameInput.fill(projectName)
-
-    // Enable annotation feature so labelingSetup step renders.
-    await page
-      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
-      .check()
+    await enableWizardFeatures(page, ['annotation'])
 
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
@@ -575,11 +532,7 @@ test.describe('Label Config Updates - Validation Tests', () => {
 
     const projectName = `Duplicate_Names_Test_${Date.now()}`
     await nameInput.fill(projectName)
-
-    // Enable annotation feature so labelingSetup step renders.
-    await page
-      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
-      .check()
+    await enableWizardFeatures(page, ['annotation'])
 
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
@@ -633,11 +586,7 @@ test.describe('Label Config Updates - Complex Schemas', () => {
 
     const projectName = `Complex_Schema_${Date.now()}`
     await nameInput.fill(projectName)
-
-    // Enable annotation feature so labelingSetup step renders.
-    await page
-      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
-      .check()
+    await enableWizardFeatures(page, ['annotation'])
 
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
@@ -735,11 +684,7 @@ test.describe('Label Config Updates - Complex Schemas', () => {
 
     const projectName = `Template_Switch_${Date.now()}`
     await nameInput.fill(projectName)
-
-    // Enable annotation feature so labelingSetup step renders.
-    await page
-      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
-      .check()
+    await enableWizardFeatures(page, ['annotation'])
 
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
@@ -963,11 +908,7 @@ test.describe('Label Config Updates - Advanced Features', () => {
 
     const projectName = `Multi_Change_${Date.now()}`
     await nameInput.fill(projectName)
-
-    // Enable annotation feature so labelingSetup step renders.
-    await page
-      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
-      .check()
+    await enableWizardFeatures(page, ['annotation'])
 
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
@@ -1048,11 +989,7 @@ test.describe('Label Config Updates - Advanced Features', () => {
 
     const projectName = `Nested_View_${Date.now()}`
     await nameInput.fill(projectName)
-
-    // Enable annotation feature so labelingSetup step renders.
-    await page
-      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
-      .check()
+    await enableWizardFeatures(page, ['annotation'])
 
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)

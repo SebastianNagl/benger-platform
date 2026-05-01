@@ -12,6 +12,10 @@
 
 import { expect, test, Page } from '@playwright/test'
 import { TestHelpers } from '../helpers/test-helpers'
+import {
+  clickSubmitFromAnyStep,
+  enableWizardFeatures,
+} from '../helpers/wizard-helpers'
 
 /**
  * Helper to navigate to project creation wizard step 3 (template selection)
@@ -21,68 +25,37 @@ async function navigateToTemplateSelection(
   helpers: TestHelpers,
   projectName: string
 ): Promise<void> {
-  // Login
   await helpers.login('admin', 'admin')
 
-  // Navigate to projects and wait for page to load
   await page.goto('/projects', { waitUntil: 'domcontentloaded' })
 
-  // Wait for the "Neues Projekt" button to be visible and click it
   const newProjectButton = page.locator('text=Neues Projekt')
   await expect(newProjectButton).toBeVisible({ timeout: 15000 })
   await newProjectButton.click()
 
-  // Wait for wizard to load - look for the project name input
   await expect(
     page.locator('[data-testid="project-create-name-input"]')
   ).toBeVisible({ timeout: 15000 })
 
-  // Fill project name
   await page.fill('[data-testid="project-create-name-input"]', projectName)
 
-  // Enable dataImport + annotation features so the wizard renders the
-  // data-import and template-selection steps the test expects.
-  await page
-    .locator('[data-testid="wizard-feature-dataImport"] input[type="checkbox"]')
-    .check()
-  await page
-    .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
-    .check()
+  await enableWizardFeatures(page, ['dataImport', 'annotation'])
 
   // Step 2: Data import - click next
   const nextButton = page.locator('[data-testid="project-create-next-button"]')
   await expect(nextButton).toBeVisible()
   await nextButton.click()
 
-  // Wait for data import step to appear
-  await expect(page.locator('text=Daten importieren')).toBeVisible({ timeout: 10000 })
+  await expect(page.locator('text=Daten importieren')).toBeVisible({
+    timeout: 10000,
+  })
 
   // Step 3: Template selection - click next to skip data import
   await nextButton.click()
 
-  // Verify we're on template selection step
   await expect(page.locator('text=Frage-Antwort')).toBeVisible({
     timeout: 10000,
   })
-}
-
-/**
- * The new feature-toggle wizard adds extra steps after labelingSetup
- * (annotationInstructions, settings); the submit button is only on the
- * very last step. Click Next until Submit becomes visible, then click it.
- */
-async function clickSubmitFromAnyStep(page: Page): Promise<void> {
-  const submit = page.locator('[data-testid="project-create-submit-button"]')
-  const next = page.locator('[data-testid="project-create-next-button"]')
-  for (let i = 0; i < 6; i++) {
-    if (await submit.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await submit.click()
-      return
-    }
-    await next.click()
-    await page.waitForTimeout(500)
-  }
-  throw new Error('Submit button never appeared in wizard after 6 Next clicks')
 }
 
 test.describe('Project Creation Templates - Full Workflow Tests', () => {

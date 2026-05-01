@@ -15,8 +15,10 @@ export default defineConfig({
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI and locally for flaky infrastructure tests */
-  retries: 2,
+  /* No retries on CI: a real flake should be visible on the first run, not
+     buried behind 2 silent retries. The shard-level matrix in
+     nightly-tests.yml limits the blast radius of a transient infra blip. */
+  retries: 0,
   /* Opt out of parallel tests on CI. Workers optimized for isolated E2E mode */
   // Single worker for E2E isolated to prevent infrastructure overload
   // Multiple parallel logins to shared test accounts cause session conflicts

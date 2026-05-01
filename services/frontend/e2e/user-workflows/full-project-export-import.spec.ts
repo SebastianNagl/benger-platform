@@ -17,6 +17,10 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import { TestHelpers } from '../helpers/test-helpers'
+import {
+  clickSubmitFromAnyStep,
+  enableWizardFeatures,
+} from '../helpers/wizard-helpers'
 
 test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
   test.describe.configure({ mode: 'serial' })
@@ -49,14 +53,7 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
       'Comprehensive project for testing full export/import roundtrip with all settings'
     )
 
-    // Enable dataImport + annotation features so the wizard renders the
-    // step-2 (data import) and step-3 (labelingSetup) steps the test expects.
-    await page
-      .locator('[data-testid="wizard-feature-dataImport"] input[type="checkbox"]')
-      .check()
-    await page
-      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
-      .check()
+    await enableWizardFeatures(page, ['dataImport', 'annotation'])
 
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
@@ -108,18 +105,10 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
 
-    // Step 3: Label configuration — same story as step 2; the new wizard
-    // doesn't expose a project-create-step-3 testid. Walk Next until Submit.
-    const submit = page.locator('[data-testid="project-create-submit-button"]')
-    const next = page.locator('[data-testid="project-create-next-button"]')
-    for (let i = 0; i < 6; i++) {
-      if (await submit.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await submit.click()
-        break
-      }
-      await next.click()
-      await page.waitForTimeout(500)
-    }
+    // Walk through any remaining wizard steps (annotationInstructions,
+    // settings) until Submit appears. The shared helper asserts the step
+    // indicator advances on each Next click.
+    await clickSubmitFromAnyStep(page)
 
     // Wait for redirect to the new project page
     await page.waitForURL(/\/projects\/[0-9a-f-]+$/, { timeout: 30000 })

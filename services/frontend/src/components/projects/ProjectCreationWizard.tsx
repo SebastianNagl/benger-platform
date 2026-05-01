@@ -636,7 +636,13 @@ export function ProjectCreationWizard() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div
+      className="mx-auto max-w-5xl"
+      data-testid="project-create-step-indicator"
+      data-step={currentStepIndex + 1}
+      data-total-steps={activeSteps.length}
+      data-current-step-id={currentStep?.id ?? ''}
+    >
       <WizardStepIndicator
         steps={activeSteps}
         currentStepIndex={currentStepIndex}

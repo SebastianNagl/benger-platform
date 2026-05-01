@@ -1746,7 +1746,9 @@ export function EvaluationBuilder({
           </div>
 
           {/* Wizard Content */}
-          <div className="p-4">{renderWizardStep()}</div>
+          <div className="p-4" data-testid="evaluation-wizard-body">
+            {renderWizardStep()}
+          </div>
 
           {/* Wizard Footer */}
           <div className="flex justify-between bg-gray-50 px-4 py-3 dark:bg-gray-800">
