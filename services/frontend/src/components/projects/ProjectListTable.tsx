@@ -5,8 +5,9 @@
 import { ProjectBulkActions } from '@/components/projects/ProjectBulkActions'
 import { TableCheckbox } from '@/components/projects/TableCheckbox'
 import { Button } from '@/components/shared/Button'
+import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { Pagination } from '@/components/shared/Pagination'
-import { SearchInput } from '@/components/shared/SearchInput'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -469,11 +470,6 @@ export function ProjectListTable({
                 ? `${t('projects.archived')} ${t('projects.title')}`
                 : t('projects.title')}
             </h1>
-            <p className="mt-2 text-base text-zinc-600 dark:text-zinc-400 sm:text-lg">
-              {showArchivedOnly
-                ? t('projects.archivedSubtitle')
-                : t('projects.subtitle')}
-            </p>
           </div>
           <div className="flex items-center gap-3">
             {!showArchivedOnly && userCanCreateProjects && (
@@ -522,46 +518,83 @@ export function ProjectListTable({
 
       {/* Search and Bulk Actions */}
       <div className="space-y-4">
-        <SearchInput
-          placeholder={t('projects.searchPlaceholder')}
-          value={localSearchQuery}
-          onChange={setLocalSearchQuery}
-          className="w-full"
-          data-testid="projects-search-input"
-        />
+        <FilterToolbar
+          searchValue={localSearchQuery}
+          onSearchChange={setLocalSearchQuery}
+          searchPlaceholder={t('projects.searchPlaceholder')}
+          searchLabel={t('common.filters.search')}
+          filtersLabel={t('common.filters.filters')}
+          hasActiveFilters={
+            sortField !== 'created_at' ||
+            sortOrder !== 'desc' ||
+            localSearchQuery.trim() !== ''
+          }
+          onClearFilters={() => {
+            setSortField('created_at')
+            setSortOrder('desc')
+            setLocalSearchQuery('')
+          }}
+          clearLabel={t('common.filters.clearAll')}
+          rightExtras={
+            <span className="text-sm text-zinc-600 dark:text-zinc-400">
+              {selectedProjects.size > 0 ? (
+                <span
+                  className="font-medium text-zinc-900 dark:text-white"
+                  data-testid="projects-selection-count"
+                >
+                  {t('projects.list.projectsSelected', { count: selectedProjects.size })}
+                </span>
+              ) : (
+                t('projects.list.showingResults', { shown: sortedProjects.length, total: totalProjects })
+              )}
+            </span>
+          }
+        >
+          <FilterToolbar.Field label={t('common.filters.sortBy')}>
+            <Select
+              value={sortField}
+              onValueChange={(v) => setSortField(v as SortField)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="title">{t('projects.list.sortTitle')}</SelectItem>
+                <SelectItem value="created_at">{t('projects.list.sortCreated')}</SelectItem>
+                <SelectItem value="task_count">{t('projects.list.sortTaskCount')}</SelectItem>
+                <SelectItem value="progress">{t('projects.list.sortProgress')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </FilterToolbar.Field>
+          <FilterToolbar.Field label={t('common.filters.order')}>
+            <Select
+              value={sortOrder}
+              onValueChange={(v) => setSortOrder(v as SortOrder)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="asc">{t('common.filters.asc')}</SelectItem>
+                <SelectItem value="desc">{t('common.filters.desc')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </FilterToolbar.Field>
+        </FilterToolbar>
 
-        {/* Bulk Actions and Selection Summary */}
-        <div className="flex items-center justify-between">
-          {/* Selection Summary */}
-          <div className="text-sm text-zinc-600 dark:text-zinc-400">
-            {selectedProjects.size > 0 ? (
-              <span
-                className="font-medium text-zinc-900 dark:text-white"
-                data-testid="projects-selection-count"
-              >
-                {t('projects.list.projectsSelected', { count: selectedProjects.size })}
-              </span>
-            ) : (
-              <span>
-                {t('projects.list.showingResults', { shown: sortedProjects.length, total: totalProjects })}
-              </span>
-            )}
+        {/* Bulk Actions */}
+        {selectedProjects.size > 0 && userCanCreateProjects && (
+          <div className="flex items-center justify-end space-x-3">
+            <ProjectBulkActions
+              selectedCount={selectedProjects.size}
+              onDelete={handleBulkDelete}
+              onFullExport={() => handleBulkExport(true)}
+              onArchive={showArchivedOnly ? undefined : handleBulkArchive}
+              onUnarchive={showArchivedOnly ? handleBulkUnarchive : undefined}
+              isArchivedContext={showArchivedOnly}
+            />
           </div>
-
-          {/* Bulk Actions - Only show when projects are selected and user has permissions */}
-          {selectedProjects.size > 0 && userCanCreateProjects && (
-            <div className="flex items-center space-x-3">
-              <ProjectBulkActions
-                selectedCount={selectedProjects.size}
-                onDelete={handleBulkDelete}
-                onFullExport={() => handleBulkExport(true)}
-                onArchive={showArchivedOnly ? undefined : handleBulkArchive}
-                onUnarchive={showArchivedOnly ? handleBulkUnarchive : undefined}
-                isArchivedContext={showArchivedOnly}
-              />
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {/* Table */}

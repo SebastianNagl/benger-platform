@@ -5,7 +5,7 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { useNotifications } from '@/hooks/useNotifications'
 import { api } from '@/lib/api'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
 import NotificationsPage from '../page'
@@ -145,6 +145,66 @@ jest.mock('@/components/shared/Button', () => ({
 jest.mock('@/components/shared/ResponsiveContainer', () => ({
   ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
 }))
+jest.mock('@/components/shared/Select', () => ({
+  Select: ({ value, onValueChange, disabled, children }: any) => (
+    <select
+      value={value ?? ''}
+      onChange={(e) => onValueChange(e.target.value)}
+      disabled={disabled}
+    >
+      {children}
+    </select>
+  ),
+  SelectTrigger: () => null,
+  SelectValue: () => null,
+  SelectContent: ({ children }: any) => <>{children}</>,
+  SelectItem: ({ value, children }: any) => (
+    <option value={value}>{children}</option>
+  ),
+}))
+
+jest.mock('@/components/shared/FilterToolbar', () => {
+  const FilterToolbar = ({
+    searchValue,
+    onSearchChange,
+    searchPlaceholder,
+    searchLabel,
+    clearLabel = 'Clear filters',
+    onClearFilters,
+    hasActiveFilters,
+    leftExtras,
+    rightExtras,
+    children,
+  }: any) => (
+    <div data-testid="filter-toolbar">
+      {leftExtras}
+      {onSearchChange && (
+        <input
+          data-testid="filter-toolbar-search"
+          type="search"
+          placeholder={searchPlaceholder}
+          title={searchPlaceholder || searchLabel}
+          value={searchValue ?? ''}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+      )}
+      <div data-testid="filter-toolbar-fields">{children}</div>
+      {onClearFilters && (
+        <button
+          data-testid="filter-toolbar-clear"
+          onClick={onClearFilters}
+          disabled={!hasActiveFilters}
+          title={clearLabel}
+          aria-label={clearLabel}
+        />
+      )}
+      {rightExtras}
+    </div>
+  )
+  FilterToolbar.Field = ({ children }: any) => <div>{children}</div>
+  return { FilterToolbar }
+})
+
 
 describe('NotificationsPage - coverage extensions', () => {
   const mockPush = jest.fn()
@@ -189,117 +249,63 @@ describe('NotificationsPage - coverage extensions', () => {
   })
 
   describe('Date filtering logic', () => {
-    it('filters by "today" - shows only today notifications', async () => {
-      const user = userEvent.setup()
-      const todayNotification = createNotification({
-        id: 'today-1',
-        title: 'Today Task',
-        created_at: new Date().toISOString(),
-      })
-      const oldNotification = createNotification({
-        id: 'old-1',
-        title: 'Old Task',
-        created_at: '2020-01-01T10:00:00Z',
-      })
+    // Filter combobox order matches the page render order:
+    //   [0] read-status, [1] type, [2] date.
+    const getDateFilter = () => screen.getAllByRole('combobox')[2]
 
+    const renderWith = (notifications: any[]) => {
       ;(useNotifications as jest.Mock).mockReturnValue({
-        notifications: [todayNotification, oldNotification],
-        unreadCount: 2,
+        notifications,
+        unreadCount: notifications.length,
         isLoading: false,
         markAsRead: mockMarkAsRead,
         markAllAsRead: mockMarkAllAsRead,
         refreshNotifications: mockRefreshNotifications,
         fetchNotifications: mockFetchNotifications,
       })
-
       render(<NotificationsPage />)
+    }
 
-      // Open date filter dropdown
-      const dateButton = screen.getByText('All Time')
-      await user.click(dateButton)
+    it('filters by "today" - shows only today notifications', async () => {
+      const user = userEvent.setup()
+      renderWith([
+        createNotification({ id: 'today-1', title: 'Today Task', created_at: new Date().toISOString() }),
+        createNotification({ id: 'old-1', title: 'Old Task', created_at: '2020-01-01T10:00:00Z' }),
+      ])
 
-      // Select Today
-      const todayOptions = await screen.findAllByText('Today')
-      await user.click(todayOptions[todayOptions.length - 1])
+      await user.selectOptions(getDateFilter(), 'today')
 
-      await waitFor(() => {
-        expect(screen.getByText('Today Task')).toBeInTheDocument()
-        expect(screen.queryByText('Old Task')).not.toBeInTheDocument()
-      })
+      const table = screen.getByRole('table')
+      expect(within(table).getByText('Today Task')).toBeInTheDocument()
+      expect(within(table).queryByText('Old Task')).not.toBeInTheDocument()
     })
 
     it('filters by "week" - hides notifications older than 7 days', async () => {
       const user = userEvent.setup()
-      const recentNotification = createNotification({
-        id: 'recent-1',
-        title: 'Recent Task',
-        created_at: new Date().toISOString(),
-      })
-      const oldNotification = createNotification({
-        id: 'old-1',
-        title: 'Ancient Task',
-        created_at: '2020-01-01T10:00:00Z',
-      })
+      renderWith([
+        createNotification({ id: 'recent-1', title: 'Recent Task', created_at: new Date().toISOString() }),
+        createNotification({ id: 'old-1', title: 'Ancient Task', created_at: '2020-01-01T10:00:00Z' }),
+      ])
 
-      ;(useNotifications as jest.Mock).mockReturnValue({
-        notifications: [recentNotification, oldNotification],
-        unreadCount: 2,
-        isLoading: false,
-        markAsRead: mockMarkAsRead,
-        markAllAsRead: mockMarkAllAsRead,
-        refreshNotifications: mockRefreshNotifications,
-        fetchNotifications: mockFetchNotifications,
-      })
+      await user.selectOptions(getDateFilter(), 'week')
 
-      render(<NotificationsPage />)
-
-      const dateButton = screen.getByText('All Time')
-      await user.click(dateButton)
-
-      const weekOptions = await screen.findAllByText('Past Week')
-      await user.click(weekOptions[weekOptions.length - 1])
-
-      await waitFor(() => {
-        expect(screen.getByText('Recent Task')).toBeInTheDocument()
-        expect(screen.queryByText('Ancient Task')).not.toBeInTheDocument()
-      })
+      const table = screen.getByRole('table')
+      expect(within(table).getByText('Recent Task')).toBeInTheDocument()
+      expect(within(table).queryByText('Ancient Task')).not.toBeInTheDocument()
     })
 
     it('filters by "month" - hides notifications before current month', async () => {
       const user = userEvent.setup()
-      const thisMonthNotification = createNotification({
-        id: 'month-1',
-        title: 'This Month Task',
-        created_at: new Date().toISOString(),
-      })
-      const oldNotification = createNotification({
-        id: 'old-1',
-        title: 'Last Year Task',
-        created_at: '2020-01-01T10:00:00Z',
-      })
+      renderWith([
+        createNotification({ id: 'month-1', title: 'This Month Task', created_at: new Date().toISOString() }),
+        createNotification({ id: 'old-1', title: 'Last Year Task', created_at: '2020-01-01T10:00:00Z' }),
+      ])
 
-      ;(useNotifications as jest.Mock).mockReturnValue({
-        notifications: [thisMonthNotification, oldNotification],
-        unreadCount: 2,
-        isLoading: false,
-        markAsRead: mockMarkAsRead,
-        markAllAsRead: mockMarkAllAsRead,
-        refreshNotifications: mockRefreshNotifications,
-        fetchNotifications: mockFetchNotifications,
-      })
+      await user.selectOptions(getDateFilter(), 'month')
 
-      render(<NotificationsPage />)
-
-      const dateButton = screen.getByText('All Time')
-      await user.click(dateButton)
-
-      const monthOptions = await screen.findAllByText('Past Month')
-      await user.click(monthOptions[monthOptions.length - 1])
-
-      await waitFor(() => {
-        expect(screen.getByText('This Month Task')).toBeInTheDocument()
-        expect(screen.queryByText('Last Year Task')).not.toBeInTheDocument()
-      })
+      const table = screen.getByRole('table')
+      expect(within(table).getByText('This Month Task')).toBeInTheDocument()
+      expect(within(table).queryByText('Last Year Task')).not.toBeInTheDocument()
     })
   })
 
@@ -367,13 +373,11 @@ describe('NotificationsPage - coverage extensions', () => {
   describe('Read status filtering', () => {
     it('filters to show only read notifications', async () => {
       const user = userEvent.setup()
-      const notifications = [
-        createNotification({ id: '1', title: 'Unread One', is_read: false }),
-        createNotification({ id: '2', title: 'Read One', is_read: true }),
-      ]
-
       ;(useNotifications as jest.Mock).mockReturnValue({
-        notifications,
+        notifications: [
+          createNotification({ id: '1', title: 'Unread One', is_read: false }),
+          createNotification({ id: '2', title: 'Read One', is_read: true }),
+        ],
         unreadCount: 1,
         isLoading: false,
         markAsRead: mockMarkAsRead,
@@ -384,43 +388,23 @@ describe('NotificationsPage - coverage extensions', () => {
 
       render(<NotificationsPage />)
 
-      // Open status dropdown
-      const statusButton = screen.getByText('All Status')
-      await user.click(statusButton)
+      const [statusFilter] = screen.getAllByRole('combobox')
+      await user.selectOptions(statusFilter, 'read')
 
-      // Select "Read"
-      const readOptions = await screen.findAllByText('Read')
-      // Click the dropdown option, not the table status badge
-      const dropdownOption = readOptions.find((el) => el.tagName === 'BUTTON')
-      if (dropdownOption) {
-        await user.click(dropdownOption)
-      }
-
-      await waitFor(() => {
-        expect(screen.getByText('Read One')).toBeInTheDocument()
-        expect(screen.queryByText('Unread One')).not.toBeInTheDocument()
-      })
+      const table = screen.getByRole('table')
+      expect(within(table).getByText('Read One')).toBeInTheDocument()
+      expect(within(table).queryByText('Unread One')).not.toBeInTheDocument()
     })
   })
 
   describe('Type filtering', () => {
     it('filters notifications by specific type', async () => {
       const user = userEvent.setup()
-      const notifications = [
-        createNotification({
-          id: '1',
-          type: 'task_created',
-          title: 'Task One',
-        }),
-        createNotification({
-          id: '2',
-          type: 'annotation_completed',
-          title: 'Annotation Done',
-        }),
-      ]
-
       ;(useNotifications as jest.Mock).mockReturnValue({
-        notifications,
+        notifications: [
+          createNotification({ id: '1', type: 'task_created', title: 'Task One' }),
+          createNotification({ id: '2', type: 'annotation_completed', title: 'Annotation Done' }),
+        ],
         unreadCount: 2,
         isLoading: false,
         markAsRead: mockMarkAsRead,
@@ -431,21 +415,13 @@ describe('NotificationsPage - coverage extensions', () => {
 
       render(<NotificationsPage />)
 
-      // Open type filter dropdown
-      const typeButton = screen.getByText('All Types')
-      await user.click(typeButton)
+      // Combobox order on the page: [0] read-status, [1] type, [2] date.
+      const typeFilter = screen.getAllByRole('combobox')[1]
+      await user.selectOptions(typeFilter, 'task_created')
 
-      // Select a specific type from the dynamic list
-      const typeOptions = await screen.findAllByText('Task Created')
-      const dropdownOption = typeOptions.find((el) => el.tagName === 'BUTTON')
-      if (dropdownOption) {
-        await user.click(dropdownOption)
-      }
-
-      await waitFor(() => {
-        expect(screen.getByText('Task One')).toBeInTheDocument()
-        expect(screen.queryByText('Annotation Done')).not.toBeInTheDocument()
-      })
+      const table = screen.getByRole('table')
+      expect(within(table).getByText('Task One')).toBeInTheDocument()
+      expect(within(table).queryByText('Annotation Done')).not.toBeInTheDocument()
     })
   })
 
@@ -556,7 +532,8 @@ describe('NotificationsPage - coverage extensions', () => {
 
       render(<NotificationsPage />)
 
-      expect(screen.getByText('Read')).toBeInTheDocument()
+      const table = screen.getByRole('table')
+      expect(within(table).getByText('Read')).toBeInTheDocument()
     })
   })
 

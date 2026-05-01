@@ -16,11 +16,14 @@ import { organizationsAPI } from '@/lib/api/organizations'
 import { projectsAPI } from '@/lib/api/projects'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { toast } from 'react-hot-toast'
+import { mockToast } from '@/test-utils/setupTests'
 import { ProjectPermissionsPanel } from '../ProjectPermissionsPanel'
 
+// Toast assertions read through the global mock from setupTests; alias the
+// per-type mocks so existing expect(toast.success/error...) call sites work.
+const toast = { success: mockToast.success, error: mockToast.error }
+
 // Mock dependencies
-jest.mock('react-hot-toast')
 jest.mock('@/lib/api/organizations', () => ({
   organizationsAPI: {
     getOrganizations: jest.fn(),

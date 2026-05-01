@@ -6,7 +6,7 @@ import { EmailVerificationModal } from '@/components/admin/EmailVerificationModa
 import { useAuth } from '@/contexts/AuthContext'
 import { useDeleteConfirm, useErrorAlert } from '@/hooks/useDialogs'
 import { api, User } from '@/lib/api'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { GlobalUsersTab } from '../GlobalUsersTab'
 
@@ -91,6 +91,48 @@ jest.mock('@heroicons/react/24/outline', () => ({
   TrashIcon: (props: any) => <svg {...props} data-testid="trash-icon" />,
   XCircleIcon: (props: any) => <svg {...props} data-testid="x-circle-icon" />,
 }))
+jest.mock('@/components/shared/FilterToolbar', () => {
+  const FilterToolbar = ({
+    searchValue,
+    onSearchChange,
+    searchPlaceholder,
+    searchLabel,
+    clearLabel = 'Clear filters',
+    onClearFilters,
+    hasActiveFilters,
+    leftExtras,
+    rightExtras,
+    children,
+  }: any) => (
+    <div data-testid="filter-toolbar">
+      {leftExtras}
+      {onSearchChange && (
+        <input
+          data-testid="filter-toolbar-search"
+          type="search"
+          placeholder={searchPlaceholder}
+          title={searchPlaceholder || searchLabel}
+          value={searchValue ?? ''}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+      )}
+      <div data-testid="filter-toolbar-fields">{children}</div>
+      {onClearFilters && (
+        <button
+          data-testid="filter-toolbar-clear"
+          onClick={onClearFilters}
+          disabled={!hasActiveFilters}
+          title={clearLabel}
+          aria-label={clearLabel}
+        />
+      )}
+      {rightExtras}
+    </div>
+  )
+  FilterToolbar.Field = ({ children }: any) => <div>{children}</div>
+  return { FilterToolbar }
+})
+
 
 describe('GlobalUsersTab', () => {
   const mockShowError = jest.fn()
@@ -415,8 +457,9 @@ describe('GlobalUsersTab', () => {
         expect(screen.getByText('Test User 2')).toBeInTheDocument()
       })
 
-      const checkboxes = screen.getAllByRole('checkbox')
-      await user.click(checkboxes[2]) // Select user-2 (unverified)
+      const userRow = screen.getByText('Test User 2').closest('tr')!
+      const rowCheckbox = within(userRow).getByRole('checkbox')
+      await user.click(rowCheckbox)
 
       const bulkVerifyButton = screen.getByText('Bulk Verify Emails')
       await user.click(bulkVerifyButton)
@@ -522,8 +565,9 @@ describe('GlobalUsersTab', () => {
         expect(screen.getByText('Test User 1')).toBeInTheDocument()
       })
 
-      const selects = screen.getAllByRole('combobox')
-      await user.selectOptions(selects[0], 'superadmin')
+      const userRow = screen.getByText('Test User 1').closest('tr')!
+      const select = within(userRow).getByRole('combobox')
+      await user.selectOptions(select, 'superadmin')
 
       await waitFor(() => {
         expect(api.updateUserSuperadminStatus).toHaveBeenCalledWith(
@@ -545,8 +589,9 @@ describe('GlobalUsersTab', () => {
         expect(screen.getByText('Test User 1')).toBeInTheDocument()
       })
 
-      const selects = screen.getAllByRole('combobox')
-      await user.selectOptions(selects[0], 'superadmin')
+      const userRow = screen.getByText('Test User 1').closest('tr')!
+      const select = within(userRow).getByRole('combobox')
+      await user.selectOptions(select, 'superadmin')
 
       expect(screen.getByText('Updating...')).toBeInTheDocument()
     })
@@ -563,8 +608,9 @@ describe('GlobalUsersTab', () => {
         expect(screen.getByText('Test User 1')).toBeInTheDocument()
       })
 
-      const selects = screen.getAllByRole('combobox')
-      await user.selectOptions(selects[0], 'superadmin')
+      const userRow = screen.getByText('Test User 1').closest('tr')!
+      const select = within(userRow).getByRole('combobox')
+      await user.selectOptions(select, 'superadmin')
 
       await waitFor(() => {
         expect(mockShowError).toHaveBeenCalledWith('Update failed', 'Error')
@@ -581,8 +627,9 @@ describe('GlobalUsersTab', () => {
         expect(screen.getByText('Test User 1')).toBeInTheDocument()
       })
 
-      const selects = screen.getAllByRole('combobox')
-      await user.selectOptions(selects[0], 'superadmin')
+      const userRow = screen.getByText('Test User 1').closest('tr')!
+      const select = within(userRow).getByRole('combobox')
+      await user.selectOptions(select, 'superadmin')
 
       await waitFor(() => {
         // Called at least twice: once on mount, once to refresh after update

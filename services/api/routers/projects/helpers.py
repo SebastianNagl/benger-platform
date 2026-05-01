@@ -527,6 +527,16 @@ def get_comprehensive_project_data(db: Session, project_id: str) -> Dict[str, An
         "questionnaire_enabled": project.questionnaire_enabled,
         "questionnaire_config": project.questionnaire_config,
         "randomize_task_order": project.randomize_task_order,
+        # Alternating-instruction feature + supporting flags.
+        "instructions_always_visible": project.instructions_always_visible,
+        "conditional_instructions": project.conditional_instructions,
+        # Review workflow.
+        "review_enabled": project.review_enabled,
+        "review_mode": project.review_mode,
+        "allow_self_review": project.allow_self_review,
+        # Korrektur (human-correction) feature.
+        "korrektur_enabled": project.korrektur_enabled,
+        "korrektur_config": project.korrektur_config,
     }
 
     # Get all tasks
@@ -816,6 +826,16 @@ def get_comprehensive_project_data(db: Session, project_id: str) -> Dict[str, An
     # Prompts are now handled by generation_structure field in projects table (see issue #759)
     # The prompts table and Prompt model have been removed
 
+    # Get Korrektur comments for the project (threaded; replies have parent_id).
+    from project_models import KorrekturComment
+    from routers.projects.serializers import serialize_korrektur_comment
+    korrektur_comments = (
+        db.query(KorrekturComment)
+        .filter(KorrekturComment.project_id == project_id)
+        .all()
+    )
+    korrektur_comments_data = [serialize_korrektur_comment(c) for c in korrektur_comments]
+
     # Get post-annotation questionnaire responses (Issue #1208)
     post_annotation_responses = (
         db.query(PostAnnotationResponse)
@@ -918,6 +938,8 @@ def get_comprehensive_project_data(db: Session, project_id: str) -> Dict[str, An
         "human_evaluation_results": human_evaluation_results_data,
         "preference_rankings": preference_rankings_data,
         "likert_scale_evaluations": likert_scale_evaluations_data,
+        # Korrektur comments (threaded review feedback)
+        "korrektur_comments": korrektur_comments_data,
         # Post-annotation questionnaire data (Issue #1208)
         "post_annotation_responses": post_annotation_responses_data,
         # Statistics

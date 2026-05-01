@@ -93,14 +93,6 @@ jest.mock('@/components/shared/ResponsiveContainer', () => ({
   ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
 }))
 
-// Mock react-hot-toast
-jest.mock('react-hot-toast', () => ({
-  toast: {
-    success: jest.fn(),
-    error: jest.fn(),
-  },
-}))
-
 import ProfilePage from '@/app/profile/page'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'

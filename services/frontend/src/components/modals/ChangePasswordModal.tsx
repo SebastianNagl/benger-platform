@@ -3,9 +3,9 @@
 import { Dialog } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
-import { toast } from 'react-hot-toast'
 
 import { Button } from '@/components/shared/Button'
+import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
 
@@ -25,6 +25,7 @@ export function ChangePasswordModal({
   onClose,
 }: ChangePasswordModalProps) {
   const { t } = useI18n()
+  const { addToast } = useToast()
   const [loading, setLoading] = useState(false)
   const [passwordForm, setPasswordForm] = useState<PasswordFormData>({
     current_password: '',
@@ -49,14 +50,14 @@ export function ChangePasswordModal({
     e.preventDefault()
 
     if (passwordForm.new_password !== passwordForm.confirm_password) {
-      toast.error(t('profile.passwordsDoNotMatch'))
+      addToast(t('profile.passwordsDoNotMatch'), 'error')
       return
     }
 
     try {
       setLoading(true)
       await apiClient.changePassword(passwordForm)
-      toast.success(t('profile.passwordChanged'))
+      addToast(t('profile.passwordChanged'), 'success')
       resetForm()
       onClose()
     } catch (error: unknown) {
@@ -65,7 +66,7 @@ export function ChangePasswordModal({
         error instanceof Error
           ? error.message
           : t('profile.passwordChangeFailed')
-      toast.error(errorMessage)
+      addToast(errorMessage, 'error')
     } finally {
       setLoading(false)
     }

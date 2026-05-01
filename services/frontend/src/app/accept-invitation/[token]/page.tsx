@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { apiClient } from '@/lib/api/client'
 import { InvitationDetails } from '@/lib/api/invitations'
 import { getOrgUrl } from '@/lib/utils/subdomain'
+import { useNotificationStore } from '@/stores/notificationStore'
 import {
   ArrowPathIcon,
   BuildingOfficeIcon,
@@ -97,8 +98,28 @@ export default function AcceptInvitationPage({
           const orgs = await apiClient.getOrganizations()
           const acceptedOrg = orgs.find((o: any) => o.id === orgId)
           if (acceptedOrg?.slug) {
-            window.location.href = getOrgUrl(acceptedOrg.slug, '/dashboard')
+            const targetUrl = getOrgUrl(acceptedOrg.slug, '/dashboard')
+            // Cross-subdomain redirect — encode the success message on the
+            // URL so the destination's ToastProvider can show it on mount.
+            window.location.href = useNotificationStore
+              .getState()
+              .flashRedirect(
+                targetUrl,
+                t('invitation.accepted', {
+                  organizationName:
+                    acceptedOrg.name ?? invitation?.organization_name ?? '',
+                }),
+                'success'
+              )
           } else {
+            useNotificationStore
+              .getState()
+              .flash(
+                t('invitation.accepted', {
+                  organizationName: invitation?.organization_name ?? '',
+                }),
+                'success'
+              )
             router.push('/dashboard')
           }
         } catch {

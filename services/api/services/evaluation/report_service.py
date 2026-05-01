@@ -28,49 +28,71 @@ def generate_uuid() -> str:
 
 def _resolve_per_model_metrics(db: Session, evaluation_ids: List[str]) -> Dict[str, Dict[str, float]]:
     """
-    Resolve actual model IDs and per-model averaged metrics from TaskEvaluation -> Generation.
+    Resolve per-model averaged metrics from TaskEvaluation rows.
 
-    For evaluations where EvaluationRun.model_id = "unknown",
-    this traces through TaskEvaluation.generation_id -> Generation.model_id
-    to get real per-model metrics.
+    Two sources are merged so reports cover both LLM-generated outputs and
+    human-annotation evaluations (the latter back the human leaderboard):
+
+    1. Generation-based rows: join TaskEvaluation.generation_id -> Generation.model_id.
+    2. Annotation-based rows (generation_id IS NULL, annotation_id IS NOT NULL):
+       look up the annotator via Annotation.completed_by -> User and synthesize
+       model_id = "annotator:<display>" using the same pseudonym rule the
+       leaderboard applies.
 
     Returns: {model_id: {metric_name: avg_value, ...}, ...}
     """
     if not evaluation_ids:
         return {}
 
-    results = (
+    gen_rows = (
         db.query(Generation.model_id, TaskEvaluation.metrics)
         .join(TaskEvaluation, TaskEvaluation.generation_id == Generation.id)
         .filter(TaskEvaluation.evaluation_id.in_(evaluation_ids))
         .all()
     )
 
-    if not results:
-        return {}
+    ann_rows = (
+        db.query(
+            TaskEvaluation.metrics,
+            User.username,
+            User.name,
+            User.pseudonym,
+            User.use_pseudonym,
+        )
+        .join(Annotation, TaskEvaluation.annotation_id == Annotation.id)
+        .join(User, Annotation.completed_by == User.id)
+        .filter(
+            TaskEvaluation.evaluation_id.in_(evaluation_ids),
+            TaskEvaluation.generation_id.is_(None),
+            TaskEvaluation.annotation_id.isnot(None),
+        )
+        .all()
+    )
 
-    # Collect all metric values per model
     model_values: Dict[str, Dict[str, List[float]]] = {}
-    for model_id, metrics in results:
+
+    def _add(model_id: Optional[str], metrics: Optional[dict]) -> None:
         if not model_id or model_id == "unknown" or not metrics:
-            continue
-        if model_id not in model_values:
-            model_values[model_id] = {}
+            return
+        bucket = model_values.setdefault(model_id, {})
         for metric_name, value in metrics.items():
+            # Skip audit fields that aren't user-facing scores.
+            if metric_name == "raw_score" or metric_name.endswith("_response"):
+                continue
             if value is not None and isinstance(value, (int, float)):
-                if metric_name not in model_values[model_id]:
-                    model_values[model_id][metric_name] = []
-                model_values[model_id][metric_name].append(float(value))
+                bucket.setdefault(metric_name, []).append(float(value))
 
-    # Average per model per metric
-    averaged: Dict[str, Dict[str, float]] = {}
-    for model_id, metric_lists in model_values.items():
-        averaged[model_id] = {}
-        for metric_name, values in metric_lists.items():
-            if values:
-                averaged[model_id][metric_name] = sum(values) / len(values)
+    for model_id, metrics in gen_rows:
+        _add(model_id, metrics)
 
-    return averaged
+    for metrics, username, name, pseudonym, use_pseudonym in ann_rows:
+        display = pseudonym if (use_pseudonym and pseudonym) else (name or username)
+        _add(f"annotator:{display}", metrics)
+
+    return {
+        model_id: {m: sum(vs) / len(vs) for m, vs in metric_lists.items() if vs}
+        for model_id, metric_lists in model_values.items()
+    }
 
 
 def create_initial_report_draft(db: Session, project_id: str, user_id: str) -> ProjectReport:

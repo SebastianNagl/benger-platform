@@ -164,6 +164,66 @@ jest.mock('@/components/shared/Button', () => ({
 jest.mock('@/components/shared/ResponsiveContainer', () => ({
   ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
 }))
+jest.mock('@/components/shared/Select', () => ({
+  Select: ({ value, onValueChange, disabled, children }: any) => (
+    <select
+      value={value ?? ''}
+      onChange={(e) => onValueChange(e.target.value)}
+      disabled={disabled}
+    >
+      {children}
+    </select>
+  ),
+  SelectTrigger: () => null,
+  SelectValue: () => null,
+  SelectContent: ({ children }: any) => <>{children}</>,
+  SelectItem: ({ value, children }: any) => (
+    <option value={value}>{children}</option>
+  ),
+}))
+
+jest.mock('@/components/shared/FilterToolbar', () => {
+  const FilterToolbar = ({
+    searchValue,
+    onSearchChange,
+    searchPlaceholder,
+    searchLabel,
+    clearLabel = 'Clear filters',
+    onClearFilters,
+    hasActiveFilters,
+    leftExtras,
+    rightExtras,
+    children,
+  }: any) => (
+    <div data-testid="filter-toolbar">
+      {leftExtras}
+      {onSearchChange && (
+        <input
+          data-testid="filter-toolbar-search"
+          type="search"
+          placeholder={searchPlaceholder}
+          title={searchPlaceholder || searchLabel}
+          value={searchValue ?? ''}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+      )}
+      <div data-testid="filter-toolbar-fields">{children}</div>
+      {onClearFilters && (
+        <button
+          data-testid="filter-toolbar-clear"
+          onClick={onClearFilters}
+          disabled={!hasActiveFilters}
+          title={clearLabel}
+          aria-label={clearLabel}
+        />
+      )}
+      {rightExtras}
+    </div>
+  )
+  FilterToolbar.Field = ({ children }: any) => <div>{children}</div>
+  return { FilterToolbar }
+})
+
 
 describe('NotificationsPage - branch coverage', () => {
   const mockPush = jest.fn()
@@ -252,19 +312,10 @@ describe('NotificationsPage - branch coverage', () => {
 
       render(<NotificationsPage />)
 
-      // Open status dropdown
-      await user.click(screen.getByText('All Status'))
+      const [statusFilter] = screen.getAllByRole('combobox')
+      await user.selectOptions(statusFilter, 'unread')
 
-      // Select Unread
-      const unreadOptions = await screen.findAllByText('Unread')
-      const dropdownOption = unreadOptions.find((el) => el.tagName === 'BUTTON')
-      if (dropdownOption) {
-        await user.click(dropdownOption)
-      }
-
-      await waitFor(() => {
-        expect(screen.getByText('All caught up!')).toBeInTheDocument()
-      })
+      expect(screen.getByText('All caught up!')).toBeInTheDocument()
     })
   })
 

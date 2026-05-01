@@ -1012,10 +1012,16 @@ class TestResolvePerModelMetrics:
         q = MagicMock()
         q.join.return_value = q
         q.filter.return_value = q
-        q.all.return_value = [
-            ("gpt-4", {"f1": 0.9, "bleu": 0.8}),
-            ("gpt-4", {"f1": 0.8, "bleu": 0.7}),
-            ("claude-3", {"f1": 0.85}),
+        # Resolver issues two queries: pass 1 = gen-based (model_id, metrics)
+        # tuples; pass 2 = annotation-based (metrics, username, name, pseudonym,
+        # use_pseudonym). Use side_effect so each .all() returns the right shape.
+        q.all.side_effect = [
+            [
+                ("gpt-4", {"f1": 0.9, "bleu": 0.8}),
+                ("gpt-4", {"f1": 0.8, "bleu": 0.7}),
+                ("claude-3", {"f1": 0.85}),
+            ],
+            [],  # no annotation-based rows
         ]
         db.query.return_value = q
 
@@ -1031,10 +1037,13 @@ class TestResolvePerModelMetrics:
         q = MagicMock()
         q.join.return_value = q
         q.filter.return_value = q
-        q.all.return_value = [
-            ("unknown", {"f1": 0.9}),
-            (None, {"f1": 0.8}),
-            ("gpt-4", None),  # None metrics -> skipped
+        q.all.side_effect = [
+            [
+                ("unknown", {"f1": 0.9}),
+                (None, {"f1": 0.8}),
+                ("gpt-4", None),  # None metrics -> skipped
+            ],
+            [],
         ]
         db.query.return_value = q
 
@@ -1043,6 +1052,29 @@ class TestResolvePerModelMetrics:
         assert None not in result
         # gpt-4 had None metrics, so it was skipped entirely
         assert "gpt-4" not in result
+
+    def test_resolves_annotator_synthetic_ids(self):
+        """Pass 2: annotation-based TaskEvaluation rows yield 'annotator:<display>'."""
+        from services.evaluation.report_service import _resolve_per_model_metrics
+
+        db = Mock()
+        q = MagicMock()
+        q.join.return_value = q
+        q.filter.return_value = q
+        q.all.side_effect = [
+            [],  # no gen-based rows
+            [
+                # (metrics, username, name, pseudonym, use_pseudonym)
+                ({"bleu": 0.6}, "alice", "Alice A.", None, False),
+                ({"bleu": 0.4}, "bob", "Bob B.", "Codename", True),
+            ],
+        ]
+        db.query.return_value = q
+
+        result = _resolve_per_model_metrics(db, ["eval-1"])
+        assert "annotator:Alice A." in result
+        assert "annotator:Codename" in result  # use_pseudonym wins
+        assert abs(result["annotator:Alice A."]["bleu"] - 0.6) < 1e-6
 
 
 class TestUpdateMetadata:

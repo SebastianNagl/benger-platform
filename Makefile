@@ -326,6 +326,17 @@ test-seed: ## Re-seed test database
 	@docker exec benger-test-test-api-1 python init_complete.py
 	@echo "$(GREEN)✅ Database re-seeded$(NC)"
 
+.PHONY: reseed-llm-models
+reseed-llm-models: ## Re-apply seeds/llm_models.yaml to the running dev API DB
+	@echo "$(BLUE)🌱 Re-seeding LLM model catalog from YAML...$(NC)"
+	@docker exec benger-api-1 sh -c 'rm -f /tmp/.benger_llm_seed_*.done'
+	@docker exec benger-api-1 python -c "from database import SessionLocal, initialize_llm_models; initialize_llm_models(SessionLocal())"
+	@echo "$(GREEN)✅ LLM catalog re-seeded (api logs show the summary).$(NC)"
+
+.PHONY: check-model-drift
+check-model-drift: ## Diff seeds/llm_models.yaml against the running dev API DB
+	@docker exec benger-api-1 python /app/scripts/check_model_catalog_drift.py
+
 .PHONY: test-all
 test-all: ## Run all tests (requires test-start first)
 	@echo "$(BLUE)🧪 Running all tests...$(NC)"

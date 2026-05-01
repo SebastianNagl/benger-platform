@@ -89,10 +89,32 @@ jest.mock('@/lib/utils/subdomain', () => ({
 }))
 
 jest.mock('@/components/generation/GenerationTaskList', () => ({
-  GenerationTaskList: ({ projectId }: { projectId: string }) => (
+  GenerationTaskList: ({
+    projectId,
+    projects,
+    selectedProject,
+    onProjectChange,
+  }: {
+    projectId: string
+    projects?: Array<{ id: string; title: string; task_count?: number }>
+    selectedProject?: { id: string; title: string } | null
+    onProjectChange?: (project: any) => void
+  }) => (
     <div data-testid="generation-task-list">
-      <div>Project: {projectId}</div>
-      <div>Task List Content</div>
+      <div>Project: {projectId || '(none)'}</div>
+      <div data-testid="gtl-selected">{selectedProject?.title ?? ''}</div>
+      <ul data-testid="gtl-projects">
+        {(projects ?? []).map((p) => (
+          <li key={p.id}>
+            <button
+              data-testid={`gtl-pick-${p.id}`}
+              onClick={() => onProjectChange?.(p)}
+            >
+              {p.title} ({p.task_count ?? 0} tasks)
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   ),
 }))
@@ -198,84 +220,36 @@ describe('GenerationPage', () => {
       expect(screen.getByText('Generation')).toBeInTheDocument()
     })
 
-    it('renders project dropdown with select prompt', async () => {
+    it('renders GenerationTaskList immediately (project picker is owned by it)', async () => {
+      render(<GenerationPage />)
+
+      expect(screen.getByTestId('generation-task-list')).toBeInTheDocument()
+    })
+
+    it('passes the loaded projects down to GenerationTaskList', async () => {
       render(<GenerationPage />)
 
       await waitFor(() => {
-        expect(screen.getByText('Select project')).toBeInTheDocument()
+        expect(projectsAPI.list).toHaveBeenCalled()
       })
-    })
 
-    it('does not show GenerationTaskList initially', async () => {
-      render(<GenerationPage />)
-
-      expect(
-        screen.queryByTestId('generation-task-list')
-      ).not.toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.getByText('Test Project (10 tasks)')).toBeInTheDocument()
+        expect(screen.getByText('Second Project (5 tasks)')).toBeInTheDocument()
+      })
     })
   })
 
   describe('Project Selection', () => {
-    it('shows project list when dropdown is clicked', async () => {
+    it('updates URL when GenerationTaskList invokes onProjectChange', async () => {
       const user = userEvent.setup()
       render(<GenerationPage />)
 
       await waitFor(() => {
-        expect(screen.getByText('Select project')).toBeInTheDocument()
+        expect(screen.getByTestId('gtl-pick-project-1')).toBeInTheDocument()
       })
 
-      // Click dropdown button
-      const dropdownButton = screen.getByText('Select project').closest('button')!
-      await user.click(dropdownButton)
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Project')).toBeInTheDocument()
-        expect(screen.getByText('Second Project')).toBeInTheDocument()
-      })
-    })
-
-    it('shows GenerationTaskList when project is selected', async () => {
-      const user = userEvent.setup()
-      render(<GenerationPage />)
-
-      await waitFor(() => {
-        expect(screen.getByText('Select project')).toBeInTheDocument()
-      })
-
-      // Open dropdown
-      const dropdownButton = screen.getByText('Select project').closest('button')!
-      await user.click(dropdownButton)
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Project')).toBeInTheDocument()
-      })
-
-      // Select project
-      await user.click(screen.getByText('Test Project'))
-
-      await waitFor(() => {
-        expect(screen.getByTestId('generation-task-list')).toBeInTheDocument()
-        expect(screen.getByText('Project: project-1')).toBeInTheDocument()
-      })
-    })
-
-    it('updates URL with projectId when project is selected', async () => {
-      const user = userEvent.setup()
-      render(<GenerationPage />)
-
-      await waitFor(() => {
-        expect(screen.getByText('Select project')).toBeInTheDocument()
-      })
-
-      // Open dropdown and select
-      const dropdownButton = screen.getByText('Select project').closest('button')!
-      await user.click(dropdownButton)
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Project')).toBeInTheDocument()
-      })
-
-      await user.click(screen.getByText('Test Project'))
+      await user.click(screen.getByTestId('gtl-pick-project-1'))
 
       await waitFor(() => {
         expect(mockReplace).toHaveBeenCalledWith(
@@ -285,20 +259,34 @@ describe('GenerationPage', () => {
       })
     })
 
-    it('shows task count for each project in dropdown', async () => {
+    it('persists the chosen project to localStorage', async () => {
       const user = userEvent.setup()
       render(<GenerationPage />)
 
       await waitFor(() => {
-        expect(screen.getByText('Select project')).toBeInTheDocument()
+        expect(screen.getByTestId('gtl-pick-project-2')).toBeInTheDocument()
       })
 
-      const dropdownButton = screen.getByText('Select project').closest('button')!
-      await user.click(dropdownButton)
+      await user.click(screen.getByTestId('gtl-pick-project-2'))
+
+      expect(localStorage.getItem('generations_lastProjectId')).toBe('project-2')
+    })
+
+    it('reflects the selected project in props passed to GenerationTaskList', async () => {
+      const user = userEvent.setup()
+      render(<GenerationPage />)
 
       await waitFor(() => {
-        expect(screen.getByText('10 tasks')).toBeInTheDocument()
-        expect(screen.getByText('5 tasks')).toBeInTheDocument()
+        expect(screen.getByTestId('gtl-pick-project-1')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByTestId('gtl-pick-project-1'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Project: project-1')).toBeInTheDocument()
+        expect(screen.getByTestId('gtl-selected')).toHaveTextContent(
+          'Test Project'
+        )
       })
     })
   })
@@ -321,13 +309,13 @@ describe('GenerationPage', () => {
       render(<GenerationPage />)
 
       await waitFor(() => {
-        // Projects loaded but none matched
         expect(projectsAPI.list).toHaveBeenCalled()
       })
 
-      expect(
-        screen.queryByTestId('generation-task-list')
-      ).not.toBeInTheDocument()
+      // GenerationTaskList still renders (it owns its own empty state),
+      // but the page should not have set a selected project.
+      expect(screen.getByText('Project: (none)')).toBeInTheDocument()
+      expect(screen.getByTestId('gtl-selected')).toHaveTextContent('')
     })
   })
 
@@ -349,29 +337,4 @@ describe('GenerationPage', () => {
     })
   })
 
-  describe('Project Info Display', () => {
-    it('displays selected project title in dropdown', async () => {
-      const user = userEvent.setup()
-      render(<GenerationPage />)
-
-      await waitFor(() => {
-        expect(screen.getByText('Select project')).toBeInTheDocument()
-      })
-
-      // Open and select
-      const dropdownButton = screen.getByText('Select project').closest('button')!
-      await user.click(dropdownButton)
-
-      await waitFor(() => {
-        expect(screen.getByText('Test Project')).toBeInTheDocument()
-      })
-
-      await user.click(screen.getByText('Test Project'))
-
-      await waitFor(() => {
-        // The dropdown button should now show the project title
-        expect(screen.getByText('Test Project')).toBeInTheDocument()
-      })
-    })
-  })
 })

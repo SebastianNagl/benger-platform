@@ -8,8 +8,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import React from 'react'
 import { useNotifications } from '../useNotifications'
 
-// Mock dependencies
-jest.mock('react-hot-toast')
+// Toast mocking is handled by setupTests.ts.
 
 // Mock AuthContext to provide test values
 jest.mock('@/contexts/AuthContext', () => ({

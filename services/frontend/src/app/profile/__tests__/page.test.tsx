@@ -7,7 +7,8 @@ import { useI18n } from '@/contexts/I18nContext'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
-import { toast } from 'react-hot-toast'
+import { mockToast as __mockToast } from '@/test-utils/setupTests'
+const toast = { success: __mockToast.success, error: __mockToast.error }
 import ProfilePage from '../page'
 
 jest.mock('next/navigation', () => ({
@@ -72,14 +73,6 @@ jest.mock('@/components/modals/APIKeysModal', () => ({
         <button onClick={onClose}>Close API Keys Modal</button>
       </div>
     ) : null,
-}))
-
-// Mock react-hot-toast
-jest.mock('react-hot-toast', () => ({
-  toast: {
-    success: jest.fn(),
-    error: jest.fn(),
-  },
 }))
 
 // Mock heroicons

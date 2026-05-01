@@ -65,10 +65,13 @@
     "@heroicons/react": "^2.2.0",
     "@milkdown/core": "^7.20.0",
     "@milkdown/ctx": "^7.20.0",
+    "@milkdown/exception": "^7.20.0",
     "@milkdown/plugin-history": "^7.20.0",
     "@milkdown/plugin-listener": "^7.20.0",
     "@milkdown/preset-commonmark": "^7.20.0",
+    "@milkdown/prose": "^7.20.0",
     "@milkdown/react": "^7.20.0",
+    "@milkdown/transformer": "^7.20.0",
     "@milkdown/utils": "^7.20.0",
     "@sindresorhus/slugify": "^2.1.1",
     "@tailwindcss/postcss": "^4.2.4",
@@ -105,7 +108,6 @@
     "react-dom": "18.3.1",
     "react-dropzone": "^14.4.1",
     "react-highlight-words": "^0.21.0",
-    "react-hot-toast": "^2.6.0",
     "react-markdown": "^10.1.0",
     "react-plotly.js": "^2.6.0",
     "recharts": "^3.8.1",
@@ -155,5 +157,13 @@
     "prettier-plugin-tailwindcss": "^0.8.0",
     "sharp": "0.34.5",
     "webpack": "^5.106.2"
+  },
+  "overrides": {
+    "@milkdown/core": "$@milkdown/core",
+    "@milkdown/ctx": "$@milkdown/ctx",
+    "@milkdown/exception": "$@milkdown/exception",
+    "@milkdown/prose": "$@milkdown/prose",
+    "@milkdown/transformer": "$@milkdown/transformer",
+    "@milkdown/utils": "$@milkdown/utils"
   }
 }

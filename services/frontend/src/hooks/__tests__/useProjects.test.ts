@@ -13,7 +13,6 @@ import React from 'react'
 import { useProjects } from '../useProjects'
 
 // Mock dependencies
-jest.mock('react-hot-toast')
 jest.mock('@/lib/api/projects')
 jest.mock('@/stores/projectStore')
 

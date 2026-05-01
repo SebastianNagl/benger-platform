@@ -1,6 +1,7 @@
 'use client'
 
 import { EmailVerificationModal } from '@/components/admin/EmailVerificationModal'
+import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -13,7 +14,12 @@ import {
   TrashIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+
+type VerificationFilter = 'all' | 'verified' | 'unverified'
+type SuperadminFilter = 'all' | 'superadmin' | 'regular'
+type UserSortBy = 'name' | 'email' | 'created_at'
+type SortOrder = 'asc' | 'desc'
 
 export function GlobalUsersTab() {
   const { user: currentUser, organizations } = useAuth()
@@ -29,6 +35,66 @@ export function GlobalUsersTab() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
     null
   )
+
+  // Filter/sort state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [verificationFilter, setVerificationFilter] =
+    useState<VerificationFilter>('all')
+  const [superadminFilter, setSuperadminFilter] =
+    useState<SuperadminFilter>('all')
+  const [sortBy, setSortBy] = useState<UserSortBy>('name')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
+
+  const filteredUsers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    const matchesSearch = (u: User) => {
+      if (!query) return true
+      return (
+        u.name?.toLowerCase().includes(query) ||
+        u.username?.toLowerCase().includes(query) ||
+        u.email?.toLowerCase().includes(query)
+      )
+    }
+    const matchesVerification = (u: User) => {
+      if (verificationFilter === 'all') return true
+      return verificationFilter === 'verified'
+        ? !!u.email_verified
+        : !u.email_verified
+    }
+    const matchesSuperadmin = (u: User) => {
+      if (superadminFilter === 'all') return true
+      return superadminFilter === 'superadmin'
+        ? !!u.is_superadmin
+        : !u.is_superadmin
+    }
+    const direction = sortOrder === 'asc' ? 1 : -1
+    return [...users]
+      .filter(
+        (u) => matchesSearch(u) && matchesVerification(u) && matchesSuperadmin(u)
+      )
+      .sort((a, b) => {
+        const aVal = (a[sortBy] ?? '').toString().toLowerCase()
+        const bVal = (b[sortBy] ?? '').toString().toLowerCase()
+        if (aVal < bVal) return -1 * direction
+        if (aVal > bVal) return 1 * direction
+        return 0
+      })
+  }, [users, searchQuery, verificationFilter, superadminFilter, sortBy, sortOrder])
+
+  const hasActiveFilters =
+    verificationFilter !== 'all' ||
+    superadminFilter !== 'all' ||
+    sortBy !== 'name' ||
+    sortOrder !== 'asc' ||
+    searchQuery.trim() !== ''
+
+  const clearAllFilters = () => {
+    setVerificationFilter('all')
+    setSuperadminFilter('all')
+    setSortBy('name')
+    setSortOrder('asc')
+    setSearchQuery('')
+  }
 
   // Combine user with organizations for permissions system
   const userWithOrganizations = currentUser
@@ -215,6 +281,108 @@ export function GlobalUsersTab() {
 
   return (
     <>
+      <FilterToolbar
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder={t('admin.users.filters.searchPlaceholder')}
+        searchLabel={t('common.filters.search')}
+        filtersLabel={t('common.filters.filters')}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={clearAllFilters}
+        clearLabel={t('common.filters.clearAll', 'Clear filters')}
+        rightExtras={
+          <span className="text-sm text-zinc-600 dark:text-zinc-400">
+            {t('admin.users.filters.totalUsers', { count: filteredUsers.length })}
+          </span>
+        }
+      >
+        <FilterToolbar.Field label={t('admin.users.filters.verification')}>
+          <Select
+            value={verificationFilter}
+            onValueChange={(v) => setVerificationFilter(v as VerificationFilter)}
+            displayValue={
+              verificationFilter === 'all'
+                ? t('common.filters.all')
+                : verificationFilter === 'verified'
+                  ? t('admin.users.filters.verified')
+                  : t('admin.users.filters.unverified')
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('common.filters.all')}</SelectItem>
+              <SelectItem value="verified">{t('admin.users.filters.verified')}</SelectItem>
+              <SelectItem value="unverified">{t('admin.users.filters.unverified')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterToolbar.Field>
+
+        <FilterToolbar.Field label={t('admin.users.filters.role')}>
+          <Select
+            value={superadminFilter}
+            onValueChange={(v) => setSuperadminFilter(v as SuperadminFilter)}
+            displayValue={
+              superadminFilter === 'all'
+                ? t('common.filters.all')
+                : superadminFilter === 'superadmin'
+                  ? t('admin.users.filters.superadmin')
+                  : t('admin.users.filters.regularUser')
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('common.filters.all')}</SelectItem>
+              <SelectItem value="superadmin">{t('admin.users.filters.superadmin')}</SelectItem>
+              <SelectItem value="regular">{t('admin.users.filters.regularUser')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterToolbar.Field>
+
+        <FilterToolbar.Field label={t('common.filters.sortBy')}>
+          <div className="flex gap-2">
+            <Select
+              value={sortBy}
+              onValueChange={(v) => setSortBy(v as UserSortBy)}
+              displayValue={
+                sortBy === 'name'
+                  ? t('admin.users.filters.sortName')
+                  : sortBy === 'email'
+                    ? t('admin.users.filters.sortEmail')
+                    : t('admin.users.filters.sortCreated')
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">{t('admin.users.filters.sortName')}</SelectItem>
+                <SelectItem value="email">{t('admin.users.filters.sortEmail')}</SelectItem>
+                <SelectItem value="created_at">{t('admin.users.filters.sortCreated')}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={sortOrder}
+              onValueChange={(v) => setSortOrder(v as SortOrder)}
+              displayValue={
+                sortOrder === 'asc' ? t('common.filters.asc') : t('common.filters.desc')
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="asc">{t('common.filters.asc')}</SelectItem>
+                <SelectItem value="desc">{t('common.filters.desc')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </FilterToolbar.Field>
+      </FilterToolbar>
+
       <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
         {/* Bulk actions bar */}
         {selectedUsers.length > 0 && (
@@ -254,12 +422,14 @@ export function GlobalUsersTab() {
                     <input
                       type="checkbox"
                       checked={
-                        selectedUsers.length === users.length &&
-                        users.length > 0
+                        filteredUsers.length > 0 &&
+                        filteredUsers.every((u) =>
+                          selectedUsers.includes(u.id)
+                        )
                       }
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedUsers(users.map((u) => u.id))
+                          setSelectedUsers(filteredUsers.map((u) => u.id))
                         } else {
                           setSelectedUsers([])
                         }
@@ -285,8 +455,17 @@ export function GlobalUsersTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-900">
-                {Array.isArray(users) &&
-                  users.map((user) => (
+                {filteredUsers.length === 0 && users.length > 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-6 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400"
+                    >
+                      {t('admin.users.filters.noMatches')}
+                    </td>
+                  </tr>
+                )}
+                {filteredUsers.map((user) => (
                     <tr key={`user-row-${user.id}`}>
                       <td className="px-6 py-4">
                         <input

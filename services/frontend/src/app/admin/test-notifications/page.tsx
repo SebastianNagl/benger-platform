@@ -14,7 +14,7 @@ import {
   UserPlusIcon,
 } from '@heroicons/react/24/outline'
 import { useState } from 'react'
-import { toast } from 'react-hot-toast'
+import { useToast } from '@/components/shared/Toast'
 
 interface TestNotificationType {
   type: string
@@ -29,6 +29,7 @@ interface TestNotificationType {
 export default function TestNotificationsPage() {
   const { user } = useAuth()
   const { t } = useI18n()
+  const { addToast } = useToast()
   const [loading, setLoading] = useState<string | null>(null)
 
   if (!user?.is_superadmin) {
@@ -164,10 +165,10 @@ export default function TestNotificationsPage() {
         },
       })
 
-      toast.success(t('admin.testNotifications.sent'))
+      addToast(t('admin.testNotifications.sent'), 'success')
     } catch (error) {
       console.error('Failed to generate test notification:', error)
-      toast.error(t('admin.testNotifications.sendFailed'))
+      addToast(t('admin.testNotifications.sendFailed'), 'error')
     } finally {
       setLoading(null)
     }
@@ -179,8 +180,9 @@ export default function TestNotificationsPage() {
       // Try using the bulk endpoint first, fallback to individual calls if not available
       try {
         const result = await api.notifications.generateTestNotifications()
-        toast.success(
-          result.message || `Generated ${result.count} test notifications!`
+        addToast(
+          result.message || `Generated ${result.count} test notifications!`,
+          'success'
         )
       } catch (bulkError) {
         // Fallback: Generate one of each type with a small delay between them
@@ -208,14 +210,14 @@ export default function TestNotificationsPage() {
         }
 
         if (successCount > 0) {
-          toast.success(t('admin.testNotifications.sent'))
+          addToast(t('admin.testNotifications.sent'), 'success')
         } else {
           throw new Error('All individual requests failed')
         }
       }
     } catch (error) {
       console.error('Failed to generate all test notifications:', error)
-      toast.error(t('admin.testNotifications.sendFailed'))
+      addToast(t('admin.testNotifications.sendFailed'), 'error')
     } finally {
       setLoading(null)
     }
@@ -229,10 +231,10 @@ export default function TestNotificationsPage() {
     setLoading('clear')
     try {
       await api.markAllNotificationsAsRead()
-      toast.success(t('admin.testNotifications.cleared'))
+      addToast(t('admin.testNotifications.cleared'), 'success')
     } catch (error) {
       console.error('Failed to clear notifications:', error)
-      toast.error(t('admin.testNotifications.clearFailed'))
+      addToast(t('admin.testNotifications.clearFailed'), 'error')
     } finally {
       setLoading(null)
     }

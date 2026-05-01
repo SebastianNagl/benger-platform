@@ -29,7 +29,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter, useSearchParams } from 'next/navigation'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { toast } from 'react-hot-toast'
+import { useToast } from '@/components/shared/Toast'
 import { useSlot } from '@/lib/extensions/slots'
 import { DynamicAnnotationInterface } from './DynamicAnnotationInterface'
 
@@ -41,6 +41,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { t } = useI18n()
+  const { addToast } = useToast()
   const { user, apiClient } = useAuth()
   const TimerSlot = useSlot('TimerIntegration')
   const ImmediateEvalSlot = useSlot('ImmediateEvaluation')
@@ -302,12 +303,16 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 )
                 setTaskByIndex(taskIndex)
                 if (taskParam) {
-                  toast.success(t('annotation.taskLoadedFromUrl', { taskNumber: targetTaskNumber }))
+                  addToast(
+                    t('annotation.taskLoadedFromUrl', { taskNumber: targetTaskNumber }),
+                    'success'
+                  )
                 }
                 return
               } else if (taskParam) {
-                toast.error(
-                  t('annotation.taskNotFound', { taskNumber: targetTaskNumber, maxTasks: tasks.length })
+                addToast(
+                  t('annotation.taskNotFound', { taskNumber: targetTaskNumber, maxTasks: tasks.length }),
+                  'error'
                 )
                 localStorage.removeItem(TASK_POSITION_KEY)
                 localStorage.removeItem(TASK_ID_KEY)
@@ -317,7 +322,10 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           } catch (error) {
             console.error('Failed to load specific task:', error)
             if (taskParam) {
-              toast.error(t('annotation.errors.failedToLoadTask', { defaultValue: 'Failed to load specific task' }))
+              addToast(
+                t('annotation.errors.failedToLoadTask', { defaultValue: 'Failed to load specific task' }),
+                'error'
+              )
             }
           }
         }
@@ -344,7 +352,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             : 'Failed to initialize annotation interface'
 
         setInitializationError(errorMessage)
-        toast.error(errorMessage)
+        addToast(errorMessage, 'error')
       }
     }
 
@@ -514,7 +522,10 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // Handle annotation submission
   const handleSubmit = useCallback(async () => {
     if (!currentTask || annotations.length === 0) {
-      toast.error(t('annotation.errors.pleaseProvideAnnotation', { defaultValue: 'Please provide an annotation' }))
+      addToast(
+        t('annotation.errors.pleaseProvideAnnotation', { defaultValue: 'Please provide an annotation' }),
+        'error'
+      )
       return
     }
 
@@ -589,11 +600,15 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // Proceed after questionnaire: advance to next task (Issue #1208)
   const proceedAfterQuestionnaire = useCallback(async () => {
     setShowQuestionnaireModal(false)
-    toast.success(t('annotation.saved', { defaultValue: 'Annotation saved' }))
+    addToast(
+      t('annotation.saved', { defaultValue: 'Annotation saved' }),
+      'success'
+    )
     completeCurrentTask()
     setQuestionnaireAnnotationId(null)
   }, [
     t,
+    addToast,
     completeCurrentTask,
   ])
 
@@ -870,7 +885,10 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 onSubmit={async (results) => {
                   try {
                     if (hasSubmittedRef.current) {
-                      toast.error(t('annotation.errors.alreadySubmitted', { defaultValue: 'Annotation already submitted' }))
+                      addToast(
+                        t('annotation.errors.alreadySubmitted', { defaultValue: 'Annotation already submitted' }),
+                        'error'
+                      )
                       return
                     }
                     // Handle dynamic annotation results
@@ -916,11 +934,17 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     }
 
                     // Normal flow - show success toast
-                    toast.success(t('annotation.saved', { defaultValue: 'Annotation saved' }))
+                    addToast(
+                      t('annotation.saved', { defaultValue: 'Annotation saved' }),
+                      'success'
+                    )
                   } catch (error) {
                     console.error('Failed to submit annotation:', error)
                     hasSubmittedRef.current = false
-                    toast.error(t('annotation.errors.submitFailed', { defaultValue: 'Failed to submit annotation' }))
+                    addToast(
+                      t('annotation.errors.submitFailed', { defaultValue: 'Failed to submit annotation' }),
+                      'error'
+                    )
                   }
                 }}
                 onSkip={

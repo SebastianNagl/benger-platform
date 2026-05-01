@@ -92,6 +92,7 @@ jest.mock('@heroicons/react/24/outline', () => ({
   ChevronDownIcon: () => <div data-testid="chevron-down-icon" />,
   PlayIcon: () => <div data-testid="play-icon" />,
   ExclamationTriangleIcon: () => <div data-testid="exclamation-icon" />,
+  XMarkIcon: () => <div data-testid="x-mark-icon" />,
 }))
 
 // Mock shared components
@@ -782,20 +783,6 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
     await waitFor(() => {
       expect(screen.getByText('evaluation.viewer.title')).toBeInTheDocument()
     })
-  })
-
-  // --- leaderboard button navigation ---
-
-  it('navigates to leaderboard on button click', async () => {
-    setupBasicMocks()
-    render(<EvaluationDashboard />)
-
-    await waitFor(() => {
-      expect(screen.getByText('evaluation.viewer.llmLeaderboard')).toBeInTheDocument()
-    })
-
-    await userEvent.click(screen.getByText('evaluation.viewer.llmLeaderboard'))
-    expect(mockRouter.push).toHaveBeenCalledWith('/leaderboards?tab=llm')
   })
 
   // --- legacy key (multi_field_evaluations) support (line 478) ---

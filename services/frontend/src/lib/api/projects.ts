@@ -89,13 +89,25 @@ export const projectsAPI = {
   },
 
   /**
-   * Import data into a project
+   * Import data into a project. The payload mirrors `ProjectImportData` on the
+   * backend — `data` is the per-task list; the optional auxiliary arrays carry
+   * the full round-trip shape produced by `bulk_export_tasks` / `export_project`.
    */
   importData: async (
     projectId: string,
-    data: { data: any[]; meta?: any }
+    payload: {
+      data: any[]
+      meta?: any
+      evaluation_runs?: any[]
+      human_evaluation_configs?: any[]
+      human_evaluation_sessions?: any[]
+      human_evaluation_results?: any[]
+      preference_rankings?: any[]
+      likert_scale_evaluations?: any[]
+      korrektur_comments?: any[]
+    }
   ): Promise<ImportResult> => {
-    const response = await apiClient.post(`/projects/${projectId}/import`, data)
+    const response = await apiClient.post(`/projects/${projectId}/import`, payload)
     return response
   },
 

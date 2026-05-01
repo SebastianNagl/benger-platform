@@ -1030,6 +1030,22 @@ async def bulk_export_tasks(
 
         export_data["tasks"].append(task_data)
 
+    # Top-level human-eval + Korrektur blocks. Mirrors `GET /export` so the
+    # bulk-export → import round-trip stays complete.
+    from routers.projects.serializers import (
+        serialize_human_evaluation_data,
+        serialize_korrektur_comment,
+    )
+    from project_models import KorrekturComment as _KC
+
+    export_data.update(
+        serialize_human_evaluation_data(db, project_id, task_ids)
+    )
+    export_data["korrektur_comments"] = [
+        serialize_korrektur_comment(c)
+        for c in db.query(_KC).filter(_KC.project_id == project_id).all()
+    ]
+
     # Format the response
     if format == "json":
         content = json.dumps(export_data, indent=2)

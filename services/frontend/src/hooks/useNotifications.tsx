@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { getTranslatedNotification } from '@/lib/notificationTranslation'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { toast } from 'react-hot-toast'
+import { toast } from '@/components/shared/Toast'
 
 export interface Notification {
   id: string
@@ -98,7 +98,7 @@ export function useNotifications() {
         setUnreadCount((prev) => Math.max(0, prev - 1))
       } catch (error) {
         console.error('Error marking notification as read:', error)
-        toast.error(t('notifications.markReadError'))
+        toast(t('notifications.markReadError'), 'error')
       }
     },
     [apiClient, user]
@@ -118,7 +118,7 @@ export function useNotifications() {
       setUnreadCount(0)
 
       const message = response?.message || t('notifications.markAllReadSuccess')
-      toast.success(message)
+      toast(message, 'success')
 
       // Refetch to sync with server and prevent SSE race conditions
       const [fetchedNotifications, count] = await Promise.all([
@@ -129,7 +129,7 @@ export function useNotifications() {
       setUnreadCount(count)
     } catch (error) {
       console.error('Error marking all notifications as read:', error)
-      toast.error(t('notifications.markAllReadError'))
+      toast(t('notifications.markAllReadError'), 'error')
     }
   }, [apiClient, user, fetchNotifications, fetchUnreadCount])
 
@@ -154,11 +154,11 @@ export function useNotifications() {
         await apiClient.updateNotificationPreferences(newPreferences)
 
         setPreferences(newPreferences)
-        toast.success(t('notifications.preferencesUpdated'))
+        toast(t('notifications.preferencesUpdated'), 'success')
         return true
       } catch (error) {
         console.error('Error updating notification preferences:', error)
-        toast.error(t('notifications.preferencesUpdateFailed'))
+        toast(t('notifications.preferencesUpdateFailed'), 'error')
         return false
       }
     },
@@ -219,10 +219,7 @@ export function useNotifications() {
               setUnreadCount((prev) => prev + 1)
               const { title: translatedToastTitle } =
                 getTranslatedNotification(t, newNotification)
-              toast.success(translatedToastTitle, {
-                duration: 4000,
-                position: 'top-right',
-              })
+              toast(translatedToastTitle, 'success')
               break
 
             case 'unread_count':

@@ -1,7 +1,8 @@
 'use client'
 
 import { ChevronDownIcon } from '@heroicons/react/24/outline'
-import { toast } from 'react-hot-toast'
+
+import { useToast } from '@/components/shared/Toast'
 
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { APIKeysModal } from '@/components/modals/APIKeysModal'
@@ -187,6 +188,7 @@ const JOB_FIELDS_LEVELS = [
 export default function ProfilePage() {
   const { user, updateUser, apiClient } = useAuth()
   const { t } = useI18n()
+  const { addToast } = useToast()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [profileLoading, setProfileLoading] = useState(false)
@@ -369,7 +371,7 @@ export default function ProfilePage() {
       }
     } catch (error) {
       console.error('Failed to load profile:', error)
-      toast.error(t('profile.loadFailed'))
+      addToast(t('profile.loadFailed'), 'error')
     } finally {
       setLoading(false)
     }
@@ -471,7 +473,7 @@ export default function ProfilePage() {
       // Skip the loadProfile re-fetch that updateUser will trigger
       skipLoadProfileRef.current = true
       updateUser(updatedProfile) // Update the auth context
-      toast.success(t('profile.updateSuccess'))
+      addToast(t('profile.updateSuccess'), 'success')
 
       // Refresh mandatory status after profile update
       try {
@@ -484,7 +486,7 @@ export default function ProfilePage() {
       console.error('Failed to update profile:', error)
       const errorMessage =
         error instanceof Error ? error.message : t('profile.updateFailed')
-      toast.error(errorMessage)
+      addToast(errorMessage, 'error')
     } finally {
       setProfileLoading(false)
     }
@@ -494,14 +496,14 @@ export default function ProfilePage() {
     try {
       setConfirmingProfile(true)
       await apiClient.confirmProfile()
-      toast.success(t('profile.profileConfirmed'))
+      addToast(t('profile.profileConfirmed'), 'success')
       // Refresh status
       const status = await apiClient.getMandatoryProfileStatus()
       setMandatoryStatus(status)
     } catch (error: unknown) {
       const msg =
         error instanceof Error ? error.message : t('profile.confirmFailed')
-      toast.error(msg)
+      addToast(msg, 'error')
     } finally {
       setConfirmingProfile(false)
     }

@@ -2,8 +2,9 @@
 
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
+import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
-import { SearchInput } from '@/components/shared/SearchInput'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { ToggleSwitch } from '@/components/shared/ToggleSwitch'
 import { useAuth } from '@/contexts/AuthContext'
@@ -117,13 +118,11 @@ export default function FeatureFlagsAdminPage() {
 
       addToast(t('admin.featureFlagsPage.applied'), 'success')
 
-      // Clear pending changes
+      // Clear pending changes; refresh the live flag list. Do NOT hard-reload
+      // — the previous setTimeout(reload, 500) destroyed this very toast
+      // before the user could read it.
       setPendingChanges(new Map())
-
-      // Reload the page to ensure everything is in sync
-      setTimeout(() => {
-        window.location.reload()
-      }, 500)
+      await loadFlags()
     } catch (err) {
       addToast(
         err instanceof Error
@@ -252,14 +251,55 @@ export default function FeatureFlagsAdminPage() {
           </div>
         )}
 
-        {/* Search */}
+        {/* Search and filters */}
         <div className="mb-6">
-          <SearchInput
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder={t('admin.featureFlagsPage.searchPlaceholder')}
-            className="max-w-md"
-          />
+          <FilterToolbar
+            searchValue={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder={t('admin.featureFlagsPage.searchPlaceholder')}
+            searchLabel={t('common.filters.search')}
+            filtersLabel={t('common.filters.filters')}
+            hasActiveFilters={
+              sortField !== 'name' ||
+              sortOrder !== 'asc' ||
+              searchQuery.trim() !== ''
+            }
+            onClearFilters={() => {
+              setSortField('name')
+              setSortOrder('asc')
+              setSearchQuery('')
+            }}
+            clearLabel={t('common.filters.clearAll')}
+          >
+            <FilterToolbar.Field label={t('common.filters.sortBy')}>
+              <Select
+                value={sortField}
+                onValueChange={(v) => setSortField(v as 'name' | 'created_at')}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">{t('admin.featureFlagsPage.sortByName')}</SelectItem>
+                  <SelectItem value="created_at">{t('admin.featureFlagsPage.sortByDate')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </FilterToolbar.Field>
+            <FilterToolbar.Field label={t('common.filters.order')}>
+              <Select
+                value={sortOrder}
+                onValueChange={(v) => setSortOrder(v as 'asc' | 'desc')}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="asc">{t('common.filters.asc')}</SelectItem>
+                  <SelectItem value="desc">{t('common.filters.desc')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </FilterToolbar.Field>
+          </FilterToolbar>
         </div>
 
         {/* Feature Flags Table */}

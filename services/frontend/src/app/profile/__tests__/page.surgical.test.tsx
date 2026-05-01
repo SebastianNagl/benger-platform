@@ -23,7 +23,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { toast } from 'react-hot-toast'
+import { mockToast as __mockToast } from '@/test-utils/setupTests'
+const toast = { success: __mockToast.success, error: __mockToast.error }
 import ProfilePage from '../page'
 
 jest.mock('next/navigation', () => ({
@@ -80,13 +81,6 @@ jest.mock('@/components/modals/ChangePasswordModal', () => ({
 jest.mock('@/components/modals/APIKeysModal', () => ({
   APIKeysModal: ({ isOpen }: any) =>
     isOpen ? <div data-testid="api-keys-modal" /> : null,
-}))
-
-jest.mock('react-hot-toast', () => ({
-  toast: {
-    success: jest.fn(),
-    error: jest.fn(),
-  },
 }))
 
 jest.mock('@heroicons/react/24/outline', () => ({

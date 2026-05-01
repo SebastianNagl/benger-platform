@@ -92,6 +92,48 @@ jest.mock('@/components/tasks/TaskDataViewModal', () => ({
     </div>
   ),
 }))
+jest.mock('@/components/shared/FilterToolbar', () => {
+  const FilterToolbar = ({
+    searchValue,
+    onSearchChange,
+    searchPlaceholder,
+    searchLabel,
+    clearLabel = 'Clear filters',
+    onClearFilters,
+    hasActiveFilters,
+    leftExtras,
+    rightExtras,
+    children,
+  }: any) => (
+    <div data-testid="filter-toolbar">
+      {leftExtras}
+      {onSearchChange && (
+        <input
+          data-testid="filter-toolbar-search"
+          type="search"
+          placeholder={searchPlaceholder}
+          title={searchPlaceholder || searchLabel}
+          value={searchValue ?? ''}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+      )}
+      <div data-testid="filter-toolbar-fields">{children}</div>
+      {onClearFilters && (
+        <button
+          data-testid="filter-toolbar-clear"
+          onClick={onClearFilters}
+          disabled={!hasActiveFilters}
+          title={clearLabel}
+          aria-label={clearLabel}
+        />
+      )}
+      {rightExtras}
+    </div>
+  )
+  FilterToolbar.Field = ({ children }: any) => <div>{children}</div>
+  return { FilterToolbar }
+})
+
 
 describe('GlobalDataTab', () => {
   const mockTasks = [
@@ -279,11 +321,12 @@ describe('GlobalDataTab', () => {
     it('shows task status badges correctly', async () => {
       render(<GlobalDataTab />)
 
+      const table = await screen.findByRole('table')
       await waitFor(() => {
-        expect(screen.getAllByText('Complete')).toHaveLength(2)
+        expect(within(table).getAllByText('Complete')).toHaveLength(2)
       })
 
-      expect(screen.getByText('Incomplete')).toBeInTheDocument()
+      expect(within(table).getByText('Incomplete')).toBeInTheDocument()
     })
 
     it('displays annotation counts', async () => {
@@ -301,25 +344,6 @@ describe('GlobalDataTab', () => {
   })
 
   describe('Search Functionality', () => {
-    it('toggles search input visibility', async () => {
-      const user = userEvent.setup()
-      render(<GlobalDataTab />)
-
-      await waitFor(() => {
-        expect(screen.getByText('3 total tasks')).toBeInTheDocument()
-      })
-
-      // Search should be hidden initially
-      expect(screen.queryByPlaceholderText('Search tasks...')).toBeNull()
-
-      // Click search button
-      const searchButton = screen.getByTitle('Search')
-      await user.click(searchButton)
-
-      // Search input should now be visible
-      expect(screen.getByPlaceholderText('Search tasks...')).toBeInTheDocument()
-    })
-
     it('performs search when query is entered', async () => {
       const user = userEvent.setup()
       render(<GlobalDataTab />)
@@ -328,15 +352,9 @@ describe('GlobalDataTab', () => {
         expect(screen.getByText('3 total tasks')).toBeInTheDocument()
       })
 
-      // Open search
-      const searchButton = screen.getByTitle('Search')
-      await user.click(searchButton)
-
-      // Type in search
       const searchInput = screen.getByPlaceholderText('Search tasks...')
       await user.type(searchInput, 'test query')
 
-      // Wait for debounced search
       await waitFor(
         () => {
           expect(mockGet).toHaveBeenCalledWith(
@@ -347,47 +365,9 @@ describe('GlobalDataTab', () => {
       )
     })
 
-    it('shows search indicator when search is active', async () => {
-      const user = userEvent.setup()
-      render(<GlobalDataTab />)
-
-      await waitFor(() => {
-        expect(screen.getByText('3 total tasks')).toBeInTheDocument()
-      })
-
-      const searchButton = screen.getByTitle('Search')
-      await user.click(searchButton)
-
-      const searchInput = screen.getByPlaceholderText('Search tasks...')
-      await user.type(searchInput, 'query')
-
-      // Search button should show indicator
-      const searchButtonElement = searchButton.closest('button')
-      expect(searchButtonElement).toHaveClass('bg-emerald-50')
-    })
   })
 
   describe('Filtering', () => {
-    it('toggles filter panel visibility', async () => {
-      const user = userEvent.setup()
-      render(<GlobalDataTab />)
-
-      await waitFor(() => {
-        expect(screen.getByText('3 total tasks')).toBeInTheDocument()
-      })
-
-      // Filters should be hidden initially
-      expect(screen.queryByText('Sort By')).toBeNull()
-
-      // Click filters button
-      const filtersButton = screen.getByRole('button', { name: /Filters/i })
-      await user.click(filtersButton)
-
-      // Filters should now be visible - check for both labels
-      expect(screen.getByText('Sort by')).toBeInTheDocument()
-      expect(screen.getByText('Order')).toBeInTheDocument()
-    })
-
     it('filters by status', async () => {
       const user = userEvent.setup()
       render(<GlobalDataTab />)
@@ -1126,15 +1106,11 @@ describe('GlobalDataTab', () => {
         expect(screen.getByText('3 total tasks')).toBeInTheDocument()
       })
 
-      expect(screen.getByTitle('Search')).toBeInTheDocument()
       expect(
         screen.getByRole('button', { name: /Actions/i })
       ).toBeInTheDocument()
       expect(
         screen.getByRole('button', { name: /Columns/i })
-      ).toBeInTheDocument()
-      expect(
-        screen.getByRole('button', { name: /Filters/i })
       ).toBeInTheDocument()
     })
   })
@@ -1625,30 +1601,6 @@ describe('GlobalDataTab', () => {
           expect.stringContaining('format=csv'),
           expect.any(Object)
         )
-      })
-    })
-
-    it('shows search active indicator', async () => {
-      const user = userEvent.setup()
-      render(<GlobalDataTab />)
-
-      await waitFor(() => {
-        expect(screen.getByText('3 total tasks')).toBeInTheDocument()
-      })
-
-      const searchButton = screen.getByTitle('Search')
-
-      // Initially no indicator
-      expect(searchButton.querySelector('.bg-emerald-500')).toBeNull()
-
-      // Open search and type
-      await user.click(searchButton)
-      const searchInput = screen.getByPlaceholderText('Search tasks...')
-      await user.type(searchInput, 'test')
-
-      // Should show indicator
-      await waitFor(() => {
-        expect(document.querySelector('.bg-emerald-500')).toBeInTheDocument()
       })
     })
 

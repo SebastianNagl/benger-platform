@@ -6,6 +6,8 @@ import { logger } from '@/lib/utils/logger'
 import { OrganizationManager } from '@/lib/auth/organizationManager'
 import { sessionManager } from '@/lib/auth/sessionManager'
 import { parseSubdomain, getOrgUrl, getPrivateUrl, getLastOrgSlug, setLastOrgSlug, clearLastOrgSlug } from '@/lib/utils/subdomain'
+import { translate } from '@/lib/utils/translate'
+import { useNotificationStore } from '@/stores/notificationStore'
 import { authRedirect, publicRoutes } from '@/utils/authRedirect'
 import { useRouter } from 'next/navigation'
 import React, {
@@ -566,7 +568,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const lastOrg = orgs.find((o: Organization) => o.slug === lastOrgSlug)
             if (lastOrg) {
               logger.debug('[AuthContext] Redirecting returning user to last org after login:', lastOrgSlug)
-              window.location.href = getOrgUrl(lastOrgSlug, '/dashboard')
+              const targetUrl = getOrgUrl(lastOrgSlug, '/dashboard')
+              // sessionStorage doesn't survive a cross-subdomain redirect —
+              // encode the success flash on the URL so the destination's
+              // ToastProvider can pick it up on mount.
+              window.location.href = useNotificationStore
+                .getState()
+                .flashRedirect(targetUrl, translate('auth.loggedIn'), 'success')
               return
             } else {
               clearLastOrgSlug()
@@ -694,8 +702,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // After signup with invitation, redirect to the org subdomain
           const currentOrgs = orgManager.getOrganizations()
           if (currentOrgs.length > 0) {
-            window.location.href = getOrgUrl(currentOrgs[0].slug, '/dashboard')
+            const targetUrl = getOrgUrl(currentOrgs[0].slug, '/dashboard')
+            window.location.href = useNotificationStore
+              .getState()
+              .flashRedirect(
+                targetUrl,
+                translate('auth.signupComplete'),
+                'success'
+              )
           } else {
+            useNotificationStore
+              .getState()
+              .flash(translate('auth.signupComplete'), 'success')
             router.push('/dashboard')
           }
         } else {

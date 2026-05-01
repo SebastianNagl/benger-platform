@@ -132,6 +132,7 @@ from sqlalchemy.orm import Session
 from auth_module import require_user
 from auth_module.models import User as AuthUser
 from database import get_db
+from routers.projects.serializers import _parse_iso
 from models import (
     EvaluationRun,
     EvaluationRunMetric,
@@ -191,6 +192,7 @@ async def import_project_data(
     created_task_evaluations = 0
     task_id_mapping = {}
     generation_id_mapping = {}  # old generation id -> new generation id
+    annotation_id_mapping: Dict[str, str] = {}  # old annotation id -> new annotation id
 
     try:
         # Import evaluation runs first so task evaluations can reference them
@@ -314,6 +316,9 @@ async def import_project_data(
                 # Issue #964: Convert Label Studio span annotations to BenGER format
                 imported_result = convert_from_label_studio_format(ann_data.get("result", []))
                 annotation_id = str(uuid.uuid4())
+                original_annotation_id = ann_data.get("id")
+                if original_annotation_id:
+                    annotation_id_mapping[original_annotation_id] = annotation_id
                 annotation = Annotation(
                     id=annotation_id,
                     task_id=task_id,
@@ -325,6 +330,20 @@ async def import_project_data(
                     lead_time=ann_data.get("lead_time"),
                     draft=ann_data.get("draft"),
                     prediction_scores=ann_data.get("prediction"),
+                    # Alternating-instruction + AI-assist provenance.
+                    instruction_variant=ann_data.get("instruction_variant"),
+                    auto_submitted=ann_data.get("auto_submitted", False),
+                    ai_assisted=ann_data.get("ai_assisted", False),
+                    # Review trail.
+                    reviewed_by=ann_data.get("reviewed_by"),
+                    reviewed_at=_parse_iso(ann_data.get("reviewed_at")),
+                    review_result=ann_data.get("review_result"),
+                    review_annotation=ann_data.get("review_annotation"),
+                    review_comment=ann_data.get("review_comment"),
+                    # Enhanced timing (Issue #1208).
+                    active_duration_ms=ann_data.get("active_duration_ms"),
+                    focused_duration_ms=ann_data.get("focused_duration_ms"),
+                    tab_switches=ann_data.get("tab_switches", 0),
                 )
                 db.add(annotation)
                 created_annotations += 1
@@ -342,6 +361,12 @@ async def import_project_data(
                     )
                     db.add(qr)
                     created_questionnaire_responses += 1
+
+            # Flush so the new annotation rows land before TaskEvaluation rows
+            # FK-reference them (SQLAlchemy's auto-ordering doesn't catch this
+            # because there's no ORM relationship declared between the two).
+            if annotations_to_import:
+                db.flush()
 
             # Import generations for this task (BenGER extension)
             if generations_to_import:
@@ -385,7 +410,16 @@ async def import_project_data(
                         # prompt_id removed in issue #759 - prompts now in project.generation_config (issue #817)
                         case_data=gen_data.get("case_data", json.dumps(task_data)),
                         response_metadata=gen_data.get("response_metadata"),
-                        status="completed",  # Imported generations are completed
+                        status=gen_data.get("status", "completed"),
+                        usage_stats=gen_data.get("usage_stats"),
+                        error_message=gen_data.get("error_message"),
+                        # Parse provenance + label-config snapshot for full re-import.
+                        parse_status=gen_data.get("parse_status", "pending"),
+                        parse_error=gen_data.get("parse_error"),
+                        parsed_annotation=gen_data.get("parsed_annotation"),
+                        parse_metadata=gen_data.get("parse_metadata"),
+                        label_config_version=gen_data.get("label_config_version"),
+                        label_config_snapshot=gen_data.get("label_config_snapshot"),
                     )
                     db.add(generation)
                     created_generations += 1
@@ -394,7 +428,11 @@ async def import_project_data(
                     if original_gen_id:
                         generation_id_mapping[original_gen_id] = new_gen_id
 
-                    # Import generation-nested evaluations
+                    # Import generation-nested evaluations. Flush so the new
+                    # Generation row is in the DB before the FK from
+                    # TaskEvaluation.generation_id is checked at commit time.
+                    if gen_data.get("evaluations"):
+                        db.flush()
                     for eval_data in gen_data.get("evaluations", []):
                         te_id = str(uuid.uuid4())
                         eval_run_id = eval_data.get("evaluation_run_id") or eval_data.get("evaluation_id")
@@ -403,6 +441,7 @@ async def import_project_data(
                             evaluation_id=evaluation_run_id_mapping.get(eval_run_id, eval_run_id),
                             task_id=task_id,
                             generation_id=new_gen_id,
+                            annotation_id=annotation_id_mapping.get(eval_data.get("annotation_id")),
                             field_name=eval_data.get("field_name"),
                             answer_type=eval_data.get("answer_type"),
                             ground_truth=eval_data.get("ground_truth"),
@@ -412,11 +451,17 @@ async def import_project_data(
                             confidence_score=eval_data.get("confidence_score"),
                             error_message=eval_data.get("error_message"),
                             processing_time_ms=eval_data.get("processing_time_ms"),
+                            judge_prompts_used=eval_data.get("judge_prompts_used"),
                         )
                         db.add(te)
                         created_task_evaluations += 1
 
-            # Import task-level evaluations (annotation/ground-truth evals without generation)
+            # Import task-level evaluations (annotation/ground-truth evals
+            # without generation). Flush so any pending Annotation rows from
+            # earlier in this iteration are visible when the TaskEvaluation
+            # FK to annotations is validated at commit.
+            if task_level_evaluations:
+                db.flush()
             for eval_data in task_level_evaluations:
                 te_id = str(uuid.uuid4())
                 eval_run_id = eval_data.get("evaluation_run_id") or eval_data.get("evaluation_id")
@@ -425,6 +470,11 @@ async def import_project_data(
                     evaluation_id=evaluation_run_id_mapping.get(eval_run_id, eval_run_id),
                     task_id=task_id,
                     generation_id=None,
+                    # Map annotation_id through the mapping built during annotation
+                    # creation; falls back to None if the annotation is not in the
+                    # payload (the row will then be invisible to per-annotator
+                    # aggregation but stays attached to the evaluation_run).
+                    annotation_id=annotation_id_mapping.get(eval_data.get("annotation_id")),
                     field_name=eval_data.get("field_name"),
                     answer_type=eval_data.get("answer_type"),
                     ground_truth=eval_data.get("ground_truth"),
@@ -434,9 +484,137 @@ async def import_project_data(
                     confidence_score=eval_data.get("confidence_score"),
                     error_message=eval_data.get("error_message"),
                     processing_time_ms=eval_data.get("processing_time_ms"),
+                    judge_prompts_used=eval_data.get("judge_prompts_used"),
                 )
                 db.add(te)
                 created_task_evaluations += 1
+
+        # Top-level human-evaluation import (mirrors clone path).
+        # Skip silently if the payload doesn't carry any of these arrays —
+        # backward-compatible with older exports.
+        human_eval_config_id_mapping: Dict[str, str] = {}
+        human_eval_session_id_mapping: Dict[str, str] = {}
+        for cfg in (data.human_evaluation_configs or []):
+            new_cfg_id = str(uuid.uuid4())
+            old_cfg_id = cfg.get("id")
+            if old_cfg_id:
+                human_eval_config_id_mapping[old_cfg_id] = new_cfg_id
+            db.add(HumanEvaluationConfig(
+                id=new_cfg_id,
+                task_id=task_id_mapping.get(cfg.get("task_id"), cfg.get("task_id")),
+                evaluation_project_id=cfg.get("evaluation_project_id"),
+                evaluator_count=cfg.get("evaluator_count", 3),
+                randomization_seed=cfg.get("randomization_seed"),
+                blinding_enabled=cfg.get("blinding_enabled", True),
+                include_human_responses=cfg.get("include_human_responses", False),
+                status=cfg.get("status", "pending"),
+            ))
+
+        for session in (data.human_evaluation_sessions or []):
+            new_session_id = str(uuid.uuid4())
+            old_session_id = session.get("id")
+            if old_session_id:
+                human_eval_session_id_mapping[old_session_id] = new_session_id
+            db.add(HumanEvaluationSession(
+                id=new_session_id,
+                project_id=project_id,
+                evaluator_id=session.get("evaluator_id", current_user.id),
+                session_type=session.get("session_type", "likert"),
+                items_evaluated=session.get("items_evaluated", 0),
+                total_items=session.get("total_items"),
+                status=session.get("status", "active"),
+                session_config=session.get("session_config"),
+            ))
+
+        for result in (data.human_evaluation_results or []):
+            cfg_id = human_eval_config_id_mapping.get(result.get("config_id"))
+            if not cfg_id:
+                continue  # orphan result without a mapped config
+            db.add(HumanEvaluationResult(
+                id=str(uuid.uuid4()),
+                config_id=cfg_id,
+                task_id=task_id_mapping.get(result.get("task_id"), result.get("task_id")),
+                response_id=result.get("response_id"),
+                evaluator_id=result.get("evaluator_id"),
+                correctness_score=result.get("correctness_score", 0),
+                completeness_score=result.get("completeness_score", 0),
+                style_score=result.get("style_score", 0),
+                usability_score=result.get("usability_score", 0),
+                comments=result.get("comments"),
+                evaluation_time_seconds=result.get("evaluation_time_seconds"),
+            ))
+
+        for ranking in (data.preference_rankings or []):
+            session_id = human_eval_session_id_mapping.get(ranking.get("session_id"))
+            if not session_id:
+                continue
+            db.add(PreferenceRanking(
+                id=str(uuid.uuid4()),
+                session_id=session_id,
+                task_id=task_id_mapping.get(ranking.get("task_id"), ranking.get("task_id")),
+                response_a_id=ranking.get("response_a_id"),
+                response_b_id=ranking.get("response_b_id"),
+                winner=ranking.get("winner", "tie"),
+                confidence=ranking.get("confidence"),
+                reasoning=ranking.get("reasoning"),
+                time_spent_seconds=ranking.get("time_spent_seconds"),
+            ))
+
+        for likert in (data.likert_scale_evaluations or []):
+            session_id = human_eval_session_id_mapping.get(likert.get("session_id"))
+            if not session_id:
+                continue
+            db.add(LikertScaleEvaluation(
+                id=str(uuid.uuid4()),
+                session_id=session_id,
+                task_id=task_id_mapping.get(likert.get("task_id"), likert.get("task_id")),
+                response_id=likert.get("response_id"),
+                dimension=likert.get("dimension"),
+                rating=likert.get("rating", 0),
+                comment=likert.get("comment"),
+                time_spent_seconds=likert.get("time_spent_seconds"),
+            ))
+
+        # Korrektur threaded comments (parents first, then replies, so
+        # parent_id can be remapped without forward references).
+        from project_models import KorrekturComment
+        comment_id_mapping: Dict[str, str] = {}
+        comments_payload = list(data.korrektur_comments or [])
+        comments_payload.sort(key=lambda c: 1 if c.get("parent_id") else 0)
+        for c in comments_payload:
+            target_type = c.get("target_type")
+            old_target_id = c.get("target_id")
+            new_target_id: Any = old_target_id
+            if target_type == "annotation":
+                new_target_id = annotation_id_mapping.get(old_target_id, old_target_id)
+            elif target_type == "generation":
+                new_target_id = generation_id_mapping.get(old_target_id, old_target_id)
+            elif target_type == "evaluation":
+                # We don't track per-row TaskEvaluation id mapping (rows get
+                # fresh UUIDs); leave as-is so the user can re-link manually
+                # if needed. Most korrektur comments target annotations.
+                new_target_id = old_target_id
+            new_id = str(uuid.uuid4())
+            old_id = c.get("id")
+            if old_id:
+                comment_id_mapping[old_id] = new_id
+            db.add(KorrekturComment(
+                id=new_id,
+                project_id=project_id,
+                task_id=task_id_mapping.get(c.get("task_id"), c.get("task_id")),
+                target_type=target_type,
+                target_id=new_target_id,
+                parent_id=comment_id_mapping.get(c.get("parent_id")),
+                text=c.get("text", ""),
+                highlight_start=c.get("highlight_start"),
+                highlight_end=c.get("highlight_end"),
+                highlight_text=c.get("highlight_text"),
+                highlight_label=c.get("highlight_label"),
+                is_resolved=c.get("is_resolved", False),
+                resolved_at=_parse_iso(c.get("resolved_at")),
+                resolved_by=c.get("resolved_by"),
+                created_by=c.get("created_by", current_user.id),
+            ))
 
         # Commit everything atomically
         db.commit()
@@ -603,6 +781,24 @@ async def export_project(
             )
 
         export_data["tasks"].append(task_data)
+
+    # Top-level human-evaluation + Korrektur blocks so the data path is
+    # round-trip-complete (was previously a clone-only feature).
+    from routers.projects.serializers import (
+        serialize_human_evaluation_data,
+        serialize_korrektur_comment,
+    )
+    from project_models import KorrekturComment
+
+    export_data.update(
+        serialize_human_evaluation_data(db, project_id, task_ids)
+    )
+    export_data["korrektur_comments"] = [
+        serialize_korrektur_comment(c)
+        for c in db.query(KorrekturComment)
+        .filter(KorrekturComment.project_id == project_id)
+        .all()
+    ]
 
     # Format the data based on requested format
     if format == "json":
@@ -1275,6 +1471,18 @@ async def import_full_project(
             questionnaire_enabled=project_data.get("questionnaire_enabled", False),
             questionnaire_config=project_data.get("questionnaire_config"),
             randomize_task_order=project_data.get("randomize_task_order", False),
+            # Alternating-instruction feature.
+            instructions_always_visible=project_data.get(
+                "instructions_always_visible", False
+            ),
+            conditional_instructions=project_data.get("conditional_instructions"),
+            # Review workflow.
+            review_enabled=project_data.get("review_enabled", False),
+            review_mode=project_data.get("review_mode", "in_place"),
+            allow_self_review=project_data.get("allow_self_review", False),
+            # Korrektur (human-correction) feature.
+            korrektur_enabled=project_data.get("korrektur_enabled", False),
+            korrektur_config=project_data.get("korrektur_config"),
         )
 
         db.add(new_project)
@@ -1354,6 +1562,19 @@ async def import_full_project(
                     active_duration_ms=annotation_data.get("active_duration_ms"),
                     focused_duration_ms=annotation_data.get("focused_duration_ms"),
                     tab_switches=annotation_data.get("tab_switches", 0),
+                    # Alternating-instruction + AI-assist provenance.
+                    instruction_variant=annotation_data.get("instruction_variant"),
+                    auto_submitted=annotation_data.get("auto_submitted", False),
+                    ai_assisted=annotation_data.get("ai_assisted", False),
+                    # Review trail.
+                    reviewed_by=id_mappings["users"].get(
+                        annotation_data.get("reviewed_by"),
+                        annotation_data.get("reviewed_by"),
+                    ),
+                    reviewed_at=_parse_iso(annotation_data.get("reviewed_at")),
+                    review_result=annotation_data.get("review_result"),
+                    review_annotation=annotation_data.get("review_annotation"),
+                    review_comment=annotation_data.get("review_comment"),
                 )
 
                 db.add(new_annotation)
@@ -1414,6 +1635,13 @@ async def import_full_project(
                     response_metadata=generation_data.get("response_metadata"),
                     status=generation_data.get("status", "completed"),
                     error_message=generation_data.get("error_message"),
+                    # Parse provenance + label-config snapshot.
+                    parse_status=generation_data.get("parse_status", "pending"),
+                    parse_error=generation_data.get("parse_error"),
+                    parsed_annotation=generation_data.get("parsed_annotation"),
+                    parse_metadata=generation_data.get("parse_metadata"),
+                    label_config_version=generation_data.get("label_config_version"),
+                    label_config_snapshot=generation_data.get("label_config_snapshot"),
                 )
 
                 db.add(new_generation)
@@ -1480,6 +1708,9 @@ async def import_full_project(
                     evaluation_id=evaluation_id,
                     task_id=task_id,
                     generation_id=generation_id,
+                    annotation_id=id_mappings["annotations"].get(
+                        te_data.get("annotation_id")
+                    ),
                     field_name=te_data.get("field_name"),
                     answer_type=te_data.get("answer_type"),
                     ground_truth=te_data.get("ground_truth"),
@@ -1489,6 +1720,7 @@ async def import_full_project(
                     confidence_score=te_data.get("confidence_score"),
                     error_message=te_data.get("error_message"),
                     processing_time_ms=te_data.get("processing_time_ms"),
+                    judge_prompts_used=te_data.get("judge_prompts_used"),
                 )
 
                 db.add(new_te)
@@ -1617,6 +1849,52 @@ async def import_full_project(
                 )
 
                 db.add(new_likert)
+
+        # Import Korrektur threaded comments. Parents first, then replies, so
+        # parent_id can be remapped without forward references.
+        from project_models import KorrekturComment
+        korrektur_comments_data = list(import_data.get("korrektur_comments", []) or [])
+        korrektur_comments_data.sort(key=lambda c: 1 if c.get("parent_id") else 0)
+        comment_id_mapping: Dict[str, str] = {}
+        for c in korrektur_comments_data:
+            target_type = c.get("target_type")
+            old_target_id = c.get("target_id")
+            new_target_id: Any = old_target_id
+            if target_type == "annotation":
+                new_target_id = id_mappings["annotations"].get(old_target_id, old_target_id)
+            elif target_type == "generation":
+                new_target_id = id_mappings["generations"].get(old_target_id, old_target_id)
+            elif target_type == "evaluation":
+                # Per-row TaskEvaluation mapping isn't tracked; leave as-is.
+                new_target_id = old_target_id
+            new_id = str(uuid.uuid4())
+            old_id = c.get("id")
+            if old_id:
+                comment_id_mapping[old_id] = new_id
+            new_task_id = id_mappings["tasks"].get(c.get("task_id"))
+            if not new_task_id:
+                continue
+            db.add(KorrekturComment(
+                id=new_id,
+                project_id=new_project_id,
+                task_id=new_task_id,
+                target_type=target_type,
+                target_id=new_target_id,
+                parent_id=comment_id_mapping.get(c.get("parent_id")),
+                text=c.get("text", ""),
+                highlight_start=c.get("highlight_start"),
+                highlight_end=c.get("highlight_end"),
+                highlight_text=c.get("highlight_text"),
+                highlight_label=c.get("highlight_label"),
+                is_resolved=c.get("is_resolved", False),
+                resolved_at=_parse_iso(c.get("resolved_at")),
+                resolved_by=id_mappings["users"].get(
+                    c.get("resolved_by"), c.get("resolved_by")
+                ),
+                created_by=id_mappings["users"].get(
+                    c.get("created_by"), current_user.id
+                ),
+            ))
 
         # Import project members (map to existing users)
         project_members_data = import_data.get("project_members", [])

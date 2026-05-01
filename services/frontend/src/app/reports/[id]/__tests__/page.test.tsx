@@ -41,6 +41,36 @@ jest.mock('next/dynamic', () => {
   }
 })
 
+// Mock the chart components used by the Evaluation block. The viewer
+// delegates rendering to DynamicChartRenderer; we surface the active
+// chartType + metric set as data-attrs so individual tests can assert.
+jest.mock('@/components/evaluation/DynamicChartRenderer', () => ({
+  DynamicChartRenderer: ({ chartType, models, metrics }: any) => (
+    <div
+      data-testid="plotly-chart"
+      data-chart-type={chartType}
+      data-model-count={models?.length ?? 0}
+      data-metrics={(metrics ?? []).join(',')}
+    >
+      {(metrics ?? []).map((m: string) => (
+        <div key={m}>{m.replace(/_/g, ' ')}</div>
+      ))}
+    </div>
+  ),
+}))
+jest.mock('@/components/evaluation/ChartTypeSelector', () => ({
+  __esModule: true,
+  ChartTypeSelector: ({ selectedType, onChange }: any) => (
+    <button
+      data-testid="chart-type-selector"
+      data-active={selectedType}
+      onClick={() => onChange?.(selectedType)}
+    >
+      {selectedType}
+    </button>
+  ),
+}))
+
 // Mock the I18n context
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
@@ -686,7 +716,7 @@ describe('Report Viewer Page', () => {
       expect(charts.length).toBeGreaterThan(0)
     })
 
-    it('renders both QA and LLM Judge charts when both scales present', async () => {
+    it('combines QA and LLM Judge metrics into the per-model chart', async () => {
       const data = createMockReportData()
       data.evaluation_charts.by_model['gpt-4'].llm_judge_overall = 4.2
       data.evaluation_charts.by_model['claude-3'].llm_judge_overall = 4.5
@@ -704,8 +734,16 @@ describe('Report Viewer Page', () => {
         expect(screen.getByText('reports.detail.performanceByModel')).toBeInTheDocument()
       })
 
+      // The page now renders one DynamicChartRenderer per model-class
+      // (LLM models, optional annotators) and bundles every metric into it.
+      // With only LLM model data + both QA + judge metrics present, we get a
+      // single chart whose metrics attr lists both scales.
       const charts = screen.getAllByTestId('plotly-chart')
-      expect(charts.length).toBe(2)
+      expect(charts.length).toBe(1)
+      const metricsAttr = charts[0].getAttribute('data-metrics') ?? ''
+      expect(metricsAttr).toMatch(/llm_judge_overall/)
+      // QA-side metrics from createMockReportData
+      expect(metricsAttr).toMatch(/exact_match|f1_score/)
     })
 
     it('does not render charts when no models', async () => {
@@ -736,15 +774,17 @@ describe('Report Viewer Page', () => {
       expect(screen.queryByTestId('plotly-chart')).not.toBeInTheDocument()
     })
 
-    it('renders chart traces with correct metric display names', async () => {
+    it('forwards the report metric keys to the chart renderer', async () => {
       mockGetReportData.mockResolvedValue(createMockReportData())
 
       renderPage()
 
-      await waitFor(() => {
-        expect(screen.getByText(/Exact Match/)).toBeInTheDocument()
-        expect(screen.getByText(/F1 Score/)).toBeInTheDocument()
-      })
+      const chart = await screen.findByTestId('plotly-chart')
+      const metrics = (chart.getAttribute('data-metrics') ?? '').split(',')
+      // Metric metadata in createMockReportData supplies these keys; the
+      // human-readable display-name rendering is the responsibility of
+      // DynamicChartRenderer and is asserted in its own test suite.
+      expect(metrics).toEqual(expect.arrayContaining(['exact_match', 'f1']))
     })
 
     it('handles metrics without metadata (defaults to 0-1 scale)', async () => {

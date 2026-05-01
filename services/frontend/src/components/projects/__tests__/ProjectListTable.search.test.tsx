@@ -60,6 +60,48 @@ jest.mock('@/contexts/I18nContext', () => ({
     currentLanguage: 'en',
   }),
 }))
+jest.mock('@/components/shared/FilterToolbar', () => {
+  const FilterToolbar = ({
+    searchValue,
+    onSearchChange,
+    searchPlaceholder,
+    searchLabel,
+    clearLabel = 'Clear filters',
+    onClearFilters,
+    hasActiveFilters,
+    leftExtras,
+    rightExtras,
+    children,
+  }: any) => (
+    <div data-testid="filter-toolbar">
+      {leftExtras}
+      {onSearchChange && (
+        <input
+          data-testid="filter-toolbar-search"
+          type="search"
+          placeholder={searchPlaceholder}
+          title={searchPlaceholder || searchLabel}
+          value={searchValue ?? ''}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+      )}
+      <div data-testid="filter-toolbar-fields">{children}</div>
+      {onClearFilters && (
+        <button
+          data-testid="filter-toolbar-clear"
+          onClick={onClearFilters}
+          disabled={!hasActiveFilters}
+          title={clearLabel}
+          aria-label={clearLabel}
+        />
+      )}
+      {rightExtras}
+    </div>
+  )
+  FilterToolbar.Field = ({ children }: any) => <div>{children}</div>
+  return { FilterToolbar }
+})
+
 
 describe('ProjectListTable Search Functionality', () => {
   const mockFetchProjects = jest.fn()
@@ -124,39 +166,19 @@ describe('ProjectListTable Search Functionality', () => {
   })
 
   describe('Search Input Rendering', () => {
-    it('should render search input with correct styling', async () => {
+    it('should render search input with correct placeholder', async () => {
       render(<ProjectListTable />)
 
-      const searchInput = screen.getByTestId('projects-search-input')
+      const searchInput = screen.getByTestId('filter-toolbar-search')
       expect(searchInput).toBeInTheDocument()
-
-      // Check for rounded-full styling (navigation-like)
-      expect(searchInput).toHaveClass('rounded-full')
-
-      // Check placeholder
       expect(searchInput).toHaveAttribute('placeholder', 'Search projects...')
     })
 
     it('should have search icon visible', async () => {
       const { container } = render(<ProjectListTable />)
 
-      // Look for the magnifying glass icon
       const searchIcon = container.querySelector('svg')
       expect(searchIcon).toBeInTheDocument()
-    })
-
-    it('should match navigation search bar styling', async () => {
-      render(<ProjectListTable />)
-
-      const searchInput = screen.getByTestId('projects-search-input')
-
-      // Key styling elements that match navigation
-      expect(searchInput).toHaveClass('rounded-full')
-      expect(searchInput).toHaveClass('ring-1')
-      expect(searchInput).toHaveClass('bg-white')
-      expect(searchInput).toHaveClass('dark:bg-white/5')
-      expect(searchInput).toHaveClass('hover:ring-zinc-900/20')
-      expect(searchInput).toHaveClass('dark:hover:ring-white/20')
     })
   })
 
@@ -165,7 +187,7 @@ describe('ProjectListTable Search Functionality', () => {
       jest.useFakeTimers()
       render(<ProjectListTable />)
 
-      const searchInput = screen.getByTestId('projects-search-input')
+      const searchInput = screen.getByTestId('filter-toolbar-search')
       fireEvent.change(searchInput, { target: { value: 'test project' } })
 
       // The SearchInput component in ProjectListTable has debounceMs={0}
@@ -181,7 +203,7 @@ describe('ProjectListTable Search Functionality', () => {
       jest.useFakeTimers()
       render(<ProjectListTable />)
 
-      const searchInput = screen.getByTestId('projects-search-input')
+      const searchInput = screen.getByTestId('filter-toolbar-search')
 
       // Type in the search box
       fireEvent.change(searchInput, { target: { value: 'project 1' } })
@@ -205,7 +227,7 @@ describe('ProjectListTable Search Functionality', () => {
       jest.useFakeTimers()
       render(<ProjectListTable />)
 
-      const searchInput = screen.getByTestId('projects-search-input')
+      const searchInput = screen.getByTestId('filter-toolbar-search')
 
       // Simulate rapid typing
       fireEvent.change(searchInput, { target: { value: 'p' } })
@@ -236,7 +258,7 @@ describe('ProjectListTable Search Functionality', () => {
       jest.useFakeTimers()
       render(<ProjectListTable />)
 
-      const searchInput = screen.getByTestId('projects-search-input')
+      const searchInput = screen.getByTestId('filter-toolbar-search')
 
       // First set a search value
       fireEvent.change(searchInput, { target: { value: 'test' } })
@@ -321,7 +343,7 @@ describe('ProjectListTable Search Functionality', () => {
 
       render(<ProjectListTable />)
 
-      const searchInput = screen.getByTestId('projects-search-input')
+      const searchInput = screen.getByTestId('filter-toolbar-search')
 
       // Type in search to filter projects
       fireEvent.change(searchInput, { target: { value: 'Test' } })
@@ -350,14 +372,14 @@ describe('ProjectListTable Search Functionality', () => {
     it('should preserve search value when switching between archived and active projects', () => {
       const { rerender } = render(<ProjectListTable showArchivedOnly={false} />)
 
-      const searchInput = screen.getByTestId('projects-search-input')
+      const searchInput = screen.getByTestId('filter-toolbar-search')
       fireEvent.change(searchInput, { target: { value: 'archived test' } })
 
       // Switch to archived view
       rerender(<ProjectListTable showArchivedOnly={true} />)
 
       // Search value should still be present
-      const updatedInput = screen.getByTestId('projects-search-input')
+      const updatedInput = screen.getByTestId('filter-toolbar-search')
       expect(updatedInput).toHaveValue('archived test')
     })
   })
@@ -418,33 +440,11 @@ describe('ProjectListTable Search Functionality', () => {
     })
   })
 
-  describe('Integration with SearchInput Component', () => {
-    it('should use SearchInput component with correct props', () => {
+  describe('Search Input Wiring', () => {
+    it('should render a search-typed input', () => {
       render(<ProjectListTable />)
 
-      const searchContainer = screen.getByTestId(
-        'projects-search-input'
-      ).parentElement
-
-      // Check that it's using the SearchInput component structure
-      expect(searchContainer).toHaveClass('relative')
-
-      // Check for icon container
-      const iconContainer = searchContainer?.querySelector(
-        '.pointer-events-none'
-      )
-      expect(iconContainer).toBeInTheDocument()
-
-      // Check the input has proper search input attributes
-      const input = screen.getByTestId('projects-search-input')
-      expect(input).toHaveAttribute('type', 'search')
-    })
-
-    it('should render full-width search input', () => {
-      render(<ProjectListTable />)
-
-      // The SearchInput should be present and accessible
-      const searchInput = screen.getByTestId('projects-search-input')
+      const searchInput = screen.getByTestId('filter-toolbar-search')
       expect(searchInput).toBeInTheDocument()
       expect(searchInput).toHaveAttribute('type', 'search')
     })
@@ -454,7 +454,7 @@ describe('ProjectListTable Search Functionality', () => {
     it('should have accessible search input', () => {
       render(<ProjectListTable />)
 
-      const searchInput = screen.getByTestId('projects-search-input')
+      const searchInput = screen.getByTestId('filter-toolbar-search')
 
       // Check for search type
       expect(searchInput).toHaveAttribute('type', 'search')
@@ -470,7 +470,7 @@ describe('ProjectListTable Search Functionality', () => {
     it('should support keyboard navigation', () => {
       render(<ProjectListTable />)
 
-      const searchInput = screen.getByTestId('projects-search-input')
+      const searchInput = screen.getByTestId('filter-toolbar-search')
 
       // Tab to focus
       searchInput.focus()

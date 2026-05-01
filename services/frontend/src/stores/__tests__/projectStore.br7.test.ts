@@ -23,13 +23,6 @@ jest.mock('@/lib/api/projects', () => ({
   },
 }))
 
-jest.mock('react-hot-toast', () => ({
-  toast: Object.assign(jest.fn(), {
-    success: jest.fn(),
-    error: jest.fn(),
-  }),
-}))
-
 jest.mock('@/lib/utils/logger', () => ({
   logger: { debug: jest.fn() },
 }))
@@ -39,7 +32,12 @@ jest.mock('@/lib/utils/translate', () => ({
 }))
 
 import { projectsAPI } from '@/lib/api/projects'
-import { toast } from 'react-hot-toast'
+import { mockToast } from '@/test-utils/setupTests'
+// Alias for legacy assertions on toast.success/toast.error.
+const toast = Object.assign(mockToast.addToast, {
+  success: mockToast.success,
+  error: mockToast.error,
+})
 
 // We need to get the store. Since it uses zustand, we can import it directly.
 import { useProjectStore } from '../projectStore'

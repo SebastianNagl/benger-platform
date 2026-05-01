@@ -2,25 +2,38 @@
 
 import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
-import { Input } from '@/components/shared/Input'
+import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { Pagination } from '@/components/shared/Pagination'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useProjects } from '@/hooks/useProjects'
+import {
+  AvailableMetric,
+  getMetricDefinitions,
+} from '@/lib/api/evaluation-types'
 import type {
   LLMLeaderboardEntry,
   LLMLeaderboardResponse,
 } from '@/lib/api/leaderboards'
-import { Listbox, Menu } from '@headlessui/react'
+import { Menu } from '@headlessui/react'
 import { CheckIcon, ChevronDownIcon } from '@heroicons/react/20/solid'
 import {
   ChartBarIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type TimePeriod = 'overall' | 'monthly' | 'weekly'
+
+type TFn = (key: string, vars?: Record<string, unknown>) => string
 
 const TIME_PERIOD_KEYS: { value: TimePeriod; key: string }[] = [
   { value: 'overall', key: 'leaderboards.allTime' },
@@ -28,12 +41,31 @@ const TIME_PERIOD_KEYS: { value: TimePeriod; key: string }[] = [
   { value: 'weekly', key: 'leaderboards.thisWeek' },
 ]
 
-const METRIC_KEYS = [
-  { value: 'average', key: 'leaderboards.llm.metrics.average' },
-  { value: 'accuracy', key: 'leaderboards.llm.metrics.accuracy' },
-  { value: 'f1_score', key: 'leaderboards.llm.metrics.f1Score' },
-  { value: 'raw_score', key: 'leaderboards.llm.metrics.rawScore' },
-]
+// Always-shown ranking metrics. Extended on each render with whatever the
+// backend reports in `available_metrics` for the current project, intersected
+// with the metric registry so junk keys like *_response / *_passed never
+// appear in the dropdown.
+const CORE_METRICS = ['average', 'accuracy', 'f1_score', 'raw_score'] as const
+
+function camelize(key: string): string {
+  return key.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase())
+}
+
+// Label resolution: i18n key first (preserves existing translations for the
+// core 4), then registry display_name (covers extended metrics that ship
+// their own German/English labels), then the raw key as a defensive last
+// resort. The I18nContext's `t()` returns the key unchanged when no
+// translation is found, which is how we detect the miss.
+function getMetricLabel(
+  metricKey: string,
+  t: TFn,
+  defs: Record<string, AvailableMetric>,
+): string {
+  const i18nKey = `leaderboards.llm.metrics.${camelize(metricKey)}`
+  const translated = t(i18nKey)
+  if (translated && translated !== i18nKey) return translated
+  return defs[metricKey]?.display_name ?? metricKey
+}
 
 const providerColors: Record<string, string> = {
   openai: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
@@ -72,7 +104,6 @@ export function LLMLeaderboardTable() {
     string[]
   >([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [showSearch, setShowSearch] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
@@ -216,13 +247,38 @@ export function LLMLeaderboardTable() {
     return entry.metrics[metric] ?? null
   }
 
+  // Dropdown options: the core ranking metrics (always visible) plus any
+  // additional registered metric reported by the backend for this project
+  // (so e.g. korrektur_falloesung shows up automatically when present).
+  const metricOptions = useMemo(() => {
+    const defs = getMetricDefinitions()
+    const core = CORE_METRICS.map((value) => ({
+      value,
+      label: getMetricLabel(value, t, defs),
+    }))
+    const seen = new Set<string>(CORE_METRICS)
+    const extra = (availableMetrics ?? [])
+      .filter((m) => !seen.has(m) && defs[m])
+      .map((m) => ({ value: m, label: getMetricLabel(m, t, defs) }))
+    return [...core, ...extra]
+  }, [availableMetrics, t])
+
+  // If the selected metric is no longer in the option list (e.g. the user
+  // switched filters and the data dropped it), fall back to 'average' to
+  // avoid an orphaned selection / blank dropdown label.
+  useEffect(() => {
+    if (!metricOptions.some((o) => o.value === metric)) {
+      setMetric('average')
+    }
+  }, [metricOptions, metric])
+
   // Get the column header label based on selected metric
   const getScoreColumnLabel = () => {
     if (metric === 'average') {
       return t('leaderboards.llm.scoreCi')
     }
-    const metricKey = METRIC_KEYS.find((m) => m.value === metric)?.key
-    return metricKey ? t(metricKey) : t('leaderboards.llm.score')
+    const opt = metricOptions.find((m) => m.value === metric)
+    return opt?.label ?? t('leaderboards.llm.score')
   }
 
   if (loading) {
@@ -244,104 +300,10 @@ export function LLMLeaderboardTable() {
     )
   }
 
-  return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Time Period Filter */}
-        <Listbox value={period} onChange={setPeriod}>
-          <div className="relative">
-            <Listbox.Button
-              as={Button}
-              variant="outline"
-              className="w-36 justify-between gap-2"
-            >
-              <span className="truncate text-sm">
-                {t(TIME_PERIOD_KEYS.find((o) => o.value === period)?.key || 'leaderboards.allTime')}
-              </span>
-              <ChevronDownIcon className="h-4 w-4" />
-            </Listbox.Button>
-            <Listbox.Options className="absolute left-0 z-10 mt-2 max-h-60 w-40 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-zinc-900">
-              {TIME_PERIOD_KEYS.map((option) => (
-                <Listbox.Option
-                  key={option.value}
-                  value={option.value}
-                  className={({ active }) =>
-                    `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
-                      active
-                        ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
-                        : 'text-zinc-900 dark:text-zinc-100'
-                    }`
-                  }
-                >
-                  {({ selected }) => (
-                    <>
-                      <span
-                        className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}
-                      >
-                        {t(option.key)}
-                      </span>
-                      {selected && (
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-emerald-600">
-                          <CheckIcon className="h-5 w-5" />
-                        </span>
-                      )}
-                    </>
-                  )}
-                </Listbox.Option>
-              ))}
-            </Listbox.Options>
-          </div>
-        </Listbox>
-
-        {/* Metric Filter */}
-        <Listbox value={metric} onChange={setMetric}>
-          <div className="relative">
-            <Listbox.Button
-              as={Button}
-              variant="outline"
-              className="w-48 justify-between gap-2"
-            >
-              <span className="truncate text-sm">
-                {t(METRIC_KEYS.find((o) => o.value === metric)?.key || 'leaderboards.llm.selectMetric')}
-              </span>
-              <ChevronDownIcon className="h-4 w-4" />
-            </Listbox.Button>
-            <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-zinc-900">
-              {METRIC_KEYS.map((option) => (
-                <Listbox.Option
-                  key={option.value}
-                  value={option.value}
-                  className={({ active }) =>
-                    `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
-                      active
-                        ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
-                        : 'text-zinc-900 dark:text-zinc-100'
-                    }`
-                  }
-                >
-                  {({ selected }) => (
-                    <>
-                      <span
-                        className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}
-                      >
-                        {t(option.key)}
-                      </span>
-                      {selected && (
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-emerald-600">
-                          <CheckIcon className="h-5 w-5" />
-                        </span>
-                      )}
-                    </>
-                  )}
-                </Listbox.Option>
-              ))}
-            </Listbox.Options>
-          </div>
-        </Listbox>
-
-        {/* Project Filter */}
-        <Menu as="div" className="relative">
+  const projectsMenu = (
+    <>
+      {/* Project Filter */}
+      <Menu as="div" className="relative">
           <Menu.Button as={Button} variant="outline" className="gap-2">
             <FunnelIcon className="h-4 w-4" />
             <span>
@@ -431,73 +393,79 @@ export function LLMLeaderboardTable() {
             </Menu.Items>
           </Menu>
         )}
+    </>
+  )
 
-        {/* Aggregation Mode */}
-        <Listbox value={aggregation} onChange={setAggregation}>
-          <div className="relative">
-            <Listbox.Button
-              as={Button}
-              variant="outline"
-              className="w-36 justify-between gap-2"
-            >
-              <span className="truncate text-sm">
-                {t(`leaderboards.aggregation.${aggregation}`)}
-              </span>
-              <ChevronDownIcon className="h-4 w-4" />
-            </Listbox.Button>
-            <Listbox.Options className="absolute z-10 mt-2 max-h-60 w-40 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-zinc-900">
-              {(['average', 'sum'] as const).map((mode) => (
-                <Listbox.Option
-                  key={mode}
-                  value={mode}
-                  className={({ active }) =>
-                    `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
-                      active
-                        ? 'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100'
-                        : 'text-zinc-900 dark:text-zinc-100'
-                    }`
-                  }
-                >
-                  {({ selected }) => (
-                    <>
-                      <span
-                        className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}
-                      >
-                        {t(`leaderboards.aggregation.${mode}`)}
-                      </span>
-                      {selected && (
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-emerald-600">
-                          <CheckIcon className="h-5 w-5" />
-                        </span>
-                      )}
-                    </>
-                  )}
-                </Listbox.Option>
+  return (
+    <div className="space-y-4">
+      <FilterToolbar
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder={t('leaderboards.llm.searchPlaceholder')}
+        searchLabel={t('common.filters.search')}
+        filtersLabel={t('common.filters.filters')}
+        hasActiveFilters={
+          period !== 'overall' ||
+          aggregation !== 'average' ||
+          selectedProjectIds.length > 0 ||
+          selectedEvaluationTypes.length > 0 ||
+          searchQuery.trim() !== ''
+        }
+        onClearFilters={() => {
+          setPeriod('overall')
+          setAggregation('average')
+          setSelectedProjectIds([])
+          setSelectedEvaluationTypes([])
+          setSearchQuery('')
+        }}
+        clearLabel={t('common.filters.clearAll')}
+        leftExtras={projectsMenu}
+      >
+        <FilterToolbar.Field label={t('leaderboards.allTime')}>
+          <Select value={period} onValueChange={(v) => setPeriod(v as TimePeriod)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TIME_PERIOD_KEYS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {t(option.key)}
+                </SelectItem>
               ))}
-            </Listbox.Options>
-          </div>
-        </Listbox>
+            </SelectContent>
+          </Select>
+        </FilterToolbar.Field>
 
-        {/* Search Toggle */}
-        <Button
-          variant="outline"
-          onClick={() => setShowSearch(!showSearch)}
-          className={`ml-auto ${showSearch ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}
-        >
-          <MagnifyingGlassIcon className="h-4 w-4" />
-        </Button>
-      </div>
+        <FilterToolbar.Field label={t('leaderboards.llm.selectMetric')}>
+          <Select value={metric} onValueChange={setMetric}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {metricOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterToolbar.Field>
 
-      {/* Search Input */}
-      {showSearch && (
-        <Input
-          type="text"
-          placeholder={t('leaderboards.llm.searchPlaceholder')}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="max-w-xs"
-        />
-      )}
+        <FilterToolbar.Field label={t('leaderboards.aggregation.average')}>
+          <Select
+            value={aggregation}
+            onValueChange={(v) => setAggregation(v as 'average' | 'sum')}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="average">{t('leaderboards.aggregation.average')}</SelectItem>
+              <SelectItem value="sum">{t('leaderboards.aggregation.sum')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterToolbar.Field>
+      </FilterToolbar>
 
       {/* Leaderboard Table */}
       {filteredLeaderboard.length === 0 ? (

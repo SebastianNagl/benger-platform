@@ -5,12 +5,17 @@
 import { projectsAPI } from '@/lib/api/projects'
 import { Annotation, Project, Task } from '@/types/labelStudio'
 import { act } from '@testing-library/react'
-import toast from 'react-hot-toast'
+import { mockToast as mockToastSetup } from '@/test-utils/setupTests'
 import { useProjectStore } from '../projectStore'
+
+// projectStore now calls module-level toast(msg, type) from @/components/shared/Toast.
+// The setupTests global mock dispatches toast() to per-type mocks. Alias them
+// under the legacy `toast.success`/`toast.error` shape so existing assertions
+// keep working without rewriting every call site.
+const toast = { success: mockToastSetup.success, error: mockToastSetup.error }
 
 // Mock dependencies
 jest.mock('@/lib/api/projects')
-jest.mock('react-hot-toast')
 
 // Mock translate to return the key (with variable interpolation on the key string)
 jest.mock('@/lib/utils/translate', () => ({
@@ -739,9 +744,7 @@ describe('ProjectStore', () => {
       })
 
       expect(result).toBeNull()
-      expect(mockToast).toHaveBeenCalledWith('store.project.noMoreTasks', {
-        icon: 'ℹ️',
-      })
+      expect(mockToastSetup.info).toHaveBeenCalledWith('store.project.noMoreTasks')
     })
 
     it('should handle errors', async () => {
@@ -838,9 +841,8 @@ describe('ProjectStore', () => {
       const state = useProjectStore.getState()
       expect(state.currentTaskIndex).toBe(0)
       expect(state.currentTask).toEqual(tasks[0])
-      expect(mockToast).toHaveBeenCalledWith(
-        'store.project.allTasksCompletedRestart',
-        { icon: '🔄' }
+      expect(mockToastSetup.info).toHaveBeenCalledWith(
+        'store.project.allTasksCompletedRestart'
       )
     })
 
@@ -1043,7 +1045,7 @@ describe('ProjectStore', () => {
         await useProjectStore.getState().skipTask()
       })
 
-      expect(mockToast).toHaveBeenCalledWith('store.project.taskSkipped', { icon: 'ℹ️' })
+      expect(mockToastSetup.info).toHaveBeenCalledWith('store.project.taskSkipped')
     })
 
     it('should handle missing current task', async () => {
@@ -1059,7 +1061,7 @@ describe('ProjectStore', () => {
       })
 
       // Should not throw error
-      expect(mockToast).not.toHaveBeenCalledWith('store.project.taskSkipped', { icon: 'ℹ️' })
+      expect(mockToastSetup.info).not.toHaveBeenCalledWith('store.project.taskSkipped')
     })
 
     it('should handle missing current project', async () => {
@@ -1075,7 +1077,7 @@ describe('ProjectStore', () => {
       })
 
       // Should not throw error and not call toast
-      expect(mockToast).not.toHaveBeenCalledWith('store.project.taskSkipped', { icon: 'ℹ️' })
+      expect(mockToastSetup.info).not.toHaveBeenCalledWith('store.project.taskSkipped')
     })
 
     it('should remove task from cycle when skip_queue is requeue_for_others', async () => {
@@ -1220,9 +1222,8 @@ describe('ProjectStore', () => {
         await useProjectStore.getState().evaluateLLMResponses('1')
       })
 
-      expect(mockToast).toHaveBeenCalledWith(
-        'store.project.evaluationNotImplemented',
-        { icon: 'ℹ️' }
+      expect(mockToastSetup.info).toHaveBeenCalledWith(
+        'store.project.evaluationNotImplemented'
       )
     })
   })

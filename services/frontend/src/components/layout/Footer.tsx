@@ -4,14 +4,6 @@ import Link from 'next/link'
 
 import { useI18n } from '@/contexts/I18nContext'
 
-function NotionIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" {...props}>
-      <path d="M2 2h16v16H2V2zm4 3v10h1.5V7l5 8h1.5V5H12v8l-5-8H4z" />
-    </svg>
-  )
-}
-
 function GitHubIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true" {...props}>
@@ -72,11 +64,8 @@ function SmallPrint() {
         </p>
       </div>
       <div className="flex gap-4">
-        <SocialLink href="https://legaltechcolab.com/" icon={NotionIcon}>
-          {t('layout.footer.followNotion')}
-        </SocialLink>
         <SocialLink
-          href="https://github.com/SebastianNagl/BenGER"
+          href="https://github.com/SebastianNagl/benger-platform"
           icon={GitHubIcon}
         >
           {t('layout.footer.followGithub')}

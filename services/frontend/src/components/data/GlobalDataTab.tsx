@@ -6,6 +6,7 @@
 'use client'
 
 import { Button } from '@/components/shared/Button'
+import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { Input } from '@/components/shared/Input'
 import { Pagination } from '@/components/shared/Pagination'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
@@ -294,30 +295,10 @@ export function GlobalDataTab() {
     )
   }
 
-  return (
-    <div className="space-y-4">
-      {/* Action Bar */}
-      <div className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="px-4 py-3">
-          <div className="flex flex-col space-y-3 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
-            {/* Primary Actions */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              {/* Search Toggle */}
-              <Button
-                variant="outline"
-                onClick={() => setShowSearch(!showSearch)}
-                className={`flex items-center ${showSearch ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}
-                title={t('data.management.search')}
-              >
-                <MagnifyingGlassIcon className="h-4 w-4" />
-                <span className="ml-2 hidden sm:inline">{t('data.management.search')}</span>
-                {searchQuery && (
-                  <span className="ml-2 h-2 w-2 rounded-full bg-emerald-500" />
-                )}
-              </Button>
-
-              {/* Actions Dropdown */}
-              <div className="relative inline-block text-left" ref={actionsRef}>
+  const dataLeftExtras = (
+    <>
+      {/* Actions Dropdown */}
+      <div className="relative inline-block text-left" ref={actionsRef}>
                 <Button
                   variant="outline"
                   className="gap-2"
@@ -431,19 +412,6 @@ export function GlobalDataTab() {
                 )}
               </div>
 
-              {/* Filters */}
-              <Button
-                variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center"
-              >
-                <FunnelIcon className="h-4 w-4" />
-                <span className="ml-2 hidden sm:inline">{t('data.management.filters')}</span>
-                {showFilters && (
-                  <span className="ml-2 h-2 w-2 rounded-full bg-emerald-500" />
-                )}
-              </Button>
-
               {/* Order By Dropdown */}
               <div className="relative inline-block text-left" ref={orderRef}>
                 <Button
@@ -500,91 +468,85 @@ export function GlobalDataTab() {
                   </div>
                 )}
               </div>
-            </div>
+    </>
+  )
 
-            {/* Secondary Actions */}
-            <div className="flex items-center gap-2">
-              {/* Task count */}
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                {t('data.management.totalTasks', { count: totalTasks })}
-              </span>
+  const dataRightExtras = (
+    <>
+      <span className="text-sm text-zinc-600 dark:text-zinc-400">
+        {t('data.management.totalTasks', { count: totalTasks })}
+      </span>
+      {selectedTasks.size > 0 && (
+        <span className="text-sm font-medium text-emerald-600">
+          {t('data.management.selected', { count: selectedTasks.size })}
+        </span>
+      )}
+    </>
+  )
 
-              {selectedTasks.size > 0 && (
-                <span className="text-sm font-medium text-emerald-600">
-                  {t('data.management.selected', { count: selectedTasks.size })}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+  return (
+    <div className="space-y-4">
+      <FilterToolbar
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder={t('data.management.searchPlaceholder')}
+        searchLabel={t('data.management.search')}
+        filtersLabel={t('data.management.filters')}
+        hasActiveFilters={
+          statusFilter !== 'all' ||
+          projectFilter.length > 0 ||
+          assignedFilter !== null ||
+          searchQuery.trim() !== ''
+        }
+        onClearFilters={() => {
+          setStatusFilter('all')
+          setProjectFilter([])
+          setAssignedFilter(null)
+          setSearchQuery('')
+        }}
+        clearLabel={t('common.filters.clearAll')}
+        leftExtras={dataLeftExtras}
+        rightExtras={dataRightExtras}
+      >
+        <FilterToolbar.Field label={t('data.management.status')}>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+            <SelectTrigger>
+              <SelectValue placeholder={t('data.management.all')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('data.management.all')}</SelectItem>
+              <SelectItem value="completed">{t('data.management.completed')}</SelectItem>
+              <SelectItem value="incomplete">{t('data.management.incomplete')}</SelectItem>
+              <SelectItem value="in_progress">{t('data.management.inProgress')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterToolbar.Field>
 
-      {/* Search and Filters */}
-      <div className="space-y-2">
-        {showSearch && (
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-            <Input
-              type="text"
-              placeholder={t('data.management.searchPlaceholder')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-              autoFocus
-            />
-          </div>
-        )}
+        <FilterToolbar.Field label={t('data.management.sortBy')}>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="created_at">{t('data.management.created')}</SelectItem>
+              <SelectItem value="updated_at">{t('data.management.updated')}</SelectItem>
+              <SelectItem value="is_labeled">{t('data.management.status')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterToolbar.Field>
 
-        {showFilters && (
-          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800">
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium">{t('data.management.status')}</label>
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('data.management.all')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t('data.management.all')}</SelectItem>
-                    <SelectItem value="completed">{t('data.management.completed')}</SelectItem>
-                    <SelectItem value="incomplete">{t('data.management.incomplete')}</SelectItem>
-                    <SelectItem value="in_progress">{t('data.management.inProgress')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium">
-                  {t('data.management.sortBy')}
-                </label>
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="created_at">{t('data.management.created')}</SelectItem>
-                    <SelectItem value="updated_at">{t('data.management.updated')}</SelectItem>
-                    <SelectItem value="is_labeled">{t('data.management.status')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium">{t('data.management.order')}</label>
-                <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'asc' | 'desc')}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="desc">{t('data.management.newestFirst')}</SelectItem>
-                    <SelectItem value="asc">{t('data.management.oldestFirst')}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+        <FilterToolbar.Field label={t('data.management.order')}>
+          <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'asc' | 'desc')}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="desc">{t('data.management.newestFirst')}</SelectItem>
+              <SelectItem value="asc">{t('data.management.oldestFirst')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterToolbar.Field>
+      </FilterToolbar>
 
       {/* Table */}
       <div className="scrollbar-thin scrollbar-thumb-zinc-300 scrollbar-track-transparent dark:scrollbar-thumb-zinc-600 overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">

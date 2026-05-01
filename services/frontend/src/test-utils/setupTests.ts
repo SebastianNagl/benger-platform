@@ -530,12 +530,24 @@ jest.mock('@/components/shared/LoadingSpinner', () => {
 // Create stable toast mock references that persist across calls
 // This prevents tests from failing due to mock reference instability
 // Variables MUST be prefixed with 'mock' for Jest to allow them in jest.mock() factories
-const mockStableAddToast = jest.fn()
-const mockStableRemoveToast = jest.fn()
 const mockStableToastSuccess = jest.fn()
 const mockStableToastError = jest.fn()
 const mockStableToastInfo = jest.fn()
 const mockStableToastWarning = jest.fn()
+
+// addToast/toast are now callable with (message, type) — dispatch by type to
+// the per-type mocks so existing tests asserting on .success/.error keep working.
+const mockStableAddToast = jest.fn(
+  (message: string, type?: 'success' | 'error' | 'info' | 'warning') => {
+    if (type === 'success') mockStableToastSuccess(message)
+    else if (type === 'error') mockStableToastError(message)
+    else if (type === 'warning') mockStableToastWarning(message)
+    else mockStableToastInfo(message)
+    return 'mock-toast-id'
+  }
+)
+const mockStableRemoveToast = jest.fn()
+const mockStableSetToastDispatcher = jest.fn()
 
 // Export for tests that need direct access
 export const mockToast = {
@@ -562,16 +574,15 @@ jest.mock('@/components/shared/Toast', () => {
     // Return stable mock references instead of creating new ones each call
     useToast: jest.fn(() => ({
       addToast: mockStableAddToast,
+      showToast: mockStableAddToast,
       removeToast: mockStableRemoveToast,
       toasts: [],
     })),
 
-    toast: {
-      success: mockStableToastSuccess,
-      error: mockStableToastError,
-      info: mockStableToastInfo,
-      warning: mockStableToastWarning,
-    },
+    // Module-level dispatcher used by stores and non-component code.
+    // Same dispatching behavior as addToast.
+    toast: mockStableAddToast,
+    setToastDispatcher: mockStableSetToastDispatcher,
   }
 })
 

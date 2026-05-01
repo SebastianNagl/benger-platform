@@ -1,6 +1,7 @@
 'use client'
 
 import { HeroPattern } from '@/components/shared'
+import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
 import { useEffect, useState } from 'react'
@@ -159,31 +160,35 @@ export default function ModelsPage() {
         </div>
 
         {/* Filters */}
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder={t('models.searchPlaceholder')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
-            />
-          </div>
-          <div className="w-full sm:w-48">
-            <Select value={providerFilter} onValueChange={setProviderFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder={t('models.allProviders')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('models.allProviders')}</SelectItem>
-                {providers.map((provider) => (
-                  <SelectItem key={provider} value={provider}>
-                    {provider}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="mb-6">
+          <FilterToolbar
+            searchValue={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder={t('models.searchPlaceholder')}
+            searchLabel={t('common.filters.search')}
+            filtersLabel={t('common.filters.filters')}
+            hasActiveFilters={providerFilter !== 'all' || searchQuery.trim() !== ''}
+            onClearFilters={() => {
+              setProviderFilter('all')
+              setSearchQuery('')
+            }}
+          >
+            <FilterToolbar.Field label={t('models.allProviders')}>
+              <Select value={providerFilter} onValueChange={setProviderFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('models.allProviders')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('models.allProviders')}</SelectItem>
+                  {providers.map((provider) => (
+                    <SelectItem key={provider} value={provider}>
+                      {provider}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FilterToolbar.Field>
+          </FilterToolbar>
         </div>
 
         {/* Loading state */}

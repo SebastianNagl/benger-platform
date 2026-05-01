@@ -663,6 +663,15 @@ class TestSerializers:
             active_duration_ms = 25000
             focused_duration_ms = 20000
             tab_switches = 2
+            # Round-trip fields (export-fidelity audit).
+            auto_submitted = False
+            instruction_variant = None
+            ai_assisted = False
+            reviewed_by = None
+            reviewed_at = None
+            review_result = None
+            review_annotation = None
+            review_comment = None
 
         result = serialize_annotation(FakeAnn(), mode="data")
         assert "questionnaire_response" in result
@@ -687,6 +696,15 @@ class TestSerializers:
             project_id = "p1"
             draft = {"partial": True}
             prediction_scores = None
+            # Round-trip fields.
+            auto_submitted = False
+            instruction_variant = None
+            ai_assisted = False
+            reviewed_by = None
+            reviewed_at = None
+            review_result = None
+            review_annotation = None
+            review_comment = None
 
         result = serialize_annotation(FakeAnn(), mode="full")
         assert result["task_id"] == "t1"
@@ -721,6 +739,13 @@ class TestSerializers:
             usage_stats = {"tokens": 100}
             status = "completed"
             error_message = None
+            # Round-trip parse + label-config snapshot.
+            parse_status = "pending"
+            parse_error = None
+            parsed_annotation = None
+            parse_metadata = None
+            label_config_version = None
+            label_config_snapshot = None
 
         result = serialize_generation(FakeGen(), mode="full")
         assert result["generation_id"] == "rg1"
@@ -743,6 +768,7 @@ class TestSerializers:
             processing_time_ms = 100
             created_at = datetime(2024, 1, 1)
             evaluation_id = "er1"
+            judge_prompts_used = None
 
         class FakeER:
             model_id = "gpt-4o"
@@ -775,6 +801,7 @@ class TestSerializers:
             evaluation_id = "er1"
             task_id = "t1"
             generation_id = "g1"
+            judge_prompts_used = None
 
         result = serialize_task_evaluation(FakeTE(), mode="full")
         assert result["evaluation_id"] == "er1"
