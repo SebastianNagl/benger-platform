@@ -7,6 +7,10 @@
 import { expect, Page, test } from '@playwright/test'
 import { APISeedingHelper } from '../helpers/api-seeding'
 import { TestHelpers } from '../helpers/test-helpers'
+import {
+  clickSubmitFromAnyStep,
+  enableWizardFeatures,
+} from '../helpers/wizard-helpers'
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || ''
 
@@ -49,8 +53,6 @@ test.describe('Project Lifecycle', () => {
     await createButton.click()
     await page.waitForURL(/\/projects\/create/, { timeout: 15000 })
 
-    expect(page.url()).toContain('/projects/create')
-
     const nameInput = page.locator(
       '[data-testid="project-create-name-input"]'
     )
@@ -59,44 +61,31 @@ test.describe('Project Lifecycle', () => {
     const projectName = `E2E Lifecycle ${Date.now()}`
     await nameInput.fill(projectName)
 
-    const descInput = page.locator(
-      '[data-testid="project-create-description-textarea"]'
-    )
-    if (await descInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await descInput.fill('Test project created by E2E lifecycle test')
-    }
-
-    const nextButton = page.locator(
-      '[data-testid="project-create-next-button"]'
-    )
-    if (await nextButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await nextButton.click()
-    }
-
-    const skipButton = page.locator(
-      '[data-testid="project-create-skip-data-button"]'
-    )
-    if (await skipButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await skipButton.click()
-    }
-
-    const submitButton = page.locator(
-      '[data-testid="project-create-submit-button"]'
-    )
-    if (await submitButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await submitButton.click()
-    }
-
-    // Wait for redirect to project detail
     await page
-      .waitForURL(/\/projects\/[a-f0-9-]+/, { timeout: 15000 })
-      .catch(() => {})
+      .locator('[data-testid="project-create-description-textarea"]')
+      .fill('Test project created by E2E lifecycle test')
 
-    const projectUrl = page.url()
-    const match = projectUrl.match(/\/projects\/([a-f0-9-]+)/)
-    if (match) {
-      seededProjectId = match[1]
-    }
+    // Enable a richer feature set so the wizard renders multiple steps —
+    // this is the only spec exercising the project-creation wizard
+    // end-to-end; if it walks only the trivial 1-step path it doesn't
+    // catch real wizard regressions.
+    await enableWizardFeatures(page, ['dataImport', 'annotation'])
+
+    // Verify the step indicator shows we're starting on step 1.
+    const stepIndicator = page.locator(
+      '[data-testid="project-create-step-indicator"]'
+    )
+    await expect(stepIndicator).toHaveAttribute('data-step', '1')
+
+    // Walk the wizard to the final step + submit. clickSubmitFromAnyStep
+    // asserts the step indicator strictly advances on each Next click.
+    await clickSubmitFromAnyStep(page)
+
+    await page.waitForURL(/\/projects\/[a-f0-9-]+/, { timeout: 15000 })
+
+    const match = page.url().match(/\/projects\/([a-f0-9-]+)/)
+    expect(match).not.toBeNull()
+    seededProjectId = match![1]
 
     expect(seededProjectId).toBeTruthy()
   })

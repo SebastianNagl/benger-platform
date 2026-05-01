@@ -50,10 +50,14 @@ jobs:
           cache-dependency-path: services/frontend/package-lock.json
 
       - name: Install frontend dependencies
+        # One retry covers the transient registry-side ECONNRESET observed
+        # on 2026-04-30 (npm error code ECONNRESET during fetch from
+        # registry.npmjs.org). A persistent registry outage will still
+        # fail the shard loudly after the second attempt.
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 10
-          max_attempts: 3
+          max_attempts: 2
           retry_wait_seconds: 30
           command: cd services/frontend && npm ci
 

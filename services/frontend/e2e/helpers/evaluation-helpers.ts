@@ -477,11 +477,9 @@ export class EvaluationHelpers {
    * Throws if no checkbox found
    */
   async selectFirstPredictionField(): Promise<void> {
-    // Scope to the wizard so we don't accidentally click an unrelated
-    // checkbox (e.g. a project-settings toggle) on the same page.
-    const wizard = this.page.locator(
-      '[data-testid="evaluation-wizard-header"] >> xpath=ancestor::div[1]'
-    )
+    // Scope to the wizard body via its semantic testid so an unrelated
+    // checkbox elsewhere on the page can't be picked up.
+    const wizard = this.page.locator('[data-testid="evaluation-wizard-body"]')
     const checkbox = wizard.locator('input[type="checkbox"]').first()
 
     if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -500,9 +498,7 @@ export class EvaluationHelpers {
    * Throws if no checkbox found
    */
   async selectFirstReferenceField(): Promise<void> {
-    const wizard = this.page.locator(
-      '[data-testid="evaluation-wizard-header"] >> xpath=ancestor::div[1]'
-    )
+    const wizard = this.page.locator('[data-testid="evaluation-wizard-body"]')
     const checkbox = wizard.locator('input[type="checkbox"]').first()
 
     if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {

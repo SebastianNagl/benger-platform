@@ -247,8 +247,9 @@ export class TestHelpers {
   }
 
   // Create a test project via POST /api/projects. Default for any spec
-  // that needs a project as setup; use createTestProjectViaWizard only when
-  // you're explicitly asserting on the wizard UX.
+  // that needs a project as setup. The only spec that exercises the
+  // project-creation wizard end-to-end is project-lifecycle.spec.ts; it
+  // walks the wizard inline because the wizard IS its test subject.
   async createTestProject(name: string): Promise<string | null> {
     try {
       const seeder = new APISeedingHelper(this.page)
@@ -259,135 +260,13 @@ export class TestHelpers {
     }
   }
 
-  // Walks the project-creation wizard step-by-step. Use only in specs that
-  // explicitly test the wizard UX; everything else should call the API-
-  // driven createTestProject above.
-  async createTestProjectViaWizard(name: string): Promise<string | null> {
-    const currentUrl = this.page.url()
-
-    try {
-      // Navigate to create project page
-      await this.page.goto('/projects/create')
-
-      // Step 1: Project Info
-      // Wait for form to be ready with fallback selectors
-      const nameInputSelector =
-        '[data-testid="project-create-name-input"], input[name="name"], input[placeholder*="German Legal"], input[placeholder*="Name"]'
-      await this.page
-        .waitForSelector(nameInputSelector, { timeout: 5000 })
-        .catch(() => {
-          console.log('Name input not found with primary selectors')
-        })
-
-      // Fill in project details using fallback selectors
-      const nameInput = this.page.locator(nameInputSelector).first()
-      if (await nameInput.isVisible().catch(() => false)) {
-        await nameInput.fill(name)
-      } else {
-        console.log('Could not find name input field')
-        return null
-      }
-
-      const descriptionTextarea = this.page
-        .locator(
-          '[data-testid="project-create-description-textarea"], textarea[name="description"], textarea[placeholder*="Describe"]'
-        )
-        .first()
-      if (await descriptionTextarea.isVisible().catch(() => false)) {
-        await descriptionTextarea.fill(`Test project for ${name}`)
-      }
-
-      // Click Next button with fallback selectors (including German locale)
-      const nextButton = this.page
-        .locator(
-          '[data-testid="project-create-next-button"], button:has-text("Next"), button:has-text("Weiter"), button:has-text("Nächster")'
-        )
-        .first()
-      await nextButton.click()
-
-      // Step 2: Data Import - Skip this step
-      // Wait for the data import step to be visible
-      await this.page
-        .waitForSelector('text=/Daten importieren|Import Data|Data Import/i', {
-          timeout: 10000,
-        })
-        .catch(() => console.log('Data import heading not found'))
-
-      // Look for "Skip Data Import" button with fallbacks (including German locale)
-      const skipButton = this.page
-        .locator(
-          '[data-testid="project-create-skip-data-button"], button:has-text("Skip Data Import"), button:has-text("Datenimport überspringen"), button:has-text("Skip")'
-        )
-        .first()
-
-      // Wait for the button to be visible and stable
-      await skipButton.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {
-        console.log('Skip button not visible')
-      })
-
-      if (await skipButton.isVisible().catch(() => false)) {
-        // Use force: true to bypass the file dropzone overlay that intercepts pointer events on mobile
-        await skipButton.click({ force: true })
-        // Wait for navigation to step 3
-        await this.page.waitForTimeout(500)
-      } else {
-        // If no skip button, try clicking Next again (including German locale)
-        const nextButton2 = this.page
-          .locator(
-            '[data-testid="project-create-next-button"], button:has-text("Next"), button:has-text("Weiter"), button:has-text("Nächster")'
-          )
-          .first()
-        await nextButton2.click()
-      }
-
-      // Step 3: Labeling Setup - Just create the project
-      // Wait for the annotation setup step to be visible
-      await this.page
-        .waitForSelector('text=/Annotation einrichten|Annotation Setup|Labeling/i', {
-          timeout: 10000,
-        })
-        .catch(() => console.log('Annotation setup heading not found'))
-
-      // Click "Create Project" button with fallback selectors (including German locale)
-      const createButton = this.page
-        .locator(
-          '[data-testid="project-create-submit-button"], button:has-text("Create Project"), button:has-text("Create"), button:has-text("Projekt erstellen"), button:has-text("Erstellen")'
-        )
-        .first()
-      await createButton.click()
-
-      // Wait for success toast
-      await this.page.waitForTimeout(1000) // Give time for the request to complete
-
-      // Wait for redirect to project page with UUID pattern
-      await this.page.waitForURL(
-        /\/projects\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-        { timeout: 10000 }
-      )
-      const projectUrl = this.page.url()
-      console.log('Project URL after creation:', projectUrl)
-
-      // Extract project ID from URL (handle both /projects/id and /projects/id/something patterns)
-      const urlParts = projectUrl.split('/')
-      const projectsIndex = urlParts.findIndex((part) => part === 'projects')
-      const projectId =
-        projectsIndex >= 0 && projectsIndex + 1 < urlParts.length
-          ? urlParts[projectsIndex + 1].split('?')[0] // Remove any query params
-          : null
-
-      console.log('Extracted project ID:', projectId)
-
-      // Navigate back to original page
-      await this.page.goto(currentUrl)
-
-      return projectId
-    } catch (error) {
-      console.error('Failed to create test project:', error)
-      // Navigate back to original page on failure
-      await this.page.goto(currentUrl).catch(() => {})
-      return null
-    }
-  }
+  // The wizard-walking helper used to live here. It was unused after the
+  // API-seeded createTestProject migration — the only spec that exercises
+  // the project-creation wizard end-to-end is project-lifecycle.spec.ts,
+  // which walks the wizard inline because the wizard IS its test subject.
+  // If you need to drive the wizard from a new spec, prefer scoping the
+  // walk to that spec; sharing it dilutes which spec is responsible for
+  // wizard regressions.
 
   /**
    * Delete a test project with verification

@@ -55,33 +55,56 @@ export class APISeedingHelper {
   }
 
   /**
-   * Create a project via API
+   * Create a project via API. Retries once on transient network errors
+   * (502/503/504 or `TypeError: Failed to fetch`) — these surface
+   * sporadically on saturated CI runners. 4xx responses are NOT retried;
+   * those are real failures.
    */
   async createProject(name: string, description?: string): Promise<string> {
-    const result = await this.page.evaluate(
-      async ({ name, description }) => {
-        try {
-          const response = await fetch('/api/projects', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              title: name,
-              description: description || `Test project: ${name}`,
-            }),
-          })
-          if (!response.ok) {
-            const errorText = await response.text()
-            return { success: false, error: `${response.status}: ${errorText}` }
+    const attempt = async () =>
+      this.page.evaluate(
+        async ({ name, description }) => {
+          try {
+            const response = await fetch('/api/projects', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                title: name,
+                description: description || `Test project: ${name}`,
+              }),
+            })
+            if (!response.ok) {
+              const errorText = await response.text()
+              return {
+                success: false,
+                status: response.status,
+                error: `${response.status}: ${errorText}`,
+              }
+            }
+            const data = await response.json()
+            return { success: true, status: response.status, projectId: data.id }
+          } catch (e) {
+            return { success: false, status: 0, error: String(e) }
           }
-          const data = await response.json()
-          return { success: true, projectId: data.id }
-        } catch (e) {
-          return { success: false, error: String(e) }
-        }
-      },
-      { name, description }
-    )
+        },
+        { name, description }
+      )
+
+    let result = await attempt()
+    const transient =
+      !result.success &&
+      (result.status === 0 || // network error / fetch threw
+        result.status === 502 ||
+        result.status === 503 ||
+        result.status === 504)
+    if (transient) {
+      console.warn(
+        `[APISeedingHelper.createProject] transient failure (${result.error}), retrying once`
+      )
+      await new Promise((r) => setTimeout(r, 500))
+      result = await attempt()
+    }
 
     if (!result.success || !result.projectId) {
       throw new Error(`Failed to create project: ${result.error}`)
