@@ -40,6 +40,15 @@ async function navigateToTemplateSelection(
   // Fill project name
   await page.fill('[data-testid="project-create-name-input"]', projectName)
 
+  // Enable dataImport + annotation features so the wizard renders the
+  // data-import and template-selection steps the test expects.
+  await page
+    .locator('[data-testid="wizard-feature-dataImport"] input[type="checkbox"]')
+    .check()
+  await page
+    .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
+    .check()
+
   // Step 2: Data import - click next
   const nextButton = page.locator('[data-testid="project-create-next-button"]')
   await expect(nextButton).toBeVisible()
