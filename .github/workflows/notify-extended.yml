@@ -1,0 +1,55 @@
+name: Notify Extended
+
+# Fires repository_dispatch (event-type: core-updated) at the downstream
+# extended-edition repo whenever main moves. The downstream repo's CI/CD
+# rebuilds against the new platform code and ships staging.
+#
+# The downstream repo is named via the EXTENDED_REPO secret (owner/repo) and
+# EXTENDED_REPO_NAME secret (just the repo name, used as the App token scope)
+# so the public workflow YAML does not hard-code the private repo path.
+# Required secrets (org or repo level):
+#   APP_ID, APP_PRIVATE_KEY     — GitHub App with read+dispatch on the target
+#   EXTENDED_REPO               — full owner/repo, e.g. "owner/private-edition"
+#   EXTENDED_REPO_NAME          — just the repo name, e.g. "private-edition"
+# If any of those secrets is unset, the job no-ops with a warning rather than
+# failing the run, so a fresh public clone without secrets configured still
+# passes CI.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  notify:
+    name: Trigger downstream rebuild
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Skip if downstream not configured
+        id: gate
+        env:
+          EXTENDED_REPO: ${{ secrets.EXTENDED_REPO }}
+        run: |
+          if [ -z "$EXTENDED_REPO" ]; then
+            echo "EXTENDED_REPO secret not set — skipping cross-repo dispatch."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate token
+        if: steps.gate.outputs.configured == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: ${{ secrets.EXTENDED_REPO_NAME }}
+
+      - name: Dispatch rebuild
+        if: steps.gate.outputs.configured == 'true'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          repository: ${{ secrets.EXTENDED_REPO }}
+          event-type: core-updated
