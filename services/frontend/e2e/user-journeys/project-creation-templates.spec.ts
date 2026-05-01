@@ -66,6 +66,25 @@ async function navigateToTemplateSelection(
   })
 }
 
+/**
+ * The new feature-toggle wizard adds extra steps after labelingSetup
+ * (annotationInstructions, settings); the submit button is only on the
+ * very last step. Click Next until Submit becomes visible, then click it.
+ */
+async function clickSubmitFromAnyStep(page: Page): Promise<void> {
+  const submit = page.locator('[data-testid="project-create-submit-button"]')
+  const next = page.locator('[data-testid="project-create-next-button"]')
+  for (let i = 0; i < 6; i++) {
+    if (await submit.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await submit.click()
+      return
+    }
+    await next.click()
+    await page.waitForTimeout(500)
+  }
+  throw new Error('Submit button never appeared in wizard after 6 Next clicks')
+}
+
 test.describe('Project Creation Templates - Full Workflow Tests', () => {
   test.describe.configure({ mode: 'serial' })
 
@@ -86,7 +105,7 @@ test.describe('Project Creation Templates - Full Workflow Tests', () => {
     await expect(page.locator('text=Ausgewählt')).toBeVisible({ timeout: 5000 })
 
     // Create project
-    await page.click('[data-testid="project-create-submit-button"]')
+    await clickSubmitFromAnyStep(page)
 
     // Verify project was created - should navigate to project page
     await expect(page).toHaveURL(/\/projects\//, { timeout: 15000 })
@@ -109,7 +128,7 @@ test.describe('Project Creation Templates - Full Workflow Tests', () => {
     await expect(page.locator('text=Ausgewählt')).toBeVisible({ timeout: 5000 })
 
     // Create project
-    await page.click('[data-testid="project-create-submit-button"]')
+    await clickSubmitFromAnyStep(page)
 
     // Verify project was created
     await expect(page).toHaveURL(/\/projects\//, { timeout: 15000 })
@@ -132,7 +151,7 @@ test.describe('Project Creation Templates - Full Workflow Tests', () => {
     await expect(page.locator('text=Ausgewählt')).toBeVisible({ timeout: 5000 })
 
     // Create project
-    await page.click('[data-testid="project-create-submit-button"]')
+    await clickSubmitFromAnyStep(page)
 
     // Verify project was created
     await expect(page).toHaveURL(/\/projects\//, { timeout: 15000 })
@@ -164,7 +183,7 @@ test.describe('Project Creation Templates - Full Workflow Tests', () => {
 </View>`)
 
     // Create project with custom config
-    await page.click('[data-testid="project-create-submit-button"]')
+    await clickSubmitFromAnyStep(page)
 
     // Verify project was created
     await expect(page).toHaveURL(/\/projects\//, { timeout: 15000 })

@@ -14,10 +14,29 @@
  * - Permission boundaries (Contributor, Superadmin can update; Annotator cannot)
  */
 
-import { expect, test } from '@playwright/test'
+import { expect, Page, test } from '@playwright/test'
 import { TestHelpers } from '../helpers/test-helpers'
 
 const TEST_URL = process.env.PLAYWRIGHT_BASE_URL || ''
+
+/**
+ * The new feature-toggle wizard adds extra steps after labelingSetup
+ * (annotationInstructions, settings); the submit button is only on the
+ * very last step. Click Next until Submit becomes visible, then click it.
+ */
+async function clickSubmitFromAnyStep(page: Page): Promise<void> {
+  const submit = page.locator('[data-testid="project-create-submit-button"]')
+  const next = page.locator('[data-testid="project-create-next-button"]')
+  for (let i = 0; i < 6; i++) {
+    if (await submit.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await submit.click()
+      return
+    }
+    await next.click()
+    await page.waitForTimeout(500)
+  }
+  throw new Error('Submit button never appeared in wizard after 6 Next clicks')
+}
 
 test.describe('Label Config Updates - Contributor Workflows', () => {
   test.describe.configure({ mode: 'serial' })
@@ -81,7 +100,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
     }
 
     // Submit project creation
-    await page.locator('[data-testid="project-create-submit-button"]').click()
+    await clickSubmitFromAnyStep(page)
 
     // Wait for redirect to project page
     await page.waitForURL(/\/projects\/[0-9a-f-]+/, { timeout: 30000 })
@@ -213,7 +232,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
       await qaTemplateButton.click()
     }
 
-    await page.locator('[data-testid="project-create-submit-button"]').click()
+    await clickSubmitFromAnyStep(page)
     await page.waitForURL(/\/projects\/[0-9a-f-]+/, { timeout: 30000 })
     projectId = page.url().split('/projects/')[1]
     console.log(`✅ Project created with tasks: ${projectId}`)
@@ -326,7 +345,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
       console.log('✅ Created config with 4 fields')
     }
 
-    await page.locator('[data-testid="project-create-submit-button"]').click()
+    await clickSubmitFromAnyStep(page)
     await page.waitForURL(/\/projects\/[0-9a-f-]+/, { timeout: 30000 })
 
     // Now remove the Rating field
@@ -404,7 +423,7 @@ test.describe('Label Config Updates - Contributor Workflows', () => {
       await configTextarea.fill(initialConfig)
     }
 
-    await page.locator('[data-testid="project-create-submit-button"]').click()
+    await clickSubmitFromAnyStep(page)
     await page.waitForURL(/\/projects\/[0-9a-f-]+/, { timeout: 30000 })
 
     await page.waitForTimeout(2000)
@@ -698,7 +717,7 @@ test.describe('Label Config Updates - Complex Schemas', () => {
       await page.waitForTimeout(500)
     }
 
-    await page.locator('[data-testid="project-create-submit-button"]').click()
+    await clickSubmitFromAnyStep(page)
     await page.waitForURL(/\/projects\/[0-9a-f-]+/, { timeout: 30000 })
 
     console.log('✅ Complex schema created successfully')
@@ -730,7 +749,7 @@ test.describe('Label Config Updates - Complex Schemas', () => {
       await qaTemplateButton.click()
     }
 
-    await page.locator('[data-testid="project-create-submit-button"]').click()
+    await clickSubmitFromAnyStep(page)
     await page.waitForURL(/\/projects\/[0-9a-f-]+/, { timeout: 30000 })
 
     // Switch to Text Classification template
@@ -964,7 +983,7 @@ test.describe('Label Config Updates - Advanced Features', () => {
       await configTextarea.fill(initialConfig)
     }
 
-    await page.locator('[data-testid="project-create-submit-button"]').click()
+    await clickSubmitFromAnyStep(page)
     await page.waitForURL(/\/projects\/[0-9a-f-]+/, { timeout: 30000 })
 
     // Make multiple changes at once
@@ -1078,7 +1097,7 @@ test.describe('Label Config Updates - Advanced Features', () => {
       await page.waitForTimeout(500)
     }
 
-    await page.locator('[data-testid="project-create-submit-button"]').click()
+    await clickSubmitFromAnyStep(page)
     await page.waitForURL(/\/projects\/[0-9a-f-]+/, { timeout: 30000 })
 
     console.log('✅ Nested View config with styling created successfully')
