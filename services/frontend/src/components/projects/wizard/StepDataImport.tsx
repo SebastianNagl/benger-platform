@@ -10,10 +10,10 @@ import {
   TabsTrigger,
 } from '@/components/shared/Tabs'
 import { Textarea } from '@/components/shared/Textarea'
+import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { CloudArrowUpIcon } from '@heroicons/react/24/outline'
 import React, { useCallback } from 'react'
-import { toast } from 'react-hot-toast'
 
 interface StepDataImportProps {
   pastedData: string
@@ -66,6 +66,7 @@ export function StepDataImport({
   onDataColumnsChange,
 }: StepDataImportProps) {
   const { t } = useI18n()
+  const { addToast } = useToast()
 
   // Extract columns when pasted data changes
   const handlePastedDataChange = useCallback(
@@ -265,15 +266,17 @@ export function StepDataImport({
                       } else if (trimmed.includes(',')) {
                         format = 'csv'
                       }
-                      toast.success(
+                      addToast(
                         t(
                           'projects.creation.wizard.step2.paste.formatDetected',
                           { format: format.toUpperCase() }
-                        )
+                        ),
+                        'success'
                       )
                     } catch {
-                      toast.error(
-                        t('projects.creation.wizard.step2.paste.invalidFormat')
+                      addToast(
+                        t('projects.creation.wizard.step2.paste.invalidFormat'),
+                        'error'
                       )
                     }
                   }}

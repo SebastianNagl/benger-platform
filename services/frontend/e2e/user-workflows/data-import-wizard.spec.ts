@@ -69,12 +69,14 @@ test.describe('Data Import Wizard Step', () => {
     await expect(validate).toBeEnabled()
     await validate.click()
 
-    // The validate button shows a toast naming the detected format.
-    // For our JSON input we expect "JSON" to appear in a toast (not just
-    // any "JSON" text on the page — scope to react-hot-toast container).
-    await expect(
-      page.locator('div[role="status"]').getByText(/JSON/i).first()
-    ).toBeVisible({ timeout: 5000 })
+    // The validate button shows a success toast naming the detected
+    // format. Scope to the app's Toast container testid so unrelated
+    // page text containing "JSON" can't false-match.
+    const toast = page.locator(
+      '[data-testid="toast-item"][data-toast-type="success"]'
+    )
+    await expect(toast).toBeVisible({ timeout: 5000 })
+    await expect(toast).toContainText(/JSON/i)
   })
 
   test('clear-button removes pasted data and re-disables validate', async ({
