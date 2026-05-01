@@ -49,6 +49,15 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
       'Comprehensive project for testing full export/import roundtrip with all settings'
     )
 
+    // Enable dataImport + annotation features so the wizard renders the
+    // step-2 (data import) and step-3 (labelingSetup) steps the test expects.
+    await page
+      .locator('[data-testid="wizard-feature-dataImport"] input[type="checkbox"]')
+      .check()
+    await page
+      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
+      .check()
+
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
 
