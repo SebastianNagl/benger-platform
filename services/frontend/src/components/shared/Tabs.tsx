@@ -3,6 +3,8 @@
 import clsx from 'clsx'
 import { useHydration } from '@/contexts/HydrationContext'
 import {
+  ButtonHTMLAttributes,
+  HTMLAttributes,
   ReactNode,
   createContext,
   useContext,
@@ -28,13 +30,18 @@ interface TabsListProps {
   className?: string
 }
 
-interface TabsTriggerProps {
+interface TabsTriggerProps
+  extends Omit<
+    ButtonHTMLAttributes<HTMLButtonElement>,
+    'onClick' | 'value' | 'children' | 'className' | 'type'
+  > {
   value: string
   children: ReactNode
   className?: string
 }
 
-interface TabsContentProps {
+interface TabsContentProps
+  extends Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'className'> {
   value: string
   children: ReactNode
   className?: string
@@ -73,7 +80,12 @@ export function TabsList({ children, className }: TabsListProps) {
   )
 }
 
-export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
+export function TabsTrigger({
+  value,
+  children,
+  className,
+  ...rest
+}: TabsTriggerProps) {
   const context = useContext(TabsContext)
 
   // During SSR or initial render, context might not be available yet
@@ -88,6 +100,7 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
           'hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-white',
           className
         )}
+        {...rest}
       >
         {children}
       </button>
@@ -108,6 +121,7 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
           : 'hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-white',
         className
       )}
+      {...rest}
     >
       {children}
     </button>
@@ -119,6 +133,7 @@ export function TabsContent({
   children,
   className,
   forceMount,
+  ...rest
 }: TabsContentProps) {
   const context = useContext(TabsContext)
 
@@ -143,6 +158,7 @@ export function TabsContent({
           className
         )}
         style={{ display: isActive ? 'block' : 'none' }}
+        {...rest}
       >
         {children}
       </div>
@@ -156,6 +172,7 @@ export function TabsContent({
         'mt-2 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2',
         className
       )}
+      {...rest}
     >
       {children}
     </div>

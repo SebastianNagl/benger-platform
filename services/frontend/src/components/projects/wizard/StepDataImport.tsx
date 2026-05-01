@@ -226,7 +226,15 @@ export function StepDataImport({
               data-testid="project-create-paste-data-textarea"
             />
             <div className="flex items-center justify-between">
-              <div className="text-sm text-zinc-600 dark:text-zinc-400">
+              <div
+                className="text-sm text-zinc-600 dark:text-zinc-400"
+                data-testid="project-create-paste-line-count"
+                data-line-count={
+                  pastedData.trim()
+                    ? pastedData.trim().split('\n').length
+                    : 0
+                }
+              >
                 {pastedData.trim()
                   ? t('projects.creation.wizard.step2.paste.lines', {
                       count: pastedData.trim().split('\n').length,

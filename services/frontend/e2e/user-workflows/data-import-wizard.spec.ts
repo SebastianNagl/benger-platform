@@ -53,14 +53,14 @@ test.describe('Data Import Wizard Step', () => {
       .locator('[data-testid="project-create-paste-data-textarea"]')
       .fill(pasted)
 
-    // The component renders a line-count badge. Pretty-printed JSON of 5
-    // objects with one key each is 17 lines (check the actual rendering).
-    // We assert the rendered text mentions a number and matches our input
-    // line count so the indicator stays in sync with what was pasted.
+    // The line-count display has a data-line-count attribute that mirrors
+    // the number of lines in the textarea. Assert it equals the pasted
+    // line count exactly — uses the explicit testid so unrelated text on
+    // the page can't false-match.
     const expectedLineCount = pasted.split('\n').length
     await expect(
-      page.locator('text=' + new RegExp(`\\b${expectedLineCount}\\b`))
-    ).toBeVisible({ timeout: 5000 })
+      page.locator('[data-testid="project-create-paste-line-count"]')
+    ).toHaveAttribute('data-line-count', String(expectedLineCount))
 
     // Validate button should now be enabled (was disabled with no data)
     const validate = page.locator(
@@ -70,10 +70,11 @@ test.describe('Data Import Wizard Step', () => {
     await validate.click()
 
     // The validate button shows a toast naming the detected format.
-    // For our JSON input we expect "JSON" to appear.
-    await expect(page.locator('text=/JSON/i').first()).toBeVisible({
-      timeout: 5000,
-    })
+    // For our JSON input we expect "JSON" to appear in a toast (not just
+    // any "JSON" text on the page — scope to react-hot-toast container).
+    await expect(
+      page.locator('div[role="status"]').getByText(/JSON/i).first()
+    ).toBeVisible({ timeout: 5000 })
   })
 
   test('clear-button removes pasted data and re-disables validate', async ({
