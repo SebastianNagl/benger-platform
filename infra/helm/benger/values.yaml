@@ -345,9 +345,13 @@ migrations:
       cpu: "500m"
 
 # Database backup configuration
-# Backups run as a K8s CronJob using pg_dump
+# Backups run as a K8s CronJob using pg_dump.
+# Disabled in prod: host-level backups are configured at the server level
+# (178.105.26.90, configured 2026-05-01), which back up the entire data
+# volume rather than just pg_dump. Re-enable here only if you need an
+# in-cluster logical dump on top of the host snapshots.
 backup:
-  enabled: true
+  enabled: false
   # Cron schedule (default: daily at 02:00 UTC)
   schedule: "0 2 * * *"
   # pg_dump version must be >= the running server's major version, otherwise
