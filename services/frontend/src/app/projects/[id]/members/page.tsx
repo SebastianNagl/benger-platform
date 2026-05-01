@@ -12,6 +12,7 @@ import { Badge } from '@/components/shared/Badge'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
+import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { Input } from '@/components/shared/Input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import {
@@ -36,7 +37,6 @@ import {
 import {
   ArrowLeftIcon,
   BuildingOfficeIcon,
-  MagnifyingGlassIcon,
   TrashIcon,
   UserGroupIcon,
   UserPlusIcon,
@@ -276,15 +276,23 @@ export default function ProjectMembersPage() {
     }
   }
 
+  const [memberRoleFilter, setMemberRoleFilter] = useState<
+    'all' | 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
+  >('all')
+
   const filteredMembers = projectMembers.filter((member) => {
-    if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
-    return (
+    const matchesSearch =
+      !searchQuery ||
       member.name.toLowerCase().includes(query) ||
       member.email.toLowerCase().includes(query) ||
       (member.organization_name &&
         member.organization_name.toLowerCase().includes(query))
-    )
+
+    const matchesRole =
+      memberRoleFilter === 'all' || member.role === memberRoleFilter
+
+    return matchesSearch && matchesRole
   })
 
   if (!currentProject) {
@@ -359,29 +367,49 @@ export default function ProjectMembersPage() {
         <TabsContent value="members">
           <Card>
             <div className="p-6">
-              <div className="mb-6 flex items-center justify-between">
-                <div className="max-w-sm flex-1">
-                  <div className="relative">
-                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 transform text-zinc-400" />
-                    <Input
-                      placeholder={t('members.searchPlaceholder')}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-
-                {canManageMembers() && (
-                  <Button
-                    onClick={() => setShowAddMemberDialog(true)}
-                    variant="primary"
+              <FilterToolbar
+                searchValue={searchQuery}
+                onSearchChange={setSearchQuery}
+                searchPlaceholder={t('members.searchPlaceholder')}
+                searchLabel={t('common.filters.search')}
+                filtersLabel={t('common.filters.filters')}
+                hasActiveFilters={memberRoleFilter !== 'all' || searchQuery.trim() !== ''}
+                onClearFilters={() => {
+                  setMemberRoleFilter('all')
+                  setSearchQuery('')
+                }}
+                clearLabel={t('common.filters.clearAll')}
+                rightExtras={
+                  canManageMembers() ? (
+                    <Button
+                      onClick={() => setShowAddMemberDialog(true)}
+                      variant="primary"
+                    >
+                      <UserPlusIcon className="mr-2 h-4 w-4" />
+                      {t('members.addMember')}
+                    </Button>
+                  ) : null
+                }
+              >
+                <FilterToolbar.Field label={t('admin.organizations.filters.role')}>
+                  <Select
+                    value={memberRoleFilter}
+                    onValueChange={(v) => setMemberRoleFilter(v as typeof memberRoleFilter)}
                   >
-                    <UserPlusIcon className="mr-2 h-4 w-4" />
-                    {t('members.addMember')}
-                  </Button>
-                )}
-              </div>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('common.filters.all')}</SelectItem>
+                      <SelectItem value="ANNOTATOR">{t('admin.organizations.roleAnnotator')}</SelectItem>
+                      <SelectItem value="CONTRIBUTOR">{t('admin.organizations.roleContributor')}</SelectItem>
+                      <SelectItem value="ORG_ADMIN">{t('admin.organizations.roleAdmin')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FilterToolbar.Field>
+              </FilterToolbar>
+
+              <div className="mb-2" />
 
               {loadingMembers ? (
                 <div className="py-12 text-center">

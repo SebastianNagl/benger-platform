@@ -11,14 +11,10 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import React from 'react'
 import { useNotifications } from '../useNotifications'
 
-// Mock react-hot-toast
-jest.mock('react-hot-toast', () => {
-  const success = jest.fn()
-  const error = jest.fn()
-  return {
-    toast: Object.assign(jest.fn(), { success, error }),
-  }
-})
+// Toast mocking is handled by setupTests.ts. Local helper to read the
+// per-type stable mocks via the same `toast.success/error` shape the
+// existing assertions use.
+import { mockToast as __mockToastSetup } from '@/test-utils/setupTests'
 
 // Mock I18nContext
 jest.mock('@/contexts/I18nContext', () => ({
@@ -313,7 +309,7 @@ describe('useNotifications - Branch Coverage', () => {
         await result.current.markAsRead('1')
       })
 
-      const { toast } = require('react-hot-toast')
+      const toast = __mockToastSetup
       expect(toast.error).toHaveBeenCalledWith('notifications.markReadError')
       consoleSpy.mockRestore()
     })
@@ -350,7 +346,7 @@ describe('useNotifications - Branch Coverage', () => {
         await result.current.markAllAsRead()
       })
 
-      const { toast } = require('react-hot-toast')
+      const toast = __mockToastSetup
       expect(toast.success).toHaveBeenCalledWith('notifications.markAllReadSuccess')
     })
 
@@ -368,7 +364,7 @@ describe('useNotifications - Branch Coverage', () => {
         await result.current.markAllAsRead()
       })
 
-      const { toast } = require('react-hot-toast')
+      const toast = __mockToastSetup
       expect(toast.error).toHaveBeenCalledWith('notifications.markAllReadError')
       consoleSpy.mockRestore()
     })
@@ -443,7 +439,7 @@ describe('useNotifications - Branch Coverage', () => {
       })
 
       expect(success).toBe(true)
-      const { toast } = require('react-hot-toast')
+      const toast = __mockToastSetup
       expect(toast.success).toHaveBeenCalledWith('notifications.preferencesUpdated')
     })
 
@@ -462,7 +458,7 @@ describe('useNotifications - Branch Coverage', () => {
       })
 
       expect(success).toBe(false)
-      const { toast } = require('react-hot-toast')
+      const toast = __mockToastSetup
       expect(toast.error).toHaveBeenCalledWith('notifications.preferencesUpdateFailed')
       consoleSpy.mockRestore()
     })

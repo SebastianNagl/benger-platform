@@ -1,0 +1,87 @@
+name: Model Catalog Drift
+
+# Two trigger modes:
+#   - PR / push: spin up a Postgres, run the seed against it, and confirm
+#     the YAML and the freshly-seeded DB agree (catches malformed YAML or
+#     bugs in the upsert path).
+#   - workflow_call: callable from a separate scheduled workflow that
+#     points at staging or prod credentials (catches out-of-band drift
+#     caused by manual UPDATEs, half-applied migrations, stale flags, etc).
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'services/api/seeds/llm_models.yaml'
+      - 'services/api/seeds/llm_models_loader.py'
+      - 'services/api/database.py'
+      - 'services/api/scripts/check_model_catalog_drift.py'
+      - '.github/workflows/model-catalog-drift.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'services/api/seeds/llm_models.yaml'
+      - 'services/api/seeds/llm_models_loader.py'
+  workflow_call:
+    inputs:
+      database_url:
+        description: 'DB URL to diff against (overrides the ephemeral Postgres)'
+        required: true
+        type: string
+    secrets:
+      DRIFT_DATABASE_URL:
+        required: false
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  drift-check:
+    name: Catalog ↔ DB drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: benger
+          POSTGRES_PASSWORD: benger
+          POSTGRES_DB: benger_drift
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U benger"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install API dependencies
+        run: |
+          cd services/api
+          pip install -r requirements.txt
+
+      - name: Run alembic migrations + LLM seed (ephemeral DB)
+        if: ${{ inputs.database_url == '' }}
+        env:
+          DATABASE_URL: postgresql://benger:benger@localhost:5432/benger_drift
+        run: |
+          cd services/api
+          alembic upgrade head
+          python -c "from database import SessionLocal, initialize_llm_models; initialize_llm_models(SessionLocal())"
+
+      - name: Diff YAML against DB
+        env:
+          DATABASE_URL: ${{ inputs.database_url || 'postgresql://benger:benger@localhost:5432/benger_drift' }}
+        run: |
+          cd services/api
+          python scripts/check_model_catalog_drift.py

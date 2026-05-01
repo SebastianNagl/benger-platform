@@ -85,10 +85,12 @@ describe('Select Component', () => {
   })
 
   describe('Value Display', () => {
-    it('displays selected value', () => {
+    it('displays selected value label', () => {
       render(<DefaultSelect value="option1" />)
 
-      expect(screen.getByText('option1')).toBeInTheDocument()
+      // The trigger shows the SelectItem's label, not the raw value.
+      const trigger = screen.getByRole('button')
+      expect(within(trigger).getByText('Option 1')).toBeInTheDocument()
     })
 
     it('displays placeholder when value is empty string', () => {
@@ -99,10 +101,11 @@ describe('Select Component', () => {
 
     it('updates display when value prop changes', () => {
       const { rerender } = render(<DefaultSelect value="option1" />)
-      expect(screen.getByText('option1')).toBeInTheDocument()
+      const trigger = screen.getByRole('button')
+      expect(within(trigger).getByText('Option 1')).toBeInTheDocument()
 
       rerender(<DefaultSelect value="option2" />)
-      expect(screen.getByText('option2')).toBeInTheDocument()
+      expect(within(trigger).getByText('Option 2')).toBeInTheDocument()
     })
   })
 
@@ -259,7 +262,8 @@ describe('Select Component', () => {
     it('hides placeholder when value is selected', () => {
       render(<DefaultSelect value="option1" />)
 
-      expect(screen.queryByText('Select an option')).not.toBeInTheDocument()
+      const trigger = screen.getByRole('button')
+      expect(within(trigger).queryByText('Select an option')).not.toBeInTheDocument()
     })
 
     it('handles missing placeholder gracefully', () => {
@@ -386,7 +390,8 @@ describe('Select Component', () => {
     it('applies dark mode classes to value text', () => {
       render(<DefaultSelect value="option1" />)
 
-      const valueSpan = screen.getByText('option1')
+      const trigger = screen.getByRole('button')
+      const valueSpan = within(trigger).getByText('Option 1')
       expect(valueSpan).toHaveClass('dark:text-white')
     })
   })

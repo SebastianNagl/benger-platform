@@ -7,21 +7,19 @@ import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { toast } from 'react-hot-toast'
+import { mockToast as __mockToast } from '@/test-utils/setupTests'
+const toast = Object.assign(__mockToast.addToast, {
+  success: __mockToast.success,
+  error: __mockToast.error,
+  loading: jest.fn(),
+  dismiss: jest.fn(),
+})
 import TestNotificationsPage from '../page'
 
 jest.mock('@/contexts/AuthContext')
 jest.mock('@/contexts/I18nContext')
 jest.mock('@/lib/api')
-jest.mock('react-hot-toast', () => ({
-  toast: Object.assign(jest.fn(), {
-    success: jest.fn(),
-    error: jest.fn(),
-    loading: jest.fn(),
-    dismiss: jest.fn(),
-  }),
-  Toaster: () => null,
-}))
+// Toast mocking handled by setupTests.
 
 const mockApiNotifications = {
   createTestNotification: jest.fn(),

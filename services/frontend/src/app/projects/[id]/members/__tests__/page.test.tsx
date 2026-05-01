@@ -157,6 +157,48 @@ jest.mock('@/components/projects/UserAvatar', () => ({
     <div data-testid="user-avatar">{user?.username || 'User'}</div>
   ),
 }))
+jest.mock('@/components/shared/FilterToolbar', () => {
+  const FilterToolbar = ({
+    searchValue,
+    onSearchChange,
+    searchPlaceholder,
+    searchLabel,
+    clearLabel = 'Clear filters',
+    onClearFilters,
+    hasActiveFilters,
+    leftExtras,
+    rightExtras,
+    children,
+  }: any) => (
+    <div data-testid="filter-toolbar">
+      {leftExtras}
+      {onSearchChange && (
+        <input
+          data-testid="filter-toolbar-search"
+          type="search"
+          placeholder={searchPlaceholder}
+          title={searchPlaceholder || searchLabel}
+          value={searchValue ?? ''}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+      )}
+      <div data-testid="filter-toolbar-fields">{children}</div>
+      {onClearFilters && (
+        <button
+          data-testid="filter-toolbar-clear"
+          onClick={onClearFilters}
+          disabled={!hasActiveFilters}
+          title={clearLabel}
+          aria-label={clearLabel}
+        />
+      )}
+      {rightExtras}
+    </div>
+  )
+  FilterToolbar.Field = ({ children }: any) => <div>{children}</div>
+  return { FilterToolbar }
+})
+
 
 const mockRouter = {
   push: jest.fn(),
@@ -559,7 +601,7 @@ describe('ProjectMembersPage', () => {
       })
 
       // Select organization from dropdown
-      const selects = screen.getAllByRole('combobox')
+      const selects = within(screen.getByRole('dialog')).getAllByRole('combobox')
       const orgSelect = selects[0] // First select is organization
       await user.selectOptions(orgSelect, 'org-1')
 
@@ -590,7 +632,7 @@ describe('ProjectMembersPage', () => {
       })
 
       // Select organization
-      const selects = screen.getAllByRole('combobox')
+      const selects = within(screen.getByRole('dialog')).getAllByRole('combobox')
       const orgSelect = selects[0]
       await user.selectOptions(orgSelect, 'org-1')
 
@@ -600,10 +642,10 @@ describe('ProjectMembersPage', () => {
 
       // Select member
       await waitFor(() => {
-        const memberSelects = screen.getAllByRole('combobox')
+        const memberSelects = within(screen.getByRole('dialog')).getAllByRole('combobox')
         expect(memberSelects.length).toBeGreaterThan(1)
       })
-      const memberSelect = screen.getAllByRole('combobox')[1]
+      const memberSelect = within(screen.getByRole('dialog')).getAllByRole('combobox')[1]
       await user.selectOptions(memberSelect, 'user-4')
 
       // Click add button in dialog
@@ -648,11 +690,11 @@ describe('ProjectMembersPage', () => {
       await user.click(screen.getByText('Add Member'))
 
       // Select organization
-      const orgSelect = screen.getAllByRole('combobox')[0]
+      const orgSelect = within(screen.getByRole('dialog')).getAllByRole('combobox')[0]
       await user.selectOptions(orgSelect, 'org-1')
 
       await waitFor(() => {
-        const memberSelects = screen.getAllByRole('combobox')
+        const memberSelects = within(screen.getByRole('dialog')).getAllByRole('combobox')
         expect(memberSelects.length).toBeGreaterThan(1)
         const memberSelect = memberSelects[1]
 
@@ -834,7 +876,7 @@ describe('ProjectMembersPage', () => {
       })
 
       // Select organization
-      const orgSelect = screen.getByRole('combobox')
+      const orgSelect = within(screen.getByRole('dialog')).getByRole('combobox')
       await user.selectOptions(orgSelect, 'org-2')
 
       // Click add button
@@ -859,7 +901,7 @@ describe('ProjectMembersPage', () => {
       await user.click(screen.getByText('Add Organization'))
 
       await waitFor(() => {
-        const orgSelect = screen.getByRole('combobox')
+        const orgSelect = within(screen.getByRole('dialog')).getByRole('combobox')
         // Test Org (org-1) should not be in the select options
         expect(orgSelect.textContent).not.toContain('Test Org')
         // Another Org (org-2) should be available
@@ -1015,16 +1057,16 @@ describe('ProjectMembersPage', () => {
       await user.click(screen.getByText('Add Member'))
 
       // Select organization
-      const orgSelect = screen.getAllByRole('combobox')[0]
+      const orgSelect = within(screen.getByRole('dialog')).getAllByRole('combobox')[0]
       await user.selectOptions(orgSelect, 'org-1')
 
       await waitFor(() => {
-        const memberSelects = screen.getAllByRole('combobox')
+        const memberSelects = within(screen.getByRole('dialog')).getAllByRole('combobox')
         expect(memberSelects.length).toBeGreaterThan(1)
       })
 
       // Select member
-      const memberSelect = screen.getAllByRole('combobox')[1]
+      const memberSelect = within(screen.getByRole('dialog')).getAllByRole('combobox')[1]
       await user.selectOptions(memberSelect, 'user-4')
 
       // Click add button
@@ -1050,7 +1092,7 @@ describe('ProjectMembersPage', () => {
       await user.click(screen.getByText('Add Organization'))
 
       // Select organization
-      const orgSelect = screen.getByRole('combobox')
+      const orgSelect = within(screen.getByRole('dialog')).getByRole('combobox')
       await user.selectOptions(orgSelect, 'org-2')
 
       // Click add button

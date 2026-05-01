@@ -22,7 +22,7 @@ import {
   UserGroupIcon,
 } from '@heroicons/react/24/outline'
 import { useEffect, useState } from 'react'
-import { toast } from 'react-hot-toast'
+import { useToast } from '@/components/shared/Toast'
 
 interface Organization {
   id: string
@@ -47,6 +47,7 @@ export function ProjectPermissionsPanel({
 }: ProjectPermissionsPanelProps) {
   const { user } = useAuth()
   const { t } = useI18n()
+  const { addToast } = useToast()
 
   const [isPublic, setIsPublic] = useState(initialIsPublic)
   const [selectedOrganizationIds, setSelectedOrganizationIds] = useState<
@@ -77,7 +78,7 @@ export function ProjectPermissionsPanel({
         const errorMessage =
           err instanceof Error ? err.message : 'Failed to load organizations'
         setError(errorMessage)
-        toast.error(errorMessage)
+        addToast(errorMessage, 'error')
       } finally {
         setLoading(false)
       }
@@ -96,7 +97,7 @@ export function ProjectPermissionsPanel({
 
   const handleSave = async () => {
     if (!canEditPermissions()) {
-      toast.error(t('project.permissions.noPermission'))
+      addToast(t('project.permissions.noPermission'), 'error')
       return
     }
 
@@ -116,7 +117,7 @@ export function ProjectPermissionsPanel({
       }
 
       await projectsAPI.update(projectId, data)
-      toast.success(t('project.permissions.saveSuccess'))
+      addToast(t('project.permissions.saveSuccess'), 'success')
 
       if (onSave) {
         onSave(data)
@@ -125,7 +126,7 @@ export function ProjectPermissionsPanel({
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to save permissions'
       setError(errorMessage)
-      toast.error(errorMessage)
+      addToast(errorMessage, 'error')
     } finally {
       setSaving(false)
     }

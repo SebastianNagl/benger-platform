@@ -1,21 +1,27 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import React, { createContext, useCallback, useContext, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useRef } from 'react'
 import { useI18n } from '@/contexts/I18nContext'
+import {
+  DEFAULT_TOAST_DURATION_MS,
+  ToastItem,
+  ToastType,
+  useNotificationStore,
+} from '@/stores/notificationStore'
 
-interface Toast {
-  id: string
-  message: string
-  type: 'success' | 'error' | 'info' | 'warning'
-  duration?: number
-}
+// Re-export the type for callers historically importing it from here.
+export type Toast = ToastItem
 
 interface ToastContextType {
-  addToast: (message: string, type?: Toast['type'], duration?: number) => string
+  addToast: (
+    message: string,
+    type?: ToastType,
+    duration?: number
+  ) => string
   showToast: (
     message: string,
-    type?: Toast['type'],
+    type?: ToastType,
     duration?: number
   ) => string
   removeToast: (id: string) => void
@@ -31,53 +37,155 @@ export function useToast() {
   return context
 }
 
-export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<Toast[]>([])
-  const timeoutsRef = React.useRef<Map<string, NodeJS.Timeout>>(new Map())
+// Module-level dispatcher so non-component code (Zustand stores, effects
+// running outside the React tree) can fire toasts. `<ToastProvider>` registers
+// the dispatcher on mount; calls before mount log a warning and no-op.
+let dispatcher: ToastContextType['addToast'] | null = null
 
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id))
-    // Clear timeout if it exists
-    const timeout = timeoutsRef.current.get(id)
-    if (timeout) {
-      clearTimeout(timeout)
-      timeoutsRef.current.delete(id)
+export function setToastDispatcher(
+  fn: ToastContextType['addToast'] | null
+) {
+  dispatcher = fn
+}
+
+export function toast(
+  message: string,
+  type?: ToastType,
+  duration?: number
+): string {
+  if (!dispatcher) {
+    if (typeof console !== 'undefined') {
+      console.warn(
+        'Toast dispatched before ToastProvider mounted:',
+        message
+      )
     }
-  }, [])
+    return ''
+  }
+  return dispatcher(message, type, duration)
+}
 
-  const addToast = useCallback(
-    (message: string, type: Toast['type'] = 'info', duration = 4000) => {
-      const id = Math.random().toString(36).substr(2, 9)
-      const newToast: Toast = { id, message, type, duration }
+const VALID_TOAST_TYPES: readonly ToastType[] = [
+  'success',
+  'error',
+  'warning',
+  'info',
+]
 
-      setToasts((prev) => {
-        // Remove any existing toast with the same message (for loading toasts)
-        const filtered = prev.filter((t) => t.message !== message)
-        // Limit to max 5 toasts at once
-        const newToasts = [...filtered, newToast]
-        return newToasts.slice(-5)
-      })
-
-      if (duration > 0) {
-        const timeout = setTimeout(() => {
-          removeToast(id)
-        }, duration)
-        timeoutsRef.current.set(id, timeout)
-      }
-
-      // Return the ID so callers can track and remove it later
-      return id
-    },
-    [removeToast]
+export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const toasts = useNotificationStore((s) => s.toasts)
+  const storeAdd = useNotificationStore((s) => s.addToast)
+  const storeRemove = useNotificationStore((s) => s.removeToast)
+  const consumeFlashes = useNotificationStore((s) => s.consumeFlashes)
+  const timeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map()
   )
 
-  // Cleanup timeouts on unmount
-  React.useEffect(() => {
+  // Wrap the store's addToast to also schedule the auto-dismiss timer.
+  // The timer lives in the provider (not the store) so a rehydrated/persisted
+  // toast can't keep ticking from a previous render's setTimeout — which
+  // matters for tests and for the "live toasts don't persist" guarantee.
+  const addToast = useCallback(
+    (message: string, type?: ToastType, duration?: number) => {
+      const effectiveDuration =
+        duration === undefined ? DEFAULT_TOAST_DURATION_MS : duration
+      const id = storeAdd(message, type, effectiveDuration)
+      if (effectiveDuration > 0 && id) {
+        const t = setTimeout(() => {
+          storeRemove(id)
+          timeoutsRef.current.delete(id)
+        }, effectiveDuration)
+        timeoutsRef.current.set(id, t)
+      }
+      return id
+    },
+    [storeAdd, storeRemove]
+  )
+
+  const removeToast = useCallback(
+    (id: string) => {
+      storeRemove(id)
+      const t = timeoutsRef.current.get(id)
+      if (t) {
+        clearTimeout(t)
+        timeoutsRef.current.delete(id)
+      }
+    },
+    [storeRemove]
+  )
+
+  // Mount: register the module dispatcher and drain any pending flashes
+  // (sessionStorage for same-origin reload, URL params for cross-origin
+  // redirects). Strip the URL params after dispatch so they don't linger.
+  useEffect(() => {
+    setToastDispatcher(addToast)
+
+    // Rehydrate live toasts from sessionStorage: for each persisted toast,
+    // compute remaining = duration - elapsed-since-createdAt. Evict if the
+    // window has already closed; re-arm a setTimeout for the remainder
+    // otherwise. Persistent toasts (duration <= 0) stay forever.
+    const now = Date.now()
+    const rehydratedToasts = useNotificationStore.getState().toasts
+    const survivors: typeof rehydratedToasts = []
+    for (const t of rehydratedToasts) {
+      const dur = t.duration ?? DEFAULT_TOAST_DURATION_MS
+      if (dur <= 0) {
+        survivors.push(t)
+        continue
+      }
+      const elapsed = now - (t.createdAt ?? now)
+      const remaining = dur - elapsed
+      if (remaining <= 0) continue
+      survivors.push(t)
+      const handle = setTimeout(() => {
+        storeRemove(t.id)
+        timeoutsRef.current.delete(t.id)
+      }, remaining)
+      timeoutsRef.current.set(t.id, handle)
+    }
+    if (survivors.length !== rehydratedToasts.length) {
+      useNotificationStore.setState({ toasts: survivors })
+    }
+
+    const flashes = consumeFlashes()
+    for (const f of flashes) {
+      addToast(f.message, f.type, f.duration)
+    }
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const flashMsg = params.get('flash_msg')
+      if (flashMsg) {
+        const flashTypeRaw = params.get('flash_type') as ToastType | null
+        const flashDurationRaw = params.get('flash_duration')
+        const type =
+          flashTypeRaw && VALID_TOAST_TYPES.includes(flashTypeRaw)
+            ? flashTypeRaw
+            : 'info'
+        const duration =
+          flashDurationRaw !== null && !Number.isNaN(Number(flashDurationRaw))
+            ? Number(flashDurationRaw)
+            : undefined
+        addToast(flashMsg, type, duration)
+        params.delete('flash_msg')
+        params.delete('flash_type')
+        params.delete('flash_duration')
+        const newSearch = params.toString()
+        const newUrl =
+          window.location.pathname +
+          (newSearch ? `?${newSearch}` : '') +
+          window.location.hash
+        window.history.replaceState({}, '', newUrl)
+      }
+    }
+
     const timeouts = timeoutsRef.current
     return () => {
-      timeouts.forEach((timeout) => clearTimeout(timeout))
+      setToastDispatcher(null)
+      timeouts.forEach((t) => clearTimeout(t))
       timeouts.clear()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
@@ -94,7 +202,7 @@ function ToastContainer({
   toasts,
   onRemove,
 }: {
-  toasts: Toast[]
+  toasts: ToastItem[]
   onRemove: (id: string) => void
 }) {
   return (
@@ -104,23 +212,23 @@ function ToastContainer({
     >
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => (
-          <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
+          <ToastItemView key={toast.id} toast={toast} onRemove={onRemove} />
         ))}
       </AnimatePresence>
     </div>
   )
 }
 
-function ToastItem({
+function ToastItemView({
   toast,
   onRemove,
 }: {
-  toast: Toast
+  toast: ToastItem
   onRemove: (id: string) => void
 }) {
   const { t } = useI18n()
 
-  const getToastStyles = (type: Toast['type']) => {
+  const getToastStyles = (type: ToastType) => {
     switch (type) {
       case 'success':
         return 'bg-emerald-50 dark:bg-emerald-900/50 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
@@ -133,7 +241,7 @@ function ToastItem({
     }
   }
 
-  const getIcon = (type: Toast['type']) => {
+  const getIcon = (type: ToastType) => {
     switch (type) {
       case 'success':
         return '✓'

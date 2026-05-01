@@ -1904,3 +1904,101 @@ class TestExtractPrimaryScoreExtended:
             "score": 0.6,
         })
         assert result == 0.6
+
+    def test_korrektur_falloesung_extraction(self):
+        from routers.evaluations.results import _extract_primary_score
+
+        assert _extract_primary_score({"korrektur_falloesung": 85.5}) == 85.5
+
+    def test_korrektur_falloesung_beats_generic_score(self):
+        from routers.evaluations.results import _extract_primary_score
+
+        assert (
+            _extract_primary_score(
+                {"korrektur_falloesung": 80.0, "score": 50.0, "overall_score": 60.0}
+            )
+            == 80.0
+        )
+
+    def test_llm_judge_beats_korrektur_falloesung(self):
+        from routers.evaluations.results import _extract_primary_score
+
+        assert (
+            _extract_primary_score(
+                {"llm_judge_custom": 0.7, "korrektur_falloesung": 80.0}
+            )
+            == 0.7
+        )
+
+    def test_korrektur_falloesung_non_numeric_skipped(self):
+        from routers.evaluations.results import _extract_primary_score
+
+        assert (
+            _extract_primary_score(
+                {"korrektur_falloesung": "n/a", "score": 50.0}
+            )
+            == 50.0
+        )
+
+    def test_lexical_metric_fallback_bleu(self):
+        from routers.evaluations.results import _extract_primary_score
+
+        assert _extract_primary_score({"bleu": 0.0708}) == 0.0708
+
+    def test_lexical_metric_fallback_rouge(self):
+        from routers.evaluations.results import _extract_primary_score
+
+        assert _extract_primary_score({"rouge": 0.42}) == 0.42
+
+    def test_lexical_metric_fallback_exact_match_zero(self):
+        """Zero is a valid score -- must not be confused with None."""
+        from routers.evaluations.results import _extract_primary_score
+
+        assert _extract_primary_score({"exact_match": 0.0}) == 0.0
+
+    def test_falloesung_grade_points_sub_metric_skipped(self):
+        """Falloesung writes both `metric` and `metric_grade_points`/_passed."""
+        from routers.evaluations.results import _extract_primary_score
+
+        assert (
+            _extract_primary_score(
+                {
+                    "llm_judge_falloesung": 0.85,
+                    "llm_judge_falloesung_grade_points": 14,
+                    "llm_judge_falloesung_passed": True,
+                }
+            )
+            == 0.85
+        )
+
+    def test_generic_fallback_skips_grade_points(self):
+        """Even outside the llm_judge_* path, _grade_points is metadata."""
+        from routers.evaluations.results import _extract_primary_score
+
+        assert (
+            _extract_primary_score(
+                {"some_metric": 0.7, "some_metric_grade_points": 11.0}
+            )
+            == 0.7
+        )
+
+    def test_error_only_returns_none(self):
+        from routers.evaluations.results import _extract_primary_score
+
+        assert _extract_primary_score({"error": "compute failed"}) is None
+
+    def test_only_metadata_returns_none(self):
+        from routers.evaluations.results import _extract_primary_score
+
+        assert (
+            _extract_primary_score(
+                {"some_metric_passed": True, "some_metric_raw": [0.5]}
+            )
+            is None
+        )
+
+    def test_bool_not_treated_as_numeric(self):
+        """A bool that happens to live under a non-suffix key should not match."""
+        from routers.evaluations.results import _extract_primary_score
+
+        assert _extract_primary_score({"flag": True}) is None

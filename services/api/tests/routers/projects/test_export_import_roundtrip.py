@@ -687,3 +687,230 @@ class TestFullProjectExportRoundtrip:
         }
         for key in base_te_keys:
             assert data_te[key] == full_te[key], f"TaskEvaluation base field mismatch: {key}"
+
+
+# ---------------------------------------------------------------------------
+# Field-fidelity tests for the round-trip extensions added in this PR.
+# Targets: TaskEvaluation.annotation_id, Annotation.{instruction_variant,
+# auto_submitted, ai_assisted, review_*}, Generation.{parse_*, label_config_*},
+# TaskEvaluation.judge_prompts_used, KorrekturComment, HumanEvaluation*.
+# ---------------------------------------------------------------------------
+
+@pytest.mark.integration
+class TestRoundtripExtensions:
+    def test_task_evaluation_annotation_id_survives(
+        self, db_session, user, project_with_full_data
+    ):
+        """The original bug: TaskEvaluation.annotation_id was being dropped on import."""
+        data = project_with_full_data
+        project = data["project"]
+        # Attach annotation_id to the task-level evals so the export carries it.
+        for te, ann in zip(data["task_evals"], data["annotations"]):
+            te.annotation_id = ann.id
+        db_session.commit()
+
+        rt = TestDataExportImportRoundtrip()
+        export = rt._export(db_session, project.id, [t.id for t in data["tasks"]], user.id)
+        target = Project(
+            id=str(uuid.uuid4()), title="Annotation FK target",
+            label_config="<View></View>", created_by=user.id,
+        )
+        db_session.add(target); db_session.commit()
+        rt._import(db_session, target.id, export, user.id)
+
+        target_task_ids = [t.id for t in db_session.query(Task).filter(Task.project_id == target.id).all()]
+        target_ann_ids = {a.id for a in db_session.query(Annotation).filter(Annotation.project_id == target.id).all()}
+        anno_tes = (
+            db_session.query(TaskEvaluation)
+            .filter(TaskEvaluation.task_id.in_(target_task_ids))
+            .filter(TaskEvaluation.generation_id.is_(None))
+            .all()
+        )
+        # Each task-level eval should now have annotation_id pointing to a
+        # newly-imported annotation, not None.
+        assert anno_tes, "expected at least one task-level TaskEvaluation"
+        for te in anno_tes:
+            assert te.annotation_id is not None, "annotation_id was dropped on import"
+            assert te.annotation_id in target_ann_ids
+
+    def test_annotation_extras_survive(
+        self, db_session, user, project_with_full_data
+    ):
+        """instruction_variant, auto_submitted, ai_assisted, and the review trail."""
+        data = project_with_full_data
+        ann = data["annotations"][0]
+        ann.instruction_variant = "variant-A"
+        ann.auto_submitted = True
+        ann.ai_assisted = True
+        ann.reviewed_by = user.id
+        ann.review_result = "approved"
+        ann.review_comment = "Looks good"
+        db_session.commit()
+
+        rt = TestDataExportImportRoundtrip()
+        export = rt._export(db_session, data["project"].id, [t.id for t in data["tasks"]], user.id)
+        target = Project(
+            id=str(uuid.uuid4()), title="Annotation extras target",
+            label_config="<View></View>", created_by=user.id,
+        )
+        db_session.add(target); db_session.commit()
+        rt._import(db_session, target.id, export, user.id)
+
+        # Find the imported annotation that mirrors the source via instruction_variant.
+        imported = (
+            db_session.query(Annotation)
+            .filter(Annotation.project_id == target.id)
+            .filter(Annotation.instruction_variant == "variant-A")
+            .one()
+        )
+        assert imported.auto_submitted is True
+        assert imported.ai_assisted is True
+        assert imported.review_result == "approved"
+        assert imported.review_comment == "Looks good"
+
+    def test_korrektur_comments_round_trip(
+        self, db_session, user, project_with_full_data
+    ):
+        """Parent + reply Korrektur comments survive both serialization and import."""
+        from project_models import KorrekturComment
+        data = project_with_full_data
+        project = data["project"]
+        ann = data["annotations"][0]
+        parent = KorrekturComment(
+            id=str(uuid.uuid4()), project_id=project.id, task_id=ann.task_id,
+            target_type="annotation", target_id=ann.id, parent_id=None,
+            text="Parent comment", created_by=user.id,
+        )
+        db_session.add(parent); db_session.flush()
+        reply = KorrekturComment(
+            id=str(uuid.uuid4()), project_id=project.id, task_id=ann.task_id,
+            target_type="annotation", target_id=ann.id, parent_id=parent.id,
+            text="Reply comment", created_by=user.id,
+        )
+        db_session.add(reply); db_session.commit()
+
+        rt = TestDataExportImportRoundtrip()
+        export = rt._export(db_session, project.id, [t.id for t in data["tasks"]], user.id)
+        assert "korrektur_comments" in export
+        assert len(export["korrektur_comments"]) == 2
+
+        target = Project(
+            id=str(uuid.uuid4()), title="Korrektur target",
+            label_config="<View></View>", created_by=user.id,
+        )
+        db_session.add(target); db_session.commit()
+
+        # The single-project import schema accepts korrektur_comments under the
+        # `data` payload via the extended ProjectImportData fields.
+        from routers.projects.import_export import import_project_data
+        from project_schemas import ProjectImportData
+        mock_user = Mock(); mock_user.id = user.id; mock_user.is_superadmin = True
+        mock_request = Mock(); mock_request.headers = {}; mock_request.state = Mock(spec=[])
+        payload = ProjectImportData(
+            data=export["tasks"],
+            evaluation_runs=export.get("evaluation_runs"),
+            korrektur_comments=export.get("korrektur_comments"),
+        )
+        run(import_project_data(target.id, payload, request=mock_request, current_user=mock_user, db=db_session))
+
+        imported = (
+            db_session.query(KorrekturComment)
+            .filter(KorrekturComment.project_id == target.id)
+            .all()
+        )
+        assert len(imported) == 2
+        parents = [c for c in imported if c.parent_id is None]
+        replies = [c for c in imported if c.parent_id is not None]
+        assert len(parents) == 1 and len(replies) == 1
+        assert replies[0].parent_id == parents[0].id, "reply.parent_id must point to the new parent id"
+
+    def test_judge_prompts_used_survives(
+        self, db_session, user, project_with_full_data
+    ):
+        """TaskEvaluation.judge_prompts_used (LLM judge prompt provenance) round-trips."""
+        data = project_with_full_data
+        prompts = {"system": "judge system prompt", "user": "compare X to Y"}
+        for te in data["task_evals"]:
+            te.judge_prompts_used = prompts
+        db_session.commit()
+
+        rt = TestDataExportImportRoundtrip()
+        export = rt._export(
+            db_session, data["project"].id, [t.id for t in data["tasks"]], user.id
+        )
+        # Export carries it on each task-level evaluation row.
+        for task in export["tasks"]:
+            for ev in task["evaluations"]:
+                assert ev["judge_prompts_used"] == prompts
+
+        target = Project(
+            id=str(uuid.uuid4()), title="Judge prompts target",
+            label_config="<View></View>", created_by=user.id,
+        )
+        db_session.add(target); db_session.commit()
+        rt._import(db_session, target.id, export, user.id)
+
+        target_task_ids = [
+            t.id for t in db_session.query(Task).filter(Task.project_id == target.id).all()
+        ]
+        anno_tes = (
+            db_session.query(TaskEvaluation)
+            .filter(TaskEvaluation.task_id.in_(target_task_ids))
+            .filter(TaskEvaluation.generation_id.is_(None))
+            .all()
+        )
+        assert anno_tes
+        for te in anno_tes:
+            assert te.judge_prompts_used == prompts
+
+    def test_generation_parse_fields_survive_full_clone(
+        self, db_session, user, project_with_full_data
+    ):
+        """Generation.parse_* and label_config_* survive the full project clone path."""
+        data = project_with_full_data
+        gen = data["generations"][0]
+        gen.parse_status = "success"
+        gen.parsed_annotation = [{"from_name": "label", "value": {"choices": ["A"]}}]
+        gen.parse_metadata = {"retry_count": 1}
+        gen.label_config_version = "v3"
+        gen.label_config_snapshot = "<View>v3</View>"
+        db_session.commit()
+
+        from routers.projects.helpers import get_comprehensive_project_data
+        export = get_comprehensive_project_data(db_session, data["project"].id)
+        gen_data = next(g for g in export["generations"] if g["id"] == gen.id)
+        assert gen_data["parse_status"] == "success"
+        assert gen_data["parsed_annotation"] == [
+            {"from_name": "label", "value": {"choices": ["A"]}}
+        ]
+        assert gen_data["label_config_version"] == "v3"
+        assert gen_data["label_config_snapshot"] == "<View>v3</View>"
+
+    def test_project_alternating_instructions_survive_clone(
+        self, db_session, user, project_with_full_data
+    ):
+        """Project.conditional_instructions and review/Korrektur configs survive a full clone."""
+        data = project_with_full_data
+        project = data["project"]
+        project.conditional_instructions = [
+            {"id": "var-A", "content": "Read carefully", "weight": 0.5},
+            {"id": "var-B", "content": "Read fast", "weight": 0.5},
+        ]
+        project.instructions_always_visible = True
+        project.review_enabled = True
+        project.review_mode = "independent"
+        project.allow_self_review = True
+        project.korrektur_enabled = True
+        project.korrektur_config = [{"value": "✓", "background": "#dff"}]
+        db_session.commit()
+
+        from routers.projects.helpers import get_comprehensive_project_data
+        export = get_comprehensive_project_data(db_session, project.id)
+        proj = export["project"]
+        assert proj["conditional_instructions"][0]["id"] == "var-A"
+        assert proj["instructions_always_visible"] is True
+        assert proj["review_enabled"] is True
+        assert proj["review_mode"] == "independent"
+        assert proj["allow_self_review"] is True
+        assert proj["korrektur_enabled"] is True
+        assert proj["korrektur_config"][0]["value"] == "✓"

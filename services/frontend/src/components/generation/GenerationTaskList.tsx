@@ -1,11 +1,11 @@
 'use client'
 
 import { Button } from '@/components/shared/Button'
+import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { logger } from '@/lib/utils/logger'
 import { Pagination } from '@/components/shared/Pagination'
-import { SearchInput } from '@/components/shared/SearchInput'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { apiClient, getApiUrl } from '@/lib/api/client'
@@ -53,6 +53,9 @@ interface PaginatedTaskGenerationResponse {
 
 interface GenerationTaskListProps {
   projectId: string
+  projects?: Project[]
+  selectedProject?: Project | null
+  onProjectChange?: (project: Project) => void
 }
 
 // Helper function to get aggregate status for a model (across all structures)
@@ -87,7 +90,12 @@ function getAggregateStatus(
   return { status: null, hasResults }
 }
 
-export function GenerationTaskList({ projectId }: GenerationTaskListProps) {
+export function GenerationTaskList({
+  projectId,
+  projects,
+  selectedProject,
+  onProjectChange,
+}: GenerationTaskListProps) {
   const { t } = useI18n()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<PaginatedTaskGenerationResponse | null>(null)
@@ -144,6 +152,11 @@ export function GenerationTaskList({ projectId }: GenerationTaskListProps) {
 
   // Stable fetchData - reads filter params from refs, only changes when projectId changes
   const fetchData = useCallback(async () => {
+    if (!projectId) {
+      setLoading(false)
+      setData(null)
+      return
+    }
     try {
       logger.debug(
         '[GenerationTaskList] fetchData called for projectId:',
@@ -193,6 +206,7 @@ export function GenerationTaskList({ projectId }: GenerationTaskListProps) {
 
   // Connect to WebSocket for real-time updates
   useEffect(() => {
+    if (!projectId) return
     let mounted = true
 
     const connectWebSocket = () => {
@@ -346,103 +360,155 @@ export function GenerationTaskList({ projectId }: GenerationTaskListProps) {
     return t('generation.taskList.noTextData')
   }
 
+  const projectInlinePicker =
+    projects && onProjectChange ? (
+      <div className="w-56">
+        <Select
+          value={selectedProject?.id?.toString() ?? ''}
+          onValueChange={(id) => {
+            const project = projects.find((p) => p.id.toString() === id)
+            if (project) onProjectChange(project)
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={t('generation.selectProject')} />
+          </SelectTrigger>
+          <SelectContent>
+            {projects.map((p) => (
+              <SelectItem key={p.id} value={p.id.toString()}>
+                {p.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    ) : null
+
+  const filterToolbar = (
+    <FilterToolbar
+      searchValue={search}
+      onSearchChange={setSearch}
+      searchPlaceholder={t('generation.taskList.searchPlaceholder')}
+      searchLabel={t('common.filters.search')}
+      filtersLabel={t('common.filters.filters')}
+      hasActiveFilters={!!statusFilter || search.trim() !== ''}
+      onClearFilters={() => {
+        setStatusFilter(null)
+        setSearch('')
+      }}
+      clearLabel={t('common.filters.clearAll')}
+      leftExtras={projectInlinePicker}
+      rightExtras={
+        canStartGeneration(user) && projectId ? (
+          <Button
+            variant="filled"
+            onClick={() => setShowControlModal(true)}
+          >
+            {t('generation.taskList.startGeneration')}
+          </Button>
+        ) : null
+      }
+    >
+      <FilterToolbar.Field label={t('generation.taskList.allStatuses')}>
+        <Select
+          value={statusFilter || ''}
+          onValueChange={(v) => setStatusFilter(v || null)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={t('generation.taskList.allStatuses')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">{t('generation.taskList.allStatuses')}</SelectItem>
+            <SelectItem value="completed">{t('generation.taskList.completed')}</SelectItem>
+            <SelectItem value="failed">{t('generation.taskList.failed')}</SelectItem>
+            <SelectItem value="running">{t('generation.taskList.running')}</SelectItem>
+            <SelectItem value="pending">{t('generation.taskList.pending')}</SelectItem>
+            <SelectItem value="not_generated">{t('generation.taskList.notGenerated')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </FilterToolbar.Field>
+    </FilterToolbar>
+  )
+
   if (loading && !data) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
+      <div className="space-y-4">
+        {filterToolbar}
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
+        </div>
       </div>
     )
   }
 
   if (fetchError && !data) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-red-600 dark:text-red-400">{t('generation.taskList.loadError')}</p>
-        <p className="mt-2 text-sm text-gray-400">{fetchError}</p>
-        <Button variant="outline" onClick={() => fetchData()} className="mt-4">
-          {t('common.retry')}
-        </Button>
+      <div className="space-y-4">
+        {filterToolbar}
+        <div className="py-12 text-center">
+          <p className="text-red-600 dark:text-red-400">{t('generation.taskList.loadError')}</p>
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{fetchError}</p>
+          <Button variant="outline" onClick={() => fetchData()} className="mt-4">
+            {t('common.retry')}
+          </Button>
+        </div>
       </div>
     )
   }
 
   if (!data || data.models.length === 0) {
     return (
-      <div className="py-12 text-center">
-        <p className="text-gray-500">{t('generation.taskList.noModels')}</p>
-        <p className="mt-2 text-sm text-gray-400">
-          {t('generation.taskList.configureFirst')}
-        </p>
+      <div className="space-y-4">
+        {filterToolbar}
+        <div className="py-12 text-center">
+          <p className="text-zinc-600 dark:text-zinc-400">{t('generation.taskList.noModels')}</p>
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500">
+            {t('generation.taskList.configureFirst')}
+          </p>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
-      {/* Header with controls */}
-      <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:space-x-4">
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder={t('generation.taskList.searchPlaceholder')}
-            className="w-full sm:w-auto"
-          />
-          <Select
-            value={statusFilter || ''}
-            onValueChange={(v) => setStatusFilter(v || null)}
-          >
-            <SelectTrigger className="sm:w-44">
-              <SelectValue placeholder={t('generation.taskList.allStatuses')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">{t('generation.taskList.allStatuses')}</SelectItem>
-              <SelectItem value="completed">{t('generation.taskList.completed')}</SelectItem>
-              <SelectItem value="failed">{t('generation.taskList.failed')}</SelectItem>
-              <SelectItem value="running">{t('generation.taskList.running')}</SelectItem>
-              <SelectItem value="pending">{t('generation.taskList.pending')}</SelectItem>
-              <SelectItem value="not_generated">{t('generation.taskList.notGenerated')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {canStartGeneration(user) && (
-          <Button
-            variant="filled"
-            onClick={() => setShowControlModal(true)}
-            className="w-full sm:w-auto"
-          >
-            {t('generation.taskList.startGeneration')}
-          </Button>
-        )}
-      </div>
+      {filterToolbar}
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="scrollbar-thin scrollbar-thumb-zinc-300 scrollbar-track-transparent dark:scrollbar-thumb-zinc-600 overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
+          <thead className="bg-zinc-50 dark:bg-zinc-800">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 {t('generation.taskList.task')}
               </th>
               {data.models.map((model) => (
                 <th
                   key={model}
-                  className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500"
+                  className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400"
                 >
                   {model}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
-            {data.tasks.map((task) => (
-              <tr key={task.id} className="hover:bg-gray-50">
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+          <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-900">
+            {data.tasks
+              .filter((task) => {
+                if (!search.trim()) return true
+                const q = search.trim().toLowerCase()
+                return (
+                  getFirstDataField(task.data).toLowerCase().includes(q) ||
+                  task.id.toLowerCase().includes(q)
+                )
+              })
+              .map((task) => (
+              <tr key={task.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                <td className="whitespace-nowrap px-6 py-4 text-sm text-zinc-900 dark:text-zinc-100">
                   <div className="max-w-xs truncate">
                     {getFirstDataField(task.data)}
                   </div>
-                  <div className="mt-1 text-xs text-gray-500">
+                  <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                     ID: {task.id.substring(0, 8)}...
                   </div>
                 </td>
@@ -584,13 +650,13 @@ export function GenerationTaskList({ projectId }: GenerationTaskListProps) {
       {/* Context menu for cell actions */}
       {contextMenu && (
         <div
-          className="fixed z-50 min-w-[160px] rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5"
+          className="fixed z-50 min-w-[160px] rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-zinc-900 dark:ring-white/10"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onMouseDown={(e) => e.stopPropagation()}
         >
           {contextMenu.hasResults && (
             <button
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
               onClick={() => {
                 setSelectedTaskModel({
                   taskId: contextMenu.taskId,
@@ -607,7 +673,7 @@ export function GenerationTaskList({ projectId }: GenerationTaskListProps) {
           {contextMenu.status !== 'running' &&
             contextMenu.status !== 'pending' && (
               <button
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 onClick={() => {
                   handleCellGenerate(contextMenu.taskId, contextMenu.modelId)
                   setContextMenu(null)

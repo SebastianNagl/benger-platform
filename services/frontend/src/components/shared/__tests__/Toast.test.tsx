@@ -7,6 +7,15 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { ToastProvider, useToast } from '../Toast'
+import { useNotificationStore } from '@/stores/notificationStore'
+
+// Toast.tsx now reads from the Zustand notificationStore (module-level state),
+// which means toasts leak across tests inside the same test file. Reset the
+// store explicitly so each test starts from an empty toast list.
+
+// Tell setupTests' global Toast mock to step aside — this file tests the real
+// Toast.tsx implementation.
+jest.unmock('@/components/shared/Toast')
 
 // Mock framer-motion to remove animations in tests
 jest.mock('framer-motion', () => ({
@@ -66,6 +75,7 @@ const TestComponent = ({
 describe('Toast Component', () => {
   beforeEach(() => {
     jest.useFakeTimers()
+    useNotificationStore.setState({ toasts: [], pendingFlashes: [] })
   })
 
   afterEach(() => {

@@ -113,8 +113,23 @@ jest.mock('@/components/shared/ResponsiveContainer', () => ({
 }))
 
 jest.mock('@/components/generation/GenerationTaskList', () => ({
-  GenerationTaskList: ({ projectId }: any) => (
-    <div data-testid="generation-task-list">Tasks for {projectId}</div>
+  GenerationTaskList: ({
+    projectId,
+    projects,
+    onProjectChange,
+  }: any) => (
+    <div data-testid="generation-task-list">
+      <div>Tasks for {projectId || '(none)'}</div>
+      {(projects ?? []).map((p: any) => (
+        <button
+          key={p.id}
+          data-testid={`gtl-pick-${p.id}`}
+          onClick={() => onProjectChange?.(p)}
+        >
+          {p.title}
+        </button>
+      ))}
+    </div>
   ),
 }))
 
@@ -168,34 +183,26 @@ describe('GenerationPage br9', () => {
     })
   })
 
-  it('shows project dropdown button', async () => {
+  it('hands the projects list to GenerationTaskList', async () => {
     render(<GenerationPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('generation.selectProject')).toBeInTheDocument()
+      expect(screen.getByTestId('gtl-pick-p1')).toBeInTheDocument()
+      expect(screen.getByTestId('gtl-pick-p2')).toBeInTheDocument()
     })
   })
 
-  it('selects project from dropdown and shows task list', async () => {
+  it('updates the selected project when GenerationTaskList invokes onProjectChange', async () => {
     render(<GenerationPage />)
 
     await waitFor(() => {
-      expect(screen.getByText('generation.selectProject')).toBeInTheDocument()
+      expect(screen.getByTestId('gtl-pick-p1')).toBeInTheDocument()
     })
 
-    // Click to open dropdown
-    const dropdownButton = screen.getByText('generation.selectProject').closest('button')!
-    await userEvent.click(dropdownButton)
+    await userEvent.click(screen.getByTestId('gtl-pick-p1'))
 
     await waitFor(() => {
-      expect(screen.getByText('Test Project')).toBeInTheDocument()
-    })
-
-    // Select a project
-    await userEvent.click(screen.getByText('Test Project'))
-
-    await waitFor(() => {
-      expect(screen.getByTestId('generation-task-list')).toBeInTheDocument()
+      expect(screen.getByText('Tasks for p1')).toBeInTheDocument()
     })
   })
 
@@ -256,6 +263,8 @@ describe('GenerationPage br9', () => {
       expect(mockProjectsList).toHaveBeenCalled()
     })
 
-    expect(screen.queryByTestId('generation-task-list')).not.toBeInTheDocument()
+    // GenerationTaskList still renders (it owns its own empty state),
+    // but the page does not pass any projectId.
+    expect(screen.getByText('Tasks for (none)')).toBeInTheDocument()
   })
 })

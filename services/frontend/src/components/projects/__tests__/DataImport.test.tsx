@@ -7,10 +7,14 @@ import { renderWithProviders } from '@/test-utils'
 import '@testing-library/jest-dom'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
 
+// Toast mocking is handled by setupTests.ts: useToast().addToast(msg, type)
+// dispatches to mockToast.success/error/etc, exported from setupTests.
+import { mockToast } from '@/test-utils/setupTests'
+const mockToastSuccess = mockToast.success
+const mockToastError = mockToast.error
+
 const mockImportData = jest.fn()
 const mockOnComplete = jest.fn()
-const mockToastSuccess = jest.fn()
-const mockToastError = jest.fn()
 let mockLoading = false
 
 // Store onDrop callback for direct invocation
@@ -46,13 +50,6 @@ jest.mock('@/stores/projectStore', () => ({
     importData: mockImportData,
     loading: mockLoading,
   })),
-}))
-
-jest.mock('react-hot-toast', () => ({
-  toast: {
-    success: jest.fn((...args) => mockToastSuccess(...args)),
-    error: jest.fn((...args) => mockToastError(...args)),
-  },
 }))
 
 // Configure I18n mock from test-utils with DataImport translations

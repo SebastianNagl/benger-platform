@@ -84,6 +84,7 @@ jest.mock('@heroicons/react/24/outline', () => ({
   ChevronDownIcon: () => <div data-testid="chevron-down-icon" />,
   PlayIcon: () => <div data-testid="play-icon" />,
   ExclamationTriangleIcon: () => <div data-testid="exclamation-icon" />,
+  XMarkIcon: () => <div data-testid="x-mark-icon" />,
 }))
 
 jest.mock('@/components/shared/FeatureFlag', () => ({

@@ -45,6 +45,44 @@ celery_app = get_celery_app()
 
 
 _STARTUP_INIT_FLAG = "/tmp/.benger_startup_init_done"
+_LLM_SEED_FLAG_DIR = "/tmp"  # files: .benger_llm_seed_<hash8>.done
+
+
+def _seed_llm_models_if_changed(db) -> None:
+    """Re-run the LLM model seed iff llm_models.yaml content hash changed.
+
+    Each content hash gets its own flag file in /tmp; an unchanged YAML
+    means the flag for that hash already exists and we skip. Editing the
+    YAML produces a new hash and forces the seed to re-run on next startup.
+
+    Failures here propagate — the API should not boot reporting healthy
+    when the model catalog seed silently failed.
+    """
+    import glob
+    from database import initialize_llm_models
+    from seeds.llm_models_loader import load_catalog
+
+    catalog = load_catalog()
+    short_hash = catalog.content_hash[:8]
+    flag = f"{_LLM_SEED_FLAG_DIR}/.benger_llm_seed_{short_hash}.done"
+
+    if os.path.exists(flag):
+        logger.info("LLM seed v%s already applied — skipping", short_hash)
+        return
+
+    # Clean up flags for previous catalog versions so /tmp doesn't accumulate
+    for stale in glob.glob(f"{_LLM_SEED_FLAG_DIR}/.benger_llm_seed_*.done"):
+        try:
+            os.remove(stale)
+        except OSError:
+            pass
+
+    initialize_llm_models(db)  # logs its own one-line summary
+    try:
+        with open(flag, "w") as f:
+            f.write(catalog.content_hash)
+    except OSError as e:
+        logger.warning("Could not write LLM seed flag %s: %s", flag, e)
 
 
 @asynccontextmanager
@@ -54,7 +92,6 @@ async def lifespan(app: FastAPI):
     from auth_module import initialize_database
     from database import (
         SessionLocal,
-        initialize_llm_models,
         initialize_task_types_and_evaluation_types,
     )
     from websocket_clustering import cluster_manager
@@ -163,7 +200,6 @@ async def lifespan(app: FastAPI):
         try:
             initialize_database(db)
             initialize_task_types_and_evaluation_types(db)
-            initialize_llm_models(db)
             logger.info("Database initialization complete!")
 
             # Initialize database performance optimizations
@@ -178,6 +214,16 @@ async def lifespan(app: FastAPI):
                 logger.warning(f"Database optimization warning: {opt_error}")
         except Exception as e:
             logger.error(f"Database initialization error: {e}")
+        finally:
+            db.close()
+
+    # LLM model seed runs on EVERY startup but is gated by the YAML content
+    # hash, so it only does work when llm_models.yaml has actually changed.
+    # Intentionally not wrapped in try/except: a failed seed must surface.
+    if database_available and not settings.testing:
+        db = SessionLocal()
+        try:
+            _seed_llm_models_if_changed(db)
         finally:
             db.close()
 
@@ -336,6 +382,8 @@ app.include_router(feature_flags_router)  # Feature flags
 app.include_router(notifications_router)  # Notifications
 app.include_router(debug_router)  # Debug endpoints
 app.include_router(api_key_router)  # API key management
+from routers.llm_models_admin import router as llm_models_admin_router
+app.include_router(llm_models_admin_router)  # Superadmin: reseed/inspect llm catalog
 app.include_router(org_api_key_router)  # Organization API key management (Issue #1180)
 app.include_router(file_upload_router)  # File uploads
 app.include_router(projects_router)  # Projects API

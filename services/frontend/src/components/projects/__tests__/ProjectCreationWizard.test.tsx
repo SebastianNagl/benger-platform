@@ -302,8 +302,7 @@ jest.mock('@/hooks/useModels', () => ({
   default: () => ({}),
 }))
 
-// Mock toast — ProjectCreationWizard now uses the app's useToast() hook
-// (the react-hot-toast package was never wired to a <Toaster> in the app).
+// Mock toast — ProjectCreationWizard uses the app's useToast() hook.
 const mockToastSuccessFn = jest.fn()
 const mockToastErrorFn = jest.fn()
 const mockAddToastFn = jest.fn(
@@ -321,15 +320,6 @@ jest.mock('@/components/shared/Toast', () => ({
   }),
   ToastProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
-// Keep the legacy react-hot-toast mock so any downstream component that
-// still references it (sub-mocks etc.) doesn't crash on import.
-jest.mock('react-hot-toast', () => ({
-  toast: {
-    success: jest.fn(),
-    error: jest.fn(),
-  },
-}))
-
 // Helper to enable features on step 1
 async function enableFeature(
   user: ReturnType<typeof userEvent.setup>,

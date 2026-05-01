@@ -3,13 +3,20 @@
 import { Listbox } from '@headlessui/react'
 import { CheckIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
-import React, { ReactNode, createContext, useContext } from 'react'
+import React, {
+  Children,
+  ReactNode,
+  createContext,
+  isValidElement,
+  useContext,
+} from 'react'
 
 interface SelectContextType {
   value: string
   onValueChange: (value: string) => void
   disabled?: boolean
   displayValue?: string
+  childrenForLookup: ReactNode
 }
 
 const SelectContext = createContext<SelectContextType | null>(null)
@@ -51,12 +58,38 @@ export function Select({
   children,
 }: SelectProps) {
   return (
-    <SelectContext.Provider value={{ value, onValueChange, disabled, displayValue }}>
+    <SelectContext.Provider
+      value={{
+        value,
+        onValueChange,
+        disabled,
+        displayValue,
+        childrenForLookup: children,
+      }}
+    >
       <Listbox value={value} onChange={onValueChange} disabled={disabled}>
         <div className="relative">{children}</div>
       </Listbox>
     </SelectContext.Provider>
   )
+}
+
+function findItemLabel(node: ReactNode, value: string): ReactNode | null {
+  let result: ReactNode | null = null
+  Children.forEach(node, (child) => {
+    if (result !== null) return
+    if (!isValidElement(child)) return
+    const props = child.props as { value?: string; children?: ReactNode }
+    if (props.value === value) {
+      result = props.children ?? null
+      return
+    }
+    if (props.children) {
+      const nested = findItemLabel(props.children, value)
+      if (nested !== null) result = nested
+    }
+  })
+  return result
 }
 
 export function SelectTrigger({ children, className, ...props }: SelectTriggerProps) {
@@ -138,6 +171,10 @@ export function SelectValue({ placeholder, className }: SelectValueProps) {
   const context = useContext(SelectContext)
   if (!context) throw new Error('SelectValue must be used within Select')
 
+  const derivedLabel = context.value
+    ? findItemLabel(context.childrenForLookup, context.value)
+    : null
+
   return (
     <span
       className={clsx(
@@ -146,7 +183,7 @@ export function SelectValue({ placeholder, className }: SelectValueProps) {
         className
       )}
     >
-      {context.displayValue || context.value || placeholder}
+      {context.displayValue || derivedLabel || context.value || placeholder}
     </span>
   )
 }

@@ -237,10 +237,16 @@ describe('ReportEditorPage', () => {
   })
 
   it('should save report on button click', async () => {
+    // Mount-time fetches: (1) the main report, (2) the report-data feed used to
+    // populate the available-metrics checkboxes. Then (3) the PUT on save.
     ;(global.fetch as jest.Mock)
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve(mockReport),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ evaluation_charts: { by_model: {}, metric_metadata: {} } }),
       })
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
 
@@ -256,12 +262,18 @@ describe('ReportEditorPage', () => {
     await user.click(screen.getByText('project.report.editor.saveReport'))
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledTimes(2)
       expect(mockAddToast).toHaveBeenCalledWith(
         'project.report.editor.savedSuccessfully',
         'success'
       )
     })
+
+    // Three fetches in order: GET report, GET report data, PUT report.
+    expect(global.fetch).toHaveBeenCalledTimes(3)
+    const calls = (global.fetch as jest.Mock).mock.calls
+    expect(calls[0][0]).toBe('/api/projects/proj-1/report')
+    expect(calls[2][0]).toBe('/api/projects/proj-1/report')
+    expect(calls[2][1]).toMatchObject({ method: 'POST' })
   })
 
   it('should handle save error', async () => {
@@ -269,6 +281,10 @@ describe('ReportEditorPage', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve(mockReport),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ evaluation_charts: { by_model: {}, metric_metadata: {} } }),
       })
       .mockResolvedValueOnce({ ok: false, status: 500 })
 
@@ -388,5 +404,118 @@ describe('ReportEditorPage', () => {
     })
 
     expect(screen.getByText('Test Project')).toBeInTheDocument()
+  })
+
+  describe('charts_config persistence', () => {
+    const reportWith = (chartsConfig: any) => ({
+      ...mockReport,
+      content: {
+        ...mockReport.content,
+        sections: {
+          ...mockReport.content.sections,
+          evaluation: {
+            ...mockReport.content.sections.evaluation,
+            charts_config: chartsConfig,
+          },
+        },
+      },
+    })
+
+    const reportDataResp = (byModel: Record<string, Record<string, number>>) => ({
+      evaluation_charts: {
+        by_model: byModel,
+        metric_metadata: Object.keys(
+          Object.values(byModel)[0] ?? {}
+        ).reduce(
+          (acc, m) => ({ ...acc, [m]: { name: m, range: [0, 1] } }),
+          {} as Record<string, any>
+        ),
+      },
+    })
+
+    it('saves visible_metrics + available_views + default_view to charts_config', async () => {
+      const fetches = global.fetch as jest.Mock
+      // GET project report
+      fetches.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(reportWith({})),
+      })
+      // GET report data (drives the metric checklist)
+      fetches.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve(
+            reportDataResp({
+              'gpt-4': { bleu: 0.5, rouge: 0.6, exact_match: 0.7 },
+            })
+          ),
+      })
+      // POST save
+      fetches.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({}),
+      })
+
+      const userE = userEvent.setup()
+      render(<ReportEditorPage params={createParams('proj-1')} />)
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('project.report.editor.evaluationSection.title')
+        ).toBeInTheDocument()
+      })
+      // Wait for the metric checklist to load.
+      await waitFor(() => {
+        expect(screen.getByLabelText('bleu')).toBeInTheDocument()
+      })
+
+      // Uncheck "rouge" — only bleu + exact_match should persist.
+      await userE.click(screen.getByLabelText('rouge'))
+
+      const saveBtn = screen.getByText('project.report.editor.saveReport')
+      await userE.click(saveBtn)
+
+      await waitFor(() => {
+        const postCall = fetches.mock.calls.find(
+          (c: any[]) => c[1]?.method === 'POST'
+        )
+        expect(postCall).toBeDefined()
+        const body = JSON.parse(postCall![1].body)
+        const cfg = body.content.sections.evaluation.charts_config
+        expect(cfg.visible_metrics.sort()).toEqual(['bleu', 'exact_match'])
+        // Defaults: only 'data' available, default = 'data'.
+        expect(cfg.default_view).toBe('data')
+        expect(cfg.available_views).toEqual(['data'])
+      })
+    })
+
+    it('initialises checkboxes from persisted visible_metrics', async () => {
+      const fetches = global.fetch as jest.Mock
+      fetches.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve(
+            reportWith({
+              visible_metrics: ['bleu'], // only bleu pre-selected
+              available_views: ['data', 'bar'],
+              default_view: 'bar',
+            })
+          ),
+      })
+      fetches.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve(
+            reportDataResp({ 'gpt-4': { bleu: 0.5, rouge: 0.6 } })
+          ),
+      })
+
+      render(<ReportEditorPage params={createParams('proj-1')} />)
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('bleu')).toBeChecked()
+      })
+      expect(screen.getByLabelText('rouge')).not.toBeChecked()
+    })
   })
 })

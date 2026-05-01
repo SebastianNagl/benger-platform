@@ -43,6 +43,8 @@
     "signOut": "Sign Out",
     "signIn": "Sign In",
     "signUp": "Sign up",
+    "loggedIn": "Welcome back!",
+    "signupComplete": "Account created — welcome aboard!",
     "guard": {
       "loading": "Loading...",
       "authRequired": "Authentication Required",
@@ -544,7 +546,11 @@
       "showingResults": "Showing {shown} of {total} results",
       "created": "Created",
       "actions": "Actions",
-      "label": "Label"
+      "label": "Label",
+      "sortTitle": "Title",
+      "sortCreated": "Created date",
+      "sortTaskCount": "Task count",
+      "sortProgress": "Progress"
     },
     "columns": {
       "label": "Columns",
@@ -1115,7 +1121,16 @@
           "interpretation": "Results Interpretation (optional)",
           "interpretationPlaceholder": "Provide interpretation of evaluation results",
           "conclusions": "Conclusions (optional)",
-          "conclusionsPlaceholder": "Summarize key findings and conclusions"
+          "conclusionsPlaceholder": "Summarize key findings and conclusions",
+          "visibleMetrics": "Metrics shown in charts",
+          "visibleMetricsHint": "Uncheck metrics you don't want to publish.",
+          "selectAll": "Select all",
+          "clearAll": "Clear all",
+          "noMetricsAvailable": "No evaluation metrics are available for this project yet.",
+          "availableViews": "Available chart views",
+          "availableViewsHint": "Pick which visualizations the report viewer can switch between.",
+          "defaultView": "Default view",
+          "defaultViewHint": "Selected view when the report is opened."
         },
         "savedSuccessfully": "Report saved successfully",
         "failedToSave": "Failed to save report",
@@ -1285,6 +1300,7 @@
       "startAnnotating": "Start Annotating",
       "loadingTasks": "Loading tasks...",
       "noTasksWithStatus": "No tasks with status \"{status}\".",
+      "searchPlaceholder": "Search by task ID or title…",
       "taskPrefix": "Task",
       "labeled": "Labeled",
       "feedbackAvailable": "Feedback",
@@ -3602,6 +3618,17 @@
     "redirecting": "Redirecting...",
     "redirectingToDashboard": "Redirecting to dashboard...",
     "saveChanges": "Save Changes",
+    "filters": {
+      "search": "Search",
+      "filters": "Filters",
+      "all": "All",
+      "noMatches": "No results match your filters",
+      "sortBy": "Sort by",
+      "order": "Order",
+      "asc": "Ascending",
+      "desc": "Descending",
+      "clearAll": "Clear filters"
+    },
     "pagination": {
       "showingResults": "Showing {start} to {end} of {total} results",
       "perPage": "Per page:",
@@ -3910,7 +3937,21 @@
       "bulkVerifySuccess": "Successfully verified {count} email",
       "bulkVerifySuccessPlural": "Successfully verified {count} emails",
       "bulkVerifyFailed": "Failed to verify some emails",
-      "deleteSuccess": "User deleted successfully"
+      "deleteSuccess": "User deleted successfully",
+      "filters": {
+        "searchPlaceholder": "Search by name, username or email…",
+        "verification": "Email verification",
+        "verified": "Verified",
+        "unverified": "Unverified",
+        "role": "Role",
+        "superadmin": "Superadmin",
+        "regularUser": "Regular user",
+        "sortName": "Name",
+        "sortEmail": "Email",
+        "sortCreated": "Created date",
+        "noMatches": "No users match your filters",
+        "totalUsers": "{count} total"
+      }
     },
     "featureFlagsPage": {
       "title": "Feature Flags",
@@ -4111,6 +4152,15 @@
         "loadUsersFailed": "Failed to load users",
         "noPermissionAdd": "You do not have permission to add members",
         "addUserFailed": "Failed to add user"
+      },
+      "filters": {
+        "switcherSearchPlaceholder": "Search organizations…",
+        "memberSearchPlaceholder": "Search members by name or email…",
+        "role": "Role",
+        "verification": "Email verification",
+        "verified": "Verified",
+        "unverified": "Unverified",
+        "noMatches": "No members match your filters"
       }
     },
     "usersPage": {
@@ -4743,8 +4793,6 @@
     "viewer": {
       "title": "Evaluation Results",
       "selectProjectDescription": "Select a project to view results",
-      "viewingResults": "Viewing results for {project}",
-      "llmLeaderboard": "LLM Leaderboard",
       "filters": {
         "project": "Project",
         "selectProject": "Select project...",
@@ -6550,6 +6598,7 @@
       "participants": "Participants",
       "viewAll": "View All",
       "modelsEvaluated": "Models Evaluated",
+      "project": "Project",
       "data": "Data",
       "defaultDataText": "This project contains {count} tasks for evaluation.",
       "annotationsSection": "Annotations",
@@ -6559,6 +6608,8 @@
       "evaluationResults": "Evaluation Results",
       "interpretation": "Interpretation",
       "performanceByModel": "Performance by Model",
+      "performanceByAnnotator": "Performance by Annotator",
+      "annotator": "Annotator",
       "qaMetrics": "QA Metrics (0-1 scale)",
       "llmJudgeMetrics": "LLM Judge Metrics (1-5 scale)",
       "model": "Model",
@@ -6717,6 +6768,7 @@
     "loginToAccept": "Log In to Accept",
     "accepting": "Accepting Invitation...",
     "accept": "Accept Invitation",
+    "accepted": "You have joined {organizationName}.",
     "cancel": "Cancel",
     "acceptFailed": "Failed to accept invitation",
     "createAccountFailed": "Failed to create account"

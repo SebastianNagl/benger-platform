@@ -384,17 +384,9 @@ jest.mock('@/contexts/ProgressContext', () => ({
   ),
 }))
 
-jest.mock('@/components/shared/Toast', () => ({
-  useToast: () => ({
-    addToast: jest.fn(),
-    showToast: jest.fn(),
-    removeToast: jest.fn(),
-    toasts: [],
-  }),
-  ToastProvider: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
-}))
+// Toast mock lives in setupTests.ts — see mockStableToastSuccess/Error there.
+// Tests that need to assert on toast calls should import mockToast from
+// @/test-utils/setupTests.
 
 // Mock hooks
 jest.mock('@/hooks/useDialogs', () => ({

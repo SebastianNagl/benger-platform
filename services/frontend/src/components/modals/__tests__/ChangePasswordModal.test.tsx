@@ -4,20 +4,16 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { toast } from 'react-hot-toast'
+import { mockToast } from '@/test-utils/setupTests'
 import { ChangePasswordModal } from '../ChangePasswordModal'
+
+// Alias the per-type mocks so existing toast.success/error assertions keep
+// working without rewriting every expect(...) call site.
+const toast = { success: mockToast.success, error: mockToast.error }
 
 // Mock heroicons
 jest.mock('@heroicons/react/24/outline', () => ({
   XMarkIcon: (props: any) => <svg {...props} data-testid="x-mark-icon" />,
-}))
-
-// Mock react-hot-toast
-jest.mock('react-hot-toast', () => ({
-  toast: {
-    success: jest.fn(),
-    error: jest.fn(),
-  },
 }))
 
 // Mock I18n context

@@ -69,6 +69,11 @@ class TestSerializeAnnotation:
             "focused_duration_ms": 4000, "tab_switches": 2,
             "task_id": "t1", "project_id": "p1", "draft": None,
             "prediction_scores": None,
+            # Round-trip fields added in the export-fidelity audit.
+            "auto_submitted": False, "instruction_variant": None,
+            "ai_assisted": False, "reviewed_by": None, "reviewed_at": None,
+            "review_result": None, "review_annotation": None,
+            "review_comment": None,
         }
         defaults.update(overrides)
         return SimpleNamespace(**defaults)
@@ -103,6 +108,10 @@ class TestSerializeGeneration:
             "response_metadata": {}, "generation_id": "gen-1",
             "task_id": "t1", "usage_stats": {}, "status": "completed",
             "error_message": None,
+            # Round-trip parse + label-config snapshot fields.
+            "parse_status": "pending", "parse_error": None,
+            "parsed_annotation": None, "parse_metadata": None,
+            "label_config_version": None, "label_config_snapshot": None,
         }
         defaults.update(overrides)
         return SimpleNamespace(**defaults)
@@ -140,6 +149,8 @@ class TestSerializeTaskEvaluation:
             "error_message": None, "processing_time_ms": 100,
             "created_at": _mock_dt(), "evaluation_id": "ev1",
             "task_id": "t1", "generation_id": "g1",
+            # Round-trip judge-prompt provenance.
+            "judge_prompts_used": None,
         }
         defaults.update(overrides)
         return SimpleNamespace(**defaults)

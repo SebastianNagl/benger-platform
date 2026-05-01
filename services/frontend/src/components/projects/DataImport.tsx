@@ -26,7 +26,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { toast } from 'react-hot-toast'
+import { useToast } from '@/components/shared/Toast'
 
 interface DataImportProps {
   projectId: string
@@ -35,6 +35,7 @@ interface DataImportProps {
 
 export function DataImport({ projectId, onComplete }: DataImportProps) {
   const { t } = useI18n()
+  const { addToast } = useToast()
   const { importData, loading } = useProjectStore()
   const [importMethod, setImportMethod] = useState<'file' | 'paste'>('file')
   const [pasteContent, setPasteContent] = useState('')
@@ -50,17 +51,43 @@ export function DataImport({ projectId, onComplete }: DataImportProps) {
       try {
         const text = await file.text()
         let data: any[]
+        // Auxiliary arrays from a full bulk-export envelope (preserved across
+        // re-import so judge scores, korrektur threads, etc. round-trip).
+        let extras: Record<string, unknown> = {}
 
         // Try to parse based on file type
         if (file.name.endsWith('.json')) {
-          data = JSON.parse(text)
-          // Handle both array and object with data property
-          if (!Array.isArray(data)) {
-            if ((data as any).data && Array.isArray((data as any).data)) {
-              data = (data as any).data
+          const parsed = JSON.parse(text)
+          if (Array.isArray(parsed)) {
+            data = parsed
+          } else if (parsed && typeof parsed === 'object') {
+            // Bulk-export envelope from `bulk_export_tasks` /
+            // `get_comprehensive_project_data`: {tasks, evaluation_runs,
+            // human_evaluation_*, korrektur_comments, ...}.
+            if (Array.isArray((parsed as any).tasks)) {
+              data = (parsed as any).tasks
+              const aux = [
+                'evaluation_runs',
+                'human_evaluation_configs',
+                'human_evaluation_sessions',
+                'human_evaluation_results',
+                'preference_rankings',
+                'likert_scale_evaluations',
+                'korrektur_comments',
+              ] as const
+              for (const k of aux) {
+                if (Array.isArray((parsed as any)[k])) {
+                  extras[k] = (parsed as any)[k]
+                }
+              }
+            } else if (Array.isArray((parsed as any).data)) {
+              // Legacy "{ data: [...] }" wrapper.
+              data = (parsed as any).data
             } else {
-              data = [data]
+              data = [parsed]
             }
+          } else {
+            throw new Error(t('projects.dataImport.unsupportedFormat'))
           }
         } else if (file.name.endsWith('.csv') || file.name.endsWith('.tsv')) {
           // Simple CSV/TSV parser
@@ -86,8 +113,14 @@ export function DataImport({ projectId, onComplete }: DataImportProps) {
           throw new Error(t('projects.dataImport.unsupportedFormat'))
         }
 
-        // Import the data
-        await importData(projectId, data)
+        // Import the data. Forward auxiliary arrays (eval runs, human-eval,
+        // korrektur) only if the envelope carried them — keeps the 2-arg
+        // call signature for plain task-array imports.
+        if (Object.keys(extras).length > 0) {
+          await importData(projectId, data, extras)
+        } else {
+          await importData(projectId, data)
+        }
 
         setImportStats({
           total: data.length,
@@ -95,16 +128,22 @@ export function DataImport({ projectId, onComplete }: DataImportProps) {
           failed: 0,
         })
 
-        toast.success(t('projects.dataImport.importSuccess', { count: data.length }))
+        addToast(
+          t('projects.dataImport.importSuccess', { count: data.length }),
+          'success'
+        )
         onComplete?.()
       } catch (error) {
         console.error('Import error:', error)
-        toast.error(
-          error instanceof Error ? error.message : t('projects.dataImport.importFileFailed')
+        addToast(
+          error instanceof Error
+            ? error.message
+            : t('projects.dataImport.importFileFailed'),
+          'error'
         )
       }
     },
-    [projectId, importData, onComplete]
+    [projectId, importData, onComplete, addToast, t]
   )
 
   // Dropzone configuration
@@ -128,17 +167,41 @@ export function DataImport({ projectId, onComplete }: DataImportProps) {
   // Paste import handler
   const handlePasteImport = async () => {
     if (!pasteContent.trim()) {
-      toast.error(t('projects.dataImport.pasteEmpty'))
+      addToast(t('projects.dataImport.pasteEmpty'), 'error')
       return
     }
 
     try {
       let data: any[]
+      let extras: Record<string, unknown> = {}
 
       // Try to parse as JSON first
       try {
         const parsed = JSON.parse(pasteContent)
-        data = Array.isArray(parsed) ? parsed : [parsed]
+        if (Array.isArray(parsed)) {
+          data = parsed
+        } else if (
+          parsed &&
+          typeof parsed === 'object' &&
+          Array.isArray((parsed as any).tasks)
+        ) {
+          data = (parsed as any).tasks
+          for (const k of [
+            'evaluation_runs',
+            'human_evaluation_configs',
+            'human_evaluation_sessions',
+            'human_evaluation_results',
+            'preference_rankings',
+            'likert_scale_evaluations',
+            'korrektur_comments',
+          ] as const) {
+            if (Array.isArray((parsed as any)[k])) {
+              extras[k] = (parsed as any)[k]
+            }
+          }
+        } else {
+          data = [parsed]
+        }
       } catch {
         // If not JSON, treat each line as a text item
         data = pasteContent
@@ -147,7 +210,11 @@ export function DataImport({ projectId, onComplete }: DataImportProps) {
           .map((line) => ({ text: line.trim() }))
       }
 
-      await importData(projectId, data)
+      if (Object.keys(extras).length > 0) {
+        await importData(projectId, data, extras)
+      } else {
+        await importData(projectId, data)
+      }
 
       setImportStats({
         total: data.length,
@@ -156,11 +223,14 @@ export function DataImport({ projectId, onComplete }: DataImportProps) {
       })
 
       setPasteContent('')
-      toast.success(t('projects.dataImport.importSuccess', { count: data.length }))
+      addToast(
+        t('projects.dataImport.importSuccess', { count: data.length }),
+        'success'
+      )
       onComplete?.()
     } catch (error) {
       console.error('Import error:', error)
-      toast.error(t('projects.dataImport.importFailed'))
+      addToast(t('projects.dataImport.importFailed'), 'error')
     }
   }
 

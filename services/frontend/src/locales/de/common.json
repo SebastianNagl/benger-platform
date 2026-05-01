@@ -43,6 +43,8 @@
     "signOut": "Abmelden",
     "signIn": "Anmelden",
     "signUp": "Registrieren",
+    "loggedIn": "Willkommen zurueck!",
+    "signupComplete": "Konto angelegt – willkommen!",
     "guard": {
       "loading": "Laden...",
       "authRequired": "Anmeldung erforderlich",
@@ -544,7 +546,11 @@
       "showingResults": "Zeige {shown} von {total} Ergebnissen",
       "created": "Erstellt",
       "actions": "Aktionen",
-      "label": "Annotieren"
+      "label": "Annotieren",
+      "sortTitle": "Titel",
+      "sortCreated": "Erstellungsdatum",
+      "sortTaskCount": "Aufgabenanzahl",
+      "sortProgress": "Fortschritt"
     },
     "columns": {
       "label": "Spalten",
@@ -1115,7 +1121,16 @@
           "interpretation": "Ergebnisinterpretation (optional)",
           "interpretationPlaceholder": "Geben Sie eine Interpretation der Evaluierungsergebnisse an",
           "conclusions": "Schlussfolgerungen (optional)",
-          "conclusionsPlaceholder": "Fassen Sie die wichtigsten Erkenntnisse und Schlussfolgerungen zusammen"
+          "conclusionsPlaceholder": "Fassen Sie die wichtigsten Erkenntnisse und Schlussfolgerungen zusammen",
+          "visibleMetrics": "Im Diagramm sichtbare Metriken",
+          "visibleMetricsHint": "Deaktivieren Sie Metriken, die Sie nicht veröffentlichen möchten.",
+          "selectAll": "Alle auswählen",
+          "clearAll": "Alle abwählen",
+          "noMetricsAvailable": "Für dieses Projekt liegen noch keine Evaluierungsmetriken vor.",
+          "availableViews": "Verfügbare Diagrammansichten",
+          "availableViewsHint": "Wählen Sie, zwischen welchen Visualisierungen der Bericht-Leser wechseln kann.",
+          "defaultView": "Standardansicht",
+          "defaultViewHint": "Ansicht, die beim Öffnen des Berichts angezeigt wird."
         },
         "savedSuccessfully": "Bericht erfolgreich gespeichert",
         "failedToSave": "Fehler beim Speichern des Berichts",
@@ -1285,6 +1300,7 @@
       "startAnnotating": "Annotation starten",
       "loadingTasks": "Aufgaben werden geladen...",
       "noTasksWithStatus": "Keine Aufgaben mit Status \"{status}\".",
+      "searchPlaceholder": "Nach Aufgaben-ID oder Titel suchen…",
       "taskPrefix": "Aufgabe",
       "labeled": "Beschriftet",
       "feedbackAvailable": "Feedback",
@@ -3578,6 +3594,17 @@
     "redirecting": "Weiterleitung...",
     "redirectingToDashboard": "Weiterleitung zum Dashboard...",
     "saveChanges": "Änderungen speichern",
+    "filters": {
+      "search": "Suche",
+      "filters": "Filter",
+      "all": "Alle",
+      "noMatches": "Keine Ergebnisse für deine Filter",
+      "sortBy": "Sortieren nach",
+      "order": "Reihenfolge",
+      "asc": "Aufsteigend",
+      "desc": "Absteigend",
+      "clearAll": "Filter zurücksetzen"
+    },
     "search": "Suchen...",
     "comingSoon": "Demnächst verfügbar",
     "comingSoonMessage": "Diese Funktion befindet sich derzeit in Entwicklung und wird bald verfügbar sein.",
@@ -3890,7 +3917,21 @@
       "bulkVerifySuccess": "{count} E-Mail erfolgreich verifiziert",
       "bulkVerifySuccessPlural": "{count} E-Mails erfolgreich verifiziert",
       "bulkVerifyFailed": "Verifizierung einiger E-Mails fehlgeschlagen",
-      "deleteSuccess": "Benutzer erfolgreich gelöscht"
+      "deleteSuccess": "Benutzer erfolgreich gelöscht",
+      "filters": {
+        "searchPlaceholder": "Nach Name, Benutzername oder E-Mail suchen…",
+        "verification": "E-Mail-Verifizierung",
+        "verified": "Verifiziert",
+        "unverified": "Nicht verifiziert",
+        "role": "Rolle",
+        "superadmin": "Superadmin",
+        "regularUser": "Normaler Benutzer",
+        "sortName": "Name",
+        "sortEmail": "E-Mail",
+        "sortCreated": "Erstellungsdatum",
+        "noMatches": "Keine Benutzer entsprechen deinen Filtern",
+        "totalUsers": "{count} insgesamt"
+      }
     },
     "featureFlagsPage": {
       "title": "Feature-Flags",
@@ -4091,6 +4132,15 @@
         "loadUsersFailed": "Benutzer konnten nicht geladen werden",
         "noPermissionAdd": "Sie haben keine Berechtigung, Mitglieder hinzuzufügen",
         "addUserFailed": "Benutzer konnte nicht hinzugefügt werden"
+      },
+      "filters": {
+        "switcherSearchPlaceholder": "Organisationen suchen…",
+        "memberSearchPlaceholder": "Mitglieder nach Name oder E-Mail suchen…",
+        "role": "Rolle",
+        "verification": "E-Mail-Verifizierung",
+        "verified": "Verifiziert",
+        "unverified": "Nicht verifiziert",
+        "noMatches": "Keine Mitglieder entsprechen deinen Filtern"
       }
     },
     "usersPage": {
@@ -4723,8 +4773,6 @@
     "viewer": {
       "title": "Evaluierungsergebnisse",
       "selectProjectDescription": "Wählen Sie ein Projekt aus, um Ergebnisse anzuzeigen",
-      "viewingResults": "Ergebnisse für {project} anzeigen",
-      "llmLeaderboard": "LLM-Rangliste",
       "filters": {
         "project": "Projekt",
         "selectProject": "Projekt auswählen...",
@@ -6530,6 +6578,7 @@
       "participants": "Teilnehmer",
       "viewAll": "Alle anzeigen",
       "modelsEvaluated": "Evaluierte Modelle",
+      "project": "Projekt",
       "data": "Daten",
       "defaultDataText": "Dieses Projekt enthält {count} Aufgaben zur Evaluierung.",
       "annotationsSection": "Annotationen",
@@ -6539,6 +6588,8 @@
       "evaluationResults": "Evaluierungsergebnisse",
       "interpretation": "Interpretation",
       "performanceByModel": "Leistung nach Modell",
+      "performanceByAnnotator": "Leistung nach Annotator",
+      "annotator": "Annotator",
       "qaMetrics": "QA-Metriken (0-1 Skala)",
       "llmJudgeMetrics": "LLM-Richter-Metriken (1-5 Skala)",
       "model": "Modell",
@@ -6767,6 +6818,7 @@
     "loginToAccept": "Anmelden zum Annehmen",
     "accepting": "Einladung wird angenommen...",
     "accept": "Einladung annehmen",
+    "accepted": "Sie sind {organizationName} beigetreten.",
     "cancel": "Abbrechen",
     "acceptFailed": "Einladung konnte nicht angenommen werden",
     "createAccountFailed": "Konto konnte nicht erstellt werden"

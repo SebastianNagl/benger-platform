@@ -11,11 +11,27 @@ The `mode` parameter controls which fields are included:
   evaluation_id). Used by full project export/import.
 """
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 
 def _isoformat(dt) -> Optional[str]:
     return dt.isoformat() if dt else None
+
+
+def _parse_iso(value: Any) -> Optional[datetime]:
+    """Best-effort ISO-8601 parse for re-import. Returns None on falsy/invalid input."""
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            # Python's fromisoformat handles "...+00:00"; trim trailing "Z" first.
+            return datetime.fromisoformat(value.rstrip("Z"))
+        except ValueError:
+            return None
+    return None
 
 
 def serialize_task(task, *, mode: str = "data", total_generations: int = 0) -> dict:
@@ -60,6 +76,14 @@ def serialize_annotation(
         "active_duration_ms": ann.active_duration_ms,
         "focused_duration_ms": ann.focused_duration_ms,
         "tab_switches": ann.tab_switches,
+        "auto_submitted": ann.auto_submitted,
+        "instruction_variant": ann.instruction_variant,
+        "ai_assisted": ann.ai_assisted,
+        "reviewed_by": ann.reviewed_by,
+        "reviewed_at": _isoformat(ann.reviewed_at),
+        "review_result": ann.review_result,
+        "review_annotation": ann.review_annotation,
+        "review_comment": ann.review_comment,
     }
     if mode == "data":
         qr = questionnaire_response
@@ -97,6 +121,12 @@ def serialize_generation(
             "usage_stats": gen.usage_stats,
             "status": gen.status,
             "error_message": gen.error_message,
+            "parse_status": gen.parse_status,
+            "parse_error": gen.parse_error,
+            "parsed_annotation": gen.parsed_annotation,
+            "parse_metadata": gen.parse_metadata,
+            "label_config_version": gen.label_config_version,
+            "label_config_snapshot": gen.label_config_snapshot,
         })
     return d
 
@@ -120,6 +150,7 @@ def serialize_task_evaluation(
         "confidence_score": te.confidence_score,
         "error_message": te.error_message,
         "processing_time_ms": te.processing_time_ms,
+        "judge_prompts_used": te.judge_prompts_used,
         "created_at": _isoformat(te.created_at),
     }
     if mode == "data":
@@ -215,3 +246,157 @@ def build_evaluation_indexes(
         if te.generation_id is not None:
             te_by_generation.setdefault(te.generation_id, []).append(te)
     return te_by_task, te_by_generation
+
+
+def serialize_korrektur_comment(comment) -> dict:
+    """Full export shape for KorrekturComment — used by both export sites."""
+    return {
+        "id": comment.id,
+        "project_id": comment.project_id,
+        "task_id": comment.task_id,
+        "target_type": comment.target_type,
+        "target_id": comment.target_id,
+        "parent_id": comment.parent_id,
+        "text": comment.text,
+        "highlight_start": comment.highlight_start,
+        "highlight_end": comment.highlight_end,
+        "highlight_text": comment.highlight_text,
+        "highlight_label": comment.highlight_label,
+        "is_resolved": comment.is_resolved,
+        "resolved_at": _isoformat(comment.resolved_at),
+        "resolved_by": comment.resolved_by,
+        "created_by": comment.created_by,
+        "created_at": _isoformat(comment.created_at),
+        "updated_at": _isoformat(comment.updated_at),
+    }
+
+
+def serialize_human_evaluation_data(db, project_id: str, task_ids: List[str]) -> Dict[str, list]:
+    """Bundle of human-evaluation tables for a project.
+
+    Returns dict with keys: human_evaluation_configs, human_evaluation_sessions,
+    human_evaluation_results, preference_rankings, likert_scale_evaluations.
+
+    Used by both `GET /{project_id}/export` (data path) and
+    `get_comprehensive_project_data` (clone path).
+    """
+    from models import (
+        HumanEvaluationConfig,
+        HumanEvaluationResult,
+        HumanEvaluationSession,
+        LikertScaleEvaluation,
+        PreferenceRanking,
+    )
+
+    configs_data: List[dict] = []
+    if task_ids:
+        configs = (
+            db.query(HumanEvaluationConfig)
+            .filter(HumanEvaluationConfig.task_id.in_(task_ids))
+            .all()
+        )
+        for c in configs:
+            configs_data.append({
+                "id": c.id,
+                "task_id": c.task_id,
+                "evaluation_project_id": c.evaluation_project_id,
+                "evaluator_count": c.evaluator_count,
+                "randomization_seed": c.randomization_seed,
+                "blinding_enabled": c.blinding_enabled,
+                "include_human_responses": c.include_human_responses,
+                "status": c.status,
+                "created_at": _isoformat(c.created_at),
+                "updated_at": _isoformat(c.updated_at),
+            })
+
+    sessions = (
+        db.query(HumanEvaluationSession)
+        .filter(HumanEvaluationSession.project_id == project_id)
+        .all()
+    )
+    sessions_data = [{
+        "id": s.id,
+        "project_id": s.project_id,
+        "evaluator_id": s.evaluator_id,
+        "session_type": s.session_type,
+        "items_evaluated": s.items_evaluated,
+        "total_items": s.total_items,
+        "status": s.status,
+        "session_config": s.session_config,
+        "created_at": _isoformat(s.created_at),
+        "updated_at": _isoformat(s.updated_at),
+        "completed_at": _isoformat(s.completed_at),
+    } for s in sessions]
+
+    config_ids = [c["id"] for c in configs_data]
+    results_data: List[dict] = []
+    if config_ids:
+        results = (
+            db.query(HumanEvaluationResult)
+            .filter(HumanEvaluationResult.config_id.in_(config_ids))
+            .all()
+        )
+        for r in results:
+            results_data.append({
+                "id": r.id,
+                "config_id": r.config_id,
+                "task_id": r.task_id,
+                "response_id": r.response_id,
+                "evaluator_id": r.evaluator_id,
+                "correctness_score": r.correctness_score,
+                "completeness_score": r.completeness_score,
+                "style_score": r.style_score,
+                "usability_score": r.usability_score,
+                "comments": r.comments,
+                "evaluation_time_seconds": r.evaluation_time_seconds,
+                "created_at": _isoformat(r.created_at),
+            })
+
+    session_ids = [s["id"] for s in sessions_data]
+    rankings_data: List[dict] = []
+    likert_data: List[dict] = []
+    if session_ids:
+        rankings = (
+            db.query(PreferenceRanking)
+            .filter(PreferenceRanking.session_id.in_(session_ids))
+            .all()
+        )
+        for r in rankings:
+            rankings_data.append({
+                "id": r.id,
+                "session_id": r.session_id,
+                "task_id": r.task_id,
+                "response_a_id": r.response_a_id,
+                "response_b_id": r.response_b_id,
+                "winner": r.winner,
+                "confidence": r.confidence,
+                "reasoning": r.reasoning,
+                "time_spent_seconds": r.time_spent_seconds,
+                "created_at": _isoformat(r.created_at),
+            })
+
+        likerts = (
+            db.query(LikertScaleEvaluation)
+            .filter(LikertScaleEvaluation.session_id.in_(session_ids))
+            .all()
+        )
+        for l in likerts:
+            likert_data.append({
+                "id": l.id,
+                "session_id": l.session_id,
+                "task_id": l.task_id,
+                "response_id": l.response_id,
+                "dimension": l.dimension,
+                "rating": l.rating,
+                "comment": l.comment,
+                "time_spent_seconds": l.time_spent_seconds,
+                "created_at": _isoformat(l.created_at),
+            })
+
+    return {
+        "human_evaluation_configs": configs_data,
+        "human_evaluation_sessions": sessions_data,
+        "human_evaluation_results": results_data,
+        "preference_rankings": rankings_data,
+        "likert_scale_evaluations": likert_data,
+    }

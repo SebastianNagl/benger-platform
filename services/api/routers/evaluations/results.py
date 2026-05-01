@@ -28,35 +28,86 @@ router = APIRouter()
 # ============= Score Extraction Helper =============
 
 
+# Known metadata-suffix keys that should never be treated as primary scores.
+# Used by both the explicit llm_judge_* matcher and the generic fallback.
+_METRIC_METADATA_SUFFIXES = (
+    "_response",      # LLM judge raw text
+    "_passed",        # boolean cast to 0/1
+    "_details",       # nested explanation dict
+    "_raw",           # raw pre-aggregation array
+    "_grade_points",  # Falloesung grade-points sub-metric
+)
+
+
 def _extract_primary_score(metrics: Optional[Dict[str, Any]]) -> Optional[float]:
     """Extract the primary display score from a TaskEvaluation metrics dict.
 
-    Priority:
-    1. llm_judge_custom (Custom LLM Judge, 0-1)
-    2. Any llm_judge_* numeric key (excluding _response, _passed, _details, _raw)
-    3. score, overall_score
+    Each TaskEvaluation row corresponds to ONE config x ONE (pred, ref) pair x
+    ONE metric, so the primary score is the single non-metadata numeric value
+    in the dict.
+
+    Precedence (handles multi-metric edge cases first, then generic fallback):
+    1. llm_judge_custom (pinned for backwards-compat)
+    2. Any llm_judge_* numeric key (excluding metadata suffixes)
+    3. korrektur_falloesung (human-graded total score)
+    4. score, overall_score (legacy keys)
+    5. Generic: first non-metadata, non-error numeric value (covers
+       bleu, rouge, meteor, exact_match, accuracy, f1, etc.)
     """
     if not metrics:
         return None
 
-    # Custom LLM judge
+    # 1. Custom LLM judge
     if "llm_judge_custom" in metrics:
         val = metrics["llm_judge_custom"]
-        if isinstance(val, (int, float)):
-            return val
+        if isinstance(val, (int, float)) and not isinstance(val, bool):
+            return float(val)
 
-    # Generic: any llm_judge_* numeric key
-    skip_suffixes = ("_response", "_passed", "_details", "_raw")
+    # 2. Any llm_judge_* numeric key
     for key, val in metrics.items():
-        if key.startswith("llm_judge_") and isinstance(val, (int, float)):
-            if not any(key.endswith(s) for s in skip_suffixes):
-                return val
+        if (
+            key.startswith("llm_judge_")
+            and isinstance(val, (int, float))
+            and not isinstance(val, bool)
+            and not key.endswith(_METRIC_METADATA_SUFFIXES)
+        ):
+            return float(val)
 
-    # Standard fallbacks
-    if "score" in metrics and isinstance(metrics["score"], (int, float)):
-        return metrics["score"]
-    if "overall_score" in metrics and isinstance(metrics["overall_score"], (int, float)):
-        return metrics["overall_score"]
+    # 3. Domain-specific human-graded metric: takes precedence over generic
+    # `score` / `overall_score` so projects using Falllosung-grade headline it.
+    if (
+        "korrektur_falloesung" in metrics
+        and isinstance(metrics["korrektur_falloesung"], (int, float))
+        and not isinstance(metrics["korrektur_falloesung"], bool)
+    ):
+        return float(metrics["korrektur_falloesung"])
+
+    # 4. Legacy generic keys
+    if (
+        "score" in metrics
+        and isinstance(metrics["score"], (int, float))
+        and not isinstance(metrics["score"], bool)
+    ):
+        return float(metrics["score"])
+    if (
+        "overall_score" in metrics
+        and isinstance(metrics["overall_score"], (int, float))
+        and not isinstance(metrics["overall_score"], bool)
+    ):
+        return float(metrics["overall_score"])
+
+    # 5. Generic fallback: first non-metadata, non-error numeric value.
+    # Covers BLEU, ROUGE, exact_match, METEOR, etc. -- each TaskEvaluation row
+    # holds the result of one config x one (pred, ref) pair x one metric, so
+    # exactly one such value is present.
+    for key, val in metrics.items():
+        if key == "error":
+            continue
+        if not isinstance(val, (int, float)) or isinstance(val, bool):
+            continue
+        if key.endswith(_METRIC_METADATA_SUFFIXES):
+            continue
+        return float(val)
 
     return None
 

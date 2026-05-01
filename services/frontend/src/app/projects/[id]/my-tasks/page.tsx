@@ -11,6 +11,7 @@ import { Badge } from '@/components/shared/Badge'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
+import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import {
   Select,
   SelectContent,
@@ -66,9 +67,22 @@ export default function MyTasksPage() {
   const [tasks, setTasks] = useState<MyTask[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalTasks, setTotalTasks] = useState(0)
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [statusFilter])
+
+  const filteredTasks = tasks.filter((task) => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return true
+    const haystack = `${task.inner_id ?? ''} ${task.id ?? ''} ${(task.data?.title as string) ?? ''}`
+    return haystack.toLowerCase().includes(q)
+  })
 
   // Load project if not already loaded
   useEffect(() => {
@@ -189,32 +203,48 @@ export default function MyTasksPage() {
       </div>
 
       {/* Filters and Stats */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('tasks.myTasks.allTasks')}</SelectItem>
-              <SelectItem value="assigned">{t('tasks.myTasks.assigned')}</SelectItem>
-              <SelectItem value="in_progress">{t('tasks.myTasks.inProgress')}</SelectItem>
-              <SelectItem value="completed">{t('tasks.myTasks.completed')}</SelectItem>
-              <SelectItem value="skipped">{t('tasks.myTasks.skipped')}</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <div className="text-sm text-zinc-500">
-            {totalTasks} {t('tasks.myTasks.tasksAssigned')}
-          </div>
-        </div>
-
-        <Button
-          onClick={() => router.push(`/projects/${projectId}/annotate`)}
-          className="bg-emerald-600 hover:bg-emerald-700"
+      <div className="mb-6">
+        <FilterToolbar
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder={t('tasks.myTasks.searchPlaceholder')}
+          searchLabel={t('common.filters.search')}
+          filtersLabel={t('common.filters.filters')}
+          hasActiveFilters={statusFilter !== 'all' || searchQuery.trim() !== ''}
+          onClearFilters={() => {
+            setStatusFilter('all')
+            setSearchQuery('')
+          }}
+          clearLabel={t('common.filters.clearAll')}
+          rightExtras={
+            <>
+              <span className="text-sm text-zinc-500">
+                {totalTasks} {t('tasks.myTasks.tasksAssigned')}
+              </span>
+              <Button
+                onClick={() => router.push(`/projects/${projectId}/annotate`)}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {t('tasks.myTasks.startAnnotating')}
+              </Button>
+            </>
+          }
         >
-          {t('tasks.myTasks.startAnnotating')}
-        </Button>
+          <FilterToolbar.Field label={t('tasks.myTasks.allTasks')}>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('tasks.myTasks.allTasks')}</SelectItem>
+                <SelectItem value="assigned">{t('tasks.myTasks.assigned')}</SelectItem>
+                <SelectItem value="in_progress">{t('tasks.myTasks.inProgress')}</SelectItem>
+                <SelectItem value="completed">{t('tasks.myTasks.completed')}</SelectItem>
+                <SelectItem value="skipped">{t('tasks.myTasks.skipped')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </FilterToolbar.Field>
+        </FilterToolbar>
       </div>
 
       {/* Tasks List */}
@@ -225,21 +255,21 @@ export default function MyTasksPage() {
             <p className="text-sm text-zinc-500">{t('tasks.myTasks.loadingTasks')}</p>
           </div>
         </div>
-      ) : tasks.length === 0 ? (
+      ) : filteredTasks.length === 0 ? (
         <Card className="p-12 text-center" data-testid="my-tasks-empty">
           <DocumentTextIcon className="mx-auto mb-4 h-12 w-12 text-zinc-400" />
           <h3 className="mb-2 text-lg font-semibold text-zinc-900 dark:text-white">
             {t('tasks.myTasks.noTasks')}
           </h3>
           <p className="text-zinc-600 dark:text-zinc-400">
-            {statusFilter === 'all'
+            {statusFilter === 'all' && !searchQuery
               ? t('tasks.myTasks.noTasks')
               : t('tasks.myTasks.noTasksWithStatus', { status: statusFilter })}
           </p>
         </Card>
       ) : (
         <div className="space-y-4" data-testid="my-tasks-list">
-          {tasks.map((task) => (
+          {filteredTasks.map((task) => (
             <Card
               key={task.id}
               data-testid="my-task-item"

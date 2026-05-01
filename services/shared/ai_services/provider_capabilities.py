@@ -69,34 +69,16 @@ PROVIDER_CAPABILITIES: Dict[str, Dict[str, Any]] = {
             "max": 2.0,
             "default": 0.0,
         },
-        "cost_per_million_tokens": {
-            "gpt-5.4": {"input": 2.50, "output": 15.00},
-            "gpt-5.2": {"input": 1.75, "output": 14.00},
-            "gpt-5.1": {"input": 1.25, "output": 10.00},
-            "gpt-5": {"input": 1.25, "output": 10.00},
-            "gpt-5-mini": {"input": 0.25, "output": 2.00},
-            "gpt-5-nano": {"input": 0.05, "output": 0.40},
-            "gpt-4.1": {"input": 2.00, "output": 8.00},
-            "gpt-4.1-mini": {"input": 0.40, "output": 1.60},
-            "gpt-4.1-nano": {"input": 0.10, "output": 0.40},
-            "o3": {"input": 2.00, "output": 8.00},
-            "o3-mini": {"input": 1.10, "output": 4.40},
-            "o4-mini": {"input": 1.10, "output": 4.40},
-            "o1": {"input": 15.00, "output": 60.00},
-            "gpt-4o": {"input": 2.50, "output": 10.00},
-            "gpt-4o-mini": {"input": 0.15, "output": 0.60},
-            "gpt-4-turbo": {"input": 10.00, "output": 30.00},
-            "gpt-4": {"input": 30.00, "output": 60.00},
-            "gpt-3.5-turbo": {"input": 0.50, "output": 1.50},
-        },
         "models_supporting_json_schema": [
             "gpt-4o", "gpt-4o-mini", "gpt-4o-2024",
             "gpt-4-turbo", "gpt-4-turbo-preview",
             "gpt-4-0125-preview", "gpt-4-1106-preview",
             "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano",
             "gpt-5", "gpt-5.1", "gpt-5.2", "gpt-5.4",
+            "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.4-pro",
+            "gpt-5.5", "gpt-5.5-pro",
             "gpt-5-mini", "gpt-5-nano",
-            "o1", "o3", "o4-mini",
+            "o1", "o3", "o3-pro", "o4-mini",
         ],
     },
     "anthropic": {
@@ -115,27 +97,6 @@ PROVIDER_CAPABILITIES: Dict[str, Dict[str, Any]] = {
             "max": 1.0,
             "default": 0.0,
         },
-        "cost_per_million_tokens": {
-            # Claude 4.6 family
-            "claude-opus-4-6": {"input": 5.00, "output": 25.00},
-            "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
-            # Claude 4.5 family (latest)
-            "claude-opus-4-5-20251101": {"input": 5.00, "output": 25.00},
-            "claude-sonnet-4-5-20250929": {"input": 3.00, "output": 15.00},
-            "claude-haiku-4-5-20251001": {"input": 1.00, "output": 5.00},
-            # Claude 4 family
-            "claude-opus-4-1-20250805": {"input": 15.00, "output": 75.00},
-            "claude-opus-4-20250514": {"input": 15.00, "output": 75.00},
-            "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00},
-            # Claude 3.7
-            "claude-3-7-sonnet-20250219": {"input": 3.00, "output": 15.00},
-            # Legacy (kept for backward compatibility with existing records)
-            "claude-3-5-sonnet-20241022": {"input": 3.00, "output": 15.00},
-            "claude-3-5-haiku-20241022": {"input": 0.80, "output": 4.00},
-            "claude-3-opus-20240229": {"input": 15.00, "output": 75.00},
-            "claude-3-sonnet-20240229": {"input": 3.00, "output": 15.00},
-            "claude-3-haiku-20240307": {"input": 0.25, "output": 1.25},
-        },
     },
     "google": {
         "display_name": "Google",
@@ -152,15 +113,6 @@ PROVIDER_CAPABILITIES: Dict[str, Dict[str, Any]] = {
             "min": 0.0,
             "max": 2.0,
             "default": 0.0,
-        },
-        "cost_per_million_tokens": {
-            "gemini-3.1-pro-preview": {"input": 2.00, "output": 12.00},
-            "gemini-3-flash-preview": {"input": 0.50, "output": 3.00},
-            "gemini-3.1-flash-lite-preview": {"input": 0.25, "output": 1.50},
-            "gemini-2.5-pro": {"input": 1.25, "output": 10.00},
-            "gemini-2.5-flash": {"input": 0.30, "output": 2.50},
-            "gemini-2.5-flash-lite": {"input": 0.10, "output": 0.40},
-            "gemini-2.0-flash": {"input": 0.10, "output": 0.40},
         },
     },
     "deepinfra": {
@@ -179,29 +131,6 @@ PROVIDER_CAPABILITIES: Dict[str, Dict[str, Any]] = {
             "max": 2.0,
             "default": 0.0,
         },
-        "cost_per_million_tokens": {
-            "deepseek-ai/DeepSeek-V3.1": {"input": 0.21, "output": 0.79},
-            "deepseek-ai/DeepSeek-R1-0528": {"input": 0.50, "output": 2.15},
-            "deepseek-ai/DeepSeek-V3.2": {"input": 0.26, "output": 0.38},
-            "deepseek-ai/DeepSeek-R1-Distill-Llama-70B": {"input": 0.70, "output": 0.80},
-            "Qwen/Qwen3-235B-A22B-Instruct-2507": {"input": 0.071, "output": 0.10},
-            "Qwen/Qwen3-235B-A22B-Thinking-2507": {"input": 0.23, "output": 2.30},
-            "Qwen/QwQ-32B": {"input": 0.20, "output": 0.60},
-            "Qwen/Qwen2.5-Coder-32B-Instruct": {"input": 0.20, "output": 0.60},
-            "Qwen/Qwen3-Coder-480B-A35B-Instruct": {"input": 0.40, "output": 1.60},
-            "meta-llama/Llama-3.3-70B-Instruct-Turbo": {"input": 0.10, "output": 0.32},
-            "meta-llama/Meta-Llama-3.1-70B-Instruct": {"input": 0.40, "output": 0.40},
-            "meta-llama/Meta-Llama-3.1-8B-Instruct": {"input": 0.02, "output": 0.05},
-            "meta-llama/Llama-4-Scout-17B-16E-Instruct": {"input": 0.08, "output": 0.30},
-            "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": {"input": 0.15, "output": 0.60},
-            "moonshotai/Kimi-K2-Instruct-0905": {"input": 0.40, "output": 2.00},
-            "moonshotai/Kimi-K2.5": {"input": 0.45, "output": 2.25},
-            "MiniMaxAI/MiniMax-M2.5": {"input": 0.27, "output": 0.95},
-            # GLM models (via DeepInfra, formerly separate Zhipu AI provider)
-            "zai-org/GLM-5": {"input": 0.80, "output": 2.56},
-            "zai-org/GLM-4.7": {"input": 0.40, "output": 1.75},
-            "zai-org/GLM-4.7-Flash": {"input": 0.06, "output": 0.40},
-        },
     },
     "grok": {
         "display_name": "Grok (xAI)",
@@ -218,14 +147,6 @@ PROVIDER_CAPABILITIES: Dict[str, Dict[str, Any]] = {
             "min": 0.0,
             "max": 2.0,
             "default": 0.0,
-        },
-        "cost_per_million_tokens": {
-            "grok-4": {"input": 3.00, "output": 15.00},
-            "grok-4-1-fast": {"input": 0.20, "output": 0.50},
-            "grok-3": {"input": 3.00, "output": 15.00},
-            "grok-3-mini": {"input": 0.30, "output": 0.50},
-            "grok-3-beta": {"input": 5.00, "output": 15.00},
-            "grok-3-mini-beta": {"input": 0.30, "output": 0.50},
         },
     },
     "mistral": {
@@ -244,15 +165,6 @@ PROVIDER_CAPABILITIES: Dict[str, Dict[str, Any]] = {
             "max": 1.0,
             "default": 0.0,
         },
-        "cost_per_million_tokens": {
-            "mistral-large-latest": {"input": 0.50, "output": 1.50},
-            "mistral-medium-latest": {"input": 0.40, "output": 2.00},
-            "mistral-small-latest": {"input": 0.06, "output": 0.18},
-            "magistral-medium-latest": {"input": 2.00, "output": 5.00},
-            "magistral-small-latest": {"input": 0.50, "output": 1.00},
-            "codestral-latest": {"input": 0.30, "output": 0.90},
-            "devstral-latest": {"input": 0.40, "output": 0.90},
-        },
     },
     "cohere": {
         "display_name": "Cohere",
@@ -269,11 +181,6 @@ PROVIDER_CAPABILITIES: Dict[str, Dict[str, Any]] = {
             "min": 0.0,
             "max": 1.0,
             "default": 0.0,
-        },
-        "cost_per_million_tokens": {
-            "command-a-03-2025": {"input": 2.50, "output": 10.00},
-            "command-r-plus-08-2024": {"input": 2.50, "output": 10.00},
-            "command-r-08-2024": {"input": 0.15, "output": 0.60},
         },
     },
 }
@@ -349,32 +256,57 @@ def get_structured_output_method(provider: str) -> Optional[StructuredOutputMeth
     return None
 
 
+_COST_CACHE: Optional[Dict[str, Dict[str, "ModelCost"]]] = None
+
+
+def _load_costs_from_catalog() -> Dict[str, Dict[str, "ModelCost"]]:
+    """Build {provider_lower: {model_id: ModelCost}} from llm_models.yaml."""
+    # Imported lazily so that this module remains usable when the loader
+    # path resolution differs (e.g., tests that monkeypatch sys.path).
+    from seeds.llm_models_loader import load_catalog
+
+    catalog = load_catalog()
+    by_provider: Dict[str, Dict[str, ModelCost]] = {}
+    for m in catalog.models:
+        if m.get("input_cost_per_million") is None or m.get("output_cost_per_million") is None:
+            continue
+        provider = (m["provider"] or "").lower()
+        by_provider.setdefault(provider, {})[m["id"]] = ModelCost(
+            input=float(m["input_cost_per_million"]),
+            output=float(m["output_cost_per_million"]),
+        )
+    return by_provider
+
+
+def reload_cost_cache() -> None:
+    """Clear the in-memory cost cache so the next lookup re-reads the YAML."""
+    global _COST_CACHE
+    _COST_CACHE = None
+
+
 def get_model_cost(provider: str, model_name: str) -> Optional[ModelCost]:
-    """
-    Get cost information for a specific model.
+    """Get cost information for a specific model.
 
-    Args:
-        provider: Provider name
-        model_name: Model name
-
-    Returns:
-        ModelCost dataclass or None if not found
+    Costs are sourced from `services/api/seeds/llm_models.yaml` (the same
+    file the seed function loads). The result is cached in-process; call
+    `reload_cost_cache()` after editing the YAML in a long-running process.
     """
-    costs = get_provider_capability(provider, "cost_per_million_tokens")
-    if not costs:
+    global _COST_CACHE
+    if _COST_CACHE is None:
+        _COST_CACHE = _load_costs_from_catalog()
+
+    provider_costs = _COST_CACHE.get(provider.lower())
+    if not provider_costs:
         return None
 
-    # Try exact match first
-    if model_name in costs:
-        cost_data = costs[model_name]
-        return ModelCost(input=cost_data["input"], output=cost_data["output"])
+    if model_name in provider_costs:
+        return provider_costs[model_name]
 
-    # Try prefix match
+    # Prefix match for snapshot suffixes (e.g. "claude-3-5-sonnet" -> "claude-3-5-sonnet-20241022")
     model_lower = model_name.lower()
-    for model_key, cost_data in costs.items():
-        if model_lower.startswith(model_key.lower()):
-            return ModelCost(input=cost_data["input"], output=cost_data["output"])
-
+    for key, cost in provider_costs.items():
+        if model_lower.startswith(key.lower()):
+            return cost
     return None
 
 
@@ -435,7 +367,13 @@ def get_provider_from_model(model_id: str) -> str:
         return "google"
     if "grok" in model_lower:
         return "grok"
-    if "mistral" in model_lower or "codestral" in model_lower or "devstral" in model_lower or "magistral" in model_lower:
+    if (
+        "mistral" in model_lower
+        or "ministral" in model_lower
+        or "codestral" in model_lower
+        or "devstral" in model_lower
+        or "magistral" in model_lower
+    ):
         return "mistral"
     if "command" in model_lower or "cohere" in model_lower or "aya" in model_lower:
         return "cohere"
@@ -450,6 +388,9 @@ def get_provider_from_model(model_id: str) -> str:
         or "minimax" in model_lower
         or "glm" in model_lower
         or "zai-org" in model_lower
+        or "stepfun-ai" in model_lower
+        or "nvidia/" in model_lower
+        or "nemotron" in model_lower
     ):
         return "deepinfra"
     return "openai"

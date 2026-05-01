@@ -1,0 +1,1375 @@
+schema_version: 1
+doc: Single source of truth for LLM models offered by BenGER. Edit this file, then on next API start the seed will upsert
+  any new/changed entries and deactivate any rows whose id is no longer listed. To force re-apply without restarting, POST
+  /api/admin/llm-models/reseed (superadmin) or run `make reseed-llm-models`.
+models:
+  - id: gpt-5.5
+    name: GPT-5.5
+    description: Latest flagship with frontier reasoning
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, multimodal, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 5.0
+    output_cost_per_million: 30.0
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI GPT-5 series enforces temperature=1.0 via API
+      max_tokens:
+        default: 8000
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+  - id: gpt-5.5-pro
+    name: GPT-5.5 Pro
+    description: Highest-tier GPT-5.5 with maximum reasoning
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, multimodal, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 30.0
+    output_cost_per_million: 180.0
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI GPT-5 series enforces temperature=1.0 via API
+      max_tokens:
+        default: 8000
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+  - id: gpt-5
+    name: GPT-5
+    description: Flagship model with PhD-level intelligence and reasoning
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, multimodal, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 1.25
+    output_cost_per_million: 10.0
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI GPT-5 series enforces temperature=1.0 via API
+      max_tokens:
+        default: 8000
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+  - id: gpt-5.4
+    name: GPT-5.4
+    description: Latest flagship with 1M context window
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, multimodal, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 2.5
+    output_cost_per_million: 15.0
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI GPT-5 series enforces temperature=1.0 via API
+      max_tokens:
+        default: 8000
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+  - id: gpt-5.4-mini
+    name: GPT-5.4 Mini
+    description: Cost-efficient GPT-5.4 variant
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 0.75
+    output_cost_per_million: 4.5
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI GPT-5 series enforces temperature=1.0 via API
+      max_tokens:
+        default: 8000
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+  - id: gpt-5.4-nano
+    name: GPT-5.4 Nano
+    description: Lightweight GPT-5.4 for fast responses
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 0.2
+    output_cost_per_million: 1.25
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI GPT-5 series enforces temperature=1.0 via API
+      max_tokens:
+        default: 8000
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+  - id: gpt-5.4-pro
+    name: GPT-5.4 Pro
+    description: Highest-tier GPT-5.4 with maximum reasoning
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, multimodal, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 30.0
+    output_cost_per_million: 180.0
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI GPT-5 series enforces temperature=1.0 via API
+      max_tokens:
+        default: 8000
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+  - id: gpt-5.2
+    name: GPT-5.2
+    description: High-performance model with 400K context
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, multimodal, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 1.75
+    output_cost_per_million: 14.0
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI GPT-5 series enforces temperature=1.0 via API
+      max_tokens:
+        default: 8000
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+  - id: gpt-5.1
+    name: GPT-5.1
+    description: Efficient flagship with 400K context
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 1.25
+    output_cost_per_million: 10.0
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI GPT-5 series enforces temperature=1.0 via API
+      max_tokens:
+        default: 8000
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+  - id: gpt-5-mini
+    name: GPT-5 Mini
+    description: Cost-efficient GPT-5 variant with 400K context (gpt-5.4-mini is the current live snapshot)
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 0.25
+    output_cost_per_million: 2.0
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI GPT-5 series enforces temperature=1.0 via API
+      max_tokens:
+        default: 8000
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+  - id: gpt-5-nano
+    name: GPT-5 Nano
+    description: Lightweight GPT-5 for fast responses (gpt-5.4-nano is the current live snapshot)
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 0.05
+    output_cost_per_million: 0.4
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI GPT-5 series enforces temperature=1.0 via API
+      max_tokens:
+        default: 8000
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+  - id: gpt-4.1
+    name: GPT-4.1
+    description: Best instruction-following with 1M context
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, coding]
+    is_active: true
+    input_cost_per_million: 2.0
+    output_cost_per_million: 8.0
+  - id: gpt-4.1-mini
+    name: GPT-4.1 Mini
+    description: Fast GPT-4.1 variant with 1M context
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, reasoning, coding]
+    is_active: true
+    input_cost_per_million: 0.4
+    output_cost_per_million: 1.6
+  - id: gpt-4.1-nano
+    name: GPT-4.1 Nano
+    description: Ultra-cheap GPT-4.1 with 1M context
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 0.1
+    output_cost_per_million: 0.4
+  - id: o4-mini
+    name: o4-mini
+    description: Cost-efficient reasoning model
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, reasoning, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 1.1
+    output_cost_per_million: 4.4
+    default_config:
+      reasoning_config:
+        parameter: reasoning_effort
+        type: select
+        values: [low, medium, high]
+        default: medium
+        label: Thinking/Reasoning Level
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI o-series enforces temperature=1.0 via API
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+      max_tokens:
+        default: 8000
+  - id: o3
+    name: o3
+    description: Advanced reasoning model with deep thinking
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, reasoning, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 2.0
+    output_cost_per_million: 8.0
+    default_config:
+      reasoning_config:
+        parameter: reasoning_effort
+        type: select
+        values: [low, medium, high]
+        default: medium
+        label: Thinking/Reasoning Level
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI o-series enforces temperature=1.0 via API
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+      max_tokens:
+        default: 16000
+  - id: o3-pro
+    name: o3 Pro
+    description: Highest-tier o3 reasoning with extended compute (200K context, 100K max output)
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, reasoning, advanced-reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 20.0
+    output_cost_per_million: 80.0
+    default_config:
+      reasoning_config:
+        parameter: reasoning_effort
+        type: select
+        values: [low, medium, high]
+        default: medium
+        label: Thinking/Reasoning Level
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI o-series enforces temperature=1.0 via API
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+      max_tokens:
+        default: 32000
+  - id: o3-mini
+    name: o3-mini
+    description: Efficient reasoning model with configurable thinking
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, reasoning, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 1.1
+    output_cost_per_million: 4.4
+    default_config:
+      reasoning_config:
+        parameter: reasoning_effort
+        type: select
+        values: [low, medium, high]
+        default: medium
+        label: Thinking/Reasoning Level
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI o-series enforces temperature=1.0 via API
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+      max_tokens:
+        default: 8000
+  - id: o1
+    name: o1
+    description: Original reasoning model with chain-of-thought
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, reasoning, advanced-reasoning]
+    is_active: false
+    input_cost_per_million: 15.0
+    output_cost_per_million: 60.0
+    default_config:
+      reasoning_config:
+        parameter: reasoning_effort
+        type: select
+        values: [low, medium, high]
+        default: medium
+        label: Thinking/Reasoning Level
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: OpenAI o-series enforces temperature=1.0 via API
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic.
+      max_tokens:
+        default: 16000
+  - id: gpt-4o
+    name: GPT-4o
+    description: Multimodal model for complex tasks
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 2.5
+    output_cost_per_million: 10.0
+  - id: gpt-4o-mini
+    name: GPT-4o Mini
+    description: Smaller, faster variant of GPT-4o
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning]
+    is_active: true
+    input_cost_per_million: 0.15
+    output_cost_per_million: 0.6
+  - id: gpt-3.5-turbo
+    name: GPT-3.5 Turbo
+    description: Fast and cost-effective for simple tasks
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 0.5
+    output_cost_per_million: 1.5
+  - id: claude-opus-4-7
+    name: Claude Opus 4.7
+    description: Most capable Claude with adaptive thinking and 1M context
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, advanced-reasoning, adaptive-thinking]
+    is_active: true
+    input_cost_per_million: 5.0
+    output_cost_per_million: 25.0
+    constraints:
+      temperature:
+        supported: true
+        default: 0.0
+        min: 0.0
+        max: 1.0
+      max_tokens:
+        default: 16000
+  - id: claude-opus-4-6
+    name: Claude Opus 4.6
+    description: Previous flagship; superseded by Claude Opus 4.7
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, advanced-reasoning, extended-thinking]
+    is_active: true
+    input_cost_per_million: 5.0
+    output_cost_per_million: 25.0
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 1024
+        max: 128000
+        default: null
+        label: Thinking/Reasoning Budget (tokens)
+    constraints:
+      temperature:
+        supported: true
+        default: 0.0
+        min: 0.0
+        max: 1.0
+      max_tokens:
+        default: 16000
+  - id: claude-sonnet-4-6
+    name: Claude Sonnet 4.6
+    description: Latest balanced model with excellent reasoning
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, extended-thinking]
+    is_active: true
+    input_cost_per_million: 3.0
+    output_cost_per_million: 15.0
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 1024
+        max: 128000
+        default: null
+        label: Thinking/Reasoning Budget (tokens)
+    constraints:
+      temperature:
+        supported: true
+        default: 0.0
+        min: 0.0
+        max: 1.0
+      max_tokens:
+        default: 8000
+  - id: claude-opus-4-1-20250805
+    name: Claude Opus 4.1
+    description: Most capable and intelligent Claude model
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, advanced-reasoning, extended-thinking]
+    is_active: true
+    input_cost_per_million: 15.0
+    output_cost_per_million: 75.0
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 1024
+        max: 128000
+        default: null
+        label: Thinking/Reasoning Budget (tokens)
+    constraints:
+      temperature:
+        supported: true
+        default: 0.0
+        min: 0.0
+        max: 1.0
+        reason: Standard support, but conflicts with top_p
+      top_p:
+        supported: true
+        conflicts_with: [temperature]
+      max_tokens:
+        default: 16000
+      reproducibility_impact: LOW
+      benchmark_notes: Use temperature=0.0 only, omit top_p parameter.
+  - id: claude-opus-4-5-20251101
+    name: Claude Opus 4.5
+    description: Most capable model with enhanced creativity and writing
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, advanced-reasoning, extended-thinking]
+    is_active: true
+    input_cost_per_million: 5.0
+    output_cost_per_million: 25.0
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 1024
+        max: 128000
+        default: null
+        label: Thinking/Reasoning Budget (tokens)
+    constraints:
+      temperature:
+        supported: true
+        default: 0.0
+        min: 0.0
+        max: 1.0
+      max_tokens:
+        default: 16000
+  - id: claude-sonnet-4-5-20250929
+    name: Claude Sonnet 4.5
+    description: Best balance of intelligence, speed, and cost
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, extended-thinking]
+    is_active: true
+    input_cost_per_million: 3.0
+    output_cost_per_million: 15.0
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 1024
+        max: 128000
+        default: null
+        label: Thinking/Reasoning Budget (tokens)
+    constraints:
+      temperature:
+        supported: true
+        default: 0.0
+        min: 0.0
+        max: 1.0
+      max_tokens:
+        default: 8000
+  - id: claude-haiku-4-5-20251001
+    name: Claude Haiku 4.5
+    description: Fastest model for high-volume tasks
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 1.0
+    output_cost_per_million: 5.0
+  - id: claude-opus-4-20250514
+    name: Claude Opus 4
+    description: Best for coding and complex agent workflows (deprecated, retires 2026-06-15)
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, extended-thinking]
+    is_active: true
+    input_cost_per_million: 15.0
+    output_cost_per_million: 75.0
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 1024
+        max: 128000
+        default: null
+        label: Thinking/Reasoning Budget (tokens)
+    constraints:
+      temperature:
+        supported: true
+        default: 0.0
+        min: 0.0
+        max: 1.0
+      max_tokens:
+        default: 16000
+  - id: claude-sonnet-4-20250514
+    name: Claude Sonnet 4
+    description: High-performance with exceptional reasoning (deprecated, retires 2026-06-15)
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, extended-thinking]
+    is_active: true
+    input_cost_per_million: 3.0
+    output_cost_per_million: 15.0
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 1024
+        max: 128000
+        default: null
+        label: Thinking/Reasoning Budget (tokens)
+    constraints:
+      temperature:
+        supported: true
+        default: 0.0
+        min: 0.0
+        max: 1.0
+      max_tokens:
+        default: 8000
+  - id: claude-3-5-haiku-20241022
+    name: Claude 3.5 Haiku
+    description: Fast and efficient for high-volume tasks
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: false
+    input_cost_per_million: 0.8
+    output_cost_per_million: 4.0
+  - id: claude-3-opus-20240229
+    name: Claude 3 Opus
+    description: Previous generation flagship model
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis]
+    is_active: false
+    input_cost_per_million: 15.0
+    output_cost_per_million: 75.0
+  - id: claude-3-sonnet-20240229
+    name: Claude 3 Sonnet
+    description: Balanced performance and speed
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: false
+    input_cost_per_million: 3.0
+    output_cost_per_million: 15.0
+  - id: claude-3-haiku-20240307
+    name: Claude 3 Haiku
+    description: Fast and efficient for simple tasks
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation]
+    is_active: false
+    input_cost_per_million: 0.25
+    output_cost_per_million: 1.25
+  - id: gemini-3.1-pro-preview
+    name: Gemini 3.1 Pro Preview
+    description: Most advanced Gemini model for complex tasks (preview)
+    provider: Google
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, multimodal, thinking]
+    is_active: true
+    input_cost_per_million: 2.0
+    output_cost_per_million: 12.0
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 0
+        max: 24576
+        default: 1024
+        label: Thinking/Reasoning Budget (tokens)
+  - id: gemini-3-flash-preview
+    name: Gemini 3 Flash Preview
+    description: Frontier-class performance rivaling larger models (preview)
+    provider: Google
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, thinking]
+    is_active: true
+    input_cost_per_million: 0.5
+    output_cost_per_million: 3.0
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 0
+        max: 24576
+        default: 1024
+        label: Thinking/Reasoning Budget (tokens)
+  - id: gemini-3.1-flash-lite-preview
+    name: Gemini 3.1 Flash-Lite Preview
+    description: Most cost-effective Gemini 3 model (preview)
+    provider: Google
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 0.25
+    output_cost_per_million: 1.5
+  - id: gemini-2.5-pro
+    name: Gemini 2.5 Pro
+    description: State-of-the-art thinking model for complex problems
+    provider: Google
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, multimodal, thinking]
+    is_active: true
+    input_cost_per_million: 1.25
+    output_cost_per_million: 10.0
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 0
+        max: 24576
+        default: 1024
+        label: Thinking/Reasoning Budget (tokens)
+    constraints:
+      temperature:
+        supported: true
+        default: 0.0
+        min: 0.0
+        max: 2.0
+      max_tokens:
+        default: 8000
+  - id: gemini-2.5-flash
+    name: Gemini 2.5 Flash
+    description: Best price/performance with thinking capabilities
+    provider: Google
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, thinking]
+    is_active: true
+    input_cost_per_million: 0.3
+    output_cost_per_million: 2.5
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 0
+        max: 24576
+        default: 1024
+        label: Thinking/Reasoning Budget (tokens)
+    constraints:
+      temperature:
+        supported: true
+        default: 0.0
+        min: 0.0
+        max: 2.0
+      max_tokens:
+        default: 8000
+  - id: gemini-2.5-flash-lite
+    name: Gemini 2.5 Flash-Lite
+    description: Cost-efficient variant for high throughput
+    provider: Google
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 0.1
+    output_cost_per_million: 0.4
+  - id: gemini-2.0-flash
+    name: Gemini 2.0 Flash
+    description: Fast with native tool use (1M context) - deprecated June 2026
+    provider: Google
+    model_type: chat
+    capabilities: [text-generation, reasoning, tool-use]
+    is_active: false
+    input_cost_per_million: 0.1
+    output_cost_per_million: 0.4
+  - id: deepseek-ai/DeepSeek-V4-Pro
+    name: DeepSeek V4 Pro
+    description: 1.6T MoE / 49B activated, 1M context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 1.74
+    output_cost_per_million: 3.48
+  - id: deepseek-ai/DeepSeek-V4-Flash
+    name: DeepSeek V4 Flash
+    description: 284B MoE / 13B activated, 1M context, cost-efficient
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.14
+    output_cost_per_million: 0.28
+  - id: deepseek-ai/DeepSeek-V3.1
+    name: DeepSeek-V3.1
+    description: 671B params MoE model with 37B activated
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.21
+    output_cost_per_million: 0.79
+    constraints:
+      temperature:
+        supported: true
+        default: 0.6
+        min: 0.0
+        max: 2.0
+        reason: Optimal performance at 0.5-0.7
+      max_tokens:
+        default: 8000
+      reproducibility_impact: LOW
+  - id: deepseek-ai/DeepSeek-R1-0528
+    name: DeepSeek-R1
+    description: State-of-the-art reasoning model
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 0.5
+    output_cost_per_million: 2.15
+    constraints:
+      temperature:
+        supported: true
+        default: 0.6
+        min: 0.0
+        max: 2.0
+        reason: Works at 0.0 but optimal performance at 0.5-0.7
+      max_tokens:
+        default: 8000
+      reproducibility_impact: LOW
+      benchmark_notes: 'For reproducibility: use 0.0. For quality benchmarks: use 0.6.'
+  - id: deepseek-ai/DeepSeek-R1-Distill-Llama-70B
+    name: DeepSeek-R1-Distill-Llama-70B
+    description: Efficient distilled model with strong reasoning (no longer hosted on DeepInfra featured catalog)
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis]
+    is_active: false
+    input_cost_per_million: 0.7
+    output_cost_per_million: 0.8
+    constraints:
+      temperature:
+        supported: true
+        default: 0.6
+        min: 0.0
+        max: 2.0
+        reason: Distilled model optimized for temp=0.5-0.7
+      max_tokens:
+        default: 8000
+      reproducibility_impact: LOW
+      benchmark_notes: 'For reproducibility: use 0.0. For quality benchmarks: use 0.6.'
+  - id: deepseek-ai/DeepSeek-V3.2
+    name: DeepSeek-V3.2
+    description: Latest DeepSeek 671B MoE model with improved performance
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.26
+    output_cost_per_million: 0.38
+  - id: Qwen/Qwen3-Max
+    name: Qwen3 Max
+    description: Qwen3 flagship, 250K context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 1.2
+    output_cost_per_million: 6.0
+  - id: Qwen/Qwen3-Max-Thinking
+    name: Qwen3 Max Thinking
+    description: Qwen3 flagship with thinking mode, 250K context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, thinking]
+    is_active: true
+    input_cost_per_million: 1.2
+    output_cost_per_million: 6.0
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 0
+        max: 32000
+        default: null
+        label: Thinking/Reasoning Budget (tokens)
+    constraints:
+      temperature:
+        supported: true
+        default: 0.6
+        min: 0.6
+        max: 2.0
+        reason: Thinking mode requires temp>=0.6 to avoid repetitions
+      max_tokens:
+        default: 8000
+      reproducibility_impact: MEDIUM
+      benchmark_notes: Lowest stable temperature is 0.6. Run 3 iterations, document thinking tokens.
+  - id: Qwen/Qwen3.5-397B-A17B
+    name: Qwen 3.5 397B
+    description: 397B MoE / 17B activated, 262K context (extensible to 1M)
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.54
+    output_cost_per_million: 3.4
+  - id: Qwen/Qwen3.5-122B-A10B
+    name: Qwen 3.5 122B
+    description: 122B MoE / 10B activated, 262K context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.29
+    output_cost_per_million: 2.4
+  - id: Qwen/Qwen3.6-35B-A3B
+    name: Qwen 3.6 35B
+    description: 35B MoE / 3B activated, 256K context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, coding]
+    is_active: true
+    input_cost_per_million: 0.19
+    output_cost_per_million: 1.0
+  - id: Qwen/Qwen3-235B-A22B-Instruct-2507
+    name: Qwen3-235B Instruct
+    description: Instruction-following variant (non-thinking, very cheap)
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.071
+    output_cost_per_million: 0.1
+  - id: Qwen/Qwen3-235B-A22B-Thinking-2507
+    name: Qwen3-235B Thinking
+    description: Advanced model with thinking capabilities
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, thinking]
+    is_active: true
+    input_cost_per_million: 0.23
+    output_cost_per_million: 2.3
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 0
+        max: 32000
+        default: null
+        label: Thinking/Reasoning Budget (tokens)
+    constraints:
+      temperature:
+        supported: true
+        default: 0.6
+        min: 0.6
+        max: 2.0
+        reason: Thinking mode requires temp>=0.6 to avoid repetitions
+      max_tokens:
+        default: 8000
+      reproducibility_impact: MEDIUM
+      benchmark_notes: Lowest stable temperature is 0.6. Run 3 iterations, document thinking tokens.
+  - id: Qwen/QwQ-32B
+    name: QwQ-32B
+    description: Reasoning model competitive with o1-mini
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 0.2
+    output_cost_per_million: 0.6
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 0
+        max: 32000
+        default: null
+        label: Thinking/Reasoning Budget (tokens)
+    constraints:
+      temperature:
+        supported: true
+        default: 0.6
+        min: 0.6
+        max: 2.0
+        reason: Greedy decoding (temp<0.6) causes endless repetitions
+      max_tokens:
+        default: 8000
+      reproducibility_impact: MEDIUM
+      benchmark_notes: Lowest stable temperature is 0.6. Run 3 iterations, report variance.
+  - id: Qwen/Qwen2.5-Coder-32B-Instruct
+    name: Qwen 2.5 Coder 32B
+    description: Specialized for coding tasks (no longer hosted on DeepInfra featured catalog)
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, coding, analysis]
+    is_active: false
+    input_cost_per_million: 0.2
+    output_cost_per_million: 0.6
+  - id: meta-llama/Llama-3.3-70B-Instruct-Turbo
+    name: Llama 3.3 70B Turbo
+    description: FP8 optimized for faster inference (no longer hosted on DeepInfra featured catalog)
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning]
+    is_active: false
+    input_cost_per_million: 0.1
+    output_cost_per_million: 0.32
+  - id: meta-llama/Meta-Llama-3.1-70B-Instruct
+    name: Llama 3.1 70B
+    description: Open-source large language model (no longer hosted on DeepInfra featured catalog)
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning]
+    is_active: false
+    input_cost_per_million: 0.4
+    output_cost_per_million: 0.4
+  - id: meta-llama/Meta-Llama-3.1-8B-Instruct
+    name: Llama 3.1 8B
+    description: Smaller, faster Llama variant (no longer hosted on DeepInfra featured catalog)
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: false
+    input_cost_per_million: 0.02
+    output_cost_per_million: 0.05
+  - id: meta-llama/Llama-4-Scout-17B-16E-Instruct
+    name: Llama 4 Scout
+    description: 10M context multimodal MoE model
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 0.08
+    output_cost_per_million: 0.3
+  - id: meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8
+    name: Llama 4 Maverick
+    description: 1M context 128-expert MoE model
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 0.15
+    output_cost_per_million: 0.6
+  - id: moonshotai/Kimi-K2-Instruct-0905
+    name: Kimi K2 Instruct
+    description: 262K context model with strong reasoning
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.4
+    output_cost_per_million: 2.0
+  - id: Qwen/Qwen3-Coder-480B-A35B-Instruct
+    name: Qwen3 Coder 480B
+    description: Coding specialist MoE model
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, coding, reasoning]
+    is_active: true
+    input_cost_per_million: 0.4
+    output_cost_per_million: 1.6
+  - id: MiniMaxAI/MiniMax-M2.5
+    name: MiniMax-M2.5
+    description: 230B MoE model (10B active), 192K context, MIT licensed
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, thinking]
+    is_active: true
+    input_cost_per_million: 0.15
+    output_cost_per_million: 1.15
+  - id: moonshotai/Kimi-K2.6
+    name: Kimi K2.6
+    description: Open multimodal agentic model, 256K context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, coding, multimodal]
+    is_active: true
+    input_cost_per_million: 0.75
+    output_cost_per_million: 3.5
+  - id: moonshotai/Kimi-K2.5
+    name: Kimi K2.5
+    description: 262K context model with advanced reasoning
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.45
+    output_cost_per_million: 2.25
+  - id: zai-org/GLM-5.1
+    name: GLM-5.1
+    description: Zhipu AI's latest flagship, 198K context, hosted on DeepInfra
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 1.05
+    output_cost_per_million: 3.5
+  - id: zai-org/GLM-4.7
+    name: GLM-4.7
+    description: Zhipu AI's 358B MoE model with interleaved thinking
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.4
+    output_cost_per_million: 1.75
+  - id: zai-org/GLM-5
+    name: GLM-5
+    description: Zhipu AI's flagship model with 200K context, hosted on DeepInfra
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.8
+    output_cost_per_million: 2.56
+  - id: zai-org/GLM-4.7-Flash
+    name: GLM-4.7 Flash
+    description: Zhipu AI's efficient 30B MoE model with 200K context, hosted on DeepInfra
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis]
+    is_active: true
+    input_cost_per_million: 0.06
+    output_cost_per_million: 0.4
+  - id: stepfun-ai/Step-3.5-Flash
+    name: Step-3.5 Flash
+    description: 196B MoE / 11B activated, 256K context, cost-efficient
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis]
+    is_active: true
+    input_cost_per_million: 0.1
+    output_cost_per_million: 0.3
+  - id: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B
+    name: Nemotron 3 Super 120B
+    description: NVIDIA's 120B MoE / 12B activated, 256K context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis]
+    is_active: true
+    input_cost_per_million: 0.1
+    output_cost_per_million: 0.5
+  - id: grok-4.3
+    name: Grok 4.3
+    description: xAI's flagship released 2026-04-30 (1M context)
+    provider: Grok
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 1.25
+    output_cost_per_million: 2.5
+  - id: grok-4
+    name: Grok 4
+    description: xAI's previous flagship with reasoning, 256K context (superseded by Grok 4.3 — use grok-4.3 for new work)
+    provider: Grok
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 3.0
+    output_cost_per_million: 15.0
+  - id: grok-4-1-fast
+    name: Grok 4.1 Fast
+    description: xAI's tool-calling model for agentic tasks (2M context)
+    provider: Grok
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.2
+    output_cost_per_million: 0.5
+  - id: grok-3
+    name: Grok 3
+    description: xAI's Grok 3 stable release (131K context)
+    provider: Grok
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning]
+    is_active: true
+    input_cost_per_million: 3.0
+    output_cost_per_million: 15.0
+  - id: grok-3-mini
+    name: Grok 3 Mini
+    description: xAI's compact Grok 3 stable release
+    provider: Grok
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 0.3
+    output_cost_per_million: 0.5
+    default_config:
+      reasoning_config:
+        parameter: reasoning_effort
+        type: select
+        values: [low, high]
+        default: low
+        label: Thinking/Reasoning Level
+  - id: grok-3-beta
+    name: Grok 3 Beta
+    description: xAI's Grok 3 with improved reasoning, 131K context (superseded by stable grok-3)
+    provider: Grok
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning]
+    is_active: false
+    input_cost_per_million: 5.0
+    output_cost_per_million: 15.0
+  - id: grok-3-mini-beta
+    name: Grok 3 Mini Beta
+    description: xAI's compact Grok 3 model, 131K context (superseded by stable grok-3-mini)
+    provider: Grok
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: false
+    input_cost_per_million: 0.3
+    output_cost_per_million: 0.5
+    default_config:
+      reasoning_config:
+        parameter: reasoning_effort
+        type: select
+        values: [low, high]
+        default: low
+        label: Thinking/Reasoning Level
+  - id: mistral-large-latest
+    name: Mistral Large
+    description: Mistral Large 3 — top-tier multimodal model, 262K context
+    provider: Mistral
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.5
+    output_cost_per_million: 1.5
+  - id: mistral-medium-latest
+    name: Mistral Medium
+    description: Mistral Medium 3.5 — frontier-class multimodal model, 131K context
+    provider: Mistral
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 0.4
+    output_cost_per_million: 2.0
+  - id: mistral-small-latest
+    name: Mistral Small
+    description: Mistral Small 4 — hybrid instruct/reasoning/coding, 131K context
+    provider: Mistral
+    model_type: chat
+    capabilities: [text-generation, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 0.06
+    output_cost_per_million: 0.18
+  - id: codestral-latest
+    name: Codestral
+    description: Mistral AI's code model for completion (128K context)
+    provider: Mistral
+    model_type: chat
+    capabilities: [coding, text-generation]
+    is_active: true
+    input_cost_per_million: 0.3
+    output_cost_per_million: 0.9
+  - id: devstral-latest
+    name: Devstral
+    description: Agentic coding model for software engineering (Devstral 2)
+    provider: Mistral
+    model_type: chat
+    capabilities: [coding, text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 0.4
+    output_cost_per_million: 0.9
+  - id: magistral-medium-latest
+    name: Magistral Medium
+    description: Magistral Medium 1.2 — frontier-class multimodal reasoning model
+    provider: Mistral
+    model_type: chat
+    capabilities: [reasoning, text-generation, analysis]
+    is_active: true
+    input_cost_per_million: 2.0
+    output_cost_per_million: 5.0
+    default_config:
+      reasoning_config:
+        parameter: prompt_mode
+        type: toggle
+        values:
+          - reasoning
+          - null
+        default: reasoning
+        label: Thinking/Reasoning Mode
+  - id: magistral-small-latest
+    name: Magistral Small
+    description: Magistral Small 1.2 — efficient reasoning model
+    provider: Mistral
+    model_type: chat
+    capabilities: [reasoning, text-generation]
+    is_active: true
+    input_cost_per_million: 0.5
+    output_cost_per_million: 1.0
+    default_config:
+      reasoning_config:
+        parameter: prompt_mode
+        type: toggle
+        values:
+          - reasoning
+          - null
+        default: reasoning
+        label: Thinking/Reasoning Mode
+  - id: ministral-3b-latest
+    name: Ministral 3B
+    description: Compact 3B model with text + vision, 131K context
+    provider: Mistral
+    model_type: chat
+    capabilities: [text-generation, multimodal]
+    is_active: true
+    input_cost_per_million: 0.1
+    output_cost_per_million: 0.1
+  - id: ministral-8b-latest
+    name: Ministral 8B
+    description: Compact 8B model with text + vision, 262K context
+    provider: Mistral
+    model_type: chat
+    capabilities: [text-generation, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 0.15
+    output_cost_per_million: 0.15
+  - id: ministral-14b-latest
+    name: Ministral 14B
+    description: Compact 14B model with text + vision, 262K context
+    provider: Mistral
+    model_type: chat
+    capabilities: [text-generation, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 0.2
+    output_cost_per_million: 0.2
+  - id: command-a-03-2025
+    name: Command A
+    description: Cohere's most performant model (111B params, 256K context)
+    provider: Cohere
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, thinking]
+    is_active: true
+    input_cost_per_million: 2.5
+    output_cost_per_million: 10.0
+    default_config:
+      reasoning_config:
+        parameter: thinking_token_budget
+        type: number
+        min: 0
+        max: 16000
+        default: null
+        label: Thinking/Reasoning Budget (tokens)
+  - id: command-a-reasoning-08-2025
+    name: Command A Reasoning
+    description: Cohere's reasoning-tuned Command A (256K context, 32K output)
+    provider: Cohere
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, thinking, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 2.5
+    output_cost_per_million: 10.0
+    default_config:
+      reasoning_config:
+        parameter: thinking_token_budget
+        type: number
+        min: 0
+        max: 16000
+        default: null
+        label: Thinking/Reasoning Budget (tokens)
+  - id: command-a-vision-07-2025
+    name: Command A Vision
+    description: Cohere's multimodal Command A (text + images, 128K context)
+    provider: Cohere
+    model_type: chat
+    capabilities: [text-generation, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 2.5
+    output_cost_per_million: 10.0
+  - id: command-r7b-12-2024
+    name: Command R 7B
+    description: Compact Command R for RAG and tool use, 128K context
+    provider: Cohere
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 0.0375
+    output_cost_per_million: 0.15
+  - id: command-r-plus-08-2024
+    name: Command R+
+    description: Cohere's flagship model for RAG and tool use
+    provider: Cohere
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning]
+    is_active: true
+    input_cost_per_million: 2.5
+    output_cost_per_million: 10.0
+  - id: command-r-08-2024
+    name: Command R
+    description: Cohere's balanced model with high throughput
+    provider: Cohere
+    model_type: chat
+    capabilities: [text-generation, reasoning]
+    is_active: true
+    input_cost_per_million: 0.15
+    output_cost_per_million: 0.6

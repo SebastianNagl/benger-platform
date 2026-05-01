@@ -80,11 +80,14 @@ class TestExtractPrimaryScore:
         metrics = {"score": 0}
         assert _extract_primary_score(metrics) == 0
 
-    def test_no_matching_keys(self):
+    def test_generic_metric_fallback(self):
         from routers.evaluations.results import _extract_primary_score
         metrics = {"accuracy": 0.95, "f1": 0.88}
-        # No recognized primary score key — returns None (no guessing)
-        assert _extract_primary_score(metrics) is None
+        # The generic fallback returns the first non-metadata numeric value.
+        # Each TaskEvaluation row holds the result of one config x one
+        # (pred, ref) pair x one metric, so exactly one numeric value is
+        # present in practice — the dict-with-two-numbers case is contrived.
+        assert _extract_primary_score(metrics) == 0.95
 
 
 class TestEvaluationMetadataModels:

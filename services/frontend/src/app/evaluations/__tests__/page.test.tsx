@@ -80,6 +80,7 @@ jest.mock('@heroicons/react/24/outline', () => ({
   ChevronDownIcon: () => <div data-testid="chevron-down-icon" />,
   PlayIcon: () => <div data-testid="play-icon" />,
   ExclamationTriangleIcon: () => <div data-testid="exclamation-icon" />,
+  XMarkIcon: () => <div data-testid="x-mark-icon" />,
 }))
 
 // Mock all shared components
@@ -253,12 +254,6 @@ describe('EvaluationDashboard', () => {
 
       expect(screen.getByText('evaluation.viewer.filters.selectProject')).toBeInTheDocument()
     })
-
-    it('should render LLM Leaderboard button', () => {
-      render(<EvaluationDashboard />)
-
-      expect(screen.getByText('evaluation.viewer.llmLeaderboard')).toBeInTheDocument()
-    })
   })
 
   describe('Project Selection', () => {
@@ -413,14 +408,6 @@ describe('EvaluationDashboard', () => {
       render(<EvaluationDashboard />)
 
       expect(screen.getByText('evaluation.viewer.title')).toBeInTheDocument()
-    })
-  })
-
-  describe('Leaderboard Navigation', () => {
-    it('should render leaderboard link', () => {
-      render(<EvaluationDashboard />)
-
-      expect(screen.getByText('evaluation.viewer.llmLeaderboard')).toBeInTheDocument()
     })
   })
 
@@ -820,20 +807,6 @@ describe('EvaluationDashboard', () => {
 
       // Restore
       ;(canAccessProjectData as jest.Mock).mockReturnValue(true)
-    })
-  })
-
-  describe('Leaderboard Button', () => {
-    it('should navigate to leaderboard on click', async () => {
-      const user = userEvent.setup()
-      render(<EvaluationDashboard />)
-
-      const leaderboardButton = screen.getByText(
-        'evaluation.viewer.llmLeaderboard'
-      )
-      await user.click(leaderboardButton)
-
-      expect(mockRouter.push).toHaveBeenCalledWith('/leaderboards?tab=llm')
     })
   })
 

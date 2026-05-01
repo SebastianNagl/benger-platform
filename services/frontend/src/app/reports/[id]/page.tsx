@@ -14,14 +14,99 @@
 'use client'
 
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
+import {
+  ChartTypeSelector,
+  type ChartType,
+} from '@/components/evaluation/ChartTypeSelector'
+import { DynamicChartRenderer } from '@/components/evaluation/DynamicChartRenderer'
 import { useI18n } from '@/contexts/I18nContext'
 import { getReportData, type ReportDataResponse } from '@/lib/api/reports'
-import dynamic from 'next/dynamic'
+import { ChevronDownIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
-import { use, useCallback, useEffect, useState } from 'react'
+import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-// Dynamically import Plotly to avoid SSR issues
-const Plot = dynamic(() => import('react-plotly.js'), { ssr: false })
+const REPORT_VIEW_TYPES: ChartType[] = ['data', 'bar', 'radar', 'table', 'heatmap']
+const DEFAULT_REPORT_VIEW: ChartType = 'data'
+const DEFAULT_AVAILABLE_VIEWS: ChartType[] = ['data']
+
+interface ChartsConfig {
+  visible_metrics?: string[]
+  available_views?: ChartType[]
+  default_view?: ChartType
+}
+
+function MetricMultiSelect({
+  metrics,
+  labels,
+  selected,
+  onChange,
+  placeholder,
+}: {
+  metrics: string[]
+  labels: Record<string, string>
+  selected: Set<string>
+  onChange: (next: Set<string>) => void
+  placeholder: string
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const close = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [])
+
+  const summary =
+    selected.size === 0
+      ? placeholder
+      : selected.size === metrics.length
+        ? `${metrics.length} / ${metrics.length}`
+        : `${selected.size} / ${metrics.length}`
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex h-8 items-center justify-between gap-2 whitespace-nowrap rounded-full bg-white px-4 py-1.5 text-sm font-medium text-zinc-900 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:hover:ring-white/20"
+      >
+        <span>{summary}</span>
+        <ChevronDownIcon
+          className={`h-4 w-4 shrink-0 opacity-70 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {open && (
+        <div className="absolute left-0 z-50 mt-1 max-h-72 w-64 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+          {metrics.map((metric) => {
+            const checked = selected.has(metric)
+            return (
+              <label
+                key={metric}
+                className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => {
+                    const next = new Set(selected)
+                    if (next.has(metric)) next.delete(metric)
+                    else next.add(metric)
+                    onChange(next)
+                  }}
+                  className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="capitalize">{labels[metric] || metric}</span>
+              </label>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface ParticipantsModalProps {
   isOpen: boolean
@@ -93,6 +178,10 @@ export default function ReportViewerPage({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showParticipants, setShowParticipants] = useState(false)
+  const [chartView, setChartView] = useState<ChartType | null>(null)
+  const [selectedMetrics, setSelectedMetrics] = useState<Set<string> | null>(
+    null
+  )
 
   const loadReportData = useCallback(async () => {
     try {
@@ -111,6 +200,135 @@ export default function ReportViewerPage({
   useEffect(() => {
     loadReportData()
   }, [loadReportData])
+
+  // ---- Hooks below this line must run on every render. Place all useMemo /
+  // useEffect calls here, BEFORE any early returns, so React's hook order is
+  // stable across loading / error / loaded states.
+
+  const sectionsForCharts = reportData?.report.content.sections
+  const evaluationChartsResp = reportData?.evaluation_charts
+
+  const chartConfig = useMemo(() => {
+    if (!evaluationChartsResp?.by_model || !sectionsForCharts) return null
+
+    const allKeys = Object.keys(evaluationChartsResp.by_model)
+    if (allKeys.length === 0) return null
+
+    const llmModelNames = allKeys.filter((k) => !k.startsWith('annotator:'))
+    const annotatorNames = allKeys.filter((k) => k.startsWith('annotator:'))
+
+    const allMetricNames = Array.from(
+      new Set(
+        allKeys.flatMap((k) =>
+          Object.keys(evaluationChartsResp.by_model[k] || {})
+        )
+      )
+    )
+    if (allMetricNames.length === 0) return null
+
+    const visibleSelection = (
+      sectionsForCharts.evaluation as { charts_config?: ChartsConfig }
+    ).charts_config?.visible_metrics
+    const metricNames = Array.isArray(visibleSelection)
+      ? allMetricNames.filter((m) => visibleSelection.includes(m))
+      : allMetricNames
+    if (metricNames.length === 0) return null
+
+    const metadata = evaluationChartsResp.metric_metadata || {}
+
+    const scale01Metrics: string[] = []
+    const scale15Metrics: string[] = []
+    metricNames.forEach((metricName) => {
+      const meta = metadata[metricName]
+      if (meta && meta.range) {
+        const [min, max] = meta.range
+        if (min >= 1 && max <= 5) {
+          scale15Metrics.push(metricName)
+        } else {
+          scale01Metrics.push(metricName)
+        }
+      } else {
+        scale01Metrics.push(metricName)
+      }
+    })
+
+    return {
+      llmModelNames,
+      annotatorNames,
+      scale01Metrics,
+      scale15Metrics,
+      metadata,
+    }
+  }, [evaluationChartsResp, sectionsForCharts])
+
+  const hasLlmCharts = (chartConfig?.llmModelNames.length ?? 0) > 0
+  const hasAnnotatorCharts = (chartConfig?.annotatorNames.length ?? 0) > 0
+
+  const evaluationChartsConfig: ChartsConfig = useMemo(
+    () =>
+      (sectionsForCharts?.evaluation as { charts_config?: ChartsConfig })
+        ?.charts_config || {},
+    [sectionsForCharts]
+  )
+
+  const availableViewsList = useMemo(() => {
+    const fromConfig = evaluationChartsConfig.available_views
+    return Array.isArray(fromConfig) && fromConfig.length > 0
+      ? fromConfig.filter((v) => REPORT_VIEW_TYPES.includes(v))
+      : DEFAULT_AVAILABLE_VIEWS
+  }, [evaluationChartsConfig.available_views])
+
+  const defaultViewFromConfig: ChartType = useMemo(() => {
+    const persisted = evaluationChartsConfig.default_view
+    if (persisted && availableViewsList.includes(persisted)) return persisted
+    return availableViewsList[0] || DEFAULT_REPORT_VIEW
+  }, [evaluationChartsConfig.default_view, availableViewsList])
+
+  const activeView = chartView ?? defaultViewFromConfig
+  // The 'data' view on /evaluations is a "no chart, just the table" mode.
+  // DynamicChartRenderer doesn't have a dedicated 'data' branch, so alias it
+  // to 'table' for rendering. The selector still shows 'data' to the user.
+  const renderedView: ChartType = activeView === 'data' ? 'table' : activeView
+
+  const metricLabels = useMemo(() => {
+    const meta = evaluationChartsResp?.metric_metadata || {}
+    const labels: Record<string, string> = {}
+    if (chartConfig) {
+      const universe = new Set<string>([
+        ...chartConfig.scale01Metrics,
+        ...chartConfig.scale15Metrics,
+      ])
+      universe.forEach((m) => {
+        labels[m] = (meta[m] && meta[m].name) || m.replace(/_/g, ' ')
+      })
+    }
+    return labels
+  }, [evaluationChartsResp, chartConfig])
+
+  const allChartMetrics = useMemo(
+    () =>
+      chartConfig
+        ? Array.from(
+            new Set([
+              ...chartConfig.scale01Metrics,
+              ...chartConfig.scale15Metrics,
+            ])
+          )
+        : [],
+    [chartConfig]
+  )
+
+  useEffect(() => {
+    if (selectedMetrics === null && allChartMetrics.length > 0) {
+      setSelectedMetrics(new Set(allChartMetrics))
+    }
+  }, [allChartMetrics, selectedMetrics])
+
+  const activeMetrics = selectedMetrics
+    ? allChartMetrics.filter((m) => selectedMetrics.has(m))
+    : allChartMetrics
+
+  // ---- End of hooks. Early returns below are now safe.
 
   if (loading) {
     return (
@@ -150,60 +368,17 @@ export default function ReportViewerPage({
     reportData
   const { sections } = report.content
 
-  // Prepare chart data for evaluation metrics, grouped by scale
-  const prepareChartData = () => {
-    if (!evaluation_charts?.by_model) return null
+  const generationReady =
+    sections.generation.status === 'completed' ||
+    Boolean(sections.generation.custom_text) ||
+    models.length > 0
 
-    const modelNames = Object.keys(evaluation_charts.by_model)
-    if (modelNames.length === 0) return null
-
-    const metricNames = Object.keys(
-      evaluation_charts.by_model[modelNames[0]] || {}
-    )
-    if (metricNames.length === 0) return null
-
-    const metadata = evaluation_charts.metric_metadata || {}
-
-    // Group metrics by scale range
-    const scale01Metrics: string[] = []
-    const scale15Metrics: string[] = []
-
-    metricNames.forEach((metricName) => {
-      const meta = metadata[metricName]
-      if (meta && meta.range) {
-        const [min, max] = meta.range
-        if (min >= 1 && max <= 5) {
-          scale15Metrics.push(metricName)
-        } else {
-          scale01Metrics.push(metricName)
-        }
-      } else {
-        // Default to 0-1 scale
-        scale01Metrics.push(metricName)
-      }
-    })
-
-    return { modelNames, scale01Metrics, scale15Metrics, metadata }
-  }
-
-  const chartConfig = prepareChartData()
-
-  // Helper to create chart traces for a set of metrics
-  const createChartTraces = (metricNames: string[], modelNames: string[]) => {
-    const metadata = evaluation_charts?.metric_metadata || {}
-    return metricNames.map((metricName) => {
-      const meta = metadata[metricName]
-      const displayName = meta?.name || metricName.replace(/_/g, ' ')
-      return {
-        x: modelNames,
-        y: modelNames.map(
-          (model) => evaluation_charts?.by_model[model]?.[metricName] || 0
-        ),
-        type: 'bar' as const,
-        name: displayName,
-      }
-    })
-  }
+  const evaluationReady =
+    sections.evaluation.status === 'completed' ||
+    Boolean(sections.evaluation.custom_interpretation) ||
+    Boolean(sections.evaluation.conclusions) ||
+    hasLlmCharts ||
+    hasAnnotatorCharts
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -220,24 +395,27 @@ export default function ReportViewerPage({
               href: '/reports',
             },
             {
-              label: sections.project_info.custom_title || sections.project_info.title,
+              label: report.project_title,
               href: `/reports/${id}`,
             },
           ]}
         />
       </div>
 
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
-          {sections.project_info.custom_title || sections.project_info.title}
-        </h1>
-        <p className="mt-2 text-gray-600">
+      {/* Project Info Section */}
+      <div className="mb-8 rounded-lg bg-white p-6 shadow">
+        <h2 className="mb-4 text-2xl font-semibold">
+          {t('reports.detail.project')}
+        </h2>
+        <p className="text-lg font-medium text-gray-900">
+          {sections.project_info.custom_title || report.project_title}
+        </p>
+        <p className="mt-2 text-gray-700">
           {sections.project_info.custom_description ||
             sections.project_info.description}
         </p>
         {report.published_at && (
-          <p className="mt-2 text-sm text-gray-500">
+          <p className="mt-3 text-sm text-gray-500">
             {t('reports.detail.publishedOn', { date: new Date(report.published_at).toLocaleDateString() })}
           </p>
         )}
@@ -319,14 +497,14 @@ export default function ReportViewerPage({
       )}
 
       {/* Generation Section */}
-      {sections.generation.visible && (
+      {sections.generation.visible && generationReady && (
         <div className="mb-8 rounded-lg bg-white p-6 shadow">
           <h2 className="mb-4 text-2xl font-semibold">{t('reports.detail.generation')}</h2>
           <p className="mb-4 text-gray-700">
             {sections.generation.custom_text ||
               t('reports.detail.defaultGenerationText')}
           </p>
-          {sections.generation.show_models && (
+          {sections.generation.show_models !== false && models.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {models.map((model) => (
                 <span
@@ -342,7 +520,7 @@ export default function ReportViewerPage({
       )}
 
       {/* Evaluation Section */}
-      {sections.evaluation.visible && (
+      {sections.evaluation.visible && evaluationReady && (
         <div className="mb-8 rounded-lg bg-white p-6 shadow">
           <h2 className="mb-4 text-2xl font-semibold">{t('reports.detail.evaluationResults')}</h2>
 
@@ -355,60 +533,78 @@ export default function ReportViewerPage({
             </div>
           )}
 
-          {/* Evaluation Charts */}
-          {chartConfig && (
-            <div className="mb-6 space-y-6">
-              <h3 className="mb-4 text-lg font-medium">{t('reports.detail.performanceByModel')}</h3>
+          {/* Viewer controls — pick which metrics to display and how. */}
+          {chartConfig && (hasLlmCharts || hasAnnotatorCharts) && (
+            <div className="mb-6 flex flex-wrap items-center gap-3">
+              <MetricMultiSelect
+                metrics={allChartMetrics}
+                labels={metricLabels}
+                selected={selectedMetrics ?? new Set(allChartMetrics)}
+                onChange={setSelectedMetrics}
+                placeholder={t('common.filters.search') || 'Metrics'}
+              />
+              <ChartTypeSelector
+                selectedType={activeView}
+                onChange={setChartView}
+                availableTypes={availableViewsList}
+              />
+            </div>
+          )}
 
-              {/* QA Metrics Chart (0-1 scale) */}
-              {chartConfig.scale01Metrics.length > 0 && (
-                <div className="rounded border border-gray-200 p-4">
-                  <Plot
-                    data={createChartTraces(
-                      chartConfig.scale01Metrics,
-                      chartConfig.modelNames
-                    )}
-                    layout={{
-                      title: { text: t('reports.detail.qaMetrics') },
-                      barmode: 'group',
-                      xaxis: { title: { text: t('reports.detail.model') } },
-                      yaxis: {
-                        title: { text: t('reports.detail.score') },
-                        range: [0, 1],
-                      },
-                      autosize: true,
-                      legend: { orientation: 'h', y: -0.2 },
-                    }}
-                    config={{ responsive: true }}
-                    style={{ width: '100%', height: '400px' }}
-                  />
-                </div>
-              )}
+          {chartConfig && hasLlmCharts && (
+            <div className="mb-6">
+              <h3 className="mb-4 text-lg font-medium">
+                {t('reports.detail.performanceByModel')}
+              </h3>
+              <div className="rounded border border-gray-200 p-4 dark:border-gray-700">
+                <DynamicChartRenderer
+                  chartType={renderedView}
+                  models={chartConfig.llmModelNames.map((id) => ({
+                    model_id: id,
+                    metrics:
+                      (evaluation_charts?.by_model[id] as Record<
+                        string,
+                        number
+                      >) || {},
+                  }))}
+                  metrics={activeMetrics}
+                  height={Math.max(
+                    400,
+                    chartConfig.llmModelNames.length * 24 + 160
+                  )}
+                  showErrorBars={false}
+                />
+              </div>
+            </div>
+          )}
 
-              {/* LLM Judge Metrics Chart (1-5 scale) */}
-              {chartConfig.scale15Metrics.length > 0 && (
-                <div className="rounded border border-gray-200 p-4">
-                  <Plot
-                    data={createChartTraces(
-                      chartConfig.scale15Metrics,
-                      chartConfig.modelNames
-                    )}
-                    layout={{
-                      title: { text: t('reports.detail.llmJudgeMetrics') },
-                      barmode: 'group',
-                      xaxis: { title: { text: t('reports.detail.model') } },
-                      yaxis: {
-                        title: { text: t('reports.detail.score') },
-                        range: [0, 5],
-                      },
-                      autosize: true,
-                      legend: { orientation: 'h', y: -0.2 },
-                    }}
-                    config={{ responsive: true }}
-                    style={{ width: '100%', height: '400px' }}
-                  />
-                </div>
-              )}
+          {chartConfig && hasAnnotatorCharts && (
+            <div className="mb-6">
+              <h3 className="mb-4 text-lg font-medium">
+                {t('reports.detail.performanceByAnnotator')}
+              </h3>
+              <div className="rounded border border-gray-200 p-4 dark:border-gray-700">
+                <DynamicChartRenderer
+                  chartType={renderedView}
+                  models={chartConfig.annotatorNames.map((id) => ({
+                    model_id: id,
+                    model_name: id.startsWith('annotator:')
+                      ? id.slice('annotator:'.length)
+                      : id,
+                    metrics:
+                      (evaluation_charts?.by_model[id] as Record<
+                        string,
+                        number
+                      >) || {},
+                  }))}
+                  metrics={activeMetrics}
+                  height={Math.max(
+                    400,
+                    chartConfig.annotatorNames.length * 22 + 160
+                  )}
+                  showErrorBars={false}
+                />
+              </div>
             </div>
           )}
 

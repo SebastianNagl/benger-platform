@@ -28,6 +28,48 @@ jest.mock('@/components/shared', () => ({
 jest.mock('@heroicons/react/24/outline', () => ({
   ChevronDownIcon: () => <div data-testid="chevron-down" />,
 }))
+jest.mock('@/components/shared/FilterToolbar', () => {
+  const FilterToolbar = ({
+    searchValue,
+    onSearchChange,
+    searchPlaceholder,
+    searchLabel,
+    clearLabel = 'Clear filters',
+    onClearFilters,
+    hasActiveFilters,
+    leftExtras,
+    rightExtras,
+    children,
+  }: any) => (
+    <div data-testid="filter-toolbar">
+      {leftExtras}
+      {onSearchChange && (
+        <input
+          data-testid="filter-toolbar-search"
+          type="search"
+          placeholder={searchPlaceholder}
+          title={searchPlaceholder || searchLabel}
+          value={searchValue ?? ''}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+      )}
+      <div data-testid="filter-toolbar-fields">{children}</div>
+      {onClearFilters && (
+        <button
+          data-testid="filter-toolbar-clear"
+          onClick={onClearFilters}
+          disabled={!hasActiveFilters}
+          title={clearLabel}
+          aria-label={clearLabel}
+        />
+      )}
+      {rightExtras}
+    </div>
+  )
+  FilterToolbar.Field = ({ children }: any) => <div>{children}</div>
+  return { FilterToolbar }
+})
+
 
 const mockModels = [
   {

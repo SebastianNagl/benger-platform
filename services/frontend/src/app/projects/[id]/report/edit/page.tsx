@@ -12,13 +12,28 @@
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Label } from '@/components/shared/Label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import {
+  type ChartType,
+  getChartTypes,
+} from '@/components/evaluation/ChartTypeSelector'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+
+const REPORT_VIEW_TYPES: ChartType[] = ['data', 'bar', 'radar', 'table', 'heatmap']
+const DEFAULT_REPORT_VIEW: ChartType = 'data'
+const DEFAULT_AVAILABLE_VIEWS: ChartType[] = ['data']
 
 interface ReportEditorPageProps {
   params: Promise<{
@@ -49,6 +64,12 @@ interface ReportContent {
     evaluation?: {
       custom_interpretation?: string
       conclusions?: string
+      charts_config?: {
+        visible_metrics?: string[]
+        available_views?: ChartType[]
+        default_view?: ChartType
+        [key: string]: unknown
+      }
     }
   }
   metadata: Record<string, unknown>
@@ -82,6 +103,22 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
   const [generationText, setGenerationText] = useState('')
   const [interpretation, setInterpretation] = useState('')
   const [conclusions, setConclusions] = useState('')
+  const [availableMetrics, setAvailableMetrics] = useState<string[]>([])
+  const [metricLabels, setMetricLabels] = useState<Record<string, string>>({})
+  const [visibleMetrics, setVisibleMetrics] = useState<Set<string>>(new Set())
+  const [availableViews, setAvailableViews] = useState<Set<ChartType>>(
+    new Set(DEFAULT_AVAILABLE_VIEWS)
+  )
+  const [defaultView, setDefaultView] = useState<ChartType>(DEFAULT_REPORT_VIEW)
+
+  const chartTypeMeta = useMemo(() => getChartTypes(t), [t])
+  const chartTypeLabel = useMemo(() => {
+    const map: Record<string, string> = {}
+    chartTypeMeta.forEach((c) => {
+      map[c.type] = c.label
+    })
+    return map
+  }, [chartTypeMeta])
 
   // Resolve params
   useEffect(() => {
@@ -129,6 +166,64 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
         setGenerationText(sections.generation?.custom_text || '')
         setInterpretation(sections.evaluation?.custom_interpretation || '')
         setConclusions(sections.evaluation?.conclusions || '')
+
+        // Load available evaluation metrics (drives the checkbox list).
+        try {
+          const dataResp = await fetch(`/api/reports/${data.id}/data`, {
+            credentials: 'include',
+          })
+          if (dataResp.ok) {
+            const reportData = await dataResp.json()
+            const byModel = reportData.evaluation_charts?.by_model || {}
+            const metricMetadata =
+              reportData.evaluation_charts?.metric_metadata || {}
+            const metricsSet = new Set<string>()
+            Object.values(byModel).forEach((modelMetrics) => {
+              Object.keys(modelMetrics as Record<string, unknown>).forEach((m) =>
+                metricsSet.add(m)
+              )
+            })
+            const metrics = Array.from(metricsSet).sort()
+            const labels: Record<string, string> = {}
+            metrics.forEach((m) => {
+              labels[m] =
+                (metricMetadata[m] && metricMetadata[m].name) ||
+                m.replace(/_/g, ' ')
+            })
+            setAvailableMetrics(metrics)
+            setMetricLabels(labels)
+
+            const persisted =
+              sections.evaluation?.charts_config?.visible_metrics
+            if (Array.isArray(persisted)) {
+              setVisibleMetrics(new Set(persisted))
+            } else {
+              setVisibleMetrics(new Set(metrics))
+            }
+          }
+        } catch (err) {
+          console.error('Failed to load evaluation metrics:', err)
+        }
+
+        const persistedViews =
+          sections.evaluation?.charts_config?.available_views
+        if (Array.isArray(persistedViews) && persistedViews.length > 0) {
+          setAvailableViews(
+            new Set(
+              persistedViews.filter((v): v is ChartType =>
+                REPORT_VIEW_TYPES.includes(v as ChartType)
+              )
+            )
+          )
+        }
+        const persistedDefault =
+          sections.evaluation?.charts_config?.default_view
+        if (
+          persistedDefault &&
+          REPORT_VIEW_TYPES.includes(persistedDefault as ChartType)
+        ) {
+          setDefaultView(persistedDefault as ChartType)
+        }
       } catch (error) {
         console.error('Failed to fetch report:', error)
         addToast(t('project.report.editor.failedToLoad'), 'error')
@@ -172,6 +267,19 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
             ...report.content.sections.evaluation,
             custom_interpretation: interpretation || undefined,
             conclusions: conclusions || undefined,
+            charts_config: {
+              ...(report.content.sections.evaluation?.charts_config || {}),
+              visible_metrics:
+                availableMetrics.length > 0
+                  ? availableMetrics.filter((m) => visibleMetrics.has(m))
+                  : undefined,
+              available_views: REPORT_VIEW_TYPES.filter((v) =>
+                availableViews.has(v)
+              ),
+              default_view: availableViews.has(defaultView)
+                ? defaultView
+                : Array.from(availableViews)[0] || DEFAULT_REPORT_VIEW,
+            },
           },
         },
       }
@@ -418,6 +526,151 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                 )}
                 rows={4}
               />
+            </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <Label>
+                  {t(
+                    'project.report.editor.evaluationSection.visibleMetrics'
+                  )}
+                </Label>
+                {availableMetrics.length > 0 && (
+                  <div className="flex gap-3 text-xs">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVisibleMetrics(new Set(availableMetrics))
+                      }
+                      className="text-emerald-700 hover:underline dark:text-emerald-400"
+                    >
+                      {t(
+                        'project.report.editor.evaluationSection.selectAll'
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVisibleMetrics(new Set())}
+                      className="text-zinc-600 hover:underline dark:text-zinc-300"
+                    >
+                      {t(
+                        'project.report.editor.evaluationSection.clearAll'
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+              {availableMetrics.length === 0 ? (
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  {t(
+                    'project.report.editor.evaluationSection.noMetricsAvailable'
+                  )}
+                </p>
+              ) : (
+                <>
+                  <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+                    {t(
+                      'project.report.editor.evaluationSection.visibleMetricsHint'
+                    )}
+                  </p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {availableMetrics.map((metric) => {
+                      const checked = visibleMetrics.has(metric)
+                      return (
+                        <label
+                          key={metric}
+                          className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              setVisibleMetrics((prev) => {
+                                const next = new Set(prev)
+                                if (next.has(metric)) {
+                                  next.delete(metric)
+                                } else {
+                                  next.add(metric)
+                                }
+                                return next
+                              })
+                            }
+                            className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                          />
+                          <span className="capitalize">
+                            {metricLabels[metric] || metric}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+            <div>
+              <Label>
+                {t('project.report.editor.evaluationSection.availableViews')}
+              </Label>
+              <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+                {t(
+                  'project.report.editor.evaluationSection.availableViewsHint'
+                )}
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {REPORT_VIEW_TYPES.map((view) => {
+                  const checked = availableViews.has(view)
+                  return (
+                    <label
+                      key={view}
+                      className="flex items-center gap-2 rounded border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setAvailableViews((prev) => {
+                            const next = new Set(prev)
+                            if (next.has(view)) {
+                              next.delete(view)
+                            } else {
+                              next.add(view)
+                            }
+                            return next
+                          })
+                        }
+                        className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span>{chartTypeLabel[view] || view}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="defaultView">
+                {t('project.report.editor.evaluationSection.defaultView')}
+              </Label>
+              <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+                {t(
+                  'project.report.editor.evaluationSection.defaultViewHint'
+                )}
+              </p>
+              <Select
+                value={defaultView}
+                onValueChange={(value) => setDefaultView(value as ChartType)}
+              >
+                <SelectTrigger id="defaultView" className="w-full sm:w-64">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {REPORT_VIEW_TYPES.filter((v) =>
+                    availableViews.has(v)
+                  ).map((view) => (
+                    <SelectItem key={view} value={view}>
+                      {chartTypeLabel[view] || view}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

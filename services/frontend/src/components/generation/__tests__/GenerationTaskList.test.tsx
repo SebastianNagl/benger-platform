@@ -176,6 +176,48 @@ jest.mock('../GenerationResultModal', () => ({
     )
   },
 }))
+jest.mock('@/components/shared/FilterToolbar', () => {
+  const FilterToolbar = ({
+    searchValue,
+    onSearchChange,
+    searchPlaceholder,
+    searchLabel,
+    clearLabel = 'Clear filters',
+    onClearFilters,
+    hasActiveFilters,
+    leftExtras,
+    rightExtras,
+    children,
+  }: any) => (
+    <div data-testid="filter-toolbar">
+      {leftExtras}
+      {onSearchChange && (
+        <input
+          data-testid="filter-toolbar-search"
+          type="search"
+          placeholder={searchPlaceholder}
+          title={searchPlaceholder || searchLabel}
+          value={searchValue ?? ''}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+      )}
+      <div data-testid="filter-toolbar-fields">{children}</div>
+      {onClearFilters && (
+        <button
+          data-testid="filter-toolbar-clear"
+          onClick={onClearFilters}
+          disabled={!hasActiveFilters}
+          title={clearLabel}
+          aria-label={clearLabel}
+        />
+      )}
+      {rightExtras}
+    </div>
+  )
+  FilterToolbar.Field = ({ children }: any) => <div>{children}</div>
+  return { FilterToolbar }
+})
+
 
 describe('GenerationTaskList', () => {
   beforeEach(() => {
@@ -206,54 +248,6 @@ describe('GenerationTaskList', () => {
   })
 
   describe('Responsive Layout', () => {
-    it('should have responsive header controls layout', async () => {
-      render(<GenerationTaskList projectId="test-project" />)
-
-      // Wait for data to load
-      await screen.findByPlaceholderText('Search tasks...')
-
-      // Check outer header container has responsive classes (line 229 in implementation)
-      // The outer container wraps both the controls and the button
-      const headerContainer = screen
-        .getByPlaceholderText('Search tasks...')
-        .closest('div[class*="mb-4"]') // Find the outer container with mb-4
-      expect(headerContainer?.className).toMatch(/flex-col/)
-      expect(headerContainer?.className).toMatch(/md:flex-row/)
-      expect(headerContainer?.className).toMatch(/md:items-center/)
-      expect(headerContainer?.className).toMatch(/md:justify-between/)
-    })
-
-    it('should have responsive search controls', async () => {
-      render(<GenerationTaskList projectId="test-project" />)
-
-      await screen.findByPlaceholderText('Search tasks...')
-
-      // SearchInput component wraps the actual input, so we check the wrapper has the responsive class
-      const searchInputWrapper = screen
-        .getByPlaceholderText('Search tasks...')
-        .closest('div[class*="w-full"]')
-      expect(searchInputWrapper?.className).toMatch(/w-full/)
-      expect(searchInputWrapper?.className).toMatch(/sm:w-auto/)
-
-      // Status select now uses the shared Select component (mocked as native <select>)
-      // The SelectTrigger receives className="sm:w-44" from the component
-      const selects = screen.getAllByRole('combobox')
-      const statusSelect = selects.find((select) =>
-        select.className.includes('sm:w-44')
-      )
-      expect(statusSelect).toBeTruthy()
-    })
-
-    it('should have responsive button layout', async () => {
-      render(<GenerationTaskList projectId="test-project" />)
-
-      await screen.findByText('Start Generation')
-
-      const startButton = screen.getByText('Start Generation')
-      expect(startButton).toHaveClass('w-full')
-      expect(startButton).toHaveClass('sm:w-auto')
-    })
-
     it('should have overflow-x-auto on table container', async () => {
       render(<GenerationTaskList projectId="test-project" />)
 
@@ -1367,26 +1361,28 @@ describe('GenerationTaskList', () => {
         expect(table).toBeInTheDocument()
       })
 
-      const selects = document.querySelectorAll('select')
-      const statusFilter = Array.from(selects).find((select) =>
-        select.className.includes('sm:w-44')
+      const selects = Array.from(document.querySelectorAll('select'))
+      const statusFilter = selects.find((select) =>
+        Array.from(select.querySelectorAll('option')).some(
+          (o) => o.textContent === 'Completed'
+        )
       )
 
       expect(statusFilter).toBeTruthy()
       if (statusFilter) {
-        const options = statusFilter.querySelectorAll('option')
-        // The mock SelectValue renders a disabled placeholder option, plus 6 SelectItem options = 7 total
-        expect(options.length).toBe(7)
-        // First option is the SelectValue placeholder (disabled)
-        expect(options[0].textContent).toBe('All statuses')
-        expect(options[0]).toBeDisabled()
-        // Remaining options are the actual filter values
-        expect(options[1].textContent).toBe('All statuses')
-        expect(options[2].textContent).toBe('Completed')
-        expect(options[3].textContent).toBe('Failed')
-        expect(options[4].textContent).toBe('Running')
-        expect(options[5].textContent).toBe('Pending')
-        expect(options[6].textContent).toBe('Not generated')
+        const optionLabels = Array.from(
+          statusFilter.querySelectorAll('option')
+        ).map((o) => o.textContent)
+        expect(optionLabels).toEqual(
+          expect.arrayContaining([
+            'All statuses',
+            'Completed',
+            'Failed',
+            'Running',
+            'Pending',
+            'Not generated',
+          ])
+        )
       }
     })
   })

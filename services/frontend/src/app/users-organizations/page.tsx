@@ -78,15 +78,17 @@ export default function UsersOrganizationsPage() {
   ]
 
   return (
-    <ResponsiveContainer>
-      <div className="py-6">
+    <ResponsiveContainer size="full" className="px-4 pb-10 pt-8 sm:px-6 lg:px-8">
+      <div className="mb-4">
         <Breadcrumb items={breadcrumbItems} />
+      </div>
 
-        <div className="mt-6">
-          <h1 className="text-2xl font-semibold text-gray-900">
+      <div className="mx-auto max-w-7xl">
+        <div className="mt-8">
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
             {t('admin.usersOrganizations')}
           </h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
             {t('admin.usersOrganizationsDescription')}
           </p>
         </div>

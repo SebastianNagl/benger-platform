@@ -19,10 +19,6 @@ jest.mock('@/stores/projectStore', () => ({
   }),
 }))
 
-jest.mock('react-hot-toast', () => ({
-  toast: { success: jest.fn(), error: jest.fn() },
-}))
-
 jest.mock('react-dropzone', () => ({
   useDropzone: ({ onDrop, disabled }: any) => ({
     getRootProps: () => ({ 'data-testid': 'dropzone' }),

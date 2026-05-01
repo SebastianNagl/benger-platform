@@ -9,7 +9,7 @@ import { projectsAPI } from '@/lib/api/projects'
 import { logger } from '@/lib/utils/logger'
 import { translate as t } from '@/lib/utils/translate'
 import { Annotation, Project, Task } from '@/types/labelStudio'
-import { toast } from 'react-hot-toast'
+import { toast } from '@/components/shared/Toast'
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 
@@ -59,7 +59,19 @@ interface ProjectStore {
   setTaskByIndex: (index: number) => void
   advanceToNextTask: () => void
   completeCurrentTask: () => void | Promise<void>
-  importData: (projectId: string, data: any[]) => Promise<void>
+  importData: (
+    projectId: string,
+    data: any[],
+    extras?: {
+      evaluation_runs?: any[]
+      human_evaluation_configs?: any[]
+      human_evaluation_sessions?: any[]
+      human_evaluation_results?: any[]
+      preference_rankings?: any[]
+      likert_scale_evaluations?: any[]
+      korrektur_comments?: any[]
+    }
+  ) => Promise<void>
 
   // Annotation actions
   createAnnotation: (taskId: string, result: any[]) => Promise<Annotation>
@@ -139,7 +151,7 @@ export const useProjectStore = create<ProjectStore>()(
           const message =
             error instanceof Error ? error.message : t('store.project.fetchFailed')
           set({ error: message, loading: false, projects: [] })
-          toast.error(message)
+          toast(message, 'error')
         }
       },
 
@@ -177,7 +189,7 @@ export const useProjectStore = create<ProjectStore>()(
           const message =
             error instanceof Error ? error.message : t('store.project.fetchOneFailed')
           set({ error: message, loading: false })
-          toast.error(message)
+          toast(message, 'error')
         }
       },
 
@@ -194,13 +206,13 @@ export const useProjectStore = create<ProjectStore>()(
             currentProject: project,
             loading: false,
           }))
-          toast.success(t('store.project.created'))
+          toast(t('store.project.created'), 'success')
           return project
         } catch (error) {
           const message =
             error instanceof Error ? error.message : t('store.project.createFailed')
           set({ error: message, loading: false })
-          toast.error(message)
+          toast(message, 'error')
           throw error
         }
       },
@@ -224,12 +236,12 @@ export const useProjectStore = create<ProjectStore>()(
                 ? state.labelConfigVersion + 1
                 : state.labelConfigVersion,
           }))
-          toast.success(t('store.project.updated'))
+          toast(t('store.project.updated'), 'success')
         } catch (error) {
           const message =
             error instanceof Error ? error.message : t('store.project.updateFailed')
           set({ error: message, loading: false })
-          toast.error(message)
+          toast(message, 'error')
         }
       },
 
@@ -258,12 +270,12 @@ export const useProjectStore = create<ProjectStore>()(
                 : state.currentProject,
             loading: false,
           }))
-          toast.success(t('store.project.deleted'))
+          toast(t('store.project.deleted'), 'success')
         } catch (error) {
           const message =
             error instanceof Error ? error.message : t('store.project.deleteFailed')
           set({ error: message, loading: false })
-          toast.error(message)
+          toast(message, 'error')
         }
       },
 
@@ -302,7 +314,7 @@ export const useProjectStore = create<ProjectStore>()(
           const message =
             error instanceof Error ? error.message : t('store.project.fetchTasksFailed')
           set({ error: message, loading: false })
-          toast.error(message)
+          toast(message, 'error')
           return []
         }
       },
@@ -369,14 +381,14 @@ export const useProjectStore = create<ProjectStore>()(
               currentTaskTotal: null,
               loading: false,
             })
-            toast(t('store.project.noMoreTasks'), { icon: 'ℹ️' })
+            toast(t('store.project.noMoreTasks'), 'info')
             return null
           }
         } catch (error) {
           const message =
             error instanceof Error ? error.message : t('store.project.nextTaskFailed')
           set({ error: message, loading: false })
-          toast.error(message)
+          toast(message, 'error')
           return null
         }
       },
@@ -412,9 +424,7 @@ export const useProjectStore = create<ProjectStore>()(
 
           // Check if we're looping back to the beginning
           if (nextIndex === 0 && currentTaskIndex > 0) {
-            toast(t('store.project.allTasksCompletedRestart'), {
-              icon: '🔄',
-            })
+            toast(t('store.project.allTasksCompletedRestart'), 'info')
           }
 
           // Get the next task and update all related state
@@ -478,12 +488,19 @@ export const useProjectStore = create<ProjectStore>()(
         }
       },
 
-      importData: async (projectId: string, data: any[]) => {
+      importData: async (
+        projectId: string,
+        data: any[],
+        extras?: Record<string, unknown>
+      ) => {
         set({ loading: true, error: null })
         try {
-          const result = await projectsAPI.importData(projectId, { data })
+          const result = await projectsAPI.importData(projectId, {
+            data,
+            ...(extras || {}),
+          })
           set({ loading: false })
-          toast.success(t('store.project.imported', { count: result.created }))
+          toast(t('store.project.imported', { count: result.created }), 'success')
 
           // Update project task count
           // If this is the current project, fetch its updated data
@@ -498,7 +515,7 @@ export const useProjectStore = create<ProjectStore>()(
           const message =
             error instanceof Error ? error.message : t('store.project.importFailed')
           set({ error: message, loading: false })
-          toast.error(message)
+          toast(message, 'error')
         }
       },
 
@@ -582,9 +599,9 @@ export const useProjectStore = create<ProjectStore>()(
 
           // Check if all tasks were completed
           if (get().allTasksCompleted) {
-            toast.success(t('store.project.allTasksAnnotated'))
+            toast(t('store.project.allTasksAnnotated'), 'success')
           } else {
-            toast.success(t('store.project.annotationSaved'))
+            toast(t('store.project.annotationSaved'), 'success')
           }
 
           return annotation
@@ -605,7 +622,7 @@ export const useProjectStore = create<ProjectStore>()(
                 const nextTask = await get().getNextTask(projectId)
                 if (!nextTask) {
                   set({ allTasksCompleted: true })
-                  toast.success(t('store.project.allTasksAnnotated'))
+                  toast(t('store.project.allTasksAnnotated'), 'success')
                   return null as unknown as Annotation
                 }
               }
@@ -628,7 +645,7 @@ export const useProjectStore = create<ProjectStore>()(
                   loading: false,
                   allTasksCompleted: true,
                 })
-                toast.success(t('store.project.allTasksAnnotated'))
+                toast(t('store.project.allTasksAnnotated'), 'success')
                 return null as unknown as Annotation
               }
 
@@ -646,14 +663,12 @@ export const useProjectStore = create<ProjectStore>()(
                 loading: false,
               })
             }
-            toast(t('store.project.taskFullyAnnotated'), {
-              icon: 'ℹ️',
-            })
+            toast(t('store.project.taskFullyAnnotated'), 'info')
             return null as unknown as Annotation
           }
 
           set({ error: message, loading: false })
-          toast.error(message)
+          toast(message, 'error')
           throw error
         }
       },
@@ -721,19 +736,19 @@ export const useProjectStore = create<ProjectStore>()(
               })
             }
           }
-          toast(t('store.project.taskSkipped'), { icon: 'ℹ️' })
+          toast(t('store.project.taskSkipped'), 'info')
         } catch (error) {
           console.error('Skip task error:', error)
           const errorMessage =
             error instanceof Error ? error.message : t('store.project.skipFailed')
-          toast.error(errorMessage)
+          toast(errorMessage, 'error')
           throw error
         }
       },
 
       evaluateLLMResponses: async (projectId: string) => {
         // TODO: Implement LLM evaluation
-        toast(t('store.project.evaluationNotImplemented'), { icon: 'ℹ️' })
+        toast(t('store.project.evaluationNotImplemented'), 'info')
       },
 
       // UI actions

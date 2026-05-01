@@ -129,13 +129,12 @@ describe('clearAllStores', () => {
   })
 
   describe('Notification Store Clearing', () => {
-    it('resets notification store without clearing settings', () => {
+    it('resets notification store toasts and pending flashes', () => {
       clearAllStores()
 
       expect(useNotificationStore.setState).toHaveBeenCalledWith({
         toasts: [],
-        notifications: [],
-        unreadCount: 0,
+        pendingFlashes: [],
       })
     })
 
@@ -147,28 +146,12 @@ describe('clearAllStores', () => {
       expect(setStateCall.toasts).toEqual([])
     })
 
-    it('clears notifications array', () => {
+    it('clears pending flashes array', () => {
       clearAllStores()
 
       const setStateCall = (useNotificationStore.setState as jest.Mock).mock
         .calls[0][0]
-      expect(setStateCall.notifications).toEqual([])
-    })
-
-    it('resets unread count', () => {
-      clearAllStores()
-
-      const setStateCall = (useNotificationStore.setState as jest.Mock).mock
-        .calls[0][0]
-      expect(setStateCall.unreadCount).toBe(0)
-    })
-
-    it('does not reset notification settings', () => {
-      clearAllStores()
-
-      const setStateCall = (useNotificationStore.setState as jest.Mock).mock
-        .calls[0][0]
-      expect(setStateCall.settings).toBeUndefined()
+      expect(setStateCall.pendingFlashes).toEqual([])
     })
   })
 

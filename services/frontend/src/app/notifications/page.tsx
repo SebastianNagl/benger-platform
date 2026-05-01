@@ -3,7 +3,15 @@
 import { Notification } from '@/components/layout/NotificationDropdown'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
+import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -14,12 +22,8 @@ import {
   ChartBarIcon,
   CheckCircleIcon,
   CheckIcon,
-  ChevronDownIcon,
-  ClockIcon,
   ExclamationTriangleIcon,
-  FunnelIcon,
   InformationCircleIcon,
-  MagnifyingGlassIcon,
   TrashIcon,
   UserPlusIcon,
   XMarkIcon,
@@ -28,7 +32,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 const notificationIcons = {
   task_created: InformationCircleIcon,
@@ -101,32 +105,6 @@ function NotificationsPageContent() {
     Set<string>
   >(new Set())
   const [showBulkActions, setShowBulkActions] = useState(false)
-
-  // Dropdown states
-  const [showSearch, setShowSearch] = useState(false)
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false)
-  const [showTypeDropdown, setShowTypeDropdown] = useState(false)
-  const [showDateDropdown, setShowDateDropdown] = useState(false)
-  const statusRef = useRef<HTMLDivElement>(null)
-  const typeRef = useRef<HTMLDivElement>(null)
-  const dateRef = useRef<HTMLDivElement>(null)
-
-  // Close dropdowns on outside click
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (statusRef.current && !statusRef.current.contains(event.target as Node)) {
-        setShowStatusDropdown(false)
-      }
-      if (typeRef.current && !typeRef.current.contains(event.target as Node)) {
-        setShowTypeDropdown(false)
-      }
-      if (dateRef.current && !dateRef.current.contains(event.target as Node)) {
-        setShowDateDropdown(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   // Client-side filtering of notifications
   const notifications = allNotifications.filter((n) => {
@@ -436,298 +414,142 @@ function NotificationsPageContent() {
       </div>
 
       {/* Action Bar */}
-      <div className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="px-4 py-3">
-          <div className="flex flex-col space-y-3 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
-            {/* Primary Actions */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              {/* Search Toggle */}
-              <Button
-                variant="outline"
-                onClick={() => setShowSearch(!showSearch)}
-                className={`flex items-center ${showSearch ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}
-                title={t('notifications.searchPlaceholder')}
-              >
-                <MagnifyingGlassIcon className="h-4 w-4" />
-                <span className="ml-2 hidden sm:inline">{t('common.search') || t('notifications.searchPlaceholder')}</span>
-                {searchTerm && (
-                  <span className="ml-2 h-2 w-2 rounded-full bg-emerald-500" />
-                )}
+      <FilterToolbar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={t('notifications.searchPlaceholder')}
+        searchLabel={t('common.filters.search')}
+        filtersLabel={t('common.filters.filters')}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={clearAllFilters}
+        clearLabel={t('notifications.clearFilters')}
+        rightExtras={
+          <>
+            <Link href="/notifications/analytics">
+              <Button variant="outline" className="flex items-center">
+                <ChartBarIcon className="h-4 w-4" />
+                <span className="ml-2 hidden sm:inline">
+                  {t('notifications.analyticsTitle')}
+                </span>
               </Button>
-
-              {/* Status Filter Dropdown */}
-              <div className="relative inline-block text-left" ref={statusRef}>
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                >
-                  <FunnelIcon className="h-4 w-4" />
-                  {filter === 'all'
-                    ? t('notifications.all')
-                    : filter === 'unread'
-                      ? t('notifications.unread')
-                      : t('notifications.read')}
-                  {filter !== 'all' && (
-                    <span className="ml-1 h-2 w-2 rounded-full bg-emerald-500" />
-                  )}
-                  <ChevronDownIcon className="h-4 w-4" />
-                </Button>
-
-                {showStatusDropdown && (
-                  <div className="absolute left-0 z-10 mt-2 w-40 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-zinc-900">
-                    <div className="p-1">
-                      {(['all', 'unread', 'read'] as const).map((value) => (
-                        <button
-                          key={value}
-                          className={`flex w-full items-center rounded-md px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
-                            filter === value
-                              ? 'font-medium text-emerald-700 dark:text-emerald-400'
-                              : 'text-zinc-900 dark:text-white'
-                          }`}
-                          onClick={() => {
-                            setFilter(value)
-                            setShowStatusDropdown(false)
-                          }}
-                        >
-                          {value === 'all'
-                            ? t('notifications.all')
-                            : value === 'unread'
-                              ? t('notifications.unread')
-                              : t('notifications.read')}
-                          {filter === value && (
-                            <CheckIcon className="ml-auto h-4 w-4" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Type Filter Dropdown */}
-              <div className="relative inline-block text-left" ref={typeRef}>
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => setShowTypeDropdown(!showTypeDropdown)}
-                >
-                  <ChevronDownIcon className="h-4 w-4" />
-                  {typeFilter === 'all'
-                    ? t('notifications.allTypes')
-                    : typeFilter
-                        .split('_')
-                        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                        .join(' ')}
-                  {typeFilter !== 'all' && (
-                    <span className="ml-1 h-2 w-2 rounded-full bg-emerald-500" />
-                  )}
-                  <ChevronDownIcon className="h-4 w-4" />
-                </Button>
-
-                {showTypeDropdown && (
-                  <div className="absolute left-0 z-10 mt-2 w-56 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-zinc-900">
-                    <div className="p-1">
-                      <button
-                        className={`flex w-full items-center rounded-md px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
-                          typeFilter === 'all'
-                            ? 'font-medium text-emerald-700 dark:text-emerald-400'
-                            : 'text-zinc-900 dark:text-white'
-                        }`}
-                        onClick={() => {
-                          setTypeFilter('all')
-                          setShowTypeDropdown(false)
-                        }}
-                      >
-                        {t('notifications.allTypes')}
-                        {typeFilter === 'all' && (
-                          <CheckIcon className="ml-auto h-4 w-4" />
-                        )}
-                      </button>
-                      {Array.from(availableTypes).map((type) => (
-                        <button
-                          key={type}
-                          className={`flex w-full items-center rounded-md px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
-                            typeFilter === type
-                              ? 'font-medium text-emerald-700 dark:text-emerald-400'
-                              : 'text-zinc-900 dark:text-white'
-                          }`}
-                          onClick={() => {
-                            setTypeFilter(type)
-                            setShowTypeDropdown(false)
-                          }}
-                        >
-                          {type
-                            .split('_')
-                            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                            .join(' ')}
-                          {typeFilter === type && (
-                            <CheckIcon className="ml-auto h-4 w-4" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Date Filter Dropdown */}
-              <div className="relative inline-block text-left" ref={dateRef}>
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => setShowDateDropdown(!showDateDropdown)}
-                >
-                  <ClockIcon className="h-4 w-4" />
-                  {dateFilter === 'all'
-                    ? t('notifications.allTime')
-                    : dateFilter === 'today'
-                      ? t('notifications.today')
-                      : dateFilter === 'week'
-                        ? t('notifications.pastWeek')
-                        : t('notifications.pastMonth')}
-                  {dateFilter !== 'all' && (
-                    <span className="ml-1 h-2 w-2 rounded-full bg-emerald-500" />
-                  )}
-                  <ChevronDownIcon className="h-4 w-4" />
-                </Button>
-
-                {showDateDropdown && (
-                  <div className="absolute left-0 z-10 mt-2 w-48 origin-top-left rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-zinc-900">
-                    <div className="p-1">
-                      {([
-                        { value: 'all', label: t('notifications.allTime') },
-                        { value: 'today', label: t('notifications.today') },
-                        { value: 'week', label: t('notifications.pastWeek') },
-                        { value: 'month', label: t('notifications.pastMonth') },
-                      ] as const).map((option) => (
-                        <button
-                          key={option.value}
-                          className={`flex w-full items-center rounded-md px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
-                            dateFilter === option.value
-                              ? 'font-medium text-emerald-700 dark:text-emerald-400'
-                              : 'text-zinc-900 dark:text-white'
-                          }`}
-                          onClick={() => {
-                            setDateFilter(option.value)
-                            setShowDateDropdown(false)
-                          }}
-                        >
-                          {option.label}
-                          {dateFilter === option.value && (
-                            <CheckIcon className="ml-auto h-4 w-4" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Clear filters */}
-              {hasActiveFilters && (
-                <button
-                  onClick={clearAllFilters}
-                  className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                  title={t('notifications.clearFilters')}
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-
-            {/* Secondary Actions */}
-            <div className="flex items-center gap-2">
-              <Link href="/notifications/analytics">
-                <Button variant="outline" className="flex items-center">
-                  <ChartBarIcon className="h-4 w-4" />
-                  <span className="ml-2 hidden sm:inline">{t('notifications.analyticsTitle')}</span>
-                </Button>
-              </Link>
-
+            </Link>
+            <Button
+              onClick={handleRefresh}
+              variant="outline"
+              className="flex items-center"
+              disabled={hookLoading || loading}
+              title={t('notifications.refresh')}
+            >
+              <ArrowPathIcon className="h-4 w-4" />
+            </Button>
+            {unreadCount > 0 && (
               <Button
-                onClick={handleRefresh}
+                onClick={handleMarkAllAsRead}
                 variant="outline"
-                className="flex items-center"
-                disabled={hookLoading || loading}
-                title={t('notifications.refresh')}
+                disabled={markingAllAsRead}
               >
-                <ArrowPathIcon className="h-4 w-4" />
+                <CheckIcon className="h-4 w-4" />
+                <span className="ml-2">
+                  {markingAllAsRead
+                    ? '...'
+                    : `${t('notifications.markAllRead')} (${unreadCount})`}
+                </span>
               </Button>
+            )}
+          </>
+        }
+      >
+        <FilterToolbar.Field label={t('notifications.all')}>
+          <Select
+            value={filter}
+            onValueChange={(v) => setFilter(v as typeof filter)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('notifications.all')}</SelectItem>
+              <SelectItem value="unread">{t('notifications.unread')}</SelectItem>
+              <SelectItem value="read">{t('notifications.read')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterToolbar.Field>
 
-              {unreadCount > 0 && (
-                <Button
-                  onClick={handleMarkAllAsRead}
-                  variant="outline"
-                  disabled={markingAllAsRead}
-                >
-                  <CheckIcon className="h-4 w-4" />
-                  <span className="ml-2">
-                    {markingAllAsRead
-                      ? '...'
-                      : `${t('notifications.markAllRead')} (${unreadCount})`}
-                  </span>
-                </Button>
-              )}
-            </div>
+        <FilterToolbar.Field label={t('notifications.allTypes')}>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('notifications.allTypes')}</SelectItem>
+              {Array.from(availableTypes).map((type) => (
+                <SelectItem key={type} value={type}>
+                  {type
+                    .split('_')
+                    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join(' ')}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterToolbar.Field>
+
+        <FilterToolbar.Field label={t('notifications.allTime')}>
+          <Select
+            value={dateFilter}
+            onValueChange={(v) => setDateFilter(v as typeof dateFilter)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('notifications.allTime')}</SelectItem>
+              <SelectItem value="today">{t('notifications.today')}</SelectItem>
+              <SelectItem value="week">{t('notifications.pastWeek')}</SelectItem>
+              <SelectItem value="month">{t('notifications.pastMonth')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterToolbar.Field>
+      </FilterToolbar>
+
+      {/* Bulk Actions Bar */}
+      {showBulkActions && (
+        <div className="flex items-center gap-4 rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+          <span className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+            {t('notifications.selected', { count: selectedNotifications.size })}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleBulkMarkAsRead}
+              variant="outline"
+              className="text-sm"
+            >
+              <CheckIcon className="mr-1 h-4 w-4" />
+              {t('notifications.markRead')}
+            </Button>
+            <Button
+              onClick={handleBulkDelete}
+              variant="outline"
+              className="border-red-300 text-sm text-red-600 hover:border-red-400 hover:text-red-700"
+            >
+              <TrashIcon className="mr-1 h-4 w-4" />
+              {t('notifications.delete')}
+            </Button>
+            <Button
+              onClick={() => {
+                setSelectedNotifications(new Set())
+                setShowBulkActions(false)
+              }}
+              variant="outline"
+              className="text-sm"
+            >
+              <XMarkIcon className="mr-1 h-4 w-4" />
+              {t('notifications.cancel')}
+            </Button>
           </div>
         </div>
+      )}
 
-        {/* Search Bar (toggled) */}
-        {showSearch && (
-          <div className="border-t border-zinc-200 px-4 py-3 dark:border-zinc-700">
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-              <input
-                type="text"
-                placeholder={t('notifications.searchPlaceholder')}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                autoFocus
-                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 pl-10 text-sm text-zinc-900 transition-colors placeholder:text-zinc-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder:text-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Bulk Actions Bar */}
-        {showBulkActions && (
-          <div className="flex items-center gap-4 border-t border-zinc-200 px-4 py-3 dark:border-zinc-700">
-            <span className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
-              {t('notifications.selected', { count: selectedNotifications.size })}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleBulkMarkAsRead}
-                variant="outline"
-                className="text-sm"
-              >
-                <CheckIcon className="mr-1 h-4 w-4" />
-                {t('notifications.markRead')}
-              </Button>
-              <Button
-                onClick={handleBulkDelete}
-                variant="outline"
-                className="border-red-300 text-sm text-red-600 hover:border-red-400 hover:text-red-700"
-              >
-                <TrashIcon className="mr-1 h-4 w-4" />
-                {t('notifications.delete')}
-              </Button>
-              <Button
-                onClick={() => {
-                  setSelectedNotifications(new Set())
-                  setShowBulkActions(false)
-                }}
-                variant="outline"
-                className="text-sm"
-              >
-                <XMarkIcon className="mr-1 h-4 w-4" />
-                {t('notifications.cancel')}
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Notifications Display */}
       {hookLoading || loading ? (

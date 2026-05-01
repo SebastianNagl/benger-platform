@@ -100,17 +100,12 @@ describe('Footer', () => {
     it('renders social media links', () => {
       render(<Footer />)
 
-      const notionLink = screen.getByRole('link', {
-        name: /follow us on notion/i,
-      })
-      expect(notionLink).toHaveAttribute('href', 'https://legaltechcolab.com/')
-
       const githubLink = screen.getByRole('link', {
         name: /follow us on github/i,
       })
       expect(githubLink).toHaveAttribute(
         'href',
-        'https://github.com/SebastianNagl/BenGER'
+        'https://github.com/SebastianNagl/benger-platform'
       )
     })
   })
@@ -119,10 +114,12 @@ describe('Footer', () => {
     it('renders social media icons with correct SVG structure', () => {
       const { container } = render(<Footer />)
 
-      const socialIcons = container.querySelectorAll('svg[aria-hidden="true"]')
-      expect(socialIcons).toHaveLength(2) // Notion and GitHub icons
+      const socialLinks = container.querySelectorAll('a.group')
+      expect(socialLinks).toHaveLength(1) // GitHub only
 
-      socialIcons.forEach((icon) => {
+      socialLinks.forEach((link) => {
+        const icon = link.querySelector('svg[aria-hidden="true"]')
+        expect(icon).not.toBeNull()
         expect(icon).toHaveClass('h-5', 'w-5', 'fill-zinc-700')
         expect(icon).toHaveClass(
           'transition',
@@ -135,11 +132,6 @@ describe('Footer', () => {
     it('provides screen reader text for social links', () => {
       render(<Footer />)
 
-      const notionSr = screen.getByText('Follow us on Notion', {
-        selector: '.sr-only',
-      })
-      expect(notionSr).toBeInTheDocument()
-
       const githubSr = screen.getByText('Follow us on GitHub', {
         selector: '.sr-only',
       })
@@ -150,7 +142,7 @@ describe('Footer', () => {
       const { container } = render(<Footer />)
 
       const socialLinks = container.querySelectorAll('a.group')
-      expect(socialLinks).toHaveLength(2)
+      expect(socialLinks).toHaveLength(1)
 
       socialLinks.forEach((link) => {
         expect(link).toHaveClass('group')
@@ -272,7 +264,7 @@ describe('Footer', () => {
       const srOnlyTexts = screen.getAllByText(/follow us on/i, {
         selector: '.sr-only',
       })
-      expect(srOnlyTexts).toHaveLength(2)
+      expect(srOnlyTexts).toHaveLength(1)
     })
 
     it('marks decorative icons as aria-hidden', () => {

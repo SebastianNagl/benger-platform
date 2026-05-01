@@ -246,14 +246,18 @@ describe('ReportEditorPage - branch coverage', () => {
   describe('Save edge cases', () => {
     it('shows saving text on save button while saving', async () => {
       ;(useAuth as jest.Mock).mockReturnValue({ user: mockSuperadmin })
+      // Mount-time: (1) main report, (2) report-data (metrics list).
+      // Click save: (3) PUT/POST that never resolves to keep "saving" state.
       ;(global.fetch as jest.Mock)
         .mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve(mockReportFullSections),
         })
-        .mockImplementationOnce(
-          () => new Promise(() => {}) // Never resolves - stays in saving state
-        )
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ evaluation_charts: { by_model: {}, metric_metadata: {} } }),
+        })
+        .mockImplementationOnce(() => new Promise(() => {}))
 
       const user = userEvent.setup()
       render(<ReportEditorPage params={createParams('proj-1')} />)
@@ -276,6 +280,10 @@ describe('ReportEditorPage - branch coverage', () => {
           ok: true,
           json: () => Promise.resolve(mockReportFullSections),
         })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ evaluation_charts: { by_model: {}, metric_metadata: {} } }),
+        })
         .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
 
       const user = userEvent.setup()
@@ -293,12 +301,12 @@ describe('ReportEditorPage - branch coverage', () => {
       await user.click(screen.getByText('project.report.editor.saveReport'))
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledTimes(2)
-        // Verify the POST call was made
-        const postCall = (global.fetch as jest.Mock).mock.calls[1]
+        expect(global.fetch).toHaveBeenCalledTimes(3)
+        // The save call is the third fetch (after report + metrics on mount).
+        const postCall = (global.fetch as jest.Mock).mock.calls[2]
         expect(postCall[1].method).toBe('POST')
         const body = JSON.parse(postCall[1].body)
-        // Empty string becomes undefined in the save payload
+        // Empty string becomes undefined in the save payload.
         expect(body.content.sections.project_info.custom_title).toBeUndefined()
       })
     })

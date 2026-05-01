@@ -5,6 +5,8 @@ import { Badge } from '@/components/shared/Badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
+import { FilterToolbar } from '@/components/shared/FilterToolbar'
+import { Input } from '@/components/shared/Input'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -18,6 +20,7 @@ import {
   ChevronDownIcon,
   EnvelopeIcon,
   KeyIcon,
+  MagnifyingGlassIcon,
   PencilIcon,
   PlusIcon,
   TrashIcon,
@@ -96,6 +99,58 @@ export function OrganizationsTab() {
     'ANNOTATOR' | 'CONTRIBUTOR' | 'ORG_ADMIN'
   >('ANNOTATOR')
   const [addingUser, setAddingUser] = useState(false)
+
+  // Filters
+  const [orgSwitcherSearch, setOrgSwitcherSearch] = useState('')
+  const [memberSearch, setMemberSearch] = useState('')
+  const [memberRoleFilter, setMemberRoleFilter] = useState<
+    'all' | 'ANNOTATOR' | 'CONTRIBUTOR' | 'ORG_ADMIN'
+  >('all')
+  const [memberVerificationFilter, setMemberVerificationFilter] = useState<
+    'all' | 'verified' | 'unverified'
+  >('all')
+
+  const filteredOrganizations = useMemo(() => {
+    const list = Array.isArray(organizations) ? organizations : []
+    const q = orgSwitcherSearch.trim().toLowerCase()
+    if (!q) return list
+    return list.filter((org: any) => {
+      return (
+        org.name?.toLowerCase().includes(q) ||
+        org.description?.toLowerCase().includes(q)
+      )
+    })
+  }, [organizations, orgSwitcherSearch])
+
+  const filteredMembers = useMemo(() => {
+    const q = memberSearch.trim().toLowerCase()
+    return members.filter((m) => {
+      if (
+        q &&
+        !m.user_name?.toLowerCase().includes(q) &&
+        !m.user_email?.toLowerCase().includes(q)
+      ) {
+        return false
+      }
+      if (memberRoleFilter !== 'all' && m.role !== memberRoleFilter) return false
+      if (memberVerificationFilter !== 'all') {
+        if (memberVerificationFilter === 'verified' && !m.email_verified) return false
+        if (memberVerificationFilter === 'unverified' && m.email_verified) return false
+      }
+      return true
+    })
+  }, [members, memberSearch, memberRoleFilter, memberVerificationFilter])
+
+  const memberHasActiveFilters =
+    memberRoleFilter !== 'all' ||
+    memberVerificationFilter !== 'all' ||
+    memberSearch.trim() !== ''
+
+  const clearMemberFilters = () => {
+    setMemberRoleFilter('all')
+    setMemberVerificationFilter('all')
+    setMemberSearch('')
+  }
 
   const canCreateOrganization =
     UserOrganizationPermissions.canCreateOrganization(userWithOrganizations)
@@ -442,34 +497,52 @@ export function OrganizationsTab() {
           </button>
 
           {showOrgSwitcher && (
-            <div className="absolute z-10 mt-1 w-64 rounded-md border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
-              {organizations &&
-                Array.isArray(organizations) &&
-                organizations.map((org: any) => (
-                  <button
-                    key={`org-switcher-${org.id}`}
-                    onClick={() => {
-                      setSelectedOrganization(org)
-                      setShowOrgSwitcher(false)
-                      // Update URL without triggering navigation
-                      const params = new URLSearchParams(window.location.search)
-                      params.set('org', org.id)
-                      window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
-                    }}
-                    className={`w-full px-4 py-2 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700 ${
-                      selectedOrganization?.id === org.id
-                        ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300'
-                        : 'text-zinc-900 dark:text-zinc-100'
-                    }`}
-                  >
-                    <div className="font-medium">{org.name}</div>
-                    {org.description && (
-                      <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">
-                        {org.description}
-                      </div>
-                    )}
-                  </button>
-                ))}
+            <div className="absolute z-10 mt-1 w-72 rounded-md border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+              <div className="relative px-2 py-2">
+                <MagnifyingGlassIcon className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                <Input
+                  type="text"
+                  placeholder={t('admin.organizations.filters.switcherSearchPlaceholder')}
+                  value={orgSwitcherSearch}
+                  onChange={(e) => setOrgSwitcherSearch(e.target.value)}
+                  className="pl-8 text-sm"
+                  autoFocus
+                />
+              </div>
+              <div className="max-h-72 overflow-y-auto">
+                {filteredOrganizations.length === 0 ? (
+                  <div className="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
+                    {t('admin.organizations.noOrganizations')}
+                  </div>
+                ) : (
+                  filteredOrganizations.map((org: any) => (
+                    <button
+                      key={`org-switcher-${org.id}`}
+                      onClick={() => {
+                        setSelectedOrganization(org)
+                        setShowOrgSwitcher(false)
+                        setOrgSwitcherSearch('')
+                        // Update URL without triggering navigation
+                        const params = new URLSearchParams(window.location.search)
+                        params.set('org', org.id)
+                        window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
+                      }}
+                      className={`w-full px-4 py-2 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700 ${
+                        selectedOrganization?.id === org.id
+                          ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300'
+                          : 'text-zinc-900 dark:text-zinc-100'
+                      }`}
+                    >
+                      <div className="font-medium">{org.name}</div>
+                      {org.description && (
+                        <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                          {org.description}
+                        </div>
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -619,8 +692,60 @@ export function OrganizationsTab() {
                 {t('admin.organizations.loadingMembers')}
               </div>
             ) : (
-              <div className="divide-y divide-zinc-200 dark:divide-zinc-700">
-                {members.map((member) => (
+              <>
+                <div className="px-4 pt-4">
+                  <FilterToolbar
+                    searchValue={memberSearch}
+                    onSearchChange={setMemberSearch}
+                    searchPlaceholder={t('admin.organizations.filters.memberSearchPlaceholder')}
+                    searchLabel={t('common.filters.search')}
+                    filtersLabel={t('common.filters.filters')}
+                    hasActiveFilters={memberHasActiveFilters}
+                    onClearFilters={clearMemberFilters}
+                    clearLabel={t('common.filters.clearAll')}
+                  >
+                    <FilterToolbar.Field label={t('admin.organizations.filters.role')}>
+                      <Select
+                        value={memberRoleFilter}
+                        onValueChange={(v) => setMemberRoleFilter(v as typeof memberRoleFilter)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t('common.filters.all')}</SelectItem>
+                          <SelectItem value="ANNOTATOR">{t('admin.organizations.roleAnnotator')}</SelectItem>
+                          <SelectItem value="CONTRIBUTOR">{t('admin.organizations.roleContributor')}</SelectItem>
+                          <SelectItem value="ORG_ADMIN">{t('admin.organizations.roleAdmin')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FilterToolbar.Field>
+
+                    <FilterToolbar.Field label={t('admin.organizations.filters.verification')}>
+                      <Select
+                        value={memberVerificationFilter}
+                        onValueChange={(v) => setMemberVerificationFilter(v as typeof memberVerificationFilter)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t('common.filters.all')}</SelectItem>
+                          <SelectItem value="verified">{t('admin.organizations.filters.verified')}</SelectItem>
+                          <SelectItem value="unverified">{t('admin.organizations.filters.unverified')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FilterToolbar.Field>
+                  </FilterToolbar>
+                </div>
+
+                <div className="divide-y divide-zinc-200 dark:divide-zinc-700">
+                  {filteredMembers.length === 0 && members.length > 0 && (
+                    <div className="p-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                      {t('admin.organizations.filters.noMatches')}
+                    </div>
+                  )}
+                  {filteredMembers.map((member) => (
                   <div
                     key={member.user_id}
                     className="flex items-center justify-between p-4"
@@ -699,7 +824,8 @@ export function OrganizationsTab() {
                     </div>
                   </div>
                 ))}
-              </div>
+                </div>
+              </>
             )}
           </Card>
 

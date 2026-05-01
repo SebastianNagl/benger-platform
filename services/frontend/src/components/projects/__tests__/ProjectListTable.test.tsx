@@ -10,7 +10,7 @@
 import { projectsAPI } from '@/lib/api/projects'
 import { useProjectStore } from '@/stores/projectStore'
 import { Project } from '@/types/labelStudio'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
 import { ProjectListTable } from '../ProjectListTable'
@@ -113,6 +113,48 @@ jest.mock('@/contexts/I18nContext', () => ({
     locale: 'en',
   }),
 }))
+jest.mock('@/components/shared/FilterToolbar', () => {
+  const FilterToolbar = ({
+    searchValue,
+    onSearchChange,
+    searchPlaceholder,
+    searchLabel,
+    clearLabel = 'Clear filters',
+    onClearFilters,
+    hasActiveFilters,
+    leftExtras,
+    rightExtras,
+    children,
+  }: any) => (
+    <div data-testid="filter-toolbar">
+      {leftExtras}
+      {onSearchChange && (
+        <input
+          data-testid="filter-toolbar-search"
+          type="search"
+          placeholder={searchPlaceholder}
+          title={searchPlaceholder || searchLabel}
+          value={searchValue ?? ''}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+      )}
+      <div data-testid="filter-toolbar-fields">{children}</div>
+      {onClearFilters && (
+        <button
+          data-testid="filter-toolbar-clear"
+          onClick={onClearFilters}
+          disabled={!hasActiveFilters}
+          title={clearLabel}
+          aria-label={clearLabel}
+        />
+      )}
+      {rightExtras}
+    </div>
+  )
+  FilterToolbar.Field = ({ children }: any) => <div>{children}</div>
+  return { FilterToolbar }
+})
+
 
 describe('ProjectListTable', () => {
   const mockFetchProjects = jest.fn()
@@ -197,11 +239,12 @@ describe('ProjectListTable', () => {
 
       render(<ProjectListTable />)
 
-      expect(screen.getByText('Project')).toBeInTheDocument()
-      expect(screen.getByText('Tasks')).toBeInTheDocument()
-      expect(screen.getByText('ANNOTATIONS')).toBeInTheDocument()
-      expect(screen.getByText('Progress')).toBeInTheDocument()
-      expect(screen.getByText('Created')).toBeInTheDocument()
+      const table = screen.getByRole('table')
+      expect(within(table).getByText('Project')).toBeInTheDocument()
+      expect(within(table).getByText('Tasks')).toBeInTheDocument()
+      expect(within(table).getByText('ANNOTATIONS')).toBeInTheDocument()
+      expect(within(table).getByText('Progress')).toBeInTheDocument()
+      expect(within(table).getByText('Created')).toBeInTheDocument()
     })
 
     it('should render project details in table rows', () => {
@@ -312,7 +355,9 @@ describe('ProjectListTable', () => {
 
       render(<ProjectListTable />)
 
-      const progressHeader = screen.getByText('Progress').closest('button')
+      const progressHeader = within(screen.getByRole('table'))
+        .getByText('Progress')
+        .closest('button')
       fireEvent.click(progressHeader!)
 
       const rows = screen.getAllByTestId(/projects-table-row/)
@@ -1167,7 +1212,6 @@ describe('ProjectListTable', () => {
       render(<ProjectListTable showArchivedOnly={true} />)
 
       expect(screen.getByText('Archived Projects')).toBeInTheDocument()
-      expect(screen.getByText('View and manage your archived projects')).toBeInTheDocument()
     })
 
     it('should not show create and import buttons in archived view', () => {
@@ -1609,7 +1653,7 @@ describe('ProjectListTable', () => {
 
       render(<ProjectListTable />)
 
-      const searchInput = screen.getByTestId('projects-search-input')
+      const searchInput = screen.getByTestId('filter-toolbar-search')
       await user.type(searchInput, 'Alpha')
 
       // Wait for debounce
@@ -1631,7 +1675,7 @@ describe('ProjectListTable', () => {
 
       render(<ProjectListTable />)
 
-      const searchInput = screen.getByTestId('projects-search-input')
+      const searchInput = screen.getByTestId('filter-toolbar-search')
       await user.clear(searchInput)
 
       await waitFor(
@@ -1652,7 +1696,7 @@ describe('ProjectListTable', () => {
 
       render(<ProjectListTable />)
 
-      const searchInput = screen.getByTestId('projects-search-input')
+      const searchInput = screen.getByTestId('filter-toolbar-search')
       await user.type(searchInput, 'test')
 
       // Should not call setSearchQuery immediately

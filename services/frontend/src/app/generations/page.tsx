@@ -3,7 +3,6 @@
 import { GenerationTaskList } from '@/components/generation/GenerationTaskList'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
-import { Card } from '@/components/shared/Card'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -11,9 +10,8 @@ import { projectsAPI } from '@/lib/api/projects'
 import { Project } from '@/types/labelStudio'
 import { parseSubdomain } from '@/lib/utils/subdomain'
 import { canAccessProjectData } from '@/utils/permissions'
-import { ChevronDownIcon } from '@heroicons/react/24/outline'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export default function GenerationPage() {
   const { t } = useI18n()
@@ -23,8 +21,6 @@ export default function GenerationPage() {
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
   const { isPrivateMode } =
     typeof window !== 'undefined'
       ? parseSubdomain()
@@ -41,7 +37,6 @@ export default function GenerationPage() {
   const handleProjectSelect = useCallback(
     (project: Project) => {
       setSelectedProject(project)
-      setDropdownOpen(false)
       localStorage.setItem('generations_lastProjectId', project.id.toString())
       const params = new URLSearchParams(searchParams?.toString() || '')
       params.set('projectId', project.id.toString())
@@ -74,25 +69,10 @@ export default function GenerationPage() {
       const project = projects.find((p) => p.id.toString() === projectId)
       if (project) {
         setSelectedProject(project)
-        setDropdownOpen(false)
         localStorage.setItem('generations_lastProjectId', project.id.toString())
       }
     }
   }, [projects, selectedProject, searchParams])
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   if (isLoading) {
     return (
@@ -147,54 +127,12 @@ export default function GenerationPage() {
             {t('generation.title')}
           </h1>
 
-          {/* Project dropdown */}
-          <Card className="mb-6 p-4">
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="relative" ref={dropdownRef}>
-                <label className="mb-1 block text-xs font-medium text-gray-500">
-                  {t('generation.project')}
-                </label>
-                <Button
-                  variant="outline"
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="w-48 justify-between"
-                >
-                  <span className="truncate">
-                    {selectedProject?.title ||
-                      t('generation.selectProject')}
-                  </span>
-                  <ChevronDownIcon
-                    className={`ml-2 h-4 w-4 opacity-70 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}
-                  />
-                </Button>
-                {dropdownOpen && (
-                  <div className="absolute z-50 mt-1 max-h-60 w-72 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                    {projects.map((project) => (
-                      <button
-                        key={project.id}
-                        onClick={() => handleProjectSelect(project)}
-                        className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                          selectedProject?.id === project.id
-                            ? 'bg-emerald-50 dark:bg-emerald-900/20'
-                            : ''
-                        }`}
-                      >
-                        <div className="font-medium">{project.title}</div>
-                        <div className="text-xs text-gray-500">
-                          {project.task_count || 0} tasks
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </Card>
-
-          {/* Generation task list */}
-          {selectedProject && (
-            <GenerationTaskList projectId={selectedProject.id} />
-          )}
+          <GenerationTaskList
+            projectId={selectedProject?.id ?? ''}
+            projects={projects}
+            selectedProject={selectedProject}
+            onProjectChange={handleProjectSelect}
+          />
         </div>
       </div>
     </ResponsiveContainer>

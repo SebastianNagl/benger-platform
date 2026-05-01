@@ -32,11 +32,10 @@ export function clearAllStores(preserveInitialized = false) {
     localStorage.removeItem('annotation-store')
   }
 
-  // Reset notification store (don't reset settings to preserve user preferences)
+  // Reset notification store
   useNotificationStore.setState({
     toasts: [],
-    notifications: [],
-    unreadCount: 0,
+    pendingFlashes: [],
   })
 
   // Reset UI store (keep some UI preferences like sidebar state)

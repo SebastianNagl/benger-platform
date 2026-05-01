@@ -665,6 +665,14 @@ class ProjectImportData(BaseModel):
     evaluation_runs: Optional[List[Dict[str, Any]]] = Field(
         None, description="Evaluation run records for roundtrip import"
     )
+    # Top-level human-evaluation arrays (mirrors `POST /import-project` payload shape).
+    human_evaluation_configs: Optional[List[Dict[str, Any]]] = None
+    human_evaluation_sessions: Optional[List[Dict[str, Any]]] = None
+    human_evaluation_results: Optional[List[Dict[str, Any]]] = None
+    preference_rankings: Optional[List[Dict[str, Any]]] = None
+    likert_scale_evaluations: Optional[List[Dict[str, Any]]] = None
+    # Korrektur threaded comments (review feedback feature).
+    korrektur_comments: Optional[List[Dict[str, Any]]] = None
 
 
 class ComprehensiveProjectExport(BaseModel):

@@ -5,7 +5,7 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { useNotifications } from '@/hooks/useNotifications'
 import { api } from '@/lib/api'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
 import NotificationsPage from '../page'
@@ -216,6 +216,66 @@ jest.mock('@/components/shared/Button', () => ({
 jest.mock('@/components/shared/ResponsiveContainer', () => ({
   ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
 }))
+jest.mock('@/components/shared/Select', () => ({
+  Select: ({ value, onValueChange, disabled, children }: any) => (
+    <select
+      value={value ?? ''}
+      onChange={(e) => onValueChange(e.target.value)}
+      disabled={disabled}
+    >
+      {children}
+    </select>
+  ),
+  SelectTrigger: () => null,
+  SelectValue: () => null,
+  SelectContent: ({ children }: any) => <>{children}</>,
+  SelectItem: ({ value, children }: any) => (
+    <option value={value}>{children}</option>
+  ),
+}))
+
+jest.mock('@/components/shared/FilterToolbar', () => {
+  const FilterToolbar = ({
+    searchValue,
+    onSearchChange,
+    searchPlaceholder,
+    searchLabel,
+    clearLabel = 'Clear filters',
+    onClearFilters,
+    hasActiveFilters,
+    leftExtras,
+    rightExtras,
+    children,
+  }: any) => (
+    <div data-testid="filter-toolbar">
+      {leftExtras}
+      {onSearchChange && (
+        <input
+          data-testid="filter-toolbar-search"
+          type="search"
+          placeholder={searchPlaceholder}
+          title={searchPlaceholder || searchLabel}
+          value={searchValue ?? ''}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+      )}
+      <div data-testid="filter-toolbar-fields">{children}</div>
+      {onClearFilters && (
+        <button
+          data-testid="filter-toolbar-clear"
+          onClick={onClearFilters}
+          disabled={!hasActiveFilters}
+          title={clearLabel}
+          aria-label={clearLabel}
+        />
+      )}
+      {rightExtras}
+    </div>
+  )
+  FilterToolbar.Field = ({ children }: any) => <div>{children}</div>
+  return { FilterToolbar }
+})
+
 
 describe('NotificationsPage', () => {
   const mockPush = jest.fn()
@@ -274,12 +334,6 @@ describe('NotificationsPage', () => {
       message: 'Success',
     })
   })
-
-  // Helper: open search bar by clicking the search toggle button
-  const openSearchBar = async (user: ReturnType<typeof userEvent.setup>) => {
-    const searchToggle = screen.getByTitle('Search notifications...')
-    await user.click(searchToggle)
-  }
 
   // Helper: open status filter dropdown and select an option
   const selectStatusFilter = async (
@@ -347,11 +401,6 @@ describe('NotificationsPage', () => {
       expect(analyticsLink).toHaveAttribute('href', '/notifications/analytics')
     })
 
-    it('renders search toggle button', () => {
-      render(<NotificationsPage />)
-
-      expect(screen.getByTitle('Search notifications...')).toBeInTheDocument()
-    })
   })
 
   describe('Notification List Display', () => {
@@ -424,16 +473,21 @@ describe('NotificationsPage', () => {
     it('shows correct empty state for unread filter', async () => {
       const user = userEvent.setup()
 
+      ;(useNotifications as jest.Mock).mockReturnValue({
+        notifications: [],
+        unreadCount: 0,
+        isLoading: false,
+        markAsRead: mockMarkAsRead,
+        markAllAsRead: mockMarkAllAsRead,
+        refreshNotifications: mockRefreshNotifications,
+        fetchNotifications: mockFetchNotifications,
+      })
+
       render(<NotificationsPage />)
 
-      // Click the status filter dropdown button
-      const statusButton = screen.getByText('All Status')
-      await user.click(statusButton)
-
-      // Select 'Unread' from dropdown
-      const unreadOption = await screen.findAllByText('Unread')
-      // The dropdown option (not the filter button)
-      await user.click(unreadOption[unreadOption.length - 1])
+      // Status filter is the first <select> rendered by the page (read-status filter).
+      const [statusSelect] = screen.getAllByRole('combobox')
+      await user.selectOptions(statusSelect, 'unread')
 
       expect(
         screen.getByText(/you're all caught up! no unread notifications/i)
@@ -593,37 +647,15 @@ describe('NotificationsPage', () => {
       })
     })
 
-    it('renders search input after toggling search', async () => {
-      const user = userEvent.setup()
-
-      render(<NotificationsPage />)
-
-      await openSearchBar(user)
-
-      const searchInput = screen.getByPlaceholderText(/search notifications/i)
-      expect(searchInput).toBeInTheDocument()
-    })
-
     it('allows searching notifications', async () => {
       const user = userEvent.setup()
 
       render(<NotificationsPage />)
 
-      await openSearchBar(user)
-
       const searchInput = screen.getByPlaceholderText(/search notifications/i)
       await user.type(searchInput, 'test search')
 
       expect(searchInput).toHaveValue('test search')
-    })
-
-    it('search is only visible after toggling search button', () => {
-      render(<NotificationsPage />)
-
-      // Search input should not be visible by default
-      expect(
-        screen.queryByPlaceholderText(/search notifications/i)
-      ).not.toBeInTheDocument()
     })
   })
 
@@ -1208,8 +1240,6 @@ describe('NotificationsPage', () => {
 
       render(<NotificationsPage />)
 
-      await openSearchBar(user)
-
       const searchInput = screen.getByPlaceholderText(/search notifications/i)
       await user.type(searchInput, 'important')
 
@@ -1220,8 +1250,6 @@ describe('NotificationsPage', () => {
       const user = userEvent.setup()
 
       render(<NotificationsPage />)
-
-      await openSearchBar(user)
 
       const searchInput = screen.getByPlaceholderText(/search notifications/i)
       await user.type(searchInput, 'test')
@@ -1244,8 +1272,6 @@ describe('NotificationsPage', () => {
 
       render(<NotificationsPage />)
 
-      await openSearchBar(user)
-
       const searchInput = screen.getByPlaceholderText(/search notifications/i)
       await user.type(searchInput, 'nonexistent notification')
 
@@ -1263,8 +1289,6 @@ describe('NotificationsPage', () => {
       const user = userEvent.setup()
 
       render(<NotificationsPage />)
-
-      await openSearchBar(user)
 
       const searchInput = screen.getByPlaceholderText(/search notifications/i)
       await user.type(searchInput, 'important task')
@@ -1352,7 +1376,6 @@ describe('NotificationsPage', () => {
       render(<NotificationsPage />)
 
       // Open search and type
-      await openSearchBar(user)
       const searchInput = screen.getByPlaceholderText(/search notifications/i)
       await user.type(searchInput, 'test')
 
@@ -1597,20 +1620,14 @@ describe('NotificationsPage', () => {
         refreshNotifications: mockRefreshNotifications,
         fetchNotifications: mockFetchNotifications,
       })
-      ;(api.getNotifications as jest.Mock).mockResolvedValue([])
 
       render(<NotificationsPage />)
 
-      const statusButton = screen.getByText('All Status')
-      await user.click(statusButton)
+      const [statusSelect] = screen.getAllByRole('combobox')
+      await user.selectOptions(statusSelect, 'read')
 
-      const readOptions = await screen.findAllByText('Read')
-      await user.click(readOptions[readOptions.length - 1])
-
-      await waitFor(() => {
-        // After selecting read filter, the button should now show 'Read'
-        expect(screen.queryByText('All Status')).not.toBeInTheDocument()
-      })
+      // Native-select mock reflects the new value, proving the filter setter fired.
+      expect((statusSelect as HTMLSelectElement).value).toBe('read')
     })
 
     it('applies type filter via dropdown', async () => {
@@ -1742,8 +1759,6 @@ describe('NotificationsPage', () => {
       ;(api.getNotifications as jest.Mock).mockResolvedValue([])
 
       render(<NotificationsPage />)
-
-      await openSearchBar(user)
 
       const searchInput = screen.getByPlaceholderText(/search notifications/i)
       await user.type(searchInput, 'important')
@@ -1992,8 +2007,6 @@ describe('NotificationsPage', () => {
 
       render(<NotificationsPage />)
 
-      await openSearchBar(user)
-
       const searchInput = screen.getByPlaceholderText(/search notifications/i)
       await user.type(searchInput, 'test')
 
@@ -2053,8 +2066,9 @@ describe('NotificationsPage', () => {
       render(<NotificationsPage />)
 
       // Notification should be rendered in the table
-      expect(screen.getByText('Task Created')).toBeInTheDocument()
-      expect(screen.getByText('A new task has been created')).toBeInTheDocument()
+      const table = screen.getByRole('table')
+      expect(within(table).getByText('Task Created')).toBeInTheDocument()
+      expect(within(table).getByText('A new task has been created')).toBeInTheDocument()
     })
 
     it('handles load more functionality', async () => {
@@ -2230,8 +2244,6 @@ describe('NotificationsPage', () => {
 
       render(<NotificationsPage />)
 
-      await openSearchBar(user)
-
       const searchInput = screen.getByPlaceholderText(/search notifications/i)
       await user.type(searchInput, 'test search')
 
@@ -2244,8 +2256,6 @@ describe('NotificationsPage', () => {
       const user = userEvent.setup()
 
       render(<NotificationsPage />)
-
-      await openSearchBar(user)
 
       const searchInput = screen.getByPlaceholderText(/search notifications/i)
       await user.type(searchInput, 'test')

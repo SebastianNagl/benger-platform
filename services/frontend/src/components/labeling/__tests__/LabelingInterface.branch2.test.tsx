@@ -17,16 +17,7 @@ jest.mock('next/navigation', () => ({
   useSearchParams: jest.fn(),
 }))
 
-// Mock react-hot-toast
-jest.mock('react-hot-toast', () => {
-  const mockToastFn = jest.fn()
-  return {
-    toast: Object.assign(mockToastFn, {
-      success: jest.fn(),
-      error: jest.fn(),
-    }),
-  }
-})
+// Toast mocking handled by setupTests.
 
 // Mock projectsAPI
 jest.mock('@/lib/api/projects', () => ({
@@ -47,7 +38,11 @@ jest.mock('@/lib/api/projects', () => ({
   },
 }))
 
-import { toast } from 'react-hot-toast'
+import { mockToast as __mockToast } from '@/test-utils/setupTests'
+const toast = Object.assign(
+  (msg: string, type?: any) => __mockToast.addToast(msg, type),
+  { success: __mockToast.success, error: __mockToast.error }
+)
 import { projectsAPI } from '@/lib/api/projects'
 import { useAuth } from '@/contexts/AuthContext'
 

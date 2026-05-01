@@ -52,6 +52,7 @@ import {
   ChevronDownIcon,
   ExclamationTriangleIcon,
   PlayIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -965,24 +966,15 @@ export default function EvaluationDashboard() {
         </div>
 
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">
-              {t('evaluation.viewer.title')}
-            </h1>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">
+            {t('evaluation.viewer.title')}
+          </h1>
+          {!selectedProject && (
             <p className="mt-1 text-gray-600 dark:text-gray-400">
-              {selectedProject
-                ? t('evaluation.viewer.viewingResults', { project: selectedProject.title })
-                : t('evaluation.viewer.selectProjectDescription')}
+              {t('evaluation.viewer.selectProjectDescription')}
             </p>
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => router.push('/leaderboards?tab=llm')}
-          >
-            <ChartBarIcon className="mr-2 h-4 w-4" />
-            {t('evaluation.viewer.llmLeaderboard')}
-          </Button>
+          )}
         </div>
 
         {/* Filter Bar - All dropdowns in one row */}
@@ -1232,26 +1224,37 @@ export default function EvaluationDashboard() {
               </div>
             )}
 
+            {selectedProject && (() => {
+              const anyFilterSet =
+                selectedModels.length !== evaluatedModels.length ||
+                selectedMetrics.length !== availableMetrics.length ||
+                aggregationLevels.length !== 1 ||
+                aggregationLevels[0] !== 'model' ||
+                statisticalMethods.length > 0 ||
+                chartType !== 'data'
+              return (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setChartType('data')
+                    setAggregationLevels(['model'])
+                    setStatisticalMethods([])
+                    setSelectedModels(evaluatedModels.map((m) => m.model_id))
+                    setSelectedMetrics(availableMetrics)
+                    setSelectedEvalTypes(['automated', 'llm-judge', 'human'])
+                  }}
+                  disabled={!anyFilterSet}
+                  aria-label={t('evaluation.viewer.filters.clearAllFilters')}
+                  title={t('evaluation.viewer.filters.clearAllFilters')}
+                  className={anyFilterSet ? 'bg-emerald-50 text-emerald-700 ring-emerald-300 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-700' : ''}
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </Button>
+              )
+            })()}
+
           </div>
         </Card>
-
-        {/* Clear All Filters - below the filter box */}
-        {selectedProject && (
-          <button
-            type="button"
-            onClick={() => {
-              setChartType('data')
-              setAggregationLevels(['model'])
-              setStatisticalMethods([])
-              setSelectedModels(evaluatedModels.map((m) => m.model_id))
-              setSelectedMetrics(availableMetrics)
-              setSelectedEvalTypes(['automated', 'llm-judge', 'human'])
-            }}
-            className="mb-4 text-sm text-gray-500 transition hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            {t('evaluation.viewer.filters.clearAllFilters')}
-          </button>
-        )}
 
         {/* Loading State */}
         {loading && (
