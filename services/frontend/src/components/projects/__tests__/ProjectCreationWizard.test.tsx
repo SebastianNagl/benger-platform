@@ -302,7 +302,27 @@ jest.mock('@/hooks/useModels', () => ({
   default: () => ({}),
 }))
 
-// Mock toast
+// Mock toast — ProjectCreationWizard now uses the app's useToast() hook
+// (the react-hot-toast package was never wired to a <Toaster> in the app).
+const mockToastSuccessFn = jest.fn()
+const mockToastErrorFn = jest.fn()
+const mockAddToastFn = jest.fn(
+  (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    if (type === 'success') mockToastSuccessFn(message)
+    if (type === 'error') mockToastErrorFn(message)
+    return 'mock-toast-id'
+  }
+)
+jest.mock('@/components/shared/Toast', () => ({
+  useToast: () => ({
+    addToast: mockAddToastFn,
+    showToast: mockAddToastFn,
+    removeToast: jest.fn(),
+  }),
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
+}))
+// Keep the legacy react-hot-toast mock so any downstream component that
+// still references it (sub-mocks etc.) doesn't crash on import.
 jest.mock('react-hot-toast', () => ({
   toast: {
     success: jest.fn(),
@@ -398,9 +418,11 @@ describe('ProjectCreationWizard', () => {
     mockApiClientPut = apiClient.put as jest.Mock
     mockApiClientPut.mockResolvedValue({})
 
-    const toast = require('react-hot-toast').toast
-    mockToastSuccess = toast.success as jest.Mock
-    mockToastError = toast.error as jest.Mock
+    // Wire mockToastSuccess / mockToastError to the new useToast-based
+    // mock declared at the top of the file. Keeps existing assertions on
+    // mockToastSuccess / mockToastError working without rewriting them.
+    mockToastSuccess = mockToastSuccessFn
+    mockToastError = mockToastErrorFn
   })
 
   describe('Wizard Initialization', () => {

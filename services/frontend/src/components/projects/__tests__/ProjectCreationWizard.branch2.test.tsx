@@ -178,11 +178,20 @@ jest.mock('@/hooks/useModels', () => ({
 
 const mockToastSuccess = jest.fn()
 const mockToastError = jest.fn()
-jest.mock('react-hot-toast', () => ({
-  toast: {
-    success: (...args: any[]) => mockToastSuccess(...args),
-    error: (...args: any[]) => mockToastError(...args),
-  },
+const mockAddToast = jest.fn(
+  (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    if (type === 'success') mockToastSuccess(message)
+    if (type === 'error') mockToastError(message)
+    return 'mock-toast-id'
+  }
+)
+jest.mock('@/components/shared/Toast', () => ({
+  useToast: () => ({
+    addToast: mockAddToast,
+    showToast: mockAddToast,
+    removeToast: jest.fn(),
+  }),
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
 describe('ProjectCreationWizard branch coverage', () => {
