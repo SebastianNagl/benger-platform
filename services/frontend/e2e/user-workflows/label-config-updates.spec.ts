@@ -736,6 +736,11 @@ test.describe('Label Config Updates - Complex Schemas', () => {
     const projectName = `Template_Switch_${Date.now()}`
     await nameInput.fill(projectName)
 
+    // Enable annotation feature so labelingSetup step renders.
+    await page
+      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
+      .check()
+
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
     await page.locator('[data-testid="project-create-next-button"]').click()
@@ -1043,6 +1048,11 @@ test.describe('Label Config Updates - Advanced Features', () => {
 
     const projectName = `Nested_View_${Date.now()}`
     await nameInput.fill(projectName)
+
+    // Enable annotation feature so labelingSetup step renders.
+    await page
+      .locator('[data-testid="wizard-feature-annotation"] input[type="checkbox"]')
+      .check()
 
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
