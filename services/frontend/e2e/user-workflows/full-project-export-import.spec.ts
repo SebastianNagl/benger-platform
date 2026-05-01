@@ -113,7 +113,19 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     await page
       .locator('[data-testid="project-create-step-3"]')
       .waitFor({ state: 'visible' })
-    await page.locator('[data-testid="project-create-submit-button"]').click()
+
+    // The new feature-toggle wizard adds annotationInstructions + settings
+    // steps after labelingSetup; click Next until Submit appears.
+    const submit = page.locator('[data-testid="project-create-submit-button"]')
+    const next = page.locator('[data-testid="project-create-next-button"]')
+    for (let i = 0; i < 6; i++) {
+      if (await submit.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await submit.click()
+        break
+      }
+      await next.click()
+      await page.waitForTimeout(500)
+    }
 
     // Wait for redirect to the new project page
     await page.waitForURL(/\/projects\/[0-9a-f-]+$/, { timeout: 30000 })
