@@ -61,10 +61,9 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
 
-    // Step 2: Import sample data
-    await page
-      .locator('[data-testid="project-create-step-2"]')
-      .waitFor({ state: 'visible' })
+    // Step 2: Import sample data — the legacy project-create-step-2 testid
+    // doesn't exist on the new dynamic wizard; wait for an actual data-import
+    // affordance instead.
 
     const sampleData = {
       data: [
@@ -109,13 +108,8 @@ test.describe('Full Project Export/Import Roundtrip (Issue #817)', () => {
     await page.locator('[data-testid="project-create-next-button"]').click()
     await page.waitForTimeout(1000)
 
-    // Step 3: Label configuration
-    await page
-      .locator('[data-testid="project-create-step-3"]')
-      .waitFor({ state: 'visible' })
-
-    // The new feature-toggle wizard adds annotationInstructions + settings
-    // steps after labelingSetup; click Next until Submit appears.
+    // Step 3: Label configuration — same story as step 2; the new wizard
+    // doesn't expose a project-create-step-3 testid. Walk Next until Submit.
     const submit = page.locator('[data-testid="project-create-submit-button"]')
     const next = page.locator('[data-testid="project-create-next-button"]')
     for (let i = 0; i < 6; i++) {
