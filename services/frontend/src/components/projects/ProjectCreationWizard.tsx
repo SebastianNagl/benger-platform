@@ -20,7 +20,7 @@ import { useProjectStore } from '@/stores/projectStore'
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
 import { useCallback, useMemo, useState } from 'react'
-import { toast } from 'react-hot-toast'
+import { useToast } from '@/components/shared/Toast'
 import { StepAnnotationInstructions } from './wizard/StepAnnotationInstructions'
 import { StepDataImport } from './wizard/StepDataImport'
 import { StepEvaluationMethods } from './wizard/StepEvaluationMethods'
@@ -40,6 +40,7 @@ import { WizardStepIndicator } from './wizard/WizardStepIndicator'
 export function ProjectCreationWizard() {
   const router = useRouter()
   const { t } = useI18n()
+  const { addToast } = useToast()
   const { createProject, fetchProject, loading } = useProjectStore()
 
   const [wizardData, setWizardData] = useState<WizardData>(INITIAL_WIZARD_DATA)
@@ -370,13 +371,14 @@ export function ProjectCreationWizard() {
             await projectsAPI.importData(project.id, { data })
           }
         } catch (importError) {
-          toast.error(
+          addToast(
             t('projects.wizard.importDataFailed', {
               error:
                 importError instanceof Error
                   ? importError.message
                   : t('projects.wizard.unknownError'),
-            })
+            }),
+            'error'
           )
         }
       }
@@ -464,9 +466,7 @@ export function ProjectCreationWizard() {
             { evaluation_configs: wizardData.evaluationConfigs }
           )
         } catch (evalError) {
-          toast.error(
-            t('projects.creation.wizard.evalSaveFailed')
-          )
+          addToast(t('projects.creation.wizard.evalSaveFailed'), 'error')
         }
       }
 
@@ -494,20 +494,24 @@ export function ProjectCreationWizard() {
           )
         } catch {
           // Non-critical — prompts are also saved in generation_config.selected_configuration
-          toast.error(t('projects.creation.wizard.promptStructureSaveFailed'))
+          addToast(
+            t('projects.creation.wizard.promptStructureSaveFailed'),
+            'error'
+          )
         }
       }
 
       // 5. Refresh and redirect
       await new Promise((resolve) => setTimeout(resolve, 100))
       await fetchProject(project.id)
-      toast.success(t('projects.wizard.projectCreated'))
+      addToast(t('projects.wizard.projectCreated'), 'success')
       router.push(`/projects/${project.id}`)
     } catch (error) {
-      toast.error(
+      addToast(
         error instanceof Error
           ? error.message
-          : t('projects.wizard.createFailed')
+          : t('projects.wizard.createFailed'),
+        'error'
       )
     }
   }
