@@ -18,6 +18,7 @@ name: Notify Extended
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   notify:
