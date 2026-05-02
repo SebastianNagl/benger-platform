@@ -14,7 +14,7 @@ def test_members_routes_defined():
 
     routes = [r.path for r in router.routes]
     assert "/{project_id}/members" in routes
-    assert "/{project_id}/members/{user_id}" in routes
+    assert "/{project_id}/annotators" in routes
 
 
 def test_members_route_methods():
@@ -29,5 +29,4 @@ def test_members_route_methods():
         route_methods[route.path].update(route.methods)
 
     assert 'GET' in route_methods["/{project_id}/members"]
-    assert 'POST' in route_methods["/{project_id}/members/{user_id}"]
-    assert 'DELETE' in route_methods["/{project_id}/members/{user_id}"]
+    assert 'GET' in route_methods["/{project_id}/annotators"]

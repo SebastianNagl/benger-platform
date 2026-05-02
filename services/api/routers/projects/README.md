@@ -60,12 +60,11 @@ Annotation operations on tasks:
 - `GET /tasks/{task_id}/annotations` - List annotations
 - `PATCH /annotations/{annotation_id}` - Update annotation
 
-### assignments.py (702 lines)
-Task assignment and workload management:
+### assignments.py
+Task assignment management:
 - `POST /{project_id}/tasks/assign` - Assign task to user
 - `GET /{project_id}/tasks/{task_id}/assignments` - List task assignments
 - `DELETE /{project_id}/tasks/{task_id}/assignments/{assignment_id}` - Delete assignment
-- `GET /{project_id}/workload` - Get workload statistics
 - `GET /{project_id}/my-tasks` - Get current user's assigned tasks
 
 ### import_export.py (~1357 lines)

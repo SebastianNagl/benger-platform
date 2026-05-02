@@ -1,7 +1,7 @@
 """Integration tests for task assignment endpoints.
 
 Tests cover permissions, CRUD operations, distribution strategies,
-workload stats, my-tasks filtering, and edge cases.
+my-tasks filtering, and edge cases.
 """
 
 import uuid
@@ -181,16 +181,6 @@ class TestAssignmentPermissions:
 
         resp = client.delete(
             f"/api/projects/{p['project'].id}/tasks/{p['tasks'][0].id}/assignments/{assignment.id}",
-            headers=auth_headers["annotator"],
-        )
-        assert resp.status_code == 403
-
-    def test_annotator_cannot_view_workload(
-        self, client, auth_headers, assignment_project
-    ):
-        p = assignment_project
-        resp = client.get(
-            f"/api/projects/{p['project'].id}/workload",
             headers=auth_headers["annotator"],
         )
         assert resp.status_code == 403
@@ -438,76 +428,6 @@ class TestDistributionStrategies:
         assert resp.status_code == 200
         # Each task gets exactly 1 assignment
         assert resp.json()["assignments_created"] == 4
-
-
-# ---------------------------------------------------------------------------
-# Workload endpoint
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.integration
-class TestWorkloadEndpoint:
-    def test_workload_returns_stats(
-        self, client, auth_headers, assignment_project, test_db
-    ):
-        p = assignment_project
-        annotator = p["users"]["annotator"]
-
-        # Create assignments with different statuses
-        statuses = ["assigned", "assigned", "in_progress", "completed"]
-        for i, status in enumerate(statuses):
-            a = TaskAssignment(
-                id=str(uuid.uuid4()),
-                task_id=p["tasks"][i].id,
-                user_id=annotator.id,
-                assigned_by=p["users"]["admin"].id,
-                status=status,
-            )
-            if status == "completed":
-                a.completed_at = datetime.utcnow()
-            test_db.add(a)
-        test_db.commit()
-
-        resp = client.get(
-            f"/api/projects/{p['project'].id}/workload",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-
-        # Find annotator in results
-        annotator_stats = next(
-            (a for a in data["annotators"] if a["user_id"] == annotator.id), None
-        )
-        assert annotator_stats is not None
-        assert annotator_stats["assigned_tasks"] == 4
-        assert annotator_stats["completed_tasks"] == 1
-        assert annotator_stats["in_progress_tasks"] == 1
-
-    def test_workload_unassigned_count(
-        self, client, auth_headers, assignment_project, test_db
-    ):
-        p = assignment_project
-        # Assign 4 out of 6 tasks
-        for i in range(4):
-            test_db.add(
-                TaskAssignment(
-                    id=str(uuid.uuid4()),
-                    task_id=p["tasks"][i].id,
-                    user_id=p["users"]["annotator"].id,
-                    assigned_by=p["users"]["admin"].id,
-                    status="assigned",
-                )
-            )
-        test_db.commit()
-
-        resp = client.get(
-            f"/api/projects/{p['project'].id}/workload",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-        assert resp.json()["stats"]["total_unassigned"] == 2
-        assert resp.json()["stats"]["total_tasks"] == 6
 
 
 # ---------------------------------------------------------------------------
@@ -1102,23 +1022,6 @@ class TestFourRolePermissions:
         )
         assert resp.status_code == 403
 
-    # --- Workload stats ---
-
-    def test_org_admin_can_view_workload(self, client, auth_headers, assignment_project):
-        p = assignment_project
-        resp = client.get(
-            f"/api/projects/{p['project'].id}/workload",
-            headers=auth_headers["org_admin"],
-        )
-        assert resp.status_code == 200
-
-    def test_annotator_cannot_view_workload(self, client, auth_headers, assignment_project):
-        p = assignment_project
-        resp = client.get(
-            f"/api/projects/{p['project'].id}/workload",
-            headers=auth_headers["annotator"],
-        )
-        assert resp.status_code == 403
 
 
 # ---------------------------------------------------------------------------

@@ -12,7 +12,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-CORE_API_VERSION = "2.0"
+CORE_API_VERSION = "2.1"
 
 _extended = None
 
@@ -104,3 +104,42 @@ def on_draft_saved(db, task_id, user_id, project_id, draft_result):
         hook = hooks.get("on_draft_saved")
         if hook:
             hook(db, task_id, user_id, project_id, draft_result)
+
+
+def run_after_eval_config_save(db, project, config):
+    """Hook called after a project's evaluation_config is persisted.
+
+    Extended package uses this to derive proprietary project flags from
+    the new evaluation_configs (e.g. korrektur_enabled, korrektur_config).
+    Receives the SQLAlchemy session, the Project model instance, and the
+    just-saved config dict. The hook may mutate the project; the caller
+    is responsible for the final commit.
+
+    No-op if extended is not loaded or doesn't register the hook.
+    """
+    if _extended and hasattr(_extended, "get_hooks"):
+        hooks = _extended.get_hooks()
+        hook = hooks.get("after_eval_config_save")
+        if hook:
+            hook(db, project, config)
+
+
+def tasks_with_feedback_for_user(db, project_id, user_id, task_ids):
+    """Return the subset of task_ids on which the given user has feedback.
+
+    "Feedback" is whatever proprietary signal the extended package owns
+    (Korrektur comments on the user's annotations, falloesung grades, etc.).
+    Used by `/my-tasks` to render a "feedback available" badge.
+
+    Returns an empty set when extended is not loaded — community edition
+    has no human-feedback workflow, so no badge.
+    """
+    if not task_ids:
+        return set()
+    if _extended and hasattr(_extended, "get_hooks"):
+        hooks = _extended.get_hooks()
+        hook = hooks.get("tasks_with_feedback_for_user")
+        if hook:
+            result = hook(db, project_id, user_id, list(task_ids))
+            return set(result or ())
+    return set()

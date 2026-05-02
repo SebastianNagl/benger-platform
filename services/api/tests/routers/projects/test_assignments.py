@@ -17,7 +17,6 @@ def test_assignments_routes_defined():
     assert "/{project_id}/tasks/assign" in routes
     assert "/{project_id}/tasks/{task_id}/assignments" in routes
     assert "/{project_id}/tasks/{task_id}/assignments/{assignment_id}" in routes
-    assert "/{project_id}/workload" in routes
     assert "/{project_id}/my-tasks" in routes
 
 
@@ -32,5 +31,4 @@ def test_assignments_route_methods():
     assert 'POST' in route_methods["/{project_id}/tasks/assign"]
     assert 'GET' in route_methods["/{project_id}/tasks/{task_id}/assignments"]
     assert 'DELETE' in route_methods["/{project_id}/tasks/{task_id}/assignments/{assignment_id}"]
-    assert 'GET' in route_methods["/{project_id}/workload"]
     assert 'GET' in route_methods["/{project_id}/my-tasks"]

@@ -27,7 +27,6 @@ from routers.projects import (
     import_export,
     label_config_versions,
     members,
-    organizations,
     questionnaire,
     tasks,
 )
@@ -47,7 +46,6 @@ router.include_router(import_export.router)
 router.include_router(tasks.router)
 router.include_router(annotations.router)
 router.include_router(assignments.router)
-router.include_router(organizations.router)
 router.include_router(members.router)
 router.include_router(generation.router)
 router.include_router(drafts.router)
