@@ -267,8 +267,26 @@
           "description": "Beschreibung",
           "optional": "(optional)",
           "descriptionPlaceholder": "Beschreiben Sie den Zweck und Umfang dieses Annotationsprojekts...",
+          "visibility": "Sichtbarkeit",
+          "visibilityDescription": "Wählen Sie, wer dieses Projekt sehen und damit arbeiten kann",
+          "visibility.private": "Privat",
+          "visibility.privateDescription": "Nur Sie (und Superadmins) haben Zugriff",
+          "visibility.organization": "Organisation",
+          "visibility.organizationDescription": "Mitglieder Ihrer Organisation haben Zugriff",
+          "visibility.public": "Öffentlich",
+          "visibility.publicDescription": "Sichtbar für alle authentifizierten Nutzer über alle Organisationen hinweg",
+          "publicRoleLabel": "Öffentliche Rolle",
+          "publicRoleDescription": "Wie Besucher mit dem Projekt interagieren",
+          "publicRole.annotator": "Annotator",
+          "publicRole.annotatorDescription": "Besucher können Aufgaben ansehen und Annotationen erstellen",
+          "publicRole.contributor": "Mitwirkender",
+          "publicRole.contributorDescription": "Besucher können zusätzlich Aufgaben hinzufügen sowie Generierung/Evaluierung ausführen. Projekteinstellungen bleiben gesperrt.",
+          "assignedOrganizations": "Zugewiesene Organisationen",
+          "assignedOrganizationsHelp": "Wählen Sie die Organisationen, deren Mitglieder auf dieses Projekt zugreifen können. Unabhängig von der aktuellen Subdomain.",
+          "noOrganizationsAvailable": "Keine Organisationen verfügbar.",
           "validation": {
-            "nameRequired": "Projektname ist erforderlich"
+            "nameRequired": "Projektname ist erforderlich",
+            "orgRequired": "Mindestens eine Organisation wählen oder Sichtbarkeit ändern."
           }
         },
         "step2": {
@@ -758,6 +776,7 @@
     "wizard": {
       "projectCreatedWithTasks": "Projekt erfolgreich erstellt mit {count} importierten Aufgaben!",
       "projectCreated": "Projekt erfolgreich erstellt!",
+      "orgAssignFailed": "Das Projekt wurde erstellt, aber den ausgewählten Organisationen konnte es nicht zugewiesen werden. Bitte weisen Sie sie in den Projekteinstellungen zu.",
       "importDataFailed": "Datenimport fehlgeschlagen: {error}",
       "unknownError": "Unbekannter Fehler",
       "createFailed": "Projekt konnte nicht erstellt werden",
@@ -811,6 +830,18 @@
       "noStructureConfigured": "Keine Generierungsstruktur konfiguriert",
       "description": "Konfigurieren Sie, wie Daten für LLM-Modelle strukturiert werden sollen",
       "configureStructure": "Struktur konfigurieren"
+    },
+    "annotationConfiguration": {
+      "title": "Annotationskonfiguration"
+    },
+    "generationConfiguration": {
+      "title": "Generierungskonfiguration"
+    },
+    "evaluationSettings": {
+      "title": "Evaluierungseinstellungen"
+    },
+    "evaluationMethods": {
+      "title": "Evaluierungsmethoden"
     },
     "annotationInstructions": {
       "title": "Annotationsanweisungen",
@@ -895,7 +926,37 @@
     },
     "permissions": {
       "orgAdminOnly": "Nur Organisationsadministratoren können {section} verwalten.",
-      "creatorOnly": "Nur der Projektersteller kann {section} verwalten."
+      "creatorOnly": "Nur der Projektersteller kann {section} verwalten.",
+      "noPermission": "Sie haben keine Berechtigung, die Sichtbarkeit zu ändern.",
+      "saveSuccess": "Sichtbarkeit gespeichert.",
+      "viewOnly": "Sichtbarkeit ist schreibgeschützt — Sie sind weder Ersteller noch Superadmin.",
+      "visibility": "Sichtbarkeit",
+      "visibilityDescription": "Steuert, wer auf dieses Projekt zugreifen kann.",
+      "private": "Privat",
+      "privateDescription": "Nur Sie (und Superadmins) haben Zugriff.",
+      "organization": "Organisation",
+      "organizationDescription": "Mitglieder ausgewählter Organisationen haben Zugriff.",
+      "organizationManagedElsewhere": "Dieses Projekt ist derzeit einer oder mehreren Organisationen zugewiesen. Organisationszuweisungen werden auf der Mitglieder-Seite verwaltet.",
+      "public": "Öffentlich",
+      "publicDescription": "Sichtbar für alle authentifizierten Nutzer über alle Organisationen hinweg.",
+      "publicRoleLabel": "Öffentliche Rolle",
+      "publicRoleDescription": "Wie Besucher mit dem Projekt interagieren. Projekteinstellungen (Titel, Label-Konfiguration) bleiben beim Ersteller.",
+      "publicRole": {
+        "annotator": "Annotator",
+        "annotatorDescription": "Aufgaben ansehen und Annotationen erstellen.",
+        "contributor": "Mitwirkender",
+        "contributorDescription": "Zusätzlich Aufgaben hinzufügen sowie Generierung/Evaluierung ausführen. Projekteinstellungen bleiben gesperrt."
+      },
+      "organizations": "Organisationen",
+      "organizationsDescription": "Wählen Sie eine oder mehrere Organisationen, deren Mitglieder Zugriff erhalten.",
+      "loadingOrganizations": "Organisationen werden geladen…",
+      "noOrganizationsAvailable": "Keine Organisationen verfügbar.",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "saving": "Wird gespeichert…",
+      "validation": {
+        "privateNeedsOrganization": "Organisationsbasierte Projekte benötigen mindestens eine Organisation."
+      }
     },
     "evaluation": {
       "title": "Evaluierungskonfiguration",
@@ -930,10 +991,19 @@
     },
     "settings": {
       "title": "Einstellungen",
+      "annotationSettingsTitle": "Annotationsablauf & -verhalten",
       "mode": "{mode}-Modus",
       "minAnnotations": "{count} min. Annotationen",
       "editSettings": "Einstellungen bearbeiten",
       "saveSettings": "Einstellungen speichern",
+      "featureVisibility": {
+        "title": "Sichtbarkeit der Bereiche",
+        "help": "Wählen Sie, welche Konfigurationsbereiche auf dieser Seite angezeigt werden. Daten und APIs bleiben erhalten."
+      },
+      "visibilityDangerZone": {
+        "title": "Projekt-Sichtbarkeit",
+        "help": "Änderungen hier wirken sich plattformweit aus — wer dieses Projekt sehen und damit arbeiten darf. „Öffentlich“ macht es für alle authentifizierten Nutzer sichtbar."
+      },
       "annotationBehavior": {
         "title": "Annotationsverhalten",
         "maxAnnotations": "Maximale Annotationen pro Aufgabe",
@@ -1043,6 +1113,10 @@
       "title": "Statistiken",
       "totalTasks": "Aufgaben gesamt",
       "annotations": "Annotationen",
+      "generations": "Generierungen",
+      "corrections": "Korrekturen",
+      "correctionsFalloesungBreakdown": "↳ Falllösung-Bewertungen",
+      "correctionsCommentsBreakdown": "↳ Kommentare",
       "progress": "Fortschritt"
     },
     "recentActivity": {
@@ -3090,6 +3164,10 @@
         "annotationCompletedDesc": "Benachrichtigungen erhalten, wenn Annotationsaufgaben abgeschlossen sind",
         "annotationAssigned": "Annotation zugewiesen",
         "annotationAssignedDesc": "Benachrichtigungen erhalten, wenn Sie zu Annotationsaufgaben zugewiesen werden",
+        "taskAssigned": "Aufgabe zugewiesen",
+        "taskAssignedDesc": "Sie wurden einer oder mehreren Annotationsaufgaben zugewiesen",
+        "korrekturAssigned": "Korrektur zugewiesen",
+        "korrekturAssignedDesc": "Sie wurden einer Korrekturaufgabe (Classic oder Falllösung) zugewiesen",
         "orgInvitationSent": "Organisationseinladung gesendet",
         "orgInvitationSentDesc": "Benachrichtigungen erhalten, wenn Organisationseinladungen gesendet werden",
         "orgInvitationAccepted": "Organisationseinladung angenommen",
@@ -3561,6 +3639,7 @@
   },
   "common": {
     "loading": "Lädt...",
+    "saving": "Wird gespeichert...",
     "error": "Fehler",
     "success": "Erfolgreich",
     "warning": "Warnung",
@@ -7237,17 +7316,91 @@
     "loadFailed": "Korrektur-Daten konnten nicht geladen werden",
     "notEnabled": "Korrektur ist für dieses Projekt nicht aktiviert. Aktivieren Sie es im Projekt-Wizard unter Evaluation Methods → Human Evaluation.",
     "noTasks": "Keine Aufgaben gefunden",
+    "falloesungSaveSuccess": "Bewertung gespeichert",
+    "falloesungSaveError": "Bewertung konnte nicht gespeichert werden",
+    "blindBanner": "Blinde Korrektur aktiv: {what} sind verborgen, bis Sie eingereicht haben.",
+    "blindBannerLlm": "LLM-Vorbewertungen",
+    "blindBannerPeers": "Bewertungen anderer Korrektoren",
     "stats": {
       "totalTasks": "Aufgaben gesamt",
       "withFeedback": "Mit Korrektur",
       "withoutFeedback": "Ohne Korrektur",
       "totalComments": "Kommentare",
-      "unresolvedComments": "Ungelöst"
+      "unresolvedComments": "Ungelöst",
+      "falloesungGrades": "Falllösung-Bewertungen",
+      "falloesungGradesShort": "Bewertungen"
     },
     "filter": {
       "all": "Alle",
       "with_korrektur": "Mit Korrektur",
       "without_korrektur": "Ohne Korrektur"
+    },
+    "metricTabs": {
+      "korrektur_classic": "Kommentare (Classic)",
+      "korrektur_falloesung": "Bewertungen (Falllösung)"
+    },
+    "itemFilter": {
+      "all": "Alle",
+      "unassigned": "Nicht zugewiesen",
+      "assigned_to_me": "Mir zugewiesen",
+      "assigned_to_others": "Anderen zugewiesen",
+      "in_progress_by_me": "In Arbeit",
+      "completed_by_me": "Von mir korrigiert",
+      "completed_by_others": "Von anderen korrigiert",
+      "fully_complete": "Vollständig"
+    },
+    "itemStatus": {
+      "unassigned": "Offen",
+      "assigned_to_me": "Mir zugewiesen",
+      "assigned_to_others": "Zugewiesen",
+      "in_progress_by_me": "In Arbeit",
+      "completed_by_me": "Von mir korrigiert",
+      "completed_by_others": "Korrigiert",
+      "fully_complete": "Vollständig"
+    },
+    "targetType": {
+      "annotation": "Annotation",
+      "generation": "Generierung"
+    },
+    "totalItems": "{count} Elemente",
+    "noItems": "Keine Elemente",
+    "assignedCount": "{count} zugewiesen",
+    "gradedCount": "{count} korrigiert",
+    "skip": {
+      "action": "Überspringen",
+      "promptComment": "Optionaler Kommentar zum Überspringen:",
+      "success": "Element übersprungen",
+      "error": "Überspringen fehlgeschlagen"
+    },
+    "bulkSelected": "{count} Elemente ausgewählt",
+    "bulk": {
+      "unassign": "Zuweisungen entfernen",
+      "setPriority": "Priorität setzen…",
+      "setDueDate": "Fälligkeitsdatum setzen",
+      "skip": "Als übersprungen markieren",
+      "unassignSuccess": "{count} Zuweisungen entfernt",
+      "prioritySuccess": "Priorität für {count} Zuweisungen gesetzt",
+      "dueDateSuccess": "Fälligkeitsdatum für {count} Zuweisungen gesetzt",
+      "skipSuccess": "{count} Zuweisungen als übersprungen markiert"
+    },
+    "assign": {
+      "titleSingle": "Element zuweisen",
+      "titleBulk": "Elemente zuweisen (Bulk)",
+      "singleSubtitle": "Aufgabe #{taskId} · {type}",
+      "bulkScope": "Welche Elemente?",
+      "bulkScopes": {
+        "all_unassigned": "Alle nicht zugewiesenen",
+        "all": "Alle Elemente"
+      },
+      "recipients": "An folgende Personen",
+      "noMembers": "Keine zuweisbaren Mitglieder",
+      "submit": "{count} zuweisen",
+      "successSingle": "{count} Korrektor(en) zugewiesen",
+      "successBulk": "{count} Zuweisungen angelegt",
+      "error": "Zuweisung fehlgeschlagen",
+      "itemAction": "Zuweisen",
+      "bulkAction": "Bulk zuweisen",
+      "unassign": "Zuweisung entfernen"
     },
     "modal": {
       "annotation": "Annotation",
@@ -7256,7 +7409,10 @@
     },
     "tabs": {
       "review": "Review",
-      "falloesungGrade": "Bewertung (Standard Falllösung)"
+      "falloesungGrade": "Bewertung (Standard Falllösung)",
+      "falloesungHint": "Die Bewertung nach dem Standard-Falllösung-Schema findet sich im Tab \"Bewertung (Standard Falllösung)\" oben.",
+      "falloesungLlmReference": "LLM-Vorbewertung (Vergleich, nicht übernommen)",
+      "falloesungNoLlmYet": "Für diese Lösung liegt noch keine LLM-Vorbewertung vor. Sie bewerten direkt nach dem Schema."
     },
     "comments": {
       "title": "Kommentare",
@@ -7301,6 +7457,33 @@
       "submit": "Bewertung speichern",
       "submitting": "Speichert…",
       "submitError": "Speichern fehlgeschlagen"
+    },
+    "config": {
+      "queueSection": "Warteschlange & Zuweisung",
+      "queueSectionHelp": "Wer korrigiert was, in welcher Reihenfolge, wie oft.",
+      "assignmentMode": "Zuweisungsmodus",
+      "assignmentModes": {
+        "open": "Offen (jeder darf)",
+        "manual": "Manuell zugewiesen",
+        "auto": "Automatisch zugewiesen"
+      },
+      "ordering": "Reihenfolge",
+      "orderings": { "sequential": "Sequenziell", "random": "Zufällig pro Korrektor" },
+      "maxCorrectorsPerItem": "Maximale Korrektoren pro Element",
+      "maxCorrectorsHelp": "0 = unbegrenzt",
+      "minCorrectorsPerItem": "Mindestkorrektoren pro Element",
+      "skipQueue": "Skip-Verhalten",
+      "skipQueues": {
+        "requeue_for_others": "Übersprungenes anderen anbieten",
+        "requeue_for_me": "Übersprungenes erneut anzeigen",
+        "ignore_skipped": "Übersprungenes ausblenden"
+      },
+      "requireCommentOnSkip": "Begründung beim Überspringen erforderlich",
+      "allowSelfCorrection": "Eigene Annotationen korrigieren erlaubt",
+      "visibilitySection": "Blinde Korrektur",
+      "visibilitySectionHelp": "Verbirgt fremde Bewertungen, bis Sie eingereicht haben — danach werden sie zum Vergleich sichtbar.",
+      "blindToLlmJudge": "LLM-Vorbewertungen verbergen",
+      "blindToPeerCorrectors": "Bewertungen anderer Korrektoren verbergen"
     }
   },
   "emptyStates": {

@@ -267,8 +267,26 @@
           "description": "Description",
           "optional": "(optional)",
           "descriptionPlaceholder": "Describe the purpose and scope of this annotation project...",
+          "visibility": "Visibility",
+          "visibilityDescription": "Choose who can see and interact with this project",
+          "visibility.private": "Private",
+          "visibility.privateDescription": "Only you (and superadmins) can access",
+          "visibility.organization": "Organization",
+          "visibility.organizationDescription": "Members of your organization can access",
+          "visibility.public": "Public",
+          "visibility.publicDescription": "Visible to every authenticated user across all organizations",
+          "publicRoleLabel": "Public role",
+          "publicRoleDescription": "How visitors interact with the project",
+          "publicRole.annotator": "Annotator",
+          "publicRole.annotatorDescription": "Visitors can view tasks and create annotations",
+          "publicRole.contributor": "Contributor",
+          "publicRole.contributorDescription": "Visitors can also add tasks and run generation/evaluation. Project settings remain locked.",
+          "assignedOrganizations": "Assigned organizations",
+          "assignedOrganizationsHelp": "Pick the organizations whose members can access this project. Independent of the current subdomain.",
+          "noOrganizationsAvailable": "No organizations available.",
           "validation": {
-            "nameRequired": "Project name is required"
+            "nameRequired": "Project name is required",
+            "orgRequired": "Pick at least one organization, or change visibility."
           }
         },
         "step2": {
@@ -758,6 +776,7 @@
     "wizard": {
       "projectCreatedWithTasks": "Project created successfully with {count} tasks imported!",
       "projectCreated": "Project created successfully!",
+      "orgAssignFailed": "Project was created but could not be assigned to the selected organizations. Please assign them from the project settings.",
       "importDataFailed": "Failed to import data: {error}",
       "unknownError": "Unknown error",
       "createFailed": "Failed to create project",
@@ -811,6 +830,18 @@
       "noStructureConfigured": "No generation structure configured",
       "description": "Configure how data should be structured for LLM models",
       "configureStructure": "Configure Structure"
+    },
+    "annotationConfiguration": {
+      "title": "Annotation Configuration"
+    },
+    "generationConfiguration": {
+      "title": "Generation Configuration"
+    },
+    "evaluationSettings": {
+      "title": "Evaluation Settings"
+    },
+    "evaluationMethods": {
+      "title": "Evaluation Methods"
     },
     "annotationInstructions": {
       "title": "Annotation Instructions",
@@ -895,7 +926,37 @@
     },
     "permissions": {
       "orgAdminOnly": "Only organization administrators can manage {section}.",
-      "creatorOnly": "Only the project creator can manage {section}."
+      "creatorOnly": "Only the project creator can manage {section}.",
+      "noPermission": "You do not have permission to change project visibility.",
+      "saveSuccess": "Project visibility saved.",
+      "viewOnly": "Visibility is read-only — you are not the project creator or a superadmin.",
+      "visibility": "Visibility",
+      "visibilityDescription": "Control who can access this project.",
+      "private": "Private",
+      "privateDescription": "Only you (and superadmins) can access this project.",
+      "organization": "Organization",
+      "organizationDescription": "Members of selected organizations can access.",
+      "organizationManagedElsewhere": "This project is currently assigned to one or more organizations. Manage organization assignments on the Members page.",
+      "public": "Public",
+      "publicDescription": "Visible to every authenticated user across all organizations.",
+      "publicRoleLabel": "Public role",
+      "publicRoleDescription": "How visitors interact with the project. Settings (title, label config) always stay with the creator.",
+      "publicRole": {
+        "annotator": "Annotator",
+        "annotatorDescription": "View tasks and create annotations.",
+        "contributor": "Contributor",
+        "contributorDescription": "Also add tasks and run generation/evaluation. Cannot edit project settings."
+      },
+      "organizations": "Organizations",
+      "organizationsDescription": "Pick one or more organizations whose members get access.",
+      "loadingOrganizations": "Loading organizations…",
+      "noOrganizationsAvailable": "No organizations available.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving…",
+      "validation": {
+        "privateNeedsOrganization": "Organization-scoped projects need at least one organization."
+      }
     },
     "evaluation": {
       "title": "Evaluation Configuration",
@@ -930,10 +991,19 @@
     },
     "settings": {
       "title": "Settings",
+      "annotationSettingsTitle": "Annotation workflow & behavior",
       "mode": "{mode} mode",
       "minAnnotations": "{count} min annotations",
       "editSettings": "Edit Settings",
       "saveSettings": "Save Settings",
+      "featureVisibility": {
+        "title": "Section visibility",
+        "help": "Choose which configuration sections render on this page. Data and APIs are preserved."
+      },
+      "visibilityDangerZone": {
+        "title": "Project visibility",
+        "help": "Changes here affect who across the whole platform can see and interact with this project. Public exposes it to every authenticated user."
+      },
       "annotationBehavior": {
         "title": "Annotation Behavior",
         "maxAnnotations": "Maximum Annotations per Task",
@@ -1043,6 +1113,10 @@
       "title": "Statistics",
       "totalTasks": "Total Tasks",
       "annotations": "Annotations",
+      "generations": "Generations",
+      "corrections": "Corrections",
+      "correctionsFalloesungBreakdown": "↳ Falllösung grades",
+      "correctionsCommentsBreakdown": "↳ Comments",
       "progress": "Progress"
     },
     "recentActivity": {
@@ -3110,6 +3184,10 @@
         "annotationCompletedDesc": "Receive notifications when annotation tasks are completed",
         "annotationAssigned": "Annotation Assigned",
         "annotationAssignedDesc": "Receive notifications when you are assigned to annotation tasks",
+        "taskAssigned": "Task Assigned",
+        "taskAssignedDesc": "You have been assigned one or more annotation tasks",
+        "korrekturAssigned": "Correction Assigned",
+        "korrekturAssignedDesc": "You have been assigned a correction item (Classic or Falllösung)",
         "orgInvitationSent": "Organization Invitation Sent",
         "orgInvitationSentDesc": "Receive notifications when organization invitations are sent",
         "orgInvitationAccepted": "Organization Invitation Accepted",
@@ -3581,6 +3659,7 @@
   },
   "common": {
     "loading": "Loading...",
+    "saving": "Saving...",
     "error": "Error",
     "success": "Success",
     "warning": "Warning",
@@ -7187,12 +7266,86 @@
     "loadFailed": "Failed to load correction data",
     "notEnabled": "Correction is not enabled for this project. Enable it in the project wizard under Evaluation Methods → Human Evaluation.",
     "noTasks": "No tasks found",
+    "falloesungSaveSuccess": "Grade saved",
+    "falloesungSaveError": "Failed to save grade",
+    "blindBanner": "Blind grading active: {what} are hidden until you submit.",
+    "blindBannerLlm": "LLM judge scores",
+    "blindBannerPeers": "other correctors' grades",
     "stats": {
       "totalTasks": "Total Tasks",
       "withFeedback": "With Correction",
       "withoutFeedback": "Without Correction",
       "totalComments": "Comments",
-      "unresolvedComments": "Unresolved"
+      "unresolvedComments": "Unresolved",
+      "falloesungGrades": "Falllösung Grades",
+      "falloesungGradesShort": "grades"
+    },
+    "metricTabs": {
+      "korrektur_classic": "Comments (Classic)",
+      "korrektur_falloesung": "Grades (Falllösung)"
+    },
+    "itemFilter": {
+      "all": "All",
+      "unassigned": "Unassigned",
+      "assigned_to_me": "Assigned to me",
+      "assigned_to_others": "Assigned to others",
+      "in_progress_by_me": "In progress",
+      "completed_by_me": "Done by me",
+      "completed_by_others": "Done by others",
+      "fully_complete": "Complete"
+    },
+    "itemStatus": {
+      "unassigned": "Open",
+      "assigned_to_me": "Assigned",
+      "assigned_to_others": "Assigned",
+      "in_progress_by_me": "In progress",
+      "completed_by_me": "Done by me",
+      "completed_by_others": "Done",
+      "fully_complete": "Complete"
+    },
+    "targetType": {
+      "annotation": "Annotation",
+      "generation": "Generation"
+    },
+    "totalItems": "{count} items",
+    "noItems": "No items",
+    "assignedCount": "{count} assigned",
+    "gradedCount": "{count} graded",
+    "skip": {
+      "action": "Skip",
+      "promptComment": "Optional skip comment:",
+      "success": "Item skipped",
+      "error": "Skip failed"
+    },
+    "bulkSelected": "{count} items selected",
+    "bulk": {
+      "unassign": "Remove assignments",
+      "setPriority": "Set priority…",
+      "setDueDate": "Set due date",
+      "skip": "Mark as skipped",
+      "unassignSuccess": "Removed {count} assignments",
+      "prioritySuccess": "Priority set on {count} assignments",
+      "dueDateSuccess": "Due date set on {count} assignments",
+      "skipSuccess": "Marked {count} assignments as skipped"
+    },
+    "assign": {
+      "titleSingle": "Assign item",
+      "titleBulk": "Bulk-assign items",
+      "singleSubtitle": "Task #{taskId} · {type}",
+      "bulkScope": "Which items?",
+      "bulkScopes": {
+        "all_unassigned": "All unassigned",
+        "all": "All items"
+      },
+      "recipients": "Assign to",
+      "noMembers": "No assignable members",
+      "submit": "Assign to {count}",
+      "successSingle": "{count} corrector(s) assigned",
+      "successBulk": "Created {count} assignments",
+      "error": "Assignment failed",
+      "itemAction": "Assign",
+      "bulkAction": "Bulk assign",
+      "unassign": "Remove assignment"
     },
     "filter": {
       "all": "All",
@@ -7206,7 +7359,10 @@
     },
     "tabs": {
       "review": "Review",
-      "falloesungGrade": "Grade (Standard Falllösung)"
+      "falloesungGrade": "Grade (Standard Falllösung)",
+      "falloesungHint": "Grading on the Standard Falllösung rubric is in the \"Grade (Standard Falllösung)\" tab above.",
+      "falloesungLlmReference": "LLM pre-grade (reference only, not adopted)",
+      "falloesungNoLlmYet": "No LLM pre-grade exists for this solution yet. You're grading from scratch."
     },
     "comments": {
       "title": "Comments",
@@ -7251,6 +7407,33 @@
       "submit": "Save grade",
       "submitting": "Saving…",
       "submitError": "Save failed"
+    },
+    "config": {
+      "queueSection": "Queue & Assignment",
+      "queueSectionHelp": "Who corrects what, in which order, how many times.",
+      "assignmentMode": "Assignment mode",
+      "assignmentModes": {
+        "open": "Open (anyone may grade)",
+        "manual": "Manually assigned",
+        "auto": "Automatically assigned"
+      },
+      "ordering": "Ordering",
+      "orderings": { "sequential": "Sequential", "random": "Random per corrector" },
+      "maxCorrectorsPerItem": "Max correctors per item",
+      "maxCorrectorsHelp": "0 = unlimited",
+      "minCorrectorsPerItem": "Min correctors per item",
+      "skipQueue": "Skip behaviour",
+      "skipQueues": {
+        "requeue_for_others": "Offer skipped to others",
+        "requeue_for_me": "Show skipped again to me",
+        "ignore_skipped": "Hide skipped permanently"
+      },
+      "requireCommentOnSkip": "Require comment on skip",
+      "allowSelfCorrection": "Allow correcting one's own annotations",
+      "visibilitySection": "Blind grading",
+      "visibilitySectionHelp": "Hides peer/LLM grades until you submit yours — then revealed for comparison.",
+      "blindToLlmJudge": "Hide LLM judge scores",
+      "blindToPeerCorrectors": "Hide other correctors' grades"
     }
   },
   "emptyStates": {

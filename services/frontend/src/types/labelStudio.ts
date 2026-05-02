@@ -61,6 +61,17 @@ export interface Project {
   // Immediate evaluation (extended feature)
   immediate_evaluation_enabled?: boolean
 
+  // Per-project feature visibility flags (D4 from korrektur rework). Pure UI
+  // gate — when false, the corresponding ConfigCard on the project detail
+  // page is hidden; data and APIs stay untouched. Default true server-side.
+  enable_annotation?: boolean
+  enable_generation?: boolean
+  enable_evaluation?: boolean
+
+  // Total Generation rows for this project — feeds the Statistiken tile
+  // when > 0; computed by routers/projects/helpers.calculate_generation_stats.
+  generation_count?: number
+
   // BenGER specific
   llm_model_ids?: string[]
   generation_config?: GenerationConfig
@@ -88,6 +99,7 @@ export interface Project {
   // Visibility and access control
   is_private?: boolean
   is_public?: boolean
+  public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
   organization_ids?: string[]
 
   // Timestamps
@@ -106,6 +118,8 @@ export interface ProjectCreate {
   enable_empty_annotation?: boolean
   llm_model_ids?: string[]
   is_private?: boolean
+  is_public?: boolean
+  public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
 }
 
 export interface ProjectUpdate extends Partial<ProjectCreate> {
@@ -121,6 +135,7 @@ export interface ProjectUpdate extends Partial<ProjectCreate> {
   min_annotations_per_task?: number
   assignment_mode?: 'open' | 'manual' | 'auto'
   is_public?: boolean
+  public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
   organization_ids?: string[]
   instructions_always_visible?: boolean
   conditional_instructions?: Array<{ id: string; content: string; weight: number; ai_allowed?: boolean }> | null
