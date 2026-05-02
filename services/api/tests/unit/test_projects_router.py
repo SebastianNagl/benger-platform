@@ -124,6 +124,15 @@ class TestProjectsRouter:
         project.generation_models_count = 0
         project.generation_completed = False
         project.is_private = False
+        # Visibility tier (added in Korrektur rework)
+        project.is_public = False
+        project.public_role = None
+        # Per-card feature visibility flags (D4 from korrektur rework)
+        project.enable_annotation = True
+        project.enable_generation = True
+        project.enable_evaluation = True
+        # Generation Statistiken tile
+        project.generation_count = 0
         # Extended feature flags
         project.annotation_time_limit_enabled = False
         project.annotation_time_limit_seconds = None
@@ -157,6 +166,21 @@ class TestProjectsRouter:
         # Mock creator and organization relationships
         project.creator = Mock()
         project.creator.name = "Admin User"
+
+        # JSON-typed columns that ProjectResponse serializes — must not be raw Mock.
+        # (Pydantic v2 errors on `Unable to serialize unknown type: Mock`.)
+        project.evaluation_config = {}
+        project.generation_config = {}
+        project.korrektur_config = None
+        project.conditional_instructions = None
+        project.questionnaire_config = None
+        project.label_config_history = None
+        project.label_config_version = 1
+        # Remaining Optional fields on ProjectResponse — set explicitly so Mock
+        # attribute auto-creation doesn't leak unserializable values.
+        project.organization_id = None
+        project.annotation_time_limit_seconds = None
+        project.review_mode = "in_place"
 
         return project
 
@@ -440,7 +464,8 @@ class TestProjectsRouter:
             )
             return mock_db
 
-        with patch("routers.projects.crud.calculate_project_stats", return_value=None):
+        with patch("routers.projects.crud.calculate_project_stats", return_value=None), \
+             patch("routers.projects.crud.calculate_generation_stats", return_value=None):
             app.dependency_overrides[require_user] = override_require_user
             app.dependency_overrides[get_db] = override_get_db
 
@@ -572,6 +597,15 @@ class TestProjectsRouter:
             created_project.generation_models_count = 0
             created_project.generation_completed = False
             created_project.is_private = False
+            # Visibility tier (added in Korrektur rework)
+            created_project.is_public = False
+            created_project.public_role = None
+            # Per-card feature visibility (D4)
+            created_project.enable_annotation = True
+            created_project.enable_generation = True
+            created_project.enable_evaluation = True
+            # Generation Statistiken tile
+            created_project.generation_count = 0
             # Extended feature flags
             created_project.annotation_time_limit_enabled = False
             created_project.annotation_time_limit_seconds = None
@@ -620,6 +654,8 @@ class TestProjectsRouter:
         ) as mock_get_orgs, patch(
             "routers.projects.crud.calculate_project_stats", return_value=None
         ) as mock_calc_stats, patch(
+            "routers.projects.crud.calculate_generation_stats", return_value=None
+        ) as mock_calc_gen, patch(
             "notification_service.notify_project_created"
         ) as mock_notify:
             mock_user_with_memberships = Mock()
@@ -701,7 +737,9 @@ class TestProjectsRouter:
             return_value=[{"id": "org-123", "name": "Test Org"}],
         ) as mock_get_orgs, patch(
             "routers.projects.crud.calculate_project_stats", return_value=None
-        ) as mock_calc_stats:
+        ) as mock_calc_stats, patch(
+            "routers.projects.crud.calculate_generation_stats", return_value=None
+        ) as mock_calc_gen:
             mock_user_with_memberships = Mock()
             mock_user_with_memberships.id = mock_regular_user.id
             mock_user_with_memberships.is_superadmin = False

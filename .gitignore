@@ -85,6 +85,8 @@ out/
 
 # Helm
 charts/*.tgz
+infra/helm/benger/charts/postgresql/
+infra/helm/benger/charts/redis/
 
 # Data and Archives (only root-level directories)
 /data/

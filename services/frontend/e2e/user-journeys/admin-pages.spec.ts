@@ -6,6 +6,7 @@
 
 import { expect, Page, test } from '@playwright/test'
 import { TestHelpers } from '../helpers/test-helpers'
+import { revealFilterToolbarSearch } from '../utils/test-helpers'
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || ''
 
@@ -76,10 +77,8 @@ test.describe('Admin Pages', () => {
     // Wait for the page to fully load
     await expect(page.locator('h1').first()).toBeVisible({ timeout: 30000 })
 
-    // The SearchInput component renders an input element
-    const searchInput = page
-      .locator('input[type="text"], input[type="search"]')
-      .first()
+    // FilterToolbar collapses search behind a toggle; click it to reveal input.
+    const searchInput = await revealFilterToolbarSearch(page)
     await expect(searchInput).toBeVisible({ timeout: 10000 })
   })
 
@@ -174,10 +173,8 @@ test.describe('Admin Pages', () => {
       .first()
       .textContent()
 
-    // Type a search term that should match the first flag
-    const searchInput = page
-      .locator('input[type="text"], input[type="search"]')
-      .first()
+    // FilterToolbar collapses search behind a toggle; click it to reveal input.
+    const searchInput = await revealFilterToolbarSearch(page)
     await expect(searchInput).toBeVisible({ timeout: 10000 })
 
     // Use a partial match from the first flag name

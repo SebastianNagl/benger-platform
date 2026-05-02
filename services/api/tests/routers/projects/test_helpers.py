@@ -222,6 +222,10 @@ def test_calculate_generation_stats():
         'selected_configuration': {'models': ['model1', 'model2']},
     }
 
+    # Mock generation_count query (new in Statistiken tile)
+    generation_count_query = Mock()
+    generation_count_query.join.return_value.filter.return_value.scalar.return_value = 0
+
     # Mock task IDs query
     task_id_mock1 = Mock()
     task_id_mock1.id = 'task-1'
@@ -235,7 +239,7 @@ def test_calculate_generation_stats():
     gen_query = Mock()
     gen_query.filter.return_value.count.return_value = 4  # 2 tasks * 2 models
 
-    db.query.side_effect = [task_query, gen_query]
+    db.query.side_effect = [generation_count_query, task_query, gen_query]
 
     # Set task_count on response (this would be set by calculate_project_stats)
     response.task_count = 2
@@ -260,6 +264,9 @@ def test_calculate_generation_stats_incomplete():
         'selected_configuration': {'models': ['model1', 'model2']},
     }
 
+    generation_count_query = Mock()
+    generation_count_query.join.return_value.filter.return_value.scalar.return_value = 0
+
     task_id_mock = Mock()
     task_id_mock.id = 'task-1'
 
@@ -270,7 +277,7 @@ def test_calculate_generation_stats_incomplete():
     gen_query = Mock()
     gen_query.filter.return_value.count.return_value = 1
 
-    db.query.side_effect = [task_query, gen_query]
+    db.query.side_effect = [generation_count_query, task_query, gen_query]
     response.task_count = 1
 
     calculate_generation_stats(db, project, response)

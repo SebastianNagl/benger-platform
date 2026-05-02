@@ -149,6 +149,16 @@ def calculate_generation_stats(db: Session, project: Project, response: ProjectR
     # For backward compatibility, generation_prompts_ready now checks prompt structures
     response.generation_prompts_ready = bool(prompt_structures)
 
+    # 2. Total Generation rows for this project — feeds the Statistiken
+    # "Generations" tile on the project detail page (rendered conditionally
+    # when > 0).
+    response.generation_count = (
+        db.query(func.count(Generation.id))
+        .join(Task, Generation.task_id == Task.id)
+        .filter(Task.project_id == project.id)
+        .scalar()
+    ) or 0
+
     # 3. Count configured models in generation_config (single source of truth)
     response.generation_models_count = 0
     if (
@@ -183,6 +193,75 @@ def calculate_generation_stats(db: Session, project: Project, response: ProjectR
             response.generation_completed = completed_generations >= expected_generations
 
 
+def calculate_generation_stats_batch(
+    db: Session, projects: List[Project]
+) -> Dict[str, Dict[str, int]]:
+    """Batch generation stats for many projects in 2 queries instead of 3*N.
+
+    Returns: project_id -> {generation_count, completed_generations}.
+    Caller still computes config_ready / prompts_ready / models_count / completed
+    in-process from each Project's generation_config (no DB hit).
+    """
+    if not projects:
+        return {}
+
+    project_ids = [p.id for p in projects]
+
+    # Query 1: total Generation rows per project
+    gen_counts = (
+        db.query(Task.project_id, func.count(Generation.id).label("c"))
+        .join(Generation, Generation.task_id == Task.id)
+        .filter(Task.project_id.in_(project_ids))
+        .group_by(Task.project_id)
+        .all()
+    )
+
+    # Query 2: completed ResponseGeneration rows per project
+    completed_counts = (
+        db.query(Task.project_id, func.count(ResponseGeneration.id).label("c"))
+        .join(ResponseGeneration, ResponseGeneration.task_id == Task.id)
+        .filter(
+            Task.project_id.in_(project_ids),
+            ResponseGeneration.status == "completed",
+        )
+        .group_by(Task.project_id)
+        .all()
+    )
+
+    out: Dict[str, Dict[str, int]] = {
+        pid: {"generation_count": 0, "completed_generations": 0} for pid in project_ids
+    }
+    for row in gen_counts:
+        out[row.project_id]["generation_count"] = row.c or 0
+    for row in completed_counts:
+        out[row.project_id]["completed_generations"] = row.c or 0
+    return out
+
+
+def apply_generation_stats(
+    project: Project, response: ProjectResponse, batch_stats: Dict[str, int]
+) -> None:
+    """In-process variant of calculate_generation_stats: fills the same fields
+    on `response` using pre-fetched per-project counts (no DB query)."""
+    generation_config = project.generation_config or {}
+    prompt_structures = generation_config.get("prompt_structures", {})
+    response.generation_config_ready = bool(prompt_structures)
+    response.generation_prompts_ready = bool(prompt_structures)
+    response.generation_count = int(batch_stats.get("generation_count", 0))
+
+    response.generation_models_count = 0
+    selected = (project.generation_config or {}).get("selected_configuration") or {}
+    if selected.get("models"):
+        response.generation_models_count = len(selected["models"])
+
+    response.generation_completed = False
+    if response.task_count > 0 and response.generation_models_count > 0:
+        expected = response.task_count * response.generation_models_count
+        response.generation_completed = (
+            batch_stats.get("completed_generations", 0) >= expected
+        )
+
+
 def get_user_with_memberships(db: Session, user_id: str) -> User:
     """Get user with organization memberships loaded"""
     return (
@@ -213,6 +292,10 @@ def get_accessible_project_ids(
     if user.is_superadmin:
         return None
 
+    public_ids = [
+        r.id for r in db.query(Project.id).filter(Project.is_public == True).all()
+    ]
+
     if not org_context or org_context == "private":
         rows = (
             db.query(Project.id)
@@ -222,7 +305,17 @@ def get_accessible_project_ids(
             )
             .all()
         )
-        return [r.id for r in rows]
+        seen = set()
+        result = []
+        for r in rows:
+            if r.id not in seen:
+                seen.add(r.id)
+                result.append(r.id)
+        for pid in public_ids:
+            if pid not in seen:
+                seen.add(pid)
+                result.append(pid)
+        return result
 
     # Org mode: verify membership then get org projects
     user_with_memberships = get_user_with_memberships(db, str(user.id))
@@ -243,7 +336,17 @@ def get_accessible_project_ids(
         .filter(ProjectOrganization.organization_id == org_context)
         .all()
     )
-    return [r.project_id for r in rows]
+    seen = set()
+    result = []
+    for r in rows:
+        if r.project_id not in seen:
+            seen.add(r.project_id)
+            result.append(r.project_id)
+    for pid in public_ids:
+        if pid not in seen:
+            seen.add(pid)
+            result.append(pid)
+    return result
 
 
 def get_org_context_from_request(request: Request) -> Optional[str]:
@@ -284,6 +387,10 @@ def check_project_accessible(
         project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         return False
+
+    # Public projects are readable by every authenticated user regardless of context.
+    if getattr(project, "is_public", False) is True:
+        return True
 
     # Context-aware mode
     if org_context is not None:
@@ -394,6 +501,71 @@ def check_task_assigned_to_user(
         .first()
     )
     return assignment is not None
+
+
+def get_effective_project_role(
+    db: Session,
+    user,
+    project: Project,
+) -> Optional[str]:
+    """Resolve the effective role a user holds within a project.
+
+    Returns one of: "ORG_ADMIN", "CONTRIBUTOR", "ANNOTATOR", or None.
+    Resolution order:
+      1. Superadmin or project creator → ORG_ADMIN.
+      2. Active org membership in any org assigned to this project → that role.
+      3. Project is public and user has no other claim → project.public_role.
+      4. Otherwise → None.
+    """
+    if user.is_superadmin or str(project.created_by) == str(user.id):
+        return "ORG_ADMIN"
+
+    user_with_memberships = get_user_with_memberships(db, str(user.id))
+    if user_with_memberships and user_with_memberships.organization_memberships:
+        project_org_ids = [
+            r.organization_id
+            for r in db.query(ProjectOrganization.organization_id)
+            .filter(ProjectOrganization.project_id == project.id)
+            .all()
+        ]
+        for membership in user_with_memberships.organization_memberships:
+            if membership.organization_id in project_org_ids and membership.is_active:
+                return membership.role
+
+    if getattr(project, "is_public", False) is True and getattr(project, "public_role", None):
+        return project.public_role
+
+    return None
+
+
+def check_project_write_access(
+    db: Session,
+    user,
+    project_id: str,
+    allowed_roles: tuple = ("ORG_ADMIN", "CONTRIBUTOR"),
+) -> bool:
+    """Check if a user can perform a write/contribute action on a project.
+
+    Combines read access + role gate. The role check honours the public_role
+    fallback for public-tier visitors:
+      - public_role=ANNOTATOR  → blocked (only ORG_ADMIN/CONTRIBUTOR allowed)
+      - public_role=CONTRIBUTOR → allowed
+      - org-member with allowed role → allowed
+      - creator + superadmin → always allowed (via get_effective_project_role)
+
+    Use for endpoints that mutate task/annotation/generation data on a project
+    (e.g. import, generate, bulk delete) where the documented public_role
+    contract should be enforced.
+    """
+    if user.is_superadmin:
+        return True
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        return False
+
+    role = get_effective_project_role(db, user, project)
+    return role in allowed_roles
 
 
 def check_user_can_edit_project(
