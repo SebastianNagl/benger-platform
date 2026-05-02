@@ -1022,6 +1022,9 @@ class NotificationType(str, Enum):
     TASK_DUE_SOON = "task_due_soon"
     TASK_OVERDUE = "task_overdue"
 
+    # Korrektur (proprietary) — assignment of a per-item correction job
+    KORREKTUR_ASSIGNED = "korrektur_assigned"
+
     # LLM generation notifications
     LLM_GENERATION_COMPLETED = "llm_generation_completed"
     LLM_GENERATION_FAILED = "llm_generation_failed"

@@ -35,6 +35,7 @@ class TestUserWantsNotification:
     def test_preference_disabled(self):
         from services.email.notification_service import NotificationService
         pref = MagicMock()
+        pref.in_app_enabled = False
         pref.email_enabled = False
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = pref
@@ -220,20 +221,28 @@ class TestGetUserPreferences:
         db = MagicMock()
         db.query.return_value.filter.return_value.all.return_value = []
         result = NotificationService.get_user_preferences(db, "user-1")
-        # Returns defaults for all notification types (all True)
+        # Returns defaults for all notification types: per-channel shape, all on
         assert isinstance(result, dict)
         assert len(result) > 0
-        assert all(v is True for v in result.values())
+        assert all(
+            v == {"enabled": True, "in_app": True, "email": True}
+            for v in result.values()
+        )
 
     def test_returns_overridden_prefs(self):
         from services.email.notification_service import NotificationService
         pref1 = MagicMock()
         pref1.notification_type = "project_created"
+        pref1.in_app_enabled = False
         pref1.email_enabled = False
         db = MagicMock()
         db.query.return_value.filter.return_value.all.return_value = [pref1]
         result = NotificationService.get_user_preferences(db, "user-1")
-        assert result["project_created"] is False
+        assert result["project_created"] == {
+            "enabled": False,
+            "in_app": False,
+            "email": False,
+        }
 
 
 class TestUpdateUserPreferences:

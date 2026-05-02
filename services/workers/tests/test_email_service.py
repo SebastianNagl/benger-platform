@@ -73,18 +73,14 @@ class TestEmailServiceInitialization:
             with patch.object(EmailService, "_init_template_environment", return_value=Mock()):
                 service = EmailService()
 
-                assert service.smtp_host == "mail"
-                assert service.smtp_port == 25
                 assert service.from_email == "noreply@what-a-benger.net"
                 assert service.from_name == "BenGER Platform"
 
     def test_init_with_custom_env_values(self, mock_sendgrid_client):
         """Test initialization with custom environment values"""
         env_vars = {
-            "MAIL_SMTP_HOST": "smtp.custom.com",
-            "MAIL_SMTP_PORT": "587",
-            "MAIL_FROM_EMAIL": "custom@example.com",
-            "MAIL_FROM_NAME": "Custom Name",
+            "EMAIL_FROM_ADDRESS": "custom@example.com",
+            "EMAIL_FROM_NAME": "Custom Name",
         }
 
         with patch.dict(os.environ, env_vars):
@@ -94,8 +90,6 @@ class TestEmailServiceInitialization:
                 ):
                     service = EmailService()
 
-                    assert service.smtp_host == "smtp.custom.com"
-                    assert service.smtp_port == 587
                     assert service.from_email == "custom@example.com"
                     assert service.from_name == "Custom Name"
 

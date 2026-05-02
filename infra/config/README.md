@@ -93,12 +93,11 @@ Later values override earlier ones.
 ### Native Annotation System
 BenGER now uses a native annotation system. No external annotation service configuration required.
 
-### Email Configuration
-- `EMAIL_ENABLED` - Enable email sending (true/false)
-- `SMTP_HOST` - SMTP server host
-- `SMTP_PORT` - SMTP server port
-- `SMTP_USER` - SMTP username
-- `SMTP_PASSWORD` - SMTP password (use secrets)
+### Email Configuration (SendGrid)
+- `EMAIL_ENABLED` / `MAIL_ENABLED` - Enable email sending (true/false)
+- `SENDGRID_API_KEY` - SendGrid API key (use secrets)
+- `EMAIL_FROM_ADDRESS` - Sender email address
+- `EMAIL_FROM_NAME` - Sender display name
 
 ## Security
 

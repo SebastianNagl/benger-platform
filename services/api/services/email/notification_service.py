@@ -104,10 +104,9 @@ class NotificationService:
         notifications = []
 
         for user_id in user_ids:
-            # Check user preferences
-            logger.debug(f"  🔍 Checking preferences for user {user_id}...")
-            if not NotificationService._user_wants_notification(db, user_id, notification_type_str):
-                logger.info(f"  ⏭️ Skipping user {user_id} - preferences or quiet hours blocking")
+            # In-app channel: only insert a notifications row when in_app is enabled.
+            if not NotificationService._user_wants_channel(db, user_id, notification_type_str, "in_app"):
+                logger.info(f"  ⏭️ Skipping user {user_id} (in_app disabled)")
                 continue
 
             logger.info(f"  ✅ Creating notification for user {user_id}")
@@ -157,11 +156,18 @@ class NotificationService:
                 )
             return []
 
-        # Send email notifications asynchronously for users who have email enabled
+        # Send email notifications asynchronously for users who have email enabled.
+        # Schedule on the running event loop when available; in sync test/CLI
+        # contexts there is no loop and we silently skip the email side-effect.
         if EMAIL_SERVICE_AVAILABLE and notifications:
-            asyncio.create_task(
-                NotificationService._send_email_notifications(db, notification_data)
-            )
+            try:
+                asyncio.create_task(
+                    NotificationService._send_email_notifications(db, notification_data)
+                )
+            except RuntimeError:
+                logger.debug(
+                    "No running event loop; skipping async email dispatch"
+                )
 
         return notifications
 
@@ -323,24 +329,23 @@ class NotificationService:
         return None  # Cannot get task creator from removed task system
 
     @staticmethod
-    def _user_wants_notification(
-        db: Session, user_id: str, notification_type: Union[NotificationType, str]
+    def _user_wants_channel(
+        db: Session,
+        user_id: str,
+        notification_type: Union[NotificationType, str],
+        channel: str,
     ) -> bool:
-        """Check if user wants to receive this type of notification"""
-        logger.debug(f"    🔍 Checking if user {user_id} wants {notification_type} notifications...")
-
-        # Convert to string value if it's an enum
+        """Check whether a specific channel ('in_app' or 'email') is enabled
+        for the given notification type. Defaults to True when no preference
+        is recorded — same as before.
+        """
         if isinstance(notification_type, NotificationType):
             type_value = notification_type.value
-            logger.debug(f"    📝 Converting enum to string: {type_value}")
         elif isinstance(notification_type, str):
             type_value = notification_type
-            logger.debug(f"    📝 Already a string: {type_value}")
         else:
-            logger.error(f"    ❌ Invalid notification type: {notification_type}")
             return False
 
-        # Check basic notification preferences
         preference = (
             db.query(UserNotificationPreference)
             .filter(
@@ -351,21 +356,27 @@ class NotificationService:
             )
             .first()
         )
+        if preference is None:
+            return True
+        if channel == "in_app":
+            return bool(preference.in_app_enabled)
+        if channel == "email":
+            return bool(preference.email_enabled)
+        return False
 
-        # If user has disabled this notification type, return False
-        if preference and not preference.email_enabled:
-            logger.debug(f"      ❌ User has explicitly disabled {notification_type} notifications")
-            return False
-        elif preference:
-            logger.debug(f"      ✅ User has enabled {notification_type} notifications")
-        else:
-            logger.debug(
-                f"      ℹ️ No preference found for {notification_type}, defaulting to enabled"
-            )
+    @staticmethod
+    def _user_wants_notification(
+        db: Session, user_id: str, notification_type: Union[NotificationType, str]
+    ) -> bool:
+        """Back-compat: returns True if EITHER channel is enabled.
 
-        # Default to enabled if no preference set
-        logger.debug(f"      ✅ User {user_id} will receive notification")
-        return True
+        Callers that need per-channel routing should call _user_wants_channel
+        directly. This shim keeps existing in-app dispatch sites working.
+        """
+        return (
+            NotificationService._user_wants_channel(db, user_id, notification_type, "in_app")
+            or NotificationService._user_wants_channel(db, user_id, notification_type, "email")
+        )
 
     @staticmethod
     def get_user_notifications(
@@ -455,55 +466,60 @@ class NotificationService:
         return count
 
     @staticmethod
-    def get_user_preferences(db: Session, user_id: str) -> Dict[str, bool]:
-        """
-        Get user notification preferences
+    def get_user_preferences(db: Session, user_id: str) -> Dict[str, Dict[str, bool]]:
+        """Per-type preferences as `{type: {enabled, in_app, email}}`.
 
-        Args:
-            db: Database session
-            user_id: User ID
-
-        Returns:
-            Dictionary mapping notification types to enabled status
+        `enabled` is `True` iff at least one channel is on (back-compat for
+        consumers that just want a master toggle). The two channel flags are
+        the actual source of truth.
         """
         preferences = (
             db.query(UserNotificationPreference)
             .filter(UserNotificationPreference.user_id == user_id)
             .all()
         )
-
-        # Create mapping with defaults
-        pref_map = {nt.value: True for nt in NotificationType}
-
-        # Update with user preferences
+        # Default every known type to fully on
+        pref_map: Dict[str, Dict[str, bool]] = {
+            nt.value: {"enabled": True, "in_app": True, "email": True}
+            for nt in NotificationType
+        }
         for pref in preferences:
-            # Use email_enabled as the default for now
-            pref_map[pref.notification_type] = pref.email_enabled
-
+            in_app = bool(pref.in_app_enabled)
+            email = bool(pref.email_enabled)
+            pref_map[pref.notification_type] = {
+                "enabled": in_app or email,
+                "in_app": in_app,
+                "email": email,
+            }
         return pref_map
 
     @staticmethod
-    def update_user_preferences(db: Session, user_id: str, preferences: Dict[str, bool]) -> bool:
-        """
-        Update user notification preferences
+    def update_user_preferences(
+        db: Session,
+        user_id: str,
+        preferences: Dict[str, Any],
+    ) -> bool:
+        """Update preferences. Accepts both the new shape
+        `{type: {enabled, in_app, email}}` and the legacy `{type: bool}`.
 
-        Args:
-            db: Database session
-            user_id: User ID
-            preferences: Dictionary mapping notification types to enabled status
-
-        Returns:
-            True if preferences were updated successfully
+        Legacy bool means "set both channels to that value" (matches the
+        prior behaviour so older callers keep working).
         """
         try:
-            for notification_type_str, enabled in preferences.items():
+            for notification_type_str, value in preferences.items():
                 try:
                     notification_type = NotificationType(notification_type_str)
                 except ValueError:
                     logger.warning(f"Invalid notification type: {notification_type_str}")
                     continue
 
-                # Find or create preference
+                if isinstance(value, dict):
+                    in_app_enabled = bool(value.get("in_app", value.get("enabled", True)))
+                    email_enabled = bool(value.get("email", value.get("enabled", True)))
+                else:
+                    in_app_enabled = bool(value)
+                    email_enabled = bool(value)
+
                 preference = (
                     db.query(UserNotificationPreference)
                     .filter(
@@ -516,16 +532,16 @@ class NotificationService:
                 )
 
                 if preference:
-                    preference.email_enabled = enabled
-                    preference.in_app_enabled = enabled
+                    preference.email_enabled = email_enabled
+                    preference.in_app_enabled = in_app_enabled
                     preference.updated_at = datetime.utcnow()
                 else:
                     preference = UserNotificationPreference(
                         id=str(uuid.uuid4()),
                         user_id=user_id,
                         notification_type=notification_type.value,
-                        email_enabled=enabled,
-                        in_app_enabled=enabled,
+                        email_enabled=email_enabled,
+                        in_app_enabled=in_app_enabled,
                     )
                     db.add(preference)
 
@@ -597,20 +613,10 @@ class NotificationService:
     def _user_wants_email_notification(
         db: Session, user_id: str, notification_type: NotificationType
     ) -> bool:
-        """Check if user wants to receive email notifications for this type"""
-        preference = (
-            db.query(UserNotificationPreference)
-            .filter(
-                and_(
-                    UserNotificationPreference.user_id == user_id,
-                    UserNotificationPreference.notification_type == notification_type.value,
-                )
-            )
-            .first()
+        """Back-compat shim — defers to the unified per-channel check."""
+        return NotificationService._user_wants_channel(
+            db, user_id, notification_type, "email"
         )
-
-        # Default to disabled if no preference set (email is opt-in)
-        return preference.email_enabled if preference else False
 
     @staticmethod
     def cleanup_notifications(db: Session, older_than_days: int = 30) -> int:

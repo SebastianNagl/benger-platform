@@ -85,6 +85,26 @@ const getNotificationTypes = (t: any) => [
     category: t('settings.notifications.categories.annotation'),
   },
   {
+    key: 'task_assigned',
+    name: t('settings.notifications.types.taskAssigned', { defaultValue: 'Aufgabe zugewiesen' }),
+    description: t('settings.notifications.types.taskAssignedDesc', {
+      defaultValue: 'Sie wurden einer oder mehreren Annotationsaufgaben zugewiesen',
+    }),
+    icon: UserPlusIcon,
+    category: t('settings.notifications.categories.annotation'),
+  },
+  {
+    key: 'korrektur_assigned',
+    name: t('settings.notifications.types.korrekturAssigned', {
+      defaultValue: 'Korrektur zugewiesen',
+    }),
+    description: t('settings.notifications.types.korrekturAssignedDesc', {
+      defaultValue: 'Sie wurden einer Korrekturaufgabe (Classic oder Falllösung) zugewiesen',
+    }),
+    icon: UserPlusIcon,
+    category: t('settings.notifications.categories.annotation'),
+  },
+  {
     key: 'organization_invitation_sent',
     name: t('settings.notifications.types.orgInvitationSent'),
     description: t('settings.notifications.types.orgInvitationSentDesc'),

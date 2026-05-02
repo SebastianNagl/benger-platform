@@ -11,7 +11,7 @@ This module provides REST API endpoints for the notification system:
 import asyncio
 import json
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
@@ -51,12 +51,19 @@ class NotificationResponse(BaseModel):
 
 
 class NotificationPreferencesResponse(BaseModel):
-    preferences: Dict[str, bool]
+    # Per-type per-channel: {type: {enabled, in_app, email}}.
+    # Legacy clients that expected `bool` per type still work because the
+    # service accepts both shapes on update.
+    preferences: Dict[str, Any]
 
 
 class NotificationPreferencesUpdate(BaseModel):
-    preferences: Dict[str, bool] = Field(
-        ..., description="Mapping of notification types to enabled status"
+    preferences: Dict[str, Any] = Field(
+        ...,
+        description=(
+            "Mapping of notification types to either a bool (legacy) or "
+            "{enabled, in_app, email} per-channel object."
+        ),
     )
 
 

@@ -39,10 +39,13 @@ interface NotificationDropdownProps {
 const notificationIcons = {
   task_created: InformationCircleIcon,
   task_completed: CheckCircleIcon,
+  task_assigned: UserPlusIcon,
+  korrektur_assigned: UserPlusIcon,
   llm_generation_completed: CheckCircleIcon,
   evaluation_completed: CheckCircleIcon,
   evaluation_failed: ExclamationTriangleIcon,
   annotation_completed: CheckCircleIcon,
+  annotation_assigned: UserPlusIcon,
   data_upload_completed: CheckCircleIcon,
   organization_invitation_sent: UserPlusIcon,
   organization_invitation_accepted: UserPlusIcon,
@@ -55,6 +58,12 @@ const notificationColors = {
   task_created: 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900',
   task_completed:
     'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+  task_assigned:
+    'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
+  korrektur_assigned:
+    'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900',
+  annotation_assigned:
+    'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   llm_generation_completed:
     'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
   evaluation_completed:

@@ -165,8 +165,6 @@ class TestHealthEndpoints:
 
         mock_email_service = Mock()
         mock_email_service.mail_enabled = True
-        mock_email_service.smtp_host = "smtp.example.com"
-        mock_email_service.smtp_port = 587
         mock_email_service.from_email = "noreply@test.com"
         mock_email_service.from_name = "BenGER"
         mock_email_service.test_connection = AsyncMock(return_value=True)
@@ -190,8 +188,6 @@ class TestHealthEndpoints:
 
         mock_email_service = Mock()
         mock_email_service.mail_enabled = True
-        mock_email_service.smtp_host = "smtp.example.com"
-        mock_email_service.smtp_port = 587
         mock_email_service.from_email = "noreply@test.com"
         mock_email_service.from_name = "BenGER"
         mock_email_service.test_connection = AsyncMock(return_value=True)
@@ -216,8 +212,6 @@ class TestHealthEndpoints:
 
         mock_email_service = Mock()
         mock_email_service.mail_enabled = False
-        mock_email_service.smtp_host = None
-        mock_email_service.smtp_port = None
         mock_email_service.from_email = None
         mock_email_service.from_name = None
         mock_email_service.test_connection = AsyncMock(return_value=False)
