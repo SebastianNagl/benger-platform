@@ -506,73 +506,10 @@ class TestProjectMembers:
         data = resp.json()
         assert isinstance(data, list)
 
-    def test_add_member(self, client, test_db, test_users, auth_headers, test_org):
-        p = _project(test_db, test_users[0], test_org)
-        test_db.commit()
-
-        resp = client.post(
-            f"/api/projects/{p.id}/members/{test_users[2].id}",
-            json={"role": "ANNOTATOR"},
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code in (200, 201)
-
-    def test_add_member_already_exists(self, client, test_db, test_users, auth_headers, test_org):
-        p = _project(test_db, test_users[0], test_org)
-        pm = ProjectMember(
-            id=_uid(), project_id=p.id, user_id=test_users[1].id,
-            role="ANNOTATOR", is_active=True,
-        )
-        test_db.add(pm)
-        test_db.commit()
-
-        resp = client.post(
-            f"/api/projects/{p.id}/members/{test_users[1].id}",
-            json={"role": "ANNOTATOR"},
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 400
-
-    def test_reactivate_member(self, client, test_db, test_users, auth_headers, test_org):
-        p = _project(test_db, test_users[0], test_org)
-        pm = ProjectMember(
-            id=_uid(), project_id=p.id, user_id=test_users[1].id,
-            role="ANNOTATOR", is_active=False,
-        )
-        test_db.add(pm)
-        test_db.commit()
-
-        resp = client.post(
-            f"/api/projects/{p.id}/members/{test_users[1].id}",
-            json={"role": "CONTRIBUTOR"},
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-
-    def test_remove_member(self, client, test_db, test_users, auth_headers, test_org):
-        p = _project(test_db, test_users[0], test_org)
-        pm = ProjectMember(
-            id=_uid(), project_id=p.id, user_id=test_users[1].id,
-            role="ANNOTATOR", is_active=True,
-        )
-        test_db.add(pm)
-        test_db.commit()
-
-        resp = client.delete(
-            f"/api/projects/{p.id}/members/{test_users[1].id}",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-
-    def test_remove_creator_fails(self, client, test_db, test_users, auth_headers, test_org):
-        p = _project(test_db, test_users[0], test_org)
-        test_db.commit()
-
-        resp = client.delete(
-            f"/api/projects/{p.id}/members/{test_users[0].id}",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code in (400, 404)
+    # Note: per-project member add/remove/reactivate endpoints were removed —
+    # member management now flows through organization assignment on the
+    # project visibility panel. Tests for the dropped endpoints have been
+    # deleted. The list/annotator-listing endpoints below are still active.
 
     def test_list_annotators(self, client, test_db, test_users, auth_headers, test_org):
         p = _project(test_db, test_users[0], test_org)

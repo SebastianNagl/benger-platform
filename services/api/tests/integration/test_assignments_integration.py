@@ -243,30 +243,6 @@ class TestRemoveAssignment:
 
 
 @pytest.mark.integration
-class TestProjectWorkload:
-    """GET /api/projects/{project_id}/workload"""
-
-    def test_get_workload(self, client, test_db, test_users, auth_headers, test_org):
-        project, tasks = _setup(test_db, test_users[0], test_org)
-        resp = client.get(
-            f"/api/projects/{project.id}/workload",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "annotators" in data
-        assert "stats" in data
-
-    def test_workload_annotator_denied(self, client, test_db, test_users, auth_headers, test_org):
-        project, _ = _setup(test_db, test_users[0], test_org)
-        resp = client.get(
-            f"/api/projects/{project.id}/workload",
-            headers=auth_headers["annotator"],
-        )
-        assert resp.status_code == 403
-
-
-@pytest.mark.integration
 class TestMyTasks:
     """GET /api/projects/{project_id}/my-tasks"""
 

@@ -8,7 +8,9 @@ import {
   canAccessProjectData,
   canCreateProjects,
   canDeleteProjects,
+  canMakeProjectPublic,
   canStartGeneration,
+  getEffectiveProjectRole,
   getUserPermissions,
   hasOrganization,
   isAnnotatorOnly,
@@ -379,6 +381,185 @@ describe('Permission Utilities', () => {
       expect(canCreateProjects(superadminWithLowerRole)).toBe(true)
       expect(canDeleteProjects(superadminWithLowerRole)).toBe(true)
       expect(isAnnotatorOnly(superadminWithLowerRole)).toBe(false)
+    })
+  })
+})
+
+// Tests for the public-tier additions: getEffectiveProjectRole,
+// canMakeProjectPublic, and the project-aware overloads.
+// (helpers imported at the top of the file.)
+
+const mkUser = (overrides: Partial<any> = {}): any => ({
+  id: 'user-1',
+  is_superadmin: false,
+  role: undefined,
+  ...overrides,
+})
+
+const mkProject = (overrides: Partial<any> = {}): any => ({
+  created_by: 'creator-1',
+  is_public: false,
+  public_role: null,
+  ...overrides,
+})
+
+describe('Public visibility helpers', () => {
+  describe('getEffectiveProjectRole', () => {
+    it('returns null for null user or project', () => {
+      expect(getEffectiveProjectRole(null, mkProject())).toBeNull()
+      expect(getEffectiveProjectRole(mkUser(), null)).toBeNull()
+    })
+
+    it('returns ORG_ADMIN for superadmins', () => {
+      expect(
+        getEffectiveProjectRole(mkUser({ is_superadmin: true }), mkProject())
+      ).toBe('ORG_ADMIN')
+    })
+
+    it('returns ORG_ADMIN for the project creator', () => {
+      expect(
+        getEffectiveProjectRole(
+          mkUser({ id: 'creator-1' }),
+          mkProject({ created_by: 'creator-1' })
+        )
+      ).toBe('ORG_ADMIN')
+    })
+
+    it('returns the explicit org role when provided', () => {
+      expect(
+        getEffectiveProjectRole(mkUser(), mkProject(), 'CONTRIBUTOR')
+      ).toBe('CONTRIBUTOR')
+    })
+
+    it('falls back to public_role for public projects when user has no other claim', () => {
+      expect(
+        getEffectiveProjectRole(
+          mkUser(),
+          mkProject({ is_public: true, public_role: 'CONTRIBUTOR' })
+        )
+      ).toBe('CONTRIBUTOR')
+    })
+
+    it('does not fall back to public_role when project is not public', () => {
+      expect(
+        getEffectiveProjectRole(
+          mkUser(),
+          mkProject({ is_public: false, public_role: 'CONTRIBUTOR' })
+        )
+      ).toBeNull()
+    })
+
+    it('prefers org role over public_role fallback', () => {
+      expect(
+        getEffectiveProjectRole(
+          mkUser(),
+          mkProject({ is_public: true, public_role: 'CONTRIBUTOR' }),
+          'ANNOTATOR'
+        )
+      ).toBe('ANNOTATOR')
+    })
+  })
+
+  describe('canMakeProjectPublic', () => {
+    it('false for null user or project', () => {
+      expect(canMakeProjectPublic(null, mkProject())).toBe(false)
+      expect(canMakeProjectPublic(mkUser(), null)).toBe(false)
+    })
+
+    it('true for superadmins', () => {
+      expect(
+        canMakeProjectPublic(mkUser({ is_superadmin: true }), mkProject())
+      ).toBe(true)
+    })
+
+    it('true for the creator', () => {
+      expect(
+        canMakeProjectPublic(
+          mkUser({ id: 'me' }),
+          mkProject({ created_by: 'me' })
+        )
+      ).toBe(true)
+    })
+
+    it('false for a stranger', () => {
+      expect(
+        canMakeProjectPublic(
+          mkUser({ id: 'stranger' }),
+          mkProject({ created_by: 'creator-1' })
+        )
+      ).toBe(false)
+    })
+  })
+
+  describe('canAccessProjectData with project context', () => {
+    it('public CONTRIBUTOR visitor passes', () => {
+      expect(
+        canAccessProjectData(mkUser({ id: 'visitor' }), {
+          project: mkProject({
+            created_by: 'someone',
+            is_public: true,
+            public_role: 'CONTRIBUTOR',
+          }),
+        })
+      ).toBe(true)
+    })
+
+    it('public ANNOTATOR visitor is denied (annotator does not get TASK_EDIT-level access)', () => {
+      expect(
+        canAccessProjectData(mkUser({ id: 'visitor' }), {
+          project: mkProject({
+            created_by: 'someone',
+            is_public: true,
+            public_role: 'ANNOTATOR',
+          }),
+        })
+      ).toBe(false)
+    })
+
+    it('non-public project with no role still denied for stranger', () => {
+      expect(
+        canAccessProjectData(mkUser({ id: 'visitor' }), {
+          project: mkProject({ created_by: 'someone' }),
+        })
+      ).toBe(false)
+    })
+
+    it('falls through to legacy user.role check when no project supplied', () => {
+      expect(canAccessProjectData(mkUser({ role: 'CONTRIBUTOR' }))).toBe(true)
+      expect(canAccessProjectData(mkUser({ role: 'ANNOTATOR' }))).toBe(false)
+    })
+  })
+
+  describe('canStartGeneration with project context', () => {
+    it('public CONTRIBUTOR visitor passes', () => {
+      expect(
+        canStartGeneration(
+          mkUser({ id: 'visitor' }),
+          mkProject({
+            created_by: 'someone',
+            is_public: true,
+            public_role: 'CONTRIBUTOR',
+          })
+        )
+      ).toBe(true)
+    })
+
+    it('public ANNOTATOR visitor is denied', () => {
+      expect(
+        canStartGeneration(
+          mkUser({ id: 'visitor' }),
+          mkProject({
+            created_by: 'someone',
+            is_public: true,
+            public_role: 'ANNOTATOR',
+          })
+        )
+      ).toBe(false)
+    })
+
+    it('legacy user.role still respected when no project supplied', () => {
+      expect(canStartGeneration(mkUser({ role: 'ORG_ADMIN' }))).toBe(true)
+      expect(canStartGeneration(mkUser({ role: 'ANNOTATOR' }))).toBe(false)
     })
   })
 })

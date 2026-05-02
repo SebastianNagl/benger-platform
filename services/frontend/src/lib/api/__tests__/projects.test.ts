@@ -626,57 +626,6 @@ describe('projectsAPI', () => {
     })
   })
 
-  describe('organization management', () => {
-    it('should get project organizations', async () => {
-      const mockOrgs = [
-        {
-          organization_id: 'org-1',
-          organization_name: 'Org 1',
-          assigned_by: 'user-1',
-          assigned_at: '2024-01-01T00:00:00Z',
-        },
-      ]
-
-      ;(apiClient.get as jest.Mock).mockResolvedValue(mockOrgs)
-
-      const result = await projectsAPI.getOrganizations('proj-1')
-
-      expect(apiClient.get).toHaveBeenCalledWith(
-        '/projects/proj-1/organizations'
-      )
-      expect(result).toEqual(mockOrgs)
-    })
-
-    it('should add organization to project', async () => {
-      const mockResponse = {
-        message: 'Organization added successfully',
-        organization_id: 'org-1',
-        organization_name: 'Org 1',
-      }
-
-      ;(apiClient.post as jest.Mock).mockResolvedValue(mockResponse)
-
-      const result = await projectsAPI.addOrganization('proj-1', 'org-1')
-
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/projects/proj-1/organizations/org-1'
-      )
-      expect(result).toEqual(mockResponse)
-    })
-
-    it('should remove organization from project', async () => {
-      const mockResponse = { message: 'Organization removed successfully' }
-      ;(apiClient.delete as jest.Mock).mockResolvedValue(mockResponse)
-
-      const result = await projectsAPI.removeOrganization('proj-1', 'org-1')
-
-      expect(apiClient.delete).toHaveBeenCalledWith(
-        '/projects/proj-1/organizations/org-1'
-      )
-      expect(result).toEqual(mockResponse)
-    })
-  })
-
   describe('member management', () => {
     it('should get project members', async () => {
       const mockMembers = [
@@ -699,63 +648,6 @@ describe('projectsAPI', () => {
 
       expect(apiClient.get).toHaveBeenCalledWith('/projects/proj-1/members')
       expect(result).toEqual(mockMembers)
-    })
-
-    it('should add member to project', async () => {
-      const mockResponse = {
-        message: 'Member added successfully',
-        user_id: 'user-1',
-        user_name: 'User One',
-        role: 'ANNOTATOR',
-      }
-
-      ;(apiClient.post as jest.Mock).mockResolvedValue(mockResponse)
-
-      const result = await projectsAPI.addMember(
-        'proj-1',
-        'user-1',
-        'ANNOTATOR'
-      )
-
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/projects/proj-1/members/user-1',
-        {
-          role: 'ANNOTATOR',
-        }
-      )
-      expect(result).toEqual(mockResponse)
-    })
-
-    it('should use default role when not specified', async () => {
-      const mockResponse = {
-        message: 'Member added successfully',
-        user_id: 'user-1',
-        user_name: 'User One',
-        role: 'ANNOTATOR',
-      }
-
-      ;(apiClient.post as jest.Mock).mockResolvedValue(mockResponse)
-
-      await projectsAPI.addMember('proj-1', 'user-1')
-
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/projects/proj-1/members/user-1',
-        {
-          role: 'ANNOTATOR',
-        }
-      )
-    })
-
-    it('should remove member from project', async () => {
-      const mockResponse = { message: 'Member removed successfully' }
-      ;(apiClient.delete as jest.Mock).mockResolvedValue(mockResponse)
-
-      const result = await projectsAPI.removeMember('proj-1', 'user-1')
-
-      expect(apiClient.delete).toHaveBeenCalledWith(
-        '/projects/proj-1/members/user-1'
-      )
-      expect(result).toEqual(mockResponse)
     })
   })
 

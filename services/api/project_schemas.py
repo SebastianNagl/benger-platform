@@ -6,9 +6,11 @@ that follows Label Studio patterns while preserving BenGER's LLM features.
 """
 
 from datetime import datetime
-from typing import Any, Dict, Generic, List, Optional, TypeVar, Union
+from typing import Any, Dict, Generic, List, Literal, Optional, TypeVar, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+PublicRole = Literal["ANNOTATOR", "CONTRIBUTOR"]
 
 T = TypeVar("T")
 
@@ -157,6 +159,24 @@ class ProjectCreate(ProjectBase):
     is_private: bool = Field(
         False, description="Whether this is a private project (not assigned to any organization)"
     )
+    is_public: bool = Field(
+        False,
+        description="Whether this project is public (visible/interactable by all authenticated users across all orgs).",
+    )
+    public_role: Optional[PublicRole] = Field(
+        None,
+        description="Role public visitors are treated as for is_public projects. ANNOTATOR (view+annotate) or CONTRIBUTOR (also add tasks, run jobs). Required when is_public=True.",
+    )
+
+    @model_validator(mode="after")
+    def _validate_visibility(self):
+        if self.is_private and self.is_public:
+            raise ValueError("A project cannot be both private and public")
+        if self.is_public and self.public_role is None:
+            self.public_role = "ANNOTATOR"
+        if not self.is_public:
+            self.public_role = None
+        return self
 
 
 class ProjectUpdate(BaseModel):
@@ -214,6 +234,11 @@ class ProjectUpdate(BaseModel):
     korrektur_enabled: Optional[bool] = None
     korrektur_config: Optional[List[Dict[str, Any]]] = None
     immediate_evaluation_enabled: Optional[bool] = None
+    # Per-project feature visibility (controls which configuration cards
+    # render on the project detail page; pure UI gate)
+    enable_annotation: Optional[bool] = None
+    enable_generation: Optional[bool] = None
+    enable_evaluation: Optional[bool] = None
 
     # Task assignment
     assignment_mode: Optional[str] = Field(
@@ -224,6 +249,11 @@ class ProjectUpdate(BaseModel):
     randomize_task_order: Optional[bool] = Field(
         None, description="Randomize task order per user for even annotation distribution"
     )
+
+    # Visibility (typically changed via /visibility endpoint, included for schema parity)
+    is_public: Optional[bool] = None
+    public_role: Optional[PublicRole] = None
+
     @field_validator("conditional_instructions")
     @classmethod
     def validate_conditional_instructions(cls, v):
@@ -277,6 +307,8 @@ class ProjectResponse(ProjectBase):
     completed_tasks_count: int = 0
     progress_percentage: float = 0.0
     is_private: bool = False
+    is_public: bool = False
+    public_role: Optional[str] = None
     is_published: bool = False
     is_archived: bool = False
     created_at: datetime
@@ -314,6 +346,9 @@ class ProjectResponse(ProjectBase):
     korrektur_enabled: bool = False
     korrektur_config: Optional[List[Dict[str, Any]]] = None
     immediate_evaluation_enabled: bool = False
+    enable_annotation: bool = True
+    enable_generation: bool = True
+    enable_evaluation: bool = True
 
     # Task assignment
     assignment_mode: str = "open"
@@ -330,6 +365,7 @@ class ProjectResponse(ProjectBase):
     generation_config_ready: bool = False
     generation_models_count: int = 0
     generation_completed: bool = False
+    generation_count: int = 0  # Total Generation rows across all tasks (Statistiken tile)
 
     class Config:
         from_attributes = True

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+import extensions
 from app.core.authorization import Permission, auth_service
 from auth_module import User, require_user
 from database import get_db
@@ -283,6 +284,11 @@ async def update_project_evaluation_config(
         # losing the user's selected methods (Issue #794 follow-up)
         config["label_config_version"] = project.label_config_version
         project.evaluation_config = config
+
+        # Let extended derive any proprietary project fields (e.g. Korrektur)
+        # from the new evaluation_configs. Hook is a no-op when extended is
+        # not loaded.
+        extensions.run_after_eval_config_save(db, project, config)
 
         # CRITICAL: Mark JSONB column as modified for SQLAlchemy
         # Without this, SQLAlchemy won't detect the mutation and won't persist changes

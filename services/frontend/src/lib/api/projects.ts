@@ -89,6 +89,30 @@ export const projectsAPI = {
   },
 
   /**
+   * Change project visibility (private / org-assigned / public).
+   *
+   * Payload shapes accepted by the backend:
+   * - { is_private: true, owner_user_id?: string }
+   * - { is_private: false, organization_ids: string[] }
+   * - { is_public: true, public_role: 'ANNOTATOR' | 'CONTRIBUTOR' }
+   * - { public_role: 'ANNOTATOR' | 'CONTRIBUTOR' } (flip role on already-public)
+   */
+  updateVisibility: async (
+    projectId: string,
+    payload:
+      | { is_private: true; owner_user_id?: string }
+      | { is_private: false; organization_ids: string[] }
+      | { is_public: true; public_role: 'ANNOTATOR' | 'CONTRIBUTOR' }
+      | { public_role: 'ANNOTATOR' | 'CONTRIBUTOR' }
+  ): Promise<Project> => {
+    const response = await apiClient.patch(
+      `/projects/${projectId}/visibility`,
+      payload
+    )
+    return response
+  },
+
+  /**
    * Import data into a project. The payload mirrors `ProjectImportData` on the
    * backend — `data` is the per-task list; the optional auxiliary arrays carry
    * the full round-trip shape produced by `bulk_export_tasks` / `export_project`.
@@ -381,56 +405,7 @@ export const projectsAPI = {
   },
 
   /**
-   * Get project organizations
-   */
-  getOrganizations: async (
-    projectId: string
-  ): Promise<
-    Array<{
-      organization_id: string
-      organization_name: string
-      assigned_by: string
-      assigned_at: string
-    }>
-  > => {
-    const response = await apiClient.get(`/projects/${projectId}/organizations`)
-    return response
-  },
-
-  /**
-   * Add organization to project (superadmin only)
-   */
-  addOrganization: async (
-    projectId: string,
-    organizationId: string
-  ): Promise<{
-    message: string
-    organization_id: string
-    organization_name: string
-  }> => {
-    const response = await apiClient.post(
-      `/projects/${projectId}/organizations/${organizationId}`
-    )
-    return response
-  },
-
-  /**
-   * Remove organization from project (superadmin only)
-   */
-  removeOrganization: async (
-    projectId: string,
-    organizationId: string
-  ): Promise<{
-    message: string
-  }> => {
-    const response = await apiClient.delete(
-      `/projects/${projectId}/organizations/${organizationId}`
-    )
-    return response
-  },
-
-  /**
-   * Get project members
+   * Get project members (used by annotator pickers, not by a per-project page).
    */
   getMembers: async (
     projectId: string
@@ -448,41 +423,6 @@ export const projectsAPI = {
     }>
   > => {
     const response = await apiClient.get(`/projects/${projectId}/members`)
-    return response
-  },
-
-  /**
-   * Add member to project
-   */
-  addMember: async (
-    projectId: string,
-    userId: string,
-    role: string = 'ANNOTATOR'
-  ): Promise<{
-    message: string
-    user_id: string
-    user_name: string
-    role: string
-  }> => {
-    const response = await apiClient.post(
-      `/projects/${projectId}/members/${userId}`,
-      { role }
-    )
-    return response
-  },
-
-  /**
-   * Remove member from project
-   */
-  removeMember: async (
-    projectId: string,
-    userId: string
-  ): Promise<{
-    message: string
-  }> => {
-    const response = await apiClient.delete(
-      `/projects/${projectId}/members/${userId}`
-    )
     return response
   },
 

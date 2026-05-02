@@ -110,17 +110,8 @@ class TestRemoveTaskAssignment:
         assert exc_info.value.status_code == 404
 
 
-class TestGetProjectWorkload:
-    @pytest.mark.asyncio
-    async def test_project_not_found(self):
-        from routers.projects.assignments import get_project_workload
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = Mock()
-        with pytest.raises(HTTPException) as exc_info:
-            await get_project_workload(project_id="proj-1",
-                                      current_user=user, db=db)
-        assert exc_info.value.status_code == 404
+# Note: TestGetProjectWorkload was removed — the get_project_workload
+# function no longer exists in routers.projects.assignments.
 
 
 class TestGetMyTasks:
@@ -154,20 +145,6 @@ class TestListProjectMembers:
         with pytest.raises(HTTPException) as exc_info:
             await list_project_members(project_id="proj-1", request=request,
                                       current_user=user, db=db)
-        assert exc_info.value.status_code == 404
-
-
-class TestAddProjectMember:
-    @pytest.mark.asyncio
-    async def test_project_not_found(self):
-        from routers.projects.members import add_project_member
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = Mock()
-        with pytest.raises(HTTPException) as exc_info:
-            await add_project_member(project_id="proj-1", user_id="u1",
-                                    data={"role": "annotator"},
-                                    current_user=user, db=db)
         assert exc_info.value.status_code == 404
 
 
@@ -246,21 +223,9 @@ class TestGetLabelConfigVersion:
 # ============= projects/organizations.py =============
 
 
-class TestListProjectOrganizations:
-    @pytest.mark.asyncio
-    async def test_project_not_found(self):
-        from routers.projects.organizations import list_project_organizations
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = Mock()
-        request = Mock()
-        request.state.organization_context = None
-        with pytest.raises(HTTPException) as exc_info:
-            await list_project_organizations(
-                project_id="proj-1", request=request,
-                current_user=user, db=db,
-            )
-        assert exc_info.value.status_code == 404
+# Note: TestListProjectOrganizations was removed — per-project
+# organization listing/assignment endpoints (routers/projects/organizations.py)
+# were removed; org assignment now flows through PATCH /{id}/visibility.
 
 
 # ============= projects/import_export.py =============

@@ -229,6 +229,82 @@ class TestGetAccessibleProjectIds:
         assert result == []
 
 
+class TestPublicProjectHelpers:
+    """Coverage for the is_public / public_role pathways in helpers."""
+
+    def test_check_project_accessible_short_circuits_on_public(self):
+        from routers.projects.helpers import check_project_accessible
+
+        db = MagicMock()
+        project = Mock(
+            is_private=False,
+            is_public=True,
+            public_role="ANNOTATOR",
+            created_by="creator-1",
+            id="proj-pub",
+        )
+        db.query.return_value.filter.return_value.first.return_value = project
+
+        # Visitor with no claim and a totally unrelated org context: still accessible.
+        user = Mock(is_superadmin=False, id="visitor-1")
+        assert (
+            check_project_accessible(db, user, "proj-pub", org_context="other-org")
+            is True
+        )
+
+    def test_get_effective_role_public_visitor_falls_back_to_public_role(self):
+        from routers.projects.helpers import get_effective_project_role
+
+        db = MagicMock()
+        # No org memberships
+        memberships_query = MagicMock()
+        memberships_query.organization_memberships = []
+        with patch(
+            "routers.projects.helpers.get_user_with_memberships",
+            return_value=memberships_query,
+        ):
+            project = Mock(
+                id="proj-1",
+                created_by="creator-1",
+                is_public=True,
+                public_role="CONTRIBUTOR",
+            )
+            user = Mock(is_superadmin=False, id="visitor-1")
+            assert get_effective_project_role(db, user, project) == "CONTRIBUTOR"
+
+    def test_get_effective_role_creator_is_org_admin(self):
+        from routers.projects.helpers import get_effective_project_role
+
+        db = MagicMock()
+        project = Mock(
+            id="proj-1",
+            created_by="me",
+            is_public=True,
+            public_role="ANNOTATOR",
+        )
+        user = Mock(is_superadmin=False, id="me")
+        assert get_effective_project_role(db, user, project) == "ORG_ADMIN"
+
+    def test_get_effective_role_returns_none_for_private_visitor(self):
+        from routers.projects.helpers import get_effective_project_role
+
+        db = MagicMock()
+        memberships_query = MagicMock()
+        memberships_query.organization_memberships = []
+        with patch(
+            "routers.projects.helpers.get_user_with_memberships",
+            return_value=memberships_query,
+        ):
+            project = Mock(
+                id="proj-1",
+                created_by="creator-1",
+                is_public=False,
+                public_role=None,
+            )
+            user = Mock(is_superadmin=False, id="visitor-1")
+            assert get_effective_project_role(db, user, project) is None
+
+
 class TestCalculateProjectStatsBatch:
     """Tests for calculate_project_stats_batch."""
 

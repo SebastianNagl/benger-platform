@@ -209,6 +209,187 @@ class TestProjectVisibilityEndpoint:
         assert len(payload["organization_ids"]) == 1
 
 
+class TestPublicProjectAuthorization:
+    """Authorization for the public visibility tier."""
+
+    @pytest.fixture
+    def mock_db(self):
+        return Mock(spec=Session)
+
+    @pytest.fixture
+    def visitor_user(self):
+        user = Mock()
+        user.id = str(uuid.uuid4())
+        user.is_superadmin = False
+        user.organization_memberships = []
+        return user
+
+    @pytest.fixture
+    def creator_user(self):
+        user = Mock()
+        user.id = str(uuid.uuid4())
+        user.is_superadmin = False
+        user.organization_memberships = []
+        return user
+
+    @pytest.fixture
+    def public_project_annotator(self, creator_user):
+        project = Mock()
+        project.id = str(uuid.uuid4())
+        project.is_private = False
+        project.is_public = True
+        project.public_role = "ANNOTATOR"
+        project.created_by = creator_user.id
+        return project
+
+    @pytest.fixture
+    def public_project_contributor(self, creator_user):
+        project = Mock()
+        project.id = str(uuid.uuid4())
+        project.is_private = False
+        project.is_public = True
+        project.public_role = "CONTRIBUTOR"
+        project.created_by = creator_user.id
+        return project
+
+    def test_visitor_can_view_public_project(self, visitor_user, public_project_annotator, mock_db):
+        from app.core.authorization import AuthorizationService, Permission
+
+        service = AuthorizationService()
+        assert service.check_project_access(
+            visitor_user, public_project_annotator, Permission.PROJECT_VIEW, mock_db
+        ) is True
+
+    def test_public_annotator_can_create_annotation(self, visitor_user, public_project_annotator, mock_db):
+        from app.core.authorization import AuthorizationService, Permission
+
+        service = AuthorizationService()
+        assert service.check_project_access(
+            visitor_user, public_project_annotator, Permission.ANNOTATION_CREATE, mock_db
+        ) is True
+
+    def test_public_annotator_cannot_create_task(self, visitor_user, public_project_annotator, mock_db):
+        from app.core.authorization import AuthorizationService, Permission
+
+        service = AuthorizationService()
+        assert service.check_project_access(
+            visitor_user, public_project_annotator, Permission.TASK_CREATE, mock_db
+        ) is False
+
+    def test_public_annotator_cannot_run_generation(self, visitor_user, public_project_annotator, mock_db):
+        from app.core.authorization import AuthorizationService, Permission
+
+        service = AuthorizationService()
+        assert service.check_project_access(
+            visitor_user, public_project_annotator, Permission.GENERATION_CREATE, mock_db
+        ) is False
+
+    def test_public_contributor_can_create_task(self, visitor_user, public_project_contributor, mock_db):
+        from app.core.authorization import AuthorizationService, Permission
+
+        service = AuthorizationService()
+        assert service.check_project_access(
+            visitor_user, public_project_contributor, Permission.TASK_CREATE, mock_db
+        ) is True
+
+    def test_public_contributor_can_run_generation(self, visitor_user, public_project_contributor, mock_db):
+        from app.core.authorization import AuthorizationService, Permission
+
+        service = AuthorizationService()
+        assert service.check_project_access(
+            visitor_user, public_project_contributor, Permission.GENERATION_CREATE, mock_db
+        ) is True
+
+    def test_public_contributor_cannot_edit_project_settings(
+        self, visitor_user, public_project_contributor, mock_db
+    ):
+        """Settings-edit cap: public CONTRIBUTORs are stripped of PROJECT_EDIT."""
+        from app.core.authorization import AuthorizationService, Permission
+
+        service = AuthorizationService()
+        assert service.check_project_access(
+            visitor_user, public_project_contributor, Permission.PROJECT_EDIT, mock_db
+        ) is False
+        assert service.check_project_access(
+            visitor_user, public_project_contributor, Permission.PROJECT_DELETE, mock_db
+        ) is False
+
+    def test_creator_retains_full_permissions_on_public(
+        self, creator_user, public_project_annotator, mock_db
+    ):
+        from app.core.authorization import AuthorizationService, Permission
+
+        service = AuthorizationService()
+        assert service.check_project_access(
+            creator_user, public_project_annotator, Permission.PROJECT_EDIT, mock_db
+        ) is True
+        assert service.check_project_access(
+            creator_user, public_project_annotator, Permission.TASK_CREATE, mock_db
+        ) is True
+
+
+class TestPublicProjectCreation:
+    """Pydantic ProjectCreate validation for the public tier."""
+
+    def test_public_with_role_is_valid(self):
+        from project_schemas import ProjectCreate
+
+        project = ProjectCreate(
+            title="Public Bench",
+            label_config="<View></View>",
+            is_public=True,
+            public_role="CONTRIBUTOR",
+        )
+        assert project.is_public is True
+        assert project.public_role == "CONTRIBUTOR"
+
+    def test_public_without_role_defaults_to_annotator(self):
+        from project_schemas import ProjectCreate
+
+        project = ProjectCreate(
+            title="Public Bench",
+            label_config="<View></View>",
+            is_public=True,
+        )
+        assert project.public_role == "ANNOTATOR"
+
+    def test_private_and_public_rejected(self):
+        from project_schemas import ProjectCreate
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            ProjectCreate(
+                title="X",
+                label_config="<View></View>",
+                is_private=True,
+                is_public=True,
+            )
+
+    def test_public_role_cleared_when_not_public(self):
+        from project_schemas import ProjectCreate
+
+        project = ProjectCreate(
+            title="X",
+            label_config="<View></View>",
+            is_public=False,
+            public_role="CONTRIBUTOR",
+        )
+        assert project.public_role is None
+
+
+class TestPublicVisibilityPayloads:
+    """PATCH /projects/{id}/visibility payload shapes for public."""
+
+    def test_make_public_payload(self):
+        payload = {"is_public": True, "public_role": "ANNOTATOR"}
+        assert payload["is_public"] is True
+        assert payload["public_role"] in ("ANNOTATOR", "CONTRIBUTOR")
+
+    def test_flip_public_role_payload(self):
+        payload = {"public_role": "CONTRIBUTOR"}
+        assert payload["public_role"] == "CONTRIBUTOR"
+
+
 class TestScopedUserListing:
     """Test scoped user listing logic for non-superadmins."""
 
