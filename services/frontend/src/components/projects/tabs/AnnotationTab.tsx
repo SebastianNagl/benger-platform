@@ -953,8 +953,9 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
     setShowAssignmentModal(true)
   }
 
-  // Check if current user can unassign tasks (only admins/contributors can)
-  const canUnassign = canAccessProjectData(user)
+  // Check if current user can unassign tasks (admins/contributors, plus
+  // public-tier CONTRIBUTORs when the project is public).
+  const canUnassign = canAccessProjectData(user, { project: currentProject })
 
   return (
     <>
@@ -997,7 +998,7 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
                 onExport={handleBulkExport}
                 onArchive={handleBulkArchive}
                 onAssign={handleOpenAssignmentModal}
-                canAssign={canAccessProjectData(user)}
+                canAssign={canAccessProjectData(user, { project: currentProject })}
                 onTagsUpdated={async () => {
                   // Refresh tasks after tags update
                   const labelStudioTasks = await fetchProjectTasks(projectId)
