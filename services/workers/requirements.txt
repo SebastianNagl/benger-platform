@@ -1,6 +1,6 @@
 celery==5.6.3
 redis>=5.0.0,<5.4.0
-cryptography>=41.0.0
+cryptography>=41.0.0,<47.0.0  # see services/api/requirements.txt for cap rationale
 psycopg2-binary>=2.9.10
 sqlalchemy>=2.0.36
 python-dotenv==1.2.2

@@ -1,0 +1,19 @@
+Subject: {{ notification.title }}
+<!DOCTYPE html>
+<html>
+  <head><meta charset="utf-8" /></head>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b; max-width: 600px; margin: 0 auto; padding: 24px;">
+    <h2 style="color: #18181b; margin: 0 0 16px;">{{ notification.title }}</h2>
+    <p style="white-space: pre-line; line-height: 1.5; color: #3f3f46;">{{ notification.message }}</p>
+    {% if notification.data and notification.data.project_title %}
+    <p style="margin-top: 24px; color: #71717a; font-size: 13px;">
+      Projekt: <strong>{{ notification.data.project_title }}</strong>
+    </p>
+    {% endif %}
+    <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;" />
+    <p style="font-size: 12px; color: #a1a1aa;">
+      Sie erhalten diese E-Mail, weil Sie für diese Benachrichtigung im BenGER-Profil eine E-Mail-Zustellung aktiviert haben.
+      Sie können dies in den <em>Benachrichtigungseinstellungen</em> ändern.
+    </p>
+  </body>
+</html>

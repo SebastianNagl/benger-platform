@@ -120,9 +120,7 @@ async def email_health_check(
         # Basic configuration check
         health_status = {
             "configured": email_service.mail_enabled,
-            "service": "mail",
-            "smtp_host": email_service.smtp_host,
-            "smtp_port": email_service.smtp_port,
+            "service": "sendgrid",
             "from_email": email_service.from_email,
             "from_name": email_service.from_name,
             "timestamp": datetime.now(timezone.utc).isoformat(),
