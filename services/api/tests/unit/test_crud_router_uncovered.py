@@ -784,8 +784,11 @@ class TestVisibilityHappyPaths:
     async def test_visibility_not_superadmin(self):
         from routers.projects.crud import update_project_visibility
 
+        # Mock project owned by a different user — non-superadmin non-creator should get 403.
+        project = _mock_project(created_by="some-other-user")
         db = _mock_db()
-        user = _mock_user(is_superadmin=False)
+        db.query.return_value.filter.return_value.first.return_value = project
+        user = _mock_user(is_superadmin=False, user_id="not-the-creator")
 
         with pytest.raises(HTTPException) as exc_info:
             await update_project_visibility(

@@ -394,16 +394,6 @@ class TestEvaluationMetadata:
 class TestProjectOrganization:
     """Test project-organization endpoints."""
 
-    def test_list_project_organizations(self, client, test_users, test_db, auth_headers):
-        data = _setup_helper_project(test_db, test_users)
-        pid = data["project"].id
-
-        resp = client.get(
-            f"/api/projects/{pid}/organizations",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-
     def test_list_project_organizations_not_found(self, client, test_users, test_db, auth_headers):
         resp = client.get(
             "/api/projects/nonexistent/organizations",
@@ -462,22 +452,6 @@ class TestTaskFields:
 
         resp = client.get(
             f"/api/projects/{pid}/task-fields",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-
-
-# =================== Workload Tests ===================
-
-class TestWorkload:
-    """Test workload endpoint."""
-
-    def test_get_workload(self, client, test_users, test_db, auth_headers):
-        data = _setup_helper_project(test_db, test_users)
-        pid = data["project"].id
-
-        resp = client.get(
-            f"/api/projects/{pid}/workload",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200

@@ -14,7 +14,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
 import { getRegisteredWizardTemplates } from '@/lib/extensions'
-import { deriveKorrekturProjectFields } from '@/lib/korrektur/wizardDerive'
+import { getWizardFinishContributors } from '@/lib/extensions/wizardFinish'
 import { extractFieldsFromLabelConfig } from '@/lib/labelConfig/fieldExtractor'
 import { useProjectStore } from '@/stores/projectStore'
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
@@ -251,6 +251,15 @@ export function ProjectCreationWizard() {
           'projects.creation.wizard.step1.validation.nameRequired'
         )
       }
+      if (
+        wizardData.visibility === 'organization' &&
+        wizardData.organizationIds.length === 0
+      ) {
+        newErrors.organizationIds = t(
+          'projects.creation.wizard.step1.validation.orgRequired',
+          'Pick at least one organization, or change visibility.'
+        )
+      }
     }
 
     setErrors(newErrors)
@@ -272,24 +281,44 @@ export function ProjectCreationWizard() {
   const parseData = async (
     content: string,
     format: string
-  ): Promise<any[]> => {
+  ): Promise<{ data: any[]; extras: Record<string, unknown> }> => {
     try {
       if (format === 'json') {
         const parsed = JSON.parse(content)
-        if (Array.isArray(parsed)) return parsed
+        if (Array.isArray(parsed)) return { data: parsed, extras: {} }
         if (parsed.qa_samples && Array.isArray(parsed.qa_samples))
-          return parsed.qa_samples
+          return { data: parsed.qa_samples, extras: {} }
         if (parsed.questions && Array.isArray(parsed.questions))
-          return parsed.questions.map((q: any) => q.question_data || q)
-        return [parsed]
+          return {
+            data: parsed.questions.map((q: any) => q.question_data || q),
+            extras: {},
+          }
+        // Bulk-export envelope: extract tasks + forward auxiliary arrays so
+        // judge scores, korrektur threads, etc. round-trip into the new project.
+        if (Array.isArray(parsed.tasks)) {
+          const extras: Record<string, unknown> = {}
+          for (const k of [
+            'evaluation_runs',
+            'human_evaluation_configs',
+            'human_evaluation_sessions',
+            'human_evaluation_results',
+            'preference_rankings',
+            'likert_scale_evaluations',
+            'korrektur_comments',
+          ] as const) {
+            if (Array.isArray(parsed[k])) extras[k] = parsed[k]
+          }
+          return { data: parsed.tasks, extras }
+        }
+        return { data: [parsed], extras: {} }
       } else if (format === 'csv' || format === 'tsv') {
         const delimiter = format === 'csv' ? ',' : '\t'
         const lines = content.trim().split('\n')
-        if (lines.length === 0) return []
+        if (lines.length === 0) return { data: [], extras: {} }
         const headers = lines[0]
           .split(delimiter)
           .map((h) => h.trim().replace(/^["']|["']$/g, ''))
-        return lines.slice(1).map((line) => {
+        const data = lines.slice(1).map((line) => {
           const values = line
             .split(delimiter)
             .map((v) => v.trim().replace(/^["']|["']$/g, ''))
@@ -299,12 +328,14 @@ export function ProjectCreationWizard() {
           })
           return obj
         })
+        return { data, extras: {} }
       } else {
-        return content
+        const data = content
           .trim()
           .split('\n')
           .filter((line) => line.trim())
           .map((line) => ({ text: line.trim() }))
+        return { data, extras: {} }
       }
     } catch (error) {
       throw new Error(`Failed to parse ${format.toUpperCase()} data: ${error}`)
@@ -323,14 +354,53 @@ export function ProjectCreationWizard() {
             rows="4" maxSubmissions="1"/>
 </View>`
 
-      const createData = {
+      const createData: {
+        title: string
+        description: string
+        label_config: string
+        is_private?: boolean
+        is_public?: boolean
+        public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
+      } = {
         title: wizardData.title.trim(),
         description: wizardData.description.trim(),
         label_config:
           wizardData.labelingConfig?.config || defaultLabelConfig,
       }
+      if (wizardData.visibility === 'private') {
+        createData.is_private = true
+      } else if (wizardData.visibility === 'public') {
+        createData.is_public = true
+        createData.public_role = wizardData.publicRole
+      }
+      // For 'organization' visibility, create_project honours
+      // X-Organization-Context. We then explicitly PATCH the visibility with
+      // the wizard-selected org ids so the result is independent of the
+      // current subdomain context.
 
       const project = await createProject(createData)
+
+      if (
+        wizardData.visibility === 'organization' &&
+        wizardData.organizationIds.length > 0
+      ) {
+        try {
+          await projectsAPI.updateVisibility(project.id, {
+            is_private: false,
+            organization_ids: wizardData.organizationIds,
+          })
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to assign organizations after project create', err)
+          addToast(
+            t(
+              'projects.creation.wizard.orgAssignFailed',
+              'Project was created but could not be assigned to the selected organizations. Please assign them from the project settings.'
+            ),
+            'error'
+          )
+        }
+      }
 
       // 2. Import data if provided
       if (
@@ -339,6 +409,7 @@ export function ProjectCreationWizard() {
       ) {
         try {
           let data: any[] = []
+          let extras: Record<string, unknown> = {}
 
           if (wizardData.selectedFile) {
             const content = await new Promise<string>((resolve, reject) => {
@@ -350,7 +421,9 @@ export function ProjectCreationWizard() {
             const format =
               wizardData.selectedFile.name.split('.').pop()?.toLowerCase() ||
               'txt'
-            data = await parseData(content, format)
+            const parsed = await parseData(content, format)
+            data = parsed.data
+            extras = parsed.extras
           } else if (wizardData.pastedData.trim()) {
             const trimmed = wizardData.pastedData.trim()
             let format = 'txt'
@@ -364,11 +437,13 @@ export function ProjectCreationWizard() {
             ) {
               format = 'csv'
             }
-            data = await parseData(trimmed, format)
+            const parsed = await parseData(trimmed, format)
+            data = parsed.data
+            extras = parsed.extras
           }
 
           if (data.length > 0) {
-            await projectsAPI.importData(project.id, { data })
+            await projectsAPI.importData(project.id, { data, ...extras })
           }
         } catch (importError) {
           addToast(
@@ -430,13 +505,24 @@ export function ProjectCreationWizard() {
       // Evaluation settings
       if (wizardData.features.evaluation) {
         updatePayload.immediate_evaluation_enabled = wizardData.immediate_evaluation_enabled
+      }
 
-        // Korrektur (formerly "Feedback") is enabled when the wizard's eval
-        // configs include korrektur_classic or korrektur_falloesung. Pure
-        // logic lives in lib/korrektur/wizardDerive so it's unit-tested.
+      // Let extended packages contribute additional fields based on the
+      // accumulated wizard state (e.g. korrektur_enabled derived from the
+      // selected eval metrics). Contributors run in registration order.
+      for (const contribute of getWizardFinishContributors()) {
         Object.assign(
           updatePayload,
-          deriveKorrekturProjectFields(wizardData.evaluationConfigs),
+          contribute({
+            evaluationConfigs: wizardData.evaluationConfigs,
+            features: {
+              annotation: wizardData.features.annotation,
+              // Wizard's internal name is llmGeneration; the contributor
+              // contract uses the project-detail flag name `generation`.
+              generation: wizardData.features.llmGeneration,
+              evaluation: wizardData.features.evaluation,
+            },
+          }),
         )
       }
 
@@ -450,6 +536,12 @@ export function ProjectCreationWizard() {
       updatePayload.annotation_time_limit_enabled = s.annotation_time_limit_enabled
       updatePayload.annotation_time_limit_seconds = s.annotation_time_limit_seconds
       updatePayload.strict_timer_enabled = s.strict_timer_enabled
+
+      // Persist the wizard's feature checkboxes as project-level visibility
+      // flags so the detail page knows which configuration cards to render.
+      updatePayload.enable_annotation = wizardData.features.annotation
+      updatePayload.enable_generation = wizardData.features.llmGeneration
+      updatePayload.enable_evaluation = wizardData.features.evaluation
 
       if (Object.keys(updatePayload).length > 0) {
         await projectsAPI.update(project.id, updatePayload)

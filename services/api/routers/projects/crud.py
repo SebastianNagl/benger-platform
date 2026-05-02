@@ -20,7 +20,9 @@ from notification_service import notify_project_created, notify_project_deleted
 from project_models import Project, ProjectOrganization, Task
 from project_schemas import PaginatedResponse, ProjectCreate, ProjectResponse, ProjectUpdate
 from routers.projects.helpers import (
+    apply_generation_stats,
     calculate_generation_stats,
+    calculate_generation_stats_batch,
     calculate_project_stats,
     calculate_project_stats_batch,
     check_project_accessible,
@@ -137,6 +139,7 @@ async def list_projects(
         # Batch fetch statistics for all projects (avoids N+1 query problem)
         project_ids = [project.id for project in projects]
         stats_map = calculate_project_stats_batch(db, project_ids)
+        gen_stats_map = calculate_generation_stats_batch(db, projects)
 
         enriched_projects = []
         for project in projects:
@@ -159,8 +162,12 @@ async def list_projects(
             else:
                 response.progress_percentage = 0.0
 
-            # Calculate generation-related statistics
-            calculate_generation_stats(db, project, response)
+            # Apply pre-fetched generation statistics (no DB query per project)
+            apply_generation_stats(
+                project,
+                response,
+                gen_stats_map.get(project.id, {"generation_count": 0, "completed_generations": 0}),
+            )
 
             # Note: organizations are already handled in from_orm method
             # Don't need to set them again here
@@ -211,6 +218,8 @@ async def create_project(
 
     When X-Organization-Context is "private" or absent, creates a private project.
     When X-Organization-Context is an org ID, creates an org-assigned project.
+    When payload.is_public=True, creates a public project (visible to all
+    authenticated users); public_role defaults to ANNOTATOR if omitted.
     """
 
     # Generate unique ID
@@ -218,11 +227,24 @@ async def create_project(
 
     # Read organization context from header
     org_context = request.headers.get("X-Organization-Context")
-    is_private = not org_context or org_context == "private" or project.is_private
+
+    is_public = bool(project.is_public)
+    if is_public and project.is_private:
+        raise HTTPException(
+            status_code=400, detail="A project cannot be both private and public"
+        )
+    public_role = project.public_role if is_public else None
+    if is_public and public_role not in ("ANNOTATOR", "CONTRIBUTOR"):
+        public_role = "ANNOTATOR"
+
+    is_private = (
+        not is_public
+        and (not org_context or org_context == "private" or project.is_private)
+    )
 
     primary_membership = None
 
-    if not is_private:
+    if not is_private and not is_public:
         # Organization mode: validate org membership and role
         user_with_memberships = get_user_with_memberships(db, current_user.id)
         if not user_with_memberships or not user_with_memberships.organization_memberships:
@@ -274,12 +296,14 @@ async def create_project(
         show_skip_button=project.show_skip_button,
         enable_empty_annotation=project.enable_empty_annotation,
         is_private=is_private,
+        is_public=is_public,
+        public_role=public_role,
     )
 
     db.add(db_project)
 
-    # Create organization assignment only for non-private projects
-    if not is_private:
+    # Create organization assignment only for org-scoped projects
+    if not is_private and not is_public:
         target_org_id = (
             org_context
             if org_context and org_context != "private"
@@ -317,7 +341,7 @@ async def create_project(
     )
 
     # Send notification about project creation (only for org projects)
-    if not is_private and primary_membership:
+    if not is_private and not is_public and primary_membership:
         try:
             notify_project_created(
                 db=db,
@@ -336,7 +360,7 @@ async def create_project(
     response = ProjectResponse.from_orm(db_project)
     response.created_by_name = current_user.name
 
-    if not is_private and primary_membership:
+    if not is_private and not is_public and primary_membership:
         org_name = (
             primary_membership.organization.name if primary_membership.organization else "Unknown"
         )
@@ -616,24 +640,70 @@ async def update_project_visibility(
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
-    """Change project between private and org-assigned modes (superadmin only).
+    """Change project visibility (creator or superadmin).
 
-    Request body:
+    Request body shapes:
     - Make private: {"is_private": true, "owner_user_id": "user-uuid"}
     - Make org-assigned: {"is_private": false, "organization_ids": ["org1", "org2"]}
+    - Make public: {"is_public": true, "public_role": "ANNOTATOR" | "CONTRIBUTOR"}
+    - Flip public_role on already-public project: {"public_role": "CONTRIBUTOR"}
     """
-    if not current_user.is_superadmin:
-        raise HTTPException(
-            status_code=403, detail="Only superadmins can change project visibility"
-        )
-
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    make_private = visibility.get("is_private", False)
+    if not current_user.is_superadmin and str(project.created_by) != str(current_user.id):
+        raise HTTPException(
+            status_code=403,
+            detail="Only the project creator or a superadmin can change project visibility",
+        )
 
-    if make_private:
+    make_private = visibility.get("is_private", False)
+    make_public = visibility.get("is_public", False)
+
+    if make_private and make_public:
+        raise HTTPException(
+            status_code=400, detail="A project cannot be both private and public"
+        )
+
+    # Standalone public_role flip on an already-public project
+    if (
+        not make_private
+        and not make_public
+        and "public_role" in visibility
+        and "is_private" not in visibility
+        and "is_public" not in visibility
+        and "organization_ids" not in visibility
+    ):
+        if not project.is_public:
+            raise HTTPException(
+                status_code=400,
+                detail="public_role can only be set on a public project",
+            )
+        new_role = visibility.get("public_role")
+        if new_role not in ("ANNOTATOR", "CONTRIBUTOR"):
+            raise HTTPException(
+                status_code=400,
+                detail="public_role must be 'ANNOTATOR' or 'CONTRIBUTOR'",
+            )
+        project.public_role = new_role
+
+    elif make_public:
+        public_role = visibility.get("public_role", "ANNOTATOR")
+        if public_role not in ("ANNOTATOR", "CONTRIBUTOR"):
+            raise HTTPException(
+                status_code=400,
+                detail="public_role must be 'ANNOTATOR' or 'CONTRIBUTOR'",
+            )
+        # Remove all org assignments
+        db.query(ProjectOrganization).filter(ProjectOrganization.project_id == project_id).delete(
+            synchronize_session=False
+        )
+        project.is_private = False
+        project.is_public = True
+        project.public_role = public_role
+
+    elif make_private:
         # Make project private
         owner_user_id = visibility.get("owner_user_id")
         if owner_user_id:
@@ -649,6 +719,8 @@ async def update_project_visibility(
         )
 
         project.is_private = True
+        project.is_public = False
+        project.public_role = None
 
     else:
         # Make project org-assigned
@@ -683,6 +755,8 @@ async def update_project_visibility(
             db.add(project_org)
 
         project.is_private = False
+        project.is_public = False
+        project.public_role = None
 
     db.commit()
     db.refresh(project)

@@ -226,19 +226,25 @@ class TestCalculateGenerationStats:
         )
         response = Mock(task_count=2, generation_models_count=0)
 
-        # Task IDs query
+        # 1) generation_count query (Statistiken tile)
+        gen_count_query = MagicMock()
+        gen_count_query.join.return_value = gen_count_query
+        gen_count_query.filter.return_value = gen_count_query
+        gen_count_query.scalar.return_value = 0
+
+        # 2) Task IDs query
         task_query = MagicMock()
         task_query.filter.return_value = task_query
         task1 = Mock(id="t1")
         task2 = Mock(id="t2")
         task_query.all.return_value = [task1, task2]
 
-        # Completed generations count
+        # 3) Completed generations count
         gen_query = MagicMock()
         gen_query.filter.return_value = gen_query
         gen_query.count.return_value = 2  # 2 tasks * 1 model = 2
 
-        db.query.side_effect = [task_query, gen_query]
+        db.query.side_effect = [gen_count_query, task_query, gen_query]
 
         calculate_generation_stats(db, project, response)
 
@@ -255,6 +261,11 @@ class TestCalculateGenerationStats:
         )
         response = Mock(task_count=2, generation_models_count=0)
 
+        gen_count_query = MagicMock()
+        gen_count_query.join.return_value = gen_count_query
+        gen_count_query.filter.return_value = gen_count_query
+        gen_count_query.scalar.return_value = 0
+
         task_query = MagicMock()
         task_query.filter.return_value = task_query
         task1 = Mock(id="t1")
@@ -265,7 +276,7 @@ class TestCalculateGenerationStats:
         gen_query.filter.return_value = gen_query
         gen_query.count.return_value = 1  # Only 1 of 2 completed
 
-        db.query.side_effect = [task_query, gen_query]
+        db.query.side_effect = [gen_count_query, task_query, gen_query]
 
         calculate_generation_stats(db, project, response)
 
@@ -325,19 +336,24 @@ class TestGetAccessibleProjectIds:
         membership = Mock(organization_id="org-1", is_active=True)
         user_with_memberships = Mock(organization_memberships=[membership])
 
-        # First call: get_user_with_memberships
+        # 1) public_ids query (no public projects in this scenario)
+        public_query = MagicMock()
+        public_query.filter.return_value = public_query
+        public_query.all.return_value = []
+
+        # 2) get_user_with_memberships
         user_query = MagicMock()
         user_query.options.return_value = user_query
         user_query.filter.return_value = user_query
         user_query.first.return_value = user_with_memberships
 
-        # Second call: project IDs
+        # 3) Project IDs in the org
         proj_query = MagicMock()
         proj_query.filter.return_value = proj_query
         proj_row = Mock(project_id="proj-1")
         proj_query.all.return_value = [proj_row]
 
-        db.query.side_effect = [user_query, proj_query]
+        db.query.side_effect = [public_query, user_query, proj_query]
 
         result = get_accessible_project_ids(db, user, org_context="org-1")
         assert result == ["proj-1"]
