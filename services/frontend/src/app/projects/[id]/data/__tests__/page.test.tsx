@@ -506,7 +506,10 @@ describe('ProjectDataPage', () => {
       render(<ProjectDataPage params={params} />)
 
       await waitFor(() => {
-        expect(canAccessProjectData).toHaveBeenCalledWith(mockUser, { isPrivateMode: false })
+        expect(canAccessProjectData).toHaveBeenCalledWith(
+          mockUser,
+          expect.objectContaining({ isPrivateMode: false })
+        )
       })
     })
 

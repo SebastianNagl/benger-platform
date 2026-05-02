@@ -1,0 +1,24 @@
+Subject: {{ notification.title }}
+<!DOCTYPE html>
+<html>
+  <head><meta charset="utf-8" /></head>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #18181b; max-width: 600px; margin: 0 auto; padding: 24px;">
+    <h2 style="color: #18181b; margin: 0 0 16px;">{{ notification.title }}</h2>
+    <p style="white-space: pre-line; line-height: 1.5; color: #3f3f46;">{{ notification.message }}</p>
+    {% if notification.data %}
+    <ul style="color: #3f3f46; line-height: 1.6; padding-left: 20px;">
+      {% if notification.data.project_title %}<li>Projekt: <strong>{{ notification.data.project_title }}</strong></li>{% endif %}
+      {% if notification.data.metric %}<li>Metrik: <strong>{{ notification.data.metric }}</strong></li>{% endif %}
+      {% if notification.data.count and notification.data.count > 1 %}<li>Elemente: {{ notification.data.count }}</li>{% endif %}
+      {% if notification.data.target_type and notification.data.target_id %}<li>Ziel: {{ notification.data.target_type }} <code style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px;">{{ notification.data.target_id[:8] }}</code></li>{% endif %}
+      {% if notification.data.priority %}<li>Priorität: {{ notification.data.priority }}</li>{% endif %}
+      {% if notification.data.due_date %}<li>Fällig: {{ notification.data.due_date }}</li>{% endif %}
+      {% if notification.data.assigned_by %}<li>Zugewiesen von: {{ notification.data.assigned_by }}</li>{% endif %}
+    </ul>
+    {% endif %}
+    <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;" />
+    <p style="font-size: 12px; color: #a1a1aa;">
+      Sie können E-Mail-Benachrichtigungen für Korrektur-Zuweisungen in den <em>Benachrichtigungseinstellungen</em> deaktivieren.
+    </p>
+  </body>
+</html>

@@ -108,12 +108,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES=60
 ANNOTATION_WEBSOCKET_ENABLED=true
 ANNOTATION_CACHE_TTL=3600
 
-# SMTP (worker uses this for outbound notification emails)
-SMTP_HOST=smtp.sendgrid.net
-SMTP_PORT=587
-SMTP_USE_TLS=true
+# Email (SendGrid — used by api + workers for transactional + notification mail)
 SENDGRID_API_KEY=your-sendgrid-key
 EMAIL_FROM_ADDRESS=noreply@what-a-benger.net
+EMAIL_FROM_NAME=BenGER Platform
 ```
 
 Production env (Helm / K8s) is managed under `infra/helm/benger/` — see the deployment guide.

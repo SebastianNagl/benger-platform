@@ -427,10 +427,10 @@ class TestUserWantsNotification:
         assert result is False
 
     def test_preference_disabled(self, mock_db, user_id):
-        """User has explicitly disabled this notification type (lines 356-358)."""
+        """User has explicitly disabled BOTH channels for this notification type."""
         from notification_service import NotificationService
 
-        pref = Mock(email_enabled=False)
+        pref = Mock(in_app_enabled=False, email_enabled=False)
         mock_db.query.return_value.filter.return_value.first.return_value = pref
 
         result = NotificationService._user_wants_notification(
@@ -481,8 +481,8 @@ class TestUserWantsEmailNotification:
         )
         assert result is False
 
-    def test_no_preference_returns_false(self, mock_db, user_id):
-        """Returns False when no preference exists (opt-in, line 613)."""
+    def test_no_preference_returns_true(self, mock_db, user_id):
+        """Returns True when no preference exists (opt-out — channels default on)."""
         from notification_service import NotificationService
 
         mock_db.query.return_value.filter.return_value.first.return_value = None
@@ -490,7 +490,7 @@ class TestUserWantsEmailNotification:
         result = NotificationService._user_wants_email_notification(
             mock_db, user_id, NotificationType.PROJECT_CREATED
         )
-        assert result is False
+        assert result is True
 
 
 # ─────────────────────────────────────────────
@@ -689,21 +689,30 @@ class TestGetNotificationGroupsExtended:
 class TestGetUserPreferences:
 
     def test_returns_defaults_with_overrides(self, mock_db, user_id):
-        """Returns all types defaulting to True, with user overrides applied."""
+        """Returns per-channel preferences (`{enabled, in_app, email}`) with overrides applied."""
         from notification_service import NotificationService
 
         pref = Mock(
             notification_type=NotificationType.PROJECT_CREATED.value,
+            in_app_enabled=False,
             email_enabled=False,
         )
         mock_db.query.return_value.filter.return_value.all.return_value = [pref]
 
         result = NotificationService.get_user_preferences(mock_db, user_id)
 
-        # PROJECT_CREATED should be overridden to False
-        assert result[NotificationType.PROJECT_CREATED.value] is False
-        # Other types should default to True
-        assert result[NotificationType.MEMBER_JOINED.value] is True
+        # PROJECT_CREATED has both channels off → enabled is False
+        assert result[NotificationType.PROJECT_CREATED.value] == {
+            "enabled": False,
+            "in_app": False,
+            "email": False,
+        }
+        # Other types default to fully on
+        assert result[NotificationType.MEMBER_JOINED.value] == {
+            "enabled": True,
+            "in_app": True,
+            "email": True,
+        }
 
 
 # ─────────────────────────────────────────────

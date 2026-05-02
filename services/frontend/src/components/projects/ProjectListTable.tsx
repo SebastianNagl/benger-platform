@@ -23,6 +23,7 @@ import {
   ChevronUpIcon,
   CloudArrowUpIcon,
   FolderIcon,
+  GlobeAltIcon,
   PlusIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
@@ -747,8 +748,30 @@ export function ProjectListTable({
                         onClick={() => router.push(`/projects/${project.id}`)}
                       >
                         <div>
-                          <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                            {project.title}
+                          <div className="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                            <span>{project.title}</span>
+                            {project.is_public && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400"
+                                data-testid={`project-public-badge-${project.id}`}
+                                title={`Public · ${
+                                  project.public_role === 'CONTRIBUTOR'
+                                    ? 'Contributor'
+                                    : 'Annotator'
+                                }`}
+                              >
+                                <GlobeAltIcon className="h-3.5 w-3.5" />
+                                {project.public_role === 'CONTRIBUTOR'
+                                  ? t(
+                                      'projects.list.publicContributorBadge',
+                                      'Public · Contributor'
+                                    )
+                                  : t(
+                                      'projects.list.publicAnnotatorBadge',
+                                      'Public · Annotator'
+                                    )}
+                              </span>
+                            )}
                           </div>
                           {project.description && (
                             <div className="max-w-md truncate text-sm text-zinc-500 dark:text-zinc-400">

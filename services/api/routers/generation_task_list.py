@@ -21,7 +21,11 @@ from models import Generation as DBGeneration
 from models import ResponseGeneration as DBResponseGeneration
 from models import User as DBUser
 from project_models import Project, Task
-from routers.projects.helpers import check_project_accessible, get_org_context_from_request
+from routers.projects.helpers import (
+    check_project_accessible,
+    check_project_write_access,
+    get_org_context_from_request,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -374,6 +378,14 @@ async def start_generation(
 
     # Get project and verify permissions
     project = get_project_with_permissions(project_id, current_user, db, raw_request)
+
+    # Starting generation is a contribute-level action — block public-tier
+    # ANNOTATOR visitors, allow CONTRIBUTOR / org members / creator / superadmin.
+    if not check_project_write_access(db, current_user, project_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Only contributors or admins can start generation for this project",
+        )
 
     # Extract organization context for API key resolution (Issue #1180)
     org_context = raw_request.headers.get("X-Organization-Context")

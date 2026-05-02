@@ -107,6 +107,24 @@ class AuthorizationService:
         if user.is_superadmin:
             return True
 
+        # Public projects: dedicated path that ignores org_context.
+        # Creator gets full ORG_ADMIN-equivalent permissions; visitors get
+        # the project's public_role permissions, capped so settings-edit
+        # (PROJECT_EDIT/DELETE/CREATE) is never granted via the public path.
+        if getattr(project, 'is_public', False) is True:
+            if user.id == project.created_by:
+                return self._check_org_role_permission("ORG_ADMIN", permission)
+            if permission in (
+                Permission.PROJECT_EDIT,
+                Permission.PROJECT_DELETE,
+                Permission.PROJECT_CREATE,
+            ):
+                return False
+            public_role = getattr(project, 'public_role', None)
+            if public_role:
+                return self._check_org_role_permission(public_role, permission)
+            return False
+
         # Context-aware mode
         if org_context is not None:
             if org_context == "private":

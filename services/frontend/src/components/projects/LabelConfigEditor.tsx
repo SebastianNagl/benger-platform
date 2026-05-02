@@ -1,7 +1,15 @@
 /**
  * Label Configuration Editor
  *
- * Simple editor for Label Studio XML configurations
+ * Simple editor for Label Studio XML configurations.
+ *
+ * Two consumption modes:
+ *  1. Standalone (default): renders its own Save/Cancel buttons.
+ *  2. Card-driven: parent passes a `ref` and `hideInternalControls`; the
+ *     parent's card-level Save calls `ref.current.save()` to flush this
+ *     editor in lockstep with sibling sub-sections. The imperative
+ *     `save()` resolves on success and rejects on validation error so a
+ *     parent's `Promise.all([...])` short-circuits with a useful message.
  */
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -16,57 +24,71 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { TaskFieldReferencePanel } from '@/components/shared/TaskFieldReferencePanel'
 import { CheckIcon, XMarkIcon } from '@heroicons/react/24/outline'
-import { useMemo, useState } from 'react'
+import { forwardRef, useImperativeHandle, useMemo, useState } from 'react'
 import { useI18n } from '@/contexts/I18nContext'
 
 interface LabelConfigEditorProps {
   initialConfig?: string
-  onSave: (config: string) => void
+  onSave: (config: string) => void | Promise<void>
   onCancel?: () => void
   projectId?: string
+  /** Suppress the editor's own Save/Cancel buttons. The parent owns the
+   *  lifecycle and calls `save()` via the ref. */
+  hideInternalControls?: boolean
 }
 
-export function LabelConfigEditor({
-  initialConfig = '',
-  onSave,
-  onCancel,
-  projectId,
-}: LabelConfigEditorProps) {
+export interface LabelConfigEditorHandle {
+  /** Flush the current XML through the onSave callback. Rejects if invalid. */
+  save: () => Promise<void>
+  isDirty: () => boolean
+  hasErrors: () => boolean
+}
+
+export const LabelConfigEditor = forwardRef<
+  LabelConfigEditorHandle,
+  LabelConfigEditorProps
+>(function LabelConfigEditor(
+  { initialConfig = '', onSave, onCancel, projectId, hideInternalControls },
+  ref,
+) {
   const { t } = useI18n()
   const [config, setConfig] = useState(initialConfig)
 
-  // Derive error from config using useMemo (pure validation)
   const error = useMemo<string | null>(() => {
     if (!config.trim()) {
       return t('projects.labelConfig.errorEmpty')
     }
-
     try {
-      // Basic check for balanced tags
       const parser = new DOMParser()
       const doc = parser.parseFromString(config, 'text/xml')
       const parseError = doc.querySelector('parsererror')
-
       if (parseError) {
         return t('projects.labelConfig.errorInvalidXml') + parseError.textContent
       }
-
-      // Check for required View element
       if (!config.includes('<View>') || !config.includes('</View>')) {
         return t('projects.labelConfig.errorMissingView')
       }
-
       return null
     } catch {
       return t('projects.labelConfig.errorInvalidFormat')
     }
   }, [config, t])
 
-  const handleSave = () => {
-    if (!error) {
-      onSave(config)
-    }
+  const handleSave = async () => {
+    if (error) throw new Error(error)
+    if (!config) throw new Error(t('projects.labelConfig.errorEmpty'))
+    await onSave(config)
   }
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      save: handleSave,
+      isDirty: () => config !== initialConfig,
+      hasErrors: () => !!error,
+    }),
+    [config, initialConfig, error, onSave, t],
+  )
 
   return (
     <div className="space-y-4">
@@ -112,18 +134,27 @@ export function LabelConfigEditor({
             </Alert>
           )}
 
-          <div className="flex justify-end gap-2">
-            {onCancel && (
-              <Button variant="outline" onClick={onCancel}>
-                {t('common.cancel')}
+          {!hideInternalControls && (
+            <div className="flex justify-end gap-2">
+              {onCancel && (
+                <Button variant="outline" onClick={onCancel}>
+                  {t('common.cancel')}
+                </Button>
+              )}
+              <Button
+                onClick={() => {
+                  void handleSave().catch(() => {
+                    /* error already surfaced by the inline alert */
+                  })
+                }}
+                disabled={!config || !!error}
+              >
+                {t('projects.labelConfig.saveButton')}
               </Button>
-            )}
-            <Button onClick={handleSave} disabled={!config || !!error}>
-              {t('projects.labelConfig.saveButton')}
-            </Button>
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
   )
-}
+})

@@ -111,6 +111,16 @@ class Project(Base):
 
     # Visibility
     is_private = Column(Boolean, default=False, nullable=False, index=True)
+    is_public = Column(Boolean, default=False, nullable=False, server_default="false")
+    public_role = Column(String(32), nullable=True)
+
+    # Feature visibility — controls which configuration cards render on the
+    # project detail page. Hides the card; underlying data is preserved and
+    # the relevant API endpoints stay open. Defaults preserve back-compat for
+    # existing projects.
+    enable_annotation = Column(Boolean, default=True, server_default="true", nullable=False)
+    enable_generation = Column(Boolean, default=True, server_default="true", nullable=False)
+    enable_evaluation = Column(Boolean, default=True, server_default="true", nullable=False)
 
     # Status
     is_published = Column(Boolean, default=False, nullable=False)
@@ -129,6 +139,29 @@ class Project(Base):
     organizations = relationship("Organization", secondary="project_organizations", viewonly=True)
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
     annotations = relationship("Annotation", back_populates="project")
+
+    # Visibility invariants — mirrored in alembic migration 035 so the
+    # constraints + partial index exist whether the schema is built from
+    # Base.metadata or from migrations. Same names as the migration.
+    __table_args__ = (
+        sa.CheckConstraint(
+            "NOT (is_private AND is_public)",
+            name="ck_projects_visibility_exclusive",
+        ),
+        sa.CheckConstraint(
+            "public_role IS NULL OR public_role IN ('ANNOTATOR', 'CONTRIBUTOR')",
+            name="ck_projects_public_role_valid",
+        ),
+        sa.CheckConstraint(
+            "NOT is_public OR public_role IS NOT NULL",
+            name="ck_projects_public_role_required_when_public",
+        ),
+        sa.Index(
+            "ix_projects_is_public",
+            "is_public",
+            postgresql_where=sa.text("is_public = true"),
+        ),
+    )
 
     def __repr__(self):
         return f"<Project(id={self.id}, title={self.title})>"
@@ -465,6 +498,14 @@ class TaskAssignment(Base):
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     assigned_by = Column(String, ForeignKey("users.id"), nullable=False)
 
+    # Polymorphic target — what this assignment is *for*. Default 'task'
+    # preserves the original "assign a whole task" semantic. New values
+    # 'annotation' / 'generation' (used by Korrektur) carry a target_id
+    # pointing at the specific item to grade. No FK because the column is
+    # polymorphic; integrity is enforced by the application layer.
+    target_type = Column(String(50), default="task", server_default="task", nullable=False)
+    target_id = Column(String, nullable=True)
+
     # Assignment metadata
     status = Column(String(50), default="assigned", nullable=False)
     priority = Column(Integer, default=0, nullable=False)
@@ -481,11 +522,35 @@ class TaskAssignment(Base):
     user = relationship("User", foreign_keys=[user_id], backref="task_assignments")
     assigned_by_user = relationship("User", foreign_keys=[assigned_by])
 
-    # Unique constraint
+    # Uniqueness: at most one task-level assignment per (task, user) AND
+    # at most one item-level assignment per (task, user, target_type, target_id).
+    # Postgres partial unique indexes split the two semantics cleanly.
     __table_args__ = (
-        sa.UniqueConstraint("task_id", "user_id", name="unique_task_assignment"),
+        sa.Index(
+            "uniq_task_level_assignment",
+            "task_id",
+            "user_id",
+            unique=True,
+            postgresql_where=sa.text("target_type = 'task'"),
+        ),
+        sa.Index(
+            "uniq_item_level_assignment",
+            "task_id",
+            "user_id",
+            "target_type",
+            "target_id",
+            unique=True,
+            postgresql_where=sa.text("target_type <> 'task'"),
+        ),
         sa.Index("ix_task_assignment_status", "status"),
         sa.Index("ix_task_assignment_priority", "priority"),
+        sa.Index(
+            "ix_task_assignment_item_lookup",
+            "task_id",
+            "target_type",
+            "target_id",
+            "user_id",
+        ),
     )
 
     def __repr__(self):

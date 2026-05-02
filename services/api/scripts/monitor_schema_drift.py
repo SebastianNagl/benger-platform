@@ -9,13 +9,12 @@ It can be run as a scheduled job (cron/kubernetes cronjob) to detect issues earl
 import json
 import logging
 import os
-import smtplib
 import sys
 from datetime import datetime
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Dict, List, Optional
+
+import requests
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
@@ -143,49 +142,45 @@ class SchemaDriftMonitor:
         else:
             return "OK"
 
-    def send_alert(self, recipient_emails: List[str], smtp_config: Optional[Dict] = None):
-        """
-        Send email alert if issues are detected
-
-        Args:
-            recipient_emails: List of email addresses to notify
-            smtp_config: SMTP configuration (host, port, user, password)
-        """
+    def send_alert(self, recipient_emails: List[str]):
+        """Send email alert via SendGrid if issues are detected."""
         if self.report_data["severity"] == "OK":
             logger.info("No issues detected, skipping alert")
             return
 
-        if not smtp_config:
-            smtp_config = {
-                "host": os.getenv("SMTP_HOST", "localhost"),
-                "port": int(os.getenv("SMTP_PORT", "587")),
-                "user": os.getenv("SMTP_USER"),
-                "password": os.getenv("SMTP_PASSWORD"),
-                "from_email": os.getenv("SMTP_FROM", "schema-monitor@benger.com"),
-            }
+        api_key = os.getenv("SENDGRID_API_KEY", "")
+        if not api_key:
+            logger.error("SENDGRID_API_KEY not configured; cannot send alert")
+            return
 
+        from_email = os.getenv("EMAIL_FROM_ADDRESS", "schema-monitor@benger.com")
+        from_name = os.getenv("EMAIL_FROM_NAME", "BenGER Schema Monitor")
         subject = f"[{self.report_data['severity']}] Schema Drift Detected in {self.report_data['environment']}"
-
-        # Create email body
         body = self._format_email_body()
 
-        # Send email
+        payload = {
+            "personalizations": [{"to": [{"email": e} for e in recipient_emails]}],
+            "from": {"email": from_email, "name": from_name},
+            "subject": subject,
+            "content": [{"type": "text/html", "value": body}],
+        }
+
         try:
-            msg = MIMEMultipart()
-            msg["From"] = smtp_config["from_email"]
-            msg["To"] = ", ".join(recipient_emails)
-            msg["Subject"] = subject
-
-            msg.attach(MIMEText(body, "html"))
-
-            with smtplib.SMTP(smtp_config["host"], smtp_config["port"]) as server:
-                if smtp_config.get("user") and smtp_config.get("password"):
-                    server.starttls()
-                    server.login(smtp_config["user"], smtp_config["password"])
-
-                server.send_message(msg)
+            response = requests.post(
+                "https://api.sendgrid.com/v3/mail/send",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=15,
+            )
+            if response.status_code in (200, 201, 202):
                 logger.info(f"Alert sent to {recipient_emails}")
-
+            else:
+                logger.error(
+                    f"SendGrid returned {response.status_code}: {response.text}"
+                )
         except Exception as e:
             logger.error(f"Failed to send alert: {e}")
 

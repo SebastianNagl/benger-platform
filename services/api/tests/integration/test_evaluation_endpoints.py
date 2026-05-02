@@ -418,6 +418,41 @@ class TestEvaluationConfig:
         )
         assert resp.status_code == 404
 
+    def test_put_evaluation_config_invokes_after_save_hook(
+        self, client, test_db, test_users, test_org, auth_headers, monkeypatch
+    ):
+        """PUT runs the after_eval_config_save extension hook with the saved config.
+
+        Pinning the hook contract so extended packages (which derive things like
+        Korrektur fields from the config) can rely on it firing on every save.
+        """
+        import extensions
+
+        seen: list[dict] = []
+
+        def fake_hook(db, project, config):
+            seen.append({"project_id": project.id, "config": dict(config)})
+
+        monkeypatch.setattr(extensions, "run_after_eval_config_save",
+                            lambda db, project, config: fake_hook(db, project, config))
+
+        data = _create_evaluation_project(
+            test_db, test_users, test_org,
+            with_evaluation_run=False,
+            with_generations=False,
+            with_annotations=False,
+        )
+        new_config = {"evaluation_configs": [{"metric": "bleu"}]}
+        resp = client.put(
+            f"/api/evaluations/projects/{data['project'].id}/evaluation-config",
+            json=new_config,
+            headers=auth_headers["admin"],
+        )
+        assert resp.status_code == 200
+        assert len(seen) == 1
+        assert seen[0]["project_id"] == data["project"].id
+        assert seen[0]["config"]["evaluation_configs"] == [{"metric": "bleu"}]
+
 
 @pytest.mark.integration
 class TestDetectAnswerTypes:

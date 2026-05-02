@@ -82,10 +82,11 @@ class TestImportFix581:
         }
 
     @pytest.mark.asyncio
+    @patch('routers.projects.import_export.check_project_write_access', return_value=True)
     @patch('routers.projects.import_export.check_project_accessible', return_value=True)
     @patch('projects_api.uuid.uuid4')
     async def test_import_data_with_generations_org_admin(
-        self, mock_uuid, mock_access, mock_db, mock_user_org_admin, import_data_with_generations
+        self, mock_uuid, mock_access, mock_write_access, mock_db, mock_user_org_admin, import_data_with_generations
     ):
         """Test that org_admin users can import data with generations after fix"""
         from project_schemas import ProjectImportData
@@ -141,9 +142,10 @@ class TestImportFix581:
         mock_db.rollback.assert_not_called()
 
     @pytest.mark.asyncio
+    @patch('routers.projects.import_export.check_project_write_access', return_value=True)
     @patch('routers.projects.import_export.check_project_accessible', return_value=True)
     async def test_response_generation_has_correct_fields(
-        self, mock_access, mock_db, mock_user_org_admin, import_data_with_generations
+        self, mock_access, mock_write_access, mock_db, mock_user_org_admin, import_data_with_generations
     ):
         """Test that ResponseGeneration is created with all required fields including project_id"""
         from project_schemas import ProjectImportData
@@ -212,10 +214,11 @@ class TestImportFix581:
         ), "ResponseGeneration should not be imported inside calculate_generation_stats"
 
     @pytest.mark.asyncio
+    @patch('routers.projects.import_export.check_project_write_access', return_value=True)
     @patch('routers.projects.import_export.check_project_accessible', return_value=True)
     @patch('projects_api.uuid.uuid4')
     async def test_import_without_generations_still_works(
-        self, mock_uuid, mock_access, mock_db, mock_user_org_admin
+        self, mock_uuid, mock_access, mock_write_access, mock_db, mock_user_org_admin
     ):
         """Test that import without generations still works after fix"""
         from project_schemas import ProjectImportData

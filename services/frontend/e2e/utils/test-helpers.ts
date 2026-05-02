@@ -351,3 +351,18 @@ export async function deleteTestProject(
     console.warn(`Failed to delete test project ${projectId}:`, error)
   }
 }
+
+/**
+ * Click the FilterToolbar's collapsed search toggle and return the now-visible
+ * <input>. The toolbar (services/frontend/src/components/shared/FilterToolbar.tsx)
+ * keeps its search field hidden until the magnifying-glass button is clicked.
+ * Button title is set from the searchLabel prop, which on every adopting page
+ * resolves to t('common.filters.search') = "Search" (en) / "Suche" (de).
+ */
+export async function revealFilterToolbarSearch(page: Page) {
+  const toggle = page
+    .locator('button[title="Search"], button[title="Suche"]')
+    .first()
+  await toggle.click({ timeout: 10000 })
+  return page.locator('input[type="text"], input[type="search"]').first()
+}

@@ -54,17 +54,8 @@ api:
       value: "BenGER Staging"  # Different name to identify staging emails
     - name: EMAIL_ENABLED
       value: "true"
-    # Mail server configuration (Stalwart) - backup
     - name: MAIL_ENABLED
       value: "true"
-    - name: MAIL_SMTP_HOST
-      value: "mail"
-    - name: MAIL_SMTP_PORT
-      value: "25"
-    - name: MAIL_FROM_EMAIL
-      value: "noreply@what-a-benger.net"  # Using verified domain
-    - name: MAIL_FROM_NAME
-      value: "BenGER Staging"
     - name: COOKIE_DOMAIN
       value: ".staging.what-a-benger.net"
   ingress:
@@ -141,25 +132,8 @@ workers:
           optional: true
     - name: EMAIL_ENABLED
       value: "true"
-    # Mail server configuration (Stalwart) - backup
     - name: MAIL_ENABLED
       value: "true"
-    - name: MAIL_SMTP_HOST
-      value: "mail"
-    - name: MAIL_SMTP_PORT
-      value: "25"
-    - name: MAIL_FROM_EMAIL
-      valueFrom:
-        secretKeyRef:
-          name: benger-email-config
-          key: EMAIL_FROM_ADDRESS
-          optional: true
-    - name: MAIL_FROM_NAME
-      valueFrom:
-        secretKeyRef:
-          name: benger-email-config
-          key: EMAIL_FROM_NAME
-          optional: true
 
 frontend:
   replicaCount: 1

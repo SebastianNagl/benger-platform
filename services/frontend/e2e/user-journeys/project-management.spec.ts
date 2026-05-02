@@ -83,78 +83,8 @@ test.describe('Project Management', () => {
     }).toPass({ timeout: 15000 })
   })
 
-  test('project members page loads for a created project', async () => {
-    test.setTimeout(90000)
-
-    // Create a project via API
-    projectId = await seeder.createProject('Members Page Test')
-
-    await page.goto(`${BASE_URL}/projects/${projectId}/members`, {
-      timeout: 30000,
-    })
-
-    const mainContent = page.locator('main').first()
-    await expect(mainContent).toBeVisible({ timeout: 15000 })
-
-    // Verify the members page content is present (EN or DE)
-    await expect(async () => {
-      const bodyText = await mainContent.textContent()
-      const hasMembersContent =
-        bodyText?.includes('Members') ||
-        bodyText?.includes('Mitglieder') ||
-        bodyText?.includes('Organization') ||
-        bodyText?.includes('Organisation') ||
-        bodyText?.includes('Add') ||
-        bodyText?.includes('Hinzufügen')
-      expect(hasMembersContent).toBe(true)
-    }).toPass({ timeout: 15000 })
-  })
-
-  test('project members page shows back navigation', async () => {
-    test.setTimeout(90000)
-
-    projectId = await seeder.createProject('Members Nav Test')
-
-    await page.goto(`${BASE_URL}/projects/${projectId}/members`, {
-      timeout: 30000,
-    })
-
-    const mainContent = page.locator('main').first()
-    await expect(mainContent).toBeVisible({ timeout: 15000 })
-
-    // The members page has a back arrow / breadcrumb to navigate to the project detail
-    // Check for a link that points back to the project
-    const backLink = page
-      .locator(`a[href*="/projects/${projectId}"]`)
-      .first()
-
-    await expect(backLink).toBeVisible({ timeout: 15000 })
-  })
-
-  test('project members page shows organization assignment section', async () => {
-    test.setTimeout(90000)
-
-    projectId = await seeder.createProject('Members Org Test')
-
-    await page.goto(`${BASE_URL}/projects/${projectId}/members`, {
-      timeout: 30000,
-    })
-
-    const mainContent = page.locator('main').first()
-    await expect(mainContent).toBeVisible({ timeout: 15000 })
-
-    // The members page has tabs for organizations and members
-    // Superadmin should see organization-related content
-    await expect(async () => {
-      const bodyText = await mainContent.textContent()
-      const hasOrgContent =
-        bodyText?.includes('Organization') ||
-        bodyText?.includes('Organisation') ||
-        bodyText?.includes('Assign') ||
-        bodyText?.includes('Zuweisen') ||
-        bodyText?.includes('Members') ||
-        bodyText?.includes('Mitglieder')
-      expect(hasOrgContent).toBe(true)
-    }).toPass({ timeout: 15000 })
-  })
+  // Per-project members + organizations management has moved into the
+  // visibility "danger zone" SubSection on the project detail page; the
+  // standalone /projects/{id}/members page was removed. The three E2E
+  // tests that drove that page have been deleted accordingly.
 })

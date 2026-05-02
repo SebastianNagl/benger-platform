@@ -153,8 +153,6 @@ class TestHealthRouter:
         with patch("email_service.email_service") as mock_email_service:
             # Mock email service configuration
             mock_email_service.mail_enabled = True
-            mock_email_service.smtp_host = "mail"
-            mock_email_service.smtp_port = 25
             mock_email_service.from_email = "noreply@test.com"
             mock_email_service.from_name = "Test"
             mock_email_service.test_connection = AsyncMock(return_value=True)
@@ -168,8 +166,7 @@ class TestHealthRouter:
                 data = response.json()
                 assert data["status"] == "healthy"
                 assert data["configured"] is True
-                assert data["service"] == "mail"
-                assert data["smtp_host"] == "mail"
+                assert data["service"] == "sendgrid"
                 assert data["connection"]["success"] is True
             finally:
                 app.dependency_overrides.clear()
@@ -185,8 +182,6 @@ class TestHealthRouter:
         with patch("email_service.email_service") as mock_email_service:
             # Mock email service with proper attributes
             mock_email_service.mail_enabled = True
-            mock_email_service.smtp_host = "smtp.example.com"
-            mock_email_service.smtp_port = 587
             mock_email_service.from_email = "test@example.com"
             mock_email_service.from_name = "Test Sender"
             mock_email_service.test_connection = AsyncMock(return_value=True)
@@ -216,8 +211,6 @@ class TestHealthRouter:
         with patch("email_service.email_service") as mock_email_service:
             # Mock email service configuration
             mock_email_service.mail_enabled = True
-            mock_email_service.smtp_host = "mail"
-            mock_email_service.smtp_port = 25
             mock_email_service.from_email = "noreply@test.com"
             mock_email_service.from_name = "Test"
             mock_email_service.test_connection = AsyncMock(
@@ -250,8 +243,6 @@ class TestHealthRouter:
             # Mock email service not configured
             # Mock email service configuration as disabled
             mock_email_service.mail_enabled = False
-            mock_email_service.smtp_host = ""
-            mock_email_service.smtp_port = 0
             mock_email_service.from_email = ""
             mock_email_service.from_name = ""
             mock_email_service.test_connection = AsyncMock(return_value=False)

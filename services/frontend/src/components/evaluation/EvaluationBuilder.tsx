@@ -25,6 +25,7 @@ import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
 import { api } from '@/lib/api'
+import { getMetricEditor } from '@/lib/extensions/metricEditors'
 import { getTemperatureConstraints, getDefaultMaxTokens } from '@/lib/modelConstraints'
 import {
   CustomCriteriaDefinition,
@@ -1629,11 +1630,29 @@ export function EvaluationBuilder({
                   </SelectContent>
                 </Select>
               </div>
-            ) : (
-              <p className="py-4 text-xs italic text-gray-500">
-                {t('evaluationBuilder.parameters.defaultParameters')}
-              </p>
-            )}
+            ) : (() => {
+              // Last-resort: extended packages may register a per-metric editor
+              // (e.g. korrektur_classic / korrektur_falloesung policy fields).
+              const ExtendedEditor = getMetricEditor(newEvaluation.metric)
+              if (ExtendedEditor) {
+                return (
+                  <ExtendedEditor
+                    parameters={newEvaluation.metric_parameters}
+                    onChange={(patch) =>
+                      setNewEvaluation((prev) => ({
+                        ...prev,
+                        metric_parameters: { ...prev.metric_parameters, ...patch },
+                      }))
+                    }
+                  />
+                )
+              }
+              return (
+                <p className="py-4 text-xs italic text-gray-500">
+                  {t('evaluationBuilder.parameters.defaultParameters')}
+                </p>
+              )
+            })()}
           </div>
         )
 

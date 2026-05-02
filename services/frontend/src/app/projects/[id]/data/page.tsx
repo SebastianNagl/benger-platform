@@ -33,7 +33,7 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
   // Check permissions - redirect if user cannot access project data
   useEffect(() => {
     if (!isLoading) {
-      if (!canAccessProjectData(user, { isPrivateMode })) {
+      if (!canAccessProjectData(user, { isPrivateMode, project: currentProject })) {
         // Redirect to project overview with error message
         router.replace(`/projects/${projectId}?error=no-data-access`)
       }
@@ -62,7 +62,7 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
   }
 
   // Show permission denied if user cannot access project data
-  if (!canAccessProjectData(user, { isPrivateMode })) {
+  if (!canAccessProjectData(user, { isPrivateMode, project: currentProject })) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
         <div className="flex min-h-[50vh] items-center justify-center">
