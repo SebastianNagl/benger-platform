@@ -34,8 +34,6 @@ class TestEmailService:
 
     def test_initialization(self, email_service):
         """Test email service initialization"""
-        assert email_service.smtp_host == 'mail'  # Default
-        assert email_service.smtp_port == 25  # Default
         assert email_service.from_email == 'noreply@what-a-benger.net'  # Default
         assert email_service.from_name == 'BenGER Platform'  # Default
         assert email_service.mail_client is not None
@@ -232,8 +230,8 @@ class TestEmailService:
             os.environ,
             {
                 'ENVIRONMENT': 'production',
-                'MAIL_FROM_EMAIL': 'noreply@what-a-benger.net',
-                'MAIL_FROM_NAME': 'BenGER Platform',
+                'EMAIL_FROM_ADDRESS': 'noreply@what-a-benger.net',
+                'EMAIL_FROM_NAME': 'BenGER Platform',
             },
         ):
             with patch('services.email.email_service.SendGridClient'):
@@ -247,8 +245,8 @@ class TestEmailService:
             os.environ,
             {
                 'ENVIRONMENT': 'staging',
-                'MAIL_FROM_EMAIL': 'noreply@what-a-benger.net',  # Same verified domain
-                'MAIL_FROM_NAME': 'BenGER Staging',  # Different name to identify staging
+                'EMAIL_FROM_ADDRESS': 'noreply@what-a-benger.net',  # Same verified domain
+                'EMAIL_FROM_NAME': 'BenGER Staging',  # Different name to identify staging
             },
         ):
             with patch('services.email.email_service.SendGridClient'):

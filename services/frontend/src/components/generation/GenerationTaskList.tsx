@@ -370,7 +370,7 @@ export function GenerationTaskList({
             if (project) onProjectChange(project)
           }}
         >
-          <SelectTrigger>
+          <SelectTrigger data-testid="generation-project-select">
             <SelectValue placeholder={t('generation.selectProject')} />
           </SelectTrigger>
           <SelectContent>

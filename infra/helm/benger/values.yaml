@@ -94,25 +94,8 @@ api:
           optional: true
     - name: EMAIL_ENABLED
       value: "true"
-    # Mail server configuration (Stalwart) - backup
     - name: MAIL_ENABLED
       value: "true"
-    - name: MAIL_SMTP_HOST
-      value: "mail"
-    - name: MAIL_SMTP_PORT
-      value: "25"
-    - name: MAIL_FROM_EMAIL
-      valueFrom:
-        secretKeyRef:
-          name: benger-email-config
-          key: EMAIL_FROM_ADDRESS
-          optional: true
-    - name: MAIL_FROM_NAME
-      valueFrom:
-        secretKeyRef:
-          name: benger-email-config
-          key: EMAIL_FROM_NAME
-          optional: true
     - name: COOKIE_DOMAIN
       value: ".what-a-benger.net"
 
@@ -192,25 +175,8 @@ workers:
           optional: true
     - name: EMAIL_ENABLED
       value: "true"
-    # Mail server configuration (Stalwart) - backup
     - name: MAIL_ENABLED
       value: "true"
-    - name: MAIL_SMTP_HOST
-      value: "mail"
-    - name: MAIL_SMTP_PORT
-      value: "25"
-    - name: MAIL_FROM_EMAIL
-      valueFrom:
-        secretKeyRef:
-          name: benger-email-config
-          key: EMAIL_FROM_ADDRESS
-          optional: true
-    - name: MAIL_FROM_NAME
-      valueFrom:
-        secretKeyRef:
-          name: benger-email-config
-          key: EMAIL_FROM_NAME
-          optional: true
 
 frontend:
   name: frontend

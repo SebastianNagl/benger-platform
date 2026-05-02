@@ -157,7 +157,13 @@ from project_models import (
     TaskAssignment,
 )
 from project_schemas import ProjectImportData
-from routers.projects.helpers import check_project_accessible, get_comprehensive_project_data, get_org_context_from_request, get_user_with_memberships
+from routers.projects.helpers import (
+    check_project_accessible,
+    check_project_write_access,
+    get_comprehensive_project_data,
+    get_org_context_from_request,
+    get_user_with_memberships,
+)
 
 router = APIRouter()
 
@@ -183,6 +189,14 @@ async def import_project_data(
     org_context = get_org_context_from_request(request)
     if not check_project_accessible(db, current_user, project_id, org_context):
         raise HTTPException(status_code=403, detail="Access denied")
+
+    # Importing tasks is a write/contribute action — require ORG_ADMIN or
+    # CONTRIBUTOR effective role. Public-tier ANNOTATOR visitors are blocked.
+    if not check_project_write_access(db, current_user, project_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Only contributors or admins can import tasks into this project",
+        )
 
     created_tasks = 0
     created_annotations = 0

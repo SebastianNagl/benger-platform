@@ -207,58 +207,9 @@ class TestDeriveEvaluationConfigs:
 
 
 # ==============================================================
-# Project organizations tests
+# Project organizations: list/add/remove endpoints were removed.
+# Org assignment now flows exclusively through PATCH /{project_id}/visibility.
 # ==============================================================
-
-
-class TestProjectOrganizations:
-    def test_list_project_organizations(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
-
-        resp = client.get(
-            f"/api/projects/{p.id}/organizations",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert isinstance(data, list)
-        assert len(data) >= 1
-
-    def test_assign_org_to_project(self, client, test_db, test_users, auth_headers, test_org):
-        # Create another org
-        org2 = Organization(
-            id=_uid(), name="Second Org", slug="second-org",
-            display_name="Second Org Display",
-        )
-        test_db.add(org2)
-        test_db.flush()
-
-        # Add admin membership to org2
-        mem = OrganizationMembership(
-            id=_uid(), user_id=test_users[0].id,
-            organization_id=org2.id, role="ORG_ADMIN",
-        )
-        test_db.add(mem)
-
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
-
-        resp = client.post(
-            f"/api/projects/{p.id}/organizations/{org2.id}",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code in (200, 201, 404)
-
-    def test_remove_org_from_project(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
-
-        resp = client.delete(
-            f"/api/projects/{p.id}/organizations/{test_org.id}",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code in (200, 400, 404)
 
 
 # ==============================================================

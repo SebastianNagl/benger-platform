@@ -126,8 +126,32 @@ export function ImportDataModal({
           throw new Error(`Invalid JSON format: ${jsonError.message}`)
         }
 
-        // Handle both array and single object
-        const dataArray = Array.isArray(parsed) ? parsed : [parsed]
+        // Bulk-export envelope from /projects/{id}/export or
+        // bulk_export_tasks: { tasks: [...], evaluation_runs: [...], ... }.
+        // Items already carry `data`/`annotations`/`evaluations` per task.
+        let dataArray: any[]
+        if (Array.isArray(parsed)) {
+          dataArray = parsed
+        } else if (parsed && Array.isArray(parsed.tasks)) {
+          // Capture auxiliary arrays so the caller can forward them.
+          const extras: Record<string, unknown> = {}
+          for (const k of [
+            'evaluation_runs',
+            'human_evaluation_configs',
+            'human_evaluation_sessions',
+            'human_evaluation_results',
+            'preference_rankings',
+            'likert_scale_evaluations',
+            'korrektur_comments',
+          ] as const) {
+            if (Array.isArray(parsed[k])) extras[k] = parsed[k]
+          }
+          // Stash on the function for the caller to read.
+          ;(parseData as any)._extras = extras
+          dataArray = parsed.tasks
+        } else {
+          dataArray = [parsed]
+        }
 
         // Label Studio alignment: wrap data if not already wrapped
         return dataArray.map((item) => {
@@ -297,8 +321,16 @@ export function ImportDataModal({
         sampleData: data[0],
       })
 
-      // Import data to project
-      const result = await projectsAPI.importData(projectId, { data })
+      // Import data to project; forward auxiliary arrays from the bulk-export
+      // envelope (eval runs, human-eval, korrektur) when present.
+      const extras = (parseData as any)._extras as
+        | Record<string, unknown>
+        | undefined
+      ;(parseData as any)._extras = undefined
+      const result = await projectsAPI.importData(projectId, {
+        data,
+        ...(extras || {}),
+      })
 
       logger.debug('[ImportDataModal] Import successful', result)
 

@@ -48,34 +48,28 @@ test.describe('Generation UI', () => {
     await page.evaluate(() => localStorage.removeItem('generations_lastProjectId'))
     await page.reload({ timeout: 60000 })
 
-    // The generations page has a custom dropdown button with a ChevronDown icon
-    // The button shows "Select project" / "Projekt auswählen" or a previously selected project title
-    // Find it by the SVG icon inside the button (the only button with a chevron in the card)
-    const dropdownButton = page.locator('h1').locator('..').locator('button').filter({
-      has: page.locator('svg')
-    }).first()
-
+    // The project picker is now a HeadlessUI Listbox rendered via the shared
+    // Select component, sitting in FilterToolbar's leftExtras slot. The trigger
+    // carries data-testid="generation-project-select"; items are <li role="option">.
+    const dropdownButton = page.getByTestId('generation-project-select')
     await expect(dropdownButton).toBeVisible({ timeout: 30000 })
 
-    // Click to open the dropdown
     await dropdownButton.click()
-    await page.waitForTimeout(500)
+    const dropdownItems = page.getByRole('option')
+    await expect(dropdownItems.first()).toBeVisible({ timeout: 5000 })
 
-    // Dropdown items are buttons inside an absolute-positioned div
-    const dropdownItems = page.locator('.absolute.z-50 button')
     const projectCount = await dropdownItems.count()
     console.log(`Found ${projectCount} projects in dropdown`)
     expect(projectCount).toBeGreaterThan(0)
 
-    // Select the first project
-    const firstProjectTitle = await dropdownItems.first().locator('.font-medium').textContent()
+    const firstProjectTitle = (await dropdownItems.first().textContent())?.trim()
     await dropdownItems.first().click()
-    await page.waitForTimeout(500)
 
-    // Verify dropdown closed and button now shows the selected project
-    const buttonText = await dropdownButton.textContent()
-    expect(buttonText).toContain(firstProjectTitle?.trim())
-    console.log(`Selected project: ${firstProjectTitle?.trim()}`)
+    // Verify dropdown closed and button now shows the selected project.
+    await expect(dropdownButton).toContainText(firstProjectTitle ?? '', {
+      timeout: 5000,
+    })
+    console.log(`Selected project: ${firstProjectTitle}`)
   })
 
   test('selecting project shows task list', async () => {

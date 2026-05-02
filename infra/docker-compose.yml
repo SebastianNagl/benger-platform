@@ -186,7 +186,11 @@ services:
       # E2E Test Mode - enables mock LLM responses for testing
       E2E_TEST_MODE: ${E2E_TEST_MODE:-false}
 
-      # SMTP outbound (worker reads SMTP_HOST/PORT/USERNAME/PASSWORD from services/workers/.env)
+      # Email (SendGrid)
+      MAIL_ENABLED: ${MAIL_ENABLED:-true}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@what-a-benger.net}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-BenGER Platform}
     volumes:
       - ../services/api:/app:ro  # Read-only for security
       - ../services/shared:/shared:ro  # Shared services directory
@@ -270,7 +274,11 @@ services:
       # E2E Test Mode - enables mock LLM responses for testing
       E2E_TEST_MODE: ${E2E_TEST_MODE:-false}
 
-      # SMTP outbound (worker reads SMTP_HOST/PORT/USERNAME/PASSWORD from services/workers/.env)
+      # Email (SendGrid)
+      MAIL_ENABLED: ${MAIL_ENABLED:-true}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@what-a-benger.net}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-BenGER Platform}
     volumes:
       - ../services/workers:/app:ro  # Read-only for security
       - ../services/shared:/shared:ro  # Shared services directory

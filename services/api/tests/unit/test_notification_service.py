@@ -290,12 +290,12 @@ class TestNotificationErrorHandling:
 class TestNotificationPreferences:
     """Test notification preference handling"""
 
-    @patch("notification_service.NotificationService._user_wants_notification")
-    def test_user_preferences_respected(self, mock_wants_notif, mock_db, test_user):
-        """Test that user preferences are respected"""
+    @patch("notification_service.NotificationService._user_wants_channel")
+    def test_user_preferences_respected(self, mock_wants_channel, mock_db, test_user):
+        """Test that user preferences are respected (in-app channel disabled → skip)."""
 
-        # User doesn't want this type of notification
-        mock_wants_notif.return_value = False
+        # In-app channel disabled for this notification type
+        mock_wants_channel.return_value = False
         mock_db.add = Mock()
         mock_db.commit = Mock()
 

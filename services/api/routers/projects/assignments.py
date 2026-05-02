@@ -8,6 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
+import extensions
 from auth_module import require_user
 from auth_module.models import User as AuthUser
 from database import get_db
@@ -505,127 +506,6 @@ async def remove_task_assignment(
     return {"status": "success", "message": "Assignment removed"}
 
 
-@router.get("/{project_id}/workload")
-async def get_project_workload(
-    project_id: str,
-    current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
-):
-    """
-    Get workload statistics for all annotators in a project
-    Only accessible by managers and admins
-    """
-
-    # Verify project exists
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    # Check permission - only superadmin, org admin, or contributor can view workload
-    user_with_memberships = get_user_with_memberships(db, current_user.id)
-    user_role = None
-
-    if current_user.is_superadmin:
-        user_role = "superadmin"
-    elif user_with_memberships and user_with_memberships.organization_memberships:
-        # Get project organizations
-        project_orgs = (
-            db.query(ProjectOrganization.organization_id)
-            .filter(ProjectOrganization.project_id == project_id)
-            .all()
-        )
-        project_org_ids = [org[0] for org in project_orgs]
-
-        for membership in user_with_memberships.organization_memberships:
-            if membership.organization_id in project_org_ids and membership.is_active:
-                user_role = membership.role
-                break
-
-    if user_role not in ["superadmin", "ORG_ADMIN", "CONTRIBUTOR"]:
-        raise HTTPException(status_code=403, detail="Only managers can view workload dashboard")
-
-    # Get all project members
-    members = (
-        db.query(ProjectMember)
-        .filter(ProjectMember.project_id == project_id, ProjectMember.is_active == True)
-        .all()
-    )
-
-    annotators = []
-    total_assigned = 0
-    total_completed = 0
-    total_in_progress = 0
-
-    for member in members:
-        # Get user details
-        user = db.query(User).filter(User.id == member.user_id).first()
-        if not user:
-            continue
-
-        # Get assignment statistics for this user
-        assignments = (
-            db.query(TaskAssignment)
-            .filter(TaskAssignment.user_id == member.user_id)
-            .join(Task)
-            .filter(Task.project_id == project_id)
-            .all()
-        )
-
-        assigned_count = len(assignments)
-        completed_count = sum(1 for a in assignments if a.status == "completed")
-        in_progress_count = sum(1 for a in assignments if a.status == "in_progress")
-        skipped_count = sum(1 for a in assignments if a.status == "skipped")
-
-        # Check for overdue tasks
-        overdue_count = sum(
-            1
-            for a in assignments
-            if a.due_date and a.due_date < datetime.now() and a.status != "completed"
-        )
-
-        annotators.append(
-            {
-                "user_id": user.id,
-                "user_name": user.name or user.email,
-                "user_email": user.email,
-                "assigned_tasks": assigned_count,
-                "completed_tasks": completed_count,
-                "in_progress_tasks": in_progress_count,
-                "skipped_tasks": skipped_count,
-                "overdue_tasks": overdue_count,
-            }
-        )
-
-        total_assigned += assigned_count
-        total_completed += completed_count
-        total_in_progress += in_progress_count
-
-    # Get total task count
-    total_tasks = db.query(Task).filter(Task.project_id == project_id).count()
-
-    # Calculate unassigned tasks (tasks without any assignments)
-    assigned_task_ids = (
-        db.query(TaskAssignment.task_id)
-        .join(Task)
-        .filter(Task.project_id == project_id)
-        .distinct()
-        .count()
-    )
-
-    total_unassigned = total_tasks - assigned_task_ids
-
-    return {
-        "annotators": annotators,
-        "stats": {
-            "total_tasks": total_tasks,
-            "total_assigned": total_assigned,
-            "total_completed": total_completed,
-            "total_in_progress": total_in_progress,
-            "total_unassigned": total_unassigned,
-        },
-    }
-
-
 @router.get("/{project_id}/my-tasks")
 async def get_my_tasks(
     project_id: str,
@@ -665,6 +545,14 @@ async def get_my_tasks(
     total = query.count()
     tasks = query.offset((page - 1) * page_size).limit(page_size).all()
 
+    # Bulk-resolve which tasks have feedback (Korrektur/etc.) on this user's
+    # annotations. Empty set when extended is not loaded — community edition
+    # has no human-feedback workflow.
+    task_ids = [t.id for t in tasks]
+    feedback_task_ids = extensions.tasks_with_feedback_for_user(
+        db, project_id, current_user.id, task_ids
+    )
+
     # Enrich with assignment info
     result = []
     for task in tasks:
@@ -681,6 +569,7 @@ async def get_my_tasks(
             "id": task.id,
             "inner_id": task.inner_id,
             "is_labeled": task.is_labeled,
+            "has_feedback": task.id in feedback_task_ids,
             "assignment": (
                 {
                     "id": assignment.id,

@@ -46,11 +46,20 @@ export interface GenerationParameters {
   batch_size: number
 }
 
+export type WizardVisibility = 'private' | 'organization' | 'public'
+export type WizardPublicRole = 'ANNOTATOR' | 'CONTRIBUTOR'
+
 export interface WizardData {
   // Step 1: Project Info
   title: string
   description: string
   features: WizardFeatures
+  visibility: WizardVisibility
+  publicRole: WizardPublicRole
+  // Orgs to assign when visibility === 'organization'. Lets the user
+  // override the X-Organization-Context header (e.g. when wizard is opened
+  // on a no-org subdomain and they want to publish into a specific org).
+  organizationIds: string[]
 
   // Labeling Setup (if annotation)
   labelingConfig: LabelingTemplate | null
@@ -100,6 +109,9 @@ export const INITIAL_WIZARD_DATA: WizardData = {
     llmGeneration: false,
     evaluation: false,
   },
+  visibility: 'private',
+  publicRole: 'ANNOTATOR',
+  organizationIds: [],
   labelingConfig: null,
   instructions: '',
   conditionalInstructions: [],

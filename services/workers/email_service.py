@@ -1,8 +1,8 @@
 """
-Email Service for BenGER - Stalwart Mail Server Integration
+Email Service for BenGER — SendGrid integration (workers).
 
-This service handles all email communications through our self-hosted Stalwart mail server.
-Single container solution with no external dependencies.
+Outbound mail goes through the SendGrid HTTP API. Templates load from the
+local templates/email directory and render via Jinja2.
 """
 
 import logging
@@ -19,14 +19,12 @@ logger = logging.getLogger(__name__)
 
 
 class EmailService:
-    """Service for sending emails through Stalwart mail server"""
+    """Service for sending emails via SendGrid (workers)."""
 
     def __init__(self):
-        """Initialize the email service with Stalwart configuration"""
-        self.smtp_host = os.getenv("MAIL_SMTP_HOST", "mail")
-        self.smtp_port = int(os.getenv("MAIL_SMTP_PORT", "25"))
-        self.from_email = os.getenv("MAIL_FROM_EMAIL", "noreply@what-a-benger.net")
-        self.from_name = os.getenv("MAIL_FROM_NAME", "BenGER Platform")
+        """Initialize the email service."""
+        self.from_email = os.getenv("EMAIL_FROM_ADDRESS", "noreply@what-a-benger.net")
+        self.from_name = os.getenv("EMAIL_FROM_NAME", "BenGER Platform")
 
         self.mail_enabled = True
 
@@ -124,7 +122,6 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-        # No API key check needed for SMTP
 
         # Build template context
         template_context = {
@@ -188,7 +185,6 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-        # No API key check needed for SMTP
 
         if not notifications:
             logger.info(f"No notifications to send in {digest_type} digest for {user_email}")
@@ -251,7 +247,6 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-        # No API key check needed for SMTP
 
         subject = "BenGER Email Test"
         html_body = f"""
@@ -308,7 +303,6 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-        # No API key check needed for SMTP
 
         subject = f"Invitation to join {organization_name} on BenGER"
         html_body = f"""
@@ -370,7 +364,6 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-        # No API key check needed for SMTP
 
         if language == "de":
             subject = "Bestätigen Sie Ihre E-Mail-Adresse für BenGER"
@@ -452,7 +445,6 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-        # No API key check needed for SMTP
 
         if language == "de":
             subject = "Passwort zurücksetzen für BenGER"

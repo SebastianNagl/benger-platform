@@ -11,6 +11,7 @@ import {
   clickSubmitFromAnyStep,
   enableWizardFeatures,
 } from '../helpers/wizard-helpers'
+import { revealFilterToolbarSearch } from '../utils/test-helpers'
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || ''
 
@@ -157,12 +158,8 @@ test.describe('Project Lifecycle', () => {
 
     await page.goto(`${BASE_URL}/projects`)
 
-    const searchInput = page
-      .locator('input[placeholder*="Search"]')
-      .or(page.locator('input[placeholder*="Suchen"]'))
-      .or(page.locator('input[type="search"]'))
-      .first()
-
+    // FilterToolbar collapses search behind a toggle; click it to reveal input.
+    const searchInput = await revealFilterToolbarSearch(page)
     await expect(searchInput).toBeVisible({ timeout: 10000 })
     await searchInput.fill(uniqueName)
 

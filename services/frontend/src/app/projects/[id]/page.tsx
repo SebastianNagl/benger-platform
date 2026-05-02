@@ -16,13 +16,19 @@
 
 import { EvaluationBuilder } from '@/components/evaluation/EvaluationBuilder'
 import { useSlot } from '@/lib/extensions/slots'
-import { LabelConfigEditor } from '@/components/projects/LabelConfigEditor'
+import {
+  LabelConfigEditor,
+  type LabelConfigEditorHandle,
+} from '@/components/projects/LabelConfigEditor'
 import { logger } from '@/lib/utils/logger'
+import { ProjectPermissionsPanel } from '@/components/projects/ProjectPermissionsPanel'
 import { PromptStructuresManager } from '@/components/projects/PromptStructuresManager'
 import { PublicationToggle } from '@/components/reports/PublicationToggle'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
+import { ConfigCard } from '@/components/projects/ConfigCard'
+import { SubSection } from '@/components/projects/SubSection'
 import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
 import {
@@ -57,7 +63,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 // Provider colors for model selection badges
 const providerColors: Record<string, string> = {
@@ -149,6 +155,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [tasks, setTasks] = useState([])
   const [userCompletedAllTasks, setUserCompletedAllTasks] = useState(false)
   const [showConfigEditor, setShowConfigEditor] = useState(false)
+  const labelConfigRef = useRef<LabelConfigEditorHandle>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -224,6 +231,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
   const ProjectSettingsExtended = useSlot('project-settings-extended')
+  const ProjectStatisticsExtended = useSlot('project-statistics-extended')
   const [advancedSettings, setAdvancedSettings] = useState({
     show_instruction: true,
     instructions_always_visible: false,
@@ -246,6 +254,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     annotation_time_limit_enabled: false,
     annotation_time_limit_seconds: null as number | null,
     strict_timer_enabled: false,
+  })
+
+  // Per-card buffer for evaluation-scoped settings. Decouples the Eval card's
+  // Speichern from the Annotation card's so flushing one doesn't drag the
+  // other's local buffer into the PATCH.
+  const [evaluationSettings, setEvaluationSettings] = useState({
     immediate_evaluation_enabled: false,
   })
 
@@ -528,6 +542,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           (currentProject as any).annotation_time_limit_seconds ?? null,
         strict_timer_enabled:
           (currentProject as any).strict_timer_enabled || false,
+      })
+      setEvaluationSettings({
         immediate_evaluation_enabled:
           (currentProject as any).immediate_evaluation_enabled || false,
       })
@@ -567,7 +583,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       case 'feedback':
       case 'generation':
       case 'evaluations':
-      case 'members':
         return role === 'ORG_ADMIN' || role === 'CONTRIBUTOR'
       case 'deleteProject':
         return role === 'ORG_ADMIN'
@@ -948,7 +963,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     setIsUpdating(true)
 
     try {
-      await updateProject(projectId, advancedSettings)
+      // korrektur_enabled / korrektur_config are server-derived from the
+      // project's evaluation_config (after_eval_config_save hook). Stripping
+      // them from the PATCH avoids clobbering server-side derivation with
+      // stale local-buffer values.
+      const { korrektur_enabled: _ke, korrektur_config: _kc, ...payload } = advancedSettings
+      await updateProject(projectId, payload)
       setEditing(false)
       addToast(t('toasts.project.settingsSaved'), 'success')
     } catch (error) {
@@ -959,6 +979,96 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       addToast(t('toasts.project.settingsSaveFailed', { error: errorMessage }), 'error')
     } finally {
       setIsUpdating(false)
+    }
+  }
+
+  // Card-level edit lifecycle. Each ConfigCard exposes a single
+  // Bearbeiten / Speichern / Abbrechen control. When entered, we flip every
+  // dependent sub-section's edit flag at once; on Speichern the matching
+  // save handlers run together so the card flushes atomically.
+  const [cardEditing, setCardEditing] = useState({
+    annotation: false,
+    generation: false,
+    evaluation: false,
+  })
+  const [cardSaving, setCardSaving] = useState({
+    annotation: false,
+    generation: false,
+    evaluation: false,
+  })
+
+  const beginEditAnnotation = () => {
+    setEditingInstructions(true)
+    setEditing(true)
+    setShowConfigEditor(true)
+    setCardEditing((p) => ({ ...p, annotation: true }))
+  }
+
+  const cancelEditAnnotation = () => {
+    setEditingInstructions(false)
+    setInstructionsValue(instructions)
+    setEditing(false)
+    setShowConfigEditor(false)
+    setCardEditing((p) => ({ ...p, annotation: false }))
+  }
+
+  const saveAnnotationCard = async () => {
+    setCardSaving((p) => ({ ...p, annotation: true }))
+    try {
+      // Run all sub-section saves in parallel; LabelConfigEditor's imperative
+      // save() short-circuits the Promise.all on validation error so the
+      // user sees the inline alert and the other PATCHes still go through.
+      await Promise.all([
+        editingInstructions ? handleSaveInstructions() : Promise.resolve(),
+        editing ? handleSaveSettings() : Promise.resolve(),
+        showConfigEditor && labelConfigRef.current?.isDirty()
+          ? labelConfigRef.current.save()
+          : Promise.resolve(),
+      ])
+      setCardEditing((p) => ({ ...p, annotation: false }))
+      setShowConfigEditor(false)
+    } finally {
+      setCardSaving((p) => ({ ...p, annotation: false }))
+    }
+  }
+
+  // Generation/Evaluation cards have no per-section "edit mode" today — their
+  // controls are always editable when the card is expanded. The card-level
+  // Speichern just flushes the corresponding payload through one handler.
+  const beginEditGeneration = () => setCardEditing((p) => ({ ...p, generation: true }))
+  const cancelEditGeneration = () => setCardEditing((p) => ({ ...p, generation: false }))
+  const saveGenerationCard = async () => {
+    setCardSaving((p) => ({ ...p, generation: true }))
+    try {
+      await Promise.all([handleSaveModels(), handleSaveGenDefaults()])
+      setCardEditing((p) => ({ ...p, generation: false }))
+    } finally {
+      setCardSaving((p) => ({ ...p, generation: false }))
+    }
+  }
+
+  // Eval card hosts immediate_evaluation_enabled (now in its own evaluationSettings
+  // buffer, decoupled from advancedSettings) plus the eval-defaults form. Card-edit
+  // flips only cardEditing.evaluation; save PATCHes the buffer + eval defaults.
+  const beginEditEvaluation = () => setCardEditing((p) => ({ ...p, evaluation: true }))
+  const cancelEditEvaluation = () => {
+    setEvaluationSettings({
+      immediate_evaluation_enabled:
+        (currentProject as any)?.immediate_evaluation_enabled || false,
+    })
+    setCardEditing((p) => ({ ...p, evaluation: false }))
+  }
+  const saveEvaluationCard = async () => {
+    if (!projectId) return
+    setCardSaving((p) => ({ ...p, evaluation: true }))
+    try {
+      await Promise.all([
+        handleSaveEvalDefaults(),
+        updateProject(projectId, evaluationSettings),
+      ])
+      setCardEditing((p) => ({ ...p, evaluation: false }))
+    } finally {
+      setCardSaving((p) => ({ ...p, evaluation: false }))
     }
   }
 
@@ -1277,8 +1387,19 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             </dl>
           </div>
 
+          {currentProject.enable_annotation && (
+          <ConfigCard
+            title={t('project.annotationConfiguration.title')}
+            defaultExpanded={false}
+            canEdit={canEditProject()}
+            editing={cardEditing.annotation}
+            saving={cardSaving.annotation}
+            onEdit={beginEditAnnotation}
+            onCancel={cancelEditAnnotation}
+            onSave={saveAnnotationCard}
+          >
           {/* Annotation Instructions Section */}
-          <div className="mb-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="bg-white dark:bg-zinc-900">
             {canEditProject() ? (
             <>
             <div className="mb-6 flex items-center justify-between">
@@ -1310,17 +1431,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   />
                 </svg>
               </button>
-              {canEditProject() &&
-                !editingInstructions &&
-                expandedInstructions && (
-                  <Button
-                    onClick={handleStartEditInstructions}
-                    variant="outline"
-                    className="text-sm"
-                  >
-                    {t('project.annotationInstructions.editInstructions')}
-                  </Button>
-                )}
+              {/* Per-section edit button removed — card-level Bearbeiten is
+                  the sole entry point. */}
             </div>
 
             {expandedInstructions && (
@@ -1336,27 +1448,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       rows={6}
                       className="w-full resize-none"
                     />
-                    <div className="flex items-center space-x-3">
-                      <Button
-                        onClick={handleSaveInstructions}
-                        disabled={isUpdating}
-                        className="text-sm"
-                      >
-                        {isUpdating
-                          ? t('project.editing.saving')
-                          : t(
-                              'project.annotationInstructions.saveInstructions'
-                            )}
-                      </Button>
-                      <Button
-                        onClick={handleCancelEditInstructions}
-                        variant="outline"
-                        disabled={isUpdating}
-                        className="text-sm"
-                      >
-                        {t('project.editing.cancel')}
-                      </Button>
-                    </div>
+                    {/* Per-section Save/Cancel removed — card-level Speichern flushes everything. */}
                   </div>
                 ) : instructions ? (
                   <div className="text-sm text-gray-700 dark:text-gray-300">
@@ -1565,7 +1657,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           </div>
 
           {/* Label Configuration Section */}
-          <div className="mb-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="bg-white dark:bg-zinc-900">
             {canEditProject() ? (
             <>
             <div className="mb-6 flex items-center justify-between">
@@ -1597,25 +1689,22 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   />
                 </svg>
               </button>
-              {expandedConfig && canEditProject() && !showConfigEditor && (
-                <Button
-                  onClick={() => setShowConfigEditor(true)}
-                  variant="outline"
-                  className="text-sm"
-                >
-                  {t('project.labelConfiguration.editConfiguration')}
-                </Button>
-              )}
+              {/* Label-Konfiguration now folds into the card-level Speichern:
+                  beginEditAnnotation flips showConfigEditor=true, and
+                  saveAnnotationCard awaits labelConfigRef.current.save() in
+                  Promise.all alongside the other sub-section saves. */}
             </div>
 
             {expandedConfig && (
               <>
                 {showConfigEditor ? (
                   <LabelConfigEditor
+                    ref={labelConfigRef}
                     initialConfig={currentProject.label_config || ''}
                     onSave={handleSaveLabelConfig}
                     onCancel={() => setShowConfigEditor(false)}
                     projectId={currentProject.id}
+                    hideInternalControls={cardEditing.annotation}
                   />
                 ) : (
                   <>
@@ -1656,767 +1745,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               </div>
             )}
           </div>
-
-          {/* Model Selection Section */}
-          <div className="mb-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
-            {canEditProject() ? (
-            <>
-            <div className="mb-6 flex items-center justify-between">
-              <button
-                onClick={() => setExpandedModels(!expandedModels)}
-                className="flex items-center space-x-3 text-left"
-              >
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                  {t('project.modelSelection.title')}
-                </h2>
-                {!expandedModels && (
-                  <span className="rounded-md bg-zinc-100 px-2 py-1 text-sm leading-tight text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                    {modelsLoading
-                      ? t('project.modelSelection.loading')
-                      : modelsError
-                        ? t('project.modelSelection.errorLoading')
-                        : sortedModels
-                          ? t('project.modelSelection.selectedCount', {
-                              selected: selectedModelIds.length,
-                              total: sortedModels.length,
-                            })
-                          : t('project.modelSelection.noModelsAvailable')}
-                  </span>
-                )}
-                <svg
-                  className={`h-5 w-5 flex-shrink-0 text-zinc-400 transition-transform ${expandedModels ? 'rotate-90 transform' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-              {expandedModels &&
-                canEditProject() &&
-                sortedModels &&
-                sortedModels.length > 0 && (
-                  <Button
-                    onClick={handleSaveModels}
-                    disabled={isUpdatingModels}
-                    className="text-sm"
-                  >
-                    {isUpdatingModels
-                      ? t('project.editing.saving')
-                      : t('project.modelSelection.saveSelection')}
-                  </Button>
-                )}
-            </div>
-
-            {expandedModels && (
-              <>
-                {/* Generation Defaults */}
-                {canEditProject() && (
-                  <div className="mb-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
-                    <div className="flex items-center justify-between gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setExpandedGenDefaults((v) => !v)}
-                        className="flex flex-1 items-center gap-2 text-left"
-                        aria-expanded={expandedGenDefaults}
-                      >
-                        <svg
-                          className={`h-4 w-4 flex-shrink-0 text-zinc-400 transition-transform ${expandedGenDefaults ? 'rotate-90 transform' : ''}`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                        <div>
-                          <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
-                            {t('project.generationDefaults.title')}
-                          </h4>
-                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                            {t('project.generationDefaults.description')}
-                          </p>
-                        </div>
-                      </button>
-                      {expandedGenDefaults && (
-                        <Button
-                          onClick={handleSaveGenDefaults}
-                          disabled={isUpdatingGenDefaults}
-                          size="sm"
-                          variant="outline"
-                        >
-                          {isUpdatingGenDefaults
-                            ? t('project.editing.saving')
-                            : t('project.generationDefaults.save')}
-                        </Button>
-                      )}
-                    </div>
-                    {expandedGenDefaults && (
-                      <div className="mt-4 grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                            {t('project.generationDefaults.defaultTemperature')}
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            max={2}
-                            step={0.1}
-                            value={genDefaultTemperature ?? 0}
-                            placeholder="0.0"
-                            onChange={(e) =>
-                              setGenDefaultTemperature(
-                                e.target.value ? parseFloat(e.target.value) : undefined
-                              )
-                            }
-                            className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                          />
-                          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                            {t('project.generationDefaults.temperatureHelp')}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                            {t('project.generationDefaults.defaultMaxTokens')}
-                          </label>
-                          <input
-                            type="number"
-                            min={100}
-                            max={128000}
-                            step={100}
-                            value={genDefaultMaxTokens ?? 4000}
-                            placeholder="4000"
-                            onChange={(e) =>
-                              setGenDefaultMaxTokens(
-                                e.target.value ? parseInt(e.target.value) : undefined
-                              )
-                            }
-                            className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                          />
-                          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                            {t('project.generationDefaults.maxTokensHelp')}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {modelsLoading ? (
-                  <div className="py-6 text-center">
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t('project.modelSelection.loadingModels')}
-                    </p>
-                  </div>
-                ) : modelsError ? (
-                  <div className="py-6 text-center">
-                    <p className="text-sm text-red-600 dark:text-red-400">
-                      {modelsError.type === 'NO_API_KEYS'
-                        ? t('project.modelSelection.noApiKeys')
-                        : modelsError.message ||
-                          t('project.modelSelection.failedToLoad')}
-                    </p>
-                    {modelsError.type === 'NO_API_KEYS' && (
-                      <Button
-                        onClick={() => router.push('/profile')}
-                        variant="outline"
-                        className="mt-3 text-sm"
-                      >
-                        {t('project.modelSelection.configureApiKeys')}
-                      </Button>
-                    )}
-                  </div>
-                ) : canEditProject() ? (
-                  <div className="space-y-1">
-                    {sortedModels && sortedModels.length > 0 ? (
-                      <>
-                        {sortedModels.map((model) => {
-                          const isSelected = selectedModelIds.includes(model.id)
-                          const reasoningConfig = getReasoningConfig(model.id)
-
-                          return (
-                            <div
-                              key={model.id}
-                              className={`rounded px-3 py-2 transition-colors ${
-                                isSelected
-                                  ? 'bg-emerald-50 dark:bg-emerald-900/20'
-                                  : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex min-w-0 flex-1 items-center space-x-3">
-                                  <input
-                                    id={`model-${model.id}`}
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={() => handleModelToggle(model.id)}
-                                    className="h-4 w-4 flex-shrink-0 rounded border-zinc-300 bg-white text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-700"
-                                  />
-                                  <div className="min-w-0 flex-1">
-                                    <label
-                                      htmlFor={`model-${model.id}`}
-                                      className="block cursor-pointer truncate text-sm font-medium text-zinc-900 dark:text-white"
-                                    >
-                                      {model.name}
-                                    </label>
-                                    {model.description && (
-                                      <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
-                                        {model.description}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="ml-3 flex flex-shrink-0 items-center space-x-2">
-                                  {reasoningConfig && (
-                                    <span className="inline-flex items-center rounded bg-purple-100 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
-                                      {t('project.modelSelection.thinking', 'Thinking')}
-                                    </span>
-                                  )}
-                                  <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${providerColors[model.provider] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
-                                    {model.provider}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Model Config (Temperature, Max Tokens, Thinking/Reasoning) for selected models */}
-                              {isSelected && (
-                                <div className="mt-2 ml-7 flex flex-wrap items-center gap-3 border-t border-emerald-200 pt-2 dark:border-emerald-800">
-                                  {/* Per-model Temperature */}
-                                  <div className="flex items-center gap-2">
-                                    <label className="text-xs text-zinc-600 dark:text-zinc-400">
-                                      {t('project.modelSelection.temperature', 'Temp')}:
-                                    </label>
-                                    {(() => {
-                                      const tc = getTemperatureConstraints(availableModels?.find(m => m.id === model.id))
-                                      return (
-                                        <Tooltip
-                                          content={tc.fixed
-                                            ? t('project.modelSelection.temperatureFixed', `This model requires temperature=${tc.fixedValue}`)
-                                            : tc.reason
-                                              ? `${tc.reason} (${tc.min}-${tc.max})`
-                                              : t('project.modelSelection.temperatureTooltip', 'Response randomness (0=deterministic)')
-                                          }
-                                        >
-                                          <input
-                                            type="number"
-                                            min={tc.min}
-                                            max={tc.max}
-                                            step={0.1}
-                                            value={modelConfigs[model.id]?.temperature ?? ''}
-                                            placeholder={tc.default.toString()}
-                                            disabled={tc.fixed}
-                                            onChange={(e) =>
-                                              updateModelConfig(
-                                                model.id,
-                                                'temperature',
-                                                e.target.value ? parseFloat(e.target.value) : undefined
-                                              )
-                                            }
-                                            className={`h-7 w-16 rounded-md border border-zinc-300 px-2 text-xs dark:border-zinc-700 dark:bg-zinc-800 ${
-                                              tc.fixed ? 'bg-zinc-100 dark:bg-zinc-900 cursor-not-allowed' : ''
-                                            }`}
-                                          />
-                                        </Tooltip>
-                                      )
-                                    })()}
-                                  </div>
-
-                                  {/* Per-model Max Tokens */}
-                                  <div className="flex items-center gap-2">
-                                    <label className="text-xs text-zinc-600 dark:text-zinc-400">
-                                      {t('project.modelSelection.maxTokens', 'Max Tokens')}:
-                                    </label>
-                                    <input
-                                      type="number"
-                                      min={100}
-                                      max={128000}
-                                      step={100}
-                                      value={modelConfigs[model.id]?.max_tokens ?? ''}
-                                      placeholder={getDefaultMaxTokens(availableModels?.find(m => m.id === model.id))?.toString() ?? '4000'}
-                                      onChange={(e) =>
-                                        updateModelConfig(
-                                          model.id,
-                                          'max_tokens',
-                                          e.target.value ? parseInt(e.target.value) : undefined
-                                        )
-                                      }
-                                      className="h-7 w-20 rounded-md border border-zinc-300 px-2 text-xs dark:border-zinc-700 dark:bg-zinc-800"
-                                    />
-                                  </div>
-
-                                  {/* Thinking/Reasoning Config */}
-                                  {reasoningConfig && (
-                                    <>
-                                      <div className="h-4 border-l border-zinc-300 dark:border-zinc-700" />
-                                      <label className="text-xs text-zinc-600 dark:text-zinc-400">
-                                        {reasoningConfig.label}:
-                                      </label>
-                                      {reasoningConfig.type === 'select' && (
-                                        <Select
-                                          value={
-                                            String(modelConfigs[model.id]?.[reasoningConfig.parameter] ||
-                                            reasoningConfig.default)
-                                          }
-                                          onValueChange={(v) =>
-                                            updateModelConfig(
-                                              model.id,
-                                              reasoningConfig.parameter,
-                                              v
-                                            )
-                                          }
-                                          displayValue={(() => {
-                                            const val = String(modelConfigs[model.id]?.[reasoningConfig.parameter] || reasoningConfig.default)
-                                            return val.charAt(0).toUpperCase() + val.slice(1)
-                                          })()}
-                                        >
-                                          <SelectTrigger className="h-7 w-auto min-w-[5rem] text-xs">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {reasoningConfig.values?.map((value) => (
-                                              <SelectItem key={value} value={value}>
-                                                {value.charAt(0).toUpperCase() + value.slice(1)}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      )}
-                                      {reasoningConfig.type === 'budget' && reasoningConfig.presets && (
-                                        <>
-                                          {(() => {
-                                            const currentValue = modelConfigs[model.id]?.[reasoningConfig.parameter]
-                                            const isCustomMode = modelConfigs[model.id]?.[`${reasoningConfig.parameter}_custom`] === true
-                                            const valueMatchesPreset = reasoningConfig.presets?.some(p => p.value === currentValue)
-                                            const showCustomInput = isCustomMode || (currentValue !== undefined && !valueMatchesPreset)
-
-                                            return (
-                                              <>
-                                                <Select
-                                                  value={showCustomInput ? 'custom' : (currentValue?.toString() || reasoningConfig.default.toString())}
-                                                  onValueChange={(v) => {
-                                                    if (v === 'custom') {
-                                                      // Enable custom mode, keep current value or use default
-                                                      const val = currentValue ?? reasoningConfig.default
-                                                      updateModelConfig(model.id, reasoningConfig.parameter, val)
-                                                      updateModelConfig(model.id, `${reasoningConfig.parameter}_custom`, true)
-                                                    } else {
-                                                      // Select preset, disable custom mode
-                                                      updateModelConfig(model.id, reasoningConfig.parameter, parseInt(v))
-                                                      updateModelConfig(model.id, `${reasoningConfig.parameter}_custom`, false)
-                                                    }
-                                                  }}
-                                                  displayValue={(() => {
-                                                    if (showCustomInput) return 'Custom'
-                                                    const val = currentValue?.toString() || reasoningConfig.default.toString()
-                                                    const preset = reasoningConfig.presets?.find(p => p.value.toString() === val)
-                                                    return preset ? `${preset.label} (${preset.value.toLocaleString()} tokens)` : val
-                                                  })()}
-                                                >
-                                                  <SelectTrigger className="h-7 w-auto min-w-[8rem] text-xs">
-                                                    <SelectValue />
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    {reasoningConfig.presets.map((preset) => (
-                                                      <SelectItem key={preset.value} value={preset.value.toString()}>
-                                                        {preset.label} ({preset.value.toLocaleString()} tokens)
-                                                      </SelectItem>
-                                                    ))}
-                                                    <SelectItem value="custom">Custom</SelectItem>
-                                                  </SelectContent>
-                                                </Select>
-                                                {showCustomInput && (
-                                                  <input
-                                                    type="number"
-                                                    min={reasoningConfig.min}
-                                                    max={reasoningConfig.max}
-                                                    value={currentValue ?? ''}
-                                                    onChange={(e) =>
-                                                      updateModelConfig(
-                                                        model.id,
-                                                        reasoningConfig.parameter,
-                                                        e.target.value ? parseInt(e.target.value) : undefined
-                                                      )
-                                                    }
-                                                    className="h-7 w-24 rounded-md border border-zinc-300 px-2 text-xs dark:border-zinc-700 dark:bg-zinc-800"
-                                                  />
-                                                )}
-                                              </>
-                                            )
-                                          })()}
-                                          <span className="text-xs text-zinc-400">
-                                            ({reasoningConfig.min?.toLocaleString()}-{reasoningConfig.max?.toLocaleString()})
-                                          </span>
-                                        </>
-                                      )}
-                                      {/* Show default only for select type (budget type shows range instead) */}
-                                      {reasoningConfig.type === 'select' && (
-                                        <span className="text-xs text-zinc-400">
-                                          ({t('project.modelSelection.default', 'Default')}: {String(reasoningConfig.default)})
-                                        </span>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </>
-                    ) : (
-                      <div className="py-6 text-center">
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                          {t('project.modelSelection.noModelsForProfile')}
-                        </p>
-                        <Button
-                          onClick={() => router.push('/profile')}
-                          variant="outline"
-                          className="mt-3 text-sm"
-                        >
-                          {t('project.modelSelection.configureApiKeys')}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="py-6 text-center">
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {getReadOnlyMessage(t('project.modelSelection.title'))}
-                    </p>
-                  </div>
-                )}
-              </>
-            )}
-            </>
-            ) : (
-              <div className="py-6 text-center">
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {getReadOnlyMessage(t('project.modelSelection.title'))}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Prompt Structures Section - Issue #762 */}
-          <div className="mb-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
-            {canEditProject() ? (
-              <PromptStructuresManager
-                projectId={projectId || ''}
-                onStructuresChange={() => {
-                  // Refetch project to update UI
-                  if (projectId) {
-                    fetchProject(projectId)
-                  }
-                }}
-              />
-            ) : (
-              <div className="py-6 text-center">
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {getReadOnlyMessage(t('project.promptStructures.title'))}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Evaluation Configuration Section */}
-          <>
-            <div className="mb-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
-              {canEditProject() ? (
-              <>
-              <div className="mb-6 flex items-center justify-between">
-                <button
-                  onClick={() => setExpandedEvaluation(!expandedEvaluation)}
-                  className="flex items-center space-x-3 text-left"
-                >
-                  <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                    {t('project.evaluation.title')}
-                  </h2>
-                  {!expandedEvaluation && (
-                    <span className="rounded-md bg-zinc-100 px-2 py-1 text-sm leading-tight text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                      {(() => {
-                        // Check evaluation configs first (Phase 8: N:M Field Mapping)
-                        const evalConfigCount = evaluationConfigs.length
-                        if (evalConfigCount > 0) {
-                          return evalConfigCount === 1
-                            ? t('project.evaluation.evaluationConfigSingular', { count: evalConfigCount })
-                            : t('project.evaluation.evaluationConfigPlural', { count: evalConfigCount })
-                        }
-
-                        const selectedMethods =
-                          currentProject.evaluation_config?.selected_methods
-                        if (!selectedMethods)
-                          return t('project.evaluation.notConfigured')
-
-                        // Count fields that have at least one method selected
-                        let configuredFieldsCount = 0
-                        let totalMethodsSelected = 0
-
-                        Object.keys(selectedMethods).forEach((fieldName) => {
-                          const fieldMethods = selectedMethods[fieldName]
-                          const automatedCount =
-                            fieldMethods?.automated?.length || 0
-                          const humanCount = fieldMethods?.human?.length || 0
-                          const fieldTotal = automatedCount + humanCount
-
-                          if (fieldTotal > 0) {
-                            configuredFieldsCount++
-                            totalMethodsSelected += fieldTotal
-                          }
-                        })
-
-                        if (configuredFieldsCount === 0) {
-                          return t('project.evaluation.notConfigured')
-                        }
-
-                        if (
-                          configuredFieldsCount === 1 &&
-                          totalMethodsSelected === 1
-                        ) {
-                          return t(
-                            'project.evaluation.fieldConfiguredWithMethods',
-                            {
-                              fields: configuredFieldsCount,
-                              methods: totalMethodsSelected,
-                            }
-                          )
-                        }
-
-                        return t(
-                          'project.evaluation.fieldsConfiguredWithMethods',
-                          {
-                            fields: configuredFieldsCount,
-                            methods: totalMethodsSelected,
-                          }
-                        )
-                      })()}
-                    </span>
-                  )}
-                  <svg
-                    className={`h-5 w-5 flex-shrink-0 text-zinc-400 transition-transform ${expandedEvaluation ? 'rotate-90 transform' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              {expandedEvaluation && (
-                <>
-                  {/* Immediate evaluation toggle */}
-                  {canEditProject() && (
-                    <div className="mb-6 flex items-center justify-between rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
-                      <div>
-                        <Label>
-                          {t(
-                            'projects.creation.wizard.step7.immediateEvaluation',
-                            'Immediate evaluation',
-                          )}
-                        </Label>
-                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                          {t(
-                            'projects.creation.wizard.step7.immediateEvaluationHint',
-                            'Run the configured evaluations as soon as an annotation is submitted',
-                          )}
-                        </p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={advancedSettings.immediate_evaluation_enabled}
-                        onChange={(e) =>
-                          setAdvancedSettings((prev: any) => ({
-                            ...prev,
-                            immediate_evaluation_enabled: e.target.checked,
-                          }))
-                        }
-                        disabled={!editing}
-                        className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                      />
-                    </div>
-                  )}
-
-                  {/* Evaluation Defaults */}
-                  {canEditProject() && (
-                    <div className="mb-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
-                      <div className="flex items-center justify-between gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setExpandedEvalDefaults((v) => !v)}
-                          className="flex flex-1 items-center gap-2 text-left"
-                          aria-expanded={expandedEvalDefaults}
-                        >
-                          <svg
-                            className={`h-4 w-4 flex-shrink-0 text-zinc-400 transition-transform ${expandedEvalDefaults ? 'rotate-90 transform' : ''}`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
-                          <div>
-                            <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
-                              {t('project.evaluationDefaults.title')}
-                            </h4>
-                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                              {t('project.evaluationDefaults.description')}
-                            </p>
-                          </div>
-                        </button>
-                        {expandedEvalDefaults && (
-                          <Button
-                            onClick={handleSaveEvalDefaults}
-                            disabled={isUpdatingEvalDefaults}
-                            size="sm"
-                            variant="outline"
-                          >
-                            {isUpdatingEvalDefaults
-                              ? t('project.editing.saving')
-                              : t('project.evaluationDefaults.save')}
-                          </Button>
-                        )}
-                      </div>
-                      {expandedEvalDefaults && (
-                        <div className="mt-4 grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                              {t('project.evaluationDefaults.defaultTemperature')}
-                            </label>
-                            <input
-                              type="number"
-                              min={0}
-                              max={2}
-                              step={0.1}
-                              value={evalDefaultTemperature ?? 0}
-                              placeholder="0.0"
-                              onChange={(e) =>
-                                setEvalDefaultTemperature(
-                                  e.target.value ? parseFloat(e.target.value) : undefined
-                                )
-                              }
-                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                            />
-                            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                              {t('project.evaluationDefaults.temperatureHelp')}
-                            </p>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                              {t('project.evaluationDefaults.defaultMaxTokens')}
-                            </label>
-                            <input
-                              type="number"
-                              min={100}
-                              max={16000}
-                              step={100}
-                              value={evalDefaultMaxTokens ?? 500}
-                              placeholder="500"
-                              onChange={(e) =>
-                                setEvalDefaultMaxTokens(
-                                  e.target.value ? parseInt(e.target.value) : undefined
-                                )
-                              }
-                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                            />
-                            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                              {t('project.evaluationDefaults.maxTokensHelp')}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Multi-Field Evaluation Builder (Phase 8: N:M Field Mapping) */}
-                  <div className="mb-6">
-                    <EvaluationBuilder
-                      projectId={projectId || ''}
-                      availableFields={availableEvaluationFields}
-                      evaluations={evaluationConfigs}
-                      onEvaluationsChange={handleEvaluationConfigsChange}
-                      onSave={handleEvaluationStarted}
-                    />
-                  </div>
-                </>
-              )}
-              </>
-              ) : (
-                <div className="py-6 text-center">
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {getReadOnlyMessage(t('project.evaluation.title'))}
-                  </p>
-                </div>
-              )}
-            </div>
-          </>
-
+          <SubSection
+            title={t('project.settings.annotationSettingsTitle')}
+            badge={`${t('project.settings.mode', { mode: advancedSettings.assignment_mode })}, ${t('project.settings.minAnnotations', { count: advancedSettings.min_annotations_per_task })}`}
+          >
           {/*  Settings Section */}
-          <div className="mb-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="bg-white dark:bg-zinc-900">
             {canEditProject() ? (
             <>
-            <div className="mb-6 flex items-center justify-between">
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="flex items-center space-x-3 text-left"
-              >
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                  {t('project.settings.title')}
-                </h2>
-                {!expanded && (
-                  <span className="rounded-md bg-zinc-100 px-2 py-1 text-sm leading-tight text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                    {t('project.settings.mode', {
-                      mode: advancedSettings.assignment_mode,
-                    })}
-                    ,{' '}
-                    {t('project.settings.minAnnotations', {
-                      count: advancedSettings.min_annotations_per_task,
-                    })}
-                  </span>
-                )}
-                <svg
-                  className={`h-5 w-5 flex-shrink-0 text-zinc-400 transition-transform ${expanded ? 'rotate-90 transform' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              </button>
-              {expanded && canEditProject() && !editing && (
-                <Button
-                  onClick={() => setEditing(true)}
-                  variant="outline"
-                  className="text-sm"
-                >
-                  {t('project.settings.editSettings')}
-                </Button>
-              )}
-            </div>
-
-            {expanded && (
               <div className="space-y-6">
                 {/* Annotation Behavior */}
                 <div>
@@ -3031,79 +2367,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   />
                 )}
 
-                {/* Save/Cancel buttons when editing */}
-                {editing && (
-                  <div className="flex items-center justify-end space-x-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-                    <Button
-                      onClick={() => {
-                        setEditing(false)
-                        // Reset to current project values
-                        setAdvancedSettings({
-                          show_instruction:
-                            currentProject?.show_instruction !== false,
-                          instructions_always_visible:
-                            currentProject?.instructions_always_visible || false,
-                          show_skip_button:
-                            currentProject?.show_skip_button !== false,
-                          show_submit_button:
-                            currentProject?.show_submit_button !== false,
-                          require_comment_on_skip:
-                            currentProject?.require_comment_on_skip || false,
-                          require_confirm_before_submit:
-                            currentProject?.require_confirm_before_submit || false,
-                          skip_queue:
-                            currentProject?.skip_queue || 'requeue_for_others',
-                          questionnaire_enabled:
-                            currentProject?.questionnaire_enabled || false,
-                          questionnaire_config:
-                            currentProject?.questionnaire_config || '',
-                          maximum_annotations:
-                            currentProject?.maximum_annotations ?? 1,
-                          min_annotations_per_task:
-                            currentProject?.min_annotations_per_task || 1,
-                          assignment_mode:
-                            currentProject?.assignment_mode || 'open',
-                          randomize_task_order:
-                            currentProject?.randomize_task_order || false,
-                          review_enabled:
-                            currentProject?.review_enabled || false,
-                          review_mode:
-                            currentProject?.review_mode || 'in_place',
-                          allow_self_review:
-                            currentProject?.allow_self_review || false,
-                          korrektur_enabled:
-                            currentProject?.korrektur_enabled || false,
-                          korrektur_config:
-                            currentProject?.korrektur_config || [],
-                          annotation_time_limit_enabled:
-                            (currentProject as any)?.annotation_time_limit_enabled || false,
-                          annotation_time_limit_seconds:
-                            (currentProject as any)?.annotation_time_limit_seconds ?? null,
-                          strict_timer_enabled:
-                            (currentProject as any)?.strict_timer_enabled || false,
-                          immediate_evaluation_enabled:
-                            (currentProject as any)?.immediate_evaluation_enabled || false,
-                        })
-                      }}
-                      variant="outline"
-                      disabled={isUpdating}
-                      className="text-sm"
-                    >
-                      {t('project.editing.cancel')}
-                    </Button>
-                    <Button
-                      onClick={handleSaveSettings}
-                      disabled={isUpdating}
-                      className="text-sm"
-                    >
-                      {isUpdating
-                        ? t('project.editing.saving')
-                        : t('project.settings.saveSettings')}
-                    </Button>
-                  </div>
-                )}
+                {/* Per-section Save/Cancel removed — card-level Speichern handles it. */}
               </div>
-            )}
             </>
             ) : (
               <div className="py-6 text-center">
@@ -3113,6 +2378,733 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               </div>
             )}
           </div>
+          </SubSection>
+
+          </ConfigCard>
+          )}
+
+          {currentProject.enable_generation && (
+          <ConfigCard
+            title={t('project.generationConfiguration.title')}
+            defaultExpanded={false}
+            canEdit={canEditProject()}
+            editing={cardEditing.generation}
+            saving={cardSaving.generation}
+            onEdit={beginEditGeneration}
+            onCancel={cancelEditGeneration}
+            onSave={saveGenerationCard}
+          >
+          {/* Model Selection Section */}
+          <div className="bg-white dark:bg-zinc-900">
+            {canEditProject() ? (
+            <>
+            <div className="mb-6 flex items-center justify-between">
+              <button
+                onClick={() => setExpandedModels(!expandedModels)}
+                className="flex items-center space-x-3 text-left"
+              >
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
+                  {t('project.modelSelection.title')}
+                </h2>
+                {!expandedModels && (
+                  <span className="rounded-md bg-zinc-100 px-2 py-1 text-sm leading-tight text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                    {modelsLoading
+                      ? t('project.modelSelection.loading')
+                      : modelsError
+                        ? t('project.modelSelection.errorLoading')
+                        : sortedModels
+                          ? t('project.modelSelection.selectedCount', {
+                              selected: selectedModelIds.length,
+                              total: sortedModels.length,
+                            })
+                          : t('project.modelSelection.noModelsAvailable')}
+                  </span>
+                )}
+                <svg
+                  className={`h-5 w-5 flex-shrink-0 text-zinc-400 transition-transform ${expandedModels ? 'rotate-90 transform' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+              {/* Per-section Save removed — card-level Speichern handles it. */}
+            </div>
+
+            {expandedModels && (
+              <>
+                {/* Generation Defaults */}
+                {canEditProject() && (
+                  <div className="mb-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedGenDefaults((v) => !v)}
+                        className="flex flex-1 items-center gap-2 text-left"
+                        aria-expanded={expandedGenDefaults}
+                      >
+                        <svg
+                          className={`h-4 w-4 flex-shrink-0 text-zinc-400 transition-transform ${expandedGenDefaults ? 'rotate-90 transform' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                        <div>
+                          <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
+                            {t('project.generationDefaults.title')}
+                          </h4>
+                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            {t('project.generationDefaults.description')}
+                          </p>
+                        </div>
+                      </button>
+                      {/* Per-section Save removed — card-level Speichern handles it. */}
+                    </div>
+                    {expandedGenDefaults && (
+                      <div className="mt-4 grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                            {t('project.generationDefaults.defaultTemperature')}
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            max={2}
+                            step={0.1}
+                            value={genDefaultTemperature ?? 0}
+                            placeholder="0.0"
+                            onChange={(e) =>
+                              setGenDefaultTemperature(
+                                e.target.value ? parseFloat(e.target.value) : undefined
+                              )
+                            }
+                            className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                          />
+                          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                            {t('project.generationDefaults.temperatureHelp')}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                            {t('project.generationDefaults.defaultMaxTokens')}
+                          </label>
+                          <input
+                            type="number"
+                            min={100}
+                            max={128000}
+                            step={100}
+                            value={genDefaultMaxTokens ?? 4000}
+                            placeholder="4000"
+                            onChange={(e) =>
+                              setGenDefaultMaxTokens(
+                                e.target.value ? parseInt(e.target.value) : undefined
+                              )
+                            }
+                            className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                          />
+                          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                            {t('project.generationDefaults.maxTokensHelp')}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {modelsLoading ? (
+                  <div className="py-6 text-center">
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      {t('project.modelSelection.loadingModels')}
+                    </p>
+                  </div>
+                ) : modelsError ? (
+                  <div className="py-6 text-center">
+                    <p className="text-sm text-red-600 dark:text-red-400">
+                      {modelsError.type === 'NO_API_KEYS'
+                        ? t('project.modelSelection.noApiKeys')
+                        : modelsError.message ||
+                          t('project.modelSelection.failedToLoad')}
+                    </p>
+                    {modelsError.type === 'NO_API_KEYS' && (
+                      <Button
+                        onClick={() => router.push('/profile')}
+                        variant="outline"
+                        className="mt-3 text-sm"
+                      >
+                        {t('project.modelSelection.configureApiKeys')}
+                      </Button>
+                    )}
+                  </div>
+                ) : canEditProject() ? (
+                  <div className="space-y-1">
+                    {sortedModels && sortedModels.length > 0 ? (
+                      <>
+                        {sortedModels.map((model) => {
+                          const isSelected = selectedModelIds.includes(model.id)
+                          const reasoningConfig = getReasoningConfig(model.id)
+
+                          return (
+                            <div
+                              key={model.id}
+                              className={`rounded px-3 py-2 transition-colors ${
+                                isSelected
+                                  ? 'bg-emerald-50 dark:bg-emerald-900/20'
+                                  : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex min-w-0 flex-1 items-center space-x-3">
+                                  <input
+                                    id={`model-${model.id}`}
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => handleModelToggle(model.id)}
+                                    className="h-4 w-4 flex-shrink-0 rounded border-zinc-300 bg-white text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-700"
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <label
+                                      htmlFor={`model-${model.id}`}
+                                      className="block cursor-pointer truncate text-sm font-medium text-zinc-900 dark:text-white"
+                                    >
+                                      {model.name}
+                                    </label>
+                                    {model.description && (
+                                      <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                                        {model.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="ml-3 flex flex-shrink-0 items-center space-x-2">
+                                  {reasoningConfig && (
+                                    <span className="inline-flex items-center rounded bg-purple-100 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                                      {t('project.modelSelection.thinking', 'Thinking')}
+                                    </span>
+                                  )}
+                                  <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${providerColors[model.provider] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
+                                    {model.provider}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Model Config (Temperature, Max Tokens, Thinking/Reasoning) for selected models */}
+                              {isSelected && (
+                                <div className="mt-2 ml-7 flex flex-wrap items-center gap-3 border-t border-emerald-200 pt-2 dark:border-emerald-800">
+                                  {/* Per-model Temperature */}
+                                  <div className="flex items-center gap-2">
+                                    <label className="text-xs text-zinc-600 dark:text-zinc-400">
+                                      {t('project.modelSelection.temperature', 'Temp')}:
+                                    </label>
+                                    {(() => {
+                                      const tc = getTemperatureConstraints(availableModels?.find(m => m.id === model.id))
+                                      return (
+                                        <Tooltip
+                                          content={tc.fixed
+                                            ? t('project.modelSelection.temperatureFixed', `This model requires temperature=${tc.fixedValue}`)
+                                            : tc.reason
+                                              ? `${tc.reason} (${tc.min}-${tc.max})`
+                                              : t('project.modelSelection.temperatureTooltip', 'Response randomness (0=deterministic)')
+                                          }
+                                        >
+                                          <input
+                                            type="number"
+                                            min={tc.min}
+                                            max={tc.max}
+                                            step={0.1}
+                                            value={modelConfigs[model.id]?.temperature ?? ''}
+                                            placeholder={tc.default.toString()}
+                                            disabled={tc.fixed}
+                                            onChange={(e) =>
+                                              updateModelConfig(
+                                                model.id,
+                                                'temperature',
+                                                e.target.value ? parseFloat(e.target.value) : undefined
+                                              )
+                                            }
+                                            className={`h-7 w-16 rounded-md border border-zinc-300 px-2 text-xs dark:border-zinc-700 dark:bg-zinc-800 ${
+                                              tc.fixed ? 'bg-zinc-100 dark:bg-zinc-900 cursor-not-allowed' : ''
+                                            }`}
+                                          />
+                                        </Tooltip>
+                                      )
+                                    })()}
+                                  </div>
+
+                                  {/* Per-model Max Tokens */}
+                                  <div className="flex items-center gap-2">
+                                    <label className="text-xs text-zinc-600 dark:text-zinc-400">
+                                      {t('project.modelSelection.maxTokens', 'Max Tokens')}:
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min={100}
+                                      max={128000}
+                                      step={100}
+                                      value={modelConfigs[model.id]?.max_tokens ?? ''}
+                                      placeholder={getDefaultMaxTokens(availableModels?.find(m => m.id === model.id))?.toString() ?? '4000'}
+                                      onChange={(e) =>
+                                        updateModelConfig(
+                                          model.id,
+                                          'max_tokens',
+                                          e.target.value ? parseInt(e.target.value) : undefined
+                                        )
+                                      }
+                                      className="h-7 w-20 rounded-md border border-zinc-300 px-2 text-xs dark:border-zinc-700 dark:bg-zinc-800"
+                                    />
+                                  </div>
+
+                                  {/* Thinking/Reasoning Config */}
+                                  {reasoningConfig && (
+                                    <>
+                                      <div className="h-4 border-l border-zinc-300 dark:border-zinc-700" />
+                                      <label className="text-xs text-zinc-600 dark:text-zinc-400">
+                                        {reasoningConfig.label}:
+                                      </label>
+                                      {reasoningConfig.type === 'select' && (
+                                        <Select
+                                          value={
+                                            String(modelConfigs[model.id]?.[reasoningConfig.parameter] ||
+                                            reasoningConfig.default)
+                                          }
+                                          onValueChange={(v) =>
+                                            updateModelConfig(
+                                              model.id,
+                                              reasoningConfig.parameter,
+                                              v
+                                            )
+                                          }
+                                          displayValue={(() => {
+                                            const val = String(modelConfigs[model.id]?.[reasoningConfig.parameter] || reasoningConfig.default)
+                                            return val.charAt(0).toUpperCase() + val.slice(1)
+                                          })()}
+                                        >
+                                          <SelectTrigger className="h-7 w-auto min-w-[5rem] text-xs">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {reasoningConfig.values?.map((value) => (
+                                              <SelectItem key={value} value={value}>
+                                                {value.charAt(0).toUpperCase() + value.slice(1)}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      )}
+                                      {reasoningConfig.type === 'budget' && reasoningConfig.presets && (
+                                        <>
+                                          {(() => {
+                                            const currentValue = modelConfigs[model.id]?.[reasoningConfig.parameter]
+                                            const isCustomMode = modelConfigs[model.id]?.[`${reasoningConfig.parameter}_custom`] === true
+                                            const valueMatchesPreset = reasoningConfig.presets?.some(p => p.value === currentValue)
+                                            const showCustomInput = isCustomMode || (currentValue !== undefined && !valueMatchesPreset)
+
+                                            return (
+                                              <>
+                                                <Select
+                                                  value={showCustomInput ? 'custom' : (currentValue?.toString() || reasoningConfig.default.toString())}
+                                                  onValueChange={(v) => {
+                                                    if (v === 'custom') {
+                                                      // Enable custom mode, keep current value or use default
+                                                      const val = currentValue ?? reasoningConfig.default
+                                                      updateModelConfig(model.id, reasoningConfig.parameter, val)
+                                                      updateModelConfig(model.id, `${reasoningConfig.parameter}_custom`, true)
+                                                    } else {
+                                                      // Select preset, disable custom mode
+                                                      updateModelConfig(model.id, reasoningConfig.parameter, parseInt(v))
+                                                      updateModelConfig(model.id, `${reasoningConfig.parameter}_custom`, false)
+                                                    }
+                                                  }}
+                                                  displayValue={(() => {
+                                                    if (showCustomInput) return 'Custom'
+                                                    const val = currentValue?.toString() || reasoningConfig.default.toString()
+                                                    const preset = reasoningConfig.presets?.find(p => p.value.toString() === val)
+                                                    return preset ? `${preset.label} (${preset.value.toLocaleString()} tokens)` : val
+                                                  })()}
+                                                >
+                                                  <SelectTrigger className="h-7 w-auto min-w-[8rem] text-xs">
+                                                    <SelectValue />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    {reasoningConfig.presets.map((preset) => (
+                                                      <SelectItem key={preset.value} value={preset.value.toString()}>
+                                                        {preset.label} ({preset.value.toLocaleString()} tokens)
+                                                      </SelectItem>
+                                                    ))}
+                                                    <SelectItem value="custom">Custom</SelectItem>
+                                                  </SelectContent>
+                                                </Select>
+                                                {showCustomInput && (
+                                                  <input
+                                                    type="number"
+                                                    min={reasoningConfig.min}
+                                                    max={reasoningConfig.max}
+                                                    value={currentValue ?? ''}
+                                                    onChange={(e) =>
+                                                      updateModelConfig(
+                                                        model.id,
+                                                        reasoningConfig.parameter,
+                                                        e.target.value ? parseInt(e.target.value) : undefined
+                                                      )
+                                                    }
+                                                    className="h-7 w-24 rounded-md border border-zinc-300 px-2 text-xs dark:border-zinc-700 dark:bg-zinc-800"
+                                                  />
+                                                )}
+                                              </>
+                                            )
+                                          })()}
+                                          <span className="text-xs text-zinc-400">
+                                            ({reasoningConfig.min?.toLocaleString()}-{reasoningConfig.max?.toLocaleString()})
+                                          </span>
+                                        </>
+                                      )}
+                                      {/* Show default only for select type (budget type shows range instead) */}
+                                      {reasoningConfig.type === 'select' && (
+                                        <span className="text-xs text-zinc-400">
+                                          ({t('project.modelSelection.default', 'Default')}: {String(reasoningConfig.default)})
+                                        </span>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </>
+                    ) : (
+                      <div className="py-6 text-center">
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                          {t('project.modelSelection.noModelsForProfile')}
+                        </p>
+                        <Button
+                          onClick={() => router.push('/profile')}
+                          variant="outline"
+                          className="mt-3 text-sm"
+                        >
+                          {t('project.modelSelection.configureApiKeys')}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="py-6 text-center">
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      {getReadOnlyMessage(t('project.modelSelection.title'))}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+            </>
+            ) : (
+              <div className="py-6 text-center">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  {getReadOnlyMessage(t('project.modelSelection.title'))}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Prompt Structures Section - Issue #762 */}
+          <div className="bg-white dark:bg-zinc-900">
+            {canEditProject() ? (
+              <PromptStructuresManager
+                projectId={projectId || ''}
+                onStructuresChange={() => {
+                  // Refetch project to update UI
+                  if (projectId) {
+                    fetchProject(projectId)
+                  }
+                }}
+              />
+            ) : (
+              <div className="py-6 text-center">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  {getReadOnlyMessage(t('project.promptStructures.title'))}
+                </p>
+              </div>
+            )}
+          </div>
+
+          </ConfigCard>
+          )}
+
+          {currentProject.enable_evaluation && (
+          <ConfigCard
+            title={t('project.evaluation.title')}
+            defaultExpanded={false}
+            canEdit={canEditProject()}
+            editing={cardEditing.evaluation}
+            saving={cardSaving.evaluation}
+            onEdit={beginEditEvaluation}
+            onCancel={cancelEditEvaluation}
+            onSave={saveEvaluationCard}
+          >
+          {/* Evaluation Configuration Section — flat sub-sections (no redundant
+              middle collapsible). Direct children of the ConfigCard. */}
+          {canEditProject() ? (
+            <>
+                  {/* Evaluation settings sub-section — owns its own state buffer,
+                      flushed by the Eval card's single Speichern. */}
+                  {canEditProject() && (
+                    <SubSection title={t('project.evaluationSettings.title', 'Evaluierungseinstellungen')}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label>
+                            {t(
+                              'projects.creation.wizard.step7.immediateEvaluation',
+                              'Immediate evaluation',
+                            )}
+                          </Label>
+                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            {t(
+                              'projects.creation.wizard.step7.immediateEvaluationHint',
+                              'Run the configured evaluations as soon as an annotation is submitted',
+                            )}
+                          </p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={evaluationSettings.immediate_evaluation_enabled}
+                          onChange={(e) =>
+                            setEvaluationSettings((prev) => ({
+                              ...prev,
+                              immediate_evaluation_enabled: e.target.checked,
+                            }))
+                          }
+                          disabled={!cardEditing.evaluation}
+                          className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                        />
+                      </div>
+                    </SubSection>
+                  )}
+
+                  {/* Evaluation methods sub-section — wraps the eval-defaults
+                      collapsible and the EvaluationBuilder so they live in
+                      one Methoden sub-collapsible alongside Settings.
+                      Collapsed badge mirrors Modellauswahl / Prompt-Strukturen
+                      style: grey pill with the configured-method count. */}
+                  <SubSection
+                    title={t('project.evaluationMethods.title', 'Evaluierungsmethoden')}
+                    badge={
+                      evaluationConfigs.length > 0
+                        ? evaluationConfigs.length === 1
+                          ? t('project.evaluation.evaluationConfigSingular', { count: evaluationConfigs.length })
+                          : t('project.evaluation.evaluationConfigPlural', { count: evaluationConfigs.length })
+                        : t('project.evaluation.notConfigured')
+                    }
+                  >
+                  {/* Evaluation Defaults */}
+                  {canEditProject() && (
+                    <div className="mb-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
+                      <div className="flex items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedEvalDefaults((v) => !v)}
+                          className="flex flex-1 items-center gap-2 text-left"
+                          aria-expanded={expandedEvalDefaults}
+                        >
+                          <svg
+                            className={`h-4 w-4 flex-shrink-0 text-zinc-400 transition-transform ${expandedEvalDefaults ? 'rotate-90 transform' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
+                          <div>
+                            <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
+                              {t('project.evaluationDefaults.title')}
+                            </h4>
+                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                              {t('project.evaluationDefaults.description')}
+                            </p>
+                          </div>
+                        </button>
+                        {/* Per-section Save removed — card-level Speichern handles it. */}
+                      </div>
+                      {expandedEvalDefaults && (
+                        <div className="mt-4 grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                              {t('project.evaluationDefaults.defaultTemperature')}
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              max={2}
+                              step={0.1}
+                              value={evalDefaultTemperature ?? 0}
+                              placeholder="0.0"
+                              onChange={(e) =>
+                                setEvalDefaultTemperature(
+                                  e.target.value ? parseFloat(e.target.value) : undefined
+                                )
+                              }
+                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                            />
+                            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                              {t('project.evaluationDefaults.temperatureHelp')}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                              {t('project.evaluationDefaults.defaultMaxTokens')}
+                            </label>
+                            <input
+                              type="number"
+                              min={100}
+                              max={16000}
+                              step={100}
+                              value={evalDefaultMaxTokens ?? 500}
+                              placeholder="500"
+                              onChange={(e) =>
+                                setEvalDefaultMaxTokens(
+                                  e.target.value ? parseInt(e.target.value) : undefined
+                                )
+                              }
+                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                            />
+                            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                              {t('project.evaluationDefaults.maxTokensHelp')}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Multi-Field Evaluation Builder (Phase 8: N:M Field Mapping) */}
+                  <div className="mb-6">
+                    <EvaluationBuilder
+                      projectId={projectId || ''}
+                      availableFields={availableEvaluationFields}
+                      evaluations={evaluationConfigs}
+                      onEvaluationsChange={handleEvaluationConfigsChange}
+                      onSave={handleEvaluationStarted}
+                    />
+                  </div>
+                  </SubSection>
+            </>
+          ) : (
+            <div className="py-6 text-center">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                {getReadOnlyMessage(t('project.evaluation.title'))}
+              </p>
+            </div>
+          )}
+
+          </ConfigCard>
+          )}
+
+          <ConfigCard title={t('project.settings.title')} defaultExpanded={false}>
+          {/* Feature visibility — its own collapsed-by-default sub-section. */}
+          {canEditProject() && (
+            <SubSection title={t('project.settings.featureVisibility.title')}>
+              <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+                {t('project.settings.featureVisibility.help')}
+              </p>
+              <div className="space-y-2">
+                {([
+                  ['enable_annotation', t('project.annotationConfiguration.title')],
+                  ['enable_generation', t('project.generationConfiguration.title')],
+                  ['enable_evaluation', t('project.evaluation.title')],
+                ] as const).map(([key, label]) => (
+                  <label
+                    key={key}
+                    className="flex items-center space-x-2 text-sm text-zinc-700 dark:text-zinc-300"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={(currentProject as any)[key] !== false}
+                      onChange={async (e) => {
+                        if (!projectId) return
+                        try {
+                          await updateProject(projectId, { [key]: e.target.checked })
+                        } catch (err) {
+                          addToast(
+                            t('toasts.project.settingsSaveFailed', {
+                              error: err instanceof Error ? err.message : '',
+                            }),
+                            'error',
+                          )
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            </SubSection>
+          )}
+
+          {/* Visibility — collapsible sub-section, danger-zone styled
+              because flipping to public exposes the project platform-wide. */}
+          {currentProject &&
+            (user?.is_superadmin ||
+              String(user?.id) === String(currentProject.created_by)) && (
+              <div
+                className="mt-6"
+                data-testid="project-visibility-danger-zone"
+              >
+                <SubSection
+                  title={t('project.settings.visibilityDangerZone.title')}
+                  badge={
+                    currentProject.is_public
+                      ? t('project.permissions.public')
+                      : currentProject.is_private
+                        ? t('project.permissions.private')
+                        : t('project.permissions.organization')
+                  }
+                >
+                  <p className="mb-3 text-xs text-red-700 dark:text-red-300">
+                    {t('project.settings.visibilityDangerZone.help')}
+                  </p>
+                  <div className="rounded-md border border-red-500/40 bg-red-50/40 p-4 dark:border-red-500/40 dark:bg-red-900/10">
+                    <ProjectPermissionsPanel
+                      projectId={projectId}
+                      projectCreatorId={currentProject.created_by}
+                      initialVisibility={
+                        currentProject.is_public
+                          ? 'public'
+                          : currentProject.is_private
+                            ? 'private'
+                            : 'organization'
+                      }
+                      initialPublicRole={
+                        currentProject.public_role === 'CONTRIBUTOR'
+                          ? 'CONTRIBUTOR'
+                          : 'ANNOTATOR'
+                      }
+                      initialOrganizations={
+                        currentProject.organizations ?? []
+                      }
+                      onSave={() => fetchProject(projectId)}
+                    />
+                  </div>
+                </SubSection>
+              </div>
+            )}
+          </ConfigCard>
         </div>
 
         {/* Sidebar */}
@@ -3211,18 +3203,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 </Button>
               )}
 
-              {canSeeQuickAction('members') && (
-                <Button
-                  href={
-                    projectId ? `/projects/${projectId}/members` : '/projects'
-                  }
-                  variant="outline"
-                  className="w-full"
-                >
-                  {t('project.quickActions.members')}
-                </Button>
-              )}
-
               {canSeeQuickAction('deleteProject') && (
                 <Button
                   onClick={() =>
@@ -3266,6 +3246,19 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   {currentProject.annotation_count}
                 </dd>
               </div>
+              {((currentProject as any).generation_count ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <dt className="text-sm text-zinc-500 dark:text-zinc-400">
+                    {t('project.statistics.generations')}
+                  </dt>
+                  <dd className="text-sm font-medium text-zinc-900 dark:text-white">
+                    {(currentProject as any).generation_count}
+                  </dd>
+                </div>
+              )}
+              {ProjectStatisticsExtended && (
+                <ProjectStatisticsExtended project={currentProject} />
+              )}
               <div className="flex justify-between">
                 <dt className="text-sm text-zinc-500 dark:text-zinc-400">
                   {t('project.statistics.progress')}

@@ -3,7 +3,10 @@ uvicorn[standard]==0.46.0
 pydantic>=2.9.0
 python-multipart==0.0.26
 PyJWT[crypto]>=2.8.0,<2.13.0
-cryptography>=43.0.0
+# 47.0.0's aarch64 wheel uses ARMv8.2 crypto extensions some Docker Desktop
+# macOS VMs do not expose, causing SIGILL on `import _rust`. Cap below 47 until
+# upstream ships a baseline-compatible aarch64 build.
+cryptography>=43.0.0,<47.0.0
 bcrypt==4.3.0
 python-dotenv==1.2.2
 httpx==0.28.1
@@ -27,7 +30,7 @@ boto3>=1.35.0
 botocore>=1.35.0
 requests>=2.32.0
 pyopenssl>=23.3.0
-cryptography>=41.0.0
+cryptography>=41.0.0,<47.0.0
 jsonschema==4.26.0
 # Scientific computing for statistics
 numpy>=1.24.0
