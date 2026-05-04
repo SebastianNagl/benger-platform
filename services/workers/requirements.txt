@@ -1,5 +1,5 @@
 celery==5.6.3
-redis>=5.0.0,<5.4.0
+redis>=5.0.0,<5.3.0
 cryptography>=41.0.0,<47.0.0  # see services/api/requirements.txt for cap rationale
 psycopg2-binary>=2.9.10
 sqlalchemy>=2.0.36
@@ -20,7 +20,7 @@ spacy>=3.7.0,<3.8  # German NER for coherence metric (Phase 3 academic-rigor). C
 de-core-news-md @ https://github.com/explosion/spacy-models/releases/download/de_core_news_md-3.7.0/de_core_news_md-3.7.0-py3-none-any.whl
 rouge-score>=0.1.2
 sacrebleu>=2.4.0
-jsonschema>=4.20.0
+jsonschema==4.26.0
 pytest==8.4.2
 pytest-asyncio==0.26.0
 # AI service dependencies
@@ -44,7 +44,7 @@ POT>=0.9.6  # Earth Mover Distance (works on ARM64, replaces pyemd)
 # Statistics
 statsmodels>=0.14.0
 # Testing dependencies
-psutil>=5.9.0
+psutil>=6.1.0
 fakeredis>=2.20.0
 memory-profiler>=0.61.0
 pytest-cov>=4.1.0
