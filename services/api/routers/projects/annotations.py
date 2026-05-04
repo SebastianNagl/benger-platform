@@ -226,8 +226,29 @@ async def list_task_annotations(
     )
 
     if completed_by_username:
+        # The eval-results table builds annotator column ids as
+        # `annotator:<display>` where display is pseudonym (if use_pseudonym)
+        # → name → username (see results.py:get_results_by_task_model). The
+        # detail modal then passes that display string back here as
+        # `completed_by_username`. Resolve via the same precedence so users
+        # whose display name comes from `name` or `pseudonym` (e.g. the
+        # imported "Imported User <hash>" cohort) still match.
+        from sqlalchemy import or_, and_
         from models import User as DBUser
-        target_user = db.query(DBUser).filter(DBUser.username == completed_by_username).first()
+        target_user = (
+            db.query(DBUser)
+            .filter(
+                or_(
+                    and_(
+                        DBUser.use_pseudonym == True,  # noqa: E712
+                        DBUser.pseudonym == completed_by_username,
+                    ),
+                    DBUser.name == completed_by_username,
+                    DBUser.username == completed_by_username,
+                )
+            )
+            .first()
+        )
         if not target_user:
             return []
         query = query.filter(Annotation.completed_by == target_user.id)

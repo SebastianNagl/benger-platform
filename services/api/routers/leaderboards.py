@@ -405,19 +405,29 @@ async def get_llm_leaderboard(
                 if last is None or completed_at > datetime.fromisoformat(last):
                     model_data[model_id]["last_evaluated"] = completed_at.isoformat()
 
-            # Aggregate metrics from sample results
+            # Aggregate metrics from sample results.
             # When evaluation_types filter is applied, only aggregate metrics that match
-            # the filtered types (otherwise unrelated metrics like raw_score get mixed in)
+            # the filtered types (otherwise unrelated metrics like raw_score get mixed in).
+            # Use the shared coercion shim so the unified
+            # `{value, method, details, error}` dict shape (Falllösung,
+            # korrektur_*) and the legacy bare-float / Korrektur-legacy
+            # `{score, total_score, dimensions, ...}` shapes both yield a
+            # number — otherwise the leaderboard silently drops these
+            # metrics (the `isinstance(value, (int, float))` guard returns
+            # False for dicts).
             if metrics:
+                from routers.evaluations.results import _coerce_metric_value
                 for metric_name, value in metrics.items():
-                    if value is not None and isinstance(value, (int, float)):
-                        # Skip metrics that don't match the filter when filtering by type
-                        if evaluation_types and metric_name not in evaluation_types:
-                            continue
-                        all_metrics_seen.add(metric_name)
-                        if metric_name not in model_data[model_id]["metrics_raw"]:
-                            model_data[model_id]["metrics_raw"][metric_name] = []
-                        model_data[model_id]["metrics_raw"][metric_name].append(float(value))
+                    coerced = _coerce_metric_value(value)
+                    if coerced is None:
+                        continue
+                    # Skip metrics that don't match the filter when filtering by type
+                    if evaluation_types and metric_name not in evaluation_types:
+                        continue
+                    all_metrics_seen.add(metric_name)
+                    if metric_name not in model_data[model_id]["metrics_raw"]:
+                        model_data[model_id]["metrics_raw"][metric_name] = []
+                    model_data[model_id]["metrics_raw"][metric_name].append(coerced)
 
         # Set evaluation counts from unique evaluation IDs
         for model_id, eval_set in model_evaluations.items():
