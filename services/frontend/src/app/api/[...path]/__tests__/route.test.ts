@@ -160,7 +160,9 @@ describe('API Proxy Route', () => {
         expect.stringContaining('/api/tasks'),
         expect.objectContaining({
           method: 'POST',
-          body: expect.any(String),
+          // Proxy now streams the body — could be a ReadableStream,
+          // legacy string, or null for empty bodies. Don't lock the type.
+          body: expect.anything(),
         })
       )
     })
@@ -566,8 +568,12 @@ describe('API Proxy Route', () => {
       await POST(request, { params: Promise.resolve({ path: ['tasks'] }) })
 
       const fetchCall = mockFetch.mock.calls[0]
-      // NextRequest.text() returns empty string for empty body
-      expect(fetchCall[1]?.body).toBe('')
+      // Proxy now streams `request.body` (ReadableStream | null) instead
+      // of buffering with `await request.text()`. An empty-body POST has
+      // no body to forward — we just check fetch was called and the
+      // body field is null/undefined, not a synthesized empty string.
+      expect(fetchCall).toBeDefined()
+      expect(fetchCall[1]?.body == null).toBe(true)
     })
 
     it('should handle large request bodies', async () => {
