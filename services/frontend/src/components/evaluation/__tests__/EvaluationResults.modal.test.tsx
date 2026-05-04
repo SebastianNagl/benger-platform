@@ -234,15 +234,20 @@ function setupMocks() {
       },
     ],
   })
+  // All three results carry `exact_match` so the per-metric filter
+  // (selectedMetricName, added in 56b53b0 academic-rigor) doesn't drop
+  // them when the table is showing exact_match. The pass/fail/error
+  // assertions in "switches to evaluation tab" need all three rendered.
   mockGetTaskEvaluation.mockResolvedValue({
     results: [
       {
         id: 'result-1',
-        field_name: 'answer',
+        field_name: 'exact_match-answer',
         answer_type: 'text',
         passed: true,
         confidence_score: 0.95,
         metrics: {
+          exact_match: 1,
           bleu: 0.85,
           llm_judge_response: {
             score: 4.5,
@@ -252,7 +257,7 @@ function setupMocks() {
       },
       {
         id: 'result-2',
-        field_name: 'choice',
+        field_name: 'exact_match-choice',
         answer_type: 'single_choice',
         passed: false,
         confidence_score: null,
@@ -260,11 +265,11 @@ function setupMocks() {
       },
       {
         id: 'result-3',
-        field_name: 'optional',
+        field_name: 'exact_match-optional',
         answer_type: 'text',
         passed: null,
         confidence_score: null,
-        metrics: {},
+        metrics: { exact_match: 0 },
       },
     ],
   })

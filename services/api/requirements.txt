@@ -30,13 +30,14 @@ boto3>=1.35.0
 botocore>=1.35.0
 requests>=2.32.0
 pyopenssl>=23.3.0
-cryptography>=41.0.0,<47.0.0
 jsonschema==4.26.0
 # Scientific computing for statistics
-numpy>=1.24.0
+# numpy floor matches workers (>=1.26.4); upper cap kept in sync with workers
+# (see services/workers/requirements.txt for thinc/spacy ABI rationale).
+numpy>=1.26.4,<2.0
 scipy>=1.11.0
 # Monitoring and testing tools
-psutil==5.9.8  # For system and memory monitoring
+psutil>=6.1.0  # For system and memory monitoring
 locust==2.43.4  # For load testing
 
 # Async testing dependencies
