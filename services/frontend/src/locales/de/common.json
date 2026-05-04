@@ -842,7 +842,11 @@
       "title": "Generierungskonfiguration"
     },
     "evaluationSettings": {
-      "title": "Evaluierungseinstellungen"
+      "title": "Evaluierungseinstellungen",
+      "korrekturBlindToPeers": "Blinde Korrektur (andere Korrektoren)",
+      "korrekturBlindToPeersHint": "Bewertungen anderer Korrektoren bleiben verborgen, bis du selbst eingereicht hast",
+      "korrekturBlindToLlm": "Blinde Korrektur (LLM-Vorbewertung)",
+      "korrekturBlindToLlmHint": "LLM-Vorbewertungen bleiben verborgen, bis du selbst eingereicht hast"
     },
     "evaluationMethods": {
       "title": "Evaluierungsmethoden"
@@ -7397,6 +7401,7 @@
       "korrektur_falloesung": "Bewertungen (Falllösung)"
     },
     "itemFilter": {
+      "open_for_me": "Für mich offen",
       "all": "Alle",
       "unassigned": "Nicht zugewiesen",
       "assigned_to_me": "Mir zugewiesen",
@@ -7406,6 +7411,8 @@
       "completed_by_others": "Von anderen korrigiert",
       "fully_complete": "Vollständig"
     },
+    "queueProgress": "{done} / {total} von dir bewertet",
+    "queueProgressTooltip": "Items, die du in diesem Projekt bewertet hast (über alle Filter hinweg)",
     "itemStatus": {
       "unassigned": "Offen",
       "assigned_to_me": "Mir zugewiesen",
@@ -7462,7 +7469,8 @@
     "modal": {
       "annotation": "Annotation",
       "generation": "Generierung",
-      "evaluation": "Evaluierung"
+      "evaluation": "Evaluierung",
+      "queuePosition": "Item {index} von {total}"
     },
     "tabs": {
       "review": "Review",

@@ -842,7 +842,11 @@
       "title": "Generation Configuration"
     },
     "evaluationSettings": {
-      "title": "Evaluation Settings"
+      "title": "Evaluation Settings",
+      "korrekturBlindToPeers": "Blind correction (other correctors)",
+      "korrekturBlindToPeersHint": "Other correctors' grades stay hidden until you submit your own",
+      "korrekturBlindToLlm": "Blind correction (LLM pre-grade)",
+      "korrekturBlindToLlmHint": "LLM pre-grades stay hidden until you submit your own"
     },
     "evaluationMethods": {
       "title": "Evaluation Methods"
@@ -7342,6 +7346,7 @@
       "korrektur_falloesung": "Grades (Falllösung)"
     },
     "itemFilter": {
+      "open_for_me": "Open for me",
       "all": "All",
       "unassigned": "Unassigned",
       "assigned_to_me": "Assigned to me",
@@ -7351,6 +7356,8 @@
       "completed_by_others": "Done by others",
       "fully_complete": "Complete"
     },
+    "queueProgress": "{done} / {total} graded by you",
+    "queueProgressTooltip": "Items you have graded in this project (across all filters)",
     "itemStatus": {
       "unassigned": "Open",
       "assigned_to_me": "Assigned",
@@ -7412,7 +7419,8 @@
     "modal": {
       "annotation": "Annotation",
       "generation": "Generation",
-      "evaluation": "Evaluation"
+      "evaluation": "Evaluation",
+      "queuePosition": "Item {index} of {total}"
     },
     "tabs": {
       "review": "Review",

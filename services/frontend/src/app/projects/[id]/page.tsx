@@ -262,6 +262,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     immediate_evaluation_enabled: false,
   })
 
+  // Per-project Korrektur (Falllösung) blind-mode toggles. Source of truth
+  // is `metric_parameters` on the korrektur_falloesung evaluation_config,
+  // surfaced here so users can flip them from project settings instead of
+  // editing the metric config directly. Defaults match POLICY_DEFAULTS in
+  // benger-extended (both true) — least-biased grading by default.
+  const [korrekturBlindToPeers, setKorrekturBlindToPeers] = useState(true)
+  const [korrekturBlindToLlm, setKorrekturBlindToLlm] = useState(true)
+
   // Conditional instructions state
   const [conditionalInstructions, setConditionalInstructions] = useState<
     { id: string; content: string; weight: number; ai_allowed?: boolean }[]
@@ -371,6 +379,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         if (existingConfigs.length > 0) {
           setEvaluationConfigs(existingConfigs)
         }
+        // Hydrate the project-level blind toggles from the korrektur_falloesung
+        // metric's parameters. Missing keys default to true (matches the
+        // extended POLICY_DEFAULTS for least-biased grading).
+        const fk = existingConfigs.find(
+          (c: any) => c.metric === 'korrektur_falloesung',
+        )
+        const mp = fk?.metric_parameters || {}
+        setKorrekturBlindToPeers(mp.blind_to_peer_correctors !== false)
+        setKorrekturBlindToLlm(mp.blind_to_llm_judge !== false)
       } catch (error) {
         console.error('Failed to fetch evaluation config:', error)
       }
@@ -1053,15 +1070,43 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       immediate_evaluation_enabled:
         (currentProject as any)?.immediate_evaluation_enabled || false,
     })
+    // Also revert the blind toggles to whatever the saved config has, so
+    // discarding the eval card resets *all* of its buffered fields.
+    const fk = evaluationConfigs.find((c: any) => c.metric === 'korrektur_falloesung')
+    const mp = fk?.metric_parameters || {}
+    setKorrekturBlindToPeers(mp.blind_to_peer_correctors !== false)
+    setKorrekturBlindToLlm(mp.blind_to_llm_judge !== false)
     setCardEditing((p) => ({ ...p, evaluation: false }))
   }
   const saveEvaluationCard = async () => {
     if (!projectId) return
     setCardSaving((p) => ({ ...p, evaluation: true }))
     try {
+      // Patch the korrektur_falloesung config's metric_parameters with the
+      // blind toggles before saving; the policy reader on extended sources
+      // these from metric_parameters, so writing them here makes the
+      // project-level UI the single point of edit for graders.
+      const fkIdx = evaluationConfigs.findIndex(
+        (c: any) => c.metric === 'korrektur_falloesung',
+      )
+      let configsToSave = evaluationConfigs
+      if (fkIdx >= 0) {
+        const next = [...evaluationConfigs]
+        next[fkIdx] = {
+          ...next[fkIdx],
+          metric_parameters: {
+            ...(next[fkIdx].metric_parameters || {}),
+            blind_to_peer_correctors: korrekturBlindToPeers,
+            blind_to_llm_judge: korrekturBlindToLlm,
+          },
+        }
+        configsToSave = next
+        setEvaluationConfigs(next)
+      }
       await Promise.all([
         handleSaveEvalDefaults(),
         updateProject(projectId, evaluationSettings),
+        fkIdx >= 0 ? saveEvaluationConfigsToProject(configsToSave) : Promise.resolve(),
       ])
       setCardEditing((p) => ({ ...p, evaluation: false }))
     } finally {
@@ -2886,6 +2931,58 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                         />
                       </div>
+                      {evaluationConfigs.some(
+                        (c: any) => c.metric === 'korrektur_falloesung',
+                      ) && (
+                        <>
+                          <div className="mt-4 flex items-center justify-between">
+                            <div>
+                              <Label>
+                                {t(
+                                  'project.evaluationSettings.korrekturBlindToPeers',
+                                  'Blinde Korrektur (andere Korrektoren)',
+                                )}
+                              </Label>
+                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                {t(
+                                  'project.evaluationSettings.korrekturBlindToPeersHint',
+                                  'Bewertungen anderer Korrektoren bleiben verborgen, bis du selbst eingereicht hast',
+                                )}
+                              </p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={korrekturBlindToPeers}
+                              onChange={(e) => setKorrekturBlindToPeers(e.target.checked)}
+                              disabled={!cardEditing.evaluation}
+                              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                            />
+                          </div>
+                          <div className="mt-4 flex items-center justify-between">
+                            <div>
+                              <Label>
+                                {t(
+                                  'project.evaluationSettings.korrekturBlindToLlm',
+                                  'Blinde Korrektur (LLM-Vorbewertung)',
+                                )}
+                              </Label>
+                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                {t(
+                                  'project.evaluationSettings.korrekturBlindToLlmHint',
+                                  'LLM-Vorbewertungen bleiben verborgen, bis du selbst eingereicht hast',
+                                )}
+                              </p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={korrekturBlindToLlm}
+                              onChange={(e) => setKorrekturBlindToLlm(e.target.checked)}
+                              disabled={!cardEditing.evaluation}
+                              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                            />
+                          </div>
+                        </>
+                      )}
                     </SubSection>
                   )}
 
