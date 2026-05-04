@@ -47,6 +47,12 @@ def _coerce_metric_value(val: Any) -> Optional[float]:
     For multi-output metrics (precision/recall/f1 from one compute call),
     the inner value is a dict — surface ``primary_metric_key`` if set,
     otherwise the first numeric value in insertion order.
+
+    Also accepts the pre-unified-shape Korrektur Falllösung blob
+    (``{"score": 51.5, "total_score": 51.5, "dimensions": {...}, ...}``)
+    that earlier submit_falloesung_grade calls wrote — surface
+    ``total_score`` (or ``score``) as the primary number so legacy rows
+    don't render as n/a in the eval results table.
     """
     if val is None or isinstance(val, bool):
         return None
@@ -61,6 +67,11 @@ def _coerce_metric_value(val: Any) -> Optional[float]:
             inner_v = inner.get(primary) if primary else None
             if isinstance(inner_v, (int, float)) and not isinstance(inner_v, bool):
                 return float(inner_v)
+        # Legacy Korrektur Falllösung shape fallback.
+        for legacy_key in ("total_score", "score"):
+            legacy_v = val.get(legacy_key)
+            if isinstance(legacy_v, (int, float)) and not isinstance(legacy_v, bool):
+                return float(legacy_v)
     return None
 
 
@@ -684,6 +695,16 @@ async def get_confusion_matrix(
 async def get_results_by_task_model(
     evaluation_id: str,
     request: Request,
+    include_history: bool = Query(
+        False,
+        description=(
+            "When false (default), each (task, model/annotator) cell shows the "
+            "latest score. When true, human-graded runs (e.g. korrektur_falloesung) "
+            "show the mean across all grading scores for that cell — exposing the "
+            "history that's preserved when multiple correctors grade the same target. "
+            "LLM-driven runs are unaffected by this flag."
+        ),
+    ),
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -697,6 +718,7 @@ async def get_results_by_task_model(
         from models import TaskEvaluation
         from models import Generation as GenerationModel
         from models import LLMModel
+        from services.evaluation.human_eval_runs import HUMAN_GRADED_METRICS
 
         # Verify evaluation exists
         evaluation = db.query(DBEvaluationRun).filter(DBEvaluationRun.id == evaluation_id).first()
@@ -713,39 +735,71 @@ async def get_results_by_task_model(
                 detail="Access denied",
             )
 
-        # Get sample results with dedup: latest per (generation_id, field_name)
-        ranked_results = (
-            db.query(
-                TaskEvaluation.task_id,
-                TaskEvaluation.metrics,
-                TaskEvaluation.passed,
-                TaskEvaluation.generation_id,
-                GenerationModel.model_id,
-                func.row_number()
-                .over(
-                    partition_by=[TaskEvaluation.generation_id, TaskEvaluation.field_name],
-                    order_by=TaskEvaluation.created_at.desc(),
+        # Detect a human-graded run (model_id='human' + the metric is in
+        # HUMAN_GRADED_METRICS). For these runs, multiple correctors append
+        # rows to the same singleton EvaluationRun — so the "include_history"
+        # toggle controls whether each cell shows the latest grade or the
+        # mean across all grading scores. LLM runs always use latest-only.
+        is_human_run = (
+            evaluation.model_id == "human"
+            and (evaluation.eval_metadata or {}).get("evaluation_type")
+            in HUMAN_GRADED_METRICS
+        )
+        aggregate_mean = is_human_run and include_history
+
+        # Get sample results: when aggregating, fetch all rows and average in
+        # Python (the score lives inside a JSON dict so SQL-side AVG would
+        # require JSON-path extraction); otherwise dedup latest-per-target
+        # via the existing window function.
+        if aggregate_mean:
+            sample_results = (
+                db.query(
+                    TaskEvaluation.task_id,
+                    TaskEvaluation.metrics,
+                    TaskEvaluation.passed,
+                    TaskEvaluation.generation_id,
+                    GenerationModel.model_id,
                 )
-                .label("rn"),
+                .join(
+                    GenerationModel,
+                    TaskEvaluation.generation_id == GenerationModel.id,
+                )
+                .filter(TaskEvaluation.evaluation_id == evaluation_id)
+                .all()
             )
-            .join(
-                GenerationModel,
-                TaskEvaluation.generation_id == GenerationModel.id,
+        else:
+            ranked_results = (
+                db.query(
+                    TaskEvaluation.task_id,
+                    TaskEvaluation.metrics,
+                    TaskEvaluation.passed,
+                    TaskEvaluation.generation_id,
+                    GenerationModel.model_id,
+                    func.row_number()
+                    .over(
+                        partition_by=[TaskEvaluation.generation_id, TaskEvaluation.field_name],
+                        order_by=TaskEvaluation.created_at.desc(),
+                    )
+                    .label("rn"),
+                )
+                .join(
+                    GenerationModel,
+                    TaskEvaluation.generation_id == GenerationModel.id,
+                )
+                .filter(TaskEvaluation.evaluation_id == evaluation_id)
+                .subquery()
             )
-            .filter(TaskEvaluation.evaluation_id == evaluation_id)
-            .subquery()
-        )
-        sample_results = (
-            db.query(
-                ranked_results.c.task_id,
-                ranked_results.c.metrics,
-                ranked_results.c.passed,
-                ranked_results.c.generation_id,
-                ranked_results.c.model_id,
+            sample_results = (
+                db.query(
+                    ranked_results.c.task_id,
+                    ranked_results.c.metrics,
+                    ranked_results.c.passed,
+                    ranked_results.c.generation_id,
+                    ranked_results.c.model_id,
+                )
+                .filter(ranked_results.c.rn == 1)
+                .all()
             )
-            .filter(ranked_results.c.rn == 1)
-            .all()
-        )
 
         # Query 2: Get annotation-based evaluation results
         from models import User as DBUser
@@ -802,9 +856,14 @@ async def get_results_by_task_model(
                     preview = text[:100] + "..." if len(text) > 100 else text
             task_preview_map[task.id] = preview
 
-        # Build task-model score matrix
+        # Build task-model score matrix.
+        # When aggregate_mean is on, multiple rows can share the same
+        # (task, model) cell — collect them in `cell_scores` and average
+        # at the end. Otherwise, the upstream window-function dedup already
+        # guaranteed at most one row per cell, so direct assignment is fine.
         task_model_scores = {}  # {task_id: {model_id: score}}
         model_scores_list = {model_id: [] for model_id in model_ids}  # For averages
+        cell_scores: dict = {}  # {(task_id, model_id): [score, ...]} when aggregating
 
         for result in sample_results:
             task_id = result.task_id
@@ -813,14 +872,21 @@ async def get_results_by_task_model(
             if not task_id or not model_id:
                 continue
 
-            if task_id not in task_model_scores:
-                task_model_scores[task_id] = {}
-
             score = _extract_primary_score(result.metrics)
+            if score is None:
+                continue
 
-            if score is not None:
-                task_model_scores[task_id][model_id] = score
+            if aggregate_mean:
+                cell_scores.setdefault((task_id, model_id), []).append(score)
+            else:
+                task_model_scores.setdefault(task_id, {})[model_id] = score
                 model_scores_list[model_id].append(score)
+
+        if aggregate_mean:
+            for (task_id, model_id), scores in cell_scores.items():
+                mean = sum(scores) / len(scores)
+                task_model_scores.setdefault(task_id, {})[model_id] = mean
+                model_scores_list[model_id].append(mean)
 
         # Process annotation-based results as synthetic annotator "models"
         if annotation_eval_results:
@@ -851,26 +917,45 @@ async def get_results_by_task_model(
                     for a in annotations_with_users
                 }
 
-                # Deduplicate: keep latest per (task_id, annotation_id, field_name)
-                seen_task_annotations: dict = {}
-                for r in sorted(annotation_eval_results, key=lambda x: x.created_at or datetime.min.replace(tzinfo=timezone.utc)):
-                    seen_task_annotations[(r.task_id, r.annotation_id, r.field_name)] = r
+                # When aggregate_mean is on, keep ALL rows so we can average
+                # across graders / re-grades for each (task, annotator, field)
+                # cell. Otherwise dedup to the latest row, preserving existing
+                # behavior for LLM evaluation runs.
+                if aggregate_mean:
+                    rows_for_aggregation = list(annotation_eval_results)
+                else:
+                    seen_task_annotations: dict = {}
+                    for r in sorted(annotation_eval_results, key=lambda x: x.created_at or datetime.min.replace(tzinfo=timezone.utc)):
+                        seen_task_annotations[(r.task_id, r.annotation_id, r.field_name)] = r
+                    rows_for_aggregation = list(seen_task_annotations.values())
 
-                for r in seen_task_annotations.values():
+                annotation_cell_scores: dict = {}  # {(task_id, synthetic_model_id): [score, ...]}
+
+                for r in rows_for_aggregation:
                     display = annotator_name_map.get(r.annotation_id, "Unknown")
                     synthetic_model_id = f"annotator:{display}"
                     score = _extract_primary_score(r.metrics)
+                    if score is None:
+                        continue
 
-                    if score is not None:
-                        if synthetic_model_id not in model_scores_list:
-                            model_scores_list[synthetic_model_id] = []
-                            model_ids.append(synthetic_model_id)
-                        model_name_map[synthetic_model_id] = f"Annotator: {display}"
+                    if synthetic_model_id not in model_scores_list:
+                        model_scores_list[synthetic_model_id] = []
+                        model_ids.append(synthetic_model_id)
+                    model_name_map[synthetic_model_id] = f"Annotator: {display}"
 
-                        if r.task_id not in task_model_scores:
-                            task_model_scores[r.task_id] = {}
-                        task_model_scores[r.task_id][synthetic_model_id] = score
+                    if aggregate_mean:
+                        annotation_cell_scores.setdefault(
+                            (r.task_id, synthetic_model_id), []
+                        ).append(score)
+                    else:
+                        task_model_scores.setdefault(r.task_id, {})[synthetic_model_id] = score
                         model_scores_list[synthetic_model_id].append(score)
+
+                if aggregate_mean:
+                    for (task_id, synthetic_model_id), scores in annotation_cell_scores.items():
+                        mean = sum(scores) / len(scores)
+                        task_model_scores.setdefault(task_id, {})[synthetic_model_id] = mean
+                        model_scores_list[synthetic_model_id].append(mean)
 
         # Build response
         tasks_response = []
@@ -923,11 +1008,22 @@ async def get_results_by_task_model(
 
 
 def _get_task_data_availability(db, task_ids: list) -> tuple:
-    """Return (tasks_with_annotations, generation_models_by_task) for the given task IDs."""
+    """Return (tasks_with_annotations, generation_models_by_task,
+    annotator_displays_by_task) for the given task IDs.
+
+    `annotator_displays_by_task[task_id]` is the set of annotator display
+    strings (`pseudonym → name → username`) of users who submitted an
+    annotation for that task. The eval-results table uses this to decide
+    whether an empty `annotator:<display>` cell should render a clickable
+    "n/a" (annotation exists, just not graded yet) versus a greyed one
+    (no annotation by that annotator on that task).
+    """
     from models import Generation as GenerationModel
+    from models import User as DBUser
 
     tasks_with_annotations: set = set()
     generation_model_by_task: dict = {}
+    annotator_displays_by_task: dict = {}
 
     if task_ids:
         annotated = (
@@ -950,14 +1046,43 @@ def _get_task_data_availability(db, task_ids: list) -> tuple:
         for row in gen_rows:
             generation_model_by_task.setdefault(row.task_id, set()).add(row.model_id)
 
-    return tasks_with_annotations, generation_model_by_task
+        annotator_rows = (
+            db.query(
+                Annotation.task_id,
+                DBUser.username,
+                DBUser.name,
+                DBUser.pseudonym,
+                DBUser.use_pseudonym,
+            )
+            .join(DBUser, Annotation.completed_by == DBUser.id)
+            .filter(
+                Annotation.task_id.in_(task_ids),
+                Annotation.was_cancelled == False,  # noqa: E712
+                Annotation.result != None,  # noqa: E711
+            )
+            .distinct()
+            .all()
+        )
+        for row in annotator_rows:
+            display = (
+                row.pseudonym
+                if (row.use_pseudonym and row.pseudonym)
+                else (row.name or row.username)
+            )
+            annotator_displays_by_task.setdefault(row.task_id, set()).add(
+                f"annotator:{display}"
+            )
+
+    return tasks_with_annotations, generation_model_by_task, annotator_displays_by_task
 
 
 def _build_all_tasks_response(db, project_id: str) -> list:
     """Build task list with data availability info for all tasks in a project."""
     all_tasks = db.query(Task.id, Task.data).filter(Task.project_id == project_id).all()
     all_task_ids = [t.id for t in all_tasks]
-    tasks_with_annotations, gen_model_by_task = _get_task_data_availability(db, all_task_ids)
+    tasks_with_annotations, gen_model_by_task, annot_displays_by_task = (
+        _get_task_data_availability(db, all_task_ids)
+    )
 
     return [
         {
@@ -966,6 +1091,7 @@ def _build_all_tasks_response(db, project_id: str) -> list:
             "scores": {},
             "has_annotation": t.id in tasks_with_annotations,
             "generation_models": list(gen_model_by_task.get(t.id, set())),
+            "annotator_columns": list(annot_displays_by_task.get(t.id, set())),
         }
         for t in all_tasks
     ]
@@ -989,6 +1115,14 @@ async def get_project_results_by_task_model(
     project_id: str,
     request: Request,
     evaluation_ids: Optional[str] = Query(None, description="Comma-separated evaluation run IDs to filter by"),
+    include_history: bool = Query(
+        False,
+        description=(
+            "When true, human-graded run rows for the same (task, annotator) "
+            "cell are averaged instead of latest-only. LLM-driven runs always "
+            "use latest-only."
+        ),
+    ),
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -1183,26 +1317,45 @@ async def get_project_results_by_task_model(
                     for a in annotations_with_users
                 }
 
-                # Deduplicate: keep latest per (task_id, annotation_id, field_name)
-                seen_task_annotations: dict = {}
-                for r in sorted(annotation_eval_results, key=lambda x: x.created_at or datetime.min.replace(tzinfo=timezone.utc)):
-                    seen_task_annotations[(r.task_id, r.annotation_id, r.field_name)] = r
+                # When `include_history` is on, keep ALL rows so we can mean
+                # across grader history per (task, annotator) cell. Otherwise
+                # dedup to the latest row, preserving existing LLM-eval
+                # behavior.
+                if include_history:
+                    rows_for_aggregation = list(annotation_eval_results)
+                else:
+                    seen_task_annotations: dict = {}
+                    for r in sorted(annotation_eval_results, key=lambda x: x.created_at or datetime.min.replace(tzinfo=timezone.utc)):
+                        seen_task_annotations[(r.task_id, r.annotation_id, r.field_name)] = r
+                    rows_for_aggregation = list(seen_task_annotations.values())
 
-                for r in seen_task_annotations.values():
+                annotation_cell_scores: dict = {}  # {(task_id, synthetic_model_id): [score, ...]}
+
+                for r in rows_for_aggregation:
                     display = annotator_name_map.get(r.annotation_id, "Unknown")
                     synthetic_model_id = f"annotator:{display}"
                     score = _extract_primary_score(r.metrics)
+                    if score is None:
+                        continue
 
-                    if score is not None:
-                        if synthetic_model_id not in model_scores:
-                            model_scores[synthetic_model_id] = []
-                            model_ids.append(synthetic_model_id)
-                        model_name_map[synthetic_model_id] = f"Annotator: {display}"
+                    if synthetic_model_id not in model_scores:
+                        model_scores[synthetic_model_id] = []
+                        model_ids.append(synthetic_model_id)
+                    model_name_map[synthetic_model_id] = f"Annotator: {display}"
 
-                        if r.task_id not in task_scores:
-                            task_scores[r.task_id] = {}
-                        task_scores[r.task_id][synthetic_model_id] = score
+                    if include_history:
+                        annotation_cell_scores.setdefault(
+                            (r.task_id, synthetic_model_id), []
+                        ).append(score)
+                    else:
+                        task_scores.setdefault(r.task_id, {})[synthetic_model_id] = score
                         model_scores[synthetic_model_id].append(score)
+
+                if include_history:
+                    for (task_id_, synthetic_model_id), scores in annotation_cell_scores.items():
+                        mean = sum(scores) / len(scores)
+                        task_scores.setdefault(task_id_, {})[synthetic_model_id] = mean
+                        model_scores[synthetic_model_id].append(mean)
 
         # Get ALL project tasks (not just evaluated ones) so unevaluated tasks show as n/a
         all_project_tasks = db.query(Task.id, Task.data).filter(Task.project_id == project_id).all()
@@ -1211,7 +1364,9 @@ async def get_project_results_by_task_model(
             task_previews[task.id] = _get_task_preview(task.data)
 
         # Get data availability for clickable n/a cells
-        tasks_with_annotations, generation_model_by_task = _get_task_data_availability(db, all_task_ids)
+        tasks_with_annotations, generation_model_by_task, annot_displays_by_task = (
+            _get_task_data_availability(db, all_task_ids)
+        )
 
         # Sort models by average score (descending)
         model_avgs = {
@@ -1223,6 +1378,7 @@ async def get_project_results_by_task_model(
         tasks_response = []
         for task in all_project_tasks:
             gen_models = generation_model_by_task.get(task.id, set())
+            annot_cols = annot_displays_by_task.get(task.id, set())
             tasks_response.append(
                 {
                     "task_id": task.id,
@@ -1230,6 +1386,11 @@ async def get_project_results_by_task_model(
                     "scores": task_scores.get(task.id, {}),
                     "has_annotation": task.id in tasks_with_annotations,
                     "generation_models": list(gen_models),
+                    # Annotator columns (`annotator:<display>`) for which this
+                    # task has an actual submitted annotation. Drives the
+                    # clickable-n/a behavior: empty cell + annotation present
+                    # = clickable (open the annotation), no annotation = grey.
+                    "annotator_columns": list(annot_cols),
                 }
             )
 
@@ -1307,11 +1468,29 @@ async def get_sample_result_by_task_model(
             )
 
         if model_id.startswith("annotator:"):
-            # Annotation-based evaluation: look up by annotator username
+            # Annotation-based evaluation: the suffix after `annotator:` is the
+            # annotator's *display name*, computed by `by-task-model` /
+            # `evaluated-models` as: pseudonym (if use_pseudonym) → name →
+            # username. So resolve back through the same precedence rather
+            # than assuming `username` literally — otherwise users whose
+            # display name comes from `name` or `pseudonym` (e.g. the
+            # imported "Imported User <hash>" cohort) won't be found and the
+            # detail modal renders empty.
+            from sqlalchemy import or_, and_
             from models import User as DBUser
 
-            username = model_id.split(":", 1)[1]
-            user = db.query(DBUser).filter(DBUser.username == username).first()
+            display = model_id.split(":", 1)[1]
+            user = (
+                db.query(DBUser)
+                .filter(
+                    or_(
+                        and_(DBUser.use_pseudonym == True, DBUser.pseudonym == display),  # noqa: E712
+                        DBUser.name == display,
+                        DBUser.username == display,
+                    )
+                )
+                .first()
+            )
 
             if user:
                 sample_results = (

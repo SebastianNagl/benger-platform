@@ -1005,7 +1005,7 @@ export class EvaluationsClient extends BaseApiClient {
    * Returns a matrix of scores for each task-model combination.
    * @param evaluationId - The evaluation ID to get results for
    */
-  async getResultsByTaskModel(evaluationId: string): Promise<{
+  async getResultsByTaskModel(evaluationId: string, includeHistory: boolean = false): Promise<{
     evaluation_id: string
     models: string[]
     model_names: Record<string, string>
@@ -1023,8 +1023,9 @@ export class EvaluationsClient extends BaseApiClient {
       }
     >
   }> {
+    const qs = includeHistory ? '?include_history=true' : ''
     return this.request(
-      `/evaluations/${evaluationId}/results/by-task-model`
+      `/evaluations/${evaluationId}/results/by-task-model${qs}`
     )
   }
 
@@ -1034,7 +1035,7 @@ export class EvaluationsClient extends BaseApiClient {
    * in multiple runs, uses the LATEST result.
    * @param projectId - The project ID to get aggregated results for
    */
-  async getProjectResultsByTaskModel(projectId: string, evaluationIds?: string[]): Promise<{
+  async getProjectResultsByTaskModel(projectId: string, evaluationIds?: string[], includeHistory: boolean = false): Promise<{
     project_id: string
     models: string[]
     model_names: Record<string, string>
@@ -1054,11 +1055,12 @@ export class EvaluationsClient extends BaseApiClient {
       }
     >
   }> {
-    const params = evaluationIds?.length
-      ? `?evaluation_ids=${evaluationIds.join(',')}`
-      : ''
+    const sp = new URLSearchParams()
+    if (evaluationIds?.length) sp.set('evaluation_ids', evaluationIds.join(','))
+    if (includeHistory) sp.set('include_history', 'true')
+    const qs = sp.toString()
     return this.request(
-      `/evaluations/projects/${projectId}/results/by-task-model${params}`
+      `/evaluations/projects/${projectId}/results/by-task-model${qs ? '?' + qs : ''}`
     )
   }
 

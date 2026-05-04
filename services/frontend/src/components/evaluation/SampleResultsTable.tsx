@@ -12,6 +12,7 @@ import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
+import { getMetricCell } from '@/lib/extensions/metricRenderers'
 import {
   CheckCircleIcon,
   ChevronDownIcon,
@@ -106,14 +107,28 @@ export function SampleResultsTable({
 
           return (
             <div className="flex flex-wrap gap-1">
-              {metricNames.slice(0, 2).map((key) => (
-                <div key={key} className="text-xs">
-                  <span className="font-medium">{key}:</span>{' '}
-                  <span className="text-blue-600">
-                    {metrics[key]?.toFixed(3) ?? 'N/A'}
-                  </span>
-                </div>
-              ))}
+              {metricNames.slice(0, 2).map((key) => {
+                // Extension hook: extended metrics (e.g. korrektur_falloesung)
+                // can register a cell renderer to extract the score from a
+                // structured value blob ({value, method, details, error}).
+                const customCell = getMetricCell(key)?.(metrics[key])
+                if (customCell !== null && customCell !== undefined) {
+                  return (
+                    <div key={key} className="text-xs">
+                      <span className="font-medium">{key}:</span>{' '}
+                      <span className="text-blue-600">{customCell}</span>
+                    </div>
+                  )
+                }
+                return (
+                  <div key={key} className="text-xs">
+                    <span className="font-medium">{key}:</span>{' '}
+                    <span className="text-blue-600">
+                      {(metrics[key] as number)?.toFixed?.(3) ?? 'N/A'}
+                    </span>
+                  </div>
+                )
+              })}
               {metricNames.length > 2 && (
                 <span className="text-xs text-gray-500">
                   {t('evaluation.sampleResultsTable.moreMetrics', { count: metricNames.length - 2 })}

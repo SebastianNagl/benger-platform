@@ -1901,6 +1901,8 @@
         "classicLlmJudge": "Klassischer LLM-Richter",
         "llmJudgeCustom": "LLM-Richter (Benutzerdefiniert)",
         "llmJudgeOverall": "LLM-Richter (Gesamt)",
+        "llmJudgeFalloesung": "LLM-Richter (Falllösung)",
+        "korrekturFalloesung": "Korrektur (Falllösung)",
         "rawScore": "Rohpunktzahl",
         "gradePoints": "Notenpunkte (0-18)"
       }
