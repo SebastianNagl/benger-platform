@@ -324,6 +324,35 @@ from middleware.org_context import OrgContextMiddleware
 
 app.add_middleware(OrgContextMiddleware)
 
+
+# Reject obviously oversized request bodies before they consume backend
+# memory. Legal-corpus imports legitimately need tens of megabytes (the
+# zjs.json corpus is 22 MB / 562 cases); cap is set well above that so
+# normal use is unaffected. A hostile or buggy client sending GBs of JSON
+# would otherwise OOM the API container before any router code runs.
+_MAX_BODY_BYTES = 100 * 1024 * 1024  # 100 MB
+
+@app.middleware("http")
+async def reject_oversized_requests(request, call_next):
+    cl = request.headers.get("content-length")
+    if cl is not None:
+        try:
+            if int(cl) > _MAX_BODY_BYTES:
+                from fastapi.responses import JSONResponse
+                return JSONResponse(
+                    status_code=413,
+                    content={
+                        "detail": (
+                            f"Request body exceeds the {_MAX_BODY_BYTES // (1024 * 1024)} MB "
+                            "limit. For very large data imports, split the payload into "
+                            "smaller batches and POST each batch separately."
+                        )
+                    },
+                )
+        except ValueError:
+            pass
+    return await call_next(request)
+
 # Import and include routers
 
 # Other routers
