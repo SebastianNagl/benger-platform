@@ -241,8 +241,17 @@ async def get_evaluated_models(
         # Add annotator synthetic models
         all_model_ids = all_model_ids + list(annotator_models.keys())
 
-        # Filter out artifacts: "unknown" (legacy) and "immediate" (replaced by annotator entries)
-        all_model_ids = [m for m in all_model_ids if m not in ("unknown", "immediate")]
+        # Filter out artifacts: "unknown" (legacy), "immediate" (replaced by
+        # annotator entries), the human-graded singleton run's pseudo model id
+        # ("human"), and any pre-singleton orphan runs ("human:<uid>"). The
+        # actual solver columns surface naturally via models_with_evaluation_results
+        # (LLM models that produced the answers being graded) or via the
+        # synthetic annotator: entries above.
+        all_model_ids = [
+            m for m in all_model_ids
+            if m not in ("unknown", "immediate", "human")
+            and not (isinstance(m, str) and m.startswith("human:"))
+        ]
 
         if not all_model_ids:
             return []
@@ -676,11 +685,12 @@ async def get_significance_tests(
             if not result.metrics:
                 continue
 
+            from routers.evaluations.results import _coerce_metric_value
             for metric in metrics:
                 if metric in result.metrics:
-                    value = result.metrics[metric]
-                    if value is not None and isinstance(value, (int, float)):
-                        model_metric_scores[model_id][metric].append(float(value))
+                    coerced = _coerce_metric_value(result.metrics[metric])
+                    if coerced is not None:
+                        model_metric_scores[model_id][metric].append(coerced)
 
         # Also check direct evaluations for backwards compatibility
         direct_evaluations = (
@@ -700,11 +710,12 @@ async def get_significance_tests(
             if not eval.metrics:
                 continue
 
+            from routers.evaluations.results import _coerce_metric_value
             for metric in metrics:
                 if metric in eval.metrics:
-                    value = eval.metrics[metric]
-                    if value is not None and isinstance(value, (int, float)):
-                        model_metric_scores[eval.model_id][metric].append(float(value))
+                    coerced = _coerce_metric_value(eval.metrics[metric])
+                    if coerced is not None:
+                        model_metric_scores[eval.model_id][metric].append(coerced)
 
         # Perform pairwise comparisons
         comparisons = []
@@ -1051,11 +1062,12 @@ async def compute_project_statistics(
             if field_name not in field_metric_values:
                 field_metric_values[field_name] = {m: [] for m in request.metrics}
 
+            from routers.evaluations.results import _coerce_metric_value
             for metric in request.metrics:
                 if metric in result.metrics:
-                    value = result.metrics[metric]
-                    if value is not None and isinstance(value, (int, float)):
-                        float_value = float(value)
+                    coerced = _coerce_metric_value(result.metrics[metric])
+                    if coerced is not None:
+                        float_value = coerced
 
                         # Collect for all aggregation types
                         overall_metric_values[metric].append(float_value)
@@ -1076,6 +1088,7 @@ async def compute_project_statistics(
 
         # If no sample results, fall back to evaluation-level metrics
         if not any(overall_metric_values.values()):
+            from routers.evaluations.results import _coerce_metric_value
             for eval in evaluations:
                 if not eval.metrics:
                     continue
@@ -1087,9 +1100,9 @@ async def compute_project_statistics(
 
                 for metric in request.metrics:
                     if metric in eval.metrics:
-                        value = eval.metrics[metric]
-                        if value is not None and isinstance(value, (int, float)):
-                            float_value = float(value)
+                        coerced = _coerce_metric_value(eval.metrics[metric])
+                        if coerced is not None:
+                            float_value = coerced
                             overall_metric_values[metric].append(float_value)
                             model_metric_values[model_id][metric].append(float_value)
 

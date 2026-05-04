@@ -41,6 +41,30 @@ def _create_tables():
     engine, _ = _get_engine()
     try:
         Base.metadata.create_all(bind=engine)
+        # `create_all` skips tables that already exist, which means partial
+        # indexes added to existing tables (e.g. the singleton-human-run
+        # unique index from migration 037) won't be created on a test DB
+        # that was bootstrapped before the model picked them up. Force them
+        # with an explicit CREATE INDEX IF NOT EXISTS so ON CONFLICT against
+        # them resolves correctly even on long-lived test DB containers.
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS "
+                    "uq_human_eval_run_per_project_metric "
+                    "ON evaluation_runs (project_id, model_id) "
+                    "WHERE model_id = 'human' "
+                    "AND (eval_metadata ->> 'evaluation_type') = 'korrektur_falloesung'"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE task_evaluations "
+                    "ADD COLUMN IF NOT EXISTS created_by varchar "
+                    "REFERENCES users(id) ON DELETE SET NULL"
+                )
+            )
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

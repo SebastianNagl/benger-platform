@@ -21,6 +21,10 @@ from models import ResponseGeneration as DBResponseGeneration
 from project_models import Annotation, Project, Task
 from routers.evaluations.helpers import celery_app, resolve_user_org_for_project
 from routers.projects.helpers import check_project_accessible, get_org_context_from_request
+from services.evaluation.human_eval_runs import (
+    get_or_create_human_eval_run,
+    is_human_graded_metric,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +68,10 @@ class EvaluationRunResponse(BaseModel):
     evaluation_configs_count: int
     task_id: Optional[str] = None
     started_at: datetime
+    # IDs of human-graded singleton runs that were ensured (created or
+    # already existed) as part of this request. Empty when no human-graded
+    # metrics were configured.
+    human_eval_run_ids: List[str] = []
 
 
 class AvailableFieldsResponse(BaseModel):
@@ -127,9 +135,46 @@ async def run_evaluation(
                 detail="No enabled evaluation configurations",
             )
 
+        # Split configs into human-graded vs LLM-driven. Human-graded
+        # metrics (e.g. korrektur_falloesung) have no worker; each writes
+        # into a singleton ongoing EvaluationRun per (project, metric).
+        # See services.evaluation.human_eval_runs.
+        human_configs = [c for c in enabled_configs if is_human_graded_metric(c.metric)]
+        llm_configs = [c for c in enabled_configs if not is_human_graded_metric(c.metric)]
+
+        # Ensure the singleton run exists for every distinct human metric in
+        # the request. Idempotent — re-clicking Run returns the same row.
+        human_run_ids: List[str] = []
+        for metric in {c.metric for c in human_configs}:
+            human_run = get_or_create_human_eval_run(
+                db, request.project_id, metric, current_user.id
+            )
+            human_run_ids.append(human_run.id)
+        if human_run_ids:
+            db.commit()
+
+        # All-human request: nothing to dispatch to Celery. Return the
+        # singleton's id as the evaluation_id so the frontend can navigate
+        # straight to the ongoing human run.
+        if not llm_configs:
+            primary_human_id = human_run_ids[0]
+            return EvaluationRunResponse(
+                evaluation_id=primary_human_id,
+                project_id=request.project_id,
+                status="ongoing",
+                message=(
+                    f"Human grading queue is ongoing "
+                    f"({len(human_configs)} human-graded metric(s))"
+                ),
+                evaluation_configs_count=len(enabled_configs),
+                task_id=None,
+                started_at=datetime.now(),
+                human_eval_run_ids=human_run_ids,
+            )
+
         # Create evaluation record
         # Extract unique metrics from enabled configs as evaluation_type_ids
-        evaluation_type_ids = list(set(c.metric for c in enabled_configs))
+        evaluation_type_ids = list(set(c.metric for c in llm_configs))
 
         # Determine the actual model_id from generations in this project
         # Query the most common model_id from generations for this project
@@ -163,7 +208,7 @@ async def run_evaluation(
             eval_metadata={
                 "evaluation_type": "evaluation",
                 "triggered_by": current_user.id,
-                "evaluation_configs": [c.dict() for c in request.evaluation_configs],
+                "evaluation_configs": [c.dict() for c in llm_configs],
                 "batch_size": request.batch_size,
                 "label_config_version": request.label_config_version,
                 "evaluated_model_id": evaluated_model_id,  # Track model in metadata
@@ -171,6 +216,10 @@ async def run_evaluation(
                 "organization_id": organization_id,
                 "task_ids": request.task_ids,
                 "model_ids": request.model_ids,
+                # Side-effect: human-graded singletons that were ensured for
+                # this request, for traceability from the LLM run back to
+                # the parallel ongoing human runs.
+                "human_eval_run_ids": human_run_ids,
             },
         )
 
@@ -184,7 +233,7 @@ async def run_evaluation(
                 args=[
                     evaluation.id,
                     request.project_id,
-                    [c.dict() for c in request.evaluation_configs],
+                    [c.dict() for c in llm_configs],
                     request.batch_size,
                     request.label_config_version,
                     not request.force_rerun,  # evaluate_missing_only: inverse of force_rerun
@@ -221,6 +270,7 @@ async def run_evaluation(
             evaluation_configs_count=len(enabled_configs),
             task_id=task.id if "task" in locals() else None,
             started_at=evaluation.created_at,
+            human_eval_run_ids=human_run_ids,
         )
 
     except HTTPException:
@@ -406,11 +456,19 @@ async def get_project_evaluation_results(
         )
 
         # Filter for evaluation runs by checking eval_metadata
-        # Accept legacy "multi_field", standard "evaluation"/"llm_judge", and "immediate" (per-task annotation evals)
+        # Accept legacy "multi_field", standard "evaluation"/"llm_judge", "immediate"
+        # (per-task annotation evals), and human-graded singletons (e.g.
+        # "korrektur_falloesung") which run forever as the destination for
+        # corrector submissions — see services.evaluation.human_eval_runs.
+        from services.evaluation.human_eval_runs import HUMAN_GRADED_METRICS
+        accepted_eval_types = {
+            "multi_field", "evaluation", "llm_judge", "immediate",
+            *HUMAN_GRADED_METRICS,
+        }
         evaluations = [
             e
             for e in all_evaluations
-            if (e.eval_metadata or {}).get("evaluation_type") in ("multi_field", "evaluation", "llm_judge", "immediate")
+            if (e.eval_metadata or {}).get("evaluation_type") in accepted_eval_types
         ]
 
         # If latest_only=True, only return the most recent evaluation
@@ -495,18 +553,36 @@ async def get_project_evaluation_results(
                 else []
             )
 
+            # Mark the singleton human-graded runs so the frontend can render
+            # an "ongoing" badge instead of "completed". Keep `status` at the
+            # raw DB value so existing filters (e.g. `status === 'completed'`
+            # in EvaluationResults.tsx) still see the run.
+            eval_type = (evaluation.eval_metadata or {}).get("evaluation_type")
+            is_human_ongoing = (
+                evaluation.model_id == "human" and eval_type in HUMAN_GRADED_METRICS
+            )
+
             results.append(
                 {
                     "evaluation_id": evaluation.id,
                     "model_id": evaluation.model_id,
                     "status": evaluation.status,
+                    "is_human_ongoing": is_human_ongoing,
                     "created_at": evaluation.created_at.isoformat()
                     if evaluation.created_at
                     else None,
                     "completed_at": evaluation.completed_at.isoformat()
                     if evaluation.completed_at
                     else None,
-                    "samples_evaluated": evaluation.samples_evaluated or 0,
+                    # Human singleton runs don't maintain samples_evaluated
+                    # (see services.evaluation.human_eval_runs); fall back to
+                    # the live row-count so the dropdown badge reflects the
+                    # actual number of grades collected.
+                    "samples_evaluated": (
+                        sample_results_count
+                        if is_human_ongoing
+                        else (evaluation.samples_evaluated or 0)
+                    ),
                     "sample_results_count": sample_results_count,
                     "error_message": evaluation.error_message,
                     "evaluation_configs": eval_configs,
