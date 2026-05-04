@@ -142,12 +142,24 @@ async def list_project_tasks(
         )
         query = query.filter(Task.id.notin_(any_skips))
 
-    # Apply ordering: deterministic per-user random or sequential
+    # Apply ordering: deterministic per-user random or sequential.
+    # In both branches we add `Task.id` as a tie-breaker so OFFSET-based
+    # pagination is total-stable. Without it, batch-imported rows that
+    # share an exact `created_at` (every row in a single import burst gets
+    # the same now()) can appear in different positions across page
+    # boundaries, producing duplicates in one page and missing rows in
+    # another — which surfaced as "the first table row appears empty"
+    # after a 562-task import (inner_id=1 was reachable via /tasks/{id}
+    # but the paginated /tasks list silently returned a stale duplicate
+    # in its slot).
     if project.randomize_task_order:
         # hashtext (not md5) — md5() is unavailable on FIPS-restricted Postgres builds.
-        query = query.order_by(func.hashtext(func.concat(Task.id, current_user.id)))
+        query = query.order_by(
+            func.hashtext(func.concat(Task.id, current_user.id)),
+            Task.id,
+        )
     else:
-        query = query.order_by(Task.created_at)
+        query = query.order_by(Task.created_at, Task.id)
 
     # Get total count before pagination
     total = query.count()
