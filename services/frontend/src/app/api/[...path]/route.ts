@@ -83,17 +83,20 @@ async function proxyRequest(
       nodeEnv: process.env.NODE_ENV,
     })
 
-    // Get the request body if it exists
-    let body: string | undefined
-    if (method !== 'GET') {
-      try {
-        body = await request.text()
-      } catch (e) {
-        // No body or invalid body
-      }
-    }
+    // Forward the request body as a stream rather than buffering with
+    // `await request.text()` — large imports (legal-corpus uploads in the
+    // 10–100 MB range) would otherwise materialize the whole payload in
+    // Next.js memory, then again in the outbound fetch call, which OOMs
+    // the frontend pod and surfaces as an opaque 500 to the client.
+    // Streaming hands the bytes straight through to the backend (FastAPI
+    // / uvicorn handle chunked transfer-encoding fine) and removes the
+    // implicit Next.js-side size cap.
+    const body =
+      method !== 'GET' && method !== 'HEAD' ? request.body : undefined
 
-    // Forward headers (excluding host and other problematic headers)
+    // Forward headers (excluding host and other problematic headers).
+    // `content-length` is dropped on purpose: with a streaming body we
+    // emit chunked transfer-encoding instead.
     const headers = new Headers()
     request.headers.forEach((value, key) => {
       if (
@@ -109,12 +112,16 @@ async function proxyRequest(
       headers.set('cookie', cookies)
     }
 
-    // Make the request to the backend API
+    // Make the request to the backend API. `duplex: 'half'` is required
+    // by undici (Node ≥ 18) whenever the request body is a ReadableStream
+    // — without it the fetch throws "RequestInit: duplex option is
+    // required when sending a body."
     const response = await fetch(url, {
       method,
       headers,
       body,
-    })
+      duplex: 'half',
+    } as RequestInit & { duplex?: 'half' })
 
     logger.debug(`✅ API response received:`, {
       status: response.status,
