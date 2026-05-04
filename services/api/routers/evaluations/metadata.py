@@ -937,8 +937,13 @@ async def compute_project_statistics(
             .all()
         )
 
-        # Query annotation-based evaluation results
-        from auth_module import User as DBUser
+        # Query annotation-based evaluation results.
+        # IMPORTANT: import the SQLAlchemy User model from `models`, not the
+        # Pydantic AuthUser from `auth_module` — the latter has no ORM
+        # columns, so `DBUser.username` raises AttributeError when used in
+        # a query, returning 500 from /statistics. Mirrors the precedent
+        # at metadata.py:208.
+        from models import User as DBUser
         from types import SimpleNamespace
 
         annotation_eval_results = (
