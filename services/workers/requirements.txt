@@ -27,7 +27,7 @@ pytest-asyncio==0.26.0
 openai==1.109.1
 anthropic==0.97.0
 google-genai>=1.0.0
-mistralai>=1.2.0  # Mistral AI models
+mistralai>=1.12.4  # Mistral AI models
 cohere>=5.11.0  # Cohere models
 aiohttp==3.13.5
 # Neural metrics (GPU on-demand)
