@@ -1921,6 +1921,8 @@
         "classicLlmJudge": "Classic LLM Judge",
         "llmJudgeCustom": "LLM Judge (Custom)",
         "llmJudgeOverall": "LLM Judge (Overall)",
+        "llmJudgeFalloesung": "LLM Judge (Falllösung)",
+        "korrekturFalloesung": "Korrektur (Falllösung)",
         "rawScore": "Raw Score",
         "gradePoints": "Grade Points (0-18)"
       }

@@ -37,6 +37,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { METRIC_ORDER } from '@/lib/api/evaluation-types'
+import { getMetricDetail } from '@/lib/extensions/metricRenderers'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 
 /** Statistics data structure from computeStatistics API */
@@ -278,6 +279,7 @@ export function EvaluationResults({
       scores: Record<string, number>
       has_annotation?: boolean
       generation_models?: string[]
+      annotator_columns?: string[]
     }>
     summary: Record<string, { avg: number; count: number; model_name: string }>
   } | null>(null)
@@ -557,7 +559,8 @@ export function EvaluationResults({
         const runIds = selectedRunIdsKey ? selectedRunIdsKey.split(',') : undefined
         const data = await apiClient.getProjectResultsByTaskModel(
           String(projectId),
-          runIds
+          runIds,
+          showHistory,
         )
         setTaskModelData(data)
       } catch (err) {
@@ -569,7 +572,7 @@ export function EvaluationResults({
     }
 
     fetchTaskModelData()
-  }, [projectId, selectedRunIdsKey])
+  }, [projectId, selectedRunIdsKey, showHistory])
 
   const handleRefresh = () => {
     setLoading(true)
@@ -1155,11 +1158,14 @@ export function EvaluationResults({
                           const hasScore = score !== undefined && score !== null
                           const isBest = hasScore && score === maxScore && displayedScores.length > 1
                           const isAnnotatorModel = modelId.startsWith('annotator:')
-                          // For annotator columns: n/a means this annotator didn't annotate this task
-                          // (if they had, there'd be a score). So never clickable.
-                          // For LLM models: clickable if a generation exists for this model.
+                          // n/a is clickable when the underlying source data
+                          // exists, even though no score is yet recorded:
+                          //  - LLM model column: a generation by that model exists
+                          //  - Annotator column: an annotation by that user exists
+                          //    (case: human Korrektur metric where the answer
+                          //     is present but not yet graded)
                           const hasClickableData = isAnnotatorModel
-                            ? false
+                            ? task.annotator_columns?.includes(modelId)
                             : task.generation_models?.includes(modelId)
 
                           return (
@@ -2012,14 +2018,30 @@ function ResultDetailsModal({
                               {t('evaluation.multiFieldResults.metrics')}
                             </h5>
                             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                              {Object.entries(numericMetrics).map(([key, value]) => (
-                                <div key={key} className="rounded bg-zinc-50 p-2 dark:bg-zinc-800">
-                                  <span className="text-xs text-zinc-500 dark:text-zinc-400">{key}:</span>
-                                  <span className="ml-1 font-mono text-sm text-zinc-900 dark:text-white">
-                                    {formatMetricValue(value)}
-                                  </span>
-                                </div>
-                              ))}
+                              {Object.entries(numericMetrics).map(([key, value]) => {
+                                // Extension hook: extended metrics may register
+                                // a detail component that renders the full
+                                // structured payload (dimensions, justification,
+                                // grade points, etc.) instead of the bare
+                                // formatMetricValue. Falls back to generic
+                                // numeric display when nothing is registered.
+                                const DetailComp = getMetricDetail(key)
+                                if (DetailComp) {
+                                  return (
+                                    <div key={key} className="col-span-full">
+                                      <DetailComp value={value} evaluation={result as unknown as Record<string, unknown>} />
+                                    </div>
+                                  )
+                                }
+                                return (
+                                  <div key={key} className="rounded bg-zinc-50 p-2 dark:bg-zinc-800">
+                                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{key}:</span>
+                                    <span className="ml-1 font-mono text-sm text-zinc-900 dark:text-white">
+                                      {formatMetricValue(value)}
+                                    </span>
+                                  </div>
+                                )
+                              })}
                             </div>
 
                             {/* Full LLM Judge Response */}

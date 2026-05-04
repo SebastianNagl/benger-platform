@@ -487,14 +487,16 @@ export default function EvaluationDashboard() {
         )
         const uniqueMetrics = [...new Set(configuredMetricNames)] as string[]
 
-        // Flatten automated_methods from configuredMethods for status lookup
-        const allAutomatedMethods = (configuredMethods?.fields || []).flatMap(
-          (f: any) => f.automated_methods || []
+        // Flatten BOTH automated_methods and human_methods from configuredMethods
+        // for status lookup. Human-graded metrics (e.g. korrektur_falloesung)
+        // live under f.human_methods; without this they'd always read 0.
+        const allMethods = (configuredMethods?.fields || []).flatMap(
+          (f: any) => [...(f.automated_methods || []), ...(f.human_methods || [])]
         )
 
         const metricsStatus: ItemWithStatus[] = uniqueMetrics.map(
           (metricName) => {
-            const methodInfo = allAutomatedMethods.find(
+            const methodInfo = allMethods.find(
               (m: any) => m.method_name === metricName
             )
             return {

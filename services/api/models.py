@@ -9,7 +9,8 @@ from enum import Enum
 import sqlalchemy as sa
 from sqlalchemy import JSON, Boolean, CheckConstraint, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import Float, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Float, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -823,6 +824,24 @@ class EvaluationRun(Base):
     """Project-level evaluation run record"""
 
     __tablename__ = "evaluation_runs"
+    __table_args__ = (
+        # Partial unique index that backs the human-graded singleton run
+        # upsert in services.evaluation.human_eval_runs. Declared here (in
+        # addition to migration 037) so `Base.metadata.create_all()` —
+        # used by the test conftest and any ad-hoc fresh DB setup — picks
+        # it up; otherwise the ON CONFLICT clause has no constraint to
+        # match and the helper raises InvalidColumnReference.
+        Index(
+            "uq_human_eval_run_per_project_metric",
+            "project_id",
+            "model_id",
+            unique=True,
+            postgresql_where=text(
+                "model_id = 'human' "
+                "AND (eval_metadata ->> 'evaluation_type') = 'korrektur_falloesung'"
+            ),
+        ),
+    )
 
     id = Column(String, primary_key=True, index=True)
     task_id = Column(String, nullable=True)  # Associated task ID (legacy)
@@ -912,6 +931,12 @@ class TaskEvaluation(Base):
     processing_time_ms = Column(Integer, nullable=True)
     # Prompt provenance for LLM judge evaluations
     judge_prompts_used = Column(JSON, nullable=True)
+    # First-class grader identity for human-graded evaluation rows (e.g.
+    # korrektur_falloesung). Nullable because LLM-judge rows have no
+    # human grader. Added in migration 037.
+    created_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships
