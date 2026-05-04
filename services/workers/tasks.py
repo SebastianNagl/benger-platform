@@ -26,6 +26,35 @@ def _get_insensitive(d: dict, key: str, default=""):
             return d[k]
     return default
 
+
+def _row_has_score(metrics: dict | None) -> bool:
+    """A TaskEvaluation row counts as 'already evaluated' if any non-error
+    metric carries a numeric value — either as a bare float (legacy shape)
+    or under the unified ``{value, method, details, error}`` dict produced
+    by SampleEvaluator after the academic-rigor overhaul.
+
+    Without the dict-aware branch, every recently persisted row reads as
+    "missing" and ``evaluate_missing_only=True`` silently re-runs every
+    successful evaluation — burning API quota and shifting scores via LLM
+    nondeterminism. Mirrors ``_coerce_metric_value`` from
+    ``services/api/routers/evaluations/results.py``; kept duplicated rather
+    than imported across the worker / API package boundary.
+    """
+    if not metrics:
+        return False
+    for k, v in metrics.items():
+        if k == "error":
+            continue
+        if isinstance(v, bool):
+            continue
+        if isinstance(v, (int, float)):
+            return True
+        if isinstance(v, dict):
+            inner = v.get("value")
+            if isinstance(inner, (int, float)) and not isinstance(inner, bool):
+                return True
+    return False
+
 # Add current directory to Python path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
@@ -2159,11 +2188,7 @@ def run_evaluation(
                     .all()
                 )
                 for r in existing:
-                    has_score = any(
-                        k != "error" and isinstance(v, (int, float))
-                        for k, v in (r.metrics or {}).items()
-                    )
-                    if has_score:
+                    if _row_has_score(r.metrics):
                         evaluated_by_gen.setdefault(r.generation_id, set()).add(r.field_name)
                 logger.info(
                     f"Loaded existing evaluations: {sum(len(v) for v in evaluated_by_gen.values())} "
@@ -2548,11 +2573,7 @@ def run_evaluation(
                     .all()
                 )
                 for r in existing_ann:
-                    has_score = any(
-                        k != "error" and isinstance(v, (int, float))
-                        for k, v in (r.metrics or {}).items()
-                    )
-                    if has_score:
+                    if _row_has_score(r.metrics):
                         evaluated_by_ann.setdefault(r.annotation_id, set()).add(r.field_name)
 
             for config in enabled_configs:
