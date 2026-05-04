@@ -591,12 +591,20 @@ def get_evaluation_charts_data(db: Session, project_id: str) -> Dict:
             if model_id not in by_model:
                 by_model[model_id] = {}
             if eval.metrics:
+                from routers.evaluations.results import _coerce_metric_value
+
                 by_model[model_id].update(eval.metrics)
                 for metric_name, value in eval.metrics.items():
                     metric_names_seen.add(metric_name)
-                    if metric_name not in by_method:
-                        by_method[metric_name] = {}
-                    by_method[metric_name][model_id] = value
+                    by_method.setdefault(metric_name, {})
+                    # Phase 2: report's by_method matrix expects a numeric
+                    # cell; coerce both legacy floats and {value, details}
+                    # dicts to a number. Fall back to the raw value (may be
+                    # None / non-numeric) if coercion can't extract one.
+                    coerced = _coerce_metric_value(value)
+                    by_method[metric_name][model_id] = (
+                        coerced if coerced is not None else value
+                    )
 
     # Build metric metadata from EvaluationType table
     metric_metadata = {}

@@ -39,6 +39,31 @@ _METRIC_METADATA_SUFFIXES = (
 )
 
 
+def _coerce_metric_value(val: Any) -> Optional[float]:
+    """Phase 2: accept either the legacy bare-float persistence shape OR the
+    new ``{"value": float|dict, "details": {...}}`` shape produced by
+    ``SampleEvaluator._compute_metric_with_details``.
+
+    For multi-output metrics (precision/recall/f1 from one compute call),
+    the inner value is a dict — surface ``primary_metric_key`` if set,
+    otherwise the first numeric value in insertion order.
+    """
+    if val is None or isinstance(val, bool):
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, dict):
+        inner = val.get("value")
+        if isinstance(inner, (int, float)) and not isinstance(inner, bool):
+            return float(inner)
+        if isinstance(inner, dict):
+            primary = val.get("primary_metric_key") or next(iter(inner), None)
+            inner_v = inner.get(primary) if primary else None
+            if isinstance(inner_v, (int, float)) and not isinstance(inner_v, bool):
+                return float(inner_v)
+    return None
+
+
 def _extract_primary_score(metrics: Optional[Dict[str, Any]]) -> Optional[float]:
     """Extract the primary display score from a TaskEvaluation metrics dict.
 
@@ -53,48 +78,43 @@ def _extract_primary_score(metrics: Optional[Dict[str, Any]]) -> Optional[float]
     4. score, overall_score (legacy keys)
     5. Generic: first non-metadata, non-error numeric value (covers
        bleu, rouge, meteor, exact_match, accuracy, f1, etc.)
+
+    Phase 2: every numeric extraction routes through ``_coerce_metric_value``
+    so both the legacy bare-float shape AND the new
+    ``{value, details}`` shape produce the right number.
     """
     if not metrics:
         return None
 
     # 1. Custom LLM judge
     if "llm_judge_custom" in metrics:
-        val = metrics["llm_judge_custom"]
-        if isinstance(val, (int, float)) and not isinstance(val, bool):
-            return float(val)
+        coerced = _coerce_metric_value(metrics["llm_judge_custom"])
+        if coerced is not None:
+            return coerced
 
     # 2. Any llm_judge_* numeric key
     for key, val in metrics.items():
-        if (
-            key.startswith("llm_judge_")
-            and isinstance(val, (int, float))
-            and not isinstance(val, bool)
-            and not key.endswith(_METRIC_METADATA_SUFFIXES)
-        ):
-            return float(val)
+        if not key.startswith("llm_judge_"):
+            continue
+        if key.endswith(_METRIC_METADATA_SUFFIXES):
+            continue
+        coerced = _coerce_metric_value(val)
+        if coerced is not None:
+            return coerced
 
     # 3. Domain-specific human-graded metric: takes precedence over generic
     # `score` / `overall_score` so projects using Falllosung-grade headline it.
-    if (
-        "korrektur_falloesung" in metrics
-        and isinstance(metrics["korrektur_falloesung"], (int, float))
-        and not isinstance(metrics["korrektur_falloesung"], bool)
-    ):
-        return float(metrics["korrektur_falloesung"])
+    if "korrektur_falloesung" in metrics:
+        coerced = _coerce_metric_value(metrics["korrektur_falloesung"])
+        if coerced is not None:
+            return coerced
 
     # 4. Legacy generic keys
-    if (
-        "score" in metrics
-        and isinstance(metrics["score"], (int, float))
-        and not isinstance(metrics["score"], bool)
-    ):
-        return float(metrics["score"])
-    if (
-        "overall_score" in metrics
-        and isinstance(metrics["overall_score"], (int, float))
-        and not isinstance(metrics["overall_score"], bool)
-    ):
-        return float(metrics["overall_score"])
+    for key in ("score", "overall_score"):
+        if key in metrics:
+            coerced = _coerce_metric_value(metrics[key])
+            if coerced is not None:
+                return coerced
 
     # 5. Generic fallback: first non-metadata, non-error numeric value.
     # Covers BLEU, ROUGE, exact_match, METEOR, etc. -- each TaskEvaluation row
@@ -103,11 +123,12 @@ def _extract_primary_score(metrics: Optional[Dict[str, Any]]) -> Optional[float]
     for key, val in metrics.items():
         if key == "error":
             continue
-        if not isinstance(val, (int, float)) or isinstance(val, bool):
-            continue
         if key.endswith(_METRIC_METADATA_SUFFIXES):
             continue
-        return float(val)
+        coerced = _coerce_metric_value(val)
+        if coerced is None:
+            continue
+        return coerced
 
     return None
 
@@ -1056,6 +1077,25 @@ async def get_project_results_by_task_model(
             .all()
         )
 
+        # Phase 6.3: count suppressed runs so consumers see the
+        # deduplication footprint. Per (generation_id, field_name) a single
+        # latest row is surfaced; older runs survive in the DB but get
+        # filtered out here. Without this audit trail a leaderboard score
+        # could swing on re-evaluation with no record of which historical
+        # run was hidden.
+        suppressed_count = (
+            db.query(func.count())
+            .select_from(ranked_results)
+            .filter(ranked_results.c.rn > 1)
+            .scalar()
+            or 0
+        )
+        deduplication_summary = {
+            "scope": "(generation_id, field_name)",
+            "policy": "latest_wins_by_created_at_desc",
+            "suppressed_run_count": int(suppressed_count),
+        }
+
         # Query 2: Get annotation-based evaluation results (generation_id IS NULL)
         from models import User as DBUser
         from models import TaskEvaluation as TE2
@@ -1210,6 +1250,12 @@ async def get_project_results_by_task_model(
             "model_names": model_name_map,
             "tasks": tasks_response,
             "summary": summary,
+            # Phase 6.3: how many historical runs were suppressed by
+            # the (generation_id, field_name) latest-wins dedup. A
+            # researcher comparing two snapshots of the same project
+            # can use this to understand whether a score change came
+            # from new data or a re-evaluation.
+            "deduplication_summary": deduplication_summary,
         }
 
     except HTTPException:

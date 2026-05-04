@@ -1463,6 +1463,9 @@ export function EvaluationResults({
           canStartGeneration(user) ? handleCellReEvaluate : undefined
         }
         evaluationConfigs={evaluationConfigs}
+        selectedMetricName={
+          availableMetricRuns.find((r) => r.id === selectedMetricRunId)?.metric ?? null
+        }
       />
     </div>
   )
@@ -1484,6 +1487,7 @@ function ResultDetailsModal({
   evaluationLoading,
   onReEvaluate,
   evaluationConfigs = [],
+  selectedMetricName = null,
 }: {
   isOpen: boolean
   onClose: () => void
@@ -1554,6 +1558,10 @@ function ResultDetailsModal({
     display_name?: string
     enabled: boolean
   }>
+  /** Filters Evaluation Results tab to rows for this metric only.
+   * `field_name` shape: "<metric>-<slug>|<pred>|<ref>"; we match by prefix
+   * before the first `-`. Pass null/undefined to show everything. */
+  selectedMetricName?: string | null
 }) {
   const { t } = useI18n()
   const isAnnotatorCell = modelId?.startsWith('annotator:') ?? false
@@ -1930,9 +1938,33 @@ function ResultDetailsModal({
                 <div className="flex items-center justify-center py-12">
                   <LoadingSpinner />
                 </div>
-              ) : evaluationData && evaluationData.results.length > 0 ? (
+              ) : evaluationData && evaluationData.results.length > 0 ? (() => {
+                // Filter to entries for the currently-selected metric.
+                // field_name shape from worker: "<metric>-<slug>|<pred>|<ref>"
+                // (see tasks.py: field_key = f"{config_id}|...", config_id = "{metric}-{slug}")
+                const visibleResults = selectedMetricName
+                  ? evaluationData.results.filter((r) => {
+                      const fieldMetric = (r.field_name || '').split('-')[0]
+                      const inMetricsKeys =
+                        r.metrics &&
+                        Object.keys(r.metrics).some(
+                          (k) => k === selectedMetricName || k.startsWith(`${selectedMetricName}_`)
+                        )
+                      return fieldMetric === selectedMetricName || inMetricsKeys
+                    })
+                  : evaluationData.results
+                if (visibleResults.length === 0) {
+                  return (
+                    <div className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                      {t('evaluation.multiFieldResults.noResultsForMetric', {
+                        defaultValue: 'No evaluation results for the selected metric.',
+                      })}
+                    </div>
+                  )
+                }
+                return (
                 <div className="space-y-6">
-                  {evaluationData.results.map((result, index) => (
+                  {visibleResults.map((result, index) => (
                     <div key={result.id} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
                       {/* Result Header */}
                       <div className="mb-4 flex items-center justify-between">
@@ -2089,7 +2121,8 @@ function ResultDetailsModal({
                     </div>
                   </details>
                 </div>
-              ) : (
+                )
+              })() : (
                 <div className="py-12 text-center text-zinc-500 dark:text-zinc-400">
                   {evaluationData?.message || t('evaluation.multiFieldResults.noEvalResults')}
                 </div>

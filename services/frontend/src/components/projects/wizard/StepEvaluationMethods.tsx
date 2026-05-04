@@ -2,7 +2,6 @@
 
 import { Alert } from '@/components/shared/Alert'
 import { Badge } from '@/components/shared/Badge'
-import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
 import {
   Select,
@@ -15,8 +14,8 @@ import { useI18n } from '@/contexts/I18nContext'
 import {
   EvaluationConfig,
   generateEvaluationId,
-  GROUPED_METRICS,
-  METRIC_DEFINITIONS,
+  getGroupedMetrics,
+  getMetricDefinitions,
 } from '@/lib/api/evaluation-types'
 import { OutputField } from '@/lib/labelConfig/fieldExtractor'
 import { useModels } from '@/hooks/useModels'
@@ -33,11 +32,7 @@ interface StepEvaluationMethodsProps {
   selectedModelIds: string[]
 }
 
-const LLM_JUDGE_METRICS = new Set([
-  'llm_judge_classic',
-  'llm_judge_custom',
-  'llm_judge_falloesung',
-])
+const LLM_JUDGE_CATEGORY = 'LLM-as-Judge'
 
 export function StepEvaluationMethods({
   evaluationConfigs,
@@ -51,6 +46,9 @@ export function StepEvaluationMethods({
   const { t } = useI18n()
   const { models } = useModels()
   const [expandedMetric, setExpandedMetric] = useState<string | null>(null)
+
+  const groupedMetrics = getGroupedMetrics()
+  const metricDefinitions = getMetricDefinitions()
 
   const selectedMetrics = new Set(evaluationConfigs.map((c) => c.metric))
 
@@ -86,15 +84,12 @@ export function StepEvaluationMethods({
         evaluationConfigs.filter((c) => c.metric !== metricKey)
       )
     } else {
-      const def = METRIC_DEFINITIONS[metricKey]
+      const def = metricDefinitions[metricKey]
       if (!def) return
 
-      const defaultParams: Record<string, any> = {}
-      if (metricKey === 'llm_judge_falloesung') {
-        defaultParams.max_tokens = 4096
-        defaultParams.score_scale = '0-100'
-        defaultParams.answer_type = 'long_text'
-      }
+      const defaultParams = def.default_parameters
+        ? { ...def.default_parameters }
+        : {}
 
       onEvaluationConfigsChange([
         ...evaluationConfigs,
@@ -124,10 +119,6 @@ export function StepEvaluationMethods({
   }
 
   const hasFieldOptions = predictionOptions.length > 0 || referenceOptions.length > 0
-  const isFalloesungSelected = selectedMetrics.has('llm_judge_falloesung')
-  const falloesungConfig = evaluationConfigs.find(
-    (c) => c.metric === 'llm_judge_falloesung'
-  )
   const isKorrekturClassicSelected = selectedMetrics.has('korrektur_classic')
   const korrekturClassicConfig = evaluationConfigs.find(
     (c) => c.metric === 'korrektur_classic'
@@ -196,7 +187,7 @@ export function StepEvaluationMethods({
 
       {/* Metric groups */}
       <div className="space-y-6">
-        {GROUPED_METRICS.map((group) => (
+        {groupedMetrics.map((group) => (
           <div key={group.name}>
             <div className="mb-3">
               <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">
@@ -209,7 +200,7 @@ export function StepEvaluationMethods({
 
             <div className="space-y-2">
               {group.metrics.map((metricKey) => {
-                const def = METRIC_DEFINITIONS[metricKey]
+                const def = metricDefinitions[metricKey]
                 if (!def) return null
 
                 const isSelected = selectedMetrics.has(metricKey)
@@ -308,7 +299,7 @@ export function StepEvaluationMethods({
                           </div>
                         )}
 
-                        {LLM_JUDGE_METRICS.has(metricKey) && models.length > 0 && (
+                        {def.category === LLM_JUDGE_CATEGORY && models.length > 0 && (
                           <div>
                             <Label className="text-xs">
                               {t('projects.creation.wizard.step7.judgeModel')}
@@ -344,103 +335,6 @@ export function StepEvaluationMethods({
           </div>
         ))}
       </div>
-
-      {/* Fallloesung dimensions info + config */}
-      {isFalloesungSelected && falloesungConfig && (
-        <div className="space-y-4 rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">
-            {t('projects.creation.wizard.step7.falloesungConfig')}
-          </h3>
-
-          {/* Judge model + params */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">
-                {t('projects.creation.wizard.step7.judgeModel')}
-              </Label>
-              <Select
-                value={(falloesungConfig.metric_parameters as any)?.judge_model || ''}
-                onValueChange={(val) =>
-                  updateConfig('llm_judge_falloesung', 'metric_parameters', {
-                    ...falloesungConfig.metric_parameters,
-                    judge_model: val,
-                  })
-                }
-              >
-                <SelectTrigger><SelectValue placeholder={t('projects.creation.wizard.step7.selectJudgeModel')} /></SelectTrigger>
-                <SelectContent>
-                  {models.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">
-                {t('projects.creation.wizard.step7.maxTokens')}
-              </Label>
-              <Input
-                type="number"
-                min={1024}
-                max={8192}
-                step={256}
-                value={(falloesungConfig.metric_parameters as any)?.max_tokens || 4096}
-                onChange={(e) =>
-                  updateConfig('llm_judge_falloesung', 'metric_parameters', {
-                    ...falloesungConfig.metric_parameters,
-                    max_tokens: parseInt(e.target.value) || 4096,
-                  })
-                }
-                className="text-sm"
-              />
-            </div>
-          </div>
-
-          {/* Prediction + Reference fields */}
-          <div className="grid grid-cols-2 gap-3">
-            {predictionOptions.length > 0 && (
-              <div>
-                <Label className="text-xs">
-                  {t('projects.creation.wizard.step7.predictionField')}
-                </Label>
-                <Select
-                  value={falloesungConfig.prediction_fields[0] || ''}
-                  onValueChange={(val) =>
-                    updateConfig('llm_judge_falloesung', 'prediction_fields', [val])
-                  }
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {predictionOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {referenceOptions.length > 0 && (
-              <div>
-                <Label className="text-xs">
-                  {t('projects.creation.wizard.step7.referenceField')}
-                </Label>
-                <Select
-                  value={falloesungConfig.reference_fields[0] || ''}
-                  onValueChange={(val) =>
-                    updateConfig('llm_judge_falloesung', 'reference_fields', [val])
-                  }
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {referenceOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Korrektur Classic config: editable highlight labels */}
       {isKorrekturClassicSelected && korrekturClassicConfig && (

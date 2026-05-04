@@ -597,6 +597,7 @@ async def get_llm_model_details(
 
     # Aggregate metrics
     metric_values: Dict[str, List[float]] = {}
+    metric_null_counts: Dict[str, int] = {}  # Phase 6.5: filtered-out audit
     eval_list = []
 
     for eval in evaluations:
@@ -612,11 +613,22 @@ async def get_llm_model_details(
         )
 
         if eval.metrics:
+            from routers.evaluations.results import _coerce_metric_value
+
             for metric_name, value in eval.metrics.items():
-                if value is not None and isinstance(value, (int, float)):
-                    if metric_name not in metric_values:
-                        metric_values[metric_name] = []
-                    metric_values[metric_name].append(float(value))
+                # Phase 2: accept legacy bare-float OR new {value, details}
+                # shape. Coercion returns None for non-numeric / metadata
+                # entries; those get skipped same as before.
+                coerced = _coerce_metric_value(value)
+                if coerced is None:
+                    # Phase 6.5: track null/non-numeric values that get
+                    # excluded from the aggregation so consumers can
+                    # see the size of the silently-filtered set.
+                    metric_null_counts[metric_name] = (
+                        metric_null_counts.get(metric_name, 0) + 1
+                    )
+                    continue
+                metric_values.setdefault(metric_name, []).append(coerced)
 
     # Calculate averages
     aggregate_metrics = {}
@@ -627,6 +639,10 @@ async def get_llm_model_details(
                 "min": round(min(values), 4),
                 "max": round(max(values), 4),
                 "count": len(values),
+                # Phase 6.5: how many values were filtered out at
+                # aggregation time. Mean is over `count` values; the
+                # remaining `null_count` got dropped silently before.
+                "null_count": metric_null_counts.get(metric_name, 0),
             }
 
     return {
@@ -688,13 +704,16 @@ async def compare_llm_models(
     # Aggregate by model
     model_metrics: Dict[str, Dict[str, List[float]]] = {m_id: {} for m_id in model_ids}
 
+    from routers.evaluations.results import _coerce_metric_value
+
     for eval in evaluations:
         if eval.metrics:
             for metric_name, value in eval.metrics.items():
-                if value is not None and isinstance(value, (int, float)):
-                    if metric_name not in model_metrics[eval.model_id]:
-                        model_metrics[eval.model_id][metric_name] = []
-                    model_metrics[eval.model_id][metric_name].append(float(value))
+                # Phase 2: legacy bare-float OR {value, details} dict.
+                coerced = _coerce_metric_value(value)
+                if coerced is None:
+                    continue
+                model_metrics[eval.model_id].setdefault(metric_name, []).append(coerced)
 
     # Calculate averages
     model_averages = {}

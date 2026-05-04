@@ -323,27 +323,20 @@ async def get_available_fields(
                     if from_name:
                         model_fields.add(from_name)
 
-        # Extract fields from a sample annotation
+        # Reference fields come from the task data (the project's source rows).
+        # Skip internal/system fields that start with underscore.
+        #
+        # Historically we also walked an existing annotation here to derive
+        # `from_name`/`to_name` values, but that propagated stale field names
+        # forward when the project's `label_config` was edited (the old field
+        # would keep showing up as a selectable option). The label_config is
+        # the single source of truth for which annotation fields exist now —
+        # we only need it for human_annotation_fields.
         sample_task = db.query(Task).filter(Task.project_id == project_id).first()
-        if sample_task:
-            sample_annot = db.query(Annotation).filter(Annotation.task_id == sample_task.id).first()
-            if sample_annot and sample_annot.result:
-                for result in sample_annot.result:
-                    from_name = result.get("from_name", "")
-                    to_name = result.get("to_name", "")
-                    if from_name:
-                        human_fields.add(from_name)
-                    if to_name:
-                        reference_fields.add(to_name)
-
-            # Extract fields from task data as potential reference fields
-            # Task data typically contains ground truth fields like "question", "answer", "case", etc.
-            if sample_task.data and isinstance(sample_task.data, dict):
-                for field_name, field_value in sample_task.data.items():
-                    # Include string fields and list fields as potential reference fields
-                    # Skip internal/system fields that start with underscore
-                    if not field_name.startswith("_") and isinstance(field_value, (str, list)):
-                        reference_fields.add(field_name)
+        if sample_task and sample_task.data and isinstance(sample_task.data, dict):
+            for field_name, field_value in sample_task.data.items():
+                if not field_name.startswith("_") and isinstance(field_value, (str, list)):
+                    reference_fields.add(field_name)
 
         all_fields = model_fields | human_fields | reference_fields
 

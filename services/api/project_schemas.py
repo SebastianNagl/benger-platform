@@ -387,8 +387,14 @@ class ProjectResponse(ProjectBase):
 
         # Handle special mappings
         data["instructions"] = getattr(obj, "expert_instruction", "") or ""
-        data["num_tasks"] = getattr(obj, "task_count", 0)
-        data["num_annotations"] = getattr(obj, "annotation_count", 0)
+        # num_tasks / num_annotations are legacy aliases for task_count /
+        # annotation_count. The SQLAlchemy Project model has neither
+        # attribute by default — those values are computed and assigned
+        # onto the *response* by calculate_project_stats(_batch). The
+        # legacy aliases are mirrored there so they always stay in sync.
+        # Setting them here from a missing attribute would default to 0
+        # and stick (the stats pass writes task_count without touching
+        # num_tasks), which is exactly the "Task -11 of 0" bug we hit.
 
         # Note: progress_percentage is calculated in the API endpoints after
         # task_count and completed_tasks_count are fetched from the database

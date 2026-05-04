@@ -176,6 +176,7 @@ class GrokService(BaseAIService):
                     "finish_reason": "stop",
                     "created_at": datetime.now().isoformat(),
                     "e2e_test_mode": True,
+                    **self.get_invocation_provenance(),
                 },
                 success=True,
                 error=None,
@@ -265,6 +266,7 @@ class GrokService(BaseAIService):
                     "response_time_ms": response_time_ms,
                     "finish_reason": result["choices"][0].get("finish_reason", "unknown") if result.get("choices") else "unknown",
                     "created_at": end_time.isoformat(),
+                    **self.get_invocation_provenance(),
                 },
                 success=True,
                 error=None,
@@ -344,6 +346,7 @@ class GrokService(BaseAIService):
                     "response_time_ms": 100,
                     "structured_output": True,
                     "e2e_test_mode": True,
+                    **self.get_invocation_provenance(),
                 },
                 success=True,
             )

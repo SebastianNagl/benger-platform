@@ -1021,23 +1021,15 @@ export default function RegisterPage() {
                 (step) => {
                   const isCompleted = step < currentStep
                   const isActive = step === currentStep
-                  const isClickable = isCompleted || isActive
                   return (
                     <button
                       key={step}
                       type="button"
-                      disabled={!isClickable}
                       onClick={() => {
-                        if (isClickable) {
-                          setError(null)
-                          setCurrentStep(step)
-                        }
+                        setError(null)
+                        setCurrentStep(step)
                       }}
-                      className={`flex flex-col items-center ${
-                        isClickable
-                          ? 'cursor-pointer'
-                          : 'cursor-default'
-                      }`}
+                      className="flex cursor-pointer flex-col items-center"
                     >
                       <div
                         className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors ${

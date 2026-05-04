@@ -21,6 +21,10 @@ from .response_validator import ResponseValidator
 logger = logging.getLogger(__name__)
 
 
+# Phase 6.2: shared retry-history contextvar (defined in base_service).
+from .base_service import _retry_history_ctx, get_retry_history_snapshot  # noqa: F401
+
+
 def retry_with_exponential_backoff(
     max_retries: int = 5,
     base_delay: float = 2.0,
@@ -28,30 +32,48 @@ def retry_with_exponential_backoff(
     exponential_base: float = 2.0,
     jitter: bool = True
 ):
-    """Decorator for exponential backoff retry on rate limit errors."""
+    """Decorator for exponential backoff retry on rate limit errors.
+
+    Records each rate-limited attempt in the shared
+    :data:`base_service._retry_history_ctx` so the wrapped function's
+    response-builder can include the audit trail in response_metadata.
+    """
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            retries = 0
-            while True:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    error_str = str(e).lower()
-                    is_rate_limit = "429" in error_str or "rate limit" in error_str
+            history: list = []
+            token = _retry_history_ctx.set(history)
+            try:
+                retries = 0
+                while True:
+                    attempt_start = time.time()
+                    try:
+                        return func(*args, **kwargs)
+                    except Exception as e:
+                        error_str = str(e).lower()
+                        is_rate_limit = "429" in error_str or "rate limit" in error_str
+                        history.append({
+                            "attempt": retries + 1,
+                            "error": str(e)[:200],
+                            "is_rate_limit": is_rate_limit,
+                            "latency_ms": int((time.time() - attempt_start) * 1000),
+                            "retried": is_rate_limit and retries < max_retries,
+                        })
 
-                    if not is_rate_limit or retries >= max_retries:
-                        raise
+                        if not is_rate_limit or retries >= max_retries:
+                            raise
 
-                    delay = min(base_delay * (exponential_base ** retries), max_delay)
-                    if jitter:
-                        delay = delay * (0.5 + random.random())
+                        delay = min(base_delay * (exponential_base ** retries), max_delay)
+                        if jitter:
+                            delay = delay * (0.5 + random.random())
 
-                    logger.warning(
-                        f"Rate limit hit, retry {retries + 1}/{max_retries} in {delay:.1f}s"
-                    )
-                    time.sleep(delay)
-                    retries += 1
+                        logger.warning(
+                            f"Rate limit hit, retry {retries + 1}/{max_retries} in {delay:.1f}s"
+                        )
+                        time.sleep(delay)
+                        retries += 1
+            finally:
+                _retry_history_ctx.reset(token)
         return wrapper
     return decorator
 
@@ -156,6 +178,7 @@ class CohereService(BaseAIService):
                     "finish_reason": "stop",
                     "created_at": datetime.now().isoformat(),
                     "e2e_test_mode": True,
+                    **self.get_invocation_provenance(),
                 },
                 success=True,
                 error=None,
@@ -240,6 +263,7 @@ class CohereService(BaseAIService):
                     "response_time_ms": response_time_ms,
                     "finish_reason": response.finish_reason if hasattr(response, 'finish_reason') else "unknown",
                     "created_at": end_time.isoformat(),
+                    **self.get_invocation_provenance(),
                 },
                 success=True,
                 error=None,
@@ -296,6 +320,7 @@ class CohereService(BaseAIService):
                     "response_time_ms": 100,
                     "structured_output": True,
                     "e2e_test_mode": True,
+                    **self.get_invocation_provenance(),
                 },
                 success=True,
             )

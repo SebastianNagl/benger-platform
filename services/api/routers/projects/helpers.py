@@ -59,6 +59,12 @@ def calculate_project_stats(db: Session, project_id: str, response: ProjectRespo
         db.query(Task).filter(Task.project_id == project_id, Task.is_labeled == True).count()
     )
 
+    # Mirror to the legacy aliases so frontends reading either name see the
+    # same value (the labeling page reads num_tasks for the "Task X of Y"
+    # progress counter).
+    response.num_tasks = response.task_count
+    response.num_annotations = response.annotation_count
+
     # Calculate progress based on Label Studio approach
     if response.task_count > 0:
         response.progress_percentage = min(

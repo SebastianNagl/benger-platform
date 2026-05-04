@@ -267,20 +267,24 @@
           "description": "Description",
           "optional": "(optional)",
           "descriptionPlaceholder": "Describe the purpose and scope of this annotation project...",
-          "visibility": "Visibility",
+          "visibilityLabel": "Visibility",
           "visibilityDescription": "Choose who can see and interact with this project",
-          "visibility.private": "Private",
-          "visibility.privateDescription": "Only you (and superadmins) can access",
-          "visibility.organization": "Organization",
-          "visibility.organizationDescription": "Members of your organization can access",
-          "visibility.public": "Public",
-          "visibility.publicDescription": "Visible to every authenticated user across all organizations",
+          "visibility": {
+            "private": "Private",
+            "privateDescription": "Only you (and superadmins) can access",
+            "organization": "Organization",
+            "organizationDescription": "Members of your organization can access",
+            "public": "Public",
+            "publicDescription": "Visible to every authenticated user across all organizations"
+          },
           "publicRoleLabel": "Public role",
           "publicRoleDescription": "How visitors interact with the project",
-          "publicRole.annotator": "Annotator",
-          "publicRole.annotatorDescription": "Visitors can view tasks and create annotations",
-          "publicRole.contributor": "Contributor",
-          "publicRole.contributorDescription": "Visitors can also add tasks and run generation/evaluation. Project settings remain locked.",
+          "publicRole": {
+            "annotator": "Annotator",
+            "annotatorDescription": "Visitors can view tasks and create annotations",
+            "contributor": "Contributor",
+            "contributorDescription": "Visitors can also add tasks and run generation/evaluation. Project settings remain locked."
+          },
           "assignedOrganizations": "Assigned organizations",
           "assignedOrganizationsHelp": "Pick the organizations whose members can access this project. Independent of the current subdomain.",
           "noOrganizationsAvailable": "No organizations available.",
@@ -1928,8 +1932,6 @@
     "coCreator": "Co-Creator",
     "selectMetric": "Select Metric",
     "noMetric": "None",
-    "coCreation.noData": "No AI-assisted annotations found for this period.",
-    "coCreation.noSearchResults": "No co-creators found matching your search.",
     "aggregation": {
       "average": "Average",
       "sum": "Sum"
@@ -2908,6 +2910,13 @@
       "readMore": "Read more",
       "items": [
         {
+          "title": "BenGER Platform Release",
+          "description": "The BenGER platform is now publicly available. Read the announcement covering the open-core release, what's included, and how to get started running your own legal-AI benchmarks.",
+          "date": "2026-05-03",
+          "type": "publication",
+          "url": "https://legalplusplus.net/articles/platform-release"
+        },
+        {
           "title": "BenGER Benchathon 2026",
           "description": "The first BenGER Benchathon takes place March 14–15, 2026 in partnership with the Legal Tech Association. Students and legal professionals complete tasks to earn points on a leaderboard.",
           "date": "2026-02-25",
@@ -2933,16 +2942,14 @@
     "people": {
       "title": "People & Network",
       "subtitle": "Meet the team behind BenGER and our partners in legal AI research.",
-      "teamTitle": "Team",
+      "teamPlatformTitle": "Team — Platform",
+      "teamDatasetTitle": "Team — Dataset",
+      "teamDatasetCoreTitle": "Core Contributor",
+      "teamDatasetContributionTitle": "Dataset Contribution",
+      "teamDatasetSeniorTitle": "Senior Authors",
+      "acknowledgementsTitle": "Acknowledgements",
       "networkTitle": "Network & Partners",
-      "team": [
-        {
-          "name": "Matthias Grabmair",
-          "role": "Project Supervisor",
-          "institution": "Technical University of Munich",
-          "url": "",
-          "image": ""
-        },
+      "teamPlatform": [
         {
           "name": "Sebastian Nagl",
           "role": "Project Lead & Developer",
@@ -2951,9 +2958,48 @@
           "image": ""
         },
         {
-          "name": "Sofija Milijas",
-          "role": "Project Coordination",
+          "name": "Matthias Grabmair",
+          "role": "Project Supervisor",
           "institution": "Technical University of Munich",
+          "url": "",
+          "image": ""
+        }
+      ],
+      "teamDatasetCore": [
+        {
+          "name": "Sebastian Nagl",
+          "role": "Project Lead & Developer",
+          "institution": "Technical University of Munich",
+          "url": "https://legalplusplus.net",
+          "image": ""
+        }
+      ],
+      "teamDatasetContribution": [
+        {
+          "name": "Ann-Kristin Mayrhofer",
+          "role": "Civil Law",
+          "institution": "LMU Munich",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Martin Heidebach",
+          "role": "Public Law",
+          "institution": "LMU Munich",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Anne Zettelmeier",
+          "role": "Criminal Law",
+          "institution": "Saarland University",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Aleyna Kocak",
+          "role": "Criminal Law",
+          "institution": "University of Freiburg",
           "url": "",
           "image": ""
         },
@@ -2972,65 +3018,18 @@
           "image": ""
         },
         {
-          "name": "Dominik Brodowski",
-          "role": "Criminal Law",
-          "institution": "Saarland University",
+          "name": "Johannes Sigmund",
+          "role": "Research Associate",
+          "institution": "TU Braunschweig",
           "url": "",
           "image": ""
-        },
-        {
-          "name": "Anne Zettelmeier",
-          "role": "Criminal Law",
-          "institution": "Saarland University",
-          "url": "",
-          "image": ""
-        },
+        }
+      ],
+      "teamDatasetSenior": [
         {
           "name": "Liane Wörner",
           "role": "Criminal Law",
           "institution": "University of Freiburg",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Aleyna Kocak",
-          "role": "Criminal Law",
-          "institution": "University of Freiburg",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Markus Langer",
-          "role": "Psychology",
-          "institution": "University of Freiburg",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Ann-Kristin Mayrhofer",
-          "role": "Civil Law",
-          "institution": "LMU Munich",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Martin Heidebach",
-          "role": "Public Law",
-          "institution": "LMU Munich",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Peter Moser",
-          "role": "Coordination",
-          "institution": "LMU Munich",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Philipp Reuß",
-          "role": "Civil Law",
-          "institution": "University of Göttingen",
           "url": "",
           "image": ""
         },
@@ -3042,9 +3041,53 @@
           "image": ""
         },
         {
-          "name": "Johannes Sigmund",
-          "role": "Research Associate",
-          "institution": "TU Braunschweig",
+          "name": "Dominik Brodowski",
+          "role": "Criminal Law",
+          "institution": "Saarland University",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Matthias Grabmair",
+          "role": "Project Supervisor",
+          "institution": "Technical University of Munich",
+          "url": "",
+          "image": ""
+        }
+      ],
+      "acknowledgements": [
+        {
+          "name": "Sofija Milijas",
+          "role": "Project Coordination",
+          "institution": "Technical University of Munich",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Philipp Reuß",
+          "role": "Civil Law",
+          "institution": "University of Göttingen",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Peter Moser",
+          "role": "Coordination",
+          "institution": "LMU Munich",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Markus Langer",
+          "role": "Psychology",
+          "institution": "University of Freiburg",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Asya Caroei",
+          "role": "Psychology",
+          "institution": "University of Freiburg",
           "url": "",
           "image": ""
         },
@@ -3123,18 +3166,29 @@
     "license": {
       "title": "License & Citation",
       "subtitle": "How to use and cite our work.",
-      "licenseTitle": "CC-BY License",
-      "licenseDescription": "Our work is licensed under Creative Commons Attribution (CC-BY). You are free to share and adapt the material for any purpose, as long as appropriate credit is given.",
+      "licenses": [
+        {
+          "label": "Platform",
+          "title": "Apache License 2.0",
+          "description": "The BenGER platform code is open-source under the Apache License 2.0. You are free to use, modify, and distribute it -- including for commercial purposes -- with attribution."
+        },
+        {
+          "label": "Benchmark Dataset (planned)",
+          "title": "CC-BY License",
+          "description": "The BenGER benchmark dataset will be released under Creative Commons Attribution (CC-BY). You will be free to share and adapt the data for any purpose, as long as appropriate credit is given."
+        }
+      ],
       "citationTitle": "How to Cite",
       "citationDescription": "Please use the appropriate citation depending on whether you are referencing the platform or the benchmark dataset.",
       "citations": [
         {
           "label": "BenGER Platform",
-          "bibtex": "@software{benger_platform,\n  author    = {Nagl, Sebastian},\n  title     = {BenGER: Benchmarking Platform for German Legal NLP},\n  year      = {2025},\n  url       = {https://what-a-benger.net},\n  note      = {Placeholder -- citation forthcoming}\n}"
+          "bibtex": "@inproceedings{nagl2026benger,\n  title={{BenGER}: A Collaborative Web Platform for End-to-End Benchmarking of German Legal Tasks},\n  author={Nagl, Sebastian and Grabmair, Matthias},\n  booktitle={Proceedings of the International Conference on Artificial Intelligence and Law (ICAIL)},\n  year={2026},\n  address={Singapore}\n}"
         },
         {
           "label": "BenGER Benchmark Dataset",
-          "bibtex": "@dataset{benger_dataset,\n  author    = {Nagl, Sebastian},\n  title     = {BenGER: A Benchmark Dataset for German Legal Language Models},\n  year      = {2025},\n  url       = {https://what-a-benger.net},\n  note      = {Placeholder -- citation forthcoming}\n}"
+          "bibtex": "",
+          "tba": true
         }
       ]
     },
@@ -5318,6 +5372,7 @@
       "groundTruth": "Ground Truth",
       "modelPrediction": "Model Prediction",
       "noEvalResults": "No evaluation results available",
+      "noResultsForMetric": "No evaluation results for the selected metric.",
       "annotationResult": "Annotation Result",
       "annotation": "Annotation",
       "annotator": "Annotator",

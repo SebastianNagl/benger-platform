@@ -236,6 +236,9 @@ test_env/
 # Test HTML files
 test_*.html
 
+# E2E debug probe scratch dirs
+services/frontend/e2e/**/_probe/
+
 # Migration and debug scripts
 *_migrate.py
 !services/*/migrations/.benger_token

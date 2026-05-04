@@ -125,6 +125,7 @@ class AnthropicService(BaseAIService):
                     "provider": "Anthropic",
                     "created_at": datetime.now().isoformat(),
                     "e2e_test_mode": True,
+                    **self.get_invocation_provenance(),
                 },
                 success=True,
                 error=None,
@@ -199,6 +200,7 @@ class AnthropicService(BaseAIService):
                     "cost_usd": cost_usd,
                     "provider": "Anthropic",
                     "created_at": end_time.isoformat(),
+                    **self.get_invocation_provenance(),
                 },
                 success=True,
                 error=None,
@@ -259,6 +261,7 @@ class AnthropicService(BaseAIService):
                     "response_time_ms": 150,
                     "structured_output": True,
                     "e2e_test_mode": True,
+                    **self.get_invocation_provenance(),
                 },
                 success=True,
             )
@@ -323,6 +326,7 @@ class AnthropicService(BaseAIService):
                     "provider": "Anthropic",
                     "structured_output": True,
                     "created_at": end_time.isoformat(),
+                    **self.get_invocation_provenance(),
                 },
                 success=True,
             )

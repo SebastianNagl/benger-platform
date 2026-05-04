@@ -202,6 +202,45 @@ export interface AvailableEvaluationFields {
 }
 
 /**
+ * Result of a single metric within an immediate evaluation. Hoisted from
+ * the extended modal so the platform's evaluations API client can return
+ * a typed payload that both core and extended consumers share.
+ */
+export interface ImmediateMetricResult {
+  metric_name: string
+  display_name: string
+  value: number | null
+  passed?: boolean | null
+  details?: Record<string, any> | null
+}
+
+/**
+ * Per-field group of metric results within an immediate evaluation.
+ */
+export interface ImmediateFieldEvaluationResult {
+  field_name: string
+  display_name: string
+  metrics: ImmediateMetricResult[]
+}
+
+/**
+ * Payload returned by the immediate-evaluation endpoints
+ * (POST /immediate, GET /immediate/{id}/status).
+ */
+export interface ImmediateEvaluationData {
+  success: boolean
+  task_id: string
+  message: string
+  results: ImmediateFieldEvaluationResult[]
+  error?: string | null
+  evaluation_time_ms?: number | null
+  evaluation_id?: string | null
+  status?: string | null
+  expected_metrics?: string[] | null
+  completed_metrics?: string[] | null
+}
+
+/**
  * Metric category for grouping in UI
  */
 export interface MetricCategory {
@@ -221,6 +260,11 @@ export interface AvailableMetric {
   status: 'stable' | 'beta' | 'coming-soon'
   supports_parameters: boolean
   parameter_schema?: Record<string, any>
+  /** Default values seeded into metric_parameters when the user picks this
+   * metric in the wizard. Lets extended packages declare their own defaults
+   * (e.g. Falllösung's Notenpunkte score_scale and 4096 max_tokens) without
+   * the platform wizard hardcoding metric names. */
+  default_parameters?: Record<string, any>
 }
 
 /**
@@ -903,8 +947,27 @@ export function getMetricDefinitions(): Record<string, AvailableMetric> {
 }
 
 /**
- * Get all metric groups (core + extended).
+ * Get all metric groups (core + extended). Extended groups whose name matches
+ * an existing core group are merged into that group's metrics array (preserving
+ * core ordering and description); other extended groups are appended.
  */
 export function getGroupedMetrics(): MetricCategory[] {
-  return [...GROUPED_METRICS, ..._extendedGroups]
+  const merged: MetricCategory[] = GROUPED_METRICS.map((g) => ({
+    ...g,
+    metrics: [...g.metrics],
+  }))
+  const byName = new Map(merged.map((g) => [g.name, g]))
+  for (const ext of _extendedGroups) {
+    const existing = byName.get(ext.name)
+    if (existing) {
+      for (const m of ext.metrics) {
+        if (!existing.metrics.includes(m)) existing.metrics.push(m)
+      }
+    } else {
+      const copy: MetricCategory = { ...ext, metrics: [...ext.metrics] }
+      merged.push(copy)
+      byName.set(copy.name, copy)
+    }
+  }
+  return merged
 }

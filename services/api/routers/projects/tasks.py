@@ -882,8 +882,9 @@ async def bulk_delete_tasks(
         if result > 0:
             deleted_count += 1
 
-    # Update project task count
-    project.task_count = db.query(Task).filter(Task.project_id == project_id).count()
+    # task_count is a response-time computed field (see calculate_project_stats),
+    # not a stored Project column. The previous `project.task_count = …` write
+    # here was a dead store on the SQLAlchemy instance — removed.
 
     db.commit()
 

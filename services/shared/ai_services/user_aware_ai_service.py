@@ -36,7 +36,16 @@ class UserAwareAIService:
     def get_ai_service_for_user(
         self, db: Session, user_id: str, provider: str, organization_id: str = None
     ) -> Optional[Any]:
-        """Get AI service instance configured with user's or org's API key"""
+        """Get AI service instance configured with user's or org's API key.
+
+        Phase 6.5: records the actual key-resolution route on the
+        returned service instance via ``service._key_resolution_route``
+        so downstream response_metadata can include it. Without this, a
+        Generation row shows the provider name (``openai``) but never
+        which key actually billed for it (org's vs. user's).
+        """
+        # Track which path we took so the caller can persist it.
+        key_route = "user_key"  # default
         try:
             # Resolve API key based on context (Issue #1180)
             if organization_id:
@@ -47,15 +56,24 @@ class UserAwareAIService:
                         user_api_key = org_api_key_service.resolve_api_key(
                             db, user_id, organization_id, provider
                         )
+                        # The org service returns either the org's shared
+                        # key or falls through to the user's depending on
+                        # require_private_keys; record the higher-level
+                        # decision so a researcher tracing billing can
+                        # at least see the org context was honored.
+                        key_route = "org_resolved" if user_api_key else "org_resolved_failed"
                     else:
                         logger.warning(
                             f"org_api_key_service is None - falling back to user key for {provider}"
                         )
                         user_api_key = user_api_key_service.get_user_api_key(db, user_id, provider)
+                        key_route = "user_key_fallback_org_service_unavailable"
                 except ImportError:
                     user_api_key = user_api_key_service.get_user_api_key(db, user_id, provider)
+                    key_route = "user_key_fallback_org_service_missing"
             else:
                 user_api_key = user_api_key_service.get_user_api_key(db, user_id, provider)
+                key_route = "user_key"
 
             if not user_api_key:
                 logger.warning(f"No API key found for user {user_id} and provider {provider}")
@@ -63,23 +81,30 @@ class UserAwareAIService:
 
             provider_lower = provider.lower()
 
-            if provider_lower == "openai":
-                return UserSpecificOpenAIService(user_api_key)
-            elif provider_lower == "anthropic":
-                return UserSpecificAnthropicService(user_api_key)
-            elif provider_lower == "google":
-                return UserSpecificGoogleService(user_api_key)
-            elif provider_lower == "deepinfra":
-                return UserSpecificDeepInfraService(user_api_key)
-            elif provider_lower == "grok":
-                return UserSpecificGrokService(user_api_key)
-            elif provider_lower == "mistral":
-                return UserSpecificMistralService(user_api_key)
-            elif provider_lower == "cohere":
-                return UserSpecificCohereService(user_api_key)
-            else:
+            service_class_map = {
+                "openai": UserSpecificOpenAIService,
+                "anthropic": UserSpecificAnthropicService,
+                "google": UserSpecificGoogleService,
+                "deepinfra": UserSpecificDeepInfraService,
+                "grok": UserSpecificGrokService,
+                "mistral": UserSpecificMistralService,
+                "cohere": UserSpecificCohereService,
+            }
+            cls = service_class_map.get(provider_lower)
+            if cls is None:
                 logger.error(f"Unsupported provider: {provider}")
                 return None
+
+            service = cls(user_api_key)
+            # Phase 6.5: stamp the key-resolution route + invocation
+            # context on the service instance so each response_metadata
+            # can include them. Generation rows can then be filtered by
+            # billing path / org context when reproducing benchmarks.
+            service._key_resolution_route = key_route
+            service._provider_name = provider_lower
+            service._invocation_user_id = user_id
+            service._invocation_organization_id = organization_id
+            return service
 
         except Exception as e:
             logger.error(f"Error creating user-specific AI service: {e}")

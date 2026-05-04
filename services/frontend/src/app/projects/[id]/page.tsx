@@ -170,7 +170,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [expandedConfig, setExpandedConfig] = useState(false)
   const [expandedModels, setExpandedModels] = useState(false)
   const [expandedInstructions, setExpandedInstructions] = useState(false)
-  const [expandedEvaluation, setExpandedEvaluation] = useState(false)
   const [expandedGenDefaults, setExpandedGenDefaults] = useState(false)
   const [expandedEvalDefaults, setExpandedEvalDefaults] = useState(false)
 
@@ -380,13 +379,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     fetchEvaluationConfig()
   }, [projectId])
 
-  // Fetch available fields when evaluation section is expanded
   useEffect(() => {
     const fetchAvailableFields = async () => {
-      if (!projectId || !expandedEvaluation) return
+      if (!projectId) return
 
       try {
-        // Fetch available fields
         const fields =
           await apiClient.evaluations.getAvailableEvaluationFields(projectId)
         setAvailableEvaluationFields(fields)
@@ -396,7 +393,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
 
     fetchAvailableFields()
-  }, [projectId, expandedEvaluation])
+  }, [projectId])
 
   // Save evaluation configs to project config when they change
   const saveEvaluationConfigsToProject = async (

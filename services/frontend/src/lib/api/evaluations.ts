@@ -4,6 +4,7 @@
  */
 
 import { BaseApiClient } from './base'
+import type { ImmediateEvaluationData } from './evaluation-types'
 import {
   AddPromptsResponse,
   AnnotationStatistics,
@@ -826,6 +827,60 @@ export class EvaluationsClient extends BaseApiClient {
     all_fields: string[]
   }> {
     return this.request(`/evaluations/projects/${projectId}/available-fields`)
+  }
+
+  /**
+   * Run immediate evaluation for a single annotation right after submit.
+   * Returns immediately — if status is 'pending', use pollImmediateEvaluation
+   * to wait for the final result. Ported from the pre-split monolith
+   * (services/frontend/src/lib/api/evaluations.ts) so the slot wrapper can
+   * use a single imperative await chain instead of an internal setInterval.
+   */
+  async runImmediateEvaluation(
+    projectId: string,
+    taskId: string,
+    annotationId?: string,
+  ): Promise<ImmediateEvaluationData> {
+    return this.request(
+      `/evaluations/projects/${projectId}/tasks/${taskId}/immediate`,
+      {
+        method: 'POST',
+        body: JSON.stringify(annotationId ? { annotation_id: annotationId } : {}),
+      },
+    )
+  }
+
+  /**
+   * Poll for an async immediate-evaluation result until it completes / fails
+   * or the timeout fires. Resolves with the final payload — callers `await`
+   * once and render the result, no React state churn during polling.
+   */
+  async pollImmediateEvaluation(
+    projectId: string,
+    taskId: string,
+    evaluationId: string,
+    options?: { intervalMs?: number; timeoutMs?: number },
+  ): Promise<ImmediateEvaluationData> {
+    const interval = options?.intervalMs ?? 2000
+    const timeout = options?.timeoutMs ?? 90000
+    const startTime = Date.now()
+    while (Date.now() - startTime < timeout) {
+      const result = (await this.request(
+        `/evaluations/projects/${projectId}/tasks/${taskId}/immediate/${evaluationId}/status`,
+      )) as ImmediateEvaluationData
+      if (result.status === 'completed' || result.status === 'failed') {
+        return result
+      }
+      await new Promise((resolve) => setTimeout(resolve, interval))
+    }
+    return {
+      success: false,
+      task_id: taskId,
+      message: 'Evaluation timed out',
+      results: [],
+      error: 'Evaluation did not complete within the expected time',
+      status: 'failed',
+    }
   }
 
   /**

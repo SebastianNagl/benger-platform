@@ -60,13 +60,18 @@ def _register_extension_field_types():
         return
     try:
         registrations = _extended.get_field_type_registrations() or {}
+        from services.label_config.parser import LabelConfigParser
         from services.label_config.validator import LabelConfigValidator
 
+        types = registrations.get("types", [])
         LabelConfigValidator.register_field_types(
-            registrations.get("types", []),
+            types,
             named_types=registrations.get("named_types"),
         )
-        types = registrations.get("types")
+        # Mirror the registration into the parser so extracted field lists
+        # (used by /api/projects/{id}/evaluation-fields) include the same
+        # extension-contributed tags the validator now accepts.
+        LabelConfigParser.register_field_types(types)
         if types:
             logger.info(f"Registered {len(types)} extension field types: {sorted(types)}")
     except Exception:

@@ -28,6 +28,26 @@ class LabelConfigParser:
         "DateTime",
     ]
 
+    # Field types contributed by extension packages at startup. Mirrors the
+    # validator's _EXTENSION_FIELD_TYPES set so the same registration call
+    # (driven by extensions._register_extension_field_types) keeps validator
+    # and parser in sync.
+    _EXTENSION_FIELD_TYPES: set = set()
+
+    @classmethod
+    def register_field_types(cls, types) -> None:
+        """Register additional field types contributed by an extension package.
+
+        Idempotent. Called from services/api/extensions.py at startup so that
+        out-of-tree label-studio components (e.g. Klausurlösung's Angabe /
+        Gliederung / Loesung / Notizen) participate in field extraction.
+        """
+        cls._EXTENSION_FIELD_TYPES.update(types)
+
+    @classmethod
+    def _allowed_field_types(cls) -> set:
+        return set(cls.SUPPORTED_FIELD_TYPES) | cls._EXTENSION_FIELD_TYPES
+
     @staticmethod
     def extract_fields(label_config: str, sanitize: bool = True) -> List[Dict]:
         """
@@ -57,7 +77,7 @@ class LabelConfigParser:
             fields = []
 
             for elem in root.iter():
-                if elem.tag in LabelConfigParser.SUPPORTED_FIELD_TYPES:
+                if elem.tag in LabelConfigParser._allowed_field_types():
                     field = LabelConfigParser._parse_field_element(elem)
                     if field:
                         # XSS Prevention: Sanitize field metadata before returning

@@ -92,6 +92,38 @@ class BaseAIService(ABC):
             f"{self.__class__.__name__} does not implement generate_structured()"
         )
 
+    def get_invocation_provenance(self) -> Dict[str, Any]:
+        """Phase 6.2 + 6.5: standard audit fields every provider's
+        ``response_metadata`` should include so a researcher exporting a
+        Generation row can always tell:
+
+        * which retry attempts (if any) preceded the successful call
+        * which API key was used (org's vs. user's, fallback path, etc.)
+        * which provider name + which user / org context was billed
+
+        Provider services call this helper from their metadata-building
+        blocks. The user_aware_ai_service factory stamps the
+        ``_key_resolution_route`` / ``_provider_name`` /
+        ``_invocation_user_id`` / ``_invocation_organization_id``
+        attributes on each freshly-created service instance — direct
+        callers (E2E mocks, scripts) get ``None`` values.
+
+        Retry attempts come from a thread-safe contextvar populated by
+        the per-provider retry decorator (see :data:`_retry_history_ctx`
+        and :func:`get_retry_history_snapshot` above).
+        """
+        attempts = get_retry_history_snapshot()
+        return {
+            "retry_attempts": attempts,
+            "retry_count": len(attempts),
+            "provider_route": getattr(self, "_key_resolution_route", None),
+            "provider_name": getattr(self, "_provider_name", None),
+            "billed_user_id": getattr(self, "_invocation_user_id", None),
+            "billed_organization_id": getattr(
+                self, "_invocation_organization_id", None
+            ),
+        }
+
     def _create_response_dict(
         self,
         content: str,
@@ -164,3 +196,32 @@ class BaseAIService(ABC):
             success=False,
             error=error_str
         )
+
+# ----------------------------------------------------------------
+# Phase 6.2: Per-call retry history (academic-rigor audit trail)
+# ----------------------------------------------------------------
+#
+# All provider services use a `retry_with_exponential_backoff` decorator
+# (one duplicated copy each in openai_service / cohere_service /
+# mistral_service / deepinfra_service). Each decorator pushes attempt
+# records into the contextvar below; each generate() reads it back when
+# building response_metadata so consumers see exactly which rate-limit
+# failures preceded a successful response. Empty when the call succeeded
+# on the first attempt.
+import contextvars
+
+_retry_history_ctx: contextvars.ContextVar = contextvars.ContextVar(
+    "ai_service_retry_history", default=None
+)
+
+
+def get_retry_history_snapshot() -> list:
+    """Snapshot of retry attempts that preceded the current call.
+
+    Returns a *copy* so callers can persist it without depending on the
+    contextvar lifecycle (the decorator resets it after the call returns).
+    Empty list if no decorator is active (direct calls from tests, etc.).
+    """
+    history = _retry_history_ctx.get()
+    return list(history) if history else []
+

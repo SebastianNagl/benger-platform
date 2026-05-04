@@ -64,9 +64,11 @@ interface Props {
   onChange: (next: AssignmentFormValue) => void
   /** When false, hides the distribution dropdown (e.g. single-target assignment). */
   showDistribution?: boolean
+  /** Override which member roles are selectable. Defaults to annotation-task roles. */
+  eligibleRoles?: Set<string>
 }
 
-const ANNOTATOR_ROLES = new Set([
+const DEFAULT_ELIGIBLE_ROLES = new Set([
   'ANNOTATOR',
   'REVIEWER',
   'CONTRIBUTOR',
@@ -75,6 +77,15 @@ const ANNOTATOR_ROLES = new Set([
   'reviewer',
   'contributor',
   'org_admin',
+])
+
+export const KORREKTUR_ELIGIBLE_ROLES = new Set([
+  'CONTRIBUTOR',
+  'ORG_ADMIN',
+  'ADMIN',
+  'contributor',
+  'org_admin',
+  'admin',
 ])
 
 function distributionIcon(d: AssignmentDistribution) {
@@ -95,13 +106,14 @@ export function AssignmentFormBody({
   value,
   onChange,
   showDistribution = true,
+  eligibleRoles = DEFAULT_ELIGIBLE_ROLES,
 }: Props) {
   const { t } = useI18n()
 
   const uniqueMembers = Array.from(
     new Map(members.map((m) => [m.user_id, m])).values(),
   )
-  const annotators = uniqueMembers.filter((m) => ANNOTATOR_ROLES.has(m.role))
+  const annotators = uniqueMembers.filter((m) => eligibleRoles.has(m.role))
 
   const toggleUser = (userId: string) => {
     const has = value.user_ids.includes(userId)
