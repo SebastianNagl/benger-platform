@@ -597,19 +597,37 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     []
   )
 
-  // Proceed after questionnaire: advance to next task (Issue #1208)
+  // Proceed after questionnaire (Issue #1208).
+  //
+  // If the project also has immediate evaluation enabled, the ImmediateEvalSlot
+  // is already mounted (lastSubmittedAnnotationId was set at submit time). We
+  // must NOT advance the task here — that would remount the slot against the
+  // next task and the user would never see the just-finished eval. Hand off
+  // to the eval modal: its onClose will advance once the user dismisses it.
   const proceedAfterQuestionnaire = useCallback(async () => {
     setShowQuestionnaireModal(false)
+    setQuestionnaireAnnotationId(null)
+
+    if (
+      currentProject?.immediate_evaluation_enabled &&
+      lastSubmittedAnnotationId
+    ) {
+      // Tell the eval modal's onClose to advance once the user dismisses it.
+      autoSubmittedRef.current = true
+      return
+    }
+
     addToast(
       t('annotation.saved', { defaultValue: 'Annotation saved' }),
       'success'
     )
     completeCurrentTask()
-    setQuestionnaireAnnotationId(null)
   }, [
     t,
     addToast,
     completeCurrentTask,
+    currentProject?.immediate_evaluation_enabled,
+    lastSubmittedAnnotationId,
   ])
 
   // Show initialization error if it occurred
@@ -787,8 +805,32 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   {currentProject?.title}
                 </h1>
                 <p className="text-muted-foreground text-sm">
-                  Task {currentTaskPosition || '?'} of{' '}
-                  {currentTaskTotal || currentProject?.num_tasks || '?'}
+                  {(() => {
+                    // Show "absolute" progress: <completed-so-far + 1> of
+                    // <project total>. The store's currentTaskTotal shrinks
+                    // as tasks are completed (it's the size of the remaining
+                    // cycle) — using project.num_tasks as the denominator
+                    // keeps the total stable so the annotator sees forward
+                    // progress (1/13 → 2/13 → ... → 13/13).
+                    //
+                    // Treat 0/missing num_tasks as "no project total known"
+                    // (e.g. legacy projects, clones that never re-counted)
+                    // and fall back to the cycle-relative position so we
+                    // never produce negative numbers.
+                    const rawProjectTotal = currentProject?.num_tasks
+                    const projectTotal =
+                      typeof rawProjectTotal === 'number' && rawProjectTotal > 0
+                        ? rawProjectTotal
+                        : null
+                    const remaining = currentTaskTotal ?? null
+                    const positionInCycle = currentTaskPosition ?? null
+                    const total = projectTotal ?? remaining
+                    const current =
+                      projectTotal != null && remaining != null && positionInCycle != null
+                        ? projectTotal - remaining + positionInCycle
+                        : positionInCycle
+                    return `Task ${current ?? '?'} of ${total ?? '?'}`
+                  })()}
                 </p>
               </div>
             </div>
@@ -895,6 +937,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     setAnnotations(results)
 
                     const hasQuestionnaire = isQuestionnaireEnabled
+                    const hasImmediateEval = !!currentProject?.immediate_evaluation_enabled
 
                     // Calculate lead_time
                     const leadTime = Math.round(
@@ -904,7 +947,15 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     // Get activity tracker data (Issue #1208)
                     const timing = activityTracker.getData()
 
-                    // Skip auto-advance when questionnaire modal flow is active
+                    // Skip auto-advance when either modal flow will surface
+                    // (questionnaire OR immediate eval). Auto-advancing here
+                    // races: by the time ImmediateEvalSlot mounts and POSTs
+                    // /immediate, currentTask.id is already the NEXT task —
+                    // and the eval router queries for annotations on the new
+                    // task, finds none, and returns "no annotation found".
+                    // The eval modal's onClose handles advancement once the
+                    // user dismisses it.
+                    const skipAdvance = !!hasQuestionnaire || hasImmediateEval
                     const annotation = await createAnnotationInternal(
                       currentTask.id,
                       {
@@ -915,7 +966,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                         tab_switches: timing.tabSwitches,
                         instruction_variant: selectedVariantId || undefined,
                       },
-                      !!hasQuestionnaire
+                      skipAdvance
                     )
 
                     // Mark as submitted only after successful API call
@@ -931,6 +982,12 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                       setQuestionnaireAnnotationId(annotation.id)
                       setShowQuestionnaireModal(true)
                       return
+                    }
+
+                    // Tell the eval modal's onClose to advance once dismissed
+                    // (mirrors the auto-submit + questionnaire paths).
+                    if (hasImmediateEval && annotation) {
+                      autoSubmittedRef.current = true
                     }
 
                     // Normal flow - show success toast

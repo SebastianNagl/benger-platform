@@ -25,9 +25,21 @@ def _extract_value(result: Dict, return_first_choice: bool = True) -> Any:
 
     Checks keys in order: spans (for labels type), text, markdown,
     choices, rating, number. Returns the first match.
+
+    If ``value`` is not a dict (e.g. a bare string from a textarea region
+    that the annotator submitted empty), it is returned as-is or as None
+    when empty — without indexing it as a dict.
     """
     value = result.get("value", {})
     result_type = result.get("type")
+
+    if not isinstance(value, dict):
+        # Bare scalar (string from a textarea region, list from spans, etc.)
+        if isinstance(value, str):
+            return value or None
+        if isinstance(value, list):
+            return value[0] if return_first_choice and value else value
+        return value if value not in (None, "", [], {}) else None
 
     if result_type == "labels" and "spans" in value:
         return value.get("spans", [])

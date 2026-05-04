@@ -23,10 +23,10 @@ import { Checkbox } from '@/components/shared/Checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
-import { useModels } from '@/hooks/useModels'
 import { api } from '@/lib/api'
+import { TemperatureInput } from '@/lib/evaluation/TemperatureInput'
+import { useJudgeModelHelpers } from '@/lib/evaluation/judgeModelHelpers'
 import { getMetricEditor } from '@/lib/extensions/metricEditors'
-import { getTemperatureConstraints, getDefaultMaxTokens } from '@/lib/modelConstraints'
 import {
   CustomCriteriaDefinition,
   DEFAULT_PROMPT_TEMPLATES,
@@ -89,35 +89,6 @@ const INITIAL_EVALUATION_STATE: NewEvaluationState = {
   metric_parameters: {},
 }
 
-/**
- * Models that support extended thinking/reasoning configuration.
- * - 'budget' type: Anthropic Claude 3.7+, Google Gemini 2.5+ (token count)
- * - 'effort' type: OpenAI o-series (low/medium/high)
- */
-// Thinking model config is now served from backend default_config.reasoning_config.
-
-interface JudgeModelDefaults {
-  temperature?: number
-  max_tokens?: number
-  temperatureFixed?: boolean
-}
-
-interface ModelConstraints {
-  temperature: { min: number; max: number; fixed?: boolean; fixedValue?: number }
-  maxTokens: { min: number; max: number }
-}
-
-// Provider temperature ranges used as fallback when model has no parameter_constraints
-const PROVIDER_TEMPERATURE_RANGES: Record<string, { min: number; max: number }> = {
-  openai: { min: 0, max: 2 },
-  anthropic: { min: 0, max: 1 },
-  google: { min: 0, max: 2 },
-  deepinfra: { min: 0, max: 2 },
-  grok: { min: 0, max: 2 },
-  mistral: { min: 0, max: 1 },
-  cohere: { min: 0, max: 1 },
-}
-
 export function EvaluationBuilder({
   projectId,
   availableFields,
@@ -127,74 +98,11 @@ export function EvaluationBuilder({
   saving = false,
 }: EvaluationBuilderProps) {
   const { t } = useI18n()
-  const { models: judgeModels } = useModels()
-
-  // Derive thinking config from model's default_config (DB)
-  const getThinkingConfig = useCallback((modelId: string): { type: 'budget' | 'effort'; default?: number } | undefined => {
-    const model = judgeModels.find(m => m.id === modelId)
-    const rc = model?.default_config?.reasoning_config
-    if (rc) {
-      if (rc.parameter === 'reasoning_effort') return { type: 'effort' }
-      if (rc.parameter === 'thinking_budget' || rc.parameter === 'thinking_token_budget')
-        return { type: 'budget', default: rc.default as number }
-    }
-    return undefined
-  }, [judgeModels])
-
-  // Derive judge model defaults from backend parameter_constraints
-  const getJudgeModelDefaults = useCallback((modelId: string): JudgeModelDefaults => {
-    const model = judgeModels.find(m => m.id === modelId)
-    const tc = getTemperatureConstraints(model, PROVIDER_TEMPERATURE_RANGES)
-    const defaultMaxTokens = getDefaultMaxTokens(model)
-    return {
-      temperature: tc.default,
-      max_tokens: defaultMaxTokens ?? 500,
-      temperatureFixed: tc.fixed,
-    }
-  }, [judgeModels])
-
-  // Get constraints for a model from backend parameter_constraints
-  const getModelConstraints = useCallback((modelId: string): ModelConstraints => {
-    const model = judgeModels.find(m => m.id === modelId)
-    const tc = getTemperatureConstraints(model, PROVIDER_TEMPERATURE_RANGES)
-    return {
-      temperature: tc.fixed
-        ? { min: tc.fixedValue!, max: tc.fixedValue!, fixed: true, fixedValue: tc.fixedValue }
-        : { min: tc.min, max: tc.max },
-      maxTokens: { min: 100, max: 16000 },
-    }
-  }, [judgeModels])
-
-  // Validate temperature against model constraints
-  const getTemperatureValidation = useCallback((modelId: string, value: number | undefined): {
-    type: 'error' | 'warning' | null
-    message: string
-  } => {
-    if (value === undefined || value === null) return { type: null, message: '' }
-    const constraints = getModelConstraints(modelId)
-    if (constraints.temperature.fixed) {
-      if (value !== constraints.temperature.fixedValue) {
-        return {
-          type: 'error',
-          message: t('evaluationBuilder.validation.temperatureFixed', `This model requires temperature = ${constraints.temperature.fixedValue}. The API will reject other values.`),
-        }
-      }
-      return { type: null, message: '' }
-    }
-    if (value < constraints.temperature.min) {
-      return {
-        type: 'error',
-        message: t('evaluationBuilder.validation.temperatureTooLow', `Temperature must be at least ${constraints.temperature.min} for this provider.`),
-      }
-    }
-    if (value > constraints.temperature.max) {
-      return {
-        type: 'error',
-        message: t('evaluationBuilder.validation.temperatureTooHigh', `Temperature must be at most ${constraints.temperature.max} for this provider. The API will reject higher values.`),
-      }
-    }
-    return { type: null, message: '' }
-  }, [getModelConstraints, t])
+  const {
+    judgeModels,
+    getThinkingConfig,
+    getJudgeModelDefaults,
+  } = useJudgeModelHelpers()
 
   const [isAddingNew, setIsAddingNew] = useState(false)
   const [currentStep, setCurrentStep] = useState<WizardStep>('metric')
@@ -205,73 +113,18 @@ export function EvaluationBuilder({
   const [showEvaluationModal, setShowEvaluationModal] = useState(false)
   const { addToast } = useToast()
 
-  // Render a temperature input with provider-aware constraints and validation
-  const renderTemperatureInput = useCallback(() => {
-    const currentModel = newEvaluation.metric_parameters.judge_model || 'gpt-4o'
-    const constraints = getModelConstraints(currentModel)
-    const tempValidation = getTemperatureValidation(currentModel, newEvaluation.metric_parameters.temperature)
-
-    return (
-      <div>
-        <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-          {t('evaluationBuilder.parameters.temperature', 'Temperature')}
-          {constraints.temperature.fixed && (
-            <span className="ml-2 rounded bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-              {t('evaluationBuilder.validation.fixed', `Fixed at ${constraints.temperature.fixedValue}`)}
-            </span>
-          )}
-        </label>
-        <input
-          type="number"
-          min={constraints.temperature.min}
-          max={constraints.temperature.max}
-          step={0.1}
-          value={newEvaluation.metric_parameters.temperature ?? ''}
-          placeholder="0.0"
-          disabled={constraints.temperature.fixed}
-          onChange={(e) =>
-            setNewEvaluation((prev) => ({
-              ...prev,
-              metric_parameters: {
-                ...prev.metric_parameters,
-                temperature: e.target.value
-                  ? parseFloat(e.target.value)
-                  : undefined,
-              },
-            }))
-          }
-          className={`w-full rounded-md border px-3 py-2 text-sm ${
-            constraints.temperature.fixed
-              ? 'cursor-not-allowed bg-gray-100 dark:bg-gray-700'
-              : ''
-          } ${
-            tempValidation.type === 'error'
-              ? 'border-red-500 dark:border-red-400'
-              : 'border-gray-300 dark:border-gray-600'
-          } dark:bg-gray-800`}
-        />
-        {tempValidation.type && (
-          <p className={`mt-1 text-xs ${
-            tempValidation.type === 'error'
-              ? 'text-red-600 dark:text-red-400'
-              : 'text-amber-600 dark:text-amber-400'
-          }`}>
-            {tempValidation.message}
-          </p>
-        )}
-        {!tempValidation.type && (
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {constraints.temperature.fixed
-              ? t('evaluationBuilder.validation.temperatureFixedDescription', 'This model requires a fixed temperature value.')
-              : t(
-                  'evaluationBuilder.parameters.temperatureDescription',
-                  `Response randomness (${constraints.temperature.min} - ${constraints.temperature.max} for this provider)`
-                )}
-          </p>
-        )}
-      </div>
-    )
-  }, [newEvaluation.metric_parameters.judge_model, newEvaluation.metric_parameters.temperature, getModelConstraints, getTemperatureValidation, t])
+  const renderTemperatureInput = () => (
+    <TemperatureInput
+      judgeModelId={newEvaluation.metric_parameters.judge_model || 'gpt-4o'}
+      value={newEvaluation.metric_parameters.temperature}
+      onChange={(temperature) =>
+        setNewEvaluation((prev) => ({
+          ...prev,
+          metric_parameters: { ...prev.metric_parameters, temperature },
+        }))
+      }
+    />
+  )
 
   // Field types for LLM Judge auto-detection
   const [fieldTypes, setFieldTypes] = useState<Record<string, FieldTypeInfo>>(
@@ -286,7 +139,7 @@ export function EvaluationBuilder({
     const fetchFieldTypes = async () => {
       try {
         const response = await api.get(
-          `/api/evaluations/projects/${projectId}/field-types`
+          `/evaluations/projects/${projectId}/field-types`
         )
         if (response.data?.field_types) {
           setFieldTypes(response.data.field_types)
@@ -518,14 +371,22 @@ export function EvaluationBuilder({
     }
 
     const def = getMetricDefinitions()[metric]
-    if (!def?.parameter_schema) return {}
+    if (!def) return {}
 
-    const defaults: Record<string, any> = {}
-    Object.entries(def.parameter_schema).forEach(([key, schema]) => {
-      if ('default' in (schema as any)) {
-        defaults[key] = (schema as any).default
-      }
-    })
+    // Extended metrics may declare default_parameters at registration time
+    // (e.g. Falllösung's max_tokens / score_scale / answer_type). Take those
+    // as the base, then layer parameter_schema defaults on top.
+    const defaults: Record<string, any> = def.default_parameters
+      ? { ...def.default_parameters }
+      : {}
+
+    if (def.parameter_schema) {
+      Object.entries(def.parameter_schema).forEach(([key, schema]) => {
+        if ('default' in (schema as any) && !(key in defaults)) {
+          defaults[key] = (schema as any).default
+        }
+      })
+    }
     return defaults
   }
 

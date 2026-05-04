@@ -145,10 +145,49 @@ export function StepProjectInfo({
         </div>
       </div>
 
+      <hr className="border-zinc-200 dark:border-zinc-700" />
+
+      {/* Feature Checkboxes */}
+      <div className="space-y-3">
+        <Label>
+          {t('projects.creation.wizard.features.title')}{' '}
+          <span className="font-normal text-zinc-500 dark:text-zinc-400">
+            ({t('projects.creation.wizard.features.editLater')})
+          </span>
+        </Label>
+
+        <div className="space-y-4">
+          {FEATURE_CHECKBOXES.map(({ key, labelKey, descriptionKey }) => (
+            <div
+              key={key}
+              className="flex items-center justify-between"
+              data-testid={`wizard-feature-${key}`}
+            >
+              <div>
+                <Label>
+                  {t(labelKey)}
+                </Label>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  {t(descriptionKey)}
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={data.features[key]}
+                onChange={() => toggleFeature(key)}
+                className="h-4 w-4 rounded border-zinc-300 accent-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:accent-emerald-500"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <hr className="border-zinc-200 dark:border-zinc-700" />
+
       {/* Visibility */}
       <div className="space-y-3">
         <Label>
-          {t('projects.creation.wizard.step1.visibility')}
+          {t('projects.creation.wizard.step1.visibilityLabel')}
         </Label>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           {t('projects.creation.wizard.step1.visibilityDescription')}
@@ -183,25 +222,23 @@ export function StepProjectInfo({
           ).map(({ value, labelKey, descKey }) => (
             <label
               key={value}
-              className="flex cursor-pointer items-start space-x-3 rounded-lg border border-zinc-200 p-3 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
+              className="flex cursor-pointer items-center justify-between"
               data-testid={`wizard-visibility-${value}-option`}
             >
+              <div>
+                <Label>{t(labelKey)}</Label>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  {t(descKey)}
+                </p>
+              </div>
               <input
                 type="radio"
                 name="wizard-visibility"
                 checked={data.visibility === value}
                 onChange={() => onChange({ visibility: value })}
-                className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                className="h-4 w-4 border-zinc-300 accent-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:accent-emerald-500"
                 data-testid={`wizard-visibility-${value}-radio`}
               />
-              <div className="flex-1">
-                <span className="font-medium text-zinc-900 dark:text-white">
-                  {t(labelKey)}
-                </span>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {t(descKey)}
-                </p>
-              </div>
             </label>
           ))}
         </div>
@@ -242,7 +279,7 @@ export function StepProjectInfo({
                       type="checkbox"
                       checked={data.organizationIds.includes(org.id)}
                       onChange={() => toggleOrg(org.id)}
-                      className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                      className="h-4 w-4 rounded border-zinc-300 accent-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:accent-emerald-500"
                       data-testid={`wizard-organization-${org.id}-checkbox`}
                     />
                     <span className="text-sm font-medium text-zinc-900 dark:text-white">
@@ -276,70 +313,35 @@ export function StepProjectInfo({
                 (role) => (
                   <label
                     key={role}
-                    className="flex cursor-pointer items-start space-x-3 rounded-lg border border-zinc-200 p-3 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800/50"
+                    className="flex cursor-pointer items-center justify-between"
                     data-testid={`wizard-public-role-${role.toLowerCase()}-option`}
                   >
-                    <input
-                      type="radio"
-                      name="wizard-public-role"
-                      checked={data.publicRole === role}
-                      onChange={() => onChange({ publicRole: role })}
-                      className="mt-0.5 h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-                      data-testid={`wizard-public-role-${role.toLowerCase()}-radio`}
-                    />
-                    <div className="flex-1">
-                      <span className="font-medium text-zinc-900 dark:text-white">
+                    <div>
+                      <Label>
                         {t(
                           `projects.creation.wizard.step1.publicRole.${role.toLowerCase()}`
                         )}
-                      </span>
+                      </Label>
                       <p className="text-sm text-zinc-500 dark:text-zinc-400">
                         {t(
                           `projects.creation.wizard.step1.publicRole.${role.toLowerCase()}Description`
                         )}
                       </p>
                     </div>
+                    <input
+                      type="radio"
+                      name="wizard-public-role"
+                      checked={data.publicRole === role}
+                      onChange={() => onChange({ publicRole: role })}
+                      className="h-4 w-4 border-zinc-300 accent-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:accent-emerald-500"
+                      data-testid={`wizard-public-role-${role.toLowerCase()}-radio`}
+                    />
                   </label>
                 )
               )}
             </div>
           </div>
         )}
-      </div>
-
-      {/* Feature Checkboxes */}
-      <div className="space-y-3">
-        <Label>
-          {t('projects.creation.wizard.features.title')}{' '}
-          <span className="font-normal text-zinc-500 dark:text-zinc-400">
-            ({t('projects.creation.wizard.features.editLater')})
-          </span>
-        </Label>
-
-        <div className="space-y-4">
-          {FEATURE_CHECKBOXES.map(({ key, labelKey, descriptionKey }) => (
-            <div
-              key={key}
-              className="flex items-center justify-between"
-              data-testid={`wizard-feature-${key}`}
-            >
-              <div>
-                <Label>
-                  {t(labelKey)}
-                </Label>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {t(descriptionKey)}
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={data.features[key]}
-                onChange={() => toggleFeature(key)}
-                className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-              />
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   )

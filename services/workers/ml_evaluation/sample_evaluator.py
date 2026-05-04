@@ -25,7 +25,7 @@ import logging
 import platform
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 # Platform detection for backend selection
 IS_ARM64 = platform.machine().lower() in ('arm64', 'aarch64')
@@ -252,14 +252,32 @@ class SampleEvaluator:
                     field_params = self.metric_parameters.get(field_name, {})
                     metric_params = field_params.get(metric_name, {})
 
-                    metric_value = self._compute_metric(
-                        metric_name, ground_truth, prediction, answer_type, metric_params
+                    # Phase 2: persist the rich result dict so audit-trail
+                    # consumers see provenance (sub-method used, backend,
+                    # fallback reasons). Bare-float consumers extract the
+                    # number via ml_evaluation.extract_value at read time.
+                    metric_result = self._compute_metric_with_details(
+                        metric_name,
+                        ground_truth,
+                        prediction,
+                        answer_type,
+                        metric_params,
                     )
-                    sample_metrics[metric_name] = metric_value
+                    sample_metrics[metric_name] = metric_result
 
                     # Check if this metric indicates failure
                     # (e.g., exact_match = 0, or score below threshold)
-                    if self._is_failure_metric(metric_name, metric_value):
+                    primary_value = metric_result.get("value")
+                    if isinstance(primary_value, dict):
+                        primary_key = metric_result.get("primary_metric_key") or next(
+                            iter(primary_value), None
+                        )
+                        primary_value = (
+                            primary_value.get(primary_key)
+                            if primary_key
+                            else None
+                        )
+                    if self._is_failure_metric(metric_name, primary_value):
                         passed = False
 
                 except Exception as e:
@@ -336,6 +354,52 @@ class SampleEvaluator:
         # Normalize values for comparison
         gt = self._normalize_value(ground_truth, answer_type)
         pred = self._normalize_value(prediction, answer_type)
+
+        # Phase 4: registry-first dispatch.
+        #
+        # If a handler is registered for this metric (platform built-in or
+        # extended-registered via `register_metric_handlers`), let it own
+        # the computation. Handlers return the standard result dict;
+        # this method preserves its legacy ``-> float`` signature by
+        # extracting the primary value via ``extract_value``.
+        #
+        # Adapters use ``_compute_metric_legacy`` to reach the if/elif
+        # chain below directly (no recursion).
+        from . import extract_value, metric_registry
+
+        _handler = metric_registry.get(metric_name)
+        if _handler is not None:
+            try:
+                _result = _handler.compute(gt, pred, answer_type, parameters)
+                _value = extract_value(_result)
+                return float(_value if _value is not None else 0.0)
+            except NotImplementedError:
+                # Some handlers (e.g. extended Falllösung) are presence
+                # flags only — the real compute happens in a different
+                # call site. Fall through to the legacy chain below; if
+                # the metric isn't there either, the bottom branch raises.
+                pass
+
+        return self._compute_metric_legacy(
+            metric_name, gt, pred, answer_type, parameters
+        )
+
+    def _compute_metric_legacy(
+        self,
+        metric_name: str,
+        gt: Any,
+        pred: Any,
+        answer_type: str,
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> float:
+        """Direct dispatch into the if/elif chain — no registry lookup.
+
+        Used by :class:`builtin_handlers._LegacyMetricHandler` to wrap
+        bare-float compute paths into the standard registry shape without
+        recursing through ``_compute_metric``.
+        """
+        if parameters is None:
+            parameters = {}
 
         # ===== EXACT MATCH =====
         if metric_name == "exact_match":
@@ -458,10 +522,414 @@ class SampleEvaluator:
         elif metric_name == "lca_accuracy":
             return self._compute_lca_accuracy(gt, pred, parameters)
 
-        # Default: exact match
+        # Korrektur (Standard Falllösung / Classic) is HUMAN-graded. The
+        # actual score is written by the API when a corrector submits;
+        # the worker only sees the metric name in the dispatch loop and
+        # has nothing to compute. Returning 0/1 from "exact match" was
+        # nonsensical and pollutes logs. Treat as a no-op (NaN-safe 0).
+        elif metric_name.startswith("korrektur_"):
+            logger.debug(
+                f"Metric {metric_name} is human-graded; worker dispatch is a no-op"
+            )
+            return 0.0
+
+        # Phase 6.6: fail loud on unknown metrics. Previously this branch
+        # silently fell back to exact-match scoring, which is exactly the
+        # kind of unobservable benchmark corruption the academic-rigor
+        # overhaul is eliminating: a typo in evaluation_config silently
+        # produced a 0/1 number instead of erroring. Surfacing the error
+        # at run time means a misconfigured project fails clearly and
+        # visibly, not in a paper.
         else:
-            logger.warning(f"Unknown metric {metric_name}, defaulting to exact match")
-            return 1.0 if gt == pred else 0.0
+            raise ValueError(
+                f"Unknown metric: {metric_name!r}. No handler is registered "
+                "for this metric and no built-in branch exists. If this is "
+                "an extended-only metric (e.g. llm_judge_falloesung), check "
+                "that benger_extended is loaded and register_metric_handlers "
+                "fired at worker startup."
+            )
+
+    # ------------------------------------------------------------------
+    # Phase 2: dict-returning entry point with full provenance.
+    # ------------------------------------------------------------------
+    #
+    # Callers that want the audit trail (the ones persisting into
+    # ``TaskEvaluation.metrics``) call ``_compute_metric_with_details``;
+    # callers that only need a number stay on ``_compute_metric``.
+    #
+    # The 6 metrics with known silent-fallback paths
+    # (coherence / moverscore / qags / bertscore / semantic_similarity /
+    # bleu-smoothing — the last is fail-loud, no provenance needed) get
+    # dedicated helpers below that capture which sub-method, backend, or
+    # parameter actually contributed to the score.
+    #
+    # Other metrics fall through to ``_compute_metric`` and have their
+    # bare-float result wrapped in the standard shape with
+    # ``details: {"legacy_path": True}``. Phase 4 walks each into a
+    # registered handler so the wrapper goes away.
+    def _compute_metric_with_details(
+        self,
+        metric_name: str,
+        ground_truth: Any,
+        prediction: Any,
+        answer_type: str,
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        if parameters is None:
+            parameters = {}
+
+        gt = self._normalize_value(ground_truth, answer_type)
+        pred = self._normalize_value(prediction, answer_type)
+
+        # 1. Registry first — handlers own their full result dict.
+        from . import metric_registry
+
+        handler = metric_registry.get(metric_name)
+        if handler is not None:
+            return handler.compute(gt, pred, answer_type, parameters)
+
+        # 2. Korrektur metrics are human-graded; never compute in worker.
+        if metric_name.startswith("korrektur_"):
+            return {
+                "value": 0.0,
+                "method": metric_name,
+                "details": {
+                    "human_graded": True,
+                    "skipped": True,
+                    "reason": (
+                        "Korrektur metrics are written by the API at human-grade "
+                        "time, not computed by the worker."
+                    ),
+                },
+                "error": None,
+            }
+
+        # 3. Targeted provenance helpers for known silent-fallback metrics.
+        if metric_name == "coherence":
+            return self._coherence_with_details(pred, parameters)
+        if metric_name == "moverscore":
+            return self._moverscore_with_details(gt, pred, parameters)
+        if metric_name == "qags":
+            return self._qags_with_details(gt, pred, parameters)
+        if metric_name == "bertscore":
+            return self._bertscore_with_details(gt, pred, parameters)
+        if metric_name == "semantic_similarity":
+            return self._semantic_similarity_with_details(gt, pred, parameters)
+
+        # 4. Fall through to the legacy if/elif chain via the registry
+        # adapter. Phase 4 registers a handler for every platform metric;
+        # the registry path above should normally take it. This branch
+        # is a safety net for any metric that's not yet in the registry
+        # (none today, but the explicit fallback keeps the contract).
+        legacy_value = self._compute_metric_legacy(
+            metric_name, gt, pred, answer_type, parameters
+        )
+        return {
+            "value": float(legacy_value) if legacy_value is not None else 0.0,
+            "method": metric_name,
+            "details": {
+                "legacy_path": True,
+                "parameters_applied": dict(parameters) if parameters else {},
+            },
+            "error": None,
+        }
+
+    # ---- Provenance helpers (Phase 2 in-place annotation) -----------
+
+    def _coherence_with_details(
+        self, prediction: Any, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Coherence with full audit trail of which sub-method actually
+        contributed to the score. Replaces the silent semantic-only
+        fallback shipped in last night's launch fix."""
+        pred_str = str(prediction)
+        method = parameters.get("method", "hybrid")
+        entity_weight = parameters.get("entity_weight", 0.6)
+        semantic_weight = parameters.get("semantic_weight", 0.4)
+
+        self._validate_text_for_coherence(pred_str)
+        sentences = sent_tokenize(pred_str)
+
+        coherence_scores: List[Tuple[float, float]] = []
+        methods_used: List[str] = []
+        fallback_reason: Optional[str] = None
+
+        if method in ("entity", "hybrid"):
+            try:
+                entity_score = self._compute_entity_coherence(sentences)
+                coherence_scores.append((entity_score, entity_weight))
+                methods_used.append("entity")
+            except Exception as entity_err:
+                if method == "entity":
+                    raise RuntimeError(
+                        f"Coherence (entity-only mode): {entity_err}"
+                    ) from entity_err
+                fallback_reason = f"entity grid unavailable: {entity_err}"
+                logger.info(
+                    "Coherence: entity grid unavailable (%s); falling back "
+                    "to semantic-only score within hybrid mode",
+                    entity_err,
+                )
+
+        if method in ("semantic", "hybrid"):
+            semantic_score = self._compute_semantic_coherence(sentences)
+            coherence_scores.append((semantic_score, semantic_weight))
+            methods_used.append("semantic")
+
+        if not coherence_scores:
+            raise ValueError(f"Invalid coherence method: {method!r}")
+
+        total_weight = sum(w for _, w in coherence_scores)
+        if total_weight == 0:
+            value = 0.0
+        else:
+            weighted = sum(
+                score * (weight / total_weight)
+                for score, weight in coherence_scores
+            )
+            value = max(0.0, min(1.0, weighted))
+
+        # Audit trail: record three views of the weights so a researcher can
+        # always tell exactly what contributed to the score.
+        #   - weights_requested : the user-configured weights (parameters)
+        #   - weights_input     : per-method weights that ENTERED the
+        #                         weighted average (0 for any method whose
+        #                         sub-score wasn't computed, e.g. entity
+        #                         when the grid was empty in hybrid mode)
+        #   - weights_effective : post-normalization weights that the
+        #                         averaging actually multiplied each
+        #                         sub-score by (sums to 1.0)
+        weights_input = {
+            "entity": entity_weight if "entity" in methods_used else 0.0,
+            "semantic": semantic_weight if "semantic" in methods_used else 0.0,
+        }
+        weights_effective = (
+            {k: (w / total_weight) for k, w in weights_input.items()}
+            if total_weight > 0
+            else {k: 0.0 for k in weights_input}
+        )
+        return {
+            "value": value,
+            "method": "coherence",
+            "details": {
+                "method_requested": method,
+                "methods_used": methods_used,
+                "weights_requested": {
+                    "entity": entity_weight,
+                    "semantic": semantic_weight,
+                },
+                "weights_input": weights_input,
+                "weights_effective": weights_effective,
+                "fallback_reason": fallback_reason,
+                # ner_model is set by the German entity extractor itself
+                # (Phase 3); for now record the heuristic in use.
+                "ner_model": getattr(
+                    self, "_last_coherence_ner_model", "capitalization_heuristic"
+                ),
+            },
+            "error": None,
+        }
+
+    def _moverscore_with_details(
+        self, gt: Any, pred: Any, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """MoverScore with audit trail. The prior code returned 0.0 silently
+        when the backend produced an empty result, indistinguishable from
+        a genuine 0. Now we surface the empty-output case explicitly."""
+        gt_str = str(gt)
+        pred_str = str(pred)
+        if not gt_str.strip():
+            raise ValueError("MoverScore requires non-empty ground truth text")
+        if not pred_str.strip():
+            raise ValueError("MoverScore requires non-empty prediction text")
+        if len(gt_str.strip()) < 3 or len(pred_str.strip()) < 3:
+            raise ValueError("MoverScore requires text longer than 3 characters")
+
+        n_gram = parameters.get("n_gram", 1)
+        remove_subwords = parameters.get("remove_subwords", True)
+
+        selector = _get_backend_selector()
+        computer = selector.get_moverscore_computer()
+        scores = computer.compute_moverscore(
+            [gt_str], [pred_str], n_gram=n_gram, remove_subwords=remove_subwords
+        )
+
+        if not scores:
+            return {
+                "value": 0.0,
+                "method": "moverscore",
+                "details": {
+                    "n_gram": n_gram,
+                    "remove_subwords": remove_subwords,
+                    "backend_returned_scores": False,
+                },
+                "error": "MoverScore backend returned no scores",
+            }
+        return {
+            "value": float(scores[0]),
+            "method": "moverscore",
+            "details": {
+                "n_gram": n_gram,
+                "remove_subwords": remove_subwords,
+                "backend_returned_scores": True,
+            },
+            "error": None,
+        }
+
+    def _qags_with_details(
+        self, gt: Any, pred: Any, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """QAGS with per-question failure tracking. Failed Q/A pairs are
+        excluded from the denominator (rather than counted as non-matches),
+        which is more honest about what was actually measured."""
+        gt_str = str(gt)
+        pred_str = str(pred)
+        num_questions = parameters.get("num_questions", 5)
+        min_answer_overlap = parameters.get("min_answer_overlap", 0.5)
+
+        selector = _get_backend_selector()
+        qags_backend = selector.get_qags_backend()
+        questions = qags_backend.generate_questions(
+            gt_str, num_questions=num_questions
+        )
+
+        failed_questions: List[Dict[str, Any]] = []
+        matched = 0
+        succeeded = 0
+
+        for q in questions:
+            try:
+                gt_answer = qags_backend.answer_question(q, gt_str)
+                pred_answer = qags_backend.answer_question(q, pred_str)
+                if self._answers_match_qags(
+                    gt_answer["answer"],
+                    pred_answer["answer"],
+                    threshold=min_answer_overlap,
+                ):
+                    matched += 1
+                succeeded += 1
+            except Exception as e:
+                failed_questions.append({"question": q, "error": str(e)})
+
+        if succeeded == 0:
+            return {
+                "value": 0.0,
+                "method": "qags",
+                "details": {
+                    "total_questions_generated": len(questions),
+                    "questions_succeeded": 0,
+                    "questions_failed": len(failed_questions),
+                    "failed_question_errors": failed_questions[:10],
+                    "min_answer_overlap": min_answer_overlap,
+                },
+                "error": (
+                    "All QAGS questions failed; score is 0 by convention "
+                    "(no successful Q/A pair to score against)"
+                    if questions
+                    else "QAGS generated no questions from ground truth"
+                ),
+            }
+
+        score = matched / succeeded
+        return {
+            "value": float(score),
+            "method": "qags",
+            "details": {
+                "total_questions_generated": len(questions),
+                "questions_succeeded": succeeded,
+                "questions_failed": len(failed_questions),
+                "matched_answers": matched,
+                "failed_question_errors": failed_questions[:10],
+                "min_answer_overlap": min_answer_overlap,
+            },
+            "error": None,
+        }
+
+    def _bertscore_with_details(
+        self, gt: Any, pred: Any, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """BERTScore with backend provenance — researchers can filter
+        runs by host_arch / backend if they need to compare scores
+        produced by ONNX vs full bert-score."""
+        import platform as _platform
+
+        gt_str = str(gt)
+        pred_str = str(pred)
+        lang = parameters.get("lang", "de")
+
+        if IS_ARM64:
+            selector = _get_backend_selector()
+            backend = selector.get_bertscore_backend()
+            P, R, F1 = backend.compute([pred_str], [gt_str], lang=lang)
+            f1_value = float(F1)
+            backend_id = "onnx"
+        else:
+            P, R, F1 = bert_score_compute(
+                [pred_str],
+                [gt_str],
+                lang=lang,
+                rescale_with_baseline=True,
+                verbose=False,
+            )
+            f1_value = float(F1.mean().item())
+            backend_id = "pytorch"
+
+        return {
+            "value": f1_value,
+            "method": "bertscore",
+            "details": {
+                "backend": backend_id,
+                "host_arch": _platform.machine(),
+                "lang": lang,
+                "rescale_with_baseline": backend_id == "pytorch",
+            },
+            "error": None,
+        }
+
+    def _semantic_similarity_with_details(
+        self, gt: Any, pred: Any, parameters: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Semantic similarity with backend provenance — same arch-based
+        ONNX vs sentence-transformers swap as BERTScore."""
+        import platform as _platform
+
+        gt_str = str(gt)
+        pred_str = str(pred)
+
+        if IS_ARM64:
+            selector = _get_backend_selector()
+            backend = selector.get_embedding_backend()
+            emb_gt = backend.encode([gt_str])[0]
+            emb_pred = backend.encode([pred_str])[0]
+            similarity = np.dot(emb_gt, emb_pred) / (
+                np.linalg.norm(emb_gt) * np.linalg.norm(emb_pred) + 1e-9
+            )
+            value = max(0.0, float(similarity))
+            backend_id = "onnx"
+            model_id = "MiniLM-onnx"
+        else:
+            model = _get_sentence_transformer()
+            if model is None:
+                raise RuntimeError(
+                    "Sentence transformer model could not be loaded. "
+                    "Ensure sentence-transformers package is installed."
+                )
+            emb_gt = model.encode(gt_str, convert_to_tensor=True)
+            emb_pred = model.encode(pred_str, convert_to_tensor=True)
+            value = max(0.0, float(st_util.cos_sim(emb_gt, emb_pred).item()))
+            backend_id = "pytorch"
+            model_id = getattr(model, "_first_module", lambda: None)() and "sentence-transformers"
+
+        return {
+            "value": value,
+            "method": "semantic_similarity",
+            "details": {
+                "backend": backend_id,
+                "model": model_id,
+                "host_arch": _platform.machine(),
+            },
+            "error": None,
+        }
 
     def _compute_text_similarity(
         self, metric_name: str, gt: str, pred: str, parameters: Optional[Dict[str, Any]] = None
@@ -507,8 +975,24 @@ class SampleEvaluator:
             if not candidate:
                 return 0.0
 
+            # Validate the smoothing method explicitly. The previous
+            # `getattr(smoothing, smoothing_method, smoothing.method1)`
+            # silently substituted method1 on a typo, which silently
+            # changed the benchmark — exactly the kind of unobservable
+            # metric semantic shift the academic-rigor overhaul is
+            # eliminating. Fail loud so a misconfigured project surfaces
+            # at evaluation time, not in a paper.
             smoothing = SmoothingFunction()
-            smoothing_func = getattr(smoothing, smoothing_method, smoothing.method1)
+            allowed_smoothing = {
+                name for name in dir(smoothing)
+                if name.startswith("method") and not name.startswith("__")
+            }
+            if smoothing_method not in allowed_smoothing:
+                raise ValueError(
+                    f"Invalid BLEU smoothing method: {smoothing_method!r}; "
+                    f"allowed values are {sorted(allowed_smoothing)}."
+                )
+            smoothing_func = getattr(smoothing, smoothing_method)
 
             score = sentence_bleu(
                 reference,
@@ -1084,9 +1568,24 @@ class SampleEvaluator:
                 coherence_scores = []
 
                 # Method 1: Entity-based coherence (Entity Grid Method)
+                #
+                # In hybrid mode we don't want a missing-entity failure (e.g.
+                # German legal text dominated by single-letter party
+                # abbreviations like "K", "V" that fall under the entity
+                # length threshold) to abort the whole metric — fall through
+                # to semantic-only scoring instead. Pure 'entity' mode still
+                # raises so the caller sees a clear error.
                 if method in ["entity", "hybrid"]:
-                    entity_score = self._compute_entity_coherence(sentences)
-                    coherence_scores.append((entity_score, entity_weight))
+                    try:
+                        entity_score = self._compute_entity_coherence(sentences)
+                        coherence_scores.append((entity_score, entity_weight))
+                    except Exception as entity_err:
+                        if method == "entity":
+                            raise
+                        logger.info(
+                            f"Coherence: entity grid unavailable ({entity_err}); "
+                            "falling back to semantic-only score"
+                        )
 
                 # Method 2: Semantic coherence (sentence embedding transitions)
                 if method in ["semantic", "hybrid"]:
@@ -1501,8 +2000,27 @@ class SampleEvaluator:
         # Default: don't mark as failure unless clearly wrong
         return False
 
-    def _calculate_confidence(self, metrics: Dict[str, Optional[float]]) -> float:
-        """Calculate overall confidence score from metrics"""
+    def _calculate_confidence(self, metrics: Dict[str, Any]) -> float:
+        """Calculate overall confidence score from metrics.
+
+        Phase 2/4: ``metrics`` values are now the rich dict shape
+        (``{value, method, details, error}``); extract the bare float so
+        ``sum()``/threshold logic keeps working.
+        """
+        from ml_evaluation.handlers import extract_value as _extract
+
+        # Normalize dict-shaped entries to bare floats. Drop None/extraction-failures.
+        normalized: Dict[str, Optional[float]] = {}
+        for k, v in metrics.items():
+            if v is None:
+                normalized[k] = None
+                continue
+            if isinstance(v, (int, float)):
+                normalized[k] = float(v)
+                continue
+            extracted = _extract(v)
+            normalized[k] = float(extracted) if extracted is not None else None
+        metrics = normalized
         valid_metrics = [v for v in metrics.values() if v is not None]
 
         if not valid_metrics:
@@ -2076,11 +2594,23 @@ class SampleEvaluator:
 
     def _extract_entities_german(self, sentences: List[str]) -> Dict[str, List[str]]:
         """
-        Extract entities from German text using the capitalization rule.
+        Extract entities from German text via spaCy ``de_core_news_md``.
 
-        In German, all nouns are capitalized. Words that are capitalized but not
-        at the start of a sentence are therefore nouns (or proper nouns). This is
-        a well-established grammatical rule in Standard German orthography.
+        Uses real Named Entity Recognition (PER, LOC, ORG, MISC) — replaces
+        the previous capitalization heuristic which a) missed single-letter
+        party abbreviations like "K", "V" common in German legal exam
+        text, and b) couldn't distinguish proper nouns from common nouns
+        at the start of sentences.
+
+        The chosen model :code:`de_core_news_md` is the medium-size German
+        news pipeline (~50 MB). It's pinned via a versioned wheel in
+        :code:`requirements.txt` so worker images are reproducible. If
+        loading fails (model not installed, e.g. during a partial
+        development install), this method falls back to the legacy
+        capitalization heuristic and records that on the evaluator
+        instance via :code:`_last_coherence_ner_model` — the coherence
+        provenance helper surfaces this in :code:`details.ner_model` so
+        researchers always know which extractor produced their score.
 
         Args:
             sentences: List of sentences to analyze
@@ -2088,6 +2618,30 @@ class SampleEvaluator:
         Returns:
             Entity grid: dict mapping entity (lowercase) -> list of roles per sentence
         """
+        nlp = self._get_de_spacy()
+        if nlp is not None:
+            self._last_coherence_ner_model = "de_core_news_md"
+            entity_grid: Dict[str, List[str]] = {}
+            for sent_idx, sentence in enumerate(sentences):
+                doc = nlp(sentence)
+                for ent in doc.ents:
+                    key = ent.text.strip().lower()
+                    if not key:
+                        continue
+                    entity_grid.setdefault(key, ["-"] * len(sentences))
+                    entity_grid[key][sent_idx] = "X"
+            return entity_grid
+
+        # Fallback: legacy capitalization heuristic (kept as defense in
+        # depth — production worker images should always have the spaCy
+        # model installed; if they don't, log loud and degrade).
+        logger.warning(
+            "German spaCy model unavailable; falling back to capitalization "
+            "heuristic for coherence entity extraction. Install "
+            "`de_core_news_md` for real NER."
+        )
+        self._last_coherence_ner_model = "capitalization_heuristic"
+
         german_pronouns = {
             'er', 'sie', 'es', 'ihm', 'ihr', 'ihnen', 'ihn',
             'wir', 'uns', 'dieser', 'diese', 'dieses', 'diesen',
@@ -2119,6 +2673,34 @@ class SampleEvaluator:
                     entity_grid[entity][sent_idx] = 'X'
 
         return entity_grid
+
+    # spaCy German pipeline is loaded once and cached on the class. ~200ms
+    # first call, then ~free for subsequent ones. We disable parser /
+    # lemmatizer / attribute_ruler since coherence only consults
+    # :code:`doc.ents` (NER); halving load time and ~40% peak memory.
+    _DE_NLP_CACHE = None  # class attribute
+
+    @classmethod
+    def _get_de_spacy(cls):
+        if cls._DE_NLP_CACHE is None:
+            try:
+                import spacy
+
+                cls._DE_NLP_CACHE = spacy.load(
+                    "de_core_news_md",
+                    disable=["parser", "lemmatizer", "attribute_ruler"],
+                )
+            except (ImportError, OSError) as e:
+                # Either spacy isn't installed or the model wheel isn't
+                # present. Cache the negative result so we don't retry on
+                # every sentence; legacy heuristic kicks in.
+                logger.warning(
+                    "Failed to load spaCy de_core_news_md: %s — coherence "
+                    "will fall back to capitalization heuristic.",
+                    e,
+                )
+                cls._DE_NLP_CACHE = False
+        return cls._DE_NLP_CACHE if cls._DE_NLP_CACHE else None
 
     def _extract_entities_english(self, sentences: List[str]) -> Dict[str, List[str]]:
         """

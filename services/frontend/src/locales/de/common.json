@@ -267,20 +267,24 @@
           "description": "Beschreibung",
           "optional": "(optional)",
           "descriptionPlaceholder": "Beschreiben Sie den Zweck und Umfang dieses Annotationsprojekts...",
-          "visibility": "Sichtbarkeit",
+          "visibilityLabel": "Sichtbarkeit",
           "visibilityDescription": "Wählen Sie, wer dieses Projekt sehen und damit arbeiten kann",
-          "visibility.private": "Privat",
-          "visibility.privateDescription": "Nur Sie (und Superadmins) haben Zugriff",
-          "visibility.organization": "Organisation",
-          "visibility.organizationDescription": "Mitglieder Ihrer Organisation haben Zugriff",
-          "visibility.public": "Öffentlich",
-          "visibility.publicDescription": "Sichtbar für alle authentifizierten Nutzer über alle Organisationen hinweg",
+          "visibility": {
+            "private": "Privat",
+            "privateDescription": "Nur Sie (und Superadmins) haben Zugriff",
+            "organization": "Organisation",
+            "organizationDescription": "Mitglieder Ihrer Organisation haben Zugriff",
+            "public": "Öffentlich",
+            "publicDescription": "Sichtbar für alle authentifizierten Nutzer über alle Organisationen hinweg"
+          },
           "publicRoleLabel": "Öffentliche Rolle",
           "publicRoleDescription": "Wie Besucher mit dem Projekt interagieren",
-          "publicRole.annotator": "Annotator",
-          "publicRole.annotatorDescription": "Besucher können Aufgaben ansehen und Annotationen erstellen",
-          "publicRole.contributor": "Mitwirkender",
-          "publicRole.contributorDescription": "Besucher können zusätzlich Aufgaben hinzufügen sowie Generierung/Evaluierung ausführen. Projekteinstellungen bleiben gesperrt.",
+          "publicRole": {
+            "annotator": "Annotator",
+            "annotatorDescription": "Besucher können Aufgaben ansehen und Annotationen erstellen",
+            "contributor": "Mitwirkender",
+            "contributorDescription": "Besucher können zusätzlich Aufgaben hinzufügen sowie Generierung/Evaluierung ausführen. Projekteinstellungen bleiben gesperrt."
+          },
           "assignedOrganizations": "Zugewiesene Organisationen",
           "assignedOrganizationsHelp": "Wählen Sie die Organisationen, deren Mitglieder auf dieses Projekt zugreifen können. Unabhängig von der aktuellen Subdomain.",
           "noOrganizationsAvailable": "Keine Organisationen verfügbar.",
@@ -1908,8 +1912,6 @@
     "coCreator": "Co-Ersteller",
     "selectMetric": "Metrik auswählen",
     "noMetric": "Keine",
-    "coCreation.noData": "Keine KI-unterstützten Annotationen für diesen Zeitraum gefunden.",
-    "coCreation.noSearchResults": "Keine passenden Co-Ersteller gefunden.",
     "aggregation": {
       "average": "Durchschnitt",
       "sum": "Summe"
@@ -2888,6 +2890,13 @@
       "readMore": "Weiterlesen",
       "items": [
         {
+          "title": "BenGER Plattform-Release",
+          "description": "Die BenGER-Plattform ist nun öffentlich verfügbar. Der Beitrag erläutert das Open-Core-Release, den Funktionsumfang und wie Sie Ihre eigenen Legal-KI-Benchmarks erstellen.",
+          "date": "2026-05-03",
+          "type": "publication",
+          "url": "https://legalplusplus.net/articles/platform-release"
+        },
+        {
           "title": "BenGER Benchathon 2026",
           "description": "Der erste BenGER Benchathon findet am 14.–15. März 2026 in Zusammenarbeit mit dem Legal Tech Verband statt. Studierende und Juristen lösen Aufgaben und sammeln Punkte auf einem Leaderboard.",
           "date": "2026-02-25",
@@ -2913,16 +2922,14 @@
     "people": {
       "title": "Personen & Netzwerk",
       "subtitle": "Lernen Sie das Team hinter BenGER und unsere Partner in der juristischen KI-Forschung kennen.",
-      "teamTitle": "Team",
+      "teamPlatformTitle": "Team — Plattform",
+      "teamDatasetTitle": "Team — Datensatz",
+      "teamDatasetCoreTitle": "Hauptbeitragender",
+      "teamDatasetContributionTitle": "Datensatz-Beitrag",
+      "teamDatasetSeniorTitle": "Senior Authors",
+      "acknowledgementsTitle": "Danksagungen",
       "networkTitle": "Netzwerk & Partner",
-      "team": [
-        {
-          "name": "Matthias Grabmair",
-          "role": "Projektleitung",
-          "institution": "Technische Universität München",
-          "url": "",
-          "image": ""
-        },
+      "teamPlatform": [
         {
           "name": "Sebastian Nagl",
           "role": "Projektleiter & Entwickler",
@@ -2931,9 +2938,48 @@
           "image": ""
         },
         {
-          "name": "Sofija Milijas",
-          "role": "Projektkoordination",
+          "name": "Matthias Grabmair",
+          "role": "Projektleitung",
           "institution": "Technische Universität München",
+          "url": "",
+          "image": ""
+        }
+      ],
+      "teamDatasetCore": [
+        {
+          "name": "Sebastian Nagl",
+          "role": "Projektleiter & Entwickler",
+          "institution": "Technische Universität München",
+          "url": "https://legalplusplus.net",
+          "image": ""
+        }
+      ],
+      "teamDatasetContribution": [
+        {
+          "name": "Ann-Kristin Mayrhofer",
+          "role": "Zivilrecht",
+          "institution": "LMU München",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Martin Heidebach",
+          "role": "Öffentliches Recht",
+          "institution": "LMU München",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Anne Zettelmeier",
+          "role": "Strafrecht",
+          "institution": "Universität des Saarlandes",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Aleyna Kocak",
+          "role": "Strafrecht",
+          "institution": "Universität Freiburg",
           "url": "",
           "image": ""
         },
@@ -2952,65 +2998,18 @@
           "image": ""
         },
         {
-          "name": "Dominik Brodowski",
-          "role": "Strafrecht",
-          "institution": "Universität des Saarlandes",
+          "name": "Johannes Sigmund",
+          "role": "Wissenschaftlicher Mitarbeiter",
+          "institution": "TU Braunschweig",
           "url": "",
           "image": ""
-        },
-        {
-          "name": "Anne Zettelmeier",
-          "role": "Strafrecht",
-          "institution": "Universität des Saarlandes",
-          "url": "",
-          "image": ""
-        },
+        }
+      ],
+      "teamDatasetSenior": [
         {
           "name": "Liane Wörner",
           "role": "Strafrecht",
           "institution": "Universität Freiburg",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Aleyna Kocak",
-          "role": "Strafrecht",
-          "institution": "Universität Freiburg",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Markus Langer",
-          "role": "Psychologie",
-          "institution": "Universität Freiburg",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Ann-Kristin Mayrhofer",
-          "role": "Zivilrecht",
-          "institution": "LMU München",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Martin Heidebach",
-          "role": "Öffentliches Recht",
-          "institution": "LMU München",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Peter Moser",
-          "role": "Koordination",
-          "institution": "LMU München",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Philipp Reuß",
-          "role": "Zivilrecht",
-          "institution": "Universität Göttingen",
           "url": "",
           "image": ""
         },
@@ -3022,9 +3021,53 @@
           "image": ""
         },
         {
-          "name": "Johannes Sigmund",
-          "role": "Wissenschaftlicher Mitarbeiter",
-          "institution": "TU Braunschweig",
+          "name": "Dominik Brodowski",
+          "role": "Strafrecht",
+          "institution": "Universität des Saarlandes",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Matthias Grabmair",
+          "role": "Projektleitung",
+          "institution": "Technische Universität München",
+          "url": "",
+          "image": ""
+        }
+      ],
+      "acknowledgements": [
+        {
+          "name": "Sofija Milijas",
+          "role": "Projektkoordination",
+          "institution": "Technische Universität München",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Philipp Reuß",
+          "role": "Zivilrecht",
+          "institution": "Universität Göttingen",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Peter Moser",
+          "role": "Koordination",
+          "institution": "LMU München",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Markus Langer",
+          "role": "Psychologie",
+          "institution": "Universität Freiburg",
+          "url": "",
+          "image": ""
+        },
+        {
+          "name": "Asya Caroei",
+          "role": "Psychologie",
+          "institution": "Universität Freiburg",
           "url": "",
           "image": ""
         },
@@ -3103,18 +3146,29 @@
     "license": {
       "title": "Lizenz & Zitation",
       "subtitle": "Wie Sie unsere Arbeit nutzen und zitieren.",
-      "licenseTitle": "CC-BY Lizenz",
-      "licenseDescription": "Unsere Arbeit ist unter Creative Commons Namensnennung (CC-BY) lizenziert. Sie dürfen das Material für jeden Zweck teilen und anpassen, solange eine angemessene Namensnennung erfolgt.",
+      "licenses": [
+        {
+          "label": "Plattform",
+          "title": "Apache License 2.0",
+          "description": "Der Quellcode der BenGER-Plattform ist Open Source unter der Apache License 2.0. Sie dürfen ihn -- auch kommerziell -- frei nutzen, anpassen und weiterverbreiten, solange eine angemessene Namensnennung erfolgt."
+        },
+        {
+          "label": "Benchmark-Datensatz (geplant)",
+          "title": "CC-BY Lizenz",
+          "description": "Der BenGER-Benchmark-Datensatz wird unter Creative Commons Namensnennung (CC-BY) veröffentlicht. Sie werden die Daten für jeden Zweck teilen und anpassen dürfen, solange eine angemessene Namensnennung erfolgt."
+        }
+      ],
       "citationTitle": "Zitierweise",
       "citationDescription": "Bitte verwenden Sie die passende Zitation, je nachdem ob Sie sich auf die Plattform oder den Benchmark-Datensatz beziehen.",
       "citations": [
         {
           "label": "BenGER Plattform",
-          "bibtex": "@software{benger_platform,\n  author    = {Nagl, Sebastian},\n  title     = {BenGER: Benchmarking Platform for German Legal NLP},\n  year      = {2025},\n  url       = {https://what-a-benger.net},\n  note      = {Platzhalter -- Zitation folgt}\n}"
+          "bibtex": "@inproceedings{nagl2026benger,\n  title={{BenGER}: A Collaborative Web Platform for End-to-End Benchmarking of German Legal Tasks},\n  author={Nagl, Sebastian and Grabmair, Matthias},\n  booktitle={Proceedings of the International Conference on Artificial Intelligence and Law (ICAIL)},\n  year={2026},\n  address={Singapore}\n}"
         },
         {
           "label": "BenGER Benchmark-Datensatz",
-          "bibtex": "@dataset{benger_dataset,\n  author    = {Nagl, Sebastian},\n  title     = {BenGER: A Benchmark Dataset for German Legal Language Models},\n  year      = {2025},\n  url       = {https://what-a-benger.net},\n  note      = {Platzhalter -- Zitation folgt}\n}"
+          "bibtex": "",
+          "tba": true
         }
       ]
     },
@@ -5298,6 +5352,7 @@
       "groundTruth": "Ground Truth",
       "modelPrediction": "Modellvorhersage",
       "noEvalResults": "Keine Evaluierungsergebnisse verfügbar",
+      "noResultsForMetric": "Keine Evaluierungsergebnisse für die ausgewählte Metrik.",
       "annotationResult": "Annotationsergebnis",
       "annotation": "Annotation",
       "annotator": "Annotator",

@@ -285,9 +285,12 @@ async def get_evaluated_models(
 
             # Collect all metric scores for CI calculation
             if eval.metrics:
+                from routers.evaluations.results import _coerce_metric_value
+
                 for metric_name, value in eval.metrics.items():
-                    if value is not None and isinstance(value, (int, float)):
-                        eval_data[model_id]["all_scores"].append(float(value))
+                    coerced = _coerce_metric_value(value)
+                    if coerced is not None:
+                        eval_data[model_id]["all_scores"].append(coerced)
 
         # Build result list
         results = []
@@ -395,29 +398,41 @@ async def get_configured_methods(
         if not selected_methods:
             return {"project_id": project_id, "fields": []}
 
-        # Get all completed evaluations for this project to check results
-        evaluations = (
-            db.query(DBEvaluationRun)
-            .filter(
-                DBEvaluationRun.project_id == project_id,
-                DBEvaluationRun.status == "completed",
+        # Build method result map: method_name -> {count, last_run}.
+        #
+        # Counts the number of *actual scored TaskEvaluation rows* per metric
+        # for this project — not the number of historical EvaluationRun rows
+        # that ever referenced the metric in their aggregated summary.
+        # The old approach inflated counts (e.g. korrektur_falloesung showing
+        # 550 even with 0 scored rows); see results.py:_build_field_results
+        # for the matching read-side shim.
+        from models import TaskEvaluation
+        from sqlalchemy import cast
+        from sqlalchemy.dialects.postgresql import JSONB
+
+        raw_counts = (
+            db.query(
+                func.jsonb_object_keys(cast(TaskEvaluation.metrics, JSONB)).label("metric"),
+                func.count().label("cnt"),
+                func.max(TaskEvaluation.created_at).label("last_run"),
             )
+            .join(DBEvaluationRun, DBEvaluationRun.id == TaskEvaluation.evaluation_id)
+            .filter(DBEvaluationRun.project_id == project_id)
+            .group_by("metric")
             .all()
         )
 
-        # Build method result map: method_name -> {count, last_run}
-        method_results = {}
-        for eval in evaluations:
-            if eval.metrics:
-                for metric_name in eval.metrics.keys():
-                    if metric_name not in method_results:
-                        method_results[metric_name] = {"count": 0, "last_run": None}
-                    method_results[metric_name]["count"] += 1
-                    if eval.completed_at and (
-                        method_results[metric_name]["last_run"] is None
-                        or eval.completed_at > method_results[metric_name]["last_run"]
-                    ):
-                        method_results[metric_name]["last_run"] = eval.completed_at
+        # Drop sidekey/derivation noise so the dropdown only shows real metric
+        # names (no `_details`, `_raw`, `raw_score`, etc.).
+        _SUFFIX_NOISE = ("_details", "_raw", "_passed", "_grade_points", "_response")
+        _EXCLUDED_KEYS = {"raw_score", "error"}
+        method_results = {
+            r.metric: {"count": r.cnt, "last_run": r.last_run}
+            for r in raw_counts
+            if r.metric
+            and r.metric not in _EXCLUDED_KEYS
+            and not r.metric.endswith(_SUFFIX_NOISE)
+        }
 
         # Build response
         fields = []
@@ -541,13 +556,17 @@ async def get_evaluation_history(
         )
 
         # Build time-series data
+        from routers.evaluations.results import _coerce_metric_value
+
         data_points = []
         for eval in evaluations:
             if not eval.metrics or metric not in eval.metrics:
                 continue
 
-            value = eval.metrics.get(metric)
-            if value is None or not isinstance(value, (int, float)):
+            # Phase 2: accept both legacy bare-float and the new
+            # {value, details} dict shape.
+            value = _coerce_metric_value(eval.metrics.get(metric))
+            if value is None:
                 continue
 
             # Get CI from metadata if available

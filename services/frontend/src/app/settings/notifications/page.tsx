@@ -433,7 +433,7 @@ function NotificationSettingsContent() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl py-8">
+    <div className="mx-auto max-w-7xl py-8">
       {/* Breadcrumb */}
       <div className="mb-4">
         <Breadcrumb

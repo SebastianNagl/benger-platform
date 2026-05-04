@@ -6,9 +6,17 @@ import { useI18n } from '@/contexts/I18nContext'
 export function LicenseCitationSection() {
   const { t } = useI18n()
 
+  const licenses = t('landing.license.licenses') as unknown as {
+    label: string
+    title: string
+    description: string
+  }[]
+  const licenseItems = Array.isArray(licenses) ? licenses : []
+
   const citations = t('landing.license.citations') as unknown as {
     label: string
     bibtex: string
+    tba?: boolean
   }[]
   const citationItems = Array.isArray(citations) ? citations : []
 
@@ -27,35 +35,40 @@ export function LicenseCitationSection() {
           </p>
         </div>
 
-        {/* License */}
-        <div className="mt-12">
-          <Card className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-600">
-                <svg
-                  className="h-6 w-6 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth="1.5"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"
-                  />
-                </svg>
+        {/* Licenses */}
+        <div className="mt-12 grid gap-6 md:grid-cols-2">
+          {licenseItems.map((item, i) => (
+            <Card key={i} className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-600">
+                  <svg
+                    className="h-6 w-6 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth="1.5"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+                    {item.label}
+                  </p>
+                  <h3 className="mt-1 text-lg font-semibold text-zinc-900 dark:text-white">
+                    {item.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                    {item.description}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                  {t('landing.license.licenseTitle')}
-                </h3>
-                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  {t('landing.license.licenseDescription')}
-                </p>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          ))}
         </div>
 
         {/* Citations */}
@@ -72,14 +85,15 @@ export function LicenseCitationSection() {
                 <h4 className="mb-3 font-semibold text-zinc-900 dark:text-white">
                   {item.label}
                 </h4>
-                {/* bibtex citations hidden until peer review is complete
-                <pre className="overflow-x-auto rounded-md bg-zinc-100 p-4 text-xs leading-relaxed text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                  {item.bibtex}
-                </pre>
-                */}
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">
-                  t.b.a.
-                </p>
+                {item.tba || !item.bibtex ? (
+                  <p className="text-sm italic text-zinc-500 dark:text-zinc-400">
+                    t.b.a.
+                  </p>
+                ) : (
+                  <pre className="overflow-x-auto rounded-md bg-zinc-100 p-4 text-xs leading-relaxed text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                    {item.bibtex}
+                  </pre>
+                )}
               </Card>
             ))}
           </div>

@@ -133,6 +133,7 @@ class GoogleService(BaseAIService):
                     "provider": "Google",
                     "created_at": datetime.now().isoformat(),
                     "e2e_test_mode": True,
+                    **self.get_invocation_provenance(),
                 },
                 success=True,
                 error=None,
@@ -308,6 +309,7 @@ class GoogleService(BaseAIService):
                     metadata={
                         "provider": "Google",
                         "created_at": end_time.isoformat(),
+                        **self.get_invocation_provenance(),
                     },
                     success=False,
                     error="Model returned empty response (possible safety filter or capacity issue)",
@@ -328,6 +330,7 @@ class GoogleService(BaseAIService):
                     "cost_usd": cost_usd,
                     "provider": "Google",
                     "created_at": end_time.isoformat(),
+                    **self.get_invocation_provenance(),
                 },
                 success=True,
                 error=None,
@@ -390,6 +393,7 @@ class GoogleService(BaseAIService):
                     "response_time_ms": 120,
                     "structured_output": True,
                     "e2e_test_mode": True,
+                    **self.get_invocation_provenance(),
                 },
                 success=True,
             )

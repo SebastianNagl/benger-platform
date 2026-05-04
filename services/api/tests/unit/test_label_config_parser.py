@@ -423,3 +423,58 @@ class TestValidation:
         assert "Duplicate field names" in result["error"]
         assert "label" in result["error"]
 
+
+class TestExtensionFieldTypes:
+    """register_field_types lets extension packages contribute additional
+    label-studio tag names that participate in field extraction. Mirrors the
+    validator's existing register_field_types pattern."""
+
+    def teardown_method(self):
+        # Each test starts from a clean extension set so the registry is
+        # not leaking state between cases (or into other test classes).
+        LabelConfigParser._EXTENSION_FIELD_TYPES = set()
+
+    def test_unregistered_tag_is_ignored(self):
+        xml = """<View>
+  <Angabe name="angabe" toName="sachverhalt"/>
+  <TextArea name="summary" toName="sachverhalt"/>
+</View>"""
+        names = LabelConfigParser.extract_field_names(xml)
+        assert names == ["summary"]
+
+    def test_registered_tag_is_extracted(self):
+        LabelConfigParser.register_field_types(
+            ["Angabe", "Notizen", "Gliederung", "Loesung"]
+        )
+        xml = """<View>
+  <Angabe name="angabe" toName="sachverhalt"/>
+  <Notizen name="notizen" toName="sachverhalt"/>
+  <Gliederung name="gliederung" toName="sachverhalt"/>
+  <Loesung name="loesung" toName="sachverhalt"/>
+  <TextArea name="summary" toName="sachverhalt"/>
+</View>"""
+        names = LabelConfigParser.extract_field_names(xml)
+        assert sorted(names) == [
+            "angabe",
+            "gliederung",
+            "loesung",
+            "notizen",
+            "summary",
+        ]
+
+    def test_register_is_idempotent(self):
+        LabelConfigParser.register_field_types(["Angabe"])
+        LabelConfigParser.register_field_types(["Angabe", "Loesung"])
+        assert LabelConfigParser._EXTENSION_FIELD_TYPES == {"Angabe", "Loesung"}
+
+    def test_baseline_tags_still_excluded_when_unknown(self):
+        # An unrelated unknown tag must remain ignored even after registering
+        # other extension tags — the allowlist is exact, not a free pass.
+        LabelConfigParser.register_field_types(["Angabe"])
+        xml = """<View>
+  <Angabe name="angabe" toName="x"/>
+  <UnknownTag name="ignored" toName="x"/>
+</View>"""
+        names = LabelConfigParser.extract_field_names(xml)
+        assert names == ["angabe"]
+

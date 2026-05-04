@@ -153,6 +153,9 @@ async def list_projects(
             response.task_count = stats['task_count']
             response.completed_tasks_count = stats['completed_tasks_count']
             response.annotation_count = stats['annotation_count']
+            # Mirror to legacy aliases (see calculate_project_stats note).
+            response.num_tasks = response.task_count
+            response.num_annotations = response.annotation_count
 
             # Calculate progress based on Label Studio approach
             if response.task_count > 0:

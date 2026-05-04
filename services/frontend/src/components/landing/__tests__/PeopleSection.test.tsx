@@ -23,7 +23,7 @@ jest.mock('@/components/shared/Card', () => ({
 const mockUseI18n = require('@/contexts/I18nContext').useI18n
 
 describe('PeopleSection', () => {
-  const mockTeam = [
+  const mockTeamPlatform = [
     {
       name: 'Sebastian Nagl',
       role: 'Project Lead',
@@ -31,8 +31,44 @@ describe('PeopleSection', () => {
       url: 'https://legalplusplus.net',
     },
     {
+      name: 'Matthias Grabmair',
+      role: 'Project Supervisor',
+      institution: 'TUM',
+      url: '',
+    },
+  ]
+
+  const mockTeamDatasetCore = [
+    {
+      name: 'Sebastian Nagl',
+      role: 'Project Lead',
+      institution: 'TUM',
+      url: 'https://legalplusplus.net',
+    },
+  ]
+
+  const mockTeamDatasetContribution = [
+    {
       name: 'Team Member',
       role: 'Research Associate',
+      institution: 'TUM',
+      url: '',
+    },
+  ]
+
+  const mockTeamDatasetSenior = [
+    {
+      name: 'Senior Author',
+      role: 'Criminal Law',
+      institution: 'University',
+      url: '',
+    },
+  ]
+
+  const mockAcknowledgements = [
+    {
+      name: 'Acknowledged Person',
+      role: 'Coordination',
       institution: 'TUM',
       url: '',
     },
@@ -56,9 +92,18 @@ describe('PeopleSection', () => {
     const translations: Record<string, any> = {
       'landing.people.title': 'People & Network',
       'landing.people.subtitle': 'Meet the team behind BenGER.',
-      'landing.people.teamTitle': 'Team',
+      'landing.people.teamPlatformTitle': 'Team — Platform',
+      'landing.people.teamDatasetTitle': 'Team — Dataset',
+      'landing.people.teamDatasetCoreTitle': 'Core Contributor',
+      'landing.people.teamDatasetContributionTitle': 'Dataset Contribution',
+      'landing.people.teamDatasetSeniorTitle': 'Senior Authors',
+      'landing.people.acknowledgementsTitle': 'Acknowledgements',
       'landing.people.networkTitle': 'Network & Partners',
-      'landing.people.team': mockTeam,
+      'landing.people.teamPlatform': mockTeamPlatform,
+      'landing.people.teamDatasetCore': mockTeamDatasetCore,
+      'landing.people.teamDatasetContribution': mockTeamDatasetContribution,
+      'landing.people.teamDatasetSenior': mockTeamDatasetSenior,
+      'landing.people.acknowledgements': mockAcknowledgements,
       'landing.people.network': mockNetwork,
     }
     return translations[key] || key
@@ -93,9 +138,14 @@ describe('PeopleSection', () => {
       expect(section).toHaveClass('min-h-screen')
     })
 
-    it('renders team and network sub-headers', () => {
+    it('renders team, acknowledgements and network sub-headers', () => {
       render(<PeopleSection />)
-      expect(screen.getByText('Team')).toBeInTheDocument()
+      expect(screen.getByText('Team — Platform')).toBeInTheDocument()
+      expect(screen.getByText('Team — Dataset')).toBeInTheDocument()
+      expect(screen.getByText('Core Contributor')).toBeInTheDocument()
+      expect(screen.getByText('Dataset Contribution')).toBeInTheDocument()
+      expect(screen.getByText('Senior Authors')).toBeInTheDocument()
+      expect(screen.getByText('Acknowledgements')).toBeInTheDocument()
       expect(screen.getByText('Network & Partners')).toBeInTheDocument()
     })
   })
@@ -104,28 +154,35 @@ describe('PeopleSection', () => {
     it('renders correct number of cards', () => {
       render(<PeopleSection />)
       const cards = screen.getAllByTestId('card')
-      // 2 team + 2 network = 4
-      expect(cards).toHaveLength(4)
+      // 2 platform + 1 core + 1 contribution + 1 senior + 1 ack + 2 network = 8
+      expect(cards).toHaveLength(8)
     })
 
     it('renders team member names', () => {
       render(<PeopleSection />)
-      expect(screen.getByText('Sebastian Nagl')).toBeInTheDocument()
+      // Sebastian appears in platform and dataset core
+      expect(screen.getAllByText('Sebastian Nagl').length).toBeGreaterThan(0)
+      expect(screen.getByText('Matthias Grabmair')).toBeInTheDocument()
       expect(screen.getByText('Team Member')).toBeInTheDocument()
+      expect(screen.getByText('Senior Author')).toBeInTheDocument()
+      expect(screen.getByText('Acknowledged Person')).toBeInTheDocument()
     })
 
     it('renders team member roles', () => {
       render(<PeopleSection />)
-      expect(screen.getByText('Project Lead')).toBeInTheDocument()
+      expect(screen.getAllByText('Project Lead').length).toBeGreaterThan(0)
+      expect(screen.getByText('Project Supervisor')).toBeInTheDocument()
       expect(screen.getByText('Research Associate')).toBeInTheDocument()
     })
 
     it('links team members with URLs', () => {
       render(<PeopleSection />)
-      const link = screen.getByRole('link', { name: 'Sebastian Nagl' })
-      expect(link).toHaveAttribute('href', 'https://legalplusplus.net')
-      expect(link).toHaveAttribute('target', '_blank')
-      expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+      const links = screen.getAllByRole('link', { name: 'Sebastian Nagl' })
+      links.forEach((link) => {
+        expect(link).toHaveAttribute('href', 'https://legalplusplus.net')
+        expect(link).toHaveAttribute('target', '_blank')
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+      })
     })
 
     it('does not link team members without URLs', () => {
@@ -182,7 +239,8 @@ describe('PeopleSection', () => {
       expect(h2).toHaveTextContent('People & Network')
 
       const h3s = screen.getAllByRole('heading', { level: 3 })
-      expect(h3s).toHaveLength(2)
+      // platform + dataset + acknowledgements + network = 4
+      expect(h3s).toHaveLength(4)
     })
 
     it('opens external links in new tab safely', () => {
@@ -200,20 +258,27 @@ describe('PeopleSection', () => {
       render(<PeopleSection />)
       expect(mockT).toHaveBeenCalledWith('landing.people.title')
       expect(mockT).toHaveBeenCalledWith('landing.people.subtitle')
-      expect(mockT).toHaveBeenCalledWith('landing.people.teamTitle')
+      expect(mockT).toHaveBeenCalledWith('landing.people.teamPlatformTitle')
+      expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetTitle')
+      expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetCoreTitle')
+      expect(mockT).toHaveBeenCalledWith(
+        'landing.people.teamDatasetContributionTitle'
+      )
+      expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetSeniorTitle')
+      expect(mockT).toHaveBeenCalledWith('landing.people.acknowledgementsTitle')
       expect(mockT).toHaveBeenCalledWith('landing.people.networkTitle')
-      expect(mockT).toHaveBeenCalledWith('landing.people.team')
+      expect(mockT).toHaveBeenCalledWith('landing.people.teamPlatform')
+      expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetCore')
+      expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetContribution')
+      expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetSenior')
+      expect(mockT).toHaveBeenCalledWith('landing.people.acknowledgements')
       expect(mockT).toHaveBeenCalledWith('landing.people.network')
     })
   })
 
   describe('empty state', () => {
     it('handles empty data gracefully', () => {
-      const emptyT = jest.fn((key: string) => {
-        if (key === 'landing.people.team') return 'landing.people.team'
-        if (key === 'landing.people.network') return 'landing.people.network'
-        return key
-      })
+      const emptyT = jest.fn((key: string) => key)
       mockUseI18n.mockReturnValue({ t: emptyT })
 
       const { container } = render(<PeopleSection />)

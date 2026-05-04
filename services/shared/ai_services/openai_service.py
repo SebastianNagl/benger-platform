@@ -17,6 +17,12 @@ from .base_service import BaseAIService
 logger = logging.getLogger(__name__)
 
 
+# Phase 6.2: shared retry-history contextvar lives in base_service so
+# all providers (openai/cohere/mistral/deepinfra) push to the same
+# audit-trail buffer.
+from .base_service import _retry_history_ctx, get_retry_history_snapshot  # noqa: E402,F401
+
+
 def retry_with_exponential_backoff(
     max_retries: int = 5,
     base_delay: float = 2.0,
@@ -33,32 +39,55 @@ def retry_with_exponential_backoff(
         max_delay: Maximum delay cap in seconds
         exponential_base: Base for exponential growth
         jitter: Add randomness to prevent thundering herd
+
+    Records each rate-limited attempt in :data:`_retry_history_ctx` so
+    the wrapped function's response-builder can include the audit trail
+    in its response_metadata.
     """
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            retries = 0
-            while True:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    error_str = str(e).lower()
-                    is_rate_limit = "429" in error_str or "rate limit" in error_str
+            history: list = []
+            token = _retry_history_ctx.set(history)
+            try:
+                retries = 0
+                while True:
+                    attempt_start = time.time()
+                    try:
+                        return func(*args, **kwargs)
+                    except Exception as e:
+                        error_str = str(e).lower()
+                        is_rate_limit = "429" in error_str or "rate limit" in error_str
+                        attempt_ms = int((time.time() - attempt_start) * 1000)
+                        history.append({
+                            "attempt": retries + 1,
+                            "error": str(e)[:200],
+                            "is_rate_limit": is_rate_limit,
+                            "latency_ms": attempt_ms,
+                            "retried": is_rate_limit and retries < max_retries,
+                        })
 
-                    if not is_rate_limit or retries >= max_retries:
-                        raise
+                        if not is_rate_limit or retries >= max_retries:
+                            raise
 
-                    delay = min(base_delay * (exponential_base ** retries), max_delay)
-                    if jitter:
-                        delay = delay * (0.5 + random.random())
+                        delay = min(base_delay * (exponential_base ** retries), max_delay)
+                        if jitter:
+                            delay = delay * (0.5 + random.random())
 
-                    logger.warning(
-                        f"⏳ Rate limit hit, retry {retries + 1}/{max_retries} in {delay:.1f}s"
-                    )
-                    time.sleep(delay)
-                    retries += 1
+                        logger.warning(
+                            f"⏳ Rate limit hit, retry {retries + 1}/{max_retries} in {delay:.1f}s"
+                        )
+                        time.sleep(delay)
+                        retries += 1
+            finally:
+                _retry_history_ctx.reset(token)
         return wrapper
     return decorator
+
+
+# Local alias kept for backward compat with downstream call sites in
+# this file; the canonical implementation lives in base_service.
+_get_retry_history_snapshot = get_retry_history_snapshot
 
 
 class OpenAIService(BaseAIService):
@@ -167,18 +196,32 @@ class OpenAIService(BaseAIService):
                 "seed": 42,  # Add seed for maximum determinism
             }
 
-            # o-series and GPT-5 models require temperature=1 (API rejects other values)
+            # o-series and GPT-5 models require temperature=1 (API rejects other values).
+            # Record BOTH the user-requested value and the value we actually
+            # sent to the API so a researcher exporting data can tell whether
+            # determinism (temperature=0) was honored or coerced. Phase 6.1.
+            requested_temperature = temperature
+            temperature_coerced = False
             if is_o_series or is_gpt5:
                 api_params["temperature"] = 1.0
                 if temperature != 1.0:
-                    logger.info(f"Overriding temperature={temperature} -> 1.0 for {model_name} (required by API)")
+                    logger.info(
+                        f"Overriding temperature={temperature} -> 1.0 for "
+                        f"{model_name} (required by API)"
+                    )
+                    temperature_coerced = True
             else:
                 api_params["temperature"] = temperature
+            actual_temperature = api_params["temperature"]
 
-            # GPT-5 models don't support these parameters
+            # GPT-5 models don't support these parameters. Track which ones
+            # we silently dropped so the audit trail is complete (Phase 6.1).
+            unsupported_dropped: list[str] = []
             if is_gpt5:
                 for unsupported in ["top_p", "frequency_penalty", "presence_penalty", "seed"]:
-                    api_params.pop(unsupported, None)
+                    if unsupported in api_params:
+                        api_params.pop(unsupported)
+                        unsupported_dropped.append(unsupported)
 
             # GPT-5 and o-series use max_completion_tokens, older models use max_tokens
             if is_gpt5 or is_o_series:
@@ -223,11 +266,35 @@ class OpenAIService(BaseAIService):
                     "total_tokens": response.usage.total_tokens,
                 },
                 metadata={
-                    "temperature": temperature,
+                    # Legacy field — still echoes the actual value sent to
+                    # the API so existing consumers don't break. Researchers
+                    # comparing runs should rely on requested_/actual_ pairs.
+                    "temperature": actual_temperature,
+                    "requested_temperature": requested_temperature,
+                    "actual_temperature": actual_temperature,
+                    "temperature_coerced": temperature_coerced,
                     "max_tokens": max_tokens,
                     "response_time_ms": response_time_ms,
                     "finish_reason": response.choices[0].finish_reason,
                     "created_at": end_time.isoformat(),
+                    "unsupported_params_dropped": unsupported_dropped,
+                    "is_gpt5_series": is_gpt5,
+                    "is_o_series": is_o_series,
+                    # Phase 6.2: per-call retry history. Empty when the
+                    # call succeeded on the first attempt; non-empty
+                    # entries each record one rate-limit retry that
+                    # preceded the success.
+                    "retry_attempts": _get_retry_history_snapshot(),
+                    "retry_count": len(_get_retry_history_snapshot()),
+                    # Phase 6.5: stamped by user_aware_ai_service when
+                    # the service was created. None for direct/standalone
+                    # service instances (E2E mocks, scripts).
+                    "provider_route": getattr(self, "_key_resolution_route", None),
+                    "provider_name": getattr(self, "_provider_name", "openai"),
+                    "billed_user_id": getattr(self, "_invocation_user_id", None),
+                    "billed_organization_id": getattr(
+                        self, "_invocation_organization_id", None
+                    ),
                 },
                 success=True,
                 error=None,

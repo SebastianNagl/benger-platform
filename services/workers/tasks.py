@@ -1205,6 +1205,20 @@ def generate_llm_responses(
                                 "provider": response_data.get("provider", model.provider),
                                 "system_prompt": system_prompt,
                                 "instruction_prompt": user_prompt,
+                                # Phase 6.1+6.2+6.5: merge AI-service-side audit
+                                # trail (requested/actual temperature, retry
+                                # history, provider route, billed user/org)
+                                # so it lands on Generation rows alongside
+                                # the worker-side metadata. The service-side
+                                # dict can't override worker-set keys above.
+                                **{
+                                    k: v
+                                    for k, v in (response_data.get("metadata") or {}).items()
+                                    if k not in {
+                                        "prompt_id", "prompt_name",
+                                        "system_prompt", "instruction_prompt",
+                                    }
+                                },
                             }
                             logger.info(
                                 f"✅ Using response_text format, content length: {len(response_text)}"
@@ -1220,6 +1234,15 @@ def generate_llm_responses(
                                 "provider": model.provider,
                                 "system_prompt": system_prompt,
                                 "instruction_prompt": user_prompt,
+                                # Same merge as above (Phase 6 audit trail).
+                                **{
+                                    k: v
+                                    for k, v in (response_data.get("metadata") or {}).items()
+                                    if k not in {
+                                        "prompt_id", "prompt_name",
+                                        "system_prompt", "instruction_prompt",
+                                    }
+                                },
                             }
                             logger.info(
                                 f"✅ Using content format, content length: {len(response_text)}"
@@ -2238,6 +2261,12 @@ def run_evaluation(
                         prediction_fields = config.get("prediction_fields", [])
                         reference_fields = config.get("reference_fields", [])
 
+                        # Korrektur is human-graded only; never persisted by the
+                        # worker. Skip the entire config for the model-gen path
+                        # (the human-eval path below also skips it).
+                        if metric.startswith("korrektur_"):
+                            continue
+
                         # Evaluate each field pair
                         for pred_field in prediction_fields:
                             # Skip human annotation fields — handled in annotation section below
@@ -2531,6 +2560,19 @@ def run_evaluation(
                 metric = config.get("metric", "")
                 prediction_fields = config.get("prediction_fields", [])
                 reference_fields = config.get("reference_fields", [])
+
+                # Korrektur (Classic / Standard Falllösung) is human-graded.
+                # The score is written by the API when a corrector submits;
+                # the worker must never persist a row for it. Skip the entire
+                # config — otherwise we'd write 0.0/"Bestanden" placeholder
+                # rows that the leaderboards/evaluations page would display
+                # as if the human had already graded.
+                if metric.startswith("korrektur_"):
+                    logger.info(
+                        f"Skipping config {config_id} (metric: {metric}) — "
+                        "human-graded; persisted by API at grade time."
+                    )
+                    continue
 
                 # Collect human prediction fields from this config
                 human_pred_fields = []
@@ -2922,239 +2964,13 @@ def _immediate_eval_metadata():
     }
 
 
-def _ensure_immediate_eval_run(db, immediate_eval_id, project_id, user_id):
-    """Get or create the EvaluationRun for immediate evaluations, backfilling metadata if needed."""
-    from models import EvaluationRun
-
-    existing_run = db.query(EvaluationRun).filter(
-        EvaluationRun.id == immediate_eval_id
-    ).first()
-    if not existing_run:
-        meta = _immediate_eval_metadata()
-        immediate_run = EvaluationRun(
-            id=immediate_eval_id,
-            project_id=project_id,
-            model_id="immediate",
-            evaluation_type_ids=["llm_judge_falloesung"],
-            status="completed",
-            created_by=user_id,
-            **meta,
-        )
-        db.add(immediate_run)
-        db.flush()
-    elif not existing_run.eval_metadata:
-        # Backfill metadata on records that predate this fix
-        from sqlalchemy.orm.attributes import flag_modified
-        meta = _immediate_eval_metadata()
-        existing_run.eval_metadata = meta["eval_metadata"]
-        existing_run.metrics = meta["metrics"]
-        flag_modified(existing_run, "eval_metadata")
-        flag_modified(existing_run, "metrics")
-        db.flush()
+# Phase 5: Falllösung Celery task + persistence helpers moved to
+# benger-extended/benger_extended/workers/falloesung_tasks.py.
+# Registered into this Celery app via
+# benger_extended.workers.register_tasks(app) at worker startup
+# (see worker bootstrap at the bottom of this file).
 
 
-def _persist_immediate_eval_error(
-    db, evaluation_record_id, project_id, task_id,
-    annotation_id, user_id, field_name, musterloesung, prediction, error_msg,
-    **kwargs,
-):
-    """Persist an error record for immediate evaluation so polling endpoint can detect failure."""
-    from models import TaskEvaluation
-
-    immediate_eval_id = f"immediate_{project_id}"
-    # If caller provides an explicit eval_run_id, use it; otherwise fall back to shared ID
-    eval_run_id = kwargs.get("eval_run_id", immediate_eval_id)
-    if eval_run_id == immediate_eval_id:
-        _ensure_immediate_eval_run(db, immediate_eval_id, project_id, user_id)
-
-    error_record = TaskEvaluation(
-        id=evaluation_record_id,
-        evaluation_id=eval_run_id,
-        task_id=task_id,
-        annotation_id=annotation_id,
-        generation_id=None,
-        field_name=field_name,
-        answer_type="long_text",
-        ground_truth=musterloesung if musterloesung else "",
-        prediction=prediction if prediction else "",
-        metrics={"error": True},
-        passed=False,
-        error_message=error_msg,
-    )
-    db.add(error_record)
-    db.commit()
-    logger.info(f"[Falloesung Celery] Persisted error record {evaluation_record_id}")
-
-
-@app.task(name="tasks.run_immediate_falloesung", bind=True)
-def run_immediate_falloesung(
-    self,
-    evaluation_record_id: str,
-    project_id: str,
-    task_id: str,
-    annotation_id: str,
-    user_id: str,
-    judge_model: str,
-    sachverhalt: str,
-    musterloesung: str,
-    prediction: str,
-    field_name: str = "loesung",
-    metric_parameters: Optional[Dict[str, Any]] = None,
-    organization_id: Optional[str] = None,
-) -> Dict[str, Any]:
-    """
-    Run Falllösung LLM judge evaluation asynchronously via Celery.
-
-    Dispatched from the API immediate evaluation endpoint to avoid blocking
-    the API worker during the 5-15s LLM call.
-
-    Returns result dict with score, grade_points, passed, dimensions.
-    """
-    import time
-    import uuid
-
-    from falloesung_constants import (
-        FALLOESUNG_PROMPT_TEMPLATE,
-        FALLOESUNG_SYSTEM_PROMPT,
-        parse_falloesung_response,
-    )
-
-    params = metric_parameters or {}
-    temperature = params.get("temperature", 0.0)
-    max_tokens = params.get("max_tokens", 4096)
-    thinking_budget = params.get("thinking_budget")
-    reasoning_effort = params.get("reasoning_effort")
-    max_retries = 3
-
-    db = SessionLocal()
-    try:
-        from models import EvaluationRun, TaskEvaluation
-
-        provider = _get_provider_from_model(judge_model)
-
-        if not HAS_AI_SERVICES:
-            logger.error("[Falloesung Celery] AI services not available")
-            return {"status": "error", "message": "AI services not available"}
-
-        try:
-            ai_service = user_aware_ai_service.get_ai_service_for_user(
-                db, user_id, provider, organization_id=organization_id
-            )
-        except Exception as e:
-            logger.error(f"[Falloesung Celery] Failed to create AI service: {e}")
-            return {"status": "error", "message": f"API key error: {e}"}
-
-        if ai_service is None:
-            msg = f"No API key found for provider '{provider}'"
-            if organization_id:
-                msg += f" (org: {organization_id})"
-            else:
-                msg += f" (user: {user_id})"
-            logger.error(f"[Falloesung Celery] {msg}")
-            # Persist error record so polling endpoint can detect failure
-            _persist_immediate_eval_error(
-                db, evaluation_record_id, project_id, task_id,
-                annotation_id, user_id, field_name, musterloesung, prediction, msg
-            )
-            return {"status": "error", "evaluation_record_id": evaluation_record_id, "message": msg}
-
-        prompt = FALLOESUNG_PROMPT_TEMPLATE.format(
-            context=sachverhalt or "(Kein Sachverhalt angegeben)",
-            ground_truth=musterloesung or "(Keine Musterlösung angegeben)",
-            prediction=prediction or "(Keine Studierendenlösung angegeben)",
-        )
-
-        result = None
-        for attempt in range(max_retries):
-            try:
-                extra_kwargs = {}
-                if thinking_budget:
-                    extra_kwargs["thinking_budget"] = thinking_budget
-                if reasoning_effort:
-                    extra_kwargs["reasoning_effort"] = reasoning_effort
-
-                logger.info(f"[Falloesung Celery] Calling {provider}/{judge_model} (attempt {attempt + 1})")
-                response = ai_service.generate(
-                    prompt=prompt,
-                    system_prompt=FALLOESUNG_SYSTEM_PROMPT,
-                    model_name=judge_model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    **extra_kwargs,
-                )
-
-                if not response.get("success"):
-                    logger.warning(f"[Falloesung Celery] LLM call failed: {response.get('error')}")
-                    continue
-
-                content = response.get("content", "")
-                logger.info(f"[Falloesung Celery] Got response ({len(content)} chars)")
-                result = parse_falloesung_response(content)
-
-                if result is not None:
-                    logger.info(
-                        f"[Falloesung Celery] Score: {result['total_score']}/100, "
-                        f"Grade: {result['grade_points']}/18, Passed: {result['passed']}"
-                    )
-                    break
-            except Exception as e:
-                logger.warning(f"[Falloesung Celery] Attempt {attempt + 1} failed: {e}")
-                if attempt < max_retries - 1:
-                    time.sleep(1 * (attempt + 1))
-
-        if result is None:
-            _persist_immediate_eval_error(
-                db, evaluation_record_id, project_id, task_id,
-                annotation_id, user_id, field_name, musterloesung, prediction,
-                "All evaluation attempts failed"
-            )
-            return {"status": "error", "evaluation_record_id": evaluation_record_id, "message": "All evaluation attempts failed"}
-
-        # Persist TaskEvaluation
-        total_score = result.get("score", 0)
-        normalized_score = total_score / 100.0
-        immediate_eval_id = f"immediate_{project_id}"
-
-        _ensure_immediate_eval_run(db, immediate_eval_id, project_id, user_id)
-
-        eval_record = TaskEvaluation(
-            id=evaluation_record_id,
-            evaluation_id=immediate_eval_id,
-            task_id=task_id,
-            annotation_id=annotation_id,
-            generation_id=None,
-            field_name=field_name,
-            answer_type="long_text",
-            ground_truth=musterloesung if musterloesung else "",
-            prediction=prediction if prediction else "",
-            metrics={
-                "llm_judge_falloesung": normalized_score,
-                "llm_judge_falloesung_raw": total_score,
-                "llm_judge_falloesung_grade_points": result.get("grade_points", 0),
-                "llm_judge_falloesung_passed": 1.0 if result.get("passed") else 0.0,
-                "llm_judge_falloesung_details": result,
-            },
-            passed=result.get("passed", False),
-        )
-        db.add(eval_record)
-        db.commit()
-        logger.info(f"[Falloesung Celery] Persisted TaskEvaluation {evaluation_record_id}")
-
-        return {
-            "status": "completed",
-            "evaluation_record_id": evaluation_record_id,
-            "result": result,
-            "total_score": total_score,
-            "grade_points": result.get("grade_points", 0),
-            "passed": result.get("passed", False),
-        }
-
-    except Exception as e:
-        logger.error(f"[Falloesung Celery] Task failed: {e}")
-        db.rollback()
-        return {"status": "error", "message": str(e)}
-    finally:
-        db.close()
 
 
 # =============================================================================
@@ -3199,6 +3015,26 @@ def run_single_sample_evaluation(
     db = SessionLocal()
     try:
         from models import EvaluationRun, TaskEvaluation
+        from project_models import Project
+
+        # Phase 6.4: snapshot the project's schema state at run-start so
+        # historical evaluations stay reproducible even if label_config or
+        # evaluation_config is edited later. Without this, a paper citing
+        # a benchmark score has no way to reconstruct which schema
+        # produced the number.
+        project_for_snapshot = (
+            db.query(Project).filter(Project.id == project_id).first()
+        )
+        run_provenance: Dict[str, Any] = {}
+        if project_for_snapshot is not None:
+            run_provenance = {
+                "label_config_version": getattr(
+                    project_for_snapshot, "label_config_version", None
+                ),
+                "evaluation_config_snapshot": project_for_snapshot.evaluation_config,
+                "worker_image_tag": os.environ.get("WORKER_IMAGE_TAG", "unknown"),
+                "spacy_de_model_version": "de_core_news_md@3.7.0",
+            }
 
         # Create a per-dispatch EvaluationRun so polling can find all results
         dispatch_eval_id = evaluation_record_id
@@ -3216,6 +3052,7 @@ def run_single_sample_evaluation(
                     {"metric": c.get("metric", ""), "display_name": c.get("display_name", c.get("metric", ""))}
                     for c in evaluation_configs
                 ],
+                **run_provenance,
             },
             metrics={},
         )
@@ -3230,20 +3067,50 @@ def run_single_sample_evaluation(
             ref_fields = eval_cfg.get("reference_fields", [])
             metric_params = eval_cfg.get("metric_parameters", {})
 
-            # Extract prediction and reference values
+            # Korrektur (Classic / Standard Falllösung) is human-graded —
+            # the score is persisted directly by the API when a corrector
+            # submits, never computed by this worker. Skip it from the
+            # dispatch loop entirely so we don't try (and fail) to compare
+            # a non-existent prediction against a non-existent reference.
+            if metric_type.startswith("korrektur_"):
+                continue
+
+            # Extract prediction and reference values.
+            #
+            # `prediction_fields` carries either a literal field name, a
+            # `human:<field>` / `model:<field>` prefixed name (matching the
+            # EvaluationBuilder's specifiers), or the bulk selectors
+            # `__all_human__` / `__all_model__`. `annotation_results` is
+            # keyed by raw `from_name`, so we strip prefixes and expand the
+            # `__all_human__` selector before lookup.
             prediction_value = None
             reference_value = None
 
+            def _resolve_human_field(pf: str):
+                if pf == "__all_human__":
+                    if not annotation_results:
+                        return None
+                    return "\n\n".join(
+                        f"{k}: {v}" for k, v in annotation_results.items() if v
+                    )
+                key = pf.split(":", 1)[1] if pf.startswith("human:") else pf
+                return annotation_results.get(key)
+
             for pf in pred_fields:
-                if pf in annotation_results:
-                    prediction_value = annotation_results[pf]
+                if pf.startswith("model:") or pf == "__all_model__":
+                    # Single-sample immediate eval has no model generations to
+                    # evaluate against — only human annotations. Skip.
+                    continue
+                value = _resolve_human_field(pf)
+                if value:
+                    prediction_value = value
                     break
 
             for rf in ref_fields:
                 if rf.startswith("task."):
                     data_field = rf[5:]
                     reference_value = task_data.get(data_field) if task_data else None
-                elif rf in task_data:
+                elif task_data and rf in task_data:
                     reference_value = task_data.get(rf)
                 if reference_value is not None:
                     break
@@ -3257,8 +3124,25 @@ def run_single_sample_evaluation(
 
             try:
                 if metric_type == "llm_judge_falloesung":
-                    # Delegate to falloesung-specific logic
-                    result = _evaluate_falloesung_single(
+                    # Phase 5: Delegate to extended-registered Falllösung
+                    # compute. Platform code never imports the function
+                    # directly — it asks the extended package to provide
+                    # one. Community edition (no benger_extended) raises
+                    # an informative error rather than crashing.
+                    try:
+                        from benger_extended.workers import (
+                            get_falloesung_compute_fn,
+                        )
+                    except ImportError as exc:
+                        raise RuntimeError(
+                            "Metric 'llm_judge_falloesung' requires the "
+                            "benger_extended package; it is not installed "
+                            "in this worker. Configure the project to use "
+                            "a different LLM-judge metric or load the "
+                            "extended edition."
+                        ) from exc
+                    falloesung_fn = get_falloesung_compute_fn()
+                    result = falloesung_fn(
                         db=db,
                         record_id=record_id,
                         immediate_eval_id=dispatch_eval_id,
@@ -3296,18 +3180,24 @@ def run_single_sample_evaluation(
                 else:
                     # Deterministic metrics — use SampleEvaluator with real implementations
                     from ml_evaluation.sample_evaluator import SampleEvaluator
+                    from ml_evaluation import extract_value
 
                     field_configs = {field_name: {"type": "text"}}
                     param_configs = {field_name: {metric_type: metric_params}} if metric_params else {}
                     evaluator = SampleEvaluator(record_id, field_configs, param_configs)
 
-                    score = evaluator._compute_metric(
+                    # Phase 2: rich result dict with provenance. The legacy
+                    # consumer (passed=score>=0.5 etc.) extracts the bare
+                    # value via the shared shim; the persisted record now
+                    # stores the full audit trail under metric_type.
+                    metric_result = evaluator._compute_metric_with_details(
                         metric_name=metric_type,
                         ground_truth=reference_value,
                         prediction=prediction_value,
                         answer_type="text",
                         parameters=metric_params or None,
                     )
+                    score_value = extract_value(metric_result) or 0.0
 
                     eval_record = TaskEvaluation(
                         id=record_id,
@@ -3320,10 +3210,10 @@ def run_single_sample_evaluation(
                         ground_truth=str(reference_value) if reference_value else "",
                         prediction=str(prediction_value) if prediction_value else "",
                         metrics={
-                            metric_type: float(score),
-                            "raw_score": float(score),
+                            metric_type: metric_result,  # Full {value, details, ...}
+                            "raw_score": float(score_value),
                         },
-                        passed=float(score) >= 0.5,
+                        passed=float(score_value) >= 0.5,
                     )
                     db.add(eval_record)
                     db.commit()
@@ -3332,19 +3222,38 @@ def run_single_sample_evaluation(
                         "status": "completed",
                         "record_id": record_id,
                         "metric": metric_type,
-                        "score": float(score),
+                        "score": float(score_value),
+                        "details": metric_result.get("details") if isinstance(metric_result, dict) else None,
                     })
 
             except Exception as e:
                 logger.error(f"[SingleSampleEval] {metric_type} failed: {e}")
-                _persist_immediate_eval_error(
-                    db, record_id, project_id, task_id,
-                    annotation_id, user_id or "system", field_name,
-                    str(reference_value) if reference_value else "",
-                    str(prediction_value) if prediction_value else "",
-                    str(e),
-                    eval_run_id=dispatch_eval_id,
-                )
+                # Phase 5: error persistence helper moved to extended.
+                # Falllösung-specific failures use the extended helper;
+                # everything else logs the error and proceeds (the
+                # generic LLM judge / deterministic-metric paths don't
+                # need a per-failure DB record — the worker-level error
+                # is enough). For Falllösung specifically, defer to the
+                # extended helper if present.
+                if metric_type == "llm_judge_falloesung":
+                    try:
+                        from benger_extended.workers.falloesung_tasks import (
+                            _persist_falloesung_eval_error,
+                        )
+                        _persist_falloesung_eval_error(
+                            db, record_id, project_id, task_id,
+                            annotation_id, user_id or "system", field_name,
+                            str(reference_value) if reference_value else "",
+                            str(prediction_value) if prediction_value else "",
+                            str(e),
+                            eval_run_id=dispatch_eval_id,
+                        )
+                    except ImportError:
+                        # Community edition — best effort, just log.
+                        logger.warning(
+                            "Falllösung error persistence skipped; "
+                            "benger_extended not installed"
+                        )
                 results.append({
                     "status": "error",
                     "record_id": record_id,
@@ -3415,120 +3324,12 @@ def run_single_sample_evaluation(
         db.close()
 
 
-def _evaluate_falloesung_single(
-    db, record_id, immediate_eval_id, project_id, task_id,
-    annotation_id, user_id, field_name, prediction, task_data,
-    metric_params, organization_id,
-):
-    """Run Falllösung LLM judge evaluation for a single sample."""
-    import time
+# Phase 5: _evaluate_falloesung_single moved to
+# benger-extended/benger_extended/workers/falloesung_tasks.evaluate_falloesung_single
+# and dispatched via the metric registry hook. See the
+# llm_judge_falloesung branch in run_single_sample_evaluation above.
 
-    from falloesung_constants import (
-        FALLOESUNG_PROMPT_TEMPLATE,
-        FALLOESUNG_SYSTEM_PROMPT,
-        parse_falloesung_response,
-    )
-    from models import TaskEvaluation
 
-    params = metric_params or {}
-    judge_model = params.get("judge_model", "gpt-4o")
-    temperature = params.get("temperature", 0.0)
-    max_tokens = params.get("max_tokens", 4096)
-    thinking_budget = params.get("thinking_budget")
-    reasoning_effort = params.get("reasoning_effort")
-
-    sachverhalt = _get_insensitive(task_data, "sachverhalt") if task_data else ""
-    musterloesung = ""
-    if task_data:
-        musterloesung = str(
-            _get_insensitive(task_data, "musterloesung")
-            or _get_insensitive(task_data, "musterlösung")
-            or ""
-        )
-
-    provider = _get_provider_from_model(judge_model)
-
-    if not HAS_AI_SERVICES:
-        raise RuntimeError("AI services not available")
-
-    ai_service = user_aware_ai_service.get_ai_service_for_user(
-        db, user_id, provider, organization_id=organization_id
-    )
-    if ai_service is None:
-        raise RuntimeError(f"No API key found for provider '{provider}'")
-
-    prompt = FALLOESUNG_PROMPT_TEMPLATE.format(
-        context=sachverhalt or "(Kein Sachverhalt angegeben)",
-        ground_truth=musterloesung or "(Keine Musterlösung angegeben)",
-        prediction=prediction or "(Keine Studierendenlösung angegeben)",
-    )
-
-    result = None
-    for attempt in range(3):
-        try:
-            extra_kwargs = {}
-            if thinking_budget:
-                extra_kwargs["thinking_budget"] = thinking_budget
-            if reasoning_effort:
-                extra_kwargs["reasoning_effort"] = reasoning_effort
-
-            response = ai_service.generate(
-                prompt=prompt,
-                system_prompt=FALLOESUNG_SYSTEM_PROMPT,
-                model_name=judge_model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                **extra_kwargs,
-            )
-
-            if not response.get("success"):
-                continue
-
-            content = response.get("content", "")
-            result = parse_falloesung_response(content)
-            if result is not None:
-                break
-        except Exception as e:
-            logger.warning(f"[Falloesung] Attempt {attempt + 1} failed: {e}")
-            if attempt < 2:
-                time.sleep(1 * (attempt + 1))
-
-    if result is None:
-        raise RuntimeError("All Falllösung evaluation attempts failed")
-
-    total_score = result.get("score", 0)
-    normalized_score = total_score / 100.0
-
-    eval_record = TaskEvaluation(
-        id=record_id,
-        evaluation_id=immediate_eval_id,
-        task_id=task_id,
-        annotation_id=annotation_id,
-        generation_id=None,
-        field_name=field_name,
-        answer_type="long_text",
-        ground_truth=musterloesung,
-        prediction=prediction,
-        metrics={
-            "llm_judge_falloesung": normalized_score,
-            "llm_judge_falloesung_raw": total_score,
-            "llm_judge_falloesung_grade_points": result.get("grade_points", 0),
-            "llm_judge_falloesung_passed": 1.0 if result.get("passed") else 0.0,
-            "llm_judge_falloesung_details": result,
-        },
-        passed=result.get("passed", False),
-    )
-    db.add(eval_record)
-    db.commit()
-
-    return {
-        "status": "completed",
-        "record_id": record_id,
-        "metric": "llm_judge_falloesung",
-        "score": normalized_score,
-        "grade_points": result.get("grade_points", 0),
-        "passed": result.get("passed", False),
-    }
 
 
 def _evaluate_llm_judge_single(
@@ -3595,3 +3396,45 @@ def _evaluate_llm_judge_single(
         "metric": metric_type,
         "score": float(score),
     }
+
+
+# =============================================================================
+# Worker bootstrap: load extended Celery tasks if available
+# =============================================================================
+#
+# Phase 5 of the academic-rigor overhaul. The extended package ships
+# additional Celery tasks (e.g. tasks.run_immediate_falloesung) and metric
+# handlers (llm_judge_falloesung). They register themselves into THIS
+# Celery app via two hooks. Community edition (no benger_extended) is a
+# clean no-op via the outer ImportError handler.
+#
+# The version handshake mirrors services/api/extensions.py so a mismatched
+# extended package surfaces loudly at startup, not in a silent dispatch
+# error during evaluation.
+try:
+    import benger_extended  # noqa: F401
+
+    _WORKER_CORE_API_VERSION = "2.1"  # keep in sync with services/api/extensions.py
+    _ext_compatible = True
+    if hasattr(benger_extended, "COMPATIBLE_CORE_VERSIONS"):
+        if _WORKER_CORE_API_VERSION not in benger_extended.COMPATIBLE_CORE_VERSIONS:
+            logger.error(
+                "Worker: benger_extended core-version mismatch — needs %s, "
+                "core is %s. Extended tasks NOT registered.",
+                benger_extended.COMPATIBLE_CORE_VERSIONS,
+                _WORKER_CORE_API_VERSION,
+            )
+            _ext_compatible = False
+
+    if _ext_compatible:
+        from benger_extended.workers import register_tasks as _ext_register_tasks
+
+        _ext_register_tasks(app)
+        logger.info("Worker: benger_extended Celery tasks registered")
+        # NOTE: register_metric_handlers is wired through
+        # ml_evaluation/__init__.py at module-import time (Phase 1) so
+        # the registry is already populated by the time the worker
+        # starts dispatching. We do NOT re-register here — that would
+        # replace the handler with itself and emit a noisy warning.
+except ImportError:
+    logger.info("Worker: community edition (no benger_extended package)")

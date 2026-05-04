@@ -57,4 +57,13 @@ AutoModelForSequenceClassification.from_pretrained('tals/albert-xlarge-vitaminc-
 AutoTokenizer.from_pretrained('manueldeprada/FactCC'); \
 AutoModelForSequenceClassification.from_pretrained('manueldeprada/FactCC'); \
 \
+print('Validating spaCy German NER pipeline (de_core_news_md installed via pip)...'); \
+import spacy; \
+nlp = spacy.load('de_core_news_md'); \
+test = nlp('Klaegerin K verlangt von Beklagtem V Uebergabe nach Paragraph 433 BGB. Der Vertrag wurde in Muenchen geschlossen.'); \
+ents = [(e.text, e.label_) for e in test.ents]; \
+assert any(label in ('PER', 'LOC', 'ORG', 'MISC') for _, label in ents), \
+    f'spaCy de_core_news_md NER produced no entities on canonical legal-DE input: {ents}'; \
+print('spaCy de_core_news_md NER OK:', ents); \
+\
 print('All models downloaded successfully.')"

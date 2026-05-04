@@ -480,6 +480,16 @@ export class ApiClient {
       this.evaluationsClient,
       'runEvaluation'
     )
+    // Immediate evaluation: kick off + poll-until-complete (used by the
+    // ImmediateEvaluationSlot wrapper after annotation submit).
+    this.runImmediateEvaluation = safeBind(
+      this.evaluationsClient,
+      'runImmediateEvaluation'
+    )
+    this.pollImmediateEvaluation = safeBind(
+      this.evaluationsClient,
+      'pollImmediateEvaluation'
+    )
     this.getEvaluationDetailResults = safeBind(
       this.evaluationsClient,
       'getEvaluationDetailResults'
@@ -734,6 +744,8 @@ export class ApiClient {
   // Evaluation methods (Phase 8: N:M Field Mapping)
   getAvailableEvaluationFields: any
   runEvaluation: any
+  runImmediateEvaluation: any
+  pollImmediateEvaluation: any
   getEvaluationDetailResults: any
   // Phase 9: Project-level evaluation results
   getProjectEvaluationResults: any
