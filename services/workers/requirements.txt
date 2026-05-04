@@ -11,7 +11,7 @@ tiktoken>=0.5.0  # Required by AlbertTokenizer for SummaC/ViTC
 torch>=2.0.0,<2.11.0
 numpy>=1.26.4,<2.0  # Cap at <2.0: thinc/spacy wheels assume numpy-1.x ABI (88-byte PyArray_Descr). numpy 2.x rebuilds the dtype struct to 96 bytes; mixing causes ImportError "numpy.dtype size changed" at spacy.load(). Lift this only after thinc/spacy/torch all confirm numpy-2.x wheels in our matrix.
 scikit-learn>=1.4.1
-scipy>=1.11.0
+scipy>=1.17.1
 nltk>=3.8.1
 spacy>=3.7.0,<3.8  # German NER for coherence metric (Phase 3 academic-rigor). Cap at <3.8 keeps thinc on the 8.2.x line (numpy-1.x ABI). spaCy 3.8 pulls thinc 8.3.x compiled against numpy-2.x and breaks at runtime under our numpy>=1.26.4,<2 stack.
 # Pin to a specific spaCy model release so worker images are reproducible.
