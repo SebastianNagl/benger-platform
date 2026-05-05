@@ -1166,10 +1166,14 @@ async def get_project_results_by_task_model(
                 detail="Access denied",
             )
 
-        # Get completed evaluations for this project, optionally filtered by IDs
+        # Get evaluations for this project (completed + in-flight),
+        # optionally filtered by IDs. In-flight runs commit each row as
+        # the evaluator finishes it, so surfacing them here lets the
+        # frontend stream live progress instead of waiting for the run
+        # to flip to `completed`. Failed runs still drop out.
         eval_query = db.query(DBEvaluationRun.id).filter(
             DBEvaluationRun.project_id == project_id,
-            DBEvaluationRun.status == "completed",
+            DBEvaluationRun.status.in_(("completed", "running", "pending")),
         )
         if evaluation_ids:
             filter_ids = [eid.strip() for eid in evaluation_ids.split(",") if eid.strip()]
