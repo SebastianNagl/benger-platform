@@ -526,7 +526,10 @@ describe('EvaluationResults', () => {
       render(<EvaluationResults projectId="project-123" />)
 
       await waitFor(() => {
-        expect(screen.getByText('Exact Match')).toBeInTheDocument()
+        // Post the "drop misleading samples count from dropdown" change,
+        // 'Exact Match' appears both in the metric-selector option AND in
+        // the eval card. We just want the eval card here.
+        expect(screen.getAllByText('Exact Match').length).toBeGreaterThan(0)
       })
     })
 
@@ -1094,7 +1097,7 @@ describe('EvaluationResults', () => {
       render(<EvaluationResults projectId="project-123" />)
 
       await waitFor(() => {
-        expect(screen.getByText('F1 Score (Macro)')).toBeInTheDocument()
+        expect(screen.getAllByText('F1 Score (Macro)').length).toBeGreaterThan(0)
       })
     })
 

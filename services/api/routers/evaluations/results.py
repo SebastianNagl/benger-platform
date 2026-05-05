@@ -1305,8 +1305,18 @@ async def get_project_results_by_task_model(
 
         # Build task-model score matrix
         # Structure: {task_id: {model_id: score, ...}, ...}
+        #
+        # Each (task, model) cell may have multiple TaskEvaluation rows when
+        # the project generated >1 sample per (task, model) prompt. Pre-fix
+        # the loop assigned `task_scores[t][m] = score`, overwriting silently
+        # — so the cell rendered whichever gen iterated last (arbitrary
+        # ordering). The modal showed a different gen's row, so the cell
+        # number disagreed with the modal by an order of magnitude.
+        # Fix: collect all per-cell scores and mean them. Single-row cells
+        # are unaffected (mean of one value is the value).
         task_scores: dict = {}
         task_previews: dict = {}
+        cell_score_buckets: dict = {}  # {(task_id, model_id): [score, ...]}
         model_scores: dict = {mid: [] for mid in model_ids}
 
         for result in sample_results:
@@ -1317,10 +1327,12 @@ async def get_project_results_by_task_model(
             score = _extract_primary_score(metrics)
 
             if score is not None and model_id:
-                if task_id not in task_scores:
-                    task_scores[task_id] = {}
-                task_scores[task_id][model_id] = score
-                model_scores[model_id].append(score)
+                cell_score_buckets.setdefault((task_id, model_id), []).append(score)
+
+        for (task_id, model_id), scores in cell_score_buckets.items():
+            mean = sum(scores) / len(scores)
+            task_scores.setdefault(task_id, {})[model_id] = mean
+            model_scores[model_id].append(mean)
 
         # Process annotation-based results: add as synthetic annotator "models"
         if annotation_eval_results:

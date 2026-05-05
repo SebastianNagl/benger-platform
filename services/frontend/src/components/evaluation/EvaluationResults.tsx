@@ -1062,8 +1062,14 @@ export function EvaluationResults({
           {/* Metric selector dropdown */}
           {availableMetricRuns.length > 0 && selectedMetricRunId && (() => {
             const selectedRun = availableMetricRuns.find((r) => r.id === selectedMetricRunId)
+            // The previous label had `(${selectedRun.samplesEvaluated})` — but
+            // that field is the run-level total samples_evaluated, which is
+            // shared across every metric in a bundled multi-metric run. Every
+            // metric ended up showing the same number (the run total),
+            // misleading users into thinking each metric had been computed for
+            // that many cells. Drop the count rather than show a wrong one.
             const displayText = selectedRun
-              ? `${selectedRun.displayName} (${selectedRun.samplesEvaluated})`
+              ? selectedRun.displayName
               : t('evaluation.multiFieldResults.selectMetric')
             return (
               <Select
@@ -1082,7 +1088,7 @@ export function EvaluationResults({
                 <SelectContent>
                   {availableMetricRuns.map((run) => (
                     <SelectItem key={run.id} value={run.id}>
-                      {run.displayName} ({run.samplesEvaluated})
+                      {run.displayName}
                     </SelectItem>
                   ))}
                 </SelectContent>
