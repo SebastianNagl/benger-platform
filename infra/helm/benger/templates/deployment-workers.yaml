@@ -32,6 +32,11 @@ spec:
           image: "{{ .Values.workers.image.repository }}:{{ .Values.workers.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.workers.image.pullPolicy }}
           command: ["celery", "-A", "tasks", "worker", "--loglevel=info", "--concurrency={{ .Values.workers.concurrency | default 4 }}", "-Q", "celery,emails,default,generation"]
+          # Explicit empty args prevents server-side apply from preserving
+          # an `args:` array set out-of-band via `kubectl patch`. Without
+          # this, the container ran command + args (the same celery
+          # invocation duplicated), failing with "-A as worker option".
+          args: []
           livenessProbe:
             exec:
               command:
