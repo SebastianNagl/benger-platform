@@ -580,11 +580,12 @@ export function EvaluationResults({
 
   // The worker commits each TaskEvaluation row to Postgres immediately
   // after the evaluator returns (`db.commit()` per row), so an in-flight
-  // run already has queryable rows. This lets us live-stream cell-by-cell
-  // progress: re-fetch every few seconds while any run is `pending`/
-  // `running`, stop polling once all selected runs finish. Mirrors the
-  // pattern used by the Generations page (websocket-with-polling fallback)
-  // — eval doesn't have the websocket layer yet, so polling-only here.
+  // run already has queryable rows. We stream cell-by-cell updates via
+  // a WebSocket: the backend pushes a "tick" event when row counts or
+  // run statuses change, and the frontend re-fetches the per-cell
+  // view on each tick. WebSocket connection failures fall back to 5 s
+  // polling — same UX, slightly higher latency. Pattern mirrors the
+  // Generations page (`GenerationProgress.tsx:90-227`).
   const hasInflightSelectedRun = useMemo(() => {
     if (!results?.evaluations || !selectedRunIdsKey) return false
     const selectedSet = new Set(selectedRunIdsKey.split(','))
@@ -595,17 +596,18 @@ export function EvaluationResults({
     )
   }, [results, selectedRunIdsKey])
 
+  const fetchTaskModelDataRef = useRef<() => Promise<void>>(async () => {})
+
   useEffect(() => {
     let cancelled = false
     const fetchTaskModelData = async () => {
       if (!projectId) {
-        setTaskModelData(null)
+        if (!cancelled) setTaskModelData(null)
         return
       }
 
-      // Initial fetch shows a loading state; subsequent polls don't, so
-      // the table doesn't visibly flash on each refresh while live data
-      // streams in.
+      // Initial fetch shows a loading state; subsequent refreshes don't,
+      // so the table doesn't visibly flash on each tick.
       if (!taskModelData) setTaskModelLoading(true)
       try {
         const runIds = selectedRunIdsKey ? selectedRunIdsKey.split(',') : undefined
@@ -623,27 +625,102 @@ export function EvaluationResults({
         if (!cancelled) setTaskModelLoading(false)
       }
     }
-
+    fetchTaskModelDataRef.current = fetchTaskModelData
     fetchTaskModelData()
 
-    // Live-progress polling: every 5s while the selected run is in-flight.
-    // Stops automatically once the run flips to completed/failed (the
-    // dep `hasInflightSelectedRun` flips → effect re-runs and the
-    // setInterval is no longer scheduled).
-    if (hasInflightSelectedRun) {
-      const interval = setInterval(fetchTaskModelData, 5000)
-      return () => {
-        cancelled = true
-        clearInterval(interval)
-      }
-    }
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- taskModelData
-    // intentionally excluded; including it would refetch on every poll
-    // result and re-trigger the effect indefinitely.
-  }, [projectId, selectedRunIdsKey, selectedMetricKey, showHistory, hasInflightSelectedRun])
+    // intentionally excluded; otherwise the effect re-fires on every
+    // setTaskModelData call and creates a fetch-loop.
+  }, [projectId, selectedRunIdsKey, selectedMetricKey, showHistory])
+
+  // WebSocket primary + 5 s polling fallback for live cell-by-cell updates.
+  // Only opens while a selected run is in-flight; closes immediately when
+  // the run finishes (saves backend connections + frontend timers).
+  useEffect(() => {
+    if (!projectId || !hasInflightSelectedRun) return
+
+    let ws: WebSocket | null = null
+    let reconnectAttempts = 0
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
+    let pollInterval: ReturnType<typeof setInterval> | null = null
+    let closed = false
+
+    const startPollingFallback = () => {
+      if (pollInterval) return
+      pollInterval = setInterval(() => {
+        fetchTaskModelDataRef.current()
+      }, 5000)
+    }
+
+    const connect = () => {
+      try {
+        const apiUrl =
+          (typeof window !== 'undefined' &&
+            (window as any).__BENGER_API_URL__) ||
+          (typeof window !== 'undefined' ? window.location.origin : '')
+        const wsProtocol = apiUrl.startsWith('https') ? 'wss' : 'ws'
+        const wsHost = apiUrl.replace(/^https?:\/\//, '')
+        const wsUrl = `${wsProtocol}://${wsHost}/api/ws/projects/${projectId}/evaluation-progress`
+        ws = new WebSocket(wsUrl)
+
+        ws.onopen = () => {
+          reconnectAttempts = 0
+          // Stop any polling fallback that was running before WS came up.
+          if (pollInterval) {
+            clearInterval(pollInterval)
+            pollInterval = null
+          }
+        }
+
+        ws.onmessage = (ev) => {
+          try {
+            const data = JSON.parse(ev.data)
+            if (data.type === 'tick' || data.type === 'idle') {
+              fetchTaskModelDataRef.current()
+            }
+          } catch {
+            /* ignore malformed messages */
+          }
+        }
+
+        ws.onerror = () => {
+          // Let onclose handle reconnect/fallback so we don't double-fire.
+        }
+
+        ws.onclose = () => {
+          if (closed) return
+          // Exponential backoff up to 5 attempts, then drop to polling.
+          if (reconnectAttempts < 5) {
+            const delay = Math.min(1000 * 2 ** reconnectAttempts, 10000)
+            reconnectAttempts += 1
+            reconnectTimeout = setTimeout(connect, delay)
+          } else {
+            startPollingFallback()
+          }
+        }
+      } catch {
+        startPollingFallback()
+      }
+    }
+
+    connect()
+
+    return () => {
+      closed = true
+      if (ws) {
+        try {
+          ws.close()
+        } catch {
+          /* noop */
+        }
+      }
+      if (reconnectTimeout) clearTimeout(reconnectTimeout)
+      if (pollInterval) clearInterval(pollInterval)
+    }
+  }, [projectId, hasInflightSelectedRun])
 
   const handleRefresh = () => {
     setLoading(true)
