@@ -56,6 +56,28 @@ def _row_has_score(metrics: dict | None) -> bool:
     return False
 
 
+def _row_is_terminal_error(metrics: dict | None) -> bool:
+    """A row that's been tried and failed in a non-recoverable way must NOT
+    be re-tried on the next ``evaluate_missing_only=True`` run. The worker
+    writes such rows with the unified ``{value: None, ..., error: "<msg>"}``
+    blob shape, OR with a non-None top-level ``error_message`` on the row.
+
+    Without this gate, every retry would re-attempt the same hopeless target,
+    accumulate another stub row each time, and (if it's an LLM judge call)
+    burn API budget on a call we already know fails. Pairs with
+    ``_row_has_score`` — both must be considered when populating the
+    "already evaluated" set in missing-only logic.
+    """
+    if not metrics:
+        return False
+    for k, v in metrics.items():
+        if k == "error":
+            continue
+        if isinstance(v, dict) and v.get("error"):
+            return True
+    return False
+
+
 def _normalize_field_key(field_name: str | None, *, is_annotation: bool) -> str | None:
     """Normalize a stored ``TaskEvaluation.field_name`` to the canonical
     pipe format ``{config_id}|{pred_field}|{ref_field}`` so missing-only
@@ -2221,7 +2243,11 @@ def run_evaluation(
                     .all()
                 )
                 for r in existing:
-                    if _row_has_score(r.metrics):
+                    # Terminal-error rows are NOT scored, but missing-only must
+                    # still treat them as "tried" so a known-failed evaluation
+                    # doesn't get retried indefinitely (causing stub pile-up
+                    # and burning API quota on a hopeless target).
+                    if _row_has_score(r.metrics) or _row_is_terminal_error(r.metrics):
                         evaluated_by_gen.setdefault(r.generation_id, set()).add(
                             _normalize_field_key(r.field_name, is_annotation=False)
                         )
@@ -2395,7 +2421,53 @@ def run_evaluation(
                                 # Allow unparsed generations when using __all_model__ (raw response_content)
                                 allow_unparsed = pred_field == "__all_model__"
                                 try:
-                                    # Check if this is an LLM Judge metric
+                                    # Guard: an llm_judge_* metric whose
+                                    # evaluator wasn't initialized at startup
+                                    # (typically because the API key lookup
+                                    # failed for the triggering user/org) must
+                                    # NOT silently fall through to
+                                    # sample_evaluator. The standard sample
+                                    # evaluator can't compute LLM-judge metrics
+                                    # and would write a row with a literal null
+                                    # value and no error — silently corrupting
+                                    # the user's data. Persist a terminal-error
+                                    # row instead so missing-only stops
+                                    # retrying.
+                                    if (
+                                        metric.startswith("llm_judge_")
+                                        and config_id not in llm_judge_evaluators
+                                    ):
+                                        import uuid as _guard_uuid
+                                        sample_results.append({
+                                            "id": str(_guard_uuid.uuid4()),
+                                            "evaluation_id": evaluation_id,
+                                            "task_id": task.id,
+                                            "generation_id": generation.id,
+                                            "field_name": field_key,
+                                            "answer_type": "text",
+                                            "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                            "prediction": str(prediction)[:1000] if prediction else "",
+                                            "metrics": {
+                                                metric: {
+                                                    "value": None,
+                                                    "method": metric,
+                                                    "error": (
+                                                        f"LLM judge evaluator not initialized for config "
+                                                        f"{config_id} — likely missing API key for the "
+                                                        f"triggering user/org. Run skipped this metric."
+                                                    ),
+                                                    "details": {},
+                                                },
+                                            },
+                                            "passed": False,
+                                            "error_message": (
+                                                f"LLM judge evaluator not initialized for config "
+                                                f"{config_id}"
+                                            ),
+                                        })
+                                        samples_evaluated += 1
+                                        samples_failed += 1
+                                        continue
                                     if (
                                         metric.startswith("llm_judge_")
                                         and config_id in llm_judge_evaluators
@@ -2612,7 +2684,9 @@ def run_evaluation(
                     .all()
                 )
                 for r in existing_ann:
-                    if _row_has_score(r.metrics):
+                    # Same gating as the generation side — terminal-error rows
+                    # block retries so we don't loop on a hopeless annotation.
+                    if _row_has_score(r.metrics) or _row_is_terminal_error(r.metrics):
                         evaluated_by_ann.setdefault(r.annotation_id, set()).add(
                             _normalize_field_key(r.field_name, is_annotation=True)
                         )
@@ -2700,6 +2774,48 @@ def run_evaluation(
                                         continue
 
                                     try:
+                                        # Same guard as the generation-side
+                                        # loop above: don't silently fall
+                                        # through to sample_evaluator when an
+                                        # llm_judge_* config has no
+                                        # initialized evaluator. Persist a
+                                        # terminal-error row so missing-only
+                                        # stops retrying this target.
+                                        if (
+                                            metric.startswith("llm_judge_")
+                                            and config_id not in llm_judge_evaluators
+                                        ):
+                                            sample_results.append({
+                                                "id": str(_ann_uuid.uuid4()),
+                                                "evaluation_id": evaluation_id,
+                                                "task_id": task.id,
+                                                "generation_id": None,
+                                                "annotation_id": annotation.id,
+                                                "field_name": field_key,
+                                                "answer_type": "text",
+                                                "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                                "prediction": str(prediction)[:1000] if prediction else "",
+                                                "metrics": {
+                                                    metric: {
+                                                        "value": None,
+                                                        "method": metric,
+                                                        "error": (
+                                                            f"LLM judge evaluator not initialized for config "
+                                                            f"{config_id} — likely missing API key for the "
+                                                            f"triggering user/org. Run skipped this metric."
+                                                        ),
+                                                        "details": {},
+                                                    },
+                                                },
+                                                "passed": False,
+                                                "error_message": (
+                                                    f"LLM judge evaluator not initialized for config "
+                                                    f"{config_id}"
+                                                ),
+                                            })
+                                            samples_evaluated += 1
+                                            samples_failed += 1
+                                            continue
                                         if metric.startswith("llm_judge_") and config_id in llm_judge_evaluators:
                                             llm_judge = llm_judge_evaluators[config_id]
                                             context = (
