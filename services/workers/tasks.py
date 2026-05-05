@@ -55,6 +55,39 @@ def _row_has_score(metrics: dict | None) -> bool:
                 return True
     return False
 
+
+def _normalize_field_key(field_name: str | None, *, is_annotation: bool) -> str | None:
+    """Normalize a stored ``TaskEvaluation.field_name`` to the canonical
+    pipe format ``{config_id}|{pred_field}|{ref_field}`` so missing-only
+    matching tolerates legacy colon-separated rows and rows missing the
+    ``human:`` annotation prefix.
+
+    The worker has changed the separator from ``:`` to ``|`` and the
+    annotation prefix convention at least once; without this normalization,
+    rows persisted before the change get classified as "missing" and
+    re-evaluated on every missing-only run — wasting API quota and
+    polluting score history with duplicates under the new format.
+
+    Bare legacy names (e.g. ``'loesung'``) without a separator are returned
+    unchanged: recovering ``config_id`` requires project context that this
+    helper doesn't have. The matching backfill ``migrate_field_names.py``
+    should be run once per project to bring those rows up to canonical.
+    """
+    if not field_name:
+        return field_name
+    if "|" in field_name:
+        parts = field_name.split("|")
+    elif ":" in field_name:
+        parts = field_name.split(":")
+    else:
+        return field_name  # bare legacy — caller should have backfilled
+    if len(parts) != 3:
+        return field_name
+    cfg, pred, ref = parts
+    if is_annotation and not pred.startswith("human:") and not pred.startswith("model:"):
+        pred = f"human:{pred}"
+    return f"{cfg}|{pred}|{ref}"
+
 # Add current directory to Python path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
@@ -2189,7 +2222,9 @@ def run_evaluation(
                 )
                 for r in existing:
                     if _row_has_score(r.metrics):
-                        evaluated_by_gen.setdefault(r.generation_id, set()).add(r.field_name)
+                        evaluated_by_gen.setdefault(r.generation_id, set()).add(
+                            _normalize_field_key(r.field_name, is_annotation=False)
+                        )
                 logger.info(
                     f"Loaded existing evaluations: {sum(len(v) for v in evaluated_by_gen.values())} "
                     f"results across {len(evaluated_by_gen)} generations"
@@ -2301,8 +2336,12 @@ def run_evaluation(
                             for ref_field in reference_fields:
                                 field_key = f"{config_id}|{pred_field}|{ref_field}"
 
-                                # Skip already-evaluated config+field pairs
-                                if evaluate_missing_only and field_key in evaluated_by_gen.get(generation.id, set()):
+                                # Skip already-evaluated config+field pairs.
+                                # Normalize on lookup so legacy colon/no-prefix
+                                # rows match the canonical format.
+                                if evaluate_missing_only and _normalize_field_key(
+                                    field_key, is_annotation=False
+                                ) in evaluated_by_gen.get(generation.id, set()):
                                     continue
 
                                 # Extract ground truth - from task.data if prefixed with "task."
@@ -2574,7 +2613,9 @@ def run_evaluation(
                 )
                 for r in existing_ann:
                     if _row_has_score(r.metrics):
-                        evaluated_by_ann.setdefault(r.annotation_id, set()).add(r.field_name)
+                        evaluated_by_ann.setdefault(r.annotation_id, set()).add(
+                            _normalize_field_key(r.field_name, is_annotation=True)
+                        )
 
             for config in enabled_configs:
                 config_id = config.get("id", "unknown")
@@ -2639,8 +2680,11 @@ def run_evaluation(
                                 for ref_field in reference_fields:
                                     field_key = f"{config_id}|{actual_pred_field}|{ref_field}"
 
-                                    # Skip already-evaluated (using pre-loaded set)
-                                    if evaluate_missing_only and field_key in evaluated_by_ann.get(annotation.id, set()):
+                                    # Skip already-evaluated (using pre-loaded set).
+                                    # Normalize on lookup so legacy formats match.
+                                    if evaluate_missing_only and _normalize_field_key(
+                                        field_key, is_annotation=True
+                                    ) in evaluated_by_ann.get(annotation.id, set()):
                                         continue
 
                                     # Extract ground truth (cached per task+ref_field)
