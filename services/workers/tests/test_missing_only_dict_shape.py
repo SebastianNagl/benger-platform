@@ -247,3 +247,98 @@ class TestNormalizeFieldKey:
         assert _normalize_field_key(
             "cfg:weird:extra:musterlösung", is_annotation=False
         ) == "cfg:weird:extra:musterlösung"
+
+
+# Inline mirror of `tasks.py:_row_is_terminal_error`. Same drift pattern.
+
+def _row_is_terminal_error(metrics):
+    if not metrics:
+        return False
+    for k, v in metrics.items():
+        if k == "error":
+            continue
+        if isinstance(v, dict) and v.get("error"):
+            return True
+    return False
+
+
+def test_inline_terminal_error_helper_present_in_tasks_py():
+    """Drift guard. Pairs with the test for `_row_has_score` /
+    `_normalize_field_key` above. The bug this catches: silent removal
+    of the terminal-error gate would cause known-failed evaluations
+    (missing API key, content moderation refusal, parse failure) to be
+    re-tried on every missing-only run, accumulating stub rows
+    indefinitely and burning LLM-judge quota."""
+    tasks_path = Path(__file__).parent.parent / "tasks.py"
+    src = tasks_path.read_text()
+    assert "def _row_is_terminal_error(" in src, (
+        "tasks.py is missing the `_row_is_terminal_error` helper that "
+        "blocks retries of known-failed evaluations."
+    )
+    # Both missing-only filters must consult it (sites at ~2191 + ~2576).
+    assert src.count("_row_is_terminal_error(") >= 2, (
+        "Expected `_row_is_terminal_error(` calls at both lookup-set "
+        "inserts (generation + annotation) — at least 2 in tasks.py."
+    )
+    # And the silent-fallthrough guard must exist at both LLM-judge sites
+    # (writes a terminal-error row instead of falling through to
+    # sample_evaluator when the judge evaluator wasn't initialized).
+    assert src.count("LLM judge evaluator not initialized for config") >= 2, (
+        "Expected the silent-fallthrough guard to write a terminal-error "
+        "row at both LLM-judge call sites (gen + ann), not just one."
+    )
+
+
+class TestRowIsTerminalError:
+    """The unified blob shape `{value, method, details, error}` is what
+    the worker writes when an evaluation can't produce a real score —
+    e.g. judge evaluator init failed, prompt overflow, content moderation
+    refusal. The terminal-error gate stops missing-only from retrying
+    these.
+    """
+
+    def test_terminal_error_blocks_retry(self):
+        # The exact shape the silent-fallthrough guard now writes.
+        metrics = {
+            "llm_judge_falloesung": {
+                "value": None,
+                "method": "llm_judge_falloesung",
+                "error": "LLM judge evaluator not initialized for config xxx",
+                "details": {},
+            }
+        }
+        assert _row_is_terminal_error(metrics) is True
+
+    def test_legacy_null_metric_value_does_NOT_block_retry(self):
+        # Pre-fix rows have `metric: null` (bare JSON null, not a dict).
+        # The terminal-error gate must NOT mask these — they pre-date
+        # the gate's introduction and need to be deleted by the
+        # accompanying data backfill, not silently ignored.
+        metrics = {"llm_judge_falloesung": None}
+        assert _row_is_terminal_error(metrics) is False
+
+    def test_successful_unified_row_NOT_terminal(self):
+        # A real score row is not "terminal" — the predicate is for
+        # known-failed rows specifically.
+        metrics = {
+            "llm_judge_falloesung": {
+                "value": 0.85,
+                "method": "llm_judge_falloesung",
+                "error": None,
+                "details": {},
+            }
+        }
+        assert _row_is_terminal_error(metrics) is False
+
+    def test_empty_or_none(self):
+        assert _row_is_terminal_error({}) is False
+        assert _row_is_terminal_error(None) is False
+
+    def test_multi_metric_one_terminal(self):
+        # If even one metric in the row is terminal-failed, the whole
+        # row is treated as tried-and-failed.
+        metrics = {
+            "bleu": 0.42,  # legacy bare-float, valid
+            "llm_judge_falloesung": {"value": None, "error": "context overflow"},
+        }
+        assert _row_is_terminal_error(metrics) is True

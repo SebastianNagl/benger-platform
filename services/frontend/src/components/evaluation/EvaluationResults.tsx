@@ -215,21 +215,34 @@ export function EvaluationResults({
 
     const byMetric = new Map<string, MetricEntry>()
     for (const e of completed) {
-      const cfg = e.evaluation_configs?.[0]
-      const metric = cfg?.metric || 'unknown'
-      const existing = byMetric.get(metric)
-      if (existing) {
-        existing.runIds.push(e.evaluation_id)
-        existing.samplesEvaluated = Math.max(existing.samplesEvaluated, e.samples_evaluated || 0)
-      } else {
-        byMetric.set(metric, {
-          id: metric,
-          metric,
-          configId: cfg?.id || '',
-          displayName: cfg?.display_name || metric || 'Unknown',
-          samplesEvaluated: e.samples_evaluated || 0,
-          runIds: [e.evaluation_id],
-        })
+      // A single EvaluationRun may bundle multiple metrics (the API's
+      // /run endpoint accepts multi-config requests, and the worker
+      // dispatch accepts a list of configs). Walk EVERY config in the
+      // run, not just the first — otherwise metrics 2..N silently
+      // disappear from the dropdown even though their rows live in the
+      // DB. The same run id then appears under each metric it ran.
+      const cfgs =
+        Array.isArray(e.evaluation_configs) && e.evaluation_configs.length > 0
+          ? e.evaluation_configs
+          : [{ metric: 'unknown', id: '', display_name: undefined } as any]
+      for (const cfg of cfgs) {
+        const metric = cfg?.metric || 'unknown'
+        const existing = byMetric.get(metric)
+        if (existing) {
+          if (!existing.runIds.includes(e.evaluation_id)) {
+            existing.runIds.push(e.evaluation_id)
+          }
+          existing.samplesEvaluated = Math.max(existing.samplesEvaluated, e.samples_evaluated || 0)
+        } else {
+          byMetric.set(metric, {
+            id: metric,
+            metric,
+            configId: cfg?.id || '',
+            displayName: cfg?.display_name || metric || 'Unknown',
+            samplesEvaluated: e.samples_evaluated || 0,
+            runIds: [e.evaluation_id],
+          })
+        }
       }
     }
 
