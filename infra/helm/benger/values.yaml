@@ -102,7 +102,13 @@ api:
 workers:
   name: workers
   replicaCount: 1
-  concurrency: 8  # Increased for 100-user event: each Falllösung eval is I/O-bound on LLM API
+  # Lowered from 8 to 4: each Celery fork loads its own copy of the
+  # embedding-based evaluators (BERTScore German BERT, MoverScore POT
+  # backend, sentence-transformers for semsim). With 8 forks all loading
+  # ~600MB models, peak memory ~5 GB just for models — easily blows past
+  # the worker limit on multi-metric runs. 4 still parallelizes nicely
+  # while halving peak resident model memory.
+  concurrency: 4
   deploymentStrategy:
     type: RollingUpdate
     rollingUpdate:
@@ -113,16 +119,19 @@ workers:
     pullPolicy: IfNotPresent
     tag: latest
   resources:
-    # Embedding-based metrics (BERTScore, MoverScore, semantic_similarity)
-    # blow past 3Gi on legal-judgement-sized inputs (5-15kb). Bumped to 8Gi
-    # so a full multi-metric run can finish without OOM. Server has 22Gi
-    # total / 17Gi free at the time of this change — well within budget.
+    # Embedding-based metrics each load their own ~600MB model into the
+    # forked worker process. With BERTScore + MoverScore + semantic
+    # similarity active and `concurrency=4` forks, peak resident memory
+    # easily reaches ~6-8 GB. The 8Gi limit OOM'd in practice; 12Gi
+    # gives headroom for all three loaded simultaneously plus tokenizer
+    # caches and SQLAlchemy buffers. Server has 22 Gi total / ~17 Gi
+    # free, so 12 Gi fits comfortably.
     limits:
       cpu: 4000m
-      memory: 8Gi
+      memory: 12Gi
     requests:
       cpu: 1000m
-      memory: 3Gi
+      memory: 4Gi
   autoscaling:
     enabled: false
     minReplicas: 1
