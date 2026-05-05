@@ -369,6 +369,7 @@ from routers.dashboard import router as dashboard_router
 
 # Utility routers
 from routers.evaluations import router as evaluations_router
+from routers.evaluations.ws import ws_router as evaluations_ws_router
 from routers.generation import router as generation_router
 from routers.generation import ws_router as generation_ws_router
 from routers.generation_task_list import router as generation_task_list_router
@@ -402,6 +403,7 @@ app.include_router(reports_router)  # Report publishing (Issue #770)
 app.include_router(llm_models_router)  # LLM models
 app.include_router(generation_router)  # Generation and prompts
 app.include_router(generation_ws_router)  # WebSocket for generation progress updates
+app.include_router(evaluations_ws_router)  # WebSocket for live cell-by-cell evaluation progress
 app.include_router(generation_task_list_router)  # Generation task list (Issue #495)
 app.include_router(prompt_structures_router)  # Prompt structures (Issue #762)
 app.include_router(storage_router)  # Storage and CDN
