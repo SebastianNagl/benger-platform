@@ -578,14 +578,35 @@ export function EvaluationResults({
     .find(r => r.id === selectedMetricRunId)
     ?.metric ?? ''
 
+  // The worker commits each TaskEvaluation row to Postgres immediately
+  // after the evaluator returns (`db.commit()` per row), so an in-flight
+  // run already has queryable rows. This lets us live-stream cell-by-cell
+  // progress: re-fetch every few seconds while any run is `pending`/
+  // `running`, stop polling once all selected runs finish. Mirrors the
+  // pattern used by the Generations page (websocket-with-polling fallback)
+  // — eval doesn't have the websocket layer yet, so polling-only here.
+  const hasInflightSelectedRun = useMemo(() => {
+    if (!results?.evaluations || !selectedRunIdsKey) return false
+    const selectedSet = new Set(selectedRunIdsKey.split(','))
+    return results.evaluations.some(
+      (e) =>
+        selectedSet.has(e.evaluation_id) &&
+        (e.status === 'running' || e.status === 'pending')
+    )
+  }, [results, selectedRunIdsKey])
+
   useEffect(() => {
+    let cancelled = false
     const fetchTaskModelData = async () => {
       if (!projectId) {
         setTaskModelData(null)
         return
       }
 
-      setTaskModelLoading(true)
+      // Initial fetch shows a loading state; subsequent polls don't, so
+      // the table doesn't visibly flash on each refresh while live data
+      // streams in.
+      if (!taskModelData) setTaskModelLoading(true)
       try {
         const runIds = selectedRunIdsKey ? selectedRunIdsKey.split(',') : undefined
         const data = await apiClient.getProjectResultsByTaskModel(
@@ -594,17 +615,35 @@ export function EvaluationResults({
           showHistory,
           selectedMetricKey || null,
         )
-        setTaskModelData(data)
+        if (!cancelled) setTaskModelData(data)
       } catch (err) {
         console.error('Failed to fetch task-model data:', err)
-        setTaskModelData(null)
+        if (!cancelled) setTaskModelData(null)
       } finally {
-        setTaskModelLoading(false)
+        if (!cancelled) setTaskModelLoading(false)
       }
     }
 
     fetchTaskModelData()
-  }, [projectId, selectedRunIdsKey, selectedMetricKey, showHistory])
+
+    // Live-progress polling: every 5s while the selected run is in-flight.
+    // Stops automatically once the run flips to completed/failed (the
+    // dep `hasInflightSelectedRun` flips → effect re-runs and the
+    // setInterval is no longer scheduled).
+    if (hasInflightSelectedRun) {
+      const interval = setInterval(fetchTaskModelData, 5000)
+      return () => {
+        cancelled = true
+        clearInterval(interval)
+      }
+    }
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- taskModelData
+    // intentionally excluded; including it would refetch on every poll
+    // result and re-trigger the effect indefinitely.
+  }, [projectId, selectedRunIdsKey, selectedMetricKey, showHistory, hasInflightSelectedRun])
 
   const handleRefresh = () => {
     setLoading(true)
