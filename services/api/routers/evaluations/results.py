@@ -1115,6 +1115,17 @@ async def get_project_results_by_task_model(
     project_id: str,
     request: Request,
     evaluation_ids: Optional[str] = Query(None, description="Comma-separated evaluation run IDs to filter by"),
+    metric: Optional[str] = Query(
+        None,
+        description=(
+            "When set, only rows whose `metrics` dict carries this key "
+            "are returned. Required when an EvaluationRun bundles multiple "
+            "metrics, since the cell-aggregation loop collapses multiple "
+            "rows for the same (task, model) into one — without this filter, "
+            "the last metric processed wins and every column shows the "
+            "same number."
+        ),
+    ),
     include_history: bool = Query(
         False,
         description=(
@@ -1178,7 +1189,7 @@ async def get_project_results_by_task_model(
 
         # Subquery: rank results by (generation_id, field_name), ordered by created_at DESC
         # Keeps the latest result per generation per config/field combination
-        ranked_results = (
+        gen_query = (
             db.query(
                 TaskEvaluation.task_id,
                 TaskEvaluation.generation_id,
@@ -1196,8 +1207,19 @@ async def get_project_results_by_task_model(
                 TaskEvaluation.generation_id == GenerationModel.id,
             )
             .filter(TaskEvaluation.evaluation_id.in_(completed_eval_ids))
-            .subquery()
         )
+        # When a single EvaluationRun bundles multiple metrics, every metric
+        # produces its own row for the same (gen, model) cell. The aggregation
+        # loop below assigns score by overwriting `task_model_scores[t][m]`
+        # — so without filtering by the user's selected metric, the last
+        # row to land wins and every column shows the same number.
+        if metric:
+            from sqlalchemy import cast
+            from sqlalchemy.dialects.postgresql import JSONB
+            gen_query = gen_query.filter(
+                cast(TaskEvaluation.metrics, JSONB).has_key(metric)
+            )
+        ranked_results = gen_query.subquery()
 
         # Filter to only the latest result per generation (rn = 1)
         sample_results = (
@@ -1234,7 +1256,7 @@ async def get_project_results_by_task_model(
         from models import User as DBUser
         from models import TaskEvaluation as TE2
 
-        annotation_eval_results = (
+        ann_query = (
             db.query(
                 TE2.task_id,
                 TE2.annotation_id,
@@ -1247,8 +1269,14 @@ async def get_project_results_by_task_model(
                 TE2.generation_id == None,  # noqa: E711
                 TE2.annotation_id != None,  # noqa: E711
             )
-            .all()
         )
+        if metric:
+            from sqlalchemy import cast as _cast
+            from sqlalchemy.dialects.postgresql import JSONB as _JSONB
+            ann_query = ann_query.filter(
+                _cast(TE2.metrics, _JSONB).has_key(metric)
+            )
+        annotation_eval_results = ann_query.all()
 
         if not sample_results and not annotation_eval_results:
             return {
