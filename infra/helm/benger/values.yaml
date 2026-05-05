@@ -113,12 +113,16 @@ workers:
     pullPolicy: IfNotPresent
     tag: latest
   resources:
+    # Embedding-based metrics (BERTScore, MoverScore, semantic_similarity)
+    # blow past 3Gi on legal-judgement-sized inputs (5-15kb). Bumped to 8Gi
+    # so a full multi-metric run can finish without OOM. Server has 22Gi
+    # total / 17Gi free at the time of this change — well within budget.
     limits:
-      cpu: 2000m
-      memory: 3Gi
+      cpu: 4000m
+      memory: 8Gi
     requests:
-      cpu: 500m
-      memory: 1536Mi
+      cpu: 1000m
+      memory: 3Gi
   autoscaling:
     enabled: false
     minReplicas: 1
