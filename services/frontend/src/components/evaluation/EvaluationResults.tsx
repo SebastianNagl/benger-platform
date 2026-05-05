@@ -560,6 +560,14 @@ export function EvaluationResults({
     .find(r => r.id === selectedMetricRunId)
     ?.runIds.join(',') ?? ''
 
+  // The selected metric name is sent to the API so the backend can filter
+  // rows when a run bundles multiple metrics. Without this, multiple
+  // metric rows for the same (task, model) collapse during the loop's
+  // dict assignment and only the last metric's score survives.
+  const selectedMetricKey = availableMetricRuns
+    .find(r => r.id === selectedMetricRunId)
+    ?.metric ?? ''
+
   useEffect(() => {
     const fetchTaskModelData = async () => {
       if (!projectId) {
@@ -574,6 +582,7 @@ export function EvaluationResults({
           String(projectId),
           runIds,
           showHistory,
+          selectedMetricKey || null,
         )
         setTaskModelData(data)
       } catch (err) {
@@ -585,7 +594,7 @@ export function EvaluationResults({
     }
 
     fetchTaskModelData()
-  }, [projectId, selectedRunIdsKey, showHistory])
+  }, [projectId, selectedRunIdsKey, selectedMetricKey, showHistory])
 
   const handleRefresh = () => {
     setLoading(true)

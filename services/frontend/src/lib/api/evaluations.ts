@@ -1035,7 +1035,7 @@ export class EvaluationsClient extends BaseApiClient {
    * in multiple runs, uses the LATEST result.
    * @param projectId - The project ID to get aggregated results for
    */
-  async getProjectResultsByTaskModel(projectId: string, evaluationIds?: string[], includeHistory: boolean = false): Promise<{
+  async getProjectResultsByTaskModel(projectId: string, evaluationIds?: string[], includeHistory: boolean = false, metric?: string | null): Promise<{
     project_id: string
     models: string[]
     model_names: Record<string, string>
@@ -1058,6 +1058,11 @@ export class EvaluationsClient extends BaseApiClient {
     const sp = new URLSearchParams()
     if (evaluationIds?.length) sp.set('evaluation_ids', evaluationIds.join(','))
     if (includeHistory) sp.set('include_history', 'true')
+    // When set, the backend filters rows to those whose metrics dict carries
+    // this metric key. Required when an EvaluationRun bundles multiple
+    // metrics — without it, all metric rows for the same (task,model) cell
+    // collapse into the last one written.
+    if (metric) sp.set('metric', metric)
     const qs = sp.toString()
     return this.request(
       `/evaluations/projects/${projectId}/results/by-task-model${qs ? '?' + qs : ''}`
