@@ -197,8 +197,18 @@ export function EvaluationResults({
   const availableMetricRuns = useMemo(() => {
     if (!results?.evaluations) return []
 
-    const completed = results.evaluations
-      .filter((e) => e.status === 'completed')
+    // Include in-flight runs (`pending`, `running`) alongside `completed`
+    // so the user can navigate to a metric the moment its run is
+    // dispatched and watch rows fill in live, instead of waiting for the
+    // whole run to finish before the dropdown surfaces it. Cells render
+    // from `task_evaluations` rows directly — every committed row is
+    // visible immediately, regardless of run status.
+    const visible = results.evaluations
+      .filter((e) =>
+        e.status === 'completed' ||
+        e.status === 'running' ||
+        e.status === 'pending'
+      )
       .filter((e) => {
         if (!selectedMetrics || selectedMetrics.length === 0) return true
         return e.evaluation_configs?.some((c: any) => selectedMetrics.includes(c.metric))
@@ -214,7 +224,7 @@ export function EvaluationResults({
     }
 
     const byMetric = new Map<string, MetricEntry>()
-    for (const e of completed) {
+    for (const e of visible) {
       // A single EvaluationRun may bundle multiple metrics (the API's
       // /run endpoint accepts multi-config requests, and the worker
       // dispatch accepts a list of configs). Walk EVERY config in the
