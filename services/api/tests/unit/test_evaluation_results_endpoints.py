@@ -105,7 +105,7 @@ class TestGetTaskDataAvailability:
     def test_empty_task_ids(self):
         db = Mock()
         result = _get_task_data_availability(db, [])
-        assert result == (set(), {})
+        assert result == (set(), {}, {})
 
     def test_with_task_ids(self):
         db = Mock()
@@ -134,9 +134,18 @@ class TestGetTaskDataAvailability:
         gen_row3 = Mock(task_id="task-2", model_id="gpt-4")
         gen_chain.all.return_value = [gen_row1, gen_row2, gen_row3]
 
-        db.query.side_effect = [ann_chain, gen_chain]
+        # New return tuple shape (multi-run): annotator_displays_by_task added.
+        ann_displays_chain = MagicMock()
+        ann_displays_chain.join.return_value = ann_displays_chain
+        ann_displays_chain.filter.return_value = ann_displays_chain
+        ann_displays_chain.distinct.return_value = ann_displays_chain
+        ann_displays_chain.all.return_value = []
 
-        tasks_with_ann, gen_models = _get_task_data_availability(db, ["task-1", "task-2"])
+        db.query.side_effect = [ann_chain, gen_chain, ann_displays_chain]
+
+        tasks_with_ann, gen_models, _ann_displays = _get_task_data_availability(
+            db, ["task-1", "task-2"]
+        )
 
         assert tasks_with_ann == {"task-1", "task-2"}
         assert "task-1" in gen_models
@@ -152,7 +161,7 @@ class TestBuildAllTasksResponse:
 
     @patch("routers.evaluations.results._get_task_data_availability")
     def test_empty_project(self, mock_availability):
-        mock_availability.return_value = (set(), {})
+        mock_availability.return_value = (set(), {}, {})
 
         db = Mock()
         db.query.return_value.filter.return_value.all.return_value = []

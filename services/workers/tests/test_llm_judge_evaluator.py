@@ -232,20 +232,132 @@ class TestLLMJudgeSingleEvaluation:
         assert score["score"] == 5.0  # Clamped to max
 
     def test_evaluate_single_criterion_handles_failure(self):
-        """Test handling of failed LLM call."""
+        """Phase 6.6 (#3): on full failure, the evaluator returns a
+        failure dict (with ``error: True`` and ``_call_metadata``)
+        instead of ``None`` so persistence can record the typed
+        error_type column. ``score`` is absent on the failure dict."""
         self.mock_ai_service.generate.return_value = {
             "success": False,
-            "error": "API error",
+            "error": "rate limit exceeded — try again later",
+            "metadata": {
+                "error_type": "rate_limit",
+                "finish_reason": None,
+                "truncated": False,
+                "refusal": False,
+                "seed": 42,
+            },
+            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
         }
 
-        score = self.evaluator._evaluate_single_criterion(
+        result = self.evaluator._evaluate_single_criterion(
             context="Test",
             ground_truth="Test",
             prediction="Test",
             criterion="helpfulness",
         )
 
-        assert score is None
+        assert result is not None
+        assert result.get("error") is True
+        assert "score" not in result
+        assert result["error_message"] == "rate limit exceeded — try again later"
+        # Typed error_type carried forward from the AI service.
+        assert result["_call_metadata"]["error_type"] == "rate_limit"
+        # Provenance still attached even on failure.
+        assert result["_judge_prompts_used"]["judge_model"] == "test-model"
+
+    def test_evaluate_single_criterion_does_not_amplify_retries(self):
+        """Phase 6.6 (#4): when the provider returns success=False (which
+        means its own retry decorator already exhausted), the evaluator
+        bails out rather than retrying again on top. So mock.generate
+        must be called exactly once even though max_retries=3."""
+        self.mock_ai_service.generate.reset_mock()
+        self.mock_ai_service.generate.return_value = {
+            "success": False,
+            "error": "rate limit exceeded",
+            "metadata": {"error_type": "rate_limit"},
+            "usage": {},
+        }
+
+        self.evaluator._evaluate_single_criterion(
+            context="Test", ground_truth="Test", prediction="Test",
+            criterion="helpfulness",
+        )
+
+        assert self.mock_ai_service.generate.call_count == 1
+
+    def test_evaluate_single_criterion_captures_call_metadata(self):
+        """Phase 6.6: every successful judge call must surface the
+        academic-rigor metadata block on the result so workers/tasks.py
+        can persist it on the TaskEvaluation row."""
+        self.mock_ai_service.generate.return_value = {
+            "success": True,
+            "content": '{"score": 5, "justification": "Excellent"}',
+            "usage": {
+                "prompt_tokens": 1234,
+                "completion_tokens": 56,
+                "total_tokens": 1290,
+            },
+            "metadata": {
+                "seed": 42,
+                "finish_reason": "stop",
+                "truncated": False,
+                "refusal": False,
+                "error_type": None,
+                "response_time_ms": 800,
+                "temperature": 0.0,
+                "retry_count": 0,
+                "retry_attempts": [],
+                "provider_route": "user_key",
+                "provider_name": "openai",
+                "billed_user_id": "u-1",
+                "billed_organization_id": None,
+            },
+        }
+
+        result = self.evaluator._evaluate_single_criterion(
+            context="ctx", ground_truth="gt", prediction="p",
+            criterion="helpfulness",
+        )
+
+        assert result is not None
+        # Provenance keys we already had:
+        assert result["_judge_prompts_used"]["judge_model"] == "test-model"
+        # New: full call metadata + raw output forwarded.
+        assert result["_raw_output"] == '{"score": 5, "justification": "Excellent"}'
+        cm = result["_call_metadata"]
+        assert cm["input_tokens"] == 1234
+        assert cm["output_tokens"] == 56
+        assert cm["total_tokens"] == 1290
+        assert cm["seed"] == 42
+        assert cm["finish_reason"] == "stop"
+        assert cm["truncated"] is False
+        assert cm["refusal"] is False
+        assert cm["error_type"] is None
+        assert cm["response_time_ms"] == 800
+        assert cm["provider_route"] == "user_key"
+        assert cm["billed_user_id"] == "u-1"
+
+    def test_evaluate_single_criterion_forwards_seed_kwarg(self):
+        """Phase 6.6: the per-judge ``seed`` (default 42) must flow
+        through to ai_service.generate() so the provider sends it."""
+        seeded = LLMJudgeEvaluator(
+            ai_service=self.mock_ai_service,
+            judge_model="test-model",
+            criteria=["helpfulness"],
+            seed=7,
+        )
+        self.mock_ai_service.generate.return_value = {
+            "success": True,
+            "content": '{"score": 3, "justification": "ok"}',
+        }
+
+        seeded._evaluate_single_criterion(
+            context="ctx", ground_truth="gt", prediction="p",
+            criterion="helpfulness",
+        )
+
+        kwargs = self.mock_ai_service.generate.call_args.kwargs
+        assert kwargs.get("seed") == 7
 
 
 class TestLLMJudgePairwiseComparison:

@@ -966,7 +966,16 @@ class TestRunSingleSampleEvaluation:
     def test_deterministic_metric_success(self):
         """Test that a deterministic metric (non-LLM) gets computed."""
         mock_evaluator = MagicMock()
+        # Phase 2 metric registry: production calls _compute_metric_with_details
+        # which returns the rich {value, method, details, error} dict. The
+        # extract_value shim then peels the bare value back out.
         mock_evaluator._compute_metric.return_value = 0.85
+        mock_evaluator._compute_metric_with_details.return_value = {
+            "value": 0.85,
+            "method": "bleu",
+            "details": {},
+            "error": None,
+        }
 
         db = _mock_db()
         eval_run_obj = MagicMock()
