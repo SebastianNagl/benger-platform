@@ -5,9 +5,19 @@ Issue #763: Per-sample evaluation results and visualization dashboard
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
+
+
+# The worker's persistence layer stores ground_truth / prediction as either
+# the raw dict (when the answer type is structured — choices, span_selection)
+# or a string (when it's free text — the worker truncates with `str(...)[:1000]`
+# to bound DB row size). The metrics dict stores per-metric values that may
+# be a flat float OR a richer object with the {value, method, details, error}
+# audit shape (LLM judge / Falllösung). The schema accepts all of these to
+# avoid 422-ing rows the frontend perfectly knows how to render.
+MetricValue = Union[float, int, str, Dict[str, Any], None]
 
 
 class SampleEvaluationResult(BaseModel):
@@ -21,10 +31,10 @@ class SampleEvaluationResult(BaseModel):
     field_name: str
     answer_type: str
 
-    ground_truth: Dict[str, Any]
-    prediction: Dict[str, Any]
+    ground_truth: Union[Dict[str, Any], str, None] = None
+    prediction: Union[Dict[str, Any], str, None] = None
 
-    metrics: Dict[str, float]
+    metrics: Dict[str, MetricValue]
 
     passed: bool
     confidence_score: Optional[float] = None
@@ -47,10 +57,10 @@ class SampleEvaluationResultCreate(BaseModel):
     field_name: str
     answer_type: str
 
-    ground_truth: Dict[str, Any]
-    prediction: Dict[str, Any]
+    ground_truth: Union[Dict[str, Any], str, None] = None
+    prediction: Union[Dict[str, Any], str, None] = None
 
-    metrics: Dict[str, float]
+    metrics: Dict[str, MetricValue]
 
     passed: bool
     confidence_score: Optional[float] = None

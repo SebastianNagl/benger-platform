@@ -93,6 +93,70 @@ class RawScore(BaseModel):
     value: float
 
 
+class RunsAggregate(BaseModel):
+    """Cross-run aggregate for a (target_model, metric) pair (multi-run feature).
+
+    `n_runs` counts distinct EvaluationJudgeRun children that produced rows
+    for this metric. mean_of_means / std_of_means / CI summarize the per-run
+    means; when only one run is present the CI bounds collapse to None and
+    std_of_means to 0. Numeric metrics only — categorical metrics surface
+    `null` here and use the agreement_by_metric block instead.
+    """
+
+    n_runs: int
+    mean_of_means: Optional[float] = None
+    std_of_means: Optional[float] = None
+    ci_lower: Optional[float] = None
+    ci_upper: Optional[float] = None
+
+
+class TaskConsistency(BaseModel):
+    """Per-task consistency for a (target_model, metric) pair across runs.
+
+    For numeric metrics: variance across runs of the same task. For
+    categorical / boolean (passed/failed, choice): Fleiss kappa. For text:
+    omitted (frontend renders "—"). Sorted ascending by task_id.
+    """
+
+    task_id: str
+    n_runs: int
+    variance: Optional[float] = None
+    fleiss_kappa: Optional[float] = None
+    percent_agreement: Optional[float] = None
+
+
+class JudgeAgreement(BaseModel):
+    """Inter-judge agreement for a (target_model, metric) pair.
+
+    Only returned when ≥2 distinct judge_model_ids produced rows for the
+    metric. Pairwise Cohen's kappa keys are "judgeA__judgeB" strings; Pearson
+    correlation is computed when scores are numeric.
+    """
+
+    n_judges: int
+    n_items: int
+    fleiss_kappa: Optional[float] = None
+    cohens_kappa_pairwise: Dict[str, float] = {}
+    pearson_r_pairwise: Dict[str, float] = {}
+    percent_agreement: Optional[float] = None
+    mean_absolute_deviation: Optional[float] = None
+
+
+class PerRunMean(BaseModel):
+    """Per-judge_run aggregate mean for a (target_model, metric) pair.
+
+    Used by the EvaluationResults "By run" chart toggle: one entry per
+    (judge_model_id, run_index) with the mean score across that run's tasks.
+    Lets the chart split into one series per run.
+    """
+
+    judge_run_id: str
+    judge_model_id: Optional[str] = None
+    run_index: int
+    mean: float
+    n_tasks: int
+
+
 class StatisticsResponse(BaseModel):
     """Response model for statistics computation"""
 
@@ -105,6 +169,16 @@ class StatisticsResponse(BaseModel):
     # Comparisons and correlations
     pairwise_comparisons: Optional[List[PairwiseComparison]] = None
     correlations: Optional[Dict[str, Dict[str, Optional[float]]]] = None
+    # Multi-run aggregates (migration 042). Keys are "model_id|metric".
+    # Always present in the response shape; values default to n_runs=1 with
+    # null variance fields for legacy single-run evaluations.
+    runs_by_model_metric: Optional[Dict[str, RunsAggregate]] = None
+    task_consistency_by_model_metric: Optional[Dict[str, List[TaskConsistency]]] = None
+    judge_agreement_by_model_metric: Optional[Dict[str, JudgeAgreement]] = None
+    # Per-run means keyed on "model_id|metric" → list of (judge_run_id,
+    # judge_model_id, run_index, mean, n_tasks). Used by the "By run" chart
+    # toggle to split a single bar into one bar per run.
+    per_run_means_by_model_metric: Optional[Dict[str, List[PerRunMean]]] = None
     # Warnings about data quality or limitations
     warnings: Optional[List[str]] = None
 
@@ -786,8 +860,6 @@ async def compute_project_statistics(
     Statistical methods: CI, t-test, bootstrap, effect sizes, correlation.
     """
     try:
-        # Import statistics functions from leaderboards (scipy-based)
-        # Additional statistical functions using numpy/scipy
         import numpy as np
 
         from models import TaskEvaluation, Generation
@@ -796,94 +868,33 @@ async def compute_project_statistics(
             calculate_confidence_interval,
             calculate_significance,
         )
+        from bg_statistics import (
+            cliffs_delta as _cliffs_delta,
+            cohens_d as _cohens_d,
+            pearson as _pearson,
+        )
 
         if STATS_AVAILABLE:
-            from scipy import stats as scipy_stats
+            from scipy import stats as scipy_stats  # noqa: F401  (kept for any inline downstream uses)
 
         def compute_cohens_d(values_a: List[float], values_b: List[float]) -> dict:
-            """Compute Cohen's d effect size"""
-            if not STATS_AVAILABLE or len(values_a) < 2 or len(values_b) < 2:
-                return {"cohens_d": None, "interpretation": None}
-
-            mean_diff = np.mean(values_a) - np.mean(values_b)
-            pooled_std = np.sqrt(
-                (
-                    (len(values_a) - 1) * np.var(values_a, ddof=1)
-                    + (len(values_b) - 1) * np.var(values_b, ddof=1)
-                )
-                / (len(values_a) + len(values_b) - 2)
-            )
-
-            if pooled_std == 0:
-                return {"cohens_d": 0.0, "interpretation": "negligible"}
-
-            d = float(mean_diff / pooled_std)
-            abs_d = abs(d)
-
-            if abs_d >= 0.8:
-                interpretation = "large"
-            elif abs_d >= 0.5:
-                interpretation = "medium"
-            elif abs_d >= 0.2:
-                interpretation = "small"
-            else:
-                interpretation = "negligible"
-
-            return {"cohens_d": round(d, 4), "interpretation": interpretation}
+            return _cohens_d(values_a, values_b)
 
         def compute_cliffs_delta(values_a: List[float], values_b: List[float]) -> dict:
-            """Compute Cliff's delta (non-parametric effect size)"""
-            if len(values_a) < 1 or len(values_b) < 1:
-                return {"cliffs_delta": None, "interpretation": None}
-
-            # Count dominance
-            greater = sum(1 for a in values_a for b in values_b if a > b)
-            less = sum(1 for a in values_a for b in values_b if a < b)
-            n = len(values_a) * len(values_b)
-
-            if n == 0:
-                return {"cliffs_delta": None, "interpretation": None}
-
-            delta = float((greater - less) / n)
-            abs_delta = abs(delta)
-
-            if abs_delta >= 0.474:
-                interpretation = "large"
-            elif abs_delta >= 0.33:
-                interpretation = "medium"
-            elif abs_delta >= 0.147:
-                interpretation = "small"
-            else:
-                interpretation = "negligible"
-
-            return {"cliffs_delta": round(delta, 4), "interpretation": interpretation}
+            return _cliffs_delta(values_a, values_b)
 
         def compute_correlation(
             metric_values: Dict[str, List[float]]
         ) -> Dict[str, Dict[str, Optional[float]]]:
-            """Compute correlation matrix between metrics (Pearson correlation)"""
-            if not STATS_AVAILABLE:
-                return {}
-
             metrics = list(metric_values.keys())
             result: Dict[str, Dict[str, Optional[float]]] = {}
-
             for m1 in metrics:
                 result[m1] = {}
                 for m2 in metrics:
                     if m1 == m2:
                         result[m1][m2] = 1.0
                     else:
-                        v1, v2 = metric_values[m1], metric_values[m2]
-                        if len(v1) >= 3 and len(v2) >= 3 and len(v1) == len(v2):
-                            try:
-                                r, _ = scipy_stats.pearsonr(v1, v2)
-                                result[m1][m2] = round(float(r), 4) if not np.isnan(r) else None
-                            except Exception:
-                                result[m1][m2] = None
-                        else:
-                            result[m1][m2] = None
-
+                        result[m1][m2] = _pearson(metric_values[m1], metric_values[m2])
             return result
 
         # Verify project exists
@@ -1280,6 +1291,185 @@ async def compute_project_statistics(
                     "Insufficient data for correlation matrix (need >=3 samples per metric)"
                 )
 
+        # ── Multi-run aggregates (migration 042) ──
+        # Pull one row per (target_model, task, metric, judge_model, run_index)
+        # via TaskEvaluation → EvaluationJudgeRun → Generation join. Then call
+        # the shared statistics helpers to compute cross-run means / stddev /
+        # CI, per-task consistency, and inter-judge agreement. Numeric metrics
+        # only — categorical metrics surface as null in `runs_by_model_metric`
+        # and use the `judge_agreement_by_model_metric` block.
+        runs_by_model_metric: Dict[str, RunsAggregate] = {}
+        task_consistency_by_model_metric: Dict[str, List[TaskConsistency]] = {}
+        judge_agreement_by_model_metric: Dict[str, JudgeAgreement] = {}
+        per_run_means_by_model_metric: Dict[str, List[PerRunMean]] = {}
+
+        try:
+            from models import EvaluationJudgeRun
+            from bg_statistics import (
+                compute_agreement,
+                confidence_interval,
+                stddev,
+            )
+
+            # OUTER JOIN Generation so annotation-evaluation rows (where
+            # generation_id IS NULL) still flow through. For those rows we use
+            # a synthetic "human" target_model_id so the per-(target, metric)
+            # grouping still works — the Korrektur-style human grades end up
+            # under their own model bucket alongside LLM targets.
+            from sqlalchemy import func as _sa_func
+
+            multirun_rows = (
+                db.query(
+                    TaskEvaluation.task_id,
+                    TaskEvaluation.metrics,
+                    _sa_func.coalesce(Generation.model_id, "human").label("model_id"),
+                    EvaluationJudgeRun.id.label("judge_run_id"),
+                    EvaluationJudgeRun.judge_model_id,
+                    EvaluationJudgeRun.run_index,
+                )
+                .outerjoin(Generation, TaskEvaluation.generation_id == Generation.id)
+                .join(
+                    EvaluationJudgeRun,
+                    TaskEvaluation.judge_run_id == EvaluationJudgeRun.id,
+                )
+                .filter(TaskEvaluation.evaluation_id.in_(evaluation_ids))
+                .all()
+            )
+
+            # Index rows by (model_id, metric, judge_model_id, run_index, task_id)
+            # → primary scalar value. Skip rows where the metric value isn't
+            # numeric (e.g. judge-error placeholders that store a dict under
+            # the metric key with `error: True`).
+            from collections import defaultdict
+
+            per_run_per_task: Dict[tuple, Dict[str, float]] = defaultdict(dict)
+            judge_models_per_metric: Dict[tuple, set] = defaultdict(set)
+            # Map (model_id, metric, judge_model_id, run_index) → judge_run_id
+            # for the per_run_means_by_model_metric block (chart by-run toggle).
+            judge_run_id_by_key: Dict[tuple, str] = {}
+            for row in multirun_rows:
+                metrics_dict = row.metrics or {}
+                if not isinstance(metrics_dict, dict):
+                    continue
+                for metric_name in request.metrics:
+                    val = metrics_dict.get(metric_name)
+                    if not isinstance(val, (int, float)):
+                        continue
+                    key = (row.model_id, metric_name, row.judge_model_id, row.run_index)
+                    per_run_per_task[key][row.task_id] = float(val)
+                    judge_models_per_metric[(row.model_id, metric_name)].add(row.judge_model_id)
+                    judge_run_id_by_key[key] = row.judge_run_id
+
+            # Group keys by (model_id, metric).
+            keys_by_mm: Dict[tuple, List[tuple]] = defaultdict(list)
+            for key in per_run_per_task.keys():
+                model_id, metric_name, _jm, _ri = key
+                keys_by_mm[(model_id, metric_name)].append(key)
+
+            for (model_id, metric_name), run_keys in keys_by_mm.items():
+                resp_key = f"{model_id}|{metric_name}"
+
+                # Cross-run aggregate: one mean per (judge_model, run_index).
+                # Track per-key means in parallel so we can emit them under
+                # per_run_means_by_model_metric for the chart by-run toggle.
+                per_run_means: List[float] = []
+                per_run_entries: List[PerRunMean] = []
+                for k in run_keys:
+                    vals = list(per_run_per_task[k].values())
+                    if not vals:
+                        continue
+                    mean_v = sum(vals) / len(vals)
+                    per_run_means.append(mean_v)
+                    _mid, _met, jm, ri = k
+                    per_run_entries.append(PerRunMean(
+                        judge_run_id=judge_run_id_by_key[k],
+                        judge_model_id=jm,
+                        run_index=int(ri),
+                        mean=round(float(mean_v), 4),
+                        n_tasks=len(vals),
+                    ))
+                n_runs = len(per_run_means)
+                if n_runs == 0:
+                    continue
+                mean_of_means = sum(per_run_means) / n_runs
+                std_runs = stddev(per_run_means) if n_runs >= 2 else 0.0
+                ci_lo, ci_hi, _ = confidence_interval(per_run_means) if n_runs >= 2 else (None, None, n_runs)
+                runs_by_model_metric[resp_key] = RunsAggregate(
+                    n_runs=n_runs,
+                    mean_of_means=round(float(mean_of_means), 4),
+                    std_of_means=round(float(std_runs or 0.0), 4),
+                    ci_lower=ci_lo,
+                    ci_upper=ci_hi,
+                )
+                if per_run_entries:
+                    per_run_means_by_model_metric[resp_key] = per_run_entries
+
+                # Per-task consistency: variance across the run-keys for the
+                # same task. Tasks with <2 runs are skipped (variance undefined).
+                if n_runs >= 2:
+                    task_to_run_vals: Dict[str, List[float]] = defaultdict(list)
+                    for k in run_keys:
+                        for tid, v in per_run_per_task[k].items():
+                            task_to_run_vals[tid].append(v)
+                    consistencies: List[TaskConsistency] = []
+                    for tid in sorted(task_to_run_vals.keys()):
+                        vals = task_to_run_vals[tid]
+                        if len(vals) < 2:
+                            continue
+                        # numeric variance; agreement metrics only meaningful
+                        # for categorical scores which we don't see in this
+                        # numeric path (see TODO at the bottom of this block).
+                        m = sum(vals) / len(vals)
+                        variance = sum((v - m) ** 2 for v in vals) / (len(vals) - 1)
+                        consistencies.append(TaskConsistency(
+                            task_id=tid,
+                            n_runs=len(vals),
+                            variance=round(variance, 6),
+                        ))
+                    if consistencies:
+                        task_consistency_by_model_metric[resp_key] = consistencies
+
+                # Inter-judge agreement: only when ≥2 distinct judge_model_ids
+                # produced rows for this metric. Build (rater, item, score)
+                # triples where rater = judge_model_id, item = task_id, score
+                # is the per-task mean across that judge's runs.
+                judges_for_mm = judge_models_per_metric.get((model_id, metric_name), set())
+                if len(judges_for_mm) >= 2:
+                    triples: List[tuple] = []
+                    # Aggregate across run_index per judge: mean of that
+                    # judge's score for the task.
+                    by_judge_task: Dict[tuple, List[float]] = defaultdict(list)
+                    for k in run_keys:
+                        _mid, _met, jm, _ri = k
+                        for tid, v in per_run_per_task[k].items():
+                            by_judge_task[(jm, tid)].append(v)
+                    for (jm, tid), vals in by_judge_task.items():
+                        triples.append((jm, tid, sum(vals) / len(vals)))
+                    if triples:
+                        report = compute_agreement(triples, score_type="numeric")
+                        # Re-key pairwise dicts to "modelA__modelB" strings for
+                        # JSON-friendliness (the dataclass uses tuples).
+                        pairwise = {f"{a}__{b}": v for (a, b), v in report.pearson_r_pairwise.items()}
+                        judge_agreement_by_model_metric[resp_key] = JudgeAgreement(
+                            n_judges=report.n_raters,
+                            n_items=report.n_items,
+                            fleiss_kappa=report.fleiss_kappa,
+                            cohens_kappa_pairwise={
+                                f"{a}__{b}": v for (a, b), v in report.cohens_kappa_pairwise.items()
+                            },
+                            pearson_r_pairwise=pairwise,
+                            percent_agreement=report.percent_agreement,
+                            mean_absolute_deviation=report.mean_absolute_deviation,
+                        )
+            # NOTE: per-task consistency for categorical / boolean metrics
+            # (passed/failed, choice) lives under `judge_agreement_by_model_metric`
+            # above when ≥2 judges agree on the same item; for same-judge
+            # multi-run, the variance over numeric scores is the right proxy
+            # and is what we surface here.
+        except Exception as multirun_err:
+            logger.exception(f"Multi-run statistics computation failed: {multirun_err}")
+            warnings.append(f"multi-run stats unavailable: {multirun_err}")
+
         return StatisticsResponse(
             aggregation=request.aggregation,
             metrics=metrics_stats,
@@ -1288,6 +1478,10 @@ async def compute_project_statistics(
             raw_scores=raw_scores_response,
             pairwise_comparisons=pairwise_comparisons if pairwise_comparisons else None,
             correlations=correlations,
+            runs_by_model_metric=runs_by_model_metric or None,
+            task_consistency_by_model_metric=task_consistency_by_model_metric or None,
+            judge_agreement_by_model_metric=judge_agreement_by_model_metric or None,
+            per_run_means_by_model_metric=per_run_means_by_model_metric or None,
             warnings=warnings if warnings else None,
         )
 

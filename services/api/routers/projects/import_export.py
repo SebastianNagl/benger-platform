@@ -466,6 +466,11 @@ async def import_project_data(
                             error_message=eval_data.get("error_message"),
                             processing_time_ms=eval_data.get("processing_time_ms"),
                             judge_prompts_used=eval_data.get("judge_prompts_used"),
+                            # Migration 042: forward judge_run_id when the
+                            # export carries it. Older exports pre-date the
+                            # field; migration 043 backfills NULLs to a
+                            # synthetic per-eval judge_run before tightening.
+                            judge_run_id=eval_data.get("judge_run_id"),
                         )
                         db.add(te)
                         created_task_evaluations += 1
@@ -499,6 +504,8 @@ async def import_project_data(
                     error_message=eval_data.get("error_message"),
                     processing_time_ms=eval_data.get("processing_time_ms"),
                     judge_prompts_used=eval_data.get("judge_prompts_used"),
+                    # Migration 042: see comment on the generation-attached path above.
+                    judge_run_id=eval_data.get("judge_run_id"),
                 )
                 db.add(te)
                 created_task_evaluations += 1
@@ -1735,6 +1742,12 @@ async def import_full_project(
                     error_message=te_data.get("error_message"),
                     processing_time_ms=te_data.get("processing_time_ms"),
                     judge_prompts_used=te_data.get("judge_prompts_used"),
+                    # Migration 042: forward judge_run_id when present in
+                    # the import payload. Older exports leave it None until
+                    # migration 043 backfills.
+                    judge_run_id=id_mappings.get("judge_runs", {}).get(
+                        te_data.get("judge_run_id")
+                    ) if te_data.get("judge_run_id") else None,
                 )
 
                 db.add(new_te)

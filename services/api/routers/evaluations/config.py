@@ -278,6 +278,53 @@ async def update_project_evaluation_config(
                             detail=f"Human evaluation method '{method_name}' not available for field '{field_name}'",
                         )
 
+        # Validate runs_per_task at project-default level (multi-run for
+        # non-judge or single-judge metrics). Bounded for the same fat-finger
+        # reason as the generation router.
+        if "runs_per_task" in config:
+            rpt = config["runs_per_task"]
+            if not isinstance(rpt, int) or rpt < 1 or rpt > 25:
+                raise HTTPException(
+                    status_code=422,
+                    detail="evaluation_config.runs_per_task must be an integer between 1 and 25",
+                )
+
+        # Validate metric_parameters.judges shape on every evaluation_config
+        # entry: list of {judge_model_id: str, runs: int (1..25)}.
+        eval_configs_list = config.get("evaluation_configs") or config.get("multi_field_evaluations") or []
+        if isinstance(eval_configs_list, list):
+            for cfg in eval_configs_list:
+                if not isinstance(cfg, dict):
+                    continue
+                mp = cfg.get("metric_parameters")
+                if not isinstance(mp, dict):
+                    continue
+                judges = mp.get("judges")
+                if judges is None:
+                    continue
+                if not isinstance(judges, list) or not judges:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="metric_parameters.judges must be a non-empty list",
+                    )
+                for j in judges:
+                    if not isinstance(j, dict):
+                        raise HTTPException(
+                            status_code=422,
+                            detail="each judges entry must be {judge_model_id: str, runs: int}",
+                        )
+                    if not isinstance(j.get("judge_model_id"), str) or not j["judge_model_id"]:
+                        raise HTTPException(
+                            status_code=422,
+                            detail="judges[].judge_model_id must be a non-empty string",
+                        )
+                    runs = j.get("runs", 1)
+                    if not isinstance(runs, int) or runs < 1 or runs > 25:
+                        raise HTTPException(
+                            status_code=422,
+                            detail="judges[].runs must be an integer between 1 and 25",
+                        )
+
         # Update the evaluation config
         # IMPORTANT: Include label_config_version to prevent unnecessary regeneration on GET
         # Without this, the GET endpoint will regenerate the config on every page reload,

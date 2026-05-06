@@ -27,6 +27,33 @@ def _get_insensitive(d: dict, key: str, default=""):
     return default
 
 
+def _llm_judge_columns_from_result(result: Optional[dict]) -> dict:
+    """Phase 6.6: pull the eight academic-rigor column values + raw_output
+    out of an LLM-judge ``result`` dict (which carries ``_call_metadata``
+    and ``_raw_output`` after the evaluator change).
+
+    Returns a kwargs dict suitable for splatting into the ``TaskEvaluation``
+    constructor. Empty dict for non-LLM-judge results so deterministic
+    metrics keep writing a row with NULL columns.
+    """
+    if not result or not isinstance(result, dict):
+        return {}
+    call_meta = result.get("_call_metadata") or {}
+    if not isinstance(call_meta, dict):
+        return {}
+    return {
+        "seed": call_meta.get("seed"),
+        "finish_reason": call_meta.get("finish_reason"),
+        "truncated": bool(call_meta.get("truncated", False)),
+        "refusal": bool(call_meta.get("refusal", False)),
+        "error_type": call_meta.get("error_type"),
+        "latency_ms": call_meta.get("response_time_ms"),
+        "input_tokens": call_meta.get("input_tokens"),
+        "output_tokens": call_meta.get("output_tokens"),
+        "raw_output": result.get("_raw_output"),
+    }
+
+
 def _row_has_score(metrics: dict | None) -> bool:
     """A TaskEvaluation row counts as 'already evaluated' if any non-error
     metric carries a numeric value — either as a bare float (legacy shape)
@@ -153,6 +180,7 @@ try:
         class NotificationType:
             EVALUATION_COMPLETED = "evaluation_completed"
             EVALUATION_FAILED = "evaluation_failed"
+            LLM_GENERATION_COMPLETED = "llm_generation_completed"
 
         HAS_NOTIFICATION_SERVICE = False
 
@@ -610,6 +638,7 @@ def generate_llm_responses(
     user_id: str,
     structure_key: str = None,
     organization_id: str = None,
+    run_index: int = 0,
 ) -> Dict[str, Any]:
     """
     Generate LLM responses asynchronously using Celery
@@ -621,6 +650,10 @@ def generate_llm_responses(
         user_id: ID of the user who initiated the generation (for API key lookup)
         structure_key: Key for prompt structure in generation_config.prompt_structures (Issue #762)
         organization_id: Optional org context for API key resolution (Issue #1180)
+        run_index: Multi-run trial index (migration 041). Stamped on the
+            child Generation row; the parent ResponseGeneration aggregates
+            via runs_completed/runs_failed counters bumped at the end of
+            this function.
 
     Returns:
         Dictionary with generation results
@@ -1027,6 +1060,10 @@ def generate_llm_responses(
                         # Start with system defaults
                         temperature = 0.0
                         max_tokens = 1500
+                        # Phase 6.6: explicit seed (default 42 keeps the
+                        # historical determinism behavior). Threaded via
+                        # the same priority chain as temperature/max_tokens.
+                        seed = 42
 
                         # Second priority: Project defaults
                         project_params = selected_config_for_model.get("parameters", {})
@@ -1035,6 +1072,9 @@ def generate_llm_responses(
                             logger.info(f"📋 Using project default temperature: {temperature}")
                         if "max_tokens" in project_params:
                             max_tokens = project_params["max_tokens"]
+                        if "seed" in project_params:
+                            seed = project_params["seed"]
+                            logger.info(f"📋 Using project default seed: {seed}")
 
                         # Third priority: Per-model config overrides project defaults
                         if model_config:
@@ -1058,6 +1098,13 @@ def generate_llm_responses(
                                 if "max_tokens" in model_config["generation_config"]:
                                     max_tokens = model_config["generation_config"]["max_tokens"]
 
+                            # Phase 6.6: same cascade for seed.
+                            if "seed" in model_config:
+                                seed = model_config["seed"]
+                            elif "generation_config" in model_config:
+                                if "seed" in model_config["generation_config"]:
+                                    seed = model_config["generation_config"]["seed"]
+
                         # Fourth priority: Prompt metadata (highest)
                         if (
                             hasattr(instruction_prompt, "prompt_metadata")
@@ -1070,9 +1117,36 @@ def generate_llm_responses(
                                 )
                             if "max_tokens" in instruction_prompt.prompt_metadata:
                                 max_tokens = instruction_prompt.prompt_metadata["max_tokens"]
+                            if "seed" in instruction_prompt.prompt_metadata:
+                                seed = instruction_prompt.prompt_metadata["seed"]
 
-                        # Extract reasoning/thinking config from model_config
-                        reasoning_kwargs = {}
+                        # Multi-run variance: when this is one of N>1 trials
+                        # (run_index > 0 or runs_requested > 1), perturb the seed
+                        # by run_index. Without this, OpenAI's seed parameter
+                        # makes every trial deterministic-identical even at
+                        # temperature=1.0 — defeating the purpose of variance
+                        # studies. Run 0 keeps the user's chosen seed for
+                        # reproducibility; runs 1..N-1 get seed+run_index.
+                        # If the user explicitly wants identical seeds across
+                        # runs (a sanity check), they can pin seed via
+                        # generation_config and set runs_per_task = 1.
+                        try:
+                            _rr = int(getattr(generation, "runs_requested", 1) or 1)
+                        except (TypeError, ValueError):
+                            _rr = 1
+                        if _rr > 1 and run_index > 0:
+                            seed = (seed or 0) + run_index
+                            logger.info(
+                                f"🎲 Multi-run trial {run_index}/{_rr}: "
+                                f"seed perturbed to {seed} for variance"
+                            )
+
+                        # Extract reasoning/thinking config from model_config.
+                        # Phase 6.6: also forward `seed` here so all four
+                        # ai_service.generate{,_structured}() call sites
+                        # below receive it via **reasoning_kwargs without
+                        # needing per-site changes.
+                        reasoning_kwargs = {"seed": seed}
                         if model_config:
                             # OpenAI o-series: reasoning_effort
                             if "reasoning_effort" in model_config:
@@ -1436,6 +1510,11 @@ def generate_llm_responses(
                             "original_task_data": task_data,
                         }
 
+                        # Phase 6.6: pull the academic-rigor fields out of
+                        # the merged metadata dict + usage stats so the
+                        # discrete columns (migration 040) and the JSON
+                        # blob stay in sync. None defaults are fine for
+                        # any provider that doesn't surface a given field.
                         llm_response = DBLLMResponse(
                             id=str(uuid.uuid4()),
                             generation_id=generation_id,
@@ -1446,6 +1525,17 @@ def generate_llm_responses(
                             response_content=response_text,
                             usage_stats=usage_stats,
                             response_metadata=json.dumps(metadata),
+                            # Migration 041: trial index within parent fan-out
+                            run_index=run_index,
+                            # Phase 6.6 columns.
+                            seed=metadata.get("seed"),
+                            finish_reason=metadata.get("finish_reason"),
+                            truncated=bool(metadata.get("truncated", False)),
+                            refusal=bool(metadata.get("refusal", False)),
+                            error_type=metadata.get("error_type"),
+                            latency_ms=metadata.get("response_time_ms"),
+                            input_tokens=usage_stats.get("prompt_tokens") if isinstance(usage_stats, dict) else None,
+                            output_tokens=usage_stats.get("completion_tokens") if isinstance(usage_stats, dict) else None,
                             # Parse results
                             parsed_annotation=parsed_annotation,
                             parse_status=parse_status,
@@ -1479,15 +1569,61 @@ def generate_llm_responses(
                         )
                         continue
 
-            # Update generation status based on actual results
-            # If no responses were generated but some were expected, mark as failed
-            if responses_generated == 0 and total_expected > 0:
-                generation.status = "failed"
-                generation.error_message = _last_error or "Unknown error"
+            # Multi-run aggregation (migration 041): bump the parent counter
+            # for this trial, then derive parent status from the totals. For
+            # single-run (runs_requested=1) this is identical to the legacy
+            # behavior; for N>1 the parent goes to "completed" only after all
+            # successful trials, and to "failed" on the first trial failure
+            # (per the multi-run UX decision).
+            from sqlalchemy import text as _sql_text
+
+            trial_failed = responses_generated == 0 and total_expected > 0
+
+            if trial_failed:
+                db.execute(
+                    _sql_text(
+                        "UPDATE response_generations SET runs_failed = runs_failed + 1 "
+                        "WHERE id = :gid"
+                    ),
+                    {"gid": generation_id},
+                )
             else:
+                db.execute(
+                    _sql_text(
+                        "UPDATE response_generations SET runs_completed = runs_completed + 1 "
+                        "WHERE id = :gid"
+                    ),
+                    {"gid": generation_id},
+                )
+
+            db.refresh(generation)
+
+            # Defensive int coercion: legacy ResponseGeneration rows may not
+            # carry the multi-run counters yet (and unit tests use bare Mocks
+            # which auto-vivify attrs as MagicMock). Treat missing/non-int
+            # values as 0/1 so comparisons don't crash.
+            def _as_int(v: Any, default: int) -> int:
+                try:
+                    return int(v)
+                except (TypeError, ValueError):
+                    return default
+            _runs_failed = _as_int(getattr(generation, "runs_failed", 0), 0)
+            _runs_completed = _as_int(getattr(generation, "runs_completed", 0), 0)
+            _runs_requested = _as_int(getattr(generation, "runs_requested", 1), 1)
+
+            if _runs_failed > 0:
+                generation.status = "failed"
+                generation.error_message = _last_error or generation.error_message or "Trial failed"
+                generation.completed_at = datetime.now()
+            elif _runs_completed >= _runs_requested:
                 generation.status = "completed"
-            generation.completed_at = datetime.now()
-            generation.responses_generated = responses_generated
+                generation.completed_at = datetime.now()
+            else:
+                # More trials pending — leave status as "running" and don't
+                # set completed_at yet.
+                generation.status = "running"
+
+            generation.responses_generated = (generation.responses_generated or 0) + responses_generated
             metadata = {
                 "total_expected": total_expected,
                 "successful": responses_generated,
@@ -1578,10 +1714,13 @@ def generate_llm_responses(
                 f"🎉 Generation completed: {responses_generated}/{total_expected} successful"
             )
 
-            # Trigger notification for completion
+            # Trigger notification for completion. Writes a real DB notification
+            # (via NotificationService) carrying generation_id so the frontend
+            # NotificationDropdown can route the click to /generations/{id}.
+            # The legacy notify_task_completed log stub is also called as a
+            # belt-and-suspenders trace.
             try:
-                if project and HAS_DATABASE:
-                    # Get project's organization for notification from ProjectOrganization table
+                if project and HAS_DATABASE and user_id:
                     from project_models import ProjectOrganization
 
                     project_org = (
@@ -1591,6 +1730,24 @@ def generate_llm_responses(
                     )
                     org_id = project_org[0] if project_org else None
 
+                    NotificationService.create_notification(
+                        db=db,
+                        user_ids=[user_id],
+                        notification_type=NotificationType.LLM_GENERATION_COMPLETED,
+                        title="Generation Complete",
+                        message=(
+                            f"Generation completed for {project.title}: "
+                            f"{responses_generated}/{total_expected} responses"
+                        ),
+                        data={
+                            "project_id": project_id,
+                            "generation_id": generation_id,
+                            "model_id": model_id,
+                            "responses_generated": responses_generated,
+                            "total_expected": total_expected,
+                        },
+                    )
+
                     notify_task_completed(
                         task_id=project_id,
                         task_name=project.title,
@@ -1598,7 +1755,9 @@ def generate_llm_responses(
                         completion_type="llm_generation",
                         organization_id=org_id,
                     )
-                    logger.info(f"✅ Notification sent for project {project_id} completion")
+                    logger.info(
+                        f"✅ Notification sent for generation {generation_id} (project {project_id})"
+                    )
             except Exception as notification_error:
                 logger.warning(f"⚠️ Failed to send notification: {notification_error}")
 
@@ -1625,8 +1784,19 @@ def generate_llm_responses(
             }
 
         except Exception as e:
-            # Update generation status to failed
+            # Update generation status to failed and bump runs_failed counter
+            # so the multi-run aggregator agrees this trial failed (matches the
+            # success path's atomic counter update above).
             try:
+                from sqlalchemy import text as _sql_text
+
+                db.execute(
+                    _sql_text(
+                        "UPDATE response_generations SET runs_failed = runs_failed + 1 "
+                        "WHERE id = :gid"
+                    ),
+                    {"gid": generation_id},
+                )
                 generation = (
                     db.query(DBResponseGeneration)
                     .filter(DBResponseGeneration.id == generation_id)
@@ -1900,6 +2070,7 @@ def generate_response(
     structure_key: str = None,
     force_rerun: bool = False,
     organization_id: str = None,
+    run_index: int = 0,
 ) -> Dict[str, Any]:
     """
     Generate response for a specific task-model combination.
@@ -1913,12 +2084,17 @@ def generate_response(
         structure_key: Optional prompt structure key (Issue #762)
         force_rerun: If True, regenerate even if response already exists
         organization_id: Optional org context for API key resolution (Issue #1180)
+        run_index: Zero-indexed trial number within the parent ResponseGeneration's
+            fan-out (migration 041). One Celery task per run_index; the parent
+            ResponseGeneration aggregates progress via runs_completed/runs_failed.
 
     Returns:
         Dictionary with generation results
     """
     structure_info = f" with structure '{structure_key}'" if structure_key else ""
-    logger.info(f"🎯 Starting generation for task {task_id} with model {model_id}{structure_info}")
+    logger.info(
+        f"🎯 Starting generation for task {task_id} with model {model_id}{structure_info} (run {run_index})"
+    )
 
     try:
         # Import modules
@@ -1989,7 +2165,8 @@ def generate_response(
             # It uses its own DB session and commits all changes (status,
             # error_message, prompt_used, parameters) to the generation record.
             result = generate_llm_responses(
-                generation_id, config_data, model_id, user_id, structure_key, organization_id
+                generation_id, config_data, model_id, user_id, structure_key, organization_id,
+                run_index=run_index,
             )
 
             # Refresh to pick up all changes committed by generate_llm_responses
@@ -2007,9 +2184,20 @@ def generate_response(
     except Exception as e:
         logger.error(f"❌ Error in generate_response: {str(e)}")
 
-        # Try to update generation status
+        # Try to update generation status. For multi-run we also bump the
+        # runs_failed counter (migration 041) so the parent's aggregate matches
+        # reality even when the trial died before generate_llm_responses ran.
         try:
+            from sqlalchemy import text as _sql_text
+
             db = SessionLocal()
+            db.execute(
+                _sql_text(
+                    "UPDATE response_generations SET runs_failed = runs_failed + 1 "
+                    "WHERE id = :gid"
+                ),
+                {"gid": generation_id},
+            )
             generation = (
                 db.query(DBResponseGeneration)
                 .filter(DBResponseGeneration.id == generation_id)
@@ -2127,76 +2315,230 @@ def run_evaluation(
                     "evaluation_id": evaluation_id,
                 }
 
-            # Initialize LLM Judge evaluator if any configs use llm_judge metrics
-            llm_judge_evaluators = {}  # Config ID -> evaluator instance
+            # Probe the task set up-front so we can short-circuit before
+            # creating any EvaluationJudgeRun rows. Avoids leaving orphan
+            # judge_runs behind when the project has no tasks at all.
+            _probe_tasks_query = db.query(Task).filter(Task.project_id == project_id)
+            if task_ids:
+                _probe_tasks_query = _probe_tasks_query.filter(Task.id.in_(task_ids))
+            _probe_tasks_count = _probe_tasks_query.limit(1).all()
+            if not _probe_tasks_count:
+                evaluation.status = "failed"
+                evaluation.error_message = "No tasks found in project"
+                db.commit()
+                return {
+                    "status": "error",
+                    "message": "No tasks found in project",
+                    "evaluation_id": evaluation_id,
+                }
+
+            # ── Resolve judge config to (judge_model_id, run_index) pairs ──
+            # The `metric_parameters.judges` shape (migration 042) is a list of
+            # `{judge_model_id, runs}` entries: supports same-model multi-run
+            # AND judge ensembles under one schema. Migration 042 backfilled
+            # any pre-existing `judge_model` keys to this shape; the soft
+            # fallback below covers projects whose evaluation_config wasn't
+            # touched since the migration ran.
+            #
+            # For each (config, judge_model, run_index) we:
+            #   1. Insert one `EvaluationJudgeRun` row (status=running).
+            #   2. Instantiate one `LLMJudgeEvaluator` scoped to that judge.
+            #   3. Stash both in `judge_runs_by_config[config_id]` so the
+            #      per-task loop can iterate and emit one TaskEvaluation per
+            #      judge_run.
+            # At the end of evaluation we walk the list and mark each judge_run
+            # `completed`/`failed`; the parent EvaluationRun status is then
+            # aggregated from these children.
+            from models import EvaluationJudgeRun
+            import uuid as _uuid_judge
+
+            def _resolve_judges(params: Dict[str, Any]) -> List[Dict[str, Any]]:
+                judges = params.get("judges")
+                if isinstance(judges, list) and judges:
+                    return judges
+                legacy = params.get("judge_model", "gpt-4o")
+                runs = int(params.get("runs_per_judge", 1) or 1)
+                return [{"judge_model_id": legacy, "runs": runs}]
+
+            # Cache (judge_model_id, run_index) -> judge_run_id within this
+            # evaluation so multiple metrics that share the same judge reuse
+            # the same EvaluationJudgeRun row instead of colliding on the
+            # uq_evaluation_judge_runs unique constraint.
+            _judge_run_cache: Dict[tuple, str] = {}
+
+            def _create_judge_run(judge_model_id: Optional[str], run_index: int,
+                                  params_snapshot: Optional[Dict[str, Any]]) -> str:
+                cache_key = (judge_model_id, run_index)
+                if cache_key in _judge_run_cache:
+                    return _judge_run_cache[cache_key]
+                existing = db.query(EvaluationJudgeRun).filter(
+                    EvaluationJudgeRun.evaluation_id == evaluation_id,
+                    EvaluationJudgeRun.judge_model_id == judge_model_id,
+                    EvaluationJudgeRun.run_index == run_index,
+                ).first()
+                if existing:
+                    _judge_run_cache[cache_key] = existing.id
+                    return existing.id
+                jr_id = str(_uuid_judge.uuid4())
+                jr = EvaluationJudgeRun(
+                    id=jr_id,
+                    evaluation_id=evaluation_id,
+                    judge_model_id=judge_model_id,
+                    run_index=run_index,
+                    status="running",
+                    started_at=datetime.now(),
+                    metric_parameters_snapshot=params_snapshot or None,
+                )
+                db.add(jr)
+                db.commit()
+                _judge_run_cache[cache_key] = jr_id
+                return jr_id
+
+            # judge_runs_by_config[config_id] = list of dicts with keys:
+            #   judge_model_id, run_index, judge_run_id, evaluator (or None)
+            #
+            # Order matters — preserves the user-configured judges list so the
+            # UI's "first judge" / "second judge" labelling stays stable.
+            judge_runs_by_config: Dict[str, List[Dict[str, Any]]] = {}
+            # Legacy single-judge dicts kept for guard logic + backwards-compat
+            # in code paths that haven't been ported to iterate `judge_runs_by_config`
+            # yet (e.g. annotation-evaluation and immediate-eval paths). They
+            # always point at the FIRST judge_run for the config.
+            llm_judge_evaluators: Dict[str, Any] = {}
+            llm_judge_run_ids: Dict[str, str] = {}
+            default_judge_run_id: Optional[str] = None
+
             for config in enabled_configs:
                 metric = config.get("metric", "")
                 if metric.startswith("llm_judge_"):
                     config_id = config.get("id", "unknown")
                     params = config.get("metric_parameters", {})
-                    # Get triggered_by user ID from eval_metadata
+                    judges_list = _resolve_judges(params)
+
                     triggered_by = (
                         evaluation.eval_metadata.get("triggered_by")
                         if evaluation.eval_metadata
                         else None
                     )
-
                     if not triggered_by:
                         logger.warning(
                             f"LLM judge config {config_id} has no triggered_by user - skipping"
                         )
                         continue
 
-                    try:
-                        from ml_evaluation.llm_judge_evaluator import create_llm_judge_for_user
+                    judge_runs_by_config.setdefault(config_id, [])
 
-                        # Determine provider from judge_model
-                        judge_model = params.get("judge_model", "gpt-4o")
-                        provider = _get_provider_from_model(judge_model)
-
-                        llm_judge = create_llm_judge_for_user(
-                            db=db,
-                            user_id=triggered_by,
-                            provider=provider,
-                            judge_model=judge_model,
-                            temperature=params.get("temperature", 0.0),
-                            max_tokens=params.get("max_tokens", 500),
-                            criteria=params.get("dimensions"),
-                            custom_criteria=params.get("custom_criteria"),
-                            custom_prompt_template=params.get("custom_prompt_template"),
-                            answer_type=params.get("answer_type"),
-                            field_mappings=params.get("field_mappings"),
-                            score_scale=params.get("score_scale", "1-5"),
-                            organization_id=organization_id,
-                        )
-
-                        e2e_test_mode = os.environ.get("E2E_TEST_MODE") == "true"
-                        if llm_judge.ai_service or e2e_test_mode:
-                            llm_judge_evaluators[config_id] = llm_judge
-                            key_source = f"org {organization_id}" if organization_id else f"user {triggered_by}"
-                            mode = " (mock/E2E)" if not llm_judge.ai_service else ""
-                            logger.info(
-                                f"Initialized LLM judge for config {config_id} with model {judge_model} (key via {key_source}){mode}"
+                    # One EvaluationJudgeRun + one evaluator per (judge, run).
+                    for judge_entry in judges_list:
+                        judge_model = judge_entry.get("judge_model_id") or "gpt-4o"
+                        runs = max(1, int(judge_entry.get("runs", 1) or 1))
+                        for run_index in range(runs):
+                            jr_id = _create_judge_run(
+                                judge_model_id=judge_model,
+                                run_index=run_index,
+                                params_snapshot={
+                                    **params,
+                                    "_resolved_judge": judge_model,
+                                    "_run_index": run_index,
+                                },
                             )
-                        else:
-                            logger.warning(
-                                f"LLM judge for config {config_id} has no AI service - skipping"
-                            )
-                    except Exception as e:
-                        if os.environ.get("E2E_TEST_MODE") == "true":
-                            # In E2E test mode, create evaluator without AI service (returns mock scores)
-                            from ml_evaluation.llm_judge_evaluator import LLMJudgeEvaluator
+                            evaluator = None
+                            try:
+                                from ml_evaluation.llm_judge_evaluator import create_llm_judge_for_user
 
-                            llm_judge = LLMJudgeEvaluator(
-                                criteria=params.get("dimensions") if params else None,
-                                score_scale="0-1",  # Mock always returns 0-1
-                            )
-                            llm_judge_evaluators[config_id] = llm_judge
+                                provider = _get_provider_from_model(judge_model)
+                                evaluator = create_llm_judge_for_user(
+                                    db=db,
+                                    user_id=triggered_by,
+                                    provider=provider,
+                                    judge_model=judge_model,
+                                    temperature=params.get("temperature", 0.0),
+                                    max_tokens=params.get("max_tokens", 500),
+                                    criteria=params.get("dimensions"),
+                                    custom_criteria=params.get("custom_criteria"),
+                                    custom_prompt_template=params.get("custom_prompt_template"),
+                                    answer_type=params.get("answer_type"),
+                                    field_mappings=params.get("field_mappings"),
+                                    score_scale=params.get("score_scale", "1-5"),
+                                    organization_id=organization_id,
+                                    # Multi-run variance: perturb seed by
+                                    # run_index for runs > 0 so the same judge
+                                    # produces actual variance across its
+                                    # repetitions. Mirror of the generation-side
+                                    # seed perturbation in generate_llm_responses.
+                                    seed=int(params.get("seed", 42) or 42) + run_index,
+                                )
+                                e2e_test_mode = os.environ.get("E2E_TEST_MODE") == "true"
+                                if not (evaluator.ai_service or e2e_test_mode):
+                                    logger.warning(
+                                        f"LLM judge for config {config_id} judge {judge_model} run {run_index} has no AI service - judge_run will be marked failed"
+                                    )
+                                    evaluator = None
+                                else:
+                                    key_source = f"org {organization_id}" if organization_id else f"user {triggered_by}"
+                                    mode = " (mock/E2E)" if not evaluator.ai_service else ""
+                                    logger.info(
+                                        f"Initialized LLM judge for config {config_id} model {judge_model} run {run_index} (key via {key_source}){mode}"
+                                    )
+                            except Exception as init_err:
+                                if os.environ.get("E2E_TEST_MODE") == "true":
+                                    from ml_evaluation.llm_judge_evaluator import LLMJudgeEvaluator
+
+                                    evaluator = LLMJudgeEvaluator(
+                                        criteria=params.get("dimensions") if params else None,
+                                        score_scale="0-1",
+                                    )
+                                    logger.info(
+                                        f"Using mock LLM judge for E2E test config {config_id} {judge_model} run {run_index} (init failed: {init_err})"
+                                    )
+                                else:
+                                    logger.error(
+                                        f"Failed to initialize LLM judge for config {config_id} {judge_model} run {run_index}: {init_err}"
+                                    )
+
+                            if evaluator is None:
+                                # Mark this judge_run failed up front so the
+                                # parent aggregator sees the truth.
+                                _jr = db.query(EvaluationJudgeRun).filter(
+                                    EvaluationJudgeRun.id == jr_id
+                                ).first()
+                                if _jr:
+                                    _jr.status = "failed"
+                                    _jr.error_message = "judge initialization failed"
+                                    _jr.completed_at = datetime.now()
+                                    db.commit()
+
+                            judge_runs_by_config[config_id].append({
+                                "judge_model_id": judge_model,
+                                "run_index": run_index,
+                                "judge_run_id": jr_id,
+                                "evaluator": evaluator,
+                            })
+
+                    # Populate legacy single-judge maps from the first
+                    # successfully-initialized judge_run for backwards-compat
+                    # with code paths that still index by config_id (the guard
+                    # at the top of the per-task loop, the annotation-eval and
+                    # immediate-eval paths). Skips configs whose every judge
+                    # failed to init — the guard then writes a terminal-error
+                    # row instead of silently corrupting the run.
+                    for entry in judge_runs_by_config.get(config_id, []):
+                        if entry["evaluator"] is not None:
+                            llm_judge_evaluators[config_id] = entry["evaluator"]
+                            llm_judge_run_ids[config_id] = entry["judge_run_id"]
+                            break
                             logger.info(
                                 f"Using mock LLM judge for E2E test config {config_id} (init failed: {e})"
                             )
                         else:
                             logger.error(f"Failed to initialize LLM judge for config {config_id}: {e}")
+                else:
+                    if default_judge_run_id is None:
+                        default_judge_run_id = _create_judge_run(
+                            judge_model_id=None,
+                            run_index=0,
+                            params_snapshot=None,
+                        )
 
             # Load tasks with annotations
             tasks_query = db.query(Task).filter(Task.project_id == project_id)
@@ -2472,8 +2814,16 @@ def run_evaluation(
                                         metric.startswith("llm_judge_")
                                         and config_id in llm_judge_evaluators
                                     ):
-                                        llm_judge = llm_judge_evaluators[config_id]
-                                        # Get context from task data
+                                        # ── Multi-judge / multi-run fan-out ──
+                                        # One LLM call per (judge_model, run_index)
+                                        # entry; one TaskEvaluation row per call.
+                                        # The order of judge_runs_by_config[cid]
+                                        # is the user-configured order so the
+                                        # judge ensemble UI can label them
+                                        # consistently across re-renders.
+                                        per_judge_results: List[Dict[str, Any]] = []
+
+                                        # Get context from task data (shared across judges)
                                         context = (
                                             _get_insensitive(task.data, "text")
                                             or _get_insensitive(task.data, "input")
@@ -2488,95 +2838,152 @@ def run_evaluation(
                                             if muster:
                                                 eval_ground_truth = str(muster)
 
-                                        # Determine criterion from metric name
+                                        # Determine criterion from metric name (shared)
                                         criterion = metric.replace("llm_judge_", "")
                                         if criterion == "custom":
-                                            criterion = "correctness"  # Default criterion for custom prompts
+                                            criterion = "correctness"
                                         elif criterion == "overall":
-                                            criterion = (
-                                                "correctness"  # Use correctness as main criterion
+                                            criterion = "correctness"
+
+                                        for jr_entry in judge_runs_by_config.get(config_id, []):
+                                            jr_evaluator = jr_entry["evaluator"]
+                                            jr_id = jr_entry["judge_run_id"]
+                                            jr_judge_model = jr_entry["judge_model_id"]
+                                            jr_run_index = jr_entry["run_index"]
+
+                                            if jr_evaluator is None:
+                                                # This judge_run failed init — record a terminal-error
+                                                # TaskEvaluation row so the per-judge stats see the failure.
+                                                import uuid as _err_uuid
+
+                                                per_judge_results.append({
+                                                    "id": str(_err_uuid.uuid4()),
+                                                    "evaluation_id": evaluation_id,
+                                                    "judge_run_id": jr_id,
+                                                    "task_id": task.id,
+                                                    "generation_id": generation.id,
+                                                    "field_name": field_key,
+                                                    "answer_type": "text",
+                                                    "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                                    "prediction": str(prediction)[:1000] if prediction else "",
+                                                    "metrics": {
+                                                        metric: {
+                                                            "value": None,
+                                                            "method": metric,
+                                                            "error": f"judge {jr_judge_model} run {jr_run_index} not initialized",
+                                                            "details": {},
+                                                        },
+                                                    },
+                                                    "passed": False,
+                                                    "error_message": f"judge {jr_judge_model} run {jr_run_index} not initialized",
+                                                })
+                                                continue
+
+                                            # One LLM call per judge_run.
+                                            result = jr_evaluator._evaluate_single_criterion(
+                                                context=context,
+                                                ground_truth=eval_ground_truth,
+                                                prediction=str(prediction) if prediction else "",
+                                                criterion=criterion,
+                                                task_data=task.data,
                                             )
 
-                                        # Call LLM Judge evaluator
-                                        result = llm_judge._evaluate_single_criterion(
-                                            context=context,
-                                            ground_truth=eval_ground_truth,
-                                            prediction=str(prediction) if prediction else "",
-                                            criterion=criterion,
-                                            task_data=task.data,
-                                        )
+                                            judge_prompts = (
+                                                result.pop("_judge_prompts_used", None)
+                                                if result
+                                                else None
+                                            )
 
-                                        # Extract prompt provenance before metric processing
-                                        judge_prompts = (
-                                            result.pop("_judge_prompts_used", None)
-                                            if result
-                                            else None
-                                        )
+                                            raw_score = (
+                                                result.get("score") if result is not None else None
+                                            )
 
-                                        # Extract score from result
-                                        raw_score = None
-                                        if result is not None:
-                                            raw_score = result["score"]
-
-                                        # Normalize score to 0-1 range
-                                        error_msg = None
-                                        if raw_score is not None:
-                                            if llm_judge.score_scale == "0-1":
-                                                score = raw_score  # Already 0-1
-                                            elif llm_judge.score_scale == "0-100":
-                                                score = raw_score / 100.0  # Convert 0-100 to 0-1
+                                            error_msg = None
+                                            if raw_score is not None:
+                                                if jr_evaluator.score_scale == "0-1":
+                                                    score = raw_score
+                                                elif jr_evaluator.score_scale == "0-100":
+                                                    score = raw_score / 100.0
+                                                else:
+                                                    score = (raw_score - 1) / 4
                                             else:
-                                                score = (raw_score - 1) / 4  # Convert 1-5 to 0-1
-                                        else:
-                                            # API failure - don't assign 0.0 as that conflates
-                                            # with legitimate low scores
-                                            score = None
-                                            error_msg = "LLM judge evaluation failed"
-                                            logger.warning(
-                                                f"LLM judge returned None for task {task.id}, "
-                                                f"field {field_key}"
-                                            )
+                                                score = None
+                                                error_msg = (
+                                                    (result.get("error_message") if result else None)
+                                                    or "LLM judge evaluation failed"
+                                                )
+                                                logger.warning(
+                                                    f"LLM judge {jr_judge_model} run {jr_run_index} returned None for task {task.id}, field {field_key}"
+                                                )
 
-                                        # Create sample result with full LLM response
-                                        import uuid
+                                            import uuid as _ok_uuid
 
-                                        sample_result = {
-                                            "id": str(uuid.uuid4()),
-                                            "evaluation_id": evaluation_id,
-                                            "task_id": task.id,
-                                            "generation_id": generation.id,
-                                            "field_name": field_key,
-                                            "answer_type": "text",
-                                            "ground_truth": str(ground_truth)[:1000]
-                                            if ground_truth
-                                            else "",
-                                            "prediction": str(prediction)[:1000]
-                                            if prediction
-                                            else "",
-                                            "metrics": {
-                                                metric: score,
-                                                "raw_score": raw_score,
-                                                f"{metric}_response": result,  # Store ENTIRE LLM response
-                                                # Extra Falloesung metrics
-                                                **(
-                                                    {f"{metric}_grade_points": result["grade_points"]}
-                                                    if result and result.get("grade_points") is not None
-                                                    else {}
-                                                ),
-                                                **(
-                                                    {f"{metric}_passed": 1.0 if result["passed"] else 0.0}
+                                            per_judge_results.append({
+                                                "id": str(_ok_uuid.uuid4()),
+                                                "evaluation_id": evaluation_id,
+                                                "judge_run_id": jr_id,
+                                                "task_id": task.id,
+                                                "generation_id": generation.id,
+                                                "field_name": field_key,
+                                                "answer_type": "text",
+                                                "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                                "prediction": str(prediction)[:1000] if prediction else "",
+                                                "metrics": {
+                                                    metric: score,
+                                                    "raw_score": raw_score,
+                                                    f"{metric}_response": result,
+                                                    **(
+                                                        {f"{metric}_grade_points": result["grade_points"]}
+                                                        if result and result.get("grade_points") is not None
+                                                        else {}
+                                                    ),
+                                                    **(
+                                                        {f"{metric}_passed": 1.0 if result["passed"] else 0.0}
+                                                        if result and "passed" in result
+                                                        else {}
+                                                    ),
+                                                },
+                                                "passed": (
+                                                    result.get("passed", score > 0.5)
                                                     if result and "passed" in result
-                                                    else {}
+                                                    else (score > 0.5 if score is not None else False)
                                                 ),
-                                            },
-                                            "passed": (
-                                                result.get("passed", score > 0.5)
-                                                if result and "passed" in result
-                                                else (score > 0.5 if score is not None else False)
-                                            ),
-                                            "error_message": error_msg,
-                                            "judge_prompts_used": judge_prompts,
-                                        }
+                                                "error_message": error_msg,
+                                                "judge_prompts_used": judge_prompts,
+                                                **_llm_judge_columns_from_result(result),
+                                            })
+
+                                        # Push every per-judge result through the
+                                        # shared aggregation + commit path below.
+                                        for sample_result in per_judge_results:
+                                            sample_results.append(sample_result)
+                                            samples_evaluated += 1
+                                            if sample_result["passed"]:
+                                                samples_passed += 1
+                                            else:
+                                                samples_failed += 1
+                                            metric_key = f"{field_key}|{metric}"
+                                            primary_value = sample_result["metrics"].get(metric)
+                                            if primary_value is not None and isinstance(primary_value, (int, float)):
+                                                aggregate_metrics.setdefault(metric_key, []).append(primary_value)
+                                            for suffix in ("_grade_points", "_passed"):
+                                                sub_key_name = f"{metric}{suffix}"
+                                                sub_value = sample_result["metrics"].get(sub_key_name)
+                                                if sub_value is not None and isinstance(sub_value, (int, float)):
+                                                    sub_metric_key = f"{field_key}|{sub_key_name}"
+                                                    aggregate_metrics.setdefault(sub_metric_key, []).append(sub_value)
+
+                                        if sample_results:
+                                            for r in sample_results:
+                                                db.add(TaskEvaluation(**r))
+                                            evaluation.samples_evaluated = samples_evaluated
+                                            evaluation.has_sample_results = True
+                                            db.commit()
+                                            sample_results = []
+                                        # Skip the legacy single-result path
+                                        # below — we already appended + committed
+                                        # one row per judge_run for this sample.
+                                        continue
                                     else:
                                         # Use standard SampleEvaluator for non-LLM metrics
                                         sample_result = sample_evaluator.evaluate_sample(
@@ -2589,6 +2996,12 @@ def run_evaluation(
                                             parse_status=generation.parse_status,
                                             allow_unparsed=allow_unparsed,
                                         )
+                                        # Migration 042: deterministic metrics
+                                        # don't have a judge — point them at the
+                                        # default judge_run created up front for
+                                        # FK consistency.
+                                        if isinstance(sample_result, dict):
+                                            sample_result["judge_run_id"] = default_judge_run_id
 
                                     sample_results.append(sample_result)
                                     samples_evaluated += 1
@@ -2817,7 +3230,10 @@ def run_evaluation(
                                             samples_failed += 1
                                             continue
                                         if metric.startswith("llm_judge_") and config_id in llm_judge_evaluators:
-                                            llm_judge = llm_judge_evaluators[config_id]
+                                            # ── Multi-judge / multi-run fan-out (annotation path) ──
+                                            # Mirror of the generation-side fan-out: one LLM call per
+                                            # (judge_model, run_index) entry, one TaskEvaluation row per
+                                            # call with judge_run_id pointing at the right child run.
                                             context = (
                                                 _get_insensitive(task.data, "text")
                                                 or _get_insensitive(task.data, "input")
@@ -2837,66 +3253,132 @@ def run_evaluation(
                                             elif criterion == "overall":
                                                 criterion = "correctness"
 
-                                            result = llm_judge._evaluate_single_criterion(
-                                                context=context,
-                                                ground_truth=eval_ground_truth,
-                                                prediction=str(prediction) if prediction else "",
-                                                criterion=criterion,
-                                                task_data=task.data,
-                                            )
+                                            per_judge_results: List[Dict[str, Any]] = []
+                                            for jr_entry in judge_runs_by_config.get(config_id, []):
+                                                jr_evaluator = jr_entry["evaluator"]
+                                                jr_id = jr_entry["judge_run_id"]
+                                                jr_judge_model = jr_entry["judge_model_id"]
+                                                jr_run_index = jr_entry["run_index"]
 
-                                            judge_prompts = (
-                                                result.pop("_judge_prompts_used", None)
-                                                if result
-                                                else None
-                                            )
+                                                if jr_evaluator is None:
+                                                    per_judge_results.append({
+                                                        "id": str(_ann_uuid.uuid4()),
+                                                        "evaluation_id": evaluation_id,
+                                                        "judge_run_id": jr_id,
+                                                        "task_id": task.id,
+                                                        "generation_id": None,
+                                                        "annotation_id": annotation.id,
+                                                        "field_name": field_key,
+                                                        "answer_type": "text",
+                                                        "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                                        "prediction": str(prediction)[:1000] if prediction else "",
+                                                        "metrics": {
+                                                            metric: {
+                                                                "value": None,
+                                                                "method": metric,
+                                                                "error": f"judge {jr_judge_model} run {jr_run_index} not initialized",
+                                                                "details": {},
+                                                            },
+                                                        },
+                                                        "passed": False,
+                                                        "error_message": f"judge {jr_judge_model} run {jr_run_index} not initialized",
+                                                    })
+                                                    continue
 
-                                            raw_score = result["score"] if result is not None else None
-                                            error_msg = None
-                                            if raw_score is not None:
-                                                if llm_judge.score_scale == "0-1":
-                                                    score = raw_score
-                                                elif llm_judge.score_scale == "0-100":
-                                                    score = raw_score / 100.0
+                                                result = jr_evaluator._evaluate_single_criterion(
+                                                    context=context,
+                                                    ground_truth=eval_ground_truth,
+                                                    prediction=str(prediction) if prediction else "",
+                                                    criterion=criterion,
+                                                    task_data=task.data,
+                                                )
+
+                                                judge_prompts = (
+                                                    result.pop("_judge_prompts_used", None)
+                                                    if result
+                                                    else None
+                                                )
+                                                raw_score = (
+                                                    result.get("score") if result is not None else None
+                                                )
+                                                error_msg = None
+                                                if raw_score is not None:
+                                                    if jr_evaluator.score_scale == "0-1":
+                                                        score = raw_score
+                                                    elif jr_evaluator.score_scale == "0-100":
+                                                        score = raw_score / 100.0
+                                                    else:
+                                                        score = (raw_score - 1) / 4
                                                 else:
-                                                    score = (raw_score - 1) / 4
-                                            else:
-                                                score = None
-                                                error_msg = "LLM judge evaluation failed"
+                                                    score = None
+                                                    error_msg = (
+                                                        (result.get("error_message") if result else None)
+                                                        or "LLM judge evaluation failed"
+                                                    )
 
-                                            annotation_result = {
-                                                "id": str(_ann_uuid.uuid4()),
-                                                "evaluation_id": evaluation_id,
-                                                "task_id": task.id,
-                                                "generation_id": None,
-                                                "annotation_id": annotation.id,
-                                                "field_name": field_key,
-                                                "answer_type": "text",
-                                                "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
-                                                "prediction": str(prediction)[:1000] if prediction else "",
-                                                "metrics": {
-                                                    metric: score,
-                                                    "raw_score": raw_score,
-                                                    f"{metric}_response": result,
-                                                    **(
-                                                        {f"{metric}_grade_points": result["grade_points"]}
-                                                        if result and result.get("grade_points") is not None
-                                                        else {}
-                                                    ),
-                                                    **(
-                                                        {f"{metric}_passed": 1.0 if result["passed"] else 0.0}
+                                                per_judge_results.append({
+                                                    "id": str(_ann_uuid.uuid4()),
+                                                    "evaluation_id": evaluation_id,
+                                                    "judge_run_id": jr_id,
+                                                    "task_id": task.id,
+                                                    "generation_id": None,
+                                                    "annotation_id": annotation.id,
+                                                    "field_name": field_key,
+                                                    "answer_type": "text",
+                                                    "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                                    "prediction": str(prediction)[:1000] if prediction else "",
+                                                    "metrics": {
+                                                        metric: score,
+                                                        "raw_score": raw_score,
+                                                        f"{metric}_response": result,
+                                                        **(
+                                                            {f"{metric}_grade_points": result["grade_points"]}
+                                                            if result and result.get("grade_points") is not None
+                                                            else {}
+                                                        ),
+                                                        **(
+                                                            {f"{metric}_passed": 1.0 if result["passed"] else 0.0}
+                                                            if result and "passed" in result
+                                                            else {}
+                                                        ),
+                                                    },
+                                                    "passed": (
+                                                        result.get("passed", score > 0.5)
                                                         if result and "passed" in result
-                                                        else {}
+                                                        else (score > 0.5 if score is not None else False)
                                                     ),
-                                                },
-                                                "passed": (
-                                                    result.get("passed", score > 0.5)
-                                                    if result and "passed" in result
-                                                    else (score > 0.5 if score is not None else False)
-                                                ),
-                                                "error_message": error_msg,
-                                                "judge_prompts_used": judge_prompts,
-                                            }
+                                                    "error_message": error_msg,
+                                                    "judge_prompts_used": judge_prompts,
+                                                    **_llm_judge_columns_from_result(result),
+                                                })
+
+                                            for sample_result in per_judge_results:
+                                                sample_results.append(sample_result)
+                                                samples_evaluated += 1
+                                                if sample_result["passed"]:
+                                                    samples_passed += 1
+                                                else:
+                                                    samples_failed += 1
+                                                metric_key = f"{field_key}|{metric}"
+                                                primary_value = sample_result["metrics"].get(metric)
+                                                if primary_value is not None and isinstance(primary_value, (int, float)):
+                                                    aggregate_metrics.setdefault(metric_key, []).append(primary_value)
+                                                for suffix in ("_grade_points", "_passed"):
+                                                    sub_key_name = f"{metric}{suffix}"
+                                                    sub_value = sample_result["metrics"].get(sub_key_name)
+                                                    if sub_value is not None and isinstance(sub_value, (int, float)):
+                                                        sub_metric_key = f"{field_key}|{sub_key_name}"
+                                                        aggregate_metrics.setdefault(sub_metric_key, []).append(sub_value)
+
+                                            if sample_results:
+                                                for sr in sample_results:
+                                                    db.add(TaskEvaluation(**sr))
+                                                evaluation.samples_evaluated = samples_evaluated
+                                                evaluation.has_sample_results = True
+                                                db.commit()
+                                                sample_results = []
+                                            # Skip the legacy single-result append+commit path below.
+                                            continue
                                         else:
                                             # Standard metric (ROUGE, BLEU, etc.)
                                             annotation_result = sample_evaluator.evaluate_sample(
@@ -2909,6 +3391,9 @@ def run_evaluation(
                                             )
                                             annotation_result["annotation_id"] = annotation.id
                                             annotation_result["generation_id"] = None
+                                            # Migration 042: deterministic annotation metric — point at default judge_run.
+                                            if isinstance(annotation_result, dict):
+                                                annotation_result["judge_run_id"] = default_judge_run_id
 
                                         sample_results.append(annotation_result)
                                         samples_evaluated += 1
@@ -2983,21 +3468,92 @@ def run_evaluation(
                 if values:
                     final_metrics[metric_key] = sum(values) / len(values)
 
+            # ── Finalize per-judge_run + parent EvaluationRun status ──
+            # Walk every EvaluationJudgeRun we created, count its rows, and
+            # mark it completed/failed based on whether at least one row
+            # landed. The parent EvaluationRun aggregates: completed only when
+            # every child terminated and at least one child succeeded; failed
+            # otherwise. Mirrors the generation policy "first failure → parent
+            # failed" but is forgiving here because eval failures are usually
+            # rate-limit transients and the user can re-run a single judge.
+            from models import EvaluationJudgeRun as _EJR_finalize
+
+            child_runs = db.query(_EJR_finalize).filter(
+                _EJR_finalize.evaluation_id == evaluation_id
+            ).all()
+            any_child_failed = False
+            any_child_completed = False
+            for child in child_runs:
+                if child.status == "failed":
+                    any_child_failed = True
+                    continue
+                # Count TaskEvaluation rows that landed on this judge_run.
+                child_rows = db.query(TaskEvaluation).filter(
+                    TaskEvaluation.judge_run_id == child.id
+                ).count()
+                child.samples_evaluated = child_rows
+                child.completed_at = datetime.now()
+                if child_rows > 0:
+                    child.status = "completed"
+                    any_child_completed = True
+                else:
+                    child.status = "failed"
+                    child.error_message = child.error_message or "no rows produced"
+                    any_child_failed = True
+            db.commit()
+
             # Update evaluation record
-            evaluation.status = "completed"
+            evaluation.status = "completed" if any_child_completed else "failed"
+            if not any_child_completed:
+                evaluation.error_message = (
+                    "no judge_run produced any rows"
+                    if not child_runs
+                    else "all judge_runs failed"
+                )
             evaluation.completed_at = datetime.now()
             evaluation.samples_evaluated = samples_evaluated
             evaluation.metrics = final_metrics
             evaluation.has_sample_results = True
+            # Build judge_models / judge_seeds maps directly from
+            # judge_runs_by_config so multi-judge ensembles are surfaced
+            # (the legacy llm_judge_evaluators dict only had the first judge).
+            # Build per-judge_run summary including final status + sample count
+            # so the frontend's Judges tab renders without an extra round-trip
+            # to the statistics endpoint. Reads back the just-finalized child
+            # rows from `child_runs` (loaded above) to capture the real numbers.
+            child_status_by_id: Dict[str, Any] = {c.id: c for c in child_runs}
+            judge_models_summary: Dict[str, List[Dict[str, Any]]] = {}
+            for cid, entries in judge_runs_by_config.items():
+                judge_models_summary[cid] = [
+                    {
+                        "judge_model_id": e["judge_model_id"],
+                        "run_index": e["run_index"],
+                        "judge_run_id": e["judge_run_id"],
+                        "status": (
+                            child_status_by_id[e["judge_run_id"]].status
+                            if e["judge_run_id"] in child_status_by_id
+                            else None
+                        ),
+                        "samples_evaluated": (
+                            child_status_by_id[e["judge_run_id"]].samples_evaluated
+                            if e["judge_run_id"] in child_status_by_id
+                            else None
+                        ),
+                    }
+                    for e in entries
+                ]
             evaluation.eval_metadata = {
                 **evaluation.eval_metadata,
                 "samples_passed": samples_passed,
                 "samples_failed": samples_failed,
                 "configs_evaluated": len(enabled_configs),
                 "pass_rate": samples_passed / samples_evaluated if samples_evaluated > 0 else 0,
-                # Persist actual judge models used (config_id -> model name)
-                **({"judge_models": {
-                    cid: ev.judge_model for cid, ev in llm_judge_evaluators.items()
+                "any_judge_failed": any_child_failed,
+                **({"judges_by_config": judge_models_summary} if judge_models_summary else {}),
+                # Phase 6.6: per-config seed at the run level so researchers
+                # can group runs by seed without joining task_evaluations.
+                **({"judge_seeds": {
+                    cid: ev.seed for cid, ev in llm_judge_evaluators.items()
                 }} if llm_judge_evaluators else {}),
             }
             db.commit()
@@ -3192,6 +3748,7 @@ def run_single_sample_evaluation(
     """
     import time
     import uuid
+    from datetime import datetime
 
     db = SessionLocal()
     try:
@@ -3239,6 +3796,74 @@ def run_single_sample_evaluation(
         )
         db.add(eval_run)
         db.flush()
+
+        # Migration 042: every TaskEvaluation row needs a judge_run_id (will
+        # be NOT NULL after migration 043). Immediate eval is single-judge
+        # per call by design, so create one catch-all judge_run for the
+        # whole dispatch and stamp it on every row. judge_model_id is null
+        # for deterministic metrics; for LLM judge metrics it's filled in
+        # below per (config, judge) pair.
+        from models import EvaluationJudgeRun
+
+        default_judge_run = EvaluationJudgeRun(
+            id=str(uuid.uuid4()),
+            evaluation_id=dispatch_eval_id,
+            judge_model_id=None,
+            run_index=0,
+            status="running",
+            started_at=datetime.now(),
+        )
+        db.add(default_judge_run)
+        db.flush()
+        default_judge_run_id = default_judge_run.id
+
+        # Per-config LLM judge_runs: created lazily as we encounter llm_judge_*
+        # metrics. Keyed by config_id so multiple LLM-judge configs each get
+        # their own row (one per judge model).
+        per_config_judge_run_id: Dict[str, str] = {}
+
+        # Cache (judge_model_id, run_index) -> jr_id within this dispatch so
+        # configs that share the same judge reuse the same EvaluationJudgeRun
+        # instead of colliding on uq_evaluation_judge_runs.
+        _dispatch_judge_run_cache: Dict[tuple, str] = {}
+
+        def _get_or_create_judge_run_for_config(cfg: Dict[str, Any]) -> str:
+            cid = cfg.get("id", "unknown")
+            if cid in per_config_judge_run_id:
+                return per_config_judge_run_id[cid]
+            params = cfg.get("metric_parameters") or {}
+            judge_model = params.get("judge_model")
+            judges = params.get("judges")
+            if isinstance(judges, list) and judges:
+                judge_model = judges[0].get("judge_model_id") or judge_model
+            cache_key = (judge_model, 0)
+            if cache_key in _dispatch_judge_run_cache:
+                jr_id = _dispatch_judge_run_cache[cache_key]
+                per_config_judge_run_id[cid] = jr_id
+                return jr_id
+            existing = db.query(EvaluationJudgeRun).filter(
+                EvaluationJudgeRun.evaluation_id == dispatch_eval_id,
+                EvaluationJudgeRun.judge_model_id == judge_model,
+                EvaluationJudgeRun.run_index == 0,
+            ).first()
+            if existing:
+                _dispatch_judge_run_cache[cache_key] = existing.id
+                per_config_judge_run_id[cid] = existing.id
+                return existing.id
+            jr = EvaluationJudgeRun(
+                id=str(uuid.uuid4()),
+                evaluation_id=dispatch_eval_id,
+                judge_model_id=judge_model,
+                run_index=0,
+                status="running",
+                started_at=datetime.now(),
+                metric_parameters_snapshot=params or None,
+            )
+            db.add(jr)
+            db.flush()
+            _dispatch_judge_run_cache[cache_key] = jr.id
+            per_config_judge_run_id[cid] = jr.id
+            return jr.id
 
         results = []
 
@@ -3323,6 +3948,13 @@ def run_single_sample_evaluation(
                             "extended edition."
                         ) from exc
                     falloesung_fn = get_falloesung_compute_fn()
+                    judge_run_id = _get_or_create_judge_run_for_config(eval_cfg)
+                    # Pass judge_run_id when the extended fn supports it;
+                    # older extended packages won't accept the kwarg, so we
+                    # introspect first and fall back gracefully.
+                    import inspect as _inspect
+                    fn_params = set(_inspect.signature(falloesung_fn).parameters.keys())
+                    extra = {"judge_run_id": judge_run_id} if "judge_run_id" in fn_params else {}
                     result = falloesung_fn(
                         db=db,
                         record_id=record_id,
@@ -3336,15 +3968,20 @@ def run_single_sample_evaluation(
                         task_data=task_data,
                         metric_params=metric_params,
                         organization_id=organization_id,
+                        **extra,
                     )
                     results.append(result)
 
                 elif metric_type.startswith("llm_judge_"):
-                    # Other LLM judge metrics — use LLMJudgeEvaluator
+                    # Other LLM judge metrics — use LLMJudgeEvaluator. Pass
+                    # the per-config judge_run so this row's judge_run_id
+                    # points at the right (single) judge for the config.
+                    judge_run_id = _get_or_create_judge_run_for_config(eval_cfg)
                     result = _evaluate_llm_judge_single(
                         db=db,
                         record_id=record_id,
                         immediate_eval_id=dispatch_eval_id,
+                        judge_run_id=judge_run_id,
                         project_id=project_id,
                         task_id=task_id,
                         annotation_id=annotation_id,
@@ -3383,6 +4020,10 @@ def run_single_sample_evaluation(
                     eval_record = TaskEvaluation(
                         id=record_id,
                         evaluation_id=dispatch_eval_id,
+                        # Migration 042: deterministic metrics use the
+                        # default judge_run (judge_model_id=None) created
+                        # for this dispatch.
+                        judge_run_id=default_judge_run_id,
                         task_id=task_id,
                         annotation_id=annotation_id,
                         generation_id=None,
@@ -3517,8 +4158,16 @@ def _evaluate_llm_judge_single(
     db, record_id, immediate_eval_id, project_id, task_id,
     annotation_id, user_id, field_name, metric_type, prediction,
     reference, metric_params, organization_id,
+    judge_run_id: Optional[str] = None,
 ):
-    """Run generic LLM judge evaluation for a single sample."""
+    """Run generic LLM judge evaluation for a single sample.
+
+    Args:
+        judge_run_id: EvaluationJudgeRun id this row belongs to (migration 042).
+            Optional for backwards compatibility with any caller that hasn't
+            been updated; passing None leaves the column NULL until the
+            judge_run_id NOT NULL migration lands.
+    """
     from ml_evaluation.llm_judge_evaluator import create_llm_judge_for_user
     from models import TaskEvaluation
 
@@ -3540,6 +4189,8 @@ def _evaluate_llm_judge_single(
         field_mappings=params.get("field_mappings"),
         score_scale=params.get("score_scale", "1-5"),
         organization_id=organization_id,
+        # Phase 6.6: per-run seed (default 42).
+        seed=params.get("seed", 42),
     )
 
     if not llm_judge.ai_service:
@@ -3554,6 +4205,7 @@ def _evaluate_llm_judge_single(
     eval_record = TaskEvaluation(
         id=record_id,
         evaluation_id=immediate_eval_id,
+        judge_run_id=judge_run_id,
         task_id=task_id,
         annotation_id=annotation_id,
         generation_id=None,

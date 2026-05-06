@@ -683,17 +683,82 @@ async def get_evaluation_run_results(
                 parsed_results[config_id][combo_key] = {}
             parsed_results[config_id][combo_key][metric_name] = value
 
+        # Enrich eval_metadata.judges_by_config with SQL-computed sample
+        # counts so older evals (whose worker didn't write samples_evaluated
+        # to the blob) still show real numbers in PerRunBreakdown. Skip the
+        # query entirely when there's no judges_by_config to enrich — keeps
+        # this branch out of the path for non-judge evals (and keeps mock-
+        # heavy unit tests from having to wire a third query chain).
+        eval_metadata = dict(evaluation.eval_metadata or {})
+        judges_by_cfg = eval_metadata.get("judges_by_config")
+        per_judge_counts: Dict[str, int] = {}
+        if isinstance(judges_by_cfg, dict) and judges_by_cfg:
+            from models import EvaluationJudgeRun, TaskEvaluation
+            from sqlalchemy import func as _sa_func
+
+            try:
+                rows = (
+                    db.query(
+                        EvaluationJudgeRun.id,
+                        _sa_func.count(TaskEvaluation.id).label("n"),
+                    )
+                    .outerjoin(TaskEvaluation, TaskEvaluation.judge_run_id == EvaluationJudgeRun.id)
+                    .filter(EvaluationJudgeRun.evaluation_id == evaluation.id)
+                    .group_by(EvaluationJudgeRun.id)
+                    .all()
+                )
+                per_judge_counts = {jr_id: int(n) for jr_id, n in rows}
+            except Exception:
+                # Non-fatal: the UI shows "—" if the lookup failed.
+                per_judge_counts = {}
+
+        if isinstance(judges_by_cfg, dict) and per_judge_counts:
+            patched_jbc: Dict[str, list] = {}
+            for cid, entries in judges_by_cfg.items():
+                if not isinstance(entries, list):
+                    patched_jbc[cid] = entries
+                    continue
+                patched: list = []
+                for entry in entries:
+                    if not isinstance(entry, dict):
+                        patched.append(entry)
+                        continue
+                    jr_id = entry.get("judge_run_id")
+                    sql_count = per_judge_counts.get(jr_id) if jr_id else None
+                    # Prefer the worker-time count when present; fall back to SQL.
+                    if entry.get("samples_evaluated") in (None, 0) and sql_count is not None:
+                        patched.append({**entry, "samples_evaluated": sql_count})
+                    else:
+                        patched.append(entry)
+                patched_jbc[cid] = patched
+            eval_metadata["judges_by_config"] = patched_jbc
+
+        # Defensive coercion: has_sample_results / model_id are accessed via
+        # getattr because not every legacy EvaluationRun row carries them, and
+        # serializer must produce JSON-safe values (bool / str / None) — never
+        # raw ORM objects.
+        _has_samples = getattr(evaluation, "has_sample_results", False)
+        _model_id = getattr(evaluation, "model_id", None)
         return {
             "evaluation_id": evaluation.id,
             "project_id": evaluation.project_id,
+            "model_id": _model_id if isinstance(_model_id, (str, type(None))) else None,
             "status": evaluation.status,
             "evaluation_configs": evaluation.eval_metadata.get("evaluation_configs", []),
             "results_by_config": parsed_results,
             "aggregated_metrics": evaluation.metrics,
+            "metrics": evaluation.metrics,
             "samples_evaluated": evaluation.samples_evaluated,
             "samples_passed": evaluation.eval_metadata.get("samples_passed", 0),
             "samples_failed": evaluation.eval_metadata.get("samples_failed", 0),
             "samples_skipped": evaluation.eval_metadata.get("samples_skipped", 0),
+            "has_sample_results": bool(_has_samples) if isinstance(_has_samples, (bool, int)) else False,
+            # Multi-run / multi-judge bookkeeping (migration 042). The frontend
+            # uses `eval_metadata.judges_by_config` to render the Judges & Läufe
+            # tab without an extra round-trip. Surfacing the whole eval_metadata
+            # also unblocks any future overlay (judge_seeds, custom flags)
+            # without a schema change.
+            "eval_metadata": eval_metadata,
             "created_at": evaluation.created_at,
             "completed_at": evaluation.completed_at,
         }
