@@ -310,18 +310,23 @@ export default function EvaluationDashboard({
 
   // Extract bare metric names from the composite aggregated-metrics keys
   // (`config_id|pred_field|ref_field|metric_name` or legacy `:` form). The
-  // /metrics/{name}/distribution endpoint expects the bare name. Dedupe so
-  // the dropdown doesn't show duplicates when one metric runs across many
-  // (pred, ref) combinations.
+  // /metrics/{name}/distribution endpoint expects the bare name; the
+  // headline tile lookup needs the original composite key the value lives
+  // under. Build both: a deduped bare-name list for the dropdown + a
+  // bare→composite map so the metric tile can read the value.
   const _bareMetric = (key: string): string =>
     key.includes('|')
       ? key.split('|').pop() || key
       : key.includes(':')
         ? key.split(':').slice(3).join(':') || key
         : key
-  const metricKeys = Array.from(
-    new Set(Object.keys(evaluation.metrics || {}).map(_bareMetric))
-  )
+  const _allComposite = Object.keys(evaluation.metrics || {})
+  const _bareToComposite = new Map<string, string>()
+  for (const k of _allComposite) {
+    const bare = _bareMetric(k)
+    if (!_bareToComposite.has(bare)) _bareToComposite.set(bare, k)
+  }
+  const metricKeys = Array.from(_bareToComposite.keys())
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -437,17 +442,22 @@ export default function EvaluationDashboard({
                 {t('evaluations.detail.aggregateMetrics')}
               </h2>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                {metricKeys.map((metric) => (
-                  <div
-                    key={metric}
-                    className="rounded-lg border bg-gray-50 p-4"
-                  >
-                    <div className="text-sm text-gray-600">{metric}</div>
-                    <div className="mt-1 text-2xl font-bold text-blue-600">
-                      {evaluation.metrics[metric].toFixed(3)}
+                {metricKeys.map((metric) => {
+                  // metric here is the bare metric name; values live under
+                  // the composite key. Look up via the bare→composite map.
+                  // When the value isn't numeric (judge-error placeholders
+                  // store dicts), fall back to "—" instead of crashing
+                  // .toFixed.
+                  const compositeKey = _bareToComposite.get(metric) || metric
+                  const v = (evaluation.metrics as Record<string, unknown>)?.[compositeKey]
+                  const display = typeof v === 'number' ? v.toFixed(3) : '—'
+                  return (
+                    <div key={metric} className="rounded-lg border bg-gray-50 p-4">
+                      <div className="text-sm text-gray-600">{metric}</div>
+                      <div className="mt-1 text-2xl font-bold text-blue-600">{display}</div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </Card>
           </div>
