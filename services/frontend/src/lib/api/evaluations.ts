@@ -50,6 +50,44 @@ export class EvaluationsClient extends BaseApiClient {
     return this.request(`/evaluation/status/${evaluationId}`)
   }
 
+  /**
+   * Fetch the EvaluationResult for a single evaluation row (drill-down page).
+   * Backed by `/api/evaluations/run/results/{id}` — includes evaluation_configs,
+   * results_by_config, aggregated_metrics, eval_metadata (with judges_by_config
+   * for the multi-run/multi-judge feature, migration 042).
+   */
+  async getResults(evaluationId: string): Promise<any> {
+    return this.request(`/evaluations/run/results/${evaluationId}`)
+  }
+
+  /** Per-sample drill-down for a completed evaluation. Paginated. */
+  async getSamples(
+    evaluationId: string,
+    params: { page?: number; page_size?: number } = {},
+  ): Promise<{
+    items: Array<Record<string, unknown>>
+    total: number
+    page: number
+    page_size: number
+    has_next: boolean
+  }> {
+    const page = params.page ?? 1
+    const pageSize = params.page_size ?? 100
+    return this.request(
+      `/evaluations/${evaluationId}/samples?page=${page}&page_size=${pageSize}`,
+    )
+  }
+
+  /** Confusion matrix for one classification field within an evaluation. */
+  async getConfusionMatrix(
+    evaluationId: string,
+    fieldName: string,
+  ): Promise<unknown> {
+    return this.request(
+      `/evaluations/${evaluationId}/confusion-matrix?field_name=${encodeURIComponent(fieldName)}`,
+    )
+  }
+
   // Model operations
   async getModels(): Promise<LLMModel[]> {
     return this.request('/models')

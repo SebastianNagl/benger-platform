@@ -1,11 +1,12 @@
 'use client'
 
+import { CostEstimatePanel } from '@/components/shared/CostEstimateModal'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { Dialog, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 
 interface EvaluationControlModalProps {
   isOpen: boolean
@@ -43,6 +44,31 @@ export function EvaluationControlModal({
 
   // Calculate number of configs to display
   const displayConfigCount = configCount ?? evaluationConfigs?.length ?? 0
+
+  // Derive judge models + max runs across configured llm_judge_* metrics for
+  // the inline cost-preview panel. Falls back gracefully when no judge metric
+  // is configured.
+  const { judgeModelIds, costRunsPerCall } = useMemo(() => {
+    const ids = new Set<string>()
+    let maxRuns = 1
+    for (const cfg of evaluationConfigs || []) {
+      if (!cfg.metric?.startsWith('llm_judge_')) continue
+      const params = cfg.metric_parameters || {}
+      const judges = Array.isArray(params.judges) ? params.judges : null
+      if (judges && judges.length > 0) {
+        for (const j of judges) {
+          if (j?.judge_model_id) ids.add(j.judge_model_id)
+          const r = Number(j?.runs ?? 1) || 1
+          if (r > maxRuns) maxRuns = r
+        }
+      } else if (params.judge_model) {
+        ids.add(params.judge_model)
+        const r = Number(params.runs_per_judge ?? 1) || 1
+        if (r > maxRuns) maxRuns = r
+      }
+    }
+    return { judgeModelIds: Array.from(ids), costRunsPerCall: maxRuns }
+  }, [evaluationConfigs])
 
   // Reset state when modal opens
   useEffect(() => {
@@ -142,7 +168,7 @@ export function EvaluationControlModal({
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all dark:bg-zinc-800 sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all dark:bg-zinc-800 sm:my-8 sm:w-full sm:max-w-4xl sm:p-6">
                 <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
                   <button
                     type="button"
@@ -237,6 +263,19 @@ export function EvaluationControlModal({
                           <strong>{t('evaluation.controlModal.note')}</strong> {t('evaluation.controlModal.backgroundInfo')}
                         </p>
                       </div>
+
+                      {/* Inline cost preview — renders only when at least
+                          one llm_judge_* metric is configured (deterministic
+                          metrics like exact_match incur no API cost). */}
+                      {judgeModelIds.length > 0 && projectId && (
+                        <CostEstimatePanel
+                          projectId={projectId}
+                          mode="evaluation"
+                          judgeModels={judgeModelIds}
+                          runsPerCall={costRunsPerCall}
+                          enabled={isOpen}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>

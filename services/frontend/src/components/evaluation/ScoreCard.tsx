@@ -39,6 +39,16 @@ interface ScoreCardProps {
   clusterCount?: number
   /** Show compact version without CI visualization */
   compact?: boolean
+  /**
+   * Multi-run aggregate (migration 042). When `runs > 1`, the card renders
+   * a secondary "± std (N runs)" line under the headline number so the
+   * variance is visible at a glance. Omitting `runsAggregate` (or passing
+   * `runs <= 1`) preserves the legacy single-run display unchanged.
+   */
+  runsAggregate?: {
+    runs: number
+    stdAcrossRuns: number
+  }
   className?: string
 }
 
@@ -114,6 +124,7 @@ export function ScoreCard({
   sampleSize,
   clusterCount,
   compact = false,
+  runsAggregate,
   className = '',
 }: ScoreCardProps) {
   const { t } = useI18n()
@@ -183,6 +194,16 @@ export function ScoreCard({
                 ({t('evaluation.scoreCard.clusters', { count: formatSampleSize(clusterCount) })})
               </span>
             )}
+          </div>
+        )}
+        {/* Multi-run variance (migration 042). Hidden for single-run results
+            to keep legacy displays clean. */}
+        {runsAggregate && runsAggregate.runs > 1 && (
+          <div className={`mt-1 text-xs ${colors.text}`}>
+            ± {formatValue(runsAggregate.stdAcrossRuns, formatAs)}{' '}
+            <span className="text-gray-500 dark:text-gray-400">
+              ({t('evaluation.scoreCard.acrossRuns', 'over {n} runs', { n: runsAggregate.runs })})
+            </span>
           </div>
         )}
       </div>

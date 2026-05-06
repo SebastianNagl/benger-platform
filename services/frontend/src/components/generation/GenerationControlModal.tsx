@@ -1,5 +1,6 @@
 'use client'
 import { Button } from '@/components/shared/Button'
+import { CostEstimatePanel } from '@/components/shared/CostEstimateModal'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
@@ -43,7 +44,16 @@ export function GenerationControlModal({
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [temperature, setTemperature] = useState(0.0)
   const [maxTokens, setMaxTokens] = useState(4000)
+  // Phase 6.6 (#6): per-run seed for variance studies. 42 keeps the
+  // historical determinism behavior; researchers running multi-seed
+  // studies bump this between runs. Providers/models that don't accept
+  // a seed (Anthropic, Google, Kimi/MiniMax on DeepInfra) ignore it.
+  const [seed, setSeed] = useState(42)
   const [modelTokenLimits, setModelTokenLimits] = useState<Record<string, number>>({})
+  // Per-trigger override for runs-per-task (multi-run, migration 041). Defaults
+  // to 1 in local state; the trigger sends it through only when the user
+  // bumps it above 1 — a value of 1 falls back to the project default.
+  const [runsPerTask, setRunsPerTask] = useState<number>(1)
 
   // Fetch model objects to access parameter_constraints
   const { models: availableModelObjects } = useModels()
@@ -83,6 +93,7 @@ export function GenerationControlModal({
       setShowAdvanced(false)
       setTemperature(0.0)
       setMaxTokens(4000)
+      setSeed(42)
       setModelTokenLimits({})
     }
   }, [isOpen])
@@ -133,7 +144,14 @@ export function GenerationControlModal({
         parameters: {
           temperature,
           max_tokens: maxTokens,
+          seed,
         },
+      }
+
+      // Multi-run override (migration 041). Send only when explicitly bumped
+      // above 1 so the project default kicks in otherwise.
+      if (runsPerTask > 1) {
+        requestBody.runs_per_task = runsPerTask
       }
 
       // Add per-model configs if any are set
@@ -206,7 +224,7 @@ export function GenerationControlModal({
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6">
                 <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
                   <button
                     type="button"
@@ -413,6 +431,27 @@ export function GenerationControlModal({
 
                         {showAdvanced && (
                           <div className="mt-3 space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">
+                                {t('generation.controlModal.runsPerTask', 'Läufe pro Task')}
+                              </label>
+                              <input
+                                type="number"
+                                min={1}
+                                max={25}
+                                value={runsPerTask}
+                                onChange={(e) =>
+                                  setRunsPerTask(Math.max(1, Math.min(25, parseInt(e.target.value) || 1)))
+                                }
+                                className="mt-1 w-32 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              />
+                              <p className="mt-1 text-xs text-gray-500">
+                                {t(
+                                  'generation.controlModal.runsPerTaskDesc',
+                                  'Wie oft jede Task-Modell-Kombination generiert werden soll. Standardmäßig 1 — ein Wert > 1 erzeugt mehrere Trials für Varianzanalyse. Multipliziert die Kosten entsprechend.',
+                                )}
+                              </p>
+                            </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div>
                                 <label className="block text-sm font-medium text-gray-700">
@@ -460,6 +499,24 @@ export function GenerationControlModal({
                                   {t('generation.controlModal.defaultMaxTokensDesc')}
                                 </p>
                               </div>
+                            </div>
+                            {/* Phase 6.6 (#6): per-run seed input */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">
+                                {t('generation.controlModal.seed')}
+                              </label>
+                              <input
+                                type="number"
+                                min={0}
+                                value={seed}
+                                onChange={(e) =>
+                                  setSeed(parseInt(e.target.value) || 42)
+                                }
+                                className="mt-1 w-32 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              />
+                              <p className="mt-1 text-xs text-gray-500">
+                                {t('generation.controlModal.seedDesc')}
+                              </p>
                             </div>
 
                             {/* Per-Model Token Limits */}
@@ -534,6 +591,17 @@ export function GenerationControlModal({
                   </div>
                 </div>
 
+                {selectedModels.length > 0 && projectId && (
+                  <div className="mt-5">
+                    <CostEstimatePanel
+                      projectId={projectId}
+                      mode="generation"
+                      modelIds={selectedModels}
+                      runsPerCall={runsPerTask}
+                      enabled={isOpen}
+                    />
+                  </div>
+                )}
                 <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse sm:gap-2">
                   <Button
                     variant="filled"
@@ -555,6 +623,7 @@ export function GenerationControlModal({
           </div>
         </div>
       </Dialog>
+
     </Transition.Root>
   )
 }

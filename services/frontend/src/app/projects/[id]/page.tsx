@@ -194,11 +194,20 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // Evaluation defaults
   const [evalDefaultTemperature, setEvalDefaultTemperature] = useState<number | undefined>(undefined)
   const [evalDefaultMaxTokens, setEvalDefaultMaxTokens] = useState<number | undefined>(undefined)
+  // Multi-run default for evaluation (migration 042). Used when no judge
+  // ensemble is configured (i.e. metric_parameters.judges is empty); when an
+  // ensemble exists, judge_runs are driven by the per-judge `runs` entries
+  // instead. Bounded server-side at 1..25.
+  const [evalDefaultRunsPerTask, setEvalDefaultRunsPerTask] = useState<number | undefined>(undefined)
   const [isUpdatingEvalDefaults, setIsUpdatingEvalDefaults] = useState(false)
 
   // Generation defaults
   const [genDefaultTemperature, setGenDefaultTemperature] = useState<number | undefined>(undefined)
   const [genDefaultMaxTokens, setGenDefaultMaxTokens] = useState<number | undefined>(undefined)
+  // Multi-run default for generation (migration 041). Number of trials per
+  // (task, model, structure). Per-trigger override is allowed in the
+  // GenerationControlModal. Bounded server-side at 1..25.
+  const [genDefaultRunsPerTask, setGenDefaultRunsPerTask] = useState<number | undefined>(undefined)
   const [isUpdatingGenDefaults, setIsUpdatingGenDefaults] = useState(false)
 
   // Fetch available models dynamically from the API based on user's configured API keys
@@ -516,11 +525,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       const projectEvalMaxTokens = currentProject.evaluation_config?.default_max_tokens
       setEvalDefaultTemperature(projectEvalTemp)
       setEvalDefaultMaxTokens(projectEvalMaxTokens)
+      setEvalDefaultRunsPerTask(currentProject.evaluation_config?.runs_per_task)
 
       // Load generation defaults
       const genParams = currentProject.generation_config?.selected_configuration?.parameters || {}
       setGenDefaultTemperature(genParams.temperature)
       setGenDefaultMaxTokens(genParams.max_tokens)
+      setGenDefaultRunsPerTask(currentProject.generation_config?.runs_per_task)
 
       setInstructions(currentProject.instructions || '')
       setInstructionsValue(currentProject.instructions || '')
@@ -915,6 +926,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           ...evaluationConfig,
           default_temperature: evalDefaultTemperature,
           default_max_tokens: evalDefaultMaxTokens,
+          // Multi-run default (migration 042); see comment on the state hook.
+          ...(evalDefaultRunsPerTask !== undefined
+            ? { runs_per_task: evalDefaultRunsPerTask }
+            : {}),
         },
       })
 
@@ -946,6 +961,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       await updateProject(projectId, {
         generation_config: {
           ...generationConfig,
+          // Multi-run default (migration 041): omitted when undefined so the
+          // server-side default of 1 stays implicit; clamped to 1..25 by the
+          // input field below and re-validated by the API router.
+          ...(genDefaultRunsPerTask !== undefined
+            ? { runs_per_task: genDefaultRunsPerTask }
+            : {}),
           selected_configuration: {
             ...selectedConfiguration,
             parameters: {
@@ -2436,6 +2457,118 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             onCancel={cancelEditGeneration}
             onSave={saveGenerationCard}
           >
+          {/* Generation Defaults — peer of Model Selection (was nested inside
+              expandedModels until the multi-run feature; pulled out so the new
+              "Default number of runs" knob is discoverable without expanding
+              Model Selection first). */}
+          {canEditProject() && (
+            <div className="mb-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setExpandedGenDefaults((v) => !v)}
+                  className="flex flex-1 items-center gap-2 text-left"
+                  aria-expanded={expandedGenDefaults}
+                >
+                  <svg
+                    className={`h-4 w-4 flex-shrink-0 text-zinc-400 transition-transform ${expandedGenDefaults ? 'rotate-90 transform' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                  <div>
+                    <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
+                      {t('project.generationDefaults.title')}
+                    </h4>
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      {t('project.generationDefaults.description')}
+                    </p>
+                  </div>
+                </button>
+              </div>
+              {expandedGenDefaults && (
+                <div className="mt-4 grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                      {t('project.generationDefaults.defaultTemperature')}
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={2}
+                      step={0.1}
+                      value={genDefaultTemperature ?? 0}
+                      placeholder="0.0"
+                      onChange={(e) =>
+                        setGenDefaultTemperature(
+                          e.target.value ? parseFloat(e.target.value) : undefined
+                        )
+                      }
+                      className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                    />
+                    <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                      {t('project.generationDefaults.temperatureHelp')}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                      {t('project.generationDefaults.defaultMaxTokens')}
+                    </label>
+                    <input
+                      type="number"
+                      min={100}
+                      max={128000}
+                      step={100}
+                      value={genDefaultMaxTokens ?? 4000}
+                      placeholder="4000"
+                      onChange={(e) =>
+                        setGenDefaultMaxTokens(
+                          e.target.value ? parseInt(e.target.value) : undefined
+                        )
+                      }
+                      className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                    />
+                    <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                      {t('project.generationDefaults.maxTokensHelp')}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                      {t('project.generationDefaults.defaultRunsPerTask', 'Standard-Anzahl Läufe pro Task')}
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={25}
+                      step={1}
+                      value={genDefaultRunsPerTask ?? 1}
+                      placeholder="1"
+                      onChange={(e) =>
+                        setGenDefaultRunsPerTask(
+                          e.target.value ? parseInt(e.target.value) : undefined
+                        )
+                      }
+                      className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                    />
+                    <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                      {t(
+                        'project.generationDefaults.runsPerTaskHelp',
+                        'Wie oft jede Task-Modell-Kombination generiert werden soll (für Varianzanalyse). Cap 25.',
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Model Selection Section */}
           <div className="bg-white dark:bg-zinc-900">
             {canEditProject() ? (
@@ -2481,91 +2614,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
             {expandedModels && (
               <>
-                {/* Generation Defaults */}
-                {canEditProject() && (
-                  <div className="mb-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
-                    <div className="flex items-center justify-between gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setExpandedGenDefaults((v) => !v)}
-                        className="flex flex-1 items-center gap-2 text-left"
-                        aria-expanded={expandedGenDefaults}
-                      >
-                        <svg
-                          className={`h-4 w-4 flex-shrink-0 text-zinc-400 transition-transform ${expandedGenDefaults ? 'rotate-90 transform' : ''}`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                        <div>
-                          <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
-                            {t('project.generationDefaults.title')}
-                          </h4>
-                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                            {t('project.generationDefaults.description')}
-                          </p>
-                        </div>
-                      </button>
-                      {/* Per-section Save removed — card-level Speichern handles it. */}
-                    </div>
-                    {expandedGenDefaults && (
-                      <div className="mt-4 grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                            {t('project.generationDefaults.defaultTemperature')}
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            max={2}
-                            step={0.1}
-                            value={genDefaultTemperature ?? 0}
-                            placeholder="0.0"
-                            onChange={(e) =>
-                              setGenDefaultTemperature(
-                                e.target.value ? parseFloat(e.target.value) : undefined
-                              )
-                            }
-                            className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                          />
-                          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                            {t('project.generationDefaults.temperatureHelp')}
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                            {t('project.generationDefaults.defaultMaxTokens')}
-                          </label>
-                          <input
-                            type="number"
-                            min={100}
-                            max={128000}
-                            step={100}
-                            value={genDefaultMaxTokens ?? 4000}
-                            placeholder="4000"
-                            onChange={(e) =>
-                              setGenDefaultMaxTokens(
-                                e.target.value ? parseInt(e.target.value) : undefined
-                              )
-                            }
-                            className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                          />
-                          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                            {t('project.generationDefaults.maxTokensHelp')}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 {modelsLoading ? (
                   <div className="py-6 text-center">
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -2986,22 +3034,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     </SubSection>
                   )}
 
-                  {/* Evaluation methods sub-section — wraps the eval-defaults
-                      collapsible and the EvaluationBuilder so they live in
-                      one Methoden sub-collapsible alongside Settings.
-                      Collapsed badge mirrors Modellauswahl / Prompt-Strukturen
-                      style: grey pill with the configured-method count. */}
-                  <SubSection
-                    title={t('project.evaluationMethods.title', 'Evaluierungsmethoden')}
-                    badge={
-                      evaluationConfigs.length > 0
-                        ? evaluationConfigs.length === 1
-                          ? t('project.evaluation.evaluationConfigSingular', { count: evaluationConfigs.length })
-                          : t('project.evaluation.evaluationConfigPlural', { count: evaluationConfigs.length })
-                        : t('project.evaluation.notConfigured')
-                    }
-                  >
-                  {/* Evaluation Defaults */}
+                  {/* Evaluation Defaults — peer of Evaluierungsmethoden (was nested
+                      inside Evaluierungsmethoden until the multi-run feature; pulled
+                      out so the new "Default judge runs" knob is discoverable
+                      without expanding Methoden first). Mirrors Generation Defaults. */}
                   {canEditProject() && (
                     <div className="mb-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
                       <div className="flex items-center justify-between gap-3">
@@ -3033,10 +3069,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             </p>
                           </div>
                         </button>
-                        {/* Per-section Save removed — card-level Speichern handles it. */}
                       </div>
                       {expandedEvalDefaults && (
-                        <div className="mt-4 grid grid-cols-2 gap-4">
+                        <div className="mt-4 grid grid-cols-3 gap-4">
                           <div>
                             <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
                               {t('project.evaluationDefaults.defaultTemperature')}
@@ -3081,11 +3116,49 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                               {t('project.evaluationDefaults.maxTokensHelp')}
                             </p>
                           </div>
+                          <div>
+                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                              {t('project.evaluationDefaults.defaultRunsPerTask', 'Standard-Anzahl Judge-Läufe')}
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={25}
+                              step={1}
+                              value={evalDefaultRunsPerTask ?? 1}
+                              placeholder="1"
+                              onChange={(e) =>
+                                setEvalDefaultRunsPerTask(
+                                  e.target.value ? parseInt(e.target.value) : undefined
+                                )
+                              }
+                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                            />
+                            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                              {t(
+                                'project.evaluationDefaults.runsPerTaskHelp',
+                                'Wie oft jede Task vom Judge bewertet werden soll (für Varianz-/Konsistenzanalyse). Greift, wenn kein Judge-Ensemble konfiguriert ist. Cap 25.',
+                              )}
+                            </p>
+                          </div>
                         </div>
                       )}
                     </div>
                   )}
 
+                  {/* Evaluation methods sub-section — wraps the EvaluationBuilder.
+                      Collapsed badge mirrors Modellauswahl / Prompt-Strukturen
+                      style: grey pill with the configured-method count. */}
+                  <SubSection
+                    title={t('project.evaluationMethods.title', 'Evaluierungsmethoden')}
+                    badge={
+                      evaluationConfigs.length > 0
+                        ? evaluationConfigs.length === 1
+                          ? t('project.evaluation.evaluationConfigSingular', { count: evaluationConfigs.length })
+                          : t('project.evaluation.evaluationConfigPlural', { count: evaluationConfigs.length })
+                        : t('project.evaluation.notConfigured')
+                    }
+                  >
                   {/* Multi-Field Evaluation Builder (Phase 8: N:M Field Mapping) */}
                   <div className="mb-6">
                     <EvaluationBuilder
