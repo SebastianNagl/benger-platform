@@ -1714,22 +1714,15 @@ def generate_llm_responses(
                 f"🎉 Generation completed: {responses_generated}/{total_expected} successful"
             )
 
-            # Trigger notification for completion. Writes a real DB notification
-            # (via NotificationService) carrying generation_id so the frontend
-            # NotificationDropdown can route the click to /generations/{id}.
-            # The legacy notify_task_completed log stub is also called as a
-            # belt-and-suspenders trace.
+            # Trigger notification for completion. Writes a real DB
+            # notification (via NotificationService) carrying generation_id
+            # so the frontend NotificationDropdown can route the click to
+            # /generations/{id}. The legacy notify_task_completed log stub
+            # was previously called here too as belt-and-suspenders; removed
+            # because emitting two side effects per event was just noise
+            # (the stub doesn't write to the DB, only logs).
             try:
                 if project and HAS_DATABASE and user_id:
-                    from project_models import ProjectOrganization
-
-                    project_org = (
-                        db.query(ProjectOrganization.organization_id)
-                        .filter(ProjectOrganization.project_id == project_id)
-                        .first()
-                    )
-                    org_id = project_org[0] if project_org else None
-
                     NotificationService.create_notification(
                         db=db,
                         user_ids=[user_id],
@@ -1746,14 +1739,6 @@ def generate_llm_responses(
                             "responses_generated": responses_generated,
                             "total_expected": total_expected,
                         },
-                    )
-
-                    notify_task_completed(
-                        task_id=project_id,
-                        task_name=project.title,
-                        user_id=user_id,
-                        completion_type="llm_generation",
-                        organization_id=org_id,
                     )
                     logger.info(
                         f"✅ Notification sent for generation {generation_id} (project {project_id})"

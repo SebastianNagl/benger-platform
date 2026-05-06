@@ -1357,7 +1357,18 @@ async def compute_project_statistics(
                         continue
                     key = (row.model_id, metric_name, row.judge_model_id, row.run_index)
                     per_run_per_task[key][row.task_id] = float(val)
-                    judge_models_per_metric[(row.model_id, metric_name)].add(row.judge_model_id)
+                    # Only add to the inter-judge-agreement set when the
+                    # judge_model_id is a real string. Deterministic-metric
+                    # catch-all judge_runs (and historical rows the
+                    # 042-lift missed before migration 044) carry NULL
+                    # judge_model_id and would surface as a "None" axis
+                    # label on the heatmap if we treated them as a
+                    # distinct rater. Per-run aggregates stay correct
+                    # because per_run_per_task still records them.
+                    if row.judge_model_id:
+                        judge_models_per_metric[(row.model_id, metric_name)].add(
+                            row.judge_model_id
+                        )
                     judge_run_id_by_key[key] = row.judge_run_id
 
             # Group keys by (model_id, metric).
@@ -1441,6 +1452,11 @@ async def compute_project_statistics(
                     by_judge_task: Dict[tuple, List[float]] = defaultdict(list)
                     for k in run_keys:
                         _mid, _met, jm, _ri = k
+                        # Defense in depth — judges_for_mm is already
+                        # filtered above, but a None rater here would
+                        # corrupt the kappa / pearson computation.
+                        if not jm:
+                            continue
                         for tid, v in per_run_per_task[k].items():
                             by_judge_task[(jm, tid)].append(v)
                     for (jm, tid), vals in by_judge_task.items():
