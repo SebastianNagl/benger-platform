@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
+import { useRouter } from 'next/navigation'
 
 export interface Notification {
   id: string
@@ -95,6 +96,7 @@ export function NotificationDropdown({
   onRefresh,
 }: NotificationDropdownProps) {
   const { t, locale } = useI18n()
+  const router = useRouter()
 
   if (!isOpen) return null
 
@@ -103,10 +105,36 @@ export function NotificationDropdown({
       onMarkAsRead(notification.id)
     }
 
-    // Navigate to relevant page if data contains task_id
-    if (notification.data?.task_id) {
-      // TODO: Update to use project-based routing when project_id is available
-      // window.location.href = `/projects/${notification.data.project_id}/tasks/${notification.data.task_id}`
+    // Route to the run-detail deep links surfaced by the /runs inventory.
+    // Worker notifications carry the run id in `data.evaluation_id` /
+    // `data.generation_id` (see services/workers/tasks.py call sites). Falls
+    // back to the /runs list when only a project_id is available.
+    const data = notification.data || {}
+    const evalId = data.evaluation_id || data.eval_run_id
+    const genId = data.generation_id || data.response_generation_id
+    if (notification.type === 'evaluation_completed' || notification.type === 'evaluation_failed') {
+      if (evalId) {
+        router.push(`/evaluations/${evalId}`)
+        onClose()
+        return
+      }
+      router.push('/runs?type=evaluation')
+      onClose()
+      return
+    }
+    if (notification.type === 'llm_generation_completed') {
+      if (genId) {
+        router.push(`/generations/${genId}`)
+        onClose()
+        return
+      }
+      router.push('/runs?type=generation')
+      onClose()
+      return
+    }
+    if (data.task_id && data.project_id) {
+      router.push(`/projects/${data.project_id}`)
+      onClose()
     }
   }
 

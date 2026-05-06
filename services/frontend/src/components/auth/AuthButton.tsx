@@ -14,6 +14,7 @@ import {
   BuildingOfficeIcon,
   CheckIcon,
   ChevronDownIcon,
+  ListBulletIcon,
   UserIcon,
   UsersIcon,
 } from '@heroicons/react/24/outline'
@@ -135,8 +136,20 @@ export function AuthButton() {
                 </>
               )}
 
-              {/* Admin and Organizations Section - accessible to ALL authenticated users */}
+              {/* Run inventory — direct link to the per-run drill-down view.
+                  Sits above Users & Organizations because users open it more
+                  often (every notification's "see this run" lands here). */}
               <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
+              <Link
+                href="/runs"
+                className="flex items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                onClick={() => setDropdownOpen(false)}
+              >
+                <ListBulletIcon className="mr-3 h-4 w-4" />
+                {isClient ? t('navigation.runs', 'Läufe') : 'Läufe'}
+              </Link>
+
+              {/* Admin and Organizations Section - accessible to ALL authenticated users */}
               <Link
                 href="/users-organizations"
                 className="flex items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
