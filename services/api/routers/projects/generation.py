@@ -83,6 +83,16 @@ def update_generation_config(
             status_code=403, detail="You don't have permission to edit this project"
         )
 
+    # Validate runs_per_task — bounded so a fat-finger entry can't queue
+    # thousands of trial jobs by accident.
+    if "runs_per_task" in config:
+        runs_per_task = config["runs_per_task"]
+        if not isinstance(runs_per_task, int) or runs_per_task < 1 or runs_per_task > 25:
+            raise HTTPException(
+                status_code=422,
+                detail="runs_per_task must be an integer between 1 and 25",
+            )
+
     # Update config
     project.generation_config = config
     flag_modified(project, "generation_config")

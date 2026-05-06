@@ -372,6 +372,7 @@ from routers.evaluations import router as evaluations_router
 from routers.evaluations.ws import ws_router as evaluations_ws_router
 from routers.generation import router as generation_router
 from routers.generation import ws_router as generation_ws_router
+from routers.cost_estimate import router as cost_estimate_router
 from routers.generation_task_list import router as generation_task_list_router
 from routers.health import router as health_router
 from routers.leaderboards import router as leaderboards_router
@@ -383,6 +384,7 @@ from routers.notifications import router as notifications_router
 from routers.projects import router as projects_router
 from routers.prompt_structures import router as prompt_structures_router
 from routers.reports import router as reports_router
+from routers.runs import router as runs_router
 from routers.storage import router as storage_router
 from routers.tasks import router as tasks_router
 
@@ -401,10 +403,12 @@ app.include_router(tasks_router)  # Global tasks management
 app.include_router(evaluations_router)  # Evaluation endpoints
 app.include_router(reports_router)  # Report publishing (Issue #770)
 app.include_router(llm_models_router)  # LLM models
+app.include_router(cost_estimate_router)  # Cost estimate (multi-run feature)
 app.include_router(generation_router)  # Generation and prompts
 app.include_router(generation_ws_router)  # WebSocket for generation progress updates
 app.include_router(evaluations_ws_router)  # WebSocket for live cell-by-cell evaluation progress
 app.include_router(generation_task_list_router)  # Generation task list (Issue #495)
+app.include_router(runs_router)  # Single-run inventory (multi-run feature)
 app.include_router(prompt_structures_router)  # Prompt structures (Issue #762)
 app.include_router(storage_router)  # Storage and CDN
 app.include_router(organizations_router)  # Organizations

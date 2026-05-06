@@ -428,12 +428,20 @@ async def retry_generation(
                 detail=f"Cannot retry generation with status: {generation.status}",
             )
 
-        # Reset generation status
+        # Reset generation status. Multi-run feature (migration 041): also
+        # reset the per-trial counters so the worker's status fan-in
+        # (failed-on-first-failure / completed-on-all-succeeded) computes
+        # against a fresh attempt instead of inheriting the previous run's
+        # numbers. Existing child Generation rows are left in place — the
+        # uq_generations_parent_run_index unique constraint makes
+        # re-dispatch idempotent at the row level.
         generation.status = "pending"
         generation.error_message = None
         generation.completed_at = None
         generation.current_progress = 0
         generation.completed_tasks = 0
+        generation.runs_completed = 0
+        generation.runs_failed = 0
         generation.retry_count = (generation.retry_count or 0) + 1
 
         db.commit()
