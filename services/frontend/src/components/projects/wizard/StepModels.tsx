@@ -331,6 +331,23 @@ export function StepModels({
                   className="mt-1 text-sm"
                 />
               </div>
+              <div>
+                <Label className="text-xs">
+                  {t('projects.creation.wizard.step5.seed')}
+                </Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={generationParameters.seed}
+                  onChange={(e) =>
+                    onGenerationParametersChange({
+                      ...generationParameters,
+                      seed: parseInt(e.target.value) || 42,
+                    })
+                  }
+                  className="mt-1 text-sm"
+                />
+              </div>
             </div>
           </div>
         )}

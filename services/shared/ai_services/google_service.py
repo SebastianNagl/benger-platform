@@ -14,7 +14,8 @@ from typing import Any, Dict, Optional
 from google import genai
 from google.genai import types
 
-from .base_service import BaseAIService
+from .base_service import BaseAIService, derive_truncated
+from .provider_capabilities import calculate_cost
 from .response_validator import ResponseValidator
 
 logger = logging.getLogger(__name__)
@@ -131,6 +132,12 @@ class GoogleService(BaseAIService):
                     "response_time_ms": 120,
                     "cost_usd": 0.0,
                     "provider": "Google",
+                    "finish_reason": "STOP",
+                    "truncated": False,
+                    "refusal": False,
+                    "error_type": None,
+                    # Google genai SDK does not accept a seed parameter.
+                    "seed": None,
                     "created_at": datetime.now().isoformat(),
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),
@@ -216,6 +223,8 @@ class GoogleService(BaseAIService):
 
             # Extract response text with detailed logging
             response_text = ""
+            finish_reason: Optional[str] = None
+            refusal = False
 
             # Log response structure for debugging
             if hasattr(response, 'candidates') and response.candidates:
@@ -223,9 +232,18 @@ class GoogleService(BaseAIService):
                 logger.info(
                     f"🔍 Response has {len(response.candidates)} candidate(s)")
 
-                # Check finish reason
+                # Check finish reason — also persist it (Phase 6.6).
+                # The genai SDK returns an enum; coerce to its string name
+                # so the JSON column doesn't capture a Python repr.
                 if hasattr(candidate, 'finish_reason'):
-                    logger.info(f"🔍 Finish reason: {candidate.finish_reason}")
+                    raw_fr = candidate.finish_reason
+                    finish_reason = (
+                        raw_fr.name if hasattr(raw_fr, "name") else str(raw_fr) if raw_fr else None
+                    )
+                    logger.info(f"🔍 Finish reason: {finish_reason}")
+                    # Google genai surfaces safety blocks via finish_reason=SAFETY.
+                    if finish_reason == "SAFETY":
+                        refusal = True
 
                 # Check for safety ratings/blocks
                 if hasattr(candidate, 'safety_ratings') and candidate.safety_ratings:
@@ -286,8 +304,10 @@ class GoogleService(BaseAIService):
                 output_tokens = int(response_length / 4)
                 total_tokens = input_tokens + output_tokens
 
-            # Estimate cost (Gemini 2.5 Pro: roughly $7/1M tokens, combined input/output)
-            cost_usd = total_tokens * 0.000007
+            # Phase 6.6 (#9): cost from llm_models.yaml (single source of
+            # truth) instead of a hardcoded $7/1M-tokens estimate that
+            # ignores Gemini's input/output pricing asymmetry.
+            cost_usd = calculate_cost("google", model_name, input_tokens, output_tokens) or 0.0
 
             logger.info(f"🤖 Gemini Generation: {model_name}")
             logger.info(
@@ -308,6 +328,14 @@ class GoogleService(BaseAIService):
                     },
                     metadata={
                         "provider": "Google",
+                        "finish_reason": finish_reason,
+                        "truncated": derive_truncated(finish_reason),
+                        "refusal": refusal,
+                        # Empty content with SAFETY finish_reason maps to
+                        # content_filter; otherwise treat as api_error so
+                        # downstream filters can spot it.
+                        "error_type": "content_filter" if refusal else "api_error",
+                        "seed": None,
                         "created_at": end_time.isoformat(),
                         **self.get_invocation_provenance(),
                     },
@@ -329,6 +357,11 @@ class GoogleService(BaseAIService):
                     "response_time_ms": response_time_ms,
                     "cost_usd": cost_usd,
                     "provider": "Google",
+                    "finish_reason": finish_reason,
+                    "truncated": derive_truncated(finish_reason),
+                    "refusal": refusal,
+                    "error_type": None,
+                    "seed": None,
                     "created_at": end_time.isoformat(),
                     **self.get_invocation_provenance(),
                 },
@@ -391,6 +424,11 @@ class GoogleService(BaseAIService):
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                     "response_time_ms": 120,
+                    "finish_reason": "STOP",
+                    "truncated": False,
+                    "refusal": False,
+                    "error_type": None,
+                    "seed": None,
                     "structured_output": True,
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),
@@ -471,6 +509,19 @@ class GoogleService(BaseAIService):
 
             response_text = response.text if response.text else ""
 
+            # Phase 6.6: extract finish_reason for academic-rigor logging.
+            finish_reason: Optional[str] = None
+            refusal = False
+            if hasattr(response, 'candidates') and response.candidates:
+                cand = response.candidates[0]
+                if hasattr(cand, 'finish_reason'):
+                    raw_fr = cand.finish_reason
+                    finish_reason = (
+                        raw_fr.name if hasattr(raw_fr, "name") else str(raw_fr) if raw_fr else None
+                    )
+                    if finish_reason == "SAFETY":
+                        refusal = True
+
             # Get actual token usage if available, otherwise estimate
             if hasattr(response, 'usage_metadata') and response.usage_metadata:
                 input_tokens = getattr(
@@ -486,7 +537,8 @@ class GoogleService(BaseAIService):
                 output_tokens = int(response_length / 4)
                 total_tokens = input_tokens + output_tokens
 
-            cost_usd = total_tokens * 0.000007
+            # Phase 6.6 (#9): cost from llm_models.yaml.
+            cost_usd = calculate_cost("google", model_name, input_tokens, output_tokens) or 0.0
 
             logger.info(f"🤖 Gemini Structured Generation: {model_name}")
             logger.info(
@@ -510,8 +562,14 @@ class GoogleService(BaseAIService):
                 "response_time_ms": response_time_ms,
                 "cost_usd": cost_usd,
                 "provider": "Google",
+                "finish_reason": finish_reason,
+                "truncated": derive_truncated(finish_reason),
+                "refusal": refusal,
+                "error_type": None,
+                "seed": None,
                 "structured_output": True,
                 "created_at": end_time.isoformat(),
+                **self.get_invocation_provenance(),
             }
 
             if validation_result.valid and validation_result.data is not None:

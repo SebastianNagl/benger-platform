@@ -44,6 +44,10 @@ export interface GenerationParameters {
   temperature: number
   max_tokens: number
   batch_size: number
+  // Phase 6.6: per-run seed for variance studies. 42 keeps the
+  // historical determinism behavior; researchers running multi-seed
+  // studies bump this between runs.
+  seed: number
 }
 
 export type WizardVisibility = 'private' | 'organization' | 'public'
@@ -127,6 +131,7 @@ export const INITIAL_WIZARD_DATA: WizardData = {
     temperature: 0.7,
     max_tokens: 4096,
     batch_size: 10,
+    seed: 42,
   },
   promptTemplate: 'custom',
   systemPrompt: '',

@@ -10,6 +10,74 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger(__name__)
 
 
+# Phase 6.6: academic-rigor metadata. Centralized helpers so each
+# provider populates the four fields (seed/refusal/truncated/error_type)
+# the same way and a researcher can compare runs across providers.
+TRUNCATED_FINISH_REASONS = frozenset({
+    "length",          # OpenAI / Cohere / Mistral
+    "max_tokens",      # Anthropic
+    "MAX_TOKENS",      # Google (genai SDK uppercases enum names)
+})
+
+
+def derive_truncated(finish_reason: Optional[str]) -> bool:
+    """True if the model stopped because it hit the output-token limit."""
+    if not finish_reason:
+        return False
+    return finish_reason in TRUNCATED_FINISH_REASONS
+
+
+def classify_error_type(exc: BaseException) -> str:
+    """Classify a provider-call exception into the error_type enum.
+
+    Returns one of: ``rate_limit``, ``timeout``, ``auth``,
+    ``content_filter``, ``context_length``, ``parse_error``, ``api_error``.
+
+    The mapping is intentionally string-matching on the exception name +
+    message so the same classifier works across SDKs (openai, anthropic,
+    google.genai, cohere, mistralai, …) without pulling each SDK's
+    exception types into this base module.
+    """
+    name = exc.__class__.__name__.lower()
+    msg = str(exc).lower()
+
+    # Rate limits
+    if "ratelimit" in name or "rate_limit" in name:
+        return "rate_limit"
+    if "429" in msg or "rate limit" in msg or "rate_limit" in msg or "quota" in msg:
+        return "rate_limit"
+
+    # Timeouts
+    if "timeout" in name or "timeout" in msg or "timed out" in msg:
+        return "timeout"
+
+    # Auth / permissions
+    if "auth" in name or "permission" in name or "forbidden" in name:
+        return "auth"
+    if "401" in msg or "403" in msg or "unauthorized" in msg or "forbidden" in msg or "invalid api key" in msg:
+        return "auth"
+
+    # Content filter / safety
+    if "contentfilter" in name or "content_filter" in name or "moderation" in name or "safety" in name:
+        return "content_filter"
+    if "content filter" in msg or "content policy" in msg or "safety" in msg or "blocked" in msg:
+        return "content_filter"
+
+    # Context length
+    if "context" in msg and ("length" in msg or "window" in msg or "exceed" in msg):
+        return "context_length"
+    if "maximum context" in msg or "token limit" in msg:
+        return "context_length"
+
+    # JSON parse / structured output
+    if "json" in name or "parse" in name or "validation" in name:
+        return "parse_error"
+    if "json" in msg or "could not parse" in msg or "validation" in msg:
+        return "parse_error"
+
+    return "api_error"
+
+
 class BaseAIService(ABC):
     """
     Abstract base class for AI service integrations.
@@ -175,27 +243,40 @@ class BaseAIService(ABC):
     ) -> Dict[str, Any]:
         """
         Create a standardized error response.
-        
+
         Args:
             error: Exception that occurred
             model: Model that was attempted
             service_name: Name of the service (optional)
-            
+
         Returns:
             Error response dictionary
         """
         service_name = service_name or self.__class__.__name__.replace("Service", "")
         error_str = str(error)
-        
-        logger.error(f"❌ {service_name} API Error: {error_str}")
-        
-        return self._create_response_dict(
+        error_type = classify_error_type(error)
+
+        logger.error(f"❌ {service_name} API Error ({error_type}): {error_str}")
+
+        response = self._create_response_dict(
             content="",
             model=model,
             usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
             success=False,
-            error=error_str
+            error=error_str,
         )
+        # Phase 6.6: academic-rigor — every failed call also surfaces
+        # the four standard fields so downstream persistence sees a
+        # consistent shape on success and failure.
+        response["metadata"]["error_type"] = error_type
+        response["metadata"]["finish_reason"] = None
+        response["metadata"]["truncated"] = False
+        response["metadata"]["refusal"] = False
+        response["metadata"]["seed"] = None
+        # Surface retry + provenance on the error path too — usually the
+        # most interesting case for a researcher (which retry exhausted).
+        response["metadata"].update(self.get_invocation_provenance())
+        return response
 
 # ----------------------------------------------------------------
 # Phase 6.2: Per-call retry history (academic-rigor audit trail)

@@ -123,8 +123,14 @@ PROVIDER_CAPABILITIES: Dict[str, Dict[str, Any]] = {
             "guaranteed": False,
         },
         "determinism": {
-            "seed_support": False,
-            "recommended_seed": None,
+            # Phase 6.6 (#7): most DeepInfra-hosted models run on vLLM
+            # or SGLang backends which honor the OpenAI-compatible
+            # ``seed`` parameter. The default is True; the few hosted
+            # families that don't (Kimi K2.x, MiniMax) carry an explicit
+            # ``constraints.seed.supported: false`` per-model override
+            # in services/api/seeds/llm_models.yaml.
+            "seed_support": True,
+            "recommended_seed": 42,
         },
         "temperature": {
             "min": 0.0,
@@ -280,8 +286,64 @@ def _load_costs_from_catalog() -> Dict[str, Dict[str, "ModelCost"]]:
 
 def reload_cost_cache() -> None:
     """Clear the in-memory cost cache so the next lookup re-reads the YAML."""
-    global _COST_CACHE
+    global _COST_CACHE, _SEED_SUPPORT_CACHE
     _COST_CACHE = None
+    _SEED_SUPPORT_CACHE = None
+
+
+# Phase 6.6 (#7): per-model seed support, sourced from the YAML's
+# ``constraints.seed.supported`` per model. None entry = "no per-model
+# override; fall back to provider-level". Lazy-loaded the same way the
+# cost cache is.
+_SEED_SUPPORT_CACHE: Optional[Dict[str, bool]] = None
+
+
+def _load_seed_support_from_catalog() -> Dict[str, bool]:
+    """Build {model_id: supports_seed} from llm_models.yaml.
+
+    Only models with an explicit ``constraints.seed.supported`` entry
+    appear; absence means "use provider-level default".
+    """
+    from seeds.llm_models_loader import load_catalog
+
+    catalog = load_catalog()
+    out: Dict[str, bool] = {}
+    for m in catalog.models:
+        constraints = m.get("constraints") or {}
+        seed_block = constraints.get("seed") or {}
+        if "supported" in seed_block:
+            out[m["id"]] = bool(seed_block["supported"])
+    return out
+
+
+def model_supports_seed(provider: str, model_name: str) -> bool:
+    """Return True iff this specific model accepts the OpenAI-compatible
+    ``seed`` parameter at the API layer.
+
+    Lookup order:
+      1. Per-model override in the YAML (``constraints.seed.supported``).
+         This is the only place to express "this DeepInfra-hosted model
+         supports seed even though DeepInfra-the-provider's default is
+         conservative", and vice versa.
+      2. Provider-level default in PROVIDER_CAPABILITIES.
+
+    Callers (worker + AI services) use this to decide whether to forward
+    the per-run seed to the API or set it to None. Pre-existing call
+    sites that always passed seed=42 keep working: providers that don't
+    support seed simply won't include it in api_params.
+    """
+    global _SEED_SUPPORT_CACHE
+    if _SEED_SUPPORT_CACHE is None:
+        try:
+            _SEED_SUPPORT_CACHE = _load_seed_support_from_catalog()
+        except Exception:
+            # YAML unavailable (e.g. unit tests with no seed file on
+            # the import path) — fall back to provider-level only.
+            _SEED_SUPPORT_CACHE = {}
+
+    if model_name in _SEED_SUPPORT_CACHE:
+        return _SEED_SUPPORT_CACHE[model_name]
+    return supports_feature(provider, "seed")
 
 
 def get_model_cost(provider: str, model_name: str) -> Optional[ModelCost]:
