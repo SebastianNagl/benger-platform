@@ -184,6 +184,11 @@ export function EvaluationResults({
   const [showHistory, setShowHistory] = useState(false)
   const [selectedMetricRunId, setSelectedMetricRunId] = useState<string | null>(null)
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
+  // Multi-run "By run" chart toggle (migration 042). When on, the chart data
+  // splits each model into one entry per (judge_run) so the user can compare
+  // the same model's repeats side-by-side. Off by default — keeps the
+  // single-bar-per-model view for projects without multi-run data.
+  const [byRunChart, setByRunChart] = useState(false)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
 
   // Available metric methods — one entry per evaluation method (NOT per
@@ -505,6 +510,42 @@ export function EvaluationResults({
 
     // If we have taskModelData with summary, use it for chart data (preferred - has real model names)
     if (taskModelData?.summary && Object.keys(taskModelData.summary).length > 0) {
+      // "By run" toggle (migration 042): split each model into one entry
+      // per judge_run when statisticsData.per_run_means_by_model_metric has
+      // data for it. Falls back to single-bar-per-model when toggle is off
+      // OR when no per-run data exists.
+      const perRunBlock = (statisticsData as any)?.per_run_means_by_model_metric
+      if (byRunChart && perRunBlock) {
+        const chartData: ChartData[] = []
+        for (const [modelId, summaryData] of Object.entries(taskModelData.summary)) {
+          const lookupKey = `${modelId}|${primaryMetricName}`
+          const runs = perRunBlock[lookupKey] as
+            | Array<{ judge_run_id: string; judge_model_id: string | null; run_index: number; mean: number; n_tasks: number }>
+            | undefined
+          if (runs && runs.length > 0) {
+            for (const run of runs) {
+              const judgeLabel = run.judge_model_id ?? 'human'
+              chartData.push({
+                model_id: `${modelId}__${judgeLabel}__r${run.run_index}`,
+                model_name: `${summaryData.model_name || modelId} · ${judgeLabel} · run ${run.run_index}`,
+                metrics: { [primaryMetricName]: run.mean },
+                samples_evaluated: run.n_tasks,
+              })
+            }
+          } else {
+            // No per-run data for this model — fall back to single bar.
+            chartData.push({
+              model_id: modelId,
+              model_name: summaryData.model_name || modelId,
+              metrics: { [primaryMetricName]: summaryData.avg },
+              samples_evaluated: summaryData.count,
+            })
+          }
+        }
+        onDataLoaded(chartData)
+        return
+      }
+
       const chartData: ChartData[] = Object.entries(taskModelData.summary).map(
         ([modelId, summaryData]) => ({
           model_id: modelId,
@@ -543,7 +584,7 @@ export function EvaluationResults({
         onDataLoaded(chartData)
       }
     }
-  }, [loading, results, taskModelData, onDataLoaded])
+  }, [loading, results, taskModelData, onDataLoaded, byRunChart, statisticsData])
 
   // Poll for running evaluations
   useEffect(() => {
@@ -947,6 +988,27 @@ export function EvaluationResults({
     return parts.length > 0 ? parts.join(' ') : null
   }
 
+  /**
+   * Multi-run aggregate (migration 042). When ≥2 runs exist for this
+   * (model, metric) pair, return a "± std (N runs)" suffix to append after
+   * the per-sample stats line. Always-on display — independent of the
+   * selectedStatistics toggle since it's a fundamentally different
+   * statistic (variance ACROSS runs, not within a single run).
+   */
+  const formatRunsAggregate = (
+    modelId: string,
+    metricName: string
+  ): string | null => {
+    const block = (statisticsData as any)?.runs_by_model_metric
+    if (!block) return null
+    const entry = block[`${modelId}|${metricName}`]
+    if (!entry || !entry.n_runs || entry.n_runs < 2) return null
+    const std = typeof entry.std_of_means === 'number' ? entry.std_of_means : null
+    return std !== null
+      ? `± ${std.toFixed(3)} (${entry.n_runs} runs)`
+      : `(${entry.n_runs} runs)`
+  }
+
   // Get model statistics for display
   const getModelStats = (modelId: string, metricName: string) => {
     if (!statisticsData?.by_model) return null
@@ -1105,6 +1167,20 @@ export function EvaluationResults({
             />
             {t('evaluation.multiFieldResults.includeHistory')}
           </label>
+          {/* By-run chart toggle (multi-run feature, migration 042). Only
+              meaningful when statisticsData has per_run_means_by_model_metric
+              data; hidden otherwise so the toggle isn't a no-op. */}
+          {(statisticsData as any)?.per_run_means_by_model_metric && (
+            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+              <input
+                type="checkbox"
+                checked={byRunChart}
+                onChange={(e) => setByRunChart(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              {t('evaluation.multiFieldResults.byRunChart', 'Diagramm pro Lauf splitten')}
+            </label>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {/* Export dropdown */}
@@ -1368,6 +1444,7 @@ export function EvaluationResults({
                       const modelStats = statisticsData?.by_model?.[modelId]
                       const firstMetric = modelStats?.metrics ? Object.keys(modelStats.metrics)[0] : null
                       const inlineStats = firstMetric ? formatInlineStats(modelId, firstMetric) : null
+                      const runsLine = firstMetric ? formatRunsAggregate(modelId, firstMetric) : null
 
                       return (
                         <td key={modelId} className="px-4 py-2 text-right">
@@ -1381,6 +1458,14 @@ export function EvaluationResults({
                               {inlineStats && (
                                 <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
                                   {inlineStats}
+                                </span>
+                              )}
+                              {runsLine && (
+                                <span
+                                  className="text-xs font-normal text-blue-600 dark:text-blue-400"
+                                  title={t('evaluation.multiFieldResults.runsAggregateTooltip', 'Standard deviation across distinct evaluation runs (multi-run feature)')}
+                                >
+                                  {runsLine}
                                 </span>
                               )}
                             </div>
