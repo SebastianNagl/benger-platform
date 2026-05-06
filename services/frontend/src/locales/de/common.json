@@ -8092,5 +8092,81 @@
   "progress": {
     "cancel": "Abbrechen",
     "dismiss": "Schließen"
+  },
+  "runs": {
+    "title": "Läufe",
+    "subtitle": "Inventar einzelner Generierungs- und Evaluierungsläufe. Klicken Sie eine Zeile an, um die Details des Laufs zu sehen.",
+    "tabs": {
+      "evaluation": "Evaluierungen",
+      "generation": "Generierungen"
+    },
+    "filterProject": "Projekt",
+    "filterStatus": "Status",
+    "allProjects": "Alle Projekte",
+    "allStatuses": "Alle",
+    "totalCount": "{count} Einträge",
+    "loading": "Lade…",
+    "empty": "Keine Einträge",
+    "pageInfo": "Seite {page} von {total}",
+    "prev": "Zurück",
+    "next": "Weiter",
+    "col": {
+      "started": "Gestartet",
+      "project": "Projekt",
+      "status": "Status",
+      "model": "Modell",
+      "structure": "Struktur",
+      "runs": "Läufe",
+      "targetModel": "Ziel-Modell",
+      "judges": "Judges",
+      "metrics": "Metriken",
+      "samples": "Samples",
+      "duration": "Dauer"
+    }
+  },
+  "generations": {
+    "detail": {
+      "title": "Generierungs-Lauf",
+      "back": "Zurück zu Läufe",
+      "loading": "Lade…",
+      "status": "Status",
+      "model": "Modell",
+      "runs": "Läufe",
+      "started": "Gestartet",
+      "completed": "Abgeschlossen",
+      "task": "Task",
+      "structure": "Struktur",
+      "project": "Projekt",
+      "error": "Fehler",
+      "parameters": "Parameter",
+      "trials": "Pro Lauf",
+      "runIndex": "Lauf #",
+      "preview": "Antwort (Vorschau)",
+      "response": "Antwort",
+      "prompt": "Verwendeter Prompt",
+      "linkedEvaluations": "Verknüpfte Evaluierungen",
+      "metric": "Metrik",
+      "scoredSamples": "Bewertete Samples"
+    }
+  },
+  "costEstimate": {
+    "title": "Kostenschätzung",
+    "subtitleGeneration": "Geschätzte Kosten für die geplante Generierung.",
+    "subtitleEvaluation": "Geschätzte Kosten für die geplante Evaluierung (Judge-Aufrufe).",
+    "loading": "Tokens zählen und Preise ermitteln…",
+    "totalLabel": "Geschätzte Gesamtkosten",
+    "breakdown": "{tasks} Tasks × {runs} Lauf/Läufe × {models} Modell(e)",
+    "modelCol": "Modell",
+    "perCallCol": "Pro Aufruf",
+    "perRunCol": "Pro Lauf",
+    "totalCol": "Gesamt",
+    "noPricing": "Keine Preisdaten",
+    "tokenLabel": "Token-Schätzung pro Aufruf"
+  },
+  "eval": {
+    "judgeAgreement": {
+      "titlePearson": "Inter-Judge-Korrelation (Pearson)",
+      "titleKappa": "Inter-Judge-Übereinstimmung (κ)"
+    }
   }
 }
