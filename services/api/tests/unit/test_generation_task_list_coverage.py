@@ -164,6 +164,9 @@ class TestGetSingleTaskGenerationStatus:
         gen.created_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
         gen.error_message = None
         gen.structure_key = "default"
+        gen.runs_requested = 1
+        gen.runs_completed = 1
+        gen.runs_failed = 0
 
         mock_q = Mock()
         mock_q.filter.return_value = mock_q
@@ -188,6 +191,9 @@ class TestGetSingleTaskGenerationStatus:
         gen.created_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
         gen.error_message = None
         gen.structure_key = None
+        gen.runs_requested = 1
+        gen.runs_completed = 1
+        gen.runs_failed = 0
 
         mock_q = Mock()
         mock_q.filter.return_value = mock_q
@@ -211,6 +217,9 @@ class TestGetSingleTaskGenerationStatus:
         gen.created_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
         gen.error_message = "API timeout"
         gen.structure_key = None
+        gen.runs_requested = 1
+        gen.runs_completed = 0
+        gen.runs_failed = 1
 
         mock_q = Mock()
         mock_q.filter.return_value = mock_q
