@@ -13,7 +13,8 @@ from typing import Any, Dict, Optional
 
 import aiohttp
 
-from .base_service import BaseAIService
+from .base_service import BaseAIService, derive_truncated
+from .provider_capabilities import calculate_cost, model_supports_seed
 from .response_validator import ResponseValidator
 
 logger = logging.getLogger(__name__)
@@ -184,6 +185,13 @@ class DeepInfraService(BaseAIService):
                     "response_time_ms": 110,
                     "cost_usd": 0.0,
                     "provider": "DeepInfra",
+                    "finish_reason": "stop",
+                    "truncated": False,
+                    "refusal": False,
+                    "error_type": None,
+                    # Most DeepInfra-hosted models do not support a seed
+                    # parameter; we don't send one.
+                    "seed": None,
                     "created_at": datetime.now().isoformat(),
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),
@@ -197,9 +205,17 @@ class DeepInfraService(BaseAIService):
                 "DeepInfra service is not available - check DEEPINFRA_API_KEY configuration"
             )
 
+        # Phase 6.6 (#7): per-model seed support. Many DeepInfra-hosted
+        # models (vLLM/SGLang backed: DeepSeek-V3.x, Llama 4, Qwen3, GLM,
+        # ...) DO accept the OpenAI-compatible ``seed`` parameter even
+        # though the provider-level default is conservative. The YAML's
+        # ``constraints.seed.supported`` per-model override drives this.
+        requested_seed = kwargs.get("seed", 42)
+        supports_seed_here = model_supports_seed("deepinfra", model_name)
+
         try:
             start_time = datetime.now()
-            
+
             # Map display name to API model name
             api_model_name = self.model_mapping.get(model_name, model_name)
             logger.info(f"🔄 Model mapping: '{model_name}' -> '{api_model_name}'")
@@ -215,6 +231,8 @@ class DeepInfraService(BaseAIService):
                 "temperature": temperature,
                 "stream": False,
             }
+            if supports_seed_here:
+                payload["seed"] = requested_seed
 
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
@@ -248,13 +266,21 @@ class DeepInfraService(BaseAIService):
             output_tokens = usage.get("completion_tokens", 0)
             total_tokens = usage.get("total_tokens", input_tokens + output_tokens)
 
-            # Estimate cost (DeepInfra: typically $0.27/1M input, $1.35/1M output for Llama models)
-            cost_usd = (input_tokens * 0.00000027) + (output_tokens * 0.00000135)
+            # Phase 6.6 (#9): cost from llm_models.yaml — DeepInfra
+            # hosts ~25 distinct model families with very different
+            # pricing (DeepSeek-V3 vs Llama-4 vs GLM-5 vs Kimi). The
+            # old hardcoded Llama-tier estimate misreported by 2-10x
+            # for most rows.
+            cost_usd = calculate_cost("deepinfra", model_name, input_tokens, output_tokens) or 0.0
 
             logger.info(f"🤖 DeepInfra Generation: {model_name}")
             logger.info(f"📊 Tokens: {input_tokens} input + {output_tokens} output = {total_tokens}")
             logger.info(f"💰 Cost: ${cost_usd:.4f}")
             logger.info(f"⏱️ Response time: {response_time_ms}ms")
+
+            finish_reason = (
+                result["choices"][0].get("finish_reason") if result.get("choices") else None
+            )
 
             return self._create_response_dict(
                 content=response_text,
@@ -270,6 +296,12 @@ class DeepInfraService(BaseAIService):
                     "response_time_ms": response_time_ms,
                     "cost_usd": cost_usd,
                     "provider": "DeepInfra",
+                    "finish_reason": finish_reason,
+                    "truncated": derive_truncated(finish_reason),
+                    "refusal": False,
+                    "error_type": None,
+                    # Per-model gated; None when the model doesn't accept seed.
+                    "seed": requested_seed if supports_seed_here else None,
                     "created_at": end_time.isoformat(),
                     **self.get_invocation_provenance(),
                 },
@@ -331,6 +363,11 @@ class DeepInfraService(BaseAIService):
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                     "response_time_ms": 110,
+                    "finish_reason": "stop",
+                    "truncated": False,
+                    "refusal": False,
+                    "error_type": None,
+                    "seed": None,
                     "structured_output": True,
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),

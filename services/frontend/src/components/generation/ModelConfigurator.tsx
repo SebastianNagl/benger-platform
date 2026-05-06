@@ -85,6 +85,10 @@ export function ModelConfigurator({
   const [temperature, setTemperature] = useState(0)
   const [maxTokens, setMaxTokens] = useState(1500)
   const [batchSize, setBatchSize] = useState(10)
+  // Phase 6.6 (#6): per-run seed for variance studies. 42 keeps the
+  // historical determinism behavior; researchers running multi-seed
+  // studies bump this between runs.
+  const [seed, setSeed] = useState(42)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [presentationMode, setPresentationMode] = useState('auto')
   const [isSaving, setIsSaving] = useState(false)
@@ -101,6 +105,7 @@ export function ModelConfigurator({
       setTemperature(config.parameters?.temperature ?? 0)
       setMaxTokens(config.parameters?.max_tokens || 1500)
       setBatchSize(config.parameters?.batch_size || 10)
+      setSeed(config.parameters?.seed ?? 42)
       setPresentationMode(config.presentation_mode || 'auto')
       setModelConfigs(config.model_configs || {})
     } else if (project.llm_model_ids && project.llm_model_ids.length > 0) {
@@ -185,6 +190,7 @@ export function ModelConfigurator({
           temperature,
           max_tokens: maxTokens,
           batch_size: batchSize,
+          seed,
         },
         presentation_mode: presentationMode,
         field_mappings: {},
@@ -502,6 +508,17 @@ export function ModelConfigurator({
                     max="50"
                     value={batchSize}
                     onChange={(e) => setBatchSize(parseInt(e.target.value))}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="seed">{t('generation.configurator.seed')}</Label>
+                  <Input
+                    id="seed"
+                    type="number"
+                    min="0"
+                    value={seed}
+                    onChange={(e) => setSeed(parseInt(e.target.value) || 42)}
                   />
                 </div>
               </div>

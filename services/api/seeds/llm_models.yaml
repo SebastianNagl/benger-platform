@@ -1028,6 +1028,11 @@ models:
     is_active: true
     input_cost_per_million: 0.4
     output_cost_per_million: 2.0
+    constraints:
+      # Kimi family on DeepInfra runs on a custom backend that doesn't
+      # honor the OpenAI-compatible `seed` parameter (Phase 6.6 #7).
+      seed:
+        supported: false
   - id: Qwen/Qwen3-Coder-480B-A35B-Instruct
     name: Qwen3 Coder 480B
     description: Coding specialist MoE model
@@ -1046,6 +1051,11 @@ models:
     is_active: true
     input_cost_per_million: 0.15
     output_cost_per_million: 1.15
+    constraints:
+      # MiniMax on DeepInfra runs on a custom backend that doesn't
+      # honor the OpenAI-compatible `seed` parameter (Phase 6.6 #7).
+      seed:
+        supported: false
   - id: moonshotai/Kimi-K2.6
     name: Kimi K2.6
     description: Open multimodal agentic model, 256K context
@@ -1055,6 +1065,9 @@ models:
     is_active: true
     input_cost_per_million: 0.75
     output_cost_per_million: 3.5
+    constraints:
+      seed:
+        supported: false  # Kimi backend (Phase 6.6 #7).
   - id: moonshotai/Kimi-K2.5
     name: Kimi K2.5
     description: 262K context model with advanced reasoning
@@ -1064,6 +1077,9 @@ models:
     is_active: true
     input_cost_per_million: 0.45
     output_cost_per_million: 2.25
+    constraints:
+      seed:
+        supported: false  # Kimi backend (Phase 6.6 #7).
   - id: zai-org/GLM-5.1
     name: GLM-5.1
     description: Zhipu AI's latest flagship, 198K context, hosted on DeepInfra
