@@ -144,6 +144,12 @@ export function CostEstimatePanel({
             })()}
           </div>
 
+          {/* Per-model table only adds info when there are ≥2 rows (or
+              the single row carries unknown-pricing context worth seeing).
+              For one priced model the headline already shows the same
+              number — repeating it once more is just noise. */}
+          {(estimate.per_model.length > 1 ||
+            (estimate.per_model[0] && !estimate.per_model[0].pricing_known)) && (
           <div className="overflow-hidden rounded border border-zinc-200 dark:border-zinc-800">
             <table className="min-w-full divide-y divide-zinc-200 text-xs dark:divide-zinc-800">
               <thead className="bg-zinc-100 text-[10px] uppercase text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400">
@@ -176,6 +182,7 @@ export function CostEstimatePanel({
               </tbody>
             </table>
           </div>
+          )}
 
           <div className="rounded bg-blue-50 p-2 text-[11px] text-blue-900 dark:bg-blue-900/20 dark:text-blue-200">
             <div className="font-medium">{t('costEstimate.tokenLabel', 'Token-Schätzung pro Aufruf')}</div>

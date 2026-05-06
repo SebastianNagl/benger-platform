@@ -8104,5 +8104,81 @@
   "progress": {
     "cancel": "Cancel",
     "dismiss": "Dismiss"
+  },
+  "runs": {
+    "title": "Runs",
+    "subtitle": "Inventory of individual generation and evaluation runs. Click a row to see the run's detail.",
+    "tabs": {
+      "evaluation": "Evaluations",
+      "generation": "Generations"
+    },
+    "filterProject": "Project",
+    "filterStatus": "Status",
+    "allProjects": "All projects",
+    "allStatuses": "All",
+    "totalCount": "{count} entries",
+    "loading": "Loading…",
+    "empty": "No entries",
+    "pageInfo": "Page {page} of {total}",
+    "prev": "Previous",
+    "next": "Next",
+    "col": {
+      "started": "Started",
+      "project": "Project",
+      "status": "Status",
+      "model": "Model",
+      "structure": "Structure",
+      "runs": "Runs",
+      "targetModel": "Target model",
+      "judges": "Judges",
+      "metrics": "Metrics",
+      "samples": "Samples",
+      "duration": "Duration"
+    }
+  },
+  "generations": {
+    "detail": {
+      "title": "Generation run",
+      "back": "Back to runs",
+      "loading": "Loading…",
+      "status": "Status",
+      "model": "Model",
+      "runs": "Runs",
+      "started": "Started",
+      "completed": "Completed",
+      "task": "Task",
+      "structure": "Structure",
+      "project": "Project",
+      "error": "Error",
+      "parameters": "Parameters",
+      "trials": "Per run",
+      "runIndex": "Run #",
+      "preview": "Response (preview)",
+      "response": "Response",
+      "prompt": "Prompt used",
+      "linkedEvaluations": "Linked evaluations",
+      "metric": "Metric",
+      "scoredSamples": "Samples scored"
+    }
+  },
+  "costEstimate": {
+    "title": "Cost estimate",
+    "subtitleGeneration": "Estimated cost of the planned generation.",
+    "subtitleEvaluation": "Estimated cost of the planned evaluation (judge calls).",
+    "loading": "Counting tokens and resolving prices…",
+    "totalLabel": "Estimated total cost",
+    "breakdown": "{tasks} tasks × {runs} run/runs × {models} model(s)",
+    "modelCol": "Model",
+    "perCallCol": "Per call",
+    "perRunCol": "Per run",
+    "totalCol": "Total",
+    "noPricing": "No pricing data",
+    "tokenLabel": "Token estimate per call"
+  },
+  "eval": {
+    "judgeAgreement": {
+      "titlePearson": "Inter-judge correlation (Pearson)",
+      "titleKappa": "Inter-judge agreement (κ)"
+    }
   }
 }

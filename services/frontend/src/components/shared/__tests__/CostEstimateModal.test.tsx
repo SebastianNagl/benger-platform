@@ -113,7 +113,14 @@ describe('CostEstimatePanel', () => {
   })
 
   it('renders the token-estimate block + ±20% caveat', async () => {
-    mockPost.mockResolvedValueOnce(sampleEstimate)
+    // Single-priced-model estimate. With one priced row, the headline
+    // total = the row total — the panel suppresses the per-model table
+    // in that case (avoids repeating the same number twice).
+    const singlePricedEstimate = {
+      ...sampleEstimate,
+      per_model: [sampleEstimate.per_model[0]],
+    }
+    mockPost.mockResolvedValueOnce(singlePricedEstimate)
     render(
       <CostEstimatePanel
         projectId="p1"
@@ -123,10 +130,12 @@ describe('CostEstimatePanel', () => {
         enabled={true}
       />,
     )
-    await waitFor(() => expect(screen.getAllByText('$3.60').length).toBeGreaterThan(0))
+    await waitFor(() => expect(screen.getByText('$3.60')).toBeInTheDocument())
     // Token-estimate breakdown line is rendered once the estimate arrives.
     expect(screen.getByText(/Input: 800 \(mean\) \/ 1200 \(p95\)/)).toBeInTheDocument()
     expect(screen.getByText(/Estimate accuracy ± ~20%/)).toBeInTheDocument()
+    // No per-model table in single-priced-model case.
+    expect(screen.queryByText(/Pro Aufruf/)).not.toBeInTheDocument()
   })
 
   it('renders an error banner when the API fails', async () => {
