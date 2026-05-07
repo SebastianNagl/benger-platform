@@ -73,6 +73,9 @@ class UserCreate(BaseModel):
     ptt_a_scores: Optional[dict] = None
     ki_experience_scores: Optional[dict] = None
 
+    # Research data use consent (gated by extended-edition validate_signup hook)
+    research_data_consent_accepted: Optional[bool] = None
+
 
 class UserCreateWithInvitation(BaseModel):
     """User creation model with invitation token and legal expertise fields"""

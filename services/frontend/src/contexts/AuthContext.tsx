@@ -48,6 +48,7 @@ interface AuthContextType {
       ati_s_scores?: Record<string, number>
       ptt_a_scores?: Record<string, number>
       ki_experience_scores?: Record<string, number>
+      research_data_consent_accepted?: boolean
     },
     invitationToken?: string
   ) => Promise<void>
@@ -680,6 +681,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ati_s_scores?: Record<string, number>
         ptt_a_scores?: Record<string, number>
         ki_experience_scores?: Record<string, number>
+        research_data_consent_accepted?: boolean
       },
       invitationToken?: string
     ) => {

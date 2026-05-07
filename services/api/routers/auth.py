@@ -472,6 +472,11 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
 
             logger.info(f"Invitation-based signup for {user_data.email}")
 
+        # Extension hook: extended edition gates signup on research-data consent.
+        # No-op when extended is not loaded.
+        from extensions import validate_signup as _validate_signup_ext
+        _validate_signup_ext(db, user_data)
+
         # Create user with password
         user = create_user(
             db=db,
@@ -499,6 +504,7 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
             ati_s_scores=getattr(user_data, 'ati_s_scores', None),
             ptt_a_scores=getattr(user_data, 'ptt_a_scores', None),
             ki_experience_scores=getattr(user_data, 'ki_experience_scores', None),
+            research_data_consent_accepted=getattr(user_data, 'research_data_consent_accepted', None),
         )
         logger.info(f"User created successfully: {user.username} ({user.id})")
 

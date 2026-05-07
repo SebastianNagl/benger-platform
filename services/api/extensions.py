@@ -129,6 +129,21 @@ def run_after_eval_config_save(db, project, config):
             hook(db, project, config)
 
 
+def validate_signup(db, user_create):
+    """Hook called during /auth/signup before the user row is created.
+
+    Extended edition uses this to enforce its research-data-consent policy
+    (raises HTTPException(400) if user_create.research_data_consent_accepted
+    is not True). No-op in community edition — the column stays NULL and
+    no checkbox is rendered, which is the correct default there.
+    """
+    if _extended and hasattr(_extended, "get_hooks"):
+        hooks = _extended.get_hooks()
+        hook = hooks.get("validate_signup")
+        if hook:
+            hook(db, user_create)
+
+
 def tasks_with_feedback_for_user(db, project_id, user_id, task_ids):
     """Return the subset of task_ids on which the given user has feedback.
 
