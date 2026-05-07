@@ -165,6 +165,16 @@ export class BaseApiClient {
       }
     }
 
+    // For project sub-resource mutations (generation-config / evaluation-config /
+    // prompt-structures / etc.), invalidate the project itself so the parent
+    // page's `fetchProject` doesn't read stale nested config from the 30s
+    // cache. Without this, adding/removing a prompt structure required a
+    // page refresh before the count badge / model lists reflected reality.
+    const projectMatch = mutationEndpoint.match(/^\/projects\/([^\/]+)\//)
+    if (projectMatch) {
+      patterns.push(`/projects/${projectMatch[1]}`)
+    }
+
     // Invalidate each pattern
     patterns.forEach((pattern) => {
       this.invalidateCache(pattern)
