@@ -284,11 +284,20 @@ def _load_costs_from_catalog() -> Dict[str, Dict[str, "ModelCost"]]:
     return by_provider
 
 
-def reload_cost_cache() -> None:
-    """Clear the in-memory cost cache so the next lookup re-reads the YAML."""
+def reload_capability_caches() -> None:
+    """Clear the in-memory cost + seed-support caches so the next lookup
+    re-reads the YAML. Called after `POST /api/admin/llm-models/reseed`
+    to make hotfix YAML edits visible without a process restart."""
     global _COST_CACHE, _SEED_SUPPORT_CACHE
     _COST_CACHE = None
     _SEED_SUPPORT_CACHE = None
+
+
+# Backward-compat alias — the function used to be called `reload_cost_cache`
+# back when it only cleared the cost cache. Phase 6.6 added the seed-support
+# cache to the same flush path; the more accurate name is now
+# `reload_capability_caches`. Old callers keep working until removed.
+reload_cost_cache = reload_capability_caches
 
 
 # Phase 6.6 (#7): per-model seed support, sourced from the YAML's
@@ -351,7 +360,8 @@ def get_model_cost(provider: str, model_name: str) -> Optional[ModelCost]:
 
     Costs are sourced from `services/api/seeds/llm_models.yaml` (the same
     file the seed function loads). The result is cached in-process; call
-    `reload_cost_cache()` after editing the YAML in a long-running process.
+    `reload_capability_caches()` after editing the YAML in a long-running
+    process to clear both this cache and the seed-support cache.
     """
     global _COST_CACHE
     if _COST_CACHE is None:

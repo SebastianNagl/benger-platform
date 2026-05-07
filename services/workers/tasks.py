@@ -4181,12 +4181,37 @@ def _evaluate_llm_judge_single(
     if not llm_judge.ai_service:
         raise RuntimeError(f"No AI service available for LLM judge ({provider})")
 
-    result = llm_judge.evaluate_single(
-        prediction=prediction,
-        reference=reference,
+    # Derive the per-criterion key from the metric name. `llm_judge_helpfulness`
+    # → criterion `helpfulness`. `llm_judge_classic` / `llm_judge_custom`
+    # don't carry a single criterion in the name; fall back to the first
+    # configured criterion on the evaluator.
+    criterion = (
+        metric_type.replace("llm_judge_", "")
+        if metric_type.startswith("llm_judge_") and metric_type != "llm_judge_classic"
+        and metric_type != "llm_judge_custom"
+        else (llm_judge.criteria[0] if llm_judge.criteria else "helpfulness")
     )
 
-    score = result.get("overall_score", 0.0)
+    # Use the per-criterion path directly: this is the same call evaluate()
+    # makes internally per (sample, criterion). The previous code called
+    # llm_judge.evaluate_single(...) which never existed on LLMJudgeEvaluator
+    # and would crash any non-Falllösung llm_judge metric in immediate-eval.
+    raw = llm_judge._evaluate_single_criterion(
+        context="",
+        ground_truth=reference,
+        prediction=prediction,
+        criterion=criterion,
+        task_data={},
+    )
+    if raw is None or raw.get("error") or "score" not in raw:
+        err_msg = (
+            (raw or {}).get("error_message") or f"LLM judge produced no score for {criterion}"
+        )
+        raise RuntimeError(err_msg)
+
+    raw_score = float(raw["score"])
+    # Normalize to 0..1 the same way evaluate() does for the bulk path.
+    score = raw_score if llm_judge.score_scale == "0-1" else (raw_score - 1) / 4
     eval_record = TaskEvaluation(
         id=record_id,
         evaluation_id=immediate_eval_id,
@@ -4200,7 +4225,7 @@ def _evaluate_llm_judge_single(
         prediction=prediction,
         metrics={
             metric_type: float(score),
-            f"{metric_type}_details": result,
+            f"{metric_type}_details": raw,
             "raw_score": float(score),
         },
         passed=float(score) >= 0.5,
