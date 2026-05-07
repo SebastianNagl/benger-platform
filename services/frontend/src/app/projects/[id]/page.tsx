@@ -291,6 +291,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // benger-extended (both true) — least-biased grading by default.
   const [korrekturBlindToPeers, setKorrekturBlindToPeers] = useState(true)
   const [korrekturBlindToLlm, setKorrekturBlindToLlm] = useState(true)
+  const [korrekturBlindToNonJudge, setKorrekturBlindToNonJudge] = useState(true)
+  const [korrekturKeepBlindAfterSubmit, setKorrekturKeepBlindAfterSubmit] = useState(false)
 
   // Conditional instructions state
   const [conditionalInstructions, setConditionalInstructions] = useState<
@@ -410,6 +412,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         const mp = fk?.metric_parameters || {}
         setKorrekturBlindToPeers(mp.blind_to_peer_correctors !== false)
         setKorrekturBlindToLlm(mp.blind_to_llm_judge !== false)
+        setKorrekturBlindToNonJudge(mp.blind_to_non_judge_metrics !== false)
+        setKorrekturKeepBlindAfterSubmit(mp.keep_blind_after_submit === true)
       } catch (error) {
         console.error('Failed to fetch evaluation config:', error)
       }
@@ -1110,6 +1114,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     const mp = fk?.metric_parameters || {}
     setKorrekturBlindToPeers(mp.blind_to_peer_correctors !== false)
     setKorrekturBlindToLlm(mp.blind_to_llm_judge !== false)
+    setKorrekturBlindToNonJudge(mp.blind_to_non_judge_metrics !== false)
+    setKorrekturKeepBlindAfterSubmit(mp.keep_blind_after_submit === true)
     setCardEditing((p) => ({ ...p, evaluation: false }))
   }
   const saveEvaluationCard = async () => {
@@ -1132,6 +1138,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             ...(next[fkIdx].metric_parameters || {}),
             blind_to_peer_correctors: korrekturBlindToPeers,
             blind_to_llm_judge: korrekturBlindToLlm,
+            blind_to_non_judge_metrics: korrekturBlindToNonJudge,
+            keep_blind_after_submit: korrekturKeepBlindAfterSubmit,
           },
         }
         configsToSave = next
@@ -3117,6 +3125,52 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                               type="checkbox"
                               checked={korrekturBlindToLlm}
                               onChange={(e) => setKorrekturBlindToLlm(e.target.checked)}
+                              disabled={!cardEditing.evaluation}
+                              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                            />
+                          </div>
+                          <div className="mt-4 flex items-center justify-between">
+                            <div>
+                              <Label>
+                                {t(
+                                  'project.evaluationSettings.korrekturBlindToNonJudge',
+                                  'Blinde Korrektur (klassische Metriken)',
+                                )}
+                              </Label>
+                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                {t(
+                                  'project.evaluationSettings.korrekturBlindToNonJudgeHint',
+                                  'Klassische automatische Bewertungen (BLEU, ROUGE, BERTScore …) bleiben verborgen, bis du selbst eingereicht hast',
+                                )}
+                              </p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={korrekturBlindToNonJudge}
+                              onChange={(e) => setKorrekturBlindToNonJudge(e.target.checked)}
+                              disabled={!cardEditing.evaluation}
+                              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                            />
+                          </div>
+                          <div className="mt-4 flex items-center justify-between">
+                            <div>
+                              <Label>
+                                {t(
+                                  'project.evaluationSettings.korrekturKeepBlindAfterSubmit',
+                                  'Blind auch nach eigener Bewertung',
+                                )}
+                              </Label>
+                              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                {t(
+                                  'project.evaluationSettings.korrekturKeepBlindAfterSubmitHint',
+                                  'Wenn aktiv, bleiben die obigen Bewertungen verborgen — auch nachdem du deine eigene Bewertung eingereicht hast',
+                                )}
+                              </p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={korrekturKeepBlindAfterSubmit}
+                              onChange={(e) => setKorrekturKeepBlindAfterSubmit(e.target.checked)}
                               disabled={!cardEditing.evaluation}
                               className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                             />
