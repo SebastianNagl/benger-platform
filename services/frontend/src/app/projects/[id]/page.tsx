@@ -2920,12 +2920,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           {/* Always-visible "Generierung starten" CTA at the card footer.
               Mirrors the eval card's start button so both ConfigCards have
               parallel placement, and stays visible regardless of which
-              sub-collapsibles inside are open. Models live under the
-              nested generation_config.selected_configuration.models path
-              (legacy llm_model_ids is null on newer projects). */}
-          {canEditProject() &&
-            (((currentProject as any)?.generation_config?.selected_configuration?.models?.length ?? 0) > 0 ||
-              ((currentProject as any)?.llm_model_ids?.length ?? 0) > 0) && (
+              sub-collapsibles inside are open. The modal itself handles
+              the empty-models case ("Keine Modelle für die Generierung
+              konfiguriert") so the button stays a discoverable entry
+              point even when the user hasn't picked models yet. */}
+          {canEditProject() && (
             <div className="flex justify-end gap-2 border-t pt-4 dark:border-zinc-700">
               <Button
                 onClick={() => setShowGenerationStartModal(true)}
