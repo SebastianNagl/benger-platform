@@ -7,8 +7,8 @@
     "leaderboards": "Bestenlisten",
     "projects": "Projekte",
     "dataManagement": "Datenverwaltung",
-    "generation": "Generierungs-Ergebnisse",
-    "evaluation": "Evaluierungs-Ergebnisse",
+    "generation": "Generierung",
+    "evaluation": "Evaluierungen",
     "runs": "Läufe",
     "howTo": "Anleitung",
     "models": "Modelle",
@@ -984,7 +984,8 @@
       "evaluationConfigSingular": "{count} Konfiguration",
       "evaluationConfigPlural": "{count} Konfigurationen",
       "description": "Evaluierungsmethoden zur Ausführung auswählen",
-      "configureFirst": "Konfigurieren Sie zuerst die Label-Konfiguration, um Evaluierungsmethoden zu aktivieren"
+      "configureFirst": "Konfigurieren Sie zuerst die Label-Konfiguration, um Evaluierungsmethoden zu aktivieren",
+      "runCta": "Evaluierung starten"
     },
     "evaluationDefaults": {
       "title": "Evaluierungs-Standardeinstellungen",
@@ -992,8 +993,21 @@
       "save": "Speichern",
       "defaultTemperature": "Standard-Temperatur",
       "temperatureHelp": "Wird für LLM-Judge verwendet, sofern nicht pro Evaluierung überschrieben (0.0 = deterministisch)",
+      "temperatureHelpModeOverride": "Wird ignoriert: aktive Strategie befüllt Temperatur pro Judge-Modell.",
       "defaultMaxTokens": "Standard Max Tokens",
-      "maxTokensHelp": "Maximale Antwortlänge für LLM-Judge (Standard: 500 Tokens)"
+      "maxTokensHelp": "Maximale Antwortlänge für LLM-Judge (Standard: 500 Tokens)",
+      "maxTokensHelpModeOverride": "Wird ignoriert: aktive Strategie befüllt Max Tokens pro Judge-Modell.",
+      "modeLabel": "Standard-Strategie",
+      "modeRecommended": "Empfohlene Werte (pro Judge-Modell)",
+      "modeRecommendedDesc": "Verwende die vom Anbieter empfohlenen Eval-Werte für jedes neu hinzugefügte Judge-Modell.",
+      "modeMinimum": "Minimal-Werte (pro Judge-Modell)",
+      "modeMinimumDesc": "Verwende die niedrigste vom Anbieter zulässige Temperatur für jedes neu hinzugefügte Judge-Modell.",
+      "modeCustom": "Benutzerdefiniert",
+      "modeCustomDesc": "Verwende die unten eingegebenen Werte einheitlich für alle neu hinzugefügten Judge-Konfigurationen (Min/Max-Constraints werden weiterhin durchgesetzt).",
+      "runsTitle": "Multi-Run",
+      "runsDescription": "Wie oft jede Task vom Judge bewertet werden soll. Greift, wenn kein Judge-Ensemble konfiguriert ist.",
+      "defaultRunsPerTask": "Standard-Anzahl Judge-Läufe",
+      "runsPerTaskHelp": "Standardwert 1. Werte > 1 erzeugen mehrere Bewertungen für Varianz-/Konsistenzanalyse. Cap 25."
     },
     "generationDefaults": {
       "title": "Generierungs-Standardeinstellungen",
@@ -1001,8 +1015,21 @@
       "save": "Speichern",
       "defaultTemperature": "Standard-Temperatur",
       "temperatureHelp": "Wird für alle Modelle verwendet, sofern nicht pro Modell überschrieben (0.0 = deterministisch)",
+      "temperatureHelpModeOverride": "Wird ignoriert: aktive Strategie befüllt Temperatur pro Modell.",
       "defaultMaxTokens": "Standard Max Tokens",
-      "maxTokensHelp": "Maximale Antwortlänge für alle Modelle, sofern nicht pro Modell überschrieben"
+      "maxTokensHelp": "Maximale Antwortlänge für alle Modelle, sofern nicht pro Modell überschrieben",
+      "maxTokensHelpModeOverride": "Wird ignoriert: aktive Strategie befüllt Max Tokens pro Modell.",
+      "modeLabel": "Standard-Strategie",
+      "modeRecommended": "Empfohlene Werte (pro Modell)",
+      "modeRecommendedDesc": "Verwende die vom Anbieter empfohlenen Werte für jedes neu hinzugefügte Modell.",
+      "modeMinimum": "Minimal-Werte (pro Modell)",
+      "modeMinimumDesc": "Verwende die niedrigste vom Anbieter zulässige Temperatur für jedes neu hinzugefügte Modell.",
+      "modeCustom": "Benutzerdefiniert",
+      "modeCustomDesc": "Verwende die unten eingegebenen Werte einheitlich für alle neu hinzugefügten Modelle (Min/Max-Constraints werden weiterhin durchgesetzt).",
+      "runsTitle": "Multi-Run",
+      "runsDescription": "Wie oft jede Task-Modell-Kombination generiert werden soll. Multipliziert die Kosten entsprechend.",
+      "defaultRunsPerTask": "Standard-Anzahl Läufe pro Task",
+      "runsPerTaskHelp": "Standardwert 1. Werte > 1 erzeugen mehrere Trials für Varianzanalyse. Cap 25."
     },
     "settings": {
       "title": "Einstellungen",
@@ -2500,7 +2527,11 @@
       "startGeneration": "Generierung starten",
       "cancel": "Abbrechen",
       "queuedJobs": "{tasks} Generierungsaufträge für {models} Modelle in Warteschlange. Geschätzte Zeit: {minutes} Minuten",
-      "failedToStart": "Generierung konnte nicht gestartet werden"
+      "failedToStart": "Generierung konnte nicht gestartet werden",
+      "recommended": "Empfehlung",
+      "resetToRecommended": "Zurücksetzen auf Empfohlen",
+      "noRecommendation": "Keine Empfehlung",
+      "divergentRecommendations": "Verschiedene Empfehlungen pro Modell"
     }
   },
   "notifications": {
@@ -3813,6 +3844,7 @@
       "demoteLevel": "Eine Ebene tiefer (Tab)",
       "bold": "Fett (Ctrl+B)",
       "italic": "Kursiv (Ctrl+I)",
+      "underline": "Unterstrichen (Ctrl+U)",
       "bulletList": "Aufzaehlung",
       "orderedList": "Nummerierte Liste",
       "heading": "Ueberschrift"
@@ -6218,7 +6250,12 @@
       "reasoningLevelDescription": "Wie viel Überlegung das Modell verwenden soll",
       "reasoningLow": "Niedrig",
       "reasoningMedium": "Mittel (Standard)",
-      "reasoningHigh": "Hoch"
+      "reasoningHigh": "Hoch",
+      "recommended": "Empfehlung",
+      "resetToRecommended": "Zurücksetzen auf Empfohlen",
+      "noRecommendation": "Keine Empfehlung",
+      "noRecommendationForKey": "Keine Empfehlung für diesen Parameter",
+      "divergentRecommendations": "Verschiedene Empfehlungen pro Modell"
     },
     "list": {
       "predictions": "Vorhersagen:",
@@ -7440,6 +7477,7 @@
     "start": {
       "cta": "Korrektur starten",
       "empty": "Keine offenen Items zum Korrigieren",
+      "allDone": "Du hast alle Items bereits bewertet",
       "error": "Konnte Korrektur nicht starten"
     },
     "queueProgress": "{done} / {total} von dir bewertet",

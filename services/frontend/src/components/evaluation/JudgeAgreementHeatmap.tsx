@@ -142,7 +142,9 @@ export function JudgeAgreementHeatmap({
             texttemplate: '%{text}',
             textfont: { size: 11 },
             colorbar: {
-              title: scoreType === 'pearson' ? 'r' : 'κ',
+              // Plotly v2+ requires title as a ColorBarTitle object, not a
+              // bare string — `text` is the actual label field.
+              title: { text: scoreType === 'pearson' ? 'r' : 'κ' },
               thickness: 12,
             },
           },

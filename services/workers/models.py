@@ -646,6 +646,18 @@ class LLMModel(Base):
     config_schema = Column(JSON, nullable=True)
     # Default configuration parameters
     default_config = Column(JSON, nullable=True)
+    # Per-million-token pricing (kept in sync with the API model so the
+    # worker can compute trial cost without a cross-service call).
+    input_cost_per_million = Column(Float, nullable=True)
+    output_cost_per_million = Column(Float, nullable=True)
+    # Hard constraints (e.g. fixed temperature, unsupported_params) — read by
+    # the worker's clamp step after _resolve_param picks a value.
+    parameter_constraints = Column(JSON, nullable=True)
+    # Provider-recommended parameter values (migration 046). Read by
+    # _resolve_param as the "recommended" tier of the precedence chain;
+    # without this declaration the worker can't see the column even though
+    # it exists in the DB, so all generations fall through to SYSTEM_DEFAULTS.
+    recommended_parameters = Column(JSON, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

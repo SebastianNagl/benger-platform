@@ -25,6 +25,7 @@ import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
 import { TemperatureInput } from '@/lib/evaluation/TemperatureInput'
+import { MaxTokensInput } from '@/lib/evaluation/MaxTokensInput'
 import { useJudgeModelHelpers } from '@/lib/evaluation/judgeModelHelpers'
 import { getMetricEditor } from '@/lib/extensions/metricEditors'
 import {
@@ -50,13 +51,11 @@ import {
   ChevronUpIcon,
   InformationCircleIcon,
   PencilIcon,
-  PlayIcon,
   PlusIcon,
   TrashIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { EvaluationControlModal } from './EvaluationControlModal'
 import { FieldMappingEditor } from './FieldMappingEditor'
 
 interface EvaluationBuilderProps {
@@ -66,6 +65,12 @@ interface EvaluationBuilderProps {
   onEvaluationsChange: (evaluations: EvaluationConfig[]) => void
   onSave?: () => void
   saving?: boolean
+  /** Optional: 3-mode pre-fill strategy from the project's
+   * Evaluation Defaults SubSection. Threaded through to
+   * `getJudgeModelDefaults` whenever the user picks a new judge. */
+  defaultsMode?: 'recommended' | 'minimum' | 'custom'
+  customTemp?: number
+  customMaxTokens?: number
 }
 
 type WizardStep =
@@ -96,6 +101,9 @@ export function EvaluationBuilder({
   onEvaluationsChange,
   onSave,
   saving = false,
+  defaultsMode = 'recommended',
+  customTemp,
+  customMaxTokens,
 }: EvaluationBuilderProps) {
   const { t } = useI18n()
   const {
@@ -110,7 +118,9 @@ export function EvaluationBuilder({
     INITIAL_EVALUATION_STATE
   )
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [showEvaluationModal, setShowEvaluationModal] = useState(false)
+  // Inner showEvaluationModal removed — the page-level Evaluation card
+  // footer is the single trigger for the run modal. See the comment near
+  // where the button used to live (end of this component).
   const { addToast } = useToast()
 
   const renderTemperatureInput = () => (
@@ -927,7 +937,7 @@ export function EvaluationBuilder({
                       newEvaluation.metric_parameters.judge_model || 'gpt-4o'
                     }
                     onValueChange={(modelId) => {
-                      const defaults = getJudgeModelDefaults(modelId)
+                      const defaults = getJudgeModelDefaults(modelId, defaultsMode, customTemp, customMaxTokens)
                       setNewEvaluation((prev) => ({
                         ...prev,
                         metric_parameters: {
@@ -1068,33 +1078,19 @@ export function EvaluationBuilder({
                 )}
 
                 {/* Max Tokens for Judge Response */}
-                <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                    {t('evaluationBuilder.parameters.maxTokens', 'Max Tokens')}
-                  </label>
-                  <input
-                    type="number"
-                    min={100}
-                    max={4000}
-                    value={newEvaluation.metric_parameters.max_tokens || 500}
-                    onChange={(e) =>
-                      setNewEvaluation((prev) => ({
-                        ...prev,
-                        metric_parameters: {
-                          ...prev.metric_parameters,
-                          max_tokens: parseInt(e.target.value) || 500,
-                        },
-                      }))
-                    }
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
-                  />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {t(
-                      'evaluationBuilder.parameters.maxTokensDescription',
-                      'Maximum tokens for judge response (100-4000)'
-                    )}
-                  </p>
-                </div>
+                <MaxTokensInput
+                  judgeModelId={newEvaluation.metric_parameters.judge_model || 'gpt-4o'}
+                  value={newEvaluation.metric_parameters.max_tokens}
+                  onChange={(max_tokens) =>
+                    setNewEvaluation((prev) => ({
+                      ...prev,
+                      metric_parameters: {
+                        ...prev.metric_parameters,
+                        max_tokens,
+                      },
+                    }))
+                  }
+                />
 
               </div>
             ) : newEvaluation.metric === 'llm_judge_custom' ? (
@@ -1119,7 +1115,7 @@ export function EvaluationBuilder({
                       newEvaluation.metric_parameters.judge_model || 'gpt-4o'
                     }
                     onValueChange={(modelId) => {
-                      const defaults = getJudgeModelDefaults(modelId)
+                      const defaults = getJudgeModelDefaults(modelId, defaultsMode, customTemp, customMaxTokens)
                       setNewEvaluation((prev) => ({
                         ...prev,
                         metric_parameters: {
@@ -1260,33 +1256,19 @@ export function EvaluationBuilder({
                 )}
 
                 {/* Max Tokens for Judge Response */}
-                <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                    {t('evaluationBuilder.parameters.maxTokens', 'Max Tokens')}
-                  </label>
-                  <input
-                    type="number"
-                    min={100}
-                    max={4000}
-                    value={newEvaluation.metric_parameters.max_tokens || 500}
-                    onChange={(e) =>
-                      setNewEvaluation((prev) => ({
-                        ...prev,
-                        metric_parameters: {
-                          ...prev.metric_parameters,
-                          max_tokens: parseInt(e.target.value) || 500,
-                        },
-                      }))
-                    }
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
-                  />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {t(
-                      'evaluationBuilder.parameters.maxTokensDescription',
-                      'Maximum tokens for judge response (100-4000)'
-                    )}
-                  </p>
-                </div>
+                <MaxTokensInput
+                  judgeModelId={newEvaluation.metric_parameters.judge_model || 'gpt-4o'}
+                  value={newEvaluation.metric_parameters.max_tokens}
+                  onChange={(max_tokens) =>
+                    setNewEvaluation((prev) => ({
+                      ...prev,
+                      metric_parameters: {
+                        ...prev.metric_parameters,
+                        max_tokens,
+                      },
+                    }))
+                  }
+                />
 
                 {/* Score Scale Selection */}
                 <div>
@@ -1898,48 +1880,14 @@ export function EvaluationBuilder({
         </div>
       ) : null}
 
-      {/* Run Evaluation Button */}
-      {evaluations.length > 0 && (
-        <div className="flex flex-col gap-3 border-t pt-4 dark:border-gray-700">
-          <div className="flex justify-end gap-2">
-            <p className="mr-2 self-center text-xs text-gray-500 dark:text-gray-400">
-              {t('evaluationBuilder.runEvaluation.configsWillBeEvaluated', {
-                count: evaluations.filter((e) => e.enabled).length,
-              })}
-            </p>
-            <Button
-              onClick={() => setShowEvaluationModal(true)}
-              disabled={saving}
-              className="flex items-center gap-2 text-sm"
-            >
-              <PlayIcon className="h-4 w-4" />
-              {saving
-                ? t('evaluationBuilder.runEvaluation.running')
-                : t('evaluationBuilder.runEvaluation.run')}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Evaluation Control Modal */}
-      <EvaluationControlModal
-        isOpen={showEvaluationModal}
-        projectId={projectId}
-        evaluationConfigs={evaluations
-          .filter((e) => e.enabled)
-          .map((e) => ({
-            id: e.id,
-            metric: e.metric,
-            prediction_fields: e.prediction_fields,
-            reference_fields: e.reference_fields,
-            metric_parameters: e.metric_parameters,
-          }))}
-        onClose={() => setShowEvaluationModal(false)}
-        onSuccess={() => {
-          setShowEvaluationModal(false)
-          onSave?.()
-        }}
-      />
+      {/* The "Run Evaluation" CTA used to live here (in-line with the
+          Evaluierungsmethoden subsection) and again at the project page's
+          Evaluation card footer. Two paths to the same modal was confusing
+          and the inner copy's locale wiring was incomplete, so the inner
+          button + its EvaluationControlModal mount were removed. The
+          card-footer trigger in projects/[id]/page.tsx is the single
+          remaining entry point. `onSave` is still called when the page-
+          level modal succeeds (via parent's onSuccess prop). */}
 
     </div>
   )

@@ -5,7 +5,11 @@ import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
-import { getTemperatureConstraints } from '@/lib/modelConstraints'
+import {
+  getRecommendedParam,
+  getTemperatureConstraints,
+  hasRecommendations,
+} from '@/lib/modelConstraints'
 import { Dialog, Transition } from '@headlessui/react'
 import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { Fragment, useEffect, useMemo, useState } from 'react'
@@ -77,16 +81,68 @@ export function GenerationControlModal({
     return { min: effectiveMin, max: effectiveMax, fixed: fixedModels.length > 0, fixedModels }
   }, [selectedModels, availableModelObjects])
 
+  // Per-key recommended-value consensus across the selected models. When
+  // every selected model recommends the same value, surface it; if they
+  // diverge, surface "—" + a tooltip listing the per-model values; if no
+  // selected model has any recommendation, surface "Keine Empfehlung".
+  // Used by the badge underneath the temperature / max_tokens inputs to
+  // show the user what the providers say without forcing a click.
+  const recommendedConsensus = useMemo(() => {
+    function consensusFor(key: 'temperature' | 'max_tokens'): {
+      value: number | undefined
+      uniform: boolean
+      anyRec: boolean
+      perModel: Array<{ model: string; value: number | undefined }>
+    } {
+      if (selectedModels.length === 0) {
+        return { value: undefined, uniform: false, anyRec: false, perModel: [] }
+      }
+      const perModel = selectedModels.map((modelId) => {
+        const model = availableModelObjects.find((m) => m.id === modelId)
+        const rec = getRecommendedParam(model, key, 'generation')
+        return {
+          model: modelId,
+          value: typeof rec === 'number' ? rec : undefined,
+          hasAnyRec: hasRecommendations(model),
+        }
+      })
+      const anyRec = perModel.some((m) => m.hasAnyRec)
+      const distinct = Array.from(
+        new Set(perModel.map((m) => m.value).filter((v) => v !== undefined)),
+      )
+      const uniform = distinct.length === 1
+      return {
+        value: uniform ? (distinct[0] as number) : undefined,
+        uniform,
+        anyRec,
+        perModel: perModel.map(({ model, value }) => ({ model, value })),
+      }
+    }
+    return {
+      temperature: consensusFor('temperature'),
+      max_tokens: consensusFor('max_tokens'),
+    }
+  }, [selectedModels, availableModelObjects])
+
   // Get available structures from project config
   const availableStructures =
     project?.generation_config?.prompt_structures || {}
   const structureKeys = Object.keys(availableStructures)
   const hasStructures = structureKeys.length > 0
 
-  // Reset state when modal opens
+  // Reset state when modal opens. Pre-select the project's saved models
+  // (the `models` prop is sourced from generation_config.selected_configuration.models
+  // upstream), so the user's project-level choice carries through to the
+  // run-trigger without forcing them to re-tick everything.
+  //
+  // Deps are intentionally `[isOpen]` only: the parent re-computes
+  // `models` inline on every render so its reference is unstable. If we
+  // included it in the dep array, the effect would fire mid-interaction
+  // any time the parent re-rendered, blowing away the user's manual
+  // deselections. We only want to reset on the closed→open transition.
   useEffect(() => {
     if (isOpen) {
-      setSelectedModels([])
+      setSelectedModels(models)
       setSelectedStructures([])
       setMode('missing')
       setLoading(false)
@@ -96,6 +152,7 @@ export function GenerationControlModal({
       setSeed(42)
       setModelTokenLimits({})
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen])
 
   const handleModelToggle = (modelId: string) => {
@@ -477,6 +534,50 @@ export function GenerationControlModal({
                                     </span>
                                   </div>
                                 )}
+                                {/* Provider-recommended badge (migration 046).
+                                    Shows the consensus recommendation across
+                                    selected models, divergence warning when
+                                    they differ, or "Keine Empfehlung" when
+                                    none of the selected models carries one.
+                                    A "Zurücksetzen" link sets the input back
+                                    to the recommendation when the user has
+                                    deviated from a uniform recommendation. */}
+                                {selectedModels.length > 0 && (
+                                  <div className="mt-1 text-xs">
+                                    {recommendedConsensus.temperature.uniform &&
+                                    recommendedConsensus.temperature.value !== undefined ? (
+                                      <span className="text-zinc-600 dark:text-zinc-400">
+                                        {t('generation.controlModal.recommended', 'Empfehlung')}: {recommendedConsensus.temperature.value}
+                                        {temperature !== recommendedConsensus.temperature.value && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setTemperature(
+                                                recommendedConsensus.temperature.value as number,
+                                              )
+                                            }
+                                            className="ml-2 text-blue-600 hover:underline"
+                                          >
+                                            {t('generation.controlModal.resetToRecommended', 'Zurücksetzen auf Empfohlen')}
+                                          </button>
+                                        )}
+                                      </span>
+                                    ) : recommendedConsensus.temperature.anyRec ? (
+                                      <span
+                                        className="text-amber-600 dark:text-amber-400"
+                                        title={recommendedConsensus.temperature.perModel
+                                          .map((m) => `${m.model}: ${m.value ?? '—'}`)
+                                          .join('\n')}
+                                      >
+                                        {t('generation.controlModal.divergentRecommendations', 'Verschiedene Empfehlungen pro Modell')}
+                                      </span>
+                                    ) : (
+                                      <span className="text-zinc-400 dark:text-zinc-500">
+                                        {t('generation.controlModal.noRecommendation', 'Keine Empfehlung')}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                                 <p className="mt-1 text-xs text-gray-500">
                                   {t('generation.controlModal.temperatureDesc')}
                                 </p>
@@ -495,6 +596,43 @@ export function GenerationControlModal({
                                   }
                                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 />
+                                {/* Same recommended-badge pattern for max_tokens. */}
+                                {selectedModels.length > 0 && (
+                                  <div className="mt-1 text-xs">
+                                    {recommendedConsensus.max_tokens.uniform &&
+                                    recommendedConsensus.max_tokens.value !== undefined ? (
+                                      <span className="text-zinc-600 dark:text-zinc-400">
+                                        {t('generation.controlModal.recommended', 'Empfehlung')}: {recommendedConsensus.max_tokens.value}
+                                        {maxTokens !== recommendedConsensus.max_tokens.value && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setMaxTokens(
+                                                recommendedConsensus.max_tokens.value as number,
+                                              )
+                                            }
+                                            className="ml-2 text-blue-600 hover:underline"
+                                          >
+                                            {t('generation.controlModal.resetToRecommended', 'Zurücksetzen auf Empfohlen')}
+                                          </button>
+                                        )}
+                                      </span>
+                                    ) : recommendedConsensus.max_tokens.anyRec ? (
+                                      <span
+                                        className="text-amber-600 dark:text-amber-400"
+                                        title={recommendedConsensus.max_tokens.perModel
+                                          .map((m) => `${m.model}: ${m.value ?? '—'}`)
+                                          .join('\n')}
+                                      >
+                                        {t('generation.controlModal.divergentRecommendations', 'Verschiedene Empfehlungen pro Modell')}
+                                      </span>
+                                    ) : (
+                                      <span className="text-zinc-400 dark:text-zinc-500">
+                                        {t('generation.controlModal.noRecommendation', 'Keine Empfehlung')}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                                 <p className="mt-1 text-xs text-gray-500">
                                   {t('generation.controlModal.defaultMaxTokensDesc')}
                                 </p>

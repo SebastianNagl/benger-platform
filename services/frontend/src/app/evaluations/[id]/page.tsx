@@ -137,7 +137,11 @@ export default function EvaluationDashboard({
           page: 1,
           page_size: 100,
         })
-        setSamples((samplesData?.items as SampleResult[]) || [])
+        // The API client types items as Record<string, unknown>[]; the
+        // actual response shape matches SampleResult by contract. Two-step
+        // cast through `unknown` is the standard TS escape hatch for this
+        // mismatch.
+        setSamples((samplesData?.items as unknown as SampleResult[]) || [])
 
         // Auto-select first metric for distribution. evalData.metrics is the
         // aggregated map whose keys are composite `config|pred|ref|metric`
@@ -155,7 +159,7 @@ export default function EvaluationDashboard({
         }
 
         // Try to load confusion matrix for first classification field
-        const classificationField = ((samplesData?.items || []) as SampleResult[]).find(
+        const classificationField = ((samplesData?.items || []) as unknown as SampleResult[]).find(
           (s) =>
             s.answer_type.includes('choice') ||
             s.answer_type.includes('classification')

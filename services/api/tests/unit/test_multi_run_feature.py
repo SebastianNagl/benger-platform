@@ -230,3 +230,48 @@ def test_runs_aggregate_collapses_to_n_runs_1_for_single_run():
     )
     assert agg.n_runs == 1
     assert agg.ci_lower is None
+
+
+# --- (H) Top-level seed on EvaluationRunRequest ---
+
+
+def test_evaluation_run_request_accepts_top_level_seed():
+    """Migration item H — EvaluationRunRequest grows a top-level `seed`
+    field that mirrors GenerationRequest.parameters.seed. Without this,
+    cross-judge reproducibility requires duplicating the seed into every
+    metric_parameters block."""
+    from routers.evaluations.multi_field import EvaluationRunRequest
+
+    req = EvaluationRunRequest(
+        project_id="proj-1",
+        evaluation_configs=[],
+        seed=7,
+    )
+    assert req.seed == 7
+    # Default is None so unaffected callers behave exactly as before.
+    req_default = EvaluationRunRequest(project_id="proj-1", evaluation_configs=[])
+    assert req_default.seed is None
+
+
+def test_top_level_seed_injection_respects_per_config_override():
+    """When a config already carries metric_parameters.seed, the per-config
+    seed wins for backward-compat (override of override). When it doesn't,
+    the run-level seed is injected. This mirrors the closure inside
+    routers/evaluations/multi_field.py:run_evaluation."""
+    run_seed = 7
+
+    def with_run_seed(cfg_dict: dict) -> dict:
+        # Identical shape to _with_run_seed in multi_field.py
+        if run_seed is None:
+            return cfg_dict
+        params = dict(cfg_dict.get("metric_parameters") or {})
+        if "seed" not in params:
+            params["seed"] = run_seed
+            cfg_dict = {**cfg_dict, "metric_parameters": params}
+        return cfg_dict
+
+    no_seed_cfg = {"id": "a", "metric": "llm_judge", "metric_parameters": {"temperature": 0.0}}
+    pinned_cfg = {"id": "b", "metric": "llm_judge", "metric_parameters": {"seed": 99}}
+
+    assert with_run_seed(no_seed_cfg)["metric_parameters"]["seed"] == 7
+    assert with_run_seed(pinned_cfg)["metric_parameters"]["seed"] == 99

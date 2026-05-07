@@ -42,6 +42,11 @@ class LLMModelResponse(BaseModel):
     input_cost_per_million: Optional[float] = None
     output_cost_per_million: Optional[float] = None
     parameter_constraints: Optional[Dict[str, Any]] = None
+    # Migration 046: provider-recommended parameter values per model.
+    # Shape: {default: {...}, evaluation: {...}, provenance: {...}}.
+    # NULL when no recommendation has been sourced — UI shows
+    # "keine Empfehlung" badge for that model.
+    recommended_parameters: Optional[Dict[str, Any]] = None
     is_active: bool = True
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -76,6 +81,7 @@ async def get_public_llm_models(
                     input_cost_per_million=model.input_cost_per_million,
                     output_cost_per_million=model.output_cost_per_million,
                     parameter_constraints=model.parameter_constraints,
+                    recommended_parameters=model.recommended_parameters,
                     is_active=model.is_active,
                     created_at=model.created_at,
                     updated_at=model.updated_at,

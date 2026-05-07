@@ -2,6 +2,7 @@
 
 import { api } from '@/lib/api'
 import { ParameterConstraints } from '@/lib/api/types'
+import type { RecommendedParameters } from '@/lib/modelConstraints'
 import { useI18n } from '@/contexts/I18nContext'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -38,6 +39,7 @@ export interface Model {
     }
   }
   parameter_constraints?: ParameterConstraints | null
+  recommended_parameters?: RecommendedParameters | null
 }
 
 export interface UseModelsReturn {
