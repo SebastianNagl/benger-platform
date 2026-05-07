@@ -12,7 +12,10 @@ import {
 import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
-import { CloudArrowUpIcon } from '@heroicons/react/24/outline'
+import {
+  CheckCircleIcon,
+  CloudArrowUpIcon,
+} from '@heroicons/react/24/outline'
 import React, { useCallback } from 'react'
 
 interface StepDataImportProps {
@@ -146,7 +149,11 @@ export function StepDataImport({
 
         <TabsContent value="upload" className="mt-6">
           <div
-            className="cursor-pointer rounded-lg border border-dashed border-zinc-300 transition-colors hover:border-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-zinc-700"
+            className={
+              selectedFile
+                ? 'cursor-pointer rounded-lg border border-solid border-emerald-500 bg-emerald-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:bg-emerald-950/30'
+                : 'cursor-pointer rounded-lg border border-dashed border-zinc-300 transition-colors hover:border-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-zinc-700'
+            }
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onClick={() =>
@@ -163,7 +170,11 @@ export function StepDataImport({
             aria-label={t('projects.creation.wizard.step2.upload.dropzone')}
           >
             <div className="p-12 text-center">
-              <CloudArrowUpIcon className="mx-auto mb-4 h-12 w-12 text-zinc-400 dark:text-zinc-500" />
+              {selectedFile ? (
+                <CheckCircleIcon className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
+              ) : (
+                <CloudArrowUpIcon className="mx-auto mb-4 h-12 w-12 text-zinc-400 dark:text-zinc-500" />
+              )}
               <p className="mb-2 text-lg font-medium">
                 {t('projects.creation.wizard.step2.upload.dropzone')}
               </p>

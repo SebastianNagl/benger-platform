@@ -2102,10 +2102,10 @@
     "grades": {
       "title": "Akademische Noten",
       "description": "Geben Sie Ihre Noten ein, sofern diese auf Ihr Erfahrungsniveau zutreffen.",
-      "zwischenpruefung": "Note Zwischenprüfung",
-      "vorgeruecktenubung": "Note Übung für Fortgeschrittene",
-      "firstStaatsexamen": "Note Erstes Staatsexamen",
-      "secondStaatsexamen": "Note Zweites Staatsexamen"
+      "zwischenpruefung": "Durchschnittsnote Zwischenprüfung",
+      "vorgeruecktenubung": "Durchschnittsnote Übung für Fortgeschrittene",
+      "firstStaatsexamen": "Durchschnittsnote Erstes Staatsexamen",
+      "secondStaatsexamen": "Durchschnittsnote Zweites Staatsexamen"
     },
     "atiS": {
       "title": "ATI-S (Affinität zur Technologieinteraktion - Kurzform)",
