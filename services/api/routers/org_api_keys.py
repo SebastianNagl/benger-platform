@@ -307,6 +307,8 @@ async def get_org_available_models(
                     "default_config": model.default_config,
                     "input_cost_per_million": model.input_cost_per_million,
                     "output_cost_per_million": model.output_cost_per_million,
+                    "parameter_constraints": model.parameter_constraints,
+                    "recommended_parameters": model.recommended_parameters,
                     "is_active": model.is_active,
                     "created_at": (model.created_at.isoformat() if model.created_at else None),
                     "updated_at": (model.updated_at.isoformat() if model.updated_at else None),

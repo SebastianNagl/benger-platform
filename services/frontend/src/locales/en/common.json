@@ -7,8 +7,8 @@
     "leaderboards": "Leaderboards",
     "projects": "Projects",
     "dataManagement": "Data Management",
-    "generation": "Generation Results",
-    "evaluation": "Evaluation Results",
+    "generation": "Generation",
+    "evaluation": "Evaluations",
     "runs": "Runs",
     "howTo": "How-To",
     "models": "Models",
@@ -984,7 +984,8 @@
       "evaluationConfigSingular": "{count} config",
       "evaluationConfigPlural": "{count} configs",
       "description": "Select evaluation methods to run",
-      "configureFirst": "Configure label configuration first to enable evaluation methods"
+      "configureFirst": "Configure label configuration first to enable evaluation methods",
+      "runCta": "Start Evaluation"
     },
     "evaluationDefaults": {
       "title": "Evaluation Defaults",
@@ -992,8 +993,21 @@
       "save": "Save Defaults",
       "defaultTemperature": "Default Temperature",
       "temperatureHelp": "Used for LLM Judge unless overridden per-evaluation (0.0 = deterministic)",
+      "temperatureHelpModeOverride": "Ignored: the active strategy fills temperature per judge model.",
       "defaultMaxTokens": "Default Max Tokens",
-      "maxTokensHelp": "Maximum response length for LLM Judge (default: 500 tokens)"
+      "maxTokensHelp": "Maximum response length for LLM Judge (default: 500 tokens)",
+      "maxTokensHelpModeOverride": "Ignored: the active strategy fills max tokens per judge model.",
+      "modeLabel": "Default strategy",
+      "modeRecommended": "Recommended values (per judge model)",
+      "modeRecommendedDesc": "Use the provider-recommended evaluation values for each newly added judge model.",
+      "modeMinimum": "Minimum values (per judge model)",
+      "modeMinimumDesc": "Use the lowest provider-allowed temperature for each newly added judge model.",
+      "modeCustom": "Custom",
+      "modeCustomDesc": "Use the values entered below uniformly for all newly added judge configurations (min/max constraints still apply).",
+      "runsTitle": "Multi-Run",
+      "runsDescription": "How often each task should be evaluated by the judge. Applies when no judge ensemble is configured.",
+      "defaultRunsPerTask": "Default judge runs",
+      "runsPerTaskHelp": "Default 1. Values > 1 produce multiple ratings for variance / consistency analysis. Cap 25."
     },
     "generationDefaults": {
       "title": "Generation Defaults",
@@ -1001,8 +1015,21 @@
       "save": "Save Defaults",
       "defaultTemperature": "Default Temperature",
       "temperatureHelp": "Used for all models unless overridden per-model (0.0 = deterministic)",
+      "temperatureHelpModeOverride": "Ignored: the active strategy fills temperature per model.",
       "defaultMaxTokens": "Default Max Tokens",
-      "maxTokensHelp": "Maximum response length for all models unless overridden per-model"
+      "maxTokensHelp": "Maximum response length for all models unless overridden per-model",
+      "maxTokensHelpModeOverride": "Ignored: the active strategy fills max tokens per model.",
+      "modeLabel": "Default strategy",
+      "modeRecommended": "Recommended values (per model)",
+      "modeRecommendedDesc": "Use the provider-recommended values for each newly added model.",
+      "modeMinimum": "Minimum values (per model)",
+      "modeMinimumDesc": "Use the lowest provider-allowed temperature for each newly added model.",
+      "modeCustom": "Custom",
+      "modeCustomDesc": "Use the values entered below uniformly for all newly added models (min/max constraints still apply).",
+      "runsTitle": "Multi-Run",
+      "runsDescription": "How often each task-model combination should be generated. Multiplies costs accordingly.",
+      "defaultRunsPerTask": "Default runs per task",
+      "runsPerTaskHelp": "Default 1. Values > 1 produce multiple trials for variance analysis. Cap 25."
     },
     "settings": {
       "title": "Settings",
@@ -2520,7 +2547,11 @@
       "startGeneration": "Start Generation",
       "cancel": "Cancel",
       "queuedJobs": "Queued {tasks} generation jobs for {models} models. Estimated time: {minutes} minutes",
-      "failedToStart": "Failed to start generation"
+      "failedToStart": "Failed to start generation",
+      "recommended": "Recommended",
+      "resetToRecommended": "Reset to recommended",
+      "noRecommendation": "No recommendation",
+      "divergentRecommendations": "Different recommendations per model"
     }
   },
   "notifications": {
@@ -3833,6 +3864,7 @@
       "demoteLevel": "Demote one level (Tab)",
       "bold": "Bold (Ctrl+B)",
       "italic": "Italic (Ctrl+I)",
+      "underline": "Underline (Ctrl+U)",
       "bulletList": "Bullet list",
       "orderedList": "Numbered list",
       "heading": "Heading"
@@ -6238,7 +6270,12 @@
       "reasoningLevelDescription": "How much reasoning the model should use",
       "reasoningLow": "Low",
       "reasoningMedium": "Medium (Default)",
-      "reasoningHigh": "High"
+      "reasoningHigh": "High",
+      "recommended": "Recommended",
+      "resetToRecommended": "Reset to recommended",
+      "noRecommendation": "No recommendation",
+      "noRecommendationForKey": "No recommendation for this parameter",
+      "divergentRecommendations": "Different recommendations per model"
     },
     "list": {
       "predictions": "Predictions:",
@@ -7385,6 +7422,7 @@
     "start": {
       "cta": "Start grading",
       "empty": "No open items to grade",
+      "allDone": "You've already graded every item",
       "error": "Could not start grading"
     },
     "queueProgress": "{done} / {total} graded by you",

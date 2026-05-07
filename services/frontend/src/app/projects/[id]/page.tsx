@@ -47,7 +47,12 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
-import { getTemperatureConstraints, getDefaultMaxTokens } from '@/lib/modelConstraints'
+import {
+  getTemperatureConstraints,
+  getDefaultMaxTokens,
+  getRecommendedParam,
+  hasRecommendations,
+} from '@/lib/modelConstraints'
 import type {
   AvailableEvaluationFields,
   EvaluationConfig,
@@ -214,6 +219,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [evalDefaultRunsPerTask, setEvalDefaultRunsPerTask] = useState<number | undefined>(undefined)
   const [isUpdatingEvalDefaults, setIsUpdatingEvalDefaults] = useState(false)
 
+  // Defaults mode for evaluation: drives the per-judge pre-fill when a new
+  // judge metric is configured. Mirrors the generation-side mode below.
+  type DefaultsMode = 'recommended' | 'minimum' | 'custom'
+  const [evalDefaultsMode, setEvalDefaultsMode] = useState<DefaultsMode>('recommended')
+
   // Generation defaults
   const [genDefaultTemperature, setGenDefaultTemperature] = useState<number | undefined>(undefined)
   const [genDefaultMaxTokens, setGenDefaultMaxTokens] = useState<number | undefined>(undefined)
@@ -221,6 +231,29 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // (task, model, structure). Per-trigger override is allowed in the
   // GenerationControlModal. Bounded server-side at 1..25.
   const [genDefaultRunsPerTask, setGenDefaultRunsPerTask] = useState<number | undefined>(undefined)
+  // Defaults mode for generation: drives per-model pre-fill when a model is
+  // toggled in. `recommended` reads model.recommended_parameters,
+  // `minimum` uses parameter_constraints.temperature.min (lowest stable
+  // value the provider allows), `custom` uses the values entered above.
+  // Constraint clamping (e.g. GPT-5 forces temp=1.0) always wins.
+  const [genDefaultsMode, setGenDefaultsMode] = useState<DefaultsMode>('recommended')
+  // Ref mirror of the mode + custom values so handleModelToggle reads the
+  // LATEST values regardless of React render timing. Without these refs a
+  // user pattern of "switch mode, then immediately toggle a model" can read
+  // a stale closure-captured mode if React hasn't re-rendered between the
+  // radio click and the checkbox click.
+  const genDefaultsModeRef = useRef<DefaultsMode>('recommended')
+  const genDefaultTempRef = useRef<number | undefined>(undefined)
+  const genDefaultMaxTokensRef = useRef<number | undefined>(undefined)
+  useEffect(() => {
+    genDefaultsModeRef.current = genDefaultsMode
+  }, [genDefaultsMode])
+  useEffect(() => {
+    genDefaultTempRef.current = genDefaultTemperature
+  }, [genDefaultTemperature])
+  useEffect(() => {
+    genDefaultMaxTokensRef.current = genDefaultMaxTokens
+  }, [genDefaultMaxTokens])
   const [isUpdatingGenDefaults, setIsUpdatingGenDefaults] = useState(false)
 
   // Fetch available models dynamically from the API based on user's configured API keys
@@ -242,6 +275,58 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       return a.name.localeCompare(b.name)
     })
   }, [availableModels])
+
+  // Recommended-value consensus across the project's selected models, scoped
+  // to a usage mode (generation vs evaluation). Mirrors the pattern in
+  // GenerationControlModal so the project Defaults SubSection can show the
+  // same "Empfehlung: X / Verschiedene / Keine Empfehlung" badge UX. Returns
+  // a per-key consensus shape that downstream JSX renders.
+  function buildRecommendedConsensus(mode: 'generation' | 'evaluation') {
+    function consensusFor(key: 'temperature' | 'max_tokens'): {
+      value: number | undefined
+      uniform: boolean
+      anyRec: boolean
+      perModel: Array<{ model: string; value: number | undefined }>
+    } {
+      if (selectedModelIds.length === 0) {
+        return { value: undefined, uniform: false, anyRec: false, perModel: [] }
+      }
+      const perModel = selectedModelIds.map((modelId) => {
+        const model = availableModels?.find((m) => m.id === modelId)
+        const rec = getRecommendedParam(model, key, mode)
+        return {
+          model: modelId,
+          value: typeof rec === 'number' ? rec : undefined,
+          hasAnyRec: hasRecommendations(model),
+        }
+      })
+      const anyRec = perModel.some((m) => m.hasAnyRec)
+      const distinct = Array.from(
+        new Set(perModel.map((m) => m.value).filter((v) => v !== undefined)),
+      )
+      const uniform = distinct.length === 1
+      return {
+        value: uniform ? (distinct[0] as number) : undefined,
+        uniform,
+        anyRec,
+        perModel: perModel.map(({ model, value }) => ({ model, value })),
+      }
+    }
+    return {
+      temperature: consensusFor('temperature'),
+      max_tokens: consensusFor('max_tokens'),
+    }
+  }
+  const genRecConsensus = useMemo(
+    () => buildRecommendedConsensus('generation'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- buildRecommendedConsensus closes over selectedModelIds + availableModels
+    [selectedModelIds, availableModels],
+  )
+  const evalRecConsensus = useMemo(
+    () => buildRecommendedConsensus('evaluation'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedModelIds, availableModels],
+  )
 
   // Instructions state
   const [instructions, setInstructions] = useState('')
@@ -543,12 +628,18 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       setEvalDefaultTemperature(projectEvalTemp)
       setEvalDefaultMaxTokens(projectEvalMaxTokens)
       setEvalDefaultRunsPerTask(currentProject.evaluation_config?.runs_per_task)
+      setEvalDefaultsMode(
+        (currentProject.evaluation_config?.defaults_mode as DefaultsMode) || 'recommended',
+      )
 
       // Load generation defaults
       const genParams = currentProject.generation_config?.selected_configuration?.parameters || {}
       setGenDefaultTemperature(genParams.temperature)
       setGenDefaultMaxTokens(genParams.max_tokens)
       setGenDefaultRunsPerTask(currentProject.generation_config?.runs_per_task)
+      setGenDefaultsMode(
+        (currentProject.generation_config?.defaults_mode as DefaultsMode) || 'recommended',
+      )
 
       setInstructions(currentProject.instructions || '')
       setInstructionsValue(currentProject.instructions || '')
@@ -772,7 +863,71 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   }
 
   // Model selection handlers
+  /** Resolve the per-model pre-fill values for (temperature, max_tokens)
+   * based on the project's `defaults_mode`. Each branch is a deliberate
+   * design choice:
+   *
+   * - **recommended**: pull each model's catalog `recommended_parameters`.
+   *   Generation-mode block first, then the default block. Falls back to
+   *   the model's documented constraint default if the catalog has no rec.
+   * - **minimum**: use the lowest stable value the provider permits —
+   *   `parameter_constraints.temperature.min` for temp, the constraint
+   *   `max_tokens.default` (already a sane lower bound for evaluation) or
+   *   1000 as a generic floor. Useful for deterministic comparison runs.
+   * - **custom**: use the user-entered project-level defaults so a single
+   *   config applies uniformly across all models added thereafter.
+   *
+   * The returned values still go through `getTemperatureConstraints`-style
+   * clamping at the worker so a fixed-temperature model (GPT-5 family)
+   * always lands at its required value regardless of mode. */
+  const computeModeBasedPrefill = (
+    modelId: string,
+    mode: DefaultsMode,
+    customTemp: number | undefined,
+    customMaxTokens: number | undefined,
+    rpMode: 'generation' | 'evaluation',
+  ): { temperature?: number; max_tokens?: number; temperatureFixed?: boolean } => {
+    const model = availableModels?.find((m) => m.id === modelId)
+    const tempConstraints = getTemperatureConstraints(model)
+    const constraintMaxTokens = getDefaultMaxTokens(model)
+    const out: { temperature?: number; max_tokens?: number; temperatureFixed?: boolean } = {}
+
+    // Always honor a fixed temperature constraint (e.g. GPT-5 → 1.0). The
+    // mode controls the SOFT default, but a hard model requirement wins.
+    if (tempConstraints.fixed) {
+      out.temperature = tempConstraints.fixedValue ?? tempConstraints.default
+      out.temperatureFixed = true
+    } else if (mode === 'recommended') {
+      const rec = getRecommendedParam(model, 'temperature', rpMode)
+      out.temperature = typeof rec === 'number' ? rec : tempConstraints.default
+    } else if (mode === 'minimum') {
+      out.temperature = tempConstraints.min
+    } else {
+      // custom: use the project-level value the user entered
+      out.temperature = customTemp ?? tempConstraints.default
+    }
+
+    if (mode === 'recommended') {
+      const rec = getRecommendedParam(model, 'max_tokens', rpMode)
+      out.max_tokens = typeof rec === 'number' ? rec : constraintMaxTokens
+    } else if (mode === 'minimum') {
+      // No provider documents a minimum max_tokens recommendation; use the
+      // catalog's documented default (lowest sensible budget per model)
+      // or a generic floor of 1000 tokens.
+      out.max_tokens = constraintMaxTokens ?? 1000
+    } else {
+      out.max_tokens = customMaxTokens ?? constraintMaxTokens
+    }
+    return out
+  }
+
   const handleModelToggle = (modelId: string) => {
+    // Toggling a model checkbox is an edit — auto-enter the card's edit
+    // mode so the Speichern button surfaces. Without this the user can
+    // tick boxes without realising they aren't persisted until the card
+    // is saved (Issue: model selection silently lost on refresh).
+    if (!cardEditing.generation) beginEditGeneration()
+
     const isCurrentlySelected = selectedModelIds.includes(modelId)
 
     if (isCurrentlySelected) {
@@ -782,25 +937,26 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       // Selecting - add to list and pre-fill defaults if model has specific requirements
       setSelectedModelIds((prev) => [...prev, modelId])
 
-      // Pre-fill model config from backend parameter_constraints (only if not already configured)
+      // Pre-fill model config based on the project's defaults mode
+      // (recommended / minimum / custom). Only sets fields if not already
+      // configured for this model. Read mode + customs from refs so that
+      // a user pattern of "switch mode, then immediately tick a model"
+      // sees the freshly-set values regardless of React render timing.
       if (!modelConfigs[modelId]) {
-        const model = availableModels?.find(m => m.id === modelId)
         const newConfig: Record<string, any> = {}
+        const prefill = computeModeBasedPrefill(
+          modelId,
+          genDefaultsModeRef.current,
+          genDefaultTempRef.current,
+          genDefaultMaxTokensRef.current,
+          'generation',
+        )
+        if (prefill.temperature !== undefined) newConfig.temperature = prefill.temperature
+        if (prefill.temperatureFixed) newConfig.temperatureFixed = true
+        if (prefill.max_tokens !== undefined) newConfig.max_tokens = prefill.max_tokens
 
-        // Temperature defaults from constraints
-        const tempConstraints = getTemperatureConstraints(model)
-        newConfig.temperature = tempConstraints.default
-        if (tempConstraints.fixed) {
-          newConfig.temperatureFixed = true
-        }
-
-        // Max tokens default from constraints
-        const defaultMaxTokens = getDefaultMaxTokens(model)
-        if (defaultMaxTokens) {
-          newConfig.max_tokens = defaultMaxTokens
-        }
-
-        // Reasoning defaults from backend default_config
+        // Reasoning defaults from backend default_config (orthogonal to
+        // the temperature/max_tokens mode logic).
         const reasoningConfig = getReasoningConfig(modelId)
         if (reasoningConfig) {
           newConfig[reasoningConfig.parameter] = reasoningConfig.default
@@ -855,16 +1011,21 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       logger.debug('[API CALL] Saving model IDs:', selectedModelIds)
       logger.debug('[API CALL] Saving model configs:', modelConfigs)
 
-      // Build the generation_config structure
-      const generationConfig = currentProject.generation_config || {
-        selected_configuration: {},
-      }
+      // Build a MINIMAL patch — only the fields this handler owns.
+      // The backend deep-merges at top level (see crud.py update_project),
+      // so unspecified keys (defaults_mode, runs_per_task, prompt_structures
+      // …) are preserved. Avoid spreading currentProject.generation_config
+      // here: a sibling save (handleSaveGenDefaults) running in parallel
+      // could see a stale snapshot if we did, racing-overwriting its
+      // newer defaults_mode/parameters write. Issue surfaced when the
+      // 3-mode picker was added — saves alternated between modes.
+      const existingSelectedConfig =
+        currentProject.generation_config?.selected_configuration || {}
 
       await updateProject(projectId, {
         generation_config: {
-          ...generationConfig,
           selected_configuration: {
-            ...generationConfig.selected_configuration,
+            ...existingSelectedConfig,
             models: selectedModelIds,
             model_configs: modelConfigs,
           },
@@ -935,14 +1096,17 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     setIsUpdatingEvalDefaults(true)
 
     try {
-      // Build the evaluation_config structure
-      const evaluationConfig = currentProject.evaluation_config || {}
-
+      // Minimal patch — only the eval-defaults fields this handler owns.
+      // Backend deep-merges at top level so siblings (evaluation_configs,
+      // immediate_evaluation_enabled, …) survive when other handlers in
+      // the saveEvaluationCard Promise.all race write them concurrently.
+      // Same fix as handleSaveModels / handleSaveGenDefaults.
       await updateProject(projectId, {
         evaluation_config: {
-          ...evaluationConfig,
           default_temperature: evalDefaultTemperature,
           default_max_tokens: evalDefaultMaxTokens,
+          // 3-mode picker for per-judge pre-fill; see DefaultsMode type.
+          defaults_mode: evalDefaultsMode,
           // Multi-run default (migration 042); see comment on the state hook.
           ...(evalDefaultRunsPerTask !== undefined
             ? { runs_per_task: evalDefaultRunsPerTask }
@@ -970,14 +1134,17 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     setIsUpdatingGenDefaults(true)
 
     try {
-      // Build the generation_config structure
-      const generationConfig = currentProject.generation_config || {}
-      const selectedConfiguration = generationConfig.selected_configuration || {}
-      const existingParams = selectedConfiguration.parameters || {}
+      // Minimal patch — only fields this handler owns. Backend deep-merges
+      // at the top level so siblings (e.g. selected_configuration.models
+      // from handleSaveModels) survive. Critical when both handlers fire
+      // in parallel from saveGenerationCard.
+      const existingParams =
+        currentProject.generation_config?.selected_configuration?.parameters || {}
 
       await updateProject(projectId, {
         generation_config: {
-          ...generationConfig,
+          // 3-mode picker for per-model pre-fill; see DefaultsMode type.
+          defaults_mode: genDefaultsMode,
           // Multi-run default (migration 041): omitted when undefined so the
           // server-side default of 1 stays implicit; clamped to 1..25 by the
           // input field below and re-validated by the API router.
@@ -985,7 +1152,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             ? { runs_per_task: genDefaultRunsPerTask }
             : {}),
           selected_configuration: {
-            ...selectedConfiguration,
             parameters: {
               ...existingParams,
               temperature: genDefaultTemperature,
@@ -2490,7 +2656,48 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
                   {t('project.generationDefaults.description')}
                 </p>
-                <div className="grid grid-cols-3 gap-4">
+                {/* 3-mode picker — controls per-model pre-fill when a
+                    model is added. recommended/minimum read each model's
+                    catalog metadata; custom uses the inputs below. */}
+                <div className="mb-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
+                  <div className="mb-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                    {t('project.generationDefaults.modeLabel', 'Standard-Strategie')}
+                  </div>
+                  <div className="space-y-2">
+                    {([
+                      ['recommended', t('project.generationDefaults.modeRecommended', 'Empfohlene Werte (pro Modell)'),
+                        t('project.generationDefaults.modeRecommendedDesc', 'Verwende die vom Anbieter empfohlenen Werte für jedes neu hinzugefügte Modell.')],
+                      ['minimum', t('project.generationDefaults.modeMinimum', 'Minimal-Werte (pro Modell)'),
+                        t('project.generationDefaults.modeMinimumDesc', 'Verwende die niedrigste vom Anbieter zulässige Temperatur für jedes neu hinzugefügte Modell.')],
+                      ['custom', t('project.generationDefaults.modeCustom', 'Benutzerdefiniert'),
+                        t('project.generationDefaults.modeCustomDesc', 'Verwende die unten eingegebenen Werte einheitlich für alle neu hinzugefügten Modelle (Min/Max-Constraints werden weiterhin durchgesetzt).')],
+                    ] as const).map(([modeKey, label, desc]) => (
+                      <label key={modeKey} className="flex items-start gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="gen-defaults-mode"
+                          value={modeKey}
+                          checked={genDefaultsMode === modeKey}
+                          onChange={() => {
+                            // Sync ref + state. handleModelToggle reads
+                            // the ref, so this guarantees a model toggle
+                            // in the same tick sees the new mode without
+                            // waiting for React to re-render.
+                            genDefaultsModeRef.current = modeKey
+                            setGenDefaultsMode(modeKey)
+                            if (!cardEditing.generation) beginEditGeneration()
+                          }}
+                          className="mt-0.5"
+                        />
+                        <span className="flex-1">
+                          <span className="block text-xs font-medium text-zinc-900 dark:text-zinc-100">{label}</span>
+                          <span className="block text-xs text-zinc-500 dark:text-zinc-400">{desc}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
                       {t('project.generationDefaults.defaultTemperature')}
@@ -2502,16 +2709,59 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       step={0.1}
                       value={genDefaultTemperature ?? 0}
                       placeholder="0.0"
-                      onChange={(e) =>
+                      disabled={genDefaultsMode !== 'custom'}
+                      onChange={(e) => {
+                        if (!cardEditing.generation) beginEditGeneration()
                         setGenDefaultTemperature(
                           e.target.value ? parseFloat(e.target.value) : undefined
                         )
-                      }
-                      className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                      }}
+                      className={`mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 ${
+                        genDefaultsMode !== 'custom' ? 'cursor-not-allowed opacity-50' : ''
+                      }`}
                     />
                     <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                      {t('project.generationDefaults.temperatureHelp')}
+                      {genDefaultsMode === 'custom'
+                        ? t('project.generationDefaults.temperatureHelp')
+                        : t('project.generationDefaults.temperatureHelpModeOverride',
+                            'Wird ignoriert: aktive Strategie befüllt Temperatur pro Modell.')}
                     </p>
+                    {/* Recommended-value badge for the project Generation
+                        Defaults — consensus across the project's selected
+                        models. Same UX as the run-trigger modal so the user
+                        sees the same signal regardless of where they edit. */}
+                    {selectedModelIds.length > 0 && (
+                      <div className="mt-1 text-xs">
+                        {genRecConsensus.temperature.uniform &&
+                        genRecConsensus.temperature.value !== undefined ? (
+                          <span className="text-zinc-600 dark:text-zinc-400">
+                            {t('generation.controlModal.recommended', 'Empfehlung')}: {genRecConsensus.temperature.value}
+                            {(genDefaultTemperature ?? 0) !== genRecConsensus.temperature.value && (
+                              <button
+                                type="button"
+                                onClick={() => setGenDefaultTemperature(genRecConsensus.temperature.value)}
+                                className="ml-2 text-blue-600 hover:underline"
+                              >
+                                {t('generation.controlModal.resetToRecommended', 'Zurücksetzen auf Empfohlen')}
+                              </button>
+                            )}
+                          </span>
+                        ) : genRecConsensus.temperature.anyRec ? (
+                          <span
+                            className="text-amber-600 dark:text-amber-400"
+                            title={genRecConsensus.temperature.perModel
+                              .map((m) => `${m.model}: ${m.value ?? '—'}`)
+                              .join('\n')}
+                          >
+                            {t('generation.controlModal.divergentRecommendations', 'Verschiedene Empfehlungen pro Modell')}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400 dark:text-zinc-500">
+                            {t('generation.controlModal.noRecommendation', 'Keine Empfehlung')}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
@@ -2524,42 +2774,103 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       step={100}
                       value={genDefaultMaxTokens ?? 4000}
                       placeholder="4000"
-                      onChange={(e) =>
+                      disabled={genDefaultsMode !== 'custom'}
+                      onChange={(e) => {
+                        if (!cardEditing.generation) beginEditGeneration()
                         setGenDefaultMaxTokens(
                           e.target.value ? parseInt(e.target.value) : undefined
                         )
-                      }
-                      className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                      }}
+                      className={`mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 ${
+                        genDefaultsMode !== 'custom' ? 'cursor-not-allowed opacity-50' : ''
+                      }`}
                     />
                     <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                      {t('project.generationDefaults.maxTokensHelp')}
+                      {genDefaultsMode === 'custom'
+                        ? t('project.generationDefaults.maxTokensHelp')
+                        : t('project.generationDefaults.maxTokensHelpModeOverride',
+                            'Wird ignoriert: aktive Strategie befüllt Max Tokens pro Modell.')}
                     </p>
+                    {selectedModelIds.length > 0 && (
+                      <div className="mt-1 text-xs">
+                        {genRecConsensus.max_tokens.uniform &&
+                        genRecConsensus.max_tokens.value !== undefined ? (
+                          <span className="text-zinc-600 dark:text-zinc-400">
+                            {t('generation.controlModal.recommended', 'Empfehlung')}: {genRecConsensus.max_tokens.value}
+                            {(genDefaultMaxTokens ?? 4000) !== genRecConsensus.max_tokens.value && (
+                              <button
+                                type="button"
+                                onClick={() => setGenDefaultMaxTokens(genRecConsensus.max_tokens.value)}
+                                className="ml-2 text-blue-600 hover:underline"
+                              >
+                                {t('generation.controlModal.resetToRecommended', 'Zurücksetzen auf Empfohlen')}
+                              </button>
+                            )}
+                          </span>
+                        ) : genRecConsensus.max_tokens.anyRec ? (
+                          <span
+                            className="text-amber-600 dark:text-amber-400"
+                            title={genRecConsensus.max_tokens.perModel
+                              .map((m) => `${m.model}: ${m.value ?? '—'}`)
+                              .join('\n')}
+                          >
+                            {t('generation.controlModal.divergentRecommendations', 'Verschiedene Empfehlungen pro Modell')}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400 dark:text-zinc-500">
+                            {t('generation.controlModal.noRecommendation', 'Keine Empfehlung')}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                      {t('project.generationDefaults.defaultRunsPerTask', 'Standard-Anzahl Läufe pro Task')}
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={25}
-                      step={1}
-                      value={genDefaultRunsPerTask ?? 1}
-                      placeholder="1"
-                      onChange={(e) =>
-                        setGenDefaultRunsPerTask(
-                          e.target.value ? parseInt(e.target.value) : undefined
-                        )
-                      }
-                      className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                    />
-                    <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                      {t(
-                        'project.generationDefaults.runsPerTaskHelp',
-                        'Wie oft jede Task-Modell-Kombination generiert werden soll (für Varianzanalyse). Cap 25.',
-                      )}
-                    </p>
-                  </div>
+                </div>
+              </SubSection>
+            </div>
+          )}
+
+          {/* runs_per_task lives in its own SubSection because it's a
+              scheduling/budget knob — orthogonal to LLM parameters and
+              not affected by the recommended/minimum/custom mode picker
+              above. Splitting it makes the mode picker apply only to
+              actual model parameters (temperature/max_tokens). */}
+          {canEditProject() && (
+            <div className="mb-6">
+              <SubSection title={t('project.generationDefaults.runsTitle', 'Multi-Run')}>
+                <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+                  {t('project.generationDefaults.runsDescription',
+                     'Wie oft jede Task-Modell-Kombination generiert werden soll. Multipliziert die Kosten entsprechend.')}
+                </p>
+                <div className="max-w-xs">
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    {t('project.generationDefaults.defaultRunsPerTask', 'Standard-Anzahl Läufe pro Task')}
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={25}
+                    step={1}
+                    value={genDefaultRunsPerTask ?? 1}
+                    placeholder="1"
+                    onChange={(e) => {
+                      // Auto-enter card edit mode so the Speichern button
+                      // surfaces — same UX guarantee as the model toggle
+                      // and the mode picker. Without this, typing a value
+                      // doesn't persist on its own and the user has no
+                      // visible save trigger.
+                      if (!cardEditing.generation) beginEditGeneration()
+                      setGenDefaultRunsPerTask(
+                        e.target.value ? parseInt(e.target.value) : undefined
+                      )
+                    }}
+                    className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                  />
+                  <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                    {t(
+                      'project.generationDefaults.runsPerTaskHelp',
+                      'Standardwert 1. Werte > 1 erzeugen mehrere Trials für Varianzanalyse. Cap 25.',
+                    )}
+                  </p>
                 </div>
               </SubSection>
             </div>
@@ -2972,7 +3283,43 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
                           {t('project.evaluationDefaults.description')}
                         </p>
-                        <div className="grid grid-cols-3 gap-4">
+                        {/* 3-mode picker — controls per-judge pre-fill when a
+                            new llm_judge_* metric is configured. Same shape
+                            as the generation-side picker. */}
+                        <div className="mb-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
+                          <div className="mb-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                            {t('project.evaluationDefaults.modeLabel', 'Standard-Strategie')}
+                          </div>
+                          <div className="space-y-2">
+                            {([
+                              ['recommended', t('project.evaluationDefaults.modeRecommended', 'Empfohlene Werte (pro Judge-Modell)'),
+                                t('project.evaluationDefaults.modeRecommendedDesc', 'Verwende die vom Anbieter empfohlenen Eval-Werte für jedes neu hinzugefügte Judge-Modell.')],
+                              ['minimum', t('project.evaluationDefaults.modeMinimum', 'Minimal-Werte (pro Judge-Modell)'),
+                                t('project.evaluationDefaults.modeMinimumDesc', 'Verwende die niedrigste vom Anbieter zulässige Temperatur für jedes neu hinzugefügte Judge-Modell.')],
+                              ['custom', t('project.evaluationDefaults.modeCustom', 'Benutzerdefiniert'),
+                                t('project.evaluationDefaults.modeCustomDesc', 'Verwende die unten eingegebenen Werte einheitlich für alle neu hinzugefügten Judge-Konfigurationen (Min/Max-Constraints werden weiterhin durchgesetzt).')],
+                            ] as const).map(([modeKey, label, desc]) => (
+                              <label key={modeKey} className="flex items-start gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="eval-defaults-mode"
+                                  value={modeKey}
+                                  checked={evalDefaultsMode === modeKey}
+                                  onChange={() => {
+                                    setEvalDefaultsMode(modeKey)
+                                    if (!cardEditing.evaluation) beginEditEvaluation()
+                                  }}
+                                  className="mt-0.5"
+                                />
+                                <span className="flex-1">
+                                  <span className="block text-xs font-medium text-zinc-900 dark:text-zinc-100">{label}</span>
+                                  <span className="block text-xs text-zinc-500 dark:text-zinc-400">{desc}</span>
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
                               {t('project.evaluationDefaults.defaultTemperature')}
@@ -2984,16 +3331,55 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                               step={0.1}
                               value={evalDefaultTemperature ?? 0}
                               placeholder="0.0"
-                              onChange={(e) =>
+                              disabled={evalDefaultsMode !== 'custom'}
+                              onChange={(e) => {
+                                if (!cardEditing.evaluation) beginEditEvaluation()
                                 setEvalDefaultTemperature(
                                   e.target.value ? parseFloat(e.target.value) : undefined
                                 )
-                              }
-                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                              }}
+                              className={`mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 ${
+                                evalDefaultsMode !== 'custom' ? 'cursor-not-allowed opacity-50' : ''
+                              }`}
                             />
                             <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                              {t('project.evaluationDefaults.temperatureHelp')}
+                              {evalDefaultsMode === 'custom'
+                                ? t('project.evaluationDefaults.temperatureHelp')
+                                : t('project.evaluationDefaults.temperatureHelpModeOverride',
+                                    'Wird ignoriert: aktive Strategie befüllt Temperatur pro Judge-Modell.')}
                             </p>
+                            {selectedModelIds.length > 0 && (
+                              <div className="mt-1 text-xs">
+                                {evalRecConsensus.temperature.uniform &&
+                                evalRecConsensus.temperature.value !== undefined ? (
+                                  <span className="text-zinc-600 dark:text-zinc-400">
+                                    {t('generation.controlModal.recommended', 'Empfehlung')}: {evalRecConsensus.temperature.value}
+                                    {(evalDefaultTemperature ?? 0) !== evalRecConsensus.temperature.value && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setEvalDefaultTemperature(evalRecConsensus.temperature.value)}
+                                        className="ml-2 text-blue-600 hover:underline"
+                                      >
+                                        {t('generation.controlModal.resetToRecommended', 'Zurücksetzen auf Empfohlen')}
+                                      </button>
+                                    )}
+                                  </span>
+                                ) : evalRecConsensus.temperature.anyRec ? (
+                                  <span
+                                    className="text-amber-600 dark:text-amber-400"
+                                    title={evalRecConsensus.temperature.perModel
+                                      .map((m) => `${m.model}: ${m.value ?? '—'}`)
+                                      .join('\n')}
+                                  >
+                                    {t('generation.controlModal.divergentRecommendations', 'Verschiedene Empfehlungen pro Modell')}
+                                  </span>
+                                ) : (
+                                  <span className="text-zinc-400 dark:text-zinc-500">
+                                    {t('generation.controlModal.noRecommendation', 'Keine Empfehlung')}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
@@ -3006,42 +3392,98 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                               step={100}
                               value={evalDefaultMaxTokens ?? 500}
                               placeholder="500"
-                              onChange={(e) =>
+                              disabled={evalDefaultsMode !== 'custom'}
+                              onChange={(e) => {
+                                if (!cardEditing.evaluation) beginEditEvaluation()
                                 setEvalDefaultMaxTokens(
                                   e.target.value ? parseInt(e.target.value) : undefined
                                 )
-                              }
-                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                              }}
+                              className={`mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 ${
+                                evalDefaultsMode !== 'custom' ? 'cursor-not-allowed opacity-50' : ''
+                              }`}
                             />
                             <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                              {t('project.evaluationDefaults.maxTokensHelp')}
+                              {evalDefaultsMode === 'custom'
+                                ? t('project.evaluationDefaults.maxTokensHelp')
+                                : t('project.evaluationDefaults.maxTokensHelpModeOverride',
+                                    'Wird ignoriert: aktive Strategie befüllt Max Tokens pro Judge-Modell.')}
                             </p>
+                            {selectedModelIds.length > 0 && (
+                              <div className="mt-1 text-xs">
+                                {evalRecConsensus.max_tokens.uniform &&
+                                evalRecConsensus.max_tokens.value !== undefined ? (
+                                  <span className="text-zinc-600 dark:text-zinc-400">
+                                    {t('generation.controlModal.recommended', 'Empfehlung')}: {evalRecConsensus.max_tokens.value}
+                                    {(evalDefaultMaxTokens ?? 500) !== evalRecConsensus.max_tokens.value && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setEvalDefaultMaxTokens(evalRecConsensus.max_tokens.value)}
+                                        className="ml-2 text-blue-600 hover:underline"
+                                      >
+                                        {t('generation.controlModal.resetToRecommended', 'Zurücksetzen auf Empfohlen')}
+                                      </button>
+                                    )}
+                                  </span>
+                                ) : evalRecConsensus.max_tokens.anyRec ? (
+                                  <span
+                                    className="text-amber-600 dark:text-amber-400"
+                                    title={evalRecConsensus.max_tokens.perModel
+                                      .map((m) => `${m.model}: ${m.value ?? '—'}`)
+                                      .join('\n')}
+                                  >
+                                    {t('generation.controlModal.divergentRecommendations', 'Verschiedene Empfehlungen pro Modell')}
+                                  </span>
+                                ) : (
+                                  <span className="text-zinc-400 dark:text-zinc-500">
+                                    {t('generation.controlModal.noRecommendation', 'Keine Empfehlung')}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          <div>
-                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                              {t('project.evaluationDefaults.defaultRunsPerTask', 'Standard-Anzahl Judge-Läufe')}
-                            </label>
-                            <input
-                              type="number"
-                              min={1}
-                              max={25}
-                              step={1}
-                              value={evalDefaultRunsPerTask ?? 1}
-                              placeholder="1"
-                              onChange={(e) =>
-                                setEvalDefaultRunsPerTask(
-                                  e.target.value ? parseInt(e.target.value) : undefined
-                                )
-                              }
-                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                            />
-                            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                              {t(
-                                'project.evaluationDefaults.runsPerTaskHelp',
-                                'Wie oft jede Task vom Judge bewertet werden soll (für Varianz-/Konsistenzanalyse). Greift, wenn kein Judge-Ensemble konfiguriert ist. Cap 25.',
-                              )}
-                            </p>
-                          </div>
+                        </div>
+                      </SubSection>
+                    </div>
+                  )}
+
+                  {/* runs_per_task lives in its own SubSection — it's a
+                      scheduling/budget knob orthogonal to the parameter
+                      strategy picker above. Same split as the gen side. */}
+                  {canEditProject() && (
+                    <div className="mb-6">
+                      <SubSection title={t('project.evaluationDefaults.runsTitle', 'Multi-Run')}>
+                        <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+                          {t('project.evaluationDefaults.runsDescription',
+                             'Wie oft jede Task vom Judge bewertet werden soll. Greift, wenn kein Judge-Ensemble konfiguriert ist.')}
+                        </p>
+                        <div className="max-w-xs">
+                          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                            {t('project.evaluationDefaults.defaultRunsPerTask', 'Standard-Anzahl Judge-Läufe')}
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={25}
+                            step={1}
+                            value={evalDefaultRunsPerTask ?? 1}
+                            placeholder="1"
+                            onChange={(e) => {
+                              // Auto-enter card edit mode so the Speichern
+                              // button surfaces — mirrors gen-side fix.
+                              if (!cardEditing.evaluation) beginEditEvaluation()
+                              setEvalDefaultRunsPerTask(
+                                e.target.value ? parseInt(e.target.value) : undefined
+                              )
+                            }}
+                            className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                          />
+                          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                            {t(
+                              'project.evaluationDefaults.runsPerTaskHelp',
+                              'Standardwert 1. Werte > 1 erzeugen mehrere Bewertungen für Varianz-/Konsistenzanalyse. Cap 25.',
+                            )}
+                          </p>
                         </div>
                       </SubSection>
                     </div>
@@ -3201,6 +3643,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       evaluations={evaluationConfigs}
                       onEvaluationsChange={handleEvaluationConfigsChange}
                       onSave={handleEvaluationStarted}
+                      defaultsMode={evalDefaultsMode}
+                      customTemp={evalDefaultTemperature}
+                      customMaxTokens={evalDefaultMaxTokens}
                     />
                   </div>
                   </SubSection>

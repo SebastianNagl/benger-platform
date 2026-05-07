@@ -56,6 +56,13 @@ class EvaluationRunRequest(BaseModel):
     force_rerun: bool = False  # If True, re-evaluate all; if False, only evaluate missing
     task_ids: Optional[List[str]] = None  # Filter to specific tasks (for single-cell re-evaluation)
     model_ids: Optional[List[str]] = None  # Filter to specific models (for single-cell re-evaluation)
+    # (H) Top-level seed mirrors GenerationRequest.parameters.seed. When set,
+    # every metric_parameters block in this run inherits the seed unless it
+    # carries its own metric_parameters.seed (per-config override wins for
+    # backward-compat). The worker reads this via the
+    # `_top_level_seed` key the trigger threads into eval_metadata at
+    # dispatch time.
+    seed: Optional[int] = None
 
 
 class EvaluationRunResponse(BaseModel):
@@ -195,6 +202,24 @@ async def run_evaluation(
         # Use the most common model_id, or fallback to "unknown" if no generations exist
         evaluated_model_id = generation_model_query[0] if generation_model_query else "unknown"
 
+        # (H) Top-level seed propagation: when the request carries a
+        # top-level seed and a config doesn't already pin its own seed in
+        # metric_parameters, inject the run-level seed there. Per-config
+        # `metric_parameters.seed` wins for backward-compat (override of
+        # override). This keeps the worker's _resolve_param tier list
+        # unchanged while letting the trigger thread one seed across all
+        # judges in the run.
+        def _with_run_seed(cfg_dict: dict) -> dict:
+            if request.seed is None:
+                return cfg_dict
+            params = dict(cfg_dict.get("metric_parameters") or {})
+            if "seed" not in params:
+                params["seed"] = request.seed
+                cfg_dict = {**cfg_dict, "metric_parameters": params}
+            return cfg_dict
+
+        dispatched_configs = [_with_run_seed(c.dict()) for c in llm_configs]
+
         evaluation = DBEvaluationRun(
             id=str(uuid.uuid4()),
             project_id=request.project_id,
@@ -208,7 +233,7 @@ async def run_evaluation(
             eval_metadata={
                 "evaluation_type": "evaluation",
                 "triggered_by": current_user.id,
-                "evaluation_configs": [c.dict() for c in llm_configs],
+                "evaluation_configs": dispatched_configs,
                 "batch_size": request.batch_size,
                 "label_config_version": request.label_config_version,
                 "evaluated_model_id": evaluated_model_id,  # Track model in metadata
@@ -216,6 +241,9 @@ async def run_evaluation(
                 "organization_id": organization_id,
                 "task_ids": request.task_ids,
                 "model_ids": request.model_ids,
+                # (H) Run-level seed snapshotted on eval_metadata even when
+                # it's None, for unambiguous post-hoc reproducibility.
+                "_top_level_seed": request.seed,
                 # Side-effect: human-graded singletons that were ensured for
                 # this request, for traceability from the LLM run back to
                 # the parallel ongoing human runs.
@@ -233,7 +261,7 @@ async def run_evaluation(
                 args=[
                     evaluation.id,
                     request.project_id,
-                    [c.dict() for c in llm_configs],
+                    dispatched_configs,
                     request.batch_size,
                     request.label_config_version,
                     not request.force_rerun,  # evaluate_missing_only: inverse of force_rerun

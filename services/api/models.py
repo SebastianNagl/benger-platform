@@ -1083,6 +1083,15 @@ class LLMModel(Base):
     output_cost_per_million = Column(Float, nullable=True)
     # Model-specific parameter constraints (temperature, max_tokens, etc.)
     parameter_constraints = Column(JSON, nullable=True)
+    # Provider-recommended parameter values (migration 046). Shape:
+    #   {default: {key: value, ...},
+    #    evaluation: {key: value, ...},   # optional override for eval mode
+    #    provenance: {source: URL, retrieved: ISO-date}}
+    # NULL = no recommendation; UI shows "keine Empfehlung" badge.
+    # Worker resolution priority: user_per_model > user_project >
+    # recommended[mode] > recommended.default > SYSTEM_DEFAULTS
+    # then constraints.parameter_constraints clamps the final value.
+    recommended_parameters = Column(JSON, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

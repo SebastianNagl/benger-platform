@@ -42,6 +42,7 @@ class TestLLMModelsRouter:
             "temperature": {"supported": True, "min": 0, "max": 2, "default": 1},
             "max_tokens": {"default": 4096},
         }
+        mock_model.recommended_parameters = None
         mock_model.is_active = True
         mock_model.created_at = datetime.now(timezone.utc)
         mock_model.updated_at = None

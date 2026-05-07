@@ -621,6 +621,7 @@ export class EvaluationsClient extends BaseApiClient {
       config_schema: any
       default_config: any
       parameter_constraints?: Record<string, any> | null
+      recommended_parameters?: Record<string, any> | null
       is_active: boolean
       created_at: string | null
       updated_at: string | null

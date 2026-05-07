@@ -16,8 +16,11 @@ import { useI18n } from '@/contexts/I18nContext'
 import { useModels, type Model } from '@/hooks/useModels'
 import {
   getDefaultMaxTokens,
+  getRecommendedParam,
   getTemperatureConstraints,
 } from '@/lib/modelConstraints'
+
+export type EvalDefaultsMode = 'recommended' | 'minimum' | 'custom'
 
 export interface JudgeModelDefaults {
   temperature?: number
@@ -59,8 +62,18 @@ export interface JudgeModelHelpers {
   judgeModels: Model[]
   /** Detect thinking-config shape for a model id, or undefined if not a thinking model. */
   getThinkingConfig: (modelId: string) => ThinkingConfig
-  /** Recommended defaults (temperature + max_tokens) for a freshly-picked model. */
-  getJudgeModelDefaults: (modelId: string) => JudgeModelDefaults
+  /** Recommended defaults (temperature + max_tokens) for a freshly-picked
+   * model. Mode controls the pre-fill strategy: `recommended` reads the
+   * model's catalog `recommended_parameters` (evaluation block); `minimum`
+   * uses the constraint min; `custom` uses the caller-supplied values
+   * (typically the project-level Defaults inputs). Constraint clamping
+   * still wins (e.g. fixed-temperature GPT-5 → temp=1.0). */
+  getJudgeModelDefaults: (
+    modelId: string,
+    mode?: EvalDefaultsMode,
+    customTemp?: number,
+    customMaxTokens?: number,
+  ) => JudgeModelDefaults
   /** Numeric constraints to enforce on the temperature/max-tokens inputs. */
   getModelConstraints: (modelId: string) => ModelConstraints
   /** Validate a candidate temperature value against the model's constraints. */
@@ -93,15 +106,55 @@ export function useJudgeModelHelpers(): JudgeModelHelpers {
   )
 
   const getJudgeModelDefaults = useCallback(
-    (modelId: string): JudgeModelDefaults => {
+    (
+      modelId: string,
+      mode: EvalDefaultsMode = 'recommended',
+      customTemp?: number,
+      customMaxTokens?: number,
+    ): JudgeModelDefaults => {
       const model = judgeModels.find((m) => m.id === modelId)
       const tc = getTemperatureConstraints(model, PROVIDER_TEMPERATURE_RANGES)
       const defaultMaxTokens = getDefaultMaxTokens(model)
-      return {
-        temperature: tc.default,
-        max_tokens: defaultMaxTokens ?? 500,
-        temperatureFixed: tc.fixed,
+
+      // Fixed-temperature models (e.g. GPT-5 family) override mode.
+      if (tc.fixed) {
+        return {
+          temperature: tc.fixedValue ?? tc.default,
+          max_tokens:
+            mode === 'custom'
+              ? customMaxTokens ?? defaultMaxTokens ?? 500
+              : (() => {
+                  const rec = getRecommendedParam(model, 'max_tokens', 'evaluation')
+                  return typeof rec === 'number' ? rec : defaultMaxTokens ?? 500
+                })(),
+          temperatureFixed: true,
+        }
       }
+
+      let temperature: number
+      if (mode === 'recommended') {
+        const rec = getRecommendedParam(model, 'temperature', 'evaluation')
+        temperature = typeof rec === 'number' ? rec : tc.default
+      } else if (mode === 'minimum') {
+        temperature = tc.min
+      } else {
+        temperature = customTemp ?? tc.default
+      }
+
+      let max_tokens: number
+      if (mode === 'recommended') {
+        const rec = getRecommendedParam(model, 'max_tokens', 'evaluation')
+        max_tokens = typeof rec === 'number' ? rec : defaultMaxTokens ?? 500
+      } else if (mode === 'minimum') {
+        // No documented "minimum" max_tokens recommendation across providers;
+        // use each model's catalog default (already a sensible eval budget)
+        // or 500 as a generic floor.
+        max_tokens = defaultMaxTokens ?? 500
+      } else {
+        max_tokens = customMaxTokens ?? defaultMaxTokens ?? 500
+      }
+
+      return { temperature, max_tokens, temperatureFixed: false }
     },
     [judgeModels],
   )

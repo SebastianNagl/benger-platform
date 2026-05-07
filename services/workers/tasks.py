@@ -2,7 +2,7 @@ import logging
 import os
 import re
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import redis
 from celery import Celery
@@ -10,6 +10,104 @@ from dotenv import load_dotenv
 
 # Import response parser for LLM response parsing
 from response_parser import ResponseParser
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# System-wide parameter defaults — deepest fallback tier in the resolution
+# chain. Anything missing from user_per_model / user_project / prompt_metadata
+# / model.recommended_parameters falls back to these. Centralized so the
+# "what's the deepest default for X" question has exactly one answer.
+# ─────────────────────────────────────────────────────────────────────────────
+SYSTEM_DEFAULTS: Dict[str, Any] = {
+    "temperature": 0.0,    # deterministic by default for benchmark reproducibility
+    "max_tokens": 1500,    # small enough to keep cost low when nobody overrides
+    "seed": 42,            # historical default kept for back-compat
+    "top_p": 1.0,
+}
+
+
+def _clamp_temperature_to_constraint(
+    temperature: Optional[float],
+    parameter_constraints: Optional[Dict[str, Any]],
+) -> Tuple[Optional[float], Optional[float]]:
+    """Apply per-model temperature constraints AFTER tier resolution.
+
+    Returns ``(clamped_value, clamped_from)`` where ``clamped_from`` is the
+    pre-clamp value when clamping was applied, else None. Used by both the
+    generation pipeline and the judge pipeline so they enforce the same
+    constraint (e.g. Claude Opus 4.7 / GPT-5 series temperature=1.0
+    required, DeepSeek-R1 min=0.6).
+    """
+    # Defensive: callers may pass a Mock or other non-dict object (e.g. from
+    # tests that don't model the catalog row exactly). Treat anything that
+    # doesn't look like a dict as "no constraints".
+    if not parameter_constraints or not isinstance(parameter_constraints, dict):
+        return temperature, None
+    temp_config = parameter_constraints.get("temperature") or {}
+    if not isinstance(temp_config, dict):
+        return temperature, None
+    # Fixed-temperature models: coerce to required_value.
+    if not temp_config.get("supported", True):
+        required = temp_config.get("required_value")
+        if required is not None and temperature != required:
+            return required, temperature
+        return temperature, None
+    # Range models: clamp to [min, max].
+    pre = temperature
+    min_temp = temp_config.get("min")
+    max_temp = temp_config.get("max")
+    if temperature is not None and min_temp is not None and temperature < min_temp:
+        return min_temp, pre
+    if temperature is not None and max_temp is not None and temperature > max_temp:
+        return max_temp, pre
+    return temperature, None
+
+
+def _resolve_param(
+    key: str,
+    mode: str,                           # "generation" or "evaluation"
+    model_recommended: Optional[Dict[str, Any]],   # model.recommended_parameters
+    project_cfg: Optional[Dict[str, Any]],
+    per_model_cfg: Optional[Dict[str, Any]],
+    prompt_meta: Optional[Dict[str, Any]] = None,
+) -> Tuple[Any, str, Any]:
+    """Resolve a single param value through the priority tiers, returning
+    (final_value, source_tag, recommended_at_trigger_time).
+
+    Priority (highest → lowest):
+        1. prompt_metadata[key]              source="prompt_metadata"
+        2. per_model_cfg[key]                source="user_per_model"
+        3. project_cfg[key]                  source="user_project"
+        4. model_recommended[mode][key]      source="recommended"
+        5. model_recommended["default"][key] source="recommended"
+        6. SYSTEM_DEFAULTS[key]              source="system"
+
+    `recommended_at_trigger_time` is the recommended value that WOULD have
+    been used (mode-specific first, then default block) regardless of which
+    tier ultimately won. Recorded in provenance so analysts can later spot
+    "user overrode the recommendation by 0.3" without re-reading the YAML
+    at the point in time the run fired. Returns None if the model has no
+    recommendation for this key in either block.
+
+    Constraint clamping (`parameter_constraints.required_value`,
+    `min`/`max`) is applied by the caller AFTER this helper returns — those
+    are guardrails, not part of the precedence chain.
+    """
+    rec_default = (model_recommended or {}).get("default") or {}
+    rec_mode = (model_recommended or {}).get(mode) or {}
+    recommended_at_trigger = rec_mode.get(key, rec_default.get(key))
+
+    if prompt_meta and key in prompt_meta:
+        return (prompt_meta[key], "prompt_metadata", recommended_at_trigger)
+    if per_model_cfg and key in per_model_cfg:
+        return (per_model_cfg[key], "user_per_model", recommended_at_trigger)
+    if project_cfg and key in project_cfg:
+        return (project_cfg[key], "user_project", recommended_at_trigger)
+    if key in rec_mode:
+        return (rec_mode[key], "recommended", recommended_at_trigger)
+    if key in rec_default:
+        return (rec_default[key], "recommended", recommended_at_trigger)
+    return (SYSTEM_DEFAULTS.get(key), "system", recommended_at_trigger)
 
 # Logger konfigurieren (must be before database imports)
 logging.basicConfig(level=logging.INFO)
@@ -1051,74 +1149,70 @@ def generate_llm_responses(
                             model_id, {}
                         )
 
-                        # Temperature/max_tokens resolution priority:
-                        # 1. System defaults (lowest)
-                        # 2. Project defaults from generation_config.selected_configuration.parameters
-                        # 3. Per-model config from generation_config.selected_configuration.model_configs
-                        # 4. Prompt metadata (highest)
-
-                        # Start with system defaults
-                        temperature = 0.0
-                        max_tokens = 1500
-                        # Phase 6.6: explicit seed (default 42 keeps the
-                        # historical determinism behavior). Threaded via
-                        # the same priority chain as temperature/max_tokens.
-                        seed = 42
-
-                        # Second priority: Project defaults
+                        # Tiered parameter resolution via the shared
+                        # `_resolve_param` helper (see top of this file).
+                        # Returns (value, source_tag, recommended_at_trigger)
+                        # per key so the provenance snapshot below can record
+                        # what the recommended value was at trigger time even
+                        # when a user override won — making "user deviated
+                        # from provider's recommendation" auditable post-hoc.
                         project_params = selected_config_for_model.get("parameters", {})
-                        if "temperature" in project_params:
-                            temperature = project_params["temperature"]
-                            logger.info(f"📋 Using project default temperature: {temperature}")
-                        if "max_tokens" in project_params:
-                            max_tokens = project_params["max_tokens"]
-                        if "seed" in project_params:
-                            seed = project_params["seed"]
-                            logger.info(f"📋 Using project default seed: {seed}")
 
-                        # Third priority: Per-model config overrides project defaults
+                        # Per-model overrides may live either flat on
+                        # model_config or nested under model_config.generation_config
+                        # (legacy shape kept for backward-compat). Flatten so
+                        # the resolver only has to look one place.
+                        per_model_flat: Dict[str, Any] = {}
                         if model_config:
-                            logger.info(f"📋 Found model_config for {model_id}: {model_config}")
-                            # Check for temperature in model config (direct field)
-                            if "temperature" in model_config:
-                                temperature = model_config["temperature"]
-                                logger.info(f"🔧 Using per-model temperature: {temperature}")
-                            # Also check nested generation_config for backward compatibility
-                            elif "generation_config" in model_config:
-                                if "temperature" in model_config["generation_config"]:
-                                    temperature = model_config["generation_config"]["temperature"]
-                                    logger.info(
-                                        f"🔧 Using per-model temperature (nested): {temperature}"
-                                    )
+                            for _k in ("temperature", "max_tokens", "seed", "top_p"):
+                                if _k in model_config:
+                                    per_model_flat[_k] = model_config[_k]
+                                elif (
+                                    isinstance(model_config.get("generation_config"), dict)
+                                    and _k in model_config["generation_config"]
+                                ):
+                                    per_model_flat[_k] = model_config["generation_config"][_k]
 
-                            # Check for max_tokens in model config
-                            if "max_tokens" in model_config:
-                                max_tokens = model_config["max_tokens"]
-                            elif "generation_config" in model_config:
-                                if "max_tokens" in model_config["generation_config"]:
-                                    max_tokens = model_config["generation_config"]["max_tokens"]
+                        prompt_meta_dict = (
+                            instruction_prompt.prompt_metadata
+                            if (
+                                hasattr(instruction_prompt, "prompt_metadata")
+                                and instruction_prompt.prompt_metadata
+                            )
+                            else None
+                        )
 
-                            # Phase 6.6: same cascade for seed.
-                            if "seed" in model_config:
-                                seed = model_config["seed"]
-                            elif "generation_config" in model_config:
-                                if "seed" in model_config["generation_config"]:
-                                    seed = model_config["generation_config"]["seed"]
+                        model_recommended = (
+                            getattr(model, "recommended_parameters", None) or None
+                        )
 
-                        # Fourth priority: Prompt metadata (highest)
-                        if (
-                            hasattr(instruction_prompt, "prompt_metadata")
-                            and instruction_prompt.prompt_metadata
-                        ):
-                            if "temperature" in instruction_prompt.prompt_metadata:
-                                temperature = instruction_prompt.prompt_metadata["temperature"]
-                                logger.info(
-                                    f"🔥 Using temperature from prompt metadata: {temperature}"
-                                )
-                            if "max_tokens" in instruction_prompt.prompt_metadata:
-                                max_tokens = instruction_prompt.prompt_metadata["max_tokens"]
-                            if "seed" in instruction_prompt.prompt_metadata:
-                                seed = instruction_prompt.prompt_metadata["seed"]
+                        _provenance: Dict[str, Dict[str, Any]] = {}
+
+                        def _resolve(key: str) -> Any:
+                            value, source, rec_at_trigger = _resolve_param(
+                                key=key,
+                                mode="generation",
+                                model_recommended=model_recommended,
+                                project_cfg=project_params,
+                                per_model_cfg=per_model_flat,
+                                prompt_meta=prompt_meta_dict,
+                            )
+                            _provenance[key] = {
+                                "value": value,
+                                "source": source,
+                                "recommended_at_trigger": rec_at_trigger,
+                            }
+                            return value
+
+                        temperature = _resolve("temperature")
+                        max_tokens = _resolve("max_tokens")
+                        seed = _resolve("seed")
+                        if _provenance["temperature"]["source"] != "system":
+                            logger.info(
+                                f"🌡️ temperature={temperature} from "
+                                f"{_provenance['temperature']['source']} "
+                                f"(recommended at trigger: {_provenance['temperature']['recommended_at_trigger']})"
+                            )
 
                         # Multi-run variance: when this is one of N>1 trials
                         # (run_index > 0 or runs_requested > 1), perturb the seed
@@ -1135,11 +1229,19 @@ def generate_llm_responses(
                         except (TypeError, ValueError):
                             _rr = 1
                         if _rr > 1 and run_index > 0:
+                            _seed_pre = seed
                             seed = (seed or 0) + run_index
                             logger.info(
                                 f"🎲 Multi-run trial {run_index}/{_rr}: "
                                 f"seed perturbed to {seed} for variance"
                             )
+                            # Record the actual seed sent to the API in
+                            # provenance, plus the pre-perturbation value
+                            # so an analyst can see the variance offset.
+                            if "seed" in _provenance:
+                                _provenance["seed"]["value"] = seed
+                                _provenance["seed"]["multi_run_offset"] = run_index
+                                _provenance["seed"]["pre_perturbation"] = _seed_pre
 
                         # Extract reasoning/thinking config from model_config.
                         # Phase 6.6: also forward `seed` here so all four
@@ -1167,7 +1269,14 @@ def generate_llm_responses(
                                     "thinking_token_budget"
                                 ]
 
-                        # Apply model-specific parameter constraints
+                        # Apply model-specific parameter constraints (final
+                        # guardrail after the precedence chain). Clamping
+                        # also patches `_provenance.temperature.value` so
+                        # the snapshot reflects what was actually sent to
+                        # the LLM, not the user's pre-clamp choice — but
+                        # `source` and `recommended_at_trigger` are kept
+                        # so analysts can still see "user tried X, model
+                        # forced Y".
                         if hasattr(model, 'parameter_constraints') and model.parameter_constraints:
                             constraints = model.parameter_constraints
                             temp_config = constraints.get('temperature', {})
@@ -1180,7 +1289,9 @@ def generate_llm_responses(
                                         logger.info(
                                             f"🔒 Overriding temperature to {required_temp} for {api_model_name} (model requirement)"
                                         )
+                                        _provenance["temperature"]["clamped_from"] = temperature
                                     temperature = required_temp
+                                    _provenance["temperature"]["value"] = temperature
                             else:
                                 # Clamp to allowed min/max range
                                 min_temp = temp_config.get('min')
@@ -1190,24 +1301,34 @@ def generate_llm_responses(
                                         f"⚠️ Clamping temperature from {temperature} to min {min_temp} for {api_model_name}. "
                                         f"Reason: {temp_config.get('reason', 'Model constraint')}"
                                     )
+                                    _provenance["temperature"]["clamped_from"] = temperature
                                     temperature = min_temp
+                                    _provenance["temperature"]["value"] = temperature
                                 if max_temp is not None and temperature > max_temp:
                                     logger.info(
                                         f"⚠️ Clamping temperature from {temperature} to max {max_temp} for {api_model_name}. "
                                         f"Reason: {temp_config.get('reason', 'Model constraint')}"
                                     )
+                                    _provenance["temperature"]["clamped_from"] = temperature
                                     temperature = max_temp
+                                    _provenance["temperature"]["value"] = temperature
 
                         logger.info(
                             f"🌡️ Final temperature: {temperature}, max_tokens: {max_tokens} for model {model_id}"
                         )
 
-                        # Capture resolved parameters for provenance
+                        # Capture resolved parameters for provenance.
+                        # `_param_provenance` records (value, source,
+                        # recommended_at_trigger) per key so analysts can
+                        # group runs by which tier won (system / recommended
+                        # / user_*) and detect deviation from provider
+                        # recommendations even after the YAML changes.
                         if _captured_parameters is None:
                             _captured_parameters = {
                                 "temperature": temperature,
                                 "max_tokens": max_tokens,
                                 **reasoning_kwargs,
+                                "_param_provenance": _provenance,
                             }
 
                         # Apply rate limiting (Issue #482)
@@ -2417,7 +2538,63 @@ def run_evaluation(
                     for judge_entry in judges_list:
                         judge_model = judge_entry.get("judge_model_id") or "gpt-4o"
                         runs = max(1, int(judge_entry.get("runs", 1) or 1))
+                        # Tiered parameter resolution for judges (mode='evaluation').
+                        # Pulls model.recommended_parameters from the catalog so
+                        # the judge call honors provider-recommended defaults
+                        # when metric_parameters doesn't pin a value. Snapshots
+                        # the same _param_provenance shape into the judge_run
+                        # for academic-rigor traceability.
+                        judge_model_obj = (
+                            db.query(DBLLMModel).filter(DBLLMModel.id == judge_model).first()
+                        )
+                        judge_recommended = (
+                            getattr(judge_model_obj, "recommended_parameters", None) or None
+                        )
                         for run_index in range(runs):
+                            judge_provenance: Dict[str, Dict[str, Any]] = {}
+
+                            def _resolve_judge(key: str, fallback_default: Any = None):
+                                value, source, rec_at_trigger = _resolve_param(
+                                    key=key,
+                                    mode="evaluation",
+                                    model_recommended=judge_recommended,
+                                    project_cfg=None,        # eval defaults are per-config
+                                    per_model_cfg=params,    # metric_parameters wins
+                                )
+                                if value is None and fallback_default is not None:
+                                    value = fallback_default
+                                judge_provenance[key] = {
+                                    "value": value,
+                                    "source": source,
+                                    "recommended_at_trigger": rec_at_trigger,
+                                }
+                                return value
+
+                            judge_temp = _resolve_judge("temperature", 0.0)
+                            judge_max_tokens = _resolve_judge("max_tokens", 500)
+                            judge_seed_base = _resolve_judge("seed", 42)
+                            # Apply per-model temperature constraint (e.g. Opus
+                            # 4.7 requires 1.0, GPT-5 forces 1.0, DeepSeek-R1
+                            # min 0.6). Mirror of the generation-side clamp so
+                            # the judge call respects the same hard limits.
+                            judge_constraints = (
+                                getattr(judge_model_obj, "parameter_constraints", None) or None
+                            )
+                            judge_temp, _temp_clamped_from = _clamp_temperature_to_constraint(
+                                judge_temp, judge_constraints
+                            )
+                            if _temp_clamped_from is not None and "temperature" in judge_provenance:
+                                judge_provenance["temperature"]["clamped_from"] = _temp_clamped_from
+                                judge_provenance["temperature"]["value"] = judge_temp
+                            judge_seed = int(judge_seed_base or 42) + run_index
+                            # Record the actual seed sent to the judge in
+                            # provenance, plus the pre-perturbation base
+                            # so an analyst can see the multi-run offset.
+                            if "seed" in judge_provenance and run_index > 0:
+                                judge_provenance["seed"]["value"] = judge_seed
+                                judge_provenance["seed"]["multi_run_offset"] = run_index
+                                judge_provenance["seed"]["pre_perturbation"] = judge_seed_base
+
                             jr_id = _create_judge_run(
                                 judge_model_id=judge_model,
                                 run_index=run_index,
@@ -2425,6 +2602,7 @@ def run_evaluation(
                                     **params,
                                     "_resolved_judge": judge_model,
                                     "_run_index": run_index,
+                                    "_param_provenance": judge_provenance,
                                 },
                             )
                             evaluator = None
@@ -2437,8 +2615,8 @@ def run_evaluation(
                                     user_id=triggered_by,
                                     provider=provider,
                                     judge_model=judge_model,
-                                    temperature=params.get("temperature", 0.0),
-                                    max_tokens=params.get("max_tokens", 500),
+                                    temperature=judge_temp,
+                                    max_tokens=judge_max_tokens,
                                     criteria=params.get("dimensions"),
                                     custom_criteria=params.get("custom_criteria"),
                                     custom_prompt_template=params.get("custom_prompt_template"),
@@ -2446,12 +2624,7 @@ def run_evaluation(
                                     field_mappings=params.get("field_mappings"),
                                     score_scale=params.get("score_scale", "1-5"),
                                     organization_id=organization_id,
-                                    # Multi-run variance: perturb seed by
-                                    # run_index for runs > 0 so the same judge
-                                    # produces actual variance across its
-                                    # repetitions. Mirror of the generation-side
-                                    # seed perturbation in generate_llm_responses.
-                                    seed=int(params.get("seed", 42) or 42) + run_index,
+                                    seed=judge_seed,
                                 )
                                 e2e_test_mode = os.environ.get("E2E_TEST_MODE") == "true"
                                 if not (evaluator.ai_service or e2e_test_mode):
@@ -3835,6 +4008,41 @@ def run_single_sample_evaluation(
                 _dispatch_judge_run_cache[cache_key] = existing.id
                 per_config_judge_run_id[cid] = existing.id
                 return existing.id
+            # Same tiered resolution as run_evaluation, applied to the
+            # immediate-eval / single-sample dispatch path so judge_runs
+            # created here also capture _param_provenance for academic-
+            # rigor traceability.
+            judge_model_obj = (
+                db.query(DBLLMModel).filter(DBLLMModel.id == judge_model).first()
+                if judge_model
+                else None
+            )
+            judge_recommended = (
+                getattr(judge_model_obj, "recommended_parameters", None) or None
+            )
+            judge_provenance: Dict[str, Dict[str, Any]] = {}
+
+            def _resolve_for_jr(key: str):
+                value, source, rec_at_trigger = _resolve_param(
+                    key=key,
+                    mode="evaluation",
+                    model_recommended=judge_recommended,
+                    project_cfg=None,
+                    per_model_cfg=params,
+                )
+                judge_provenance[key] = {
+                    "value": value,
+                    "source": source,
+                    "recommended_at_trigger": rec_at_trigger,
+                }
+                return value
+
+            for _k in ("temperature", "max_tokens", "seed"):
+                _resolve_for_jr(_k)
+
+            snapshot = dict(params) if params else {}
+            snapshot["_param_provenance"] = judge_provenance
+
             jr = EvaluationJudgeRun(
                 id=str(uuid.uuid4()),
                 evaluation_id=dispatch_eval_id,
@@ -3842,7 +4050,7 @@ def run_single_sample_evaluation(
                 run_index=0,
                 status="running",
                 started_at=datetime.now(),
-                metric_parameters_snapshot=params or None,
+                metric_parameters_snapshot=snapshot,
             )
             db.add(jr)
             db.flush()
@@ -4160,13 +4368,44 @@ def _evaluate_llm_judge_single(
     judge_model = params.get("judge_model", "gpt-4o")
     provider = _get_provider_from_model(judge_model)
 
+    # Tiered parameter resolution for the judge call (mode='evaluation').
+    # Same precedence as generation but with metric_parameters as the
+    # user_per_model tier. Catalog `recommended_parameters` becomes the
+    # third tier so a judge call honors provider-recommended defaults
+    # whenever metric_parameters doesn't pin a value.
+    judge_model_obj = (
+        db.query(DBLLMModel).filter(DBLLMModel.id == judge_model).first()
+    )
+    judge_recommended = (
+        getattr(judge_model_obj, "recommended_parameters", None) or None
+    )
+
+    def _resolve_judge(key: str, fallback_default: Any = None):
+        value, _source, _rec = _resolve_param(
+            key=key,
+            mode="evaluation",
+            model_recommended=judge_recommended,
+            project_cfg=None,
+            per_model_cfg=params,
+        )
+        return value if value is not None else fallback_default
+
+    # Apply per-model temperature constraint (e.g. Opus 4.7 → 1.0, GPT-5
+    # → 1.0, DeepSeek-R1 min 0.6). Mirror of the generation-side clamp.
+    judge_constraints = (
+        getattr(judge_model_obj, "parameter_constraints", None) or None
+    )
+    _judge_temp, _ = _clamp_temperature_to_constraint(
+        _resolve_judge("temperature", 0.0), judge_constraints
+    )
+
     llm_judge = create_llm_judge_for_user(
         db=db,
         user_id=user_id,
         provider=provider,
         judge_model=judge_model,
-        temperature=params.get("temperature", 0.0),
-        max_tokens=params.get("max_tokens", 500),
+        temperature=_judge_temp,
+        max_tokens=_resolve_judge("max_tokens", 500),
         criteria=params.get("dimensions"),
         custom_criteria=params.get("custom_criteria"),
         custom_prompt_template=params.get("custom_prompt_template"),
@@ -4174,8 +4413,7 @@ def _evaluate_llm_judge_single(
         field_mappings=params.get("field_mappings"),
         score_scale=params.get("score_scale", "1-5"),
         organization_id=organization_id,
-        # Phase 6.6: per-run seed (default 42).
-        seed=params.get("seed", 42),
+        seed=_resolve_judge("seed", 42),
     )
 
     if not llm_judge.ai_service:

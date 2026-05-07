@@ -440,8 +440,16 @@ async def start_generation(
 
     # Save config changes if any
     if config_updated:
+        from sqlalchemy.orm.attributes import flag_modified
+
         generation_config["selected_configuration"] = selected_config
         project.generation_config = generation_config
+        # JSONB mutation guard: SQLAlchemy doesn't detect in-place dict edits,
+        # so without flag_modified the assignment above would not persist
+        # (the parent dict identity didn't change). Without this, the worker
+        # reads stale generation_config and falls back to SYSTEM_DEFAULTS for
+        # every parameter — silently dropping the per-trigger override.
+        flag_modified(project, "generation_config")
         db.add(project)
         db.commit()
 

@@ -49,6 +49,9 @@ COMPARE_FIELDS = (
     "output_cost_per_million",
     "default_config",
     "parameter_constraints",
+    # Migration 046: provider-recommended parameter values per model.
+    # YAML key matches the DB column name 1:1 (no rename).
+    "recommended_parameters",
 )
 
 

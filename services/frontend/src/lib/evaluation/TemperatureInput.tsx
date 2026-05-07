@@ -7,6 +7,8 @@
  */
 
 import { useI18n } from '@/contexts/I18nContext'
+import { useModels } from '@/hooks/useModels'
+import { getRecommendedParam, hasRecommendations } from '@/lib/modelConstraints'
 import { useJudgeModelHelpers } from './judgeModelHelpers'
 
 interface Props {
@@ -18,8 +20,13 @@ interface Props {
 export function TemperatureInput({ judgeModelId, value, onChange }: Props) {
   const { t } = useI18n()
   const { getModelConstraints, getTemperatureValidation } = useJudgeModelHelpers()
+  const { models } = useModels()
   const constraints = getModelConstraints(judgeModelId)
   const tempValidation = getTemperatureValidation(judgeModelId, value)
+  const model = models.find((m) => m.id === judgeModelId)
+  const recommended = getRecommendedParam(model, 'temperature', 'evaluation')
+  const recNumber = typeof recommended === 'number' ? recommended : undefined
+  const modelHasRec = hasRecommendations(model)
 
   return (
     <div>
@@ -78,6 +85,32 @@ export function TemperatureInput({ judgeModelId, value, onChange }: Props) {
                 `Response randomness (${constraints.temperature.min} - ${constraints.temperature.max} for this provider)`,
               )}
         </p>
+      )}
+      {!constraints.temperature.fixed && (
+        <div className="mt-1 text-xs">
+          {recNumber !== undefined ? (
+            <span className="text-zinc-600 dark:text-zinc-400">
+              {t('evaluationBuilder.parameters.recommended', 'Empfehlung')}: {recNumber}
+              {value !== undefined && value !== recNumber && (
+                <button
+                  type="button"
+                  onClick={() => onChange(recNumber)}
+                  className="ml-2 text-blue-600 hover:underline"
+                >
+                  {t('evaluationBuilder.parameters.resetToRecommended', 'Zurücksetzen auf Empfohlen')}
+                </button>
+              )}
+            </span>
+          ) : modelHasRec ? (
+            <span className="text-zinc-400 dark:text-zinc-500">
+              {t('evaluationBuilder.parameters.noRecommendationForKey', 'Keine Empfehlung für temperature')}
+            </span>
+          ) : (
+            <span className="text-zinc-400 dark:text-zinc-500">
+              {t('evaluationBuilder.parameters.noRecommendation', 'Keine Empfehlung')}
+            </span>
+          )}
+        </div>
       )}
     </div>
   )
