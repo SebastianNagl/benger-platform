@@ -83,20 +83,35 @@ async function proxyRequest(
       nodeEnv: process.env.NODE_ENV,
     })
 
-    // Forward the request body as a stream rather than buffering with
-    // `await request.text()` — large imports (legal-corpus uploads in the
-    // 10–100 MB range) would otherwise materialize the whole payload in
-    // Next.js memory, then again in the outbound fetch call, which OOMs
-    // the frontend pod and surfaces as an opaque 500 to the client.
-    // Streaming hands the bytes straight through to the backend (FastAPI
-    // / uvicorn handle chunked transfer-encoding fine) and removes the
-    // implicit Next.js-side size cap.
-    const body =
-      method !== 'GET' && method !== 'HEAD' ? request.body : undefined
+    // Hybrid body forwarding:
+    //   - small requests (the 99% case: JSON CRUD, auth) are buffered once
+    //     as ArrayBuffer and handed to fetch. Single copy, no UTF-8 round
+    //     trip, fetch sets Content-Length itself, undici is happy.
+    //   - large requests (legal-corpus imports in the 10–100 MB range) are
+    //     streamed via `request.body` + `duplex: 'half'` to avoid OOM-ing
+    //     the frontend pod (the original motivation for streaming).
+    //
+    // Streaming-only broke small POSTs in prod: undici returned
+    // `TypeError: fetch failed` for the wizard's create-project payload
+    // (a few KB JSON), surfacing to users as an opaque 500. The 100 MB
+    // ASGI guard in services/api/main.py is the backstop for both paths.
+    const STREAM_THRESHOLD_BYTES = 5 * 1024 * 1024
+
+    const declaredLength = request.headers.get('content-length')
+    const declaredBytes = declaredLength ? parseInt(declaredLength, 10) : NaN
+    const shouldStream =
+      !Number.isFinite(declaredBytes) || declaredBytes > STREAM_THRESHOLD_BYTES
+
+    let body: BodyInit | undefined
+    if (method !== 'GET' && method !== 'HEAD') {
+      body = shouldStream
+        ? (request.body ?? undefined)
+        : await request.arrayBuffer()
+    }
 
     // Forward headers (excluding host and other problematic headers).
-    // `content-length` is dropped on purpose: with a streaming body we
-    // emit chunked transfer-encoding instead.
+    // `content-length` is dropped: when streaming we emit chunked transfer
+    // encoding; when buffering, fetch recomputes it from the ArrayBuffer.
     const headers = new Headers()
     request.headers.forEach((value, key) => {
       if (
@@ -112,15 +127,13 @@ async function proxyRequest(
       headers.set('cookie', cookies)
     }
 
-    // Make the request to the backend API. `duplex: 'half'` is required
-    // by undici (Node ≥ 18) whenever the request body is a ReadableStream
-    // — without it the fetch throws "RequestInit: duplex option is
-    // required when sending a body."
+    // `duplex: 'half'` is required by undici (Node ≥ 18) whenever the body
+    // is a ReadableStream. Buffered ArrayBuffer bodies must NOT pass it.
     const response = await fetch(url, {
       method,
       headers,
       body,
-      duplex: 'half',
+      ...(shouldStream && body ? { duplex: 'half' } : {}),
     } as RequestInit & { duplex?: 'half' })
 
     logger.debug(`✅ API response received:`, {

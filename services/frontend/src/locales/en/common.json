@@ -2125,10 +2125,10 @@
     "grades": {
       "title": "Academic Grades",
       "description": "Enter your grades if applicable to your expertise level.",
-      "zwischenpruefung": "Zwischenprüfung Grade",
-      "vorgeruecktenubung": "Übung für Fortgeschrittene Grade",
-      "firstStaatsexamen": "First Staatsexamen Grade",
-      "secondStaatsexamen": "Second Staatsexamen Grade"
+      "zwischenpruefung": "Zwischenprüfung Average Grade",
+      "vorgeruecktenubung": "Übung für Fortgeschrittene Average Grade",
+      "firstStaatsexamen": "First Staatsexamen Average Grade",
+      "secondStaatsexamen": "Second Staatsexamen Average Grade"
     },
     "atiS": {
       "title": "ATI-S (Affinity for Technology Interaction - Short)",
