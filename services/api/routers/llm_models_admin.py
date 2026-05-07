@@ -20,7 +20,7 @@ from auth_module.dependencies import require_superadmin
 from database import get_db, initialize_llm_models
 from models import User
 from seeds.llm_models_loader import load_catalog
-from ai_services.provider_capabilities import reload_cost_cache
+from ai_services.provider_capabilities import reload_capability_caches
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ def reseed_llm_models(
     """
     catalog = load_catalog()
     rows_changed = initialize_llm_models(db)
-    reload_cost_cache()
+    reload_capability_caches()
 
     # Drop any pre-existing flag files so the seed isn't accidentally skipped
     # next startup; the lifespan code will recreate the right one.
