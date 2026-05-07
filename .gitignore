@@ -265,3 +265,6 @@ docs/security-reports/
 
 /.quarto/
 **/*.quarto_ipynb
+
+# Publication drafts (kept local, not part of the platform repo)
+publications/Dataset_ARR/
