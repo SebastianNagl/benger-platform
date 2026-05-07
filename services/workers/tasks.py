@@ -2685,11 +2685,6 @@ def run_evaluation(
                             llm_judge_evaluators[config_id] = entry["evaluator"]
                             llm_judge_run_ids[config_id] = entry["judge_run_id"]
                             break
-                            logger.info(
-                                f"Using mock LLM judge for E2E test config {config_id} (init failed: {e})"
-                            )
-                        else:
-                            logger.error(f"Failed to initialize LLM judge for config {config_id}: {e}")
                 else:
                     if default_judge_run_id is None:
                         default_judge_run_id = _create_judge_run(

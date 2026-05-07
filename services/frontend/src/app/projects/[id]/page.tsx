@@ -4067,6 +4067,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           (currentProject as any)?.llm_model_ids ||
           []
         }
+        defaultSelectedModels={
+          (currentProject as any)?.generation_config?.selected_configuration?.models ||
+          (currentProject as any)?.llm_model_ids ||
+          []
+        }
         project={currentProject as any}
         onClose={() => setShowGenerationStartModal(false)}
         onSuccess={() => {

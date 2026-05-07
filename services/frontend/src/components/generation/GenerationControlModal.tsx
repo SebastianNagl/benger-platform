@@ -19,7 +19,14 @@ import { Project } from '@/types/labelStudio'
 interface GenerationControlModalProps {
   isOpen: boolean
   projectId?: string
+  /** Available pool of model IDs to render as checkboxes. */
   models: string[]
+  /** Optional set of model IDs to pre-check on open. Used by the project
+   * page to carry the project's saved model selection through to the
+   * trigger modal so the user doesn't have to re-tick. Defaults to `[]`
+   * (no pre-selection) so unit tests of the picker UI keep their
+   * empty-on-open expectation. */
+  defaultSelectedModels?: string[]
   project?: Project
   onClose: () => void
   onGenerate?: (
@@ -34,6 +41,7 @@ export function GenerationControlModal({
   isOpen,
   projectId,
   models,
+  defaultSelectedModels = [],
   project,
   onClose,
   onGenerate,
@@ -130,19 +138,22 @@ export function GenerationControlModal({
   const structureKeys = Object.keys(availableStructures)
   const hasStructures = structureKeys.length > 0
 
-  // Reset state when modal opens. Pre-select the project's saved models
-  // (the `models` prop is sourced from generation_config.selected_configuration.models
-  // upstream), so the user's project-level choice carries through to the
-  // run-trigger without forcing them to re-tick everything.
+  // Reset state when modal opens. Pre-select `defaultSelectedModels`
+  // (which the project page sources from
+  // generation_config.selected_configuration.models) so the user's
+  // project-level choice carries through to the run-trigger without
+  // forcing them to re-tick everything. Defaults to `[]` for callers
+  // that don't pass it (legacy behavior used by unit tests).
   //
   // Deps are intentionally `[isOpen]` only: the parent re-computes
-  // `models` inline on every render so its reference is unstable. If we
-  // included it in the dep array, the effect would fire mid-interaction
-  // any time the parent re-rendered, blowing away the user's manual
-  // deselections. We only want to reset on the closed→open transition.
+  // `defaultSelectedModels` inline on every render so its reference is
+  // unstable. If we included it in the dep array, the effect would
+  // fire mid-interaction any time the parent re-rendered, blowing away
+  // the user's manual deselections. We only want to reset on the
+  // closed→open transition.
   useEffect(() => {
     if (isOpen) {
-      setSelectedModels(models)
+      setSelectedModels(defaultSelectedModels)
       setSelectedStructures([])
       setMode('missing')
       setLoading(false)
