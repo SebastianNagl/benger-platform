@@ -15,6 +15,8 @@
 'use client'
 
 import { EvaluationBuilder } from '@/components/evaluation/EvaluationBuilder'
+import { EvaluationControlModal } from '@/components/evaluation/EvaluationControlModal'
+import { GenerationControlModal } from '@/components/generation/GenerationControlModal'
 import { useSlot } from '@/lib/extensions/slots'
 import {
   LabelConfigEditor,
@@ -170,8 +172,19 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const [expandedConfig, setExpandedConfig] = useState(false)
   const [expandedModels, setExpandedModels] = useState(false)
   const [expandedInstructions, setExpandedInstructions] = useState(false)
-  const [expandedGenDefaults, setExpandedGenDefaults] = useState(false)
-  const [expandedEvalDefaults, setExpandedEvalDefaults] = useState(false)
+  // Generation/Evaluation Defaults now use the shared SubSection wrapper
+  // which owns its own expand state — these locals are no longer needed
+  // but TypeScript treats unused setters as errors only when strict, so
+  // leaving them removed is the cleaner path.
+
+  // Footer-level "Generierung/Evaluierung starten" buttons live at the
+  // ConfigCard level (parallel to the deep button inside EvaluationBuilder
+  // that's only visible when Methoden is expanded). Two paths to the same
+  // modal is intentional — the deep one stays for power users editing the
+  // metric list, the surface one is the always-visible CTA when the card
+  // is open.
+  const [showGenerationStartModal, setShowGenerationStartModal] = useState(false)
+  const [showEvaluationStartModal, setShowEvaluationStartModal] = useState(false)
 
   // Evaluation configs (Phase 8: N:M Field Mapping)
   const [evaluationConfigs, setEvaluationConfigs] = useState<
@@ -2460,41 +2473,16 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           {/* Generation Defaults — peer of Model Selection (was nested inside
               expandedModels until the multi-run feature; pulled out so the new
               "Default number of runs" knob is discoverable without expanding
-              Model Selection first). */}
+              Model Selection first). Uses the shared SubSection wrapper so it
+              matches the visual style of Modellauswahl / Prompt-Strukturen
+              instead of looking like a one-off styled box. */}
           {canEditProject() && (
-            <div className="mb-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => setExpandedGenDefaults((v) => !v)}
-                  className="flex flex-1 items-center gap-2 text-left"
-                  aria-expanded={expandedGenDefaults}
-                >
-                  <svg
-                    className={`h-4 w-4 flex-shrink-0 text-zinc-400 transition-transform ${expandedGenDefaults ? 'rotate-90 transform' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                  <div>
-                    <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
-                      {t('project.generationDefaults.title')}
-                    </h4>
-                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                      {t('project.generationDefaults.description')}
-                    </p>
-                  </div>
-                </button>
-              </div>
-              {expandedGenDefaults && (
-                <div className="mt-4 grid grid-cols-3 gap-4">
+            <div className="mb-6">
+              <SubSection title={t('project.generationDefaults.title')}>
+                <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+                  {t('project.generationDefaults.description')}
+                </p>
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
                       {t('project.generationDefaults.defaultTemperature')}
@@ -2565,7 +2553,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     </p>
                   </div>
                 </div>
-              )}
+              </SubSection>
             </div>
           )}
 
@@ -2929,6 +2917,26 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
             )}
           </div>
 
+          {/* Always-visible "Generierung starten" CTA at the card footer.
+              Mirrors the eval card's start button so both ConfigCards have
+              parallel placement, and stays visible regardless of which
+              sub-collapsibles inside are open. Models live under the
+              nested generation_config.selected_configuration.models path
+              (legacy llm_model_ids is null on newer projects). */}
+          {canEditProject() &&
+            (((currentProject as any)?.generation_config?.selected_configuration?.models?.length ?? 0) > 0 ||
+              ((currentProject as any)?.llm_model_ids?.length ?? 0) > 0) && (
+            <div className="flex justify-end gap-2 border-t pt-4 dark:border-zinc-700">
+              <Button
+                onClick={() => setShowGenerationStartModal(true)}
+                className="flex items-center gap-2 text-sm"
+              >
+                <PlayIcon className="h-4 w-4" />
+                {t('project.generation.runCta', 'Generierung starten')}
+              </Button>
+            </div>
+          )}
+
           </ConfigCard>
           )}
 
@@ -2947,6 +2955,91 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               middle collapsible). Direct children of the ConfigCard. */}
           {canEditProject() ? (
             <>
+                  {/* Evaluation Defaults — placed at the top of the eval card
+                      to mirror Generation Defaults' position in the gen card.
+                      Owns the wizard-level temperature / max_tokens / runs
+                      defaults that propagate into newly added eval configs. */}
+                  {canEditProject() && (
+                    <div className="mb-6">
+                      <SubSection title={t('project.evaluationDefaults.title')}>
+                        <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+                          {t('project.evaluationDefaults.description')}
+                        </p>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                              {t('project.evaluationDefaults.defaultTemperature')}
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              max={2}
+                              step={0.1}
+                              value={evalDefaultTemperature ?? 0}
+                              placeholder="0.0"
+                              onChange={(e) =>
+                                setEvalDefaultTemperature(
+                                  e.target.value ? parseFloat(e.target.value) : undefined
+                                )
+                              }
+                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                            />
+                            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                              {t('project.evaluationDefaults.temperatureHelp')}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                              {t('project.evaluationDefaults.defaultMaxTokens')}
+                            </label>
+                            <input
+                              type="number"
+                              min={100}
+                              max={16000}
+                              step={100}
+                              value={evalDefaultMaxTokens ?? 500}
+                              placeholder="500"
+                              onChange={(e) =>
+                                setEvalDefaultMaxTokens(
+                                  e.target.value ? parseInt(e.target.value) : undefined
+                                )
+                              }
+                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                            />
+                            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                              {t('project.evaluationDefaults.maxTokensHelp')}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                              {t('project.evaluationDefaults.defaultRunsPerTask', 'Standard-Anzahl Judge-Läufe')}
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={25}
+                              step={1}
+                              value={evalDefaultRunsPerTask ?? 1}
+                              placeholder="1"
+                              onChange={(e) =>
+                                setEvalDefaultRunsPerTask(
+                                  e.target.value ? parseInt(e.target.value) : undefined
+                                )
+                              }
+                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                            />
+                            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                              {t(
+                                'project.evaluationDefaults.runsPerTaskHelp',
+                                'Wie oft jede Task vom Judge bewertet werden soll (für Varianz-/Konsistenzanalyse). Greift, wenn kein Judge-Ensemble konfiguriert ist. Cap 25.',
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </SubSection>
+                    </div>
+                  )}
+
                   {/* Evaluation settings sub-section — owns its own state buffer,
                       flushed by the Eval card's single Speichern. */}
                   {canEditProject() && (
@@ -3034,118 +3127,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     </SubSection>
                   )}
 
-                  {/* Evaluation Defaults — peer of Evaluierungsmethoden (was nested
-                      inside Evaluierungsmethoden until the multi-run feature; pulled
-                      out so the new "Default judge runs" knob is discoverable
-                      without expanding Methoden first). Mirrors Generation Defaults. */}
-                  {canEditProject() && (
-                    <div className="mb-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
-                      <div className="flex items-center justify-between gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setExpandedEvalDefaults((v) => !v)}
-                          className="flex flex-1 items-center gap-2 text-left"
-                          aria-expanded={expandedEvalDefaults}
-                        >
-                          <svg
-                            className={`h-4 w-4 flex-shrink-0 text-zinc-400 transition-transform ${expandedEvalDefaults ? 'rotate-90 transform' : ''}`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
-                          <div>
-                            <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
-                              {t('project.evaluationDefaults.title')}
-                            </h4>
-                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                              {t('project.evaluationDefaults.description')}
-                            </p>
-                          </div>
-                        </button>
-                      </div>
-                      {expandedEvalDefaults && (
-                        <div className="mt-4 grid grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                              {t('project.evaluationDefaults.defaultTemperature')}
-                            </label>
-                            <input
-                              type="number"
-                              min={0}
-                              max={2}
-                              step={0.1}
-                              value={evalDefaultTemperature ?? 0}
-                              placeholder="0.0"
-                              onChange={(e) =>
-                                setEvalDefaultTemperature(
-                                  e.target.value ? parseFloat(e.target.value) : undefined
-                                )
-                              }
-                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                            />
-                            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                              {t('project.evaluationDefaults.temperatureHelp')}
-                            </p>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                              {t('project.evaluationDefaults.defaultMaxTokens')}
-                            </label>
-                            <input
-                              type="number"
-                              min={100}
-                              max={16000}
-                              step={100}
-                              value={evalDefaultMaxTokens ?? 500}
-                              placeholder="500"
-                              onChange={(e) =>
-                                setEvalDefaultMaxTokens(
-                                  e.target.value ? parseInt(e.target.value) : undefined
-                                )
-                              }
-                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                            />
-                            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                              {t('project.evaluationDefaults.maxTokensHelp')}
-                            </p>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                              {t('project.evaluationDefaults.defaultRunsPerTask', 'Standard-Anzahl Judge-Läufe')}
-                            </label>
-                            <input
-                              type="number"
-                              min={1}
-                              max={25}
-                              step={1}
-                              value={evalDefaultRunsPerTask ?? 1}
-                              placeholder="1"
-                              onChange={(e) =>
-                                setEvalDefaultRunsPerTask(
-                                  e.target.value ? parseInt(e.target.value) : undefined
-                                )
-                              }
-                              className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
-                            />
-                            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                              {t(
-                                'project.evaluationDefaults.runsPerTaskHelp',
-                                'Wie oft jede Task vom Judge bewertet werden soll (für Varianz-/Konsistenzanalyse). Greift, wenn kein Judge-Ensemble konfiguriert ist. Cap 25.',
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
                   {/* Evaluation methods sub-section — wraps the EvaluationBuilder.
                       Collapsed badge mirrors Modellauswahl / Prompt-Strukturen
                       style: grey pill with the configured-method count. */}
@@ -3176,6 +3157,24 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 {getReadOnlyMessage(t('project.evaluation.title'))}
               </p>
+            </div>
+          )}
+
+          {/* Always-visible "Evaluierung starten" CTA at the card footer.
+              EvaluationBuilder also renders an internal trigger inside its
+              Methoden sub-section (only visible when expanded); this footer
+              one stays visible whenever the eval ConfigCard is open. Both
+              open the same EvaluationControlModal — two paths to the same
+              flow is fine. */}
+          {canEditProject() && evaluationConfigs.filter((e: any) => e.enabled).length > 0 && (
+            <div className="flex justify-end gap-2 border-t pt-4 dark:border-zinc-700">
+              <Button
+                onClick={() => setShowEvaluationStartModal(true)}
+                className="flex items-center gap-2 text-sm"
+              >
+                <PlayIcon className="h-4 w-4" />
+                {t('project.evaluation.runCta', 'Evaluierung starten')}
+              </Button>
             </div>
           )}
 
@@ -3559,6 +3558,41 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           )}
         </div>
       </div>
+
+      {/* Footer-CTA-driven modals. Mounted at the page level so they're
+          decoupled from any sub-component that also opens its own copy. */}
+      <GenerationControlModal
+        isOpen={showGenerationStartModal}
+        projectId={projectId || undefined}
+        models={
+          (currentProject as any)?.generation_config?.selected_configuration?.models ||
+          (currentProject as any)?.llm_model_ids ||
+          []
+        }
+        project={currentProject as any}
+        onClose={() => setShowGenerationStartModal(false)}
+        onSuccess={() => {
+          setShowGenerationStartModal(false)
+          if (projectId) fetchProject(projectId)
+        }}
+      />
+      <EvaluationControlModal
+        isOpen={showEvaluationStartModal}
+        projectId={projectId || undefined}
+        evaluationConfigs={evaluationConfigs
+          .filter((e: any) => e.enabled)
+          .map((e: any) => ({
+            id: e.id,
+            metric: e.metric,
+            prediction_fields: e.prediction_fields,
+            reference_fields: e.reference_fields,
+            metric_parameters: e.metric_parameters,
+          }))}
+        onClose={() => setShowEvaluationStartModal(false)}
+        onSuccess={() => {
+          setShowEvaluationStartModal(false)
+        }}
+      />
     </div>
   )
 }

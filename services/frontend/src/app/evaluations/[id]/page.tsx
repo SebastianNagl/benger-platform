@@ -20,6 +20,7 @@ import { MetricDistributionChart } from '@/components/evaluation/MetricDistribut
 import { PerRunBreakdown, type PerRunRow } from '@/components/evaluation/PerRunBreakdown'
 import { SampleResultsTable } from '@/components/evaluation/SampleResultsTable'
 import { Badge } from '@/components/shared/Badge'
+import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
@@ -300,7 +301,7 @@ export default function EvaluationDashboard({
           <p className="text-gray-600">
             {t('evaluation.human.results.noResults')}
           </p>
-          <Button className="mt-4" onClick={() => router.push('/evaluations')}>
+          <Button className="mt-4" onClick={() => router.push('/runs?type=evaluation')}>
             {t('evaluation.human.preference.next')}
           </Button>
         </div>
@@ -330,10 +331,22 @@ export default function EvaluationDashboard({
 
   return (
     <div className="container mx-auto px-4 py-8">
+        {/* Breadcrumb — root is /runs (the per-run inventory), not the
+            cross-run /evaluations dashboard, so the user can hop back to
+            sibling runs without losing the multi-run context. */}
+        <div className="mb-4">
+          <Breadcrumb
+            items={[
+              { label: 'Home', href: '/dashboard' },
+              { label: t('runs.title', 'Läufe'), href: '/runs?type=evaluation' },
+              { label: t('evaluation.human.results.title') },
+            ]}
+          />
+        </div>
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="text" onClick={() => router.push('/evaluations')}>
+            <Button variant="text" onClick={() => router.push('/runs?type=evaluation')}>
               <ArrowLeftIcon className="mr-2 h-4 w-4" />
               {t('evaluations.detail.back')}
             </Button>

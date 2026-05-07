@@ -1763,17 +1763,9 @@ export function EvaluationBuilder({
             {renderWizardStep()}
           </div>
 
-          {/* Wizard Footer */}
+          {/* Wizard Footer — Cancel on the far left, then Back; the
+              primary forward action (Next / Add) sits on the right. */}
           <div className="flex justify-between bg-gray-50 px-4 py-3 dark:bg-gray-800">
-            <Button
-              onClick={goToPreviousStep}
-              variant="secondary"
-              disabled={currentStep === 'metric'}
-              className="text-sm"
-              data-testid="wizard-back-button"
-            >
-              {t('evaluationBuilder.back')}
-            </Button>
             <div className="flex gap-2">
               <Button
                 onClick={resetWizard}
@@ -1782,24 +1774,33 @@ export function EvaluationBuilder({
               >
                 {t('evaluationBuilder.cancel')}
               </Button>
-              {currentStep === 'review' ? (
-                <Button onClick={handleAddEvaluation} className="text-sm">
-                  <CheckIcon className="mr-1 h-4 w-4" />
-                  {editingId
-                    ? t('evaluationBuilder.update')
-                    : t('evaluationBuilder.addEvaluation')}
-                </Button>
-              ) : (
-                <Button
-                  onClick={goToNextStep}
-                  disabled={!canProceed()}
-                  className="text-sm"
-                  data-testid="wizard-next-button"
-                >
-                  {t('evaluationBuilder.next')}
-                </Button>
-              )}
+              <Button
+                onClick={goToPreviousStep}
+                variant="secondary"
+                disabled={currentStep === 'metric'}
+                className="text-sm"
+                data-testid="wizard-back-button"
+              >
+                {t('evaluationBuilder.back')}
+              </Button>
             </div>
+            {currentStep === 'review' ? (
+              <Button onClick={handleAddEvaluation} className="text-sm">
+                <CheckIcon className="mr-1 h-4 w-4" />
+                {editingId
+                  ? t('evaluationBuilder.update')
+                  : t('evaluationBuilder.addEvaluation')}
+              </Button>
+            ) : (
+              <Button
+                onClick={goToNextStep}
+                disabled={!canProceed()}
+                className="text-sm"
+                data-testid="wizard-next-button"
+              >
+                {t('evaluationBuilder.next')}
+              </Button>
+            )}
           </div>
         </div>
       )}

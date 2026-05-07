@@ -1,7 +1,9 @@
 'use client'
 
 import { Badge } from '@/components/shared/Badge'
+import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
+import { Card } from '@/components/shared/Card'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
@@ -136,6 +138,15 @@ export default function GenerationRunDetailPage({
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <div className="mb-4">
+        <Breadcrumb
+          items={[
+            { label: 'Home', href: '/dashboard' },
+            { label: t('runs.title', 'Läufe'), href: '/runs?type=generation' },
+            { label: t('generations.detail.title', 'Generierungs-Lauf') },
+          ]}
+        />
+      </div>
       <div className="mb-6 flex items-center gap-4">
         <Button variant="text" onClick={() => router.push('/runs?type=generation')}>
           <ArrowLeftIcon className="mr-2 h-4 w-4" />
@@ -158,8 +169,9 @@ export default function GenerationRunDetailPage({
         </p>
       </div>
 
-      {/* Summary card */}
-      <div className="mb-6 grid grid-cols-2 gap-4 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800 md:grid-cols-4">
+      {/* Summary card — uses the shared Card component to match the
+          project page / eval detail / dashboard look. */}
+      <Card className="mb-6 grid grid-cols-2 gap-4 p-4 md:grid-cols-4">
         <div>
           <div className="text-xs uppercase tracking-wide text-zinc-500">
             {t('generations.detail.status', 'Status')}
@@ -222,7 +234,7 @@ export default function GenerationRunDetailPage({
             </div>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Error banner */}
       {data.status === 'failed' && data.error_message && (
