@@ -849,7 +849,11 @@
       "korrekturBlindToPeers": "Blinde Korrektur (andere Korrektoren)",
       "korrekturBlindToPeersHint": "Bewertungen anderer Korrektoren bleiben verborgen, bis du selbst eingereicht hast",
       "korrekturBlindToLlm": "Blinde Korrektur (LLM-Vorbewertung)",
-      "korrekturBlindToLlmHint": "LLM-Vorbewertungen bleiben verborgen, bis du selbst eingereicht hast"
+      "korrekturBlindToLlmHint": "LLM-Vorbewertungen bleiben verborgen, bis du selbst eingereicht hast",
+      "korrekturBlindToNonJudge": "Blinde Korrektur (klassische Metriken)",
+      "korrekturBlindToNonJudgeHint": "Klassische automatische Bewertungen (BLEU, ROUGE, BERTScore …) bleiben verborgen, bis du selbst eingereicht hast",
+      "korrekturKeepBlindAfterSubmit": "Blind auch nach eigener Bewertung",
+      "korrekturKeepBlindAfterSubmitHint": "Wenn aktiv, bleiben die obigen Bewertungen verborgen — auch nachdem du deine eigene Bewertung eingereicht hast"
     },
     "evaluationMethods": {
       "title": "Evaluierungsmethoden"
@@ -2026,6 +2030,9 @@
     "nameRequired": "Bitte geben Sie Ihren Namen ein",
     "competenceRequired": "Bitte bewerten Sie Ihre Kompetenz in allen Rechtsgebieten",
     "psychometricRequired": "Bitte beantworten Sie alle Fragen der psychometrischen Skalen",
+    "researchConsent": {
+      "required": "Um ein Konto zu erstellen, müssen Sie der Forschungsdatennutzungsrichtlinie zustimmen"
+    },
     "demographicsDescription": "Diese Informationen helfen uns, vielfältige und repräsentative Forschungsstichproben sicherzustellen.",
     "ageLabel": "Alter",
     "agePlaceholder": "z.B. 28",
@@ -7385,9 +7392,13 @@
     "noTasks": "Keine Aufgaben gefunden",
     "falloesungSaveSuccess": "Bewertung gespeichert",
     "falloesungSaveError": "Bewertung konnte nicht gespeichert werden",
-    "blindBanner": "Blinde Korrektur aktiv: {what} sind verborgen, bis Sie eingereicht haben.",
     "blindBannerLlm": "LLM-Vorbewertungen",
+    "blindBannerNonJudge": "automatische Metriken",
     "blindBannerPeers": "Bewertungen anderer Korrektoren",
+    "blindTooltip": "Blinde Korrektur: {what} verborgen, bis Sie eingereicht haben",
+    "blindTooltipPersistent": "Blinde Korrektur (dauerhaft): {what} verborgen — auch nach Ihrer Einreichung",
+    "blindTooltipLifted": "Blinde Korrektur für dieses Item aufgehoben — Sie haben bereits eingereicht, {what} sind jetzt sichtbar",
+    "blindTooltipInactive": "Alle Bewertungen sichtbar",
     "stats": {
       "totalTasks": "Aufgaben gesamt",
       "withFeedback": "Mit Korrektur",
@@ -7407,6 +7418,7 @@
       "korrektur_falloesung": "Bewertungen (Falllösung)"
     },
     "itemFilter": {
+      "label": "Status",
       "open_for_me": "Für mich offen",
       "all": "Alle",
       "unassigned": "Nicht zugewiesen",
@@ -7416,6 +7428,19 @@
       "completed_by_me": "Von mir korrigiert",
       "completed_by_others": "Von anderen korrigiert",
       "fully_complete": "Vollständig"
+    },
+    "priorityFilter": {
+      "label": "Priorität"
+    },
+    "assigneeFilter": {
+      "label": "Zugewiesen"
+    },
+    "search": "Suchen",
+    "filters": "Filter",
+    "start": {
+      "cta": "Korrektur starten",
+      "empty": "Keine offenen Items zum Korrigieren",
+      "error": "Konnte Korrektur nicht starten"
     },
     "queueProgress": "{done} / {total} von dir bewertet",
     "queueProgressTooltip": "Items, die du in diesem Projekt bewertet hast (über alle Filter hinweg)",
@@ -7478,12 +7503,18 @@
       "evaluation": "Evaluierung",
       "queuePosition": "Item {index} von {total}"
     },
+    "table": {
+      "id": "#",
+      "type": "Typ",
+      "assignees": "Zugewiesen",
+      "status": "Status",
+      "actions": "Aktionen"
+    },
     "tabs": {
       "review": "Review",
+      "reference": "Referenz",
       "falloesungGrade": "Bewertung (Standard Falllösung)",
-      "falloesungHint": "Die Bewertung nach dem Standard-Falllösung-Schema findet sich im Tab \"Bewertung (Standard Falllösung)\" oben.",
-      "falloesungLlmReference": "LLM-Vorbewertung (Vergleich, nicht übernommen)",
-      "falloesungNoLlmYet": "Für diese Lösung liegt noch keine LLM-Vorbewertung vor. Sie bewerten direkt nach dem Schema."
+      "falloesungLlmReference": "LLM-Vorbewertung (Vergleich, nicht übernommen)"
     },
     "comments": {
       "title": "Kommentare",
@@ -7554,7 +7585,9 @@
       "visibilitySection": "Blinde Korrektur",
       "visibilitySectionHelp": "Verbirgt fremde Bewertungen, bis Sie eingereicht haben — danach werden sie zum Vergleich sichtbar.",
       "blindToLlmJudge": "LLM-Vorbewertungen verbergen",
-      "blindToPeerCorrectors": "Bewertungen anderer Korrektoren verbergen"
+      "blindToNonJudgeMetrics": "Klassische automatische Metriken (BLEU, ROUGE, BERTScore …) verbergen",
+      "blindToPeerCorrectors": "Bewertungen anderer Korrektoren verbergen",
+      "keepBlindAfterSubmit": "Auch nach eigener Bewertung verborgen halten"
     }
   },
   "emptyStates": {
@@ -8167,6 +8200,26 @@
     "judgeAgreement": {
       "titlePearson": "Inter-Judge-Korrelation (Pearson)",
       "titleKappa": "Inter-Judge-Übereinstimmung (κ)"
+    }
+  },
+  "extended": {
+    "researchConsent": {
+      "label": "Ich habe die Forschungsdatennutzungsrichtlinie gelesen und stimme der Nutzung meiner anonymisierten Daten für die Forschung zu.",
+      "linkText": "Nutzung meiner anonymisierten Daten für die Forschung",
+      "agree": "Ich stimme zu",
+      "close": "Schließen"
+    },
+    "researchDataPolicy": {
+      "title": "Forschungsdatennutzungsrichtlinie",
+      "lead": "Die Nutzung dieser Plattform setzt voraus, dass Sie uns Rechte an Ihren Nutzungs- und Annotationsdaten für unsere Forschung einräumen, unter der Bedingung, dass die Daten anonymisiert werden.",
+      "scopeTitle": "Geltungsbereich",
+      "scopeText": "Diese Richtlinie betrifft die Daten, die Sie bei der Nutzung von BenGER erzeugen: Annotationen, Korrekturen, Generierungen, Evaluationen sowie die zugehörigen Zeit- und Verhaltensmetadaten. Persönliche Kontodaten sind hiervon nicht erfasst – diese sind in der separaten Datenschutzerklärung geregelt.",
+      "anonymizationTitle": "Anonymisierung",
+      "anonymizationText": "Bevor Daten die Plattform für Forschungszwecke verlassen, werden direkte Identifikatoren (Name, E-Mail, Konto-ID) entfernt oder durch stabile Pseudonyme ersetzt. Untersucht werden aggregierte Statistiken und pseudonymisierte Verläufe, nicht Ihre individuelle Identität.",
+      "useTitle": "Verwendung",
+      "useText": "Anonymisierte Daten werden verwendet, um zu untersuchen, wie Menschen und große Sprachmodelle bei deutschsprachigen juristischen Aufgaben abschneiden: Übereinstimmung, Kalibrierung, Fehlermuster und die Entwicklung besserer Evaluationsmethoden. Ergebnisse können in wissenschaftlichen Publikationen, öffentlichen Benchmarks oder aggregierten Dashboards erscheinen. Rohdaten mit Personenbezug werden nicht veröffentlicht.",
+      "consentTitle": "Ihre Einwilligung",
+      "consentText": "Mit dem Setzen des Häkchens bei der Registrierung erteilen Sie diese Erlaubnis, solange Ihre Daten anonymisiert bleiben. Bestehende Konten dieses Deployments wurden als einwilligend behandelt; wenn Sie das anders handhaben möchten, wenden Sie sich bitte an die Betreiber."
     }
   }
 }

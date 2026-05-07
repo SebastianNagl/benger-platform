@@ -849,7 +849,11 @@
       "korrekturBlindToPeers": "Blind correction (other correctors)",
       "korrekturBlindToPeersHint": "Other correctors' grades stay hidden until you submit your own",
       "korrekturBlindToLlm": "Blind correction (LLM pre-grade)",
-      "korrekturBlindToLlmHint": "LLM pre-grades stay hidden until you submit your own"
+      "korrekturBlindToLlmHint": "LLM pre-grades stay hidden until you submit your own",
+      "korrekturBlindToNonJudge": "Blind correction (classic metrics)",
+      "korrekturBlindToNonJudgeHint": "Classic automated metrics (BLEU, ROUGE, BERTScore …) stay hidden until you submit your own",
+      "korrekturKeepBlindAfterSubmit": "Keep blind after submission",
+      "korrekturKeepBlindAfterSubmitHint": "When on, the entries above stay hidden even after you submit your own grade"
     },
     "evaluationMethods": {
       "title": "Evaluation Methods"
@@ -2046,6 +2050,9 @@
     "nameRequired": "Please enter your name",
     "competenceRequired": "Please rate your competence in all legal areas",
     "psychometricRequired": "Please answer all psychometric scale items",
+    "researchConsent": {
+      "required": "You must agree to the research data use policy to create an account"
+    },
     "demographicsDescription": "This information helps us ensure diverse and representative research samples.",
     "ageLabel": "Age",
     "agePlaceholder": "e.g., 28",
@@ -7335,9 +7342,13 @@
     "noTasks": "No tasks found",
     "falloesungSaveSuccess": "Grade saved",
     "falloesungSaveError": "Failed to save grade",
-    "blindBanner": "Blind grading active: {what} are hidden until you submit.",
     "blindBannerLlm": "LLM judge scores",
+    "blindBannerNonJudge": "automated metrics",
     "blindBannerPeers": "other correctors' grades",
+    "blindTooltip": "Blind grading: {what} hidden until you submit",
+    "blindTooltipPersistent": "Blind grading (persistent): {what} hidden — also after you submit",
+    "blindTooltipLifted": "Blind grading lifted for this item — you've already submitted, so {what} are now visible",
+    "blindTooltipInactive": "All evaluations visible",
     "stats": {
       "totalTasks": "Total Tasks",
       "withFeedback": "With Correction",
@@ -7352,6 +7363,7 @@
       "korrektur_falloesung": "Grades (Falllösung)"
     },
     "itemFilter": {
+      "label": "Status",
       "open_for_me": "Open for me",
       "all": "All",
       "unassigned": "Unassigned",
@@ -7361,6 +7373,19 @@
       "completed_by_me": "Done by me",
       "completed_by_others": "Done by others",
       "fully_complete": "Complete"
+    },
+    "priorityFilter": {
+      "label": "Priority"
+    },
+    "assigneeFilter": {
+      "label": "Assigned"
+    },
+    "search": "Search",
+    "filters": "Filters",
+    "start": {
+      "cta": "Start grading",
+      "empty": "No open items to grade",
+      "error": "Could not start grading"
     },
     "queueProgress": "{done} / {total} graded by you",
     "queueProgressTooltip": "Items you have graded in this project (across all filters)",
@@ -7428,12 +7453,18 @@
       "evaluation": "Evaluation",
       "queuePosition": "Item {index} of {total}"
     },
+    "table": {
+      "id": "#",
+      "type": "Type",
+      "assignees": "Assigned",
+      "status": "Status",
+      "actions": "Actions"
+    },
     "tabs": {
       "review": "Review",
+      "reference": "Reference",
       "falloesungGrade": "Grade (Standard Falllösung)",
-      "falloesungHint": "Grading on the Standard Falllösung rubric is in the \"Grade (Standard Falllösung)\" tab above.",
-      "falloesungLlmReference": "LLM pre-grade (reference only, not adopted)",
-      "falloesungNoLlmYet": "No LLM pre-grade exists for this solution yet. You're grading from scratch."
+      "falloesungLlmReference": "LLM pre-grade (reference only, not adopted)"
     },
     "comments": {
       "title": "Comments",
@@ -7504,7 +7535,9 @@
       "visibilitySection": "Blind grading",
       "visibilitySectionHelp": "Hides peer/LLM grades until you submit yours — then revealed for comparison.",
       "blindToLlmJudge": "Hide LLM judge scores",
-      "blindToPeerCorrectors": "Hide other correctors' grades"
+      "blindToNonJudgeMetrics": "Hide classic automated metrics (BLEU, ROUGE, BERTScore …)",
+      "blindToPeerCorrectors": "Hide other correctors' grades",
+      "keepBlindAfterSubmit": "Keep hidden after I submit"
     }
   },
   "emptyStates": {
@@ -8179,6 +8212,26 @@
     "judgeAgreement": {
       "titlePearson": "Inter-judge correlation (Pearson)",
       "titleKappa": "Inter-judge agreement (κ)"
+    }
+  },
+  "extended": {
+    "researchConsent": {
+      "label": "I have read and agree to the use of my anonymized data for research.",
+      "linkText": "use of my anonymized data for research",
+      "agree": "I agree",
+      "close": "Close"
+    },
+    "researchDataPolicy": {
+      "title": "Research Data Use Policy",
+      "lead": "Use of this platform is conditional on granting us rights to your usage and annotation data for our research, on the condition that the data is anonymized.",
+      "scopeTitle": "Scope",
+      "scopeText": "This policy covers the data you generate while using BenGER: annotations, corrections, generations, evaluations, and the timing and behavioural metadata that accompanies them. It does not cover personal account data — that is governed by the separate Privacy Policy.",
+      "anonymizationTitle": "Anonymization",
+      "anonymizationText": "Before any data leaves the platform for research analysis, direct identifiers (name, email, account id) are stripped or replaced with stable pseudonyms. Aggregate statistics and per-pseudonym trajectories are what get studied, not your individual identity.",
+      "useTitle": "How we use it",
+      "useText": "Anonymized data is used to study how humans and large language models perform on German legal tasks: agreement, calibration, error patterns, and the design of better evaluation methods. Results may appear in academic papers, public benchmarks, or aggregate dashboards. Raw, attributable records are not published.",
+      "consentTitle": "Your consent",
+      "consentText": "Ticking the consent box at signup grants this permission for as long as your data remains anonymized. Pre-existing accounts on this deployment have been treated as having consented; if you'd prefer otherwise, contact the operators."
     }
   }
 }
