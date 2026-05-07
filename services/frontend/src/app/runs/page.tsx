@@ -1,6 +1,7 @@
 'use client'
 
 import { Badge } from '@/components/shared/Badge'
+import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
@@ -193,6 +194,14 @@ export default function RunsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <div className="mb-4">
+        <Breadcrumb
+          items={[
+            { label: 'Home', href: '/dashboard' },
+            { label: t('runs.title', 'Läufe') },
+          ]}
+        />
+      </div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white">
@@ -259,7 +268,12 @@ export default function RunsPage() {
           <option value="failed">failed</option>
         </select>
         <span className="ml-auto text-xs text-zinc-500">
-          {data ? t('runs.totalCount', `${data.total} Einträge`) : ''}
+          {data
+            ? String(t('runs.totalCount', '{count} Einträge')).replace(
+                '{count}',
+                String(data.total),
+              )
+            : ''}
         </span>
       </div>
 
@@ -368,7 +382,9 @@ export default function RunsPage() {
       {data && data.total > PAGE_SIZE && (
         <div className="mt-4 flex items-center justify-between">
           <span className="text-xs text-zinc-500">
-            {t('runs.pageInfo', `Seite ${page} von ${totalPages}`)}
+            {String(t('runs.pageInfo', 'Seite {page} von {total}'))
+              .replace('{page}', String(page))
+              .replace('{total}', String(totalPages))}
           </span>
           <div className="flex gap-2">
             <Button

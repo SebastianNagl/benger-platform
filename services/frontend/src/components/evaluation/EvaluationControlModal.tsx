@@ -1,11 +1,12 @@
 'use client'
 
+import { Button } from '@/components/shared/Button'
 import { CostEstimatePanel } from '@/components/shared/CostEstimateModal'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { Dialog, Transition } from '@headlessui/react'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+import { PlayIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 
 interface EvaluationControlModalProps {
@@ -280,22 +281,25 @@ export function EvaluationControlModal({
                   </div>
                 </div>
 
-                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                  <button
-                    type="button"
-                    className="inline-flex w-full justify-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 disabled:opacity-50 sm:ml-3 sm:w-auto"
+                {/* Footer mirrors GenerationControlModal: outline Cancel
+                    on the left, filled primary CTA on the right. Uses the
+                    shared Button component instead of hand-styled inline
+                    classes so theming + states match the rest of the app. */}
+                <div className="mt-5 flex justify-end gap-2">
+                  <Button variant="outline" onClick={onClose}>
+                    {t('evaluation.controlModal.cancel')}
+                  </Button>
+                  <Button
+                    variant="filled"
                     onClick={handleSubmit}
                     disabled={loading || (!onRunWithMode && displayConfigCount === 0)}
+                    className="flex items-center gap-2"
                   >
-                    {loading ? t('evaluation.controlModal.starting') : t('evaluation.controlModal.startEvaluation')}
-                  </button>
-                  <button
-                    type="button"
-                    className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-zinc-700 dark:text-white dark:ring-zinc-600 dark:hover:bg-zinc-600 sm:mt-0 sm:w-auto"
-                    onClick={onClose}
-                  >
-                    {t('evaluation.controlModal.cancel')}
-                  </button>
+                    <PlayIcon className="h-4 w-4" />
+                    {loading
+                      ? t('evaluation.controlModal.starting')
+                      : t('evaluation.controlModal.startEvaluation')}
+                  </Button>
                 </div>
               </Dialog.Panel>
             </Transition.Child>
