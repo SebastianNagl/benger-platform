@@ -7,7 +7,7 @@ python-dotenv==1.2.2
 httpx==0.28.1
 transformers>=4.41.0  # Required by sentence-transformers>=3.2.0 for ONNX support
 sentencepiece>=0.2.0  # Required by T5Tokenizer for QAGS
-tiktoken>=0.5.0  # Required by AlbertTokenizer for SummaC/ViTC
+tiktoken>=0.12.0  # Required by AlbertTokenizer for SummaC/ViTC
 torch>=2.0.0,<2.11.0
 numpy>=1.26.4,<2.0  # Cap at <2.0: thinc/spacy wheels assume numpy-1.x ABI (88-byte PyArray_Descr). numpy 2.x rebuilds the dtype struct to 96 bytes; mixing causes ImportError "numpy.dtype size changed" at spacy.load(). Lift this only after thinc/spacy/torch all confirm numpy-2.x wheels in our matrix.
 scikit-learn>=1.4.1
