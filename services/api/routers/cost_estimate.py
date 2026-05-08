@@ -160,58 +160,234 @@ def _count_evaluation_judge_calls(
     runs_per_call: int,
     generation_mode: Optional[str],
 ) -> int:
-    """Count (task × run_index) judge calls that would actually fire for
-    `judge_model_id`.
+    """Count LLM-judge API calls that would actually fire for
+    ``judge_model_id`` across all the project's enabled LLM-judge configs.
 
-    Each LLM-judge metric records one row per judge invocation in
-    `evaluation_judge_runs` (linked via `evaluation_id` to the
-    `evaluation_runs` row carrying the project + task). For an ensemble
-    of size N, every task fans out into N parallel judge runs at each
-    `run_index`. That's the API-call boundary, so it's also the cost
-    boundary.
+    The project's `evaluation_config.evaluation_configs` lists every
+    metric configured. Only configs whose `metric` starts with
+    `llm_judge_` cost API tokens — deterministic metrics (BERTScore,
+    BLEU, ROUGE, semsim, METEOR, MoverScore, coherence, exact_match)
+    are compute-only.
 
-    - mode in ('all', None): every (task × run_index) is one call.
-    - mode == 'missing': a call counts only when no completed
-      `evaluation_judge_runs` row exists for this (task, judge,
-      run_index). Mirrors the worker's `evaluate_missing_only` decision
-      in services/workers/tasks.py around line 2722, which skips a
-      task once a successful judge run is on file.
+    For each LLM-judge config that names this judge in its
+    `metric_parameters.judges[].judge_model_id`:
 
-    Deterministic metrics (BERTScore/BLEU/exact_match/etc.) do not
-    appear here — they don't go through `evaluation_judge_runs` and
-    incur compute time, not API cost.
+    - Resolve subjects per `prediction_fields` entry:
+        * `__all_model__`         → every completed generation
+        * `__all_human__`         → every annotation
+        * starts with `human:`    → every annotation (the suffix is the
+                                    field inside the annotation, not a
+                                    subject filter)
+        * any other plain string  → the worker auto-evaluates the field
+                                    on BOTH models AND humans (services/
+                                    workers/tasks.py around lines 234,
+                                    3289-3291) — so the cost has to as
+                                    well, otherwise the human-side bill
+                                    is invisible. Returns generations
+                                    AND annotations.
+    - Multiply by `runs` from the judge spec.
+    - For mode='missing', subtract subjects whose `task_evaluations`
+      row is already scored under the matching field_name pattern
+      `<metric>-<config_id>|<pred_field_normalized>|...`.
+
+    Returns the total API-call count across all judge configs that
+    target ``judge_model_id``.
     """
-    from project_models import Task
-    from models import EvaluationRun, EvaluationJudgeRun
-
-    task_ids = [r[0] for r in db.query(Task.id).filter(Task.project_id == project_id).all()]
-    if not task_ids or runs_per_call <= 0:
+    cfgs = _load_llm_judge_configs(db, project_id, judge_model_id)
+    if not cfgs:
         return 0
 
-    if generation_mode != "missing":
-        return len(task_ids) * runs_per_call
+    # Resolve the project's universe of subjects once.
+    gen_ids_by_field = _completed_generation_ids(db, project_id)
+    annotation_ids = _annotation_ids(db, project_id)
 
-    # Bulk-load all completed (task_id, run_index) pairs for this judge
-    # once per call instead of N×M individual queries.
-    done_rows = (
-        db.query(EvaluationRun.task_id, EvaluationJudgeRun.run_index)
-        .join(EvaluationJudgeRun, EvaluationJudgeRun.evaluation_id == EvaluationRun.id)
-        .filter(
-            EvaluationRun.project_id == project_id,
-            EvaluationJudgeRun.judge_model_id == judge_model_id,
-            EvaluationJudgeRun.status == "completed",
+    total = 0
+    for cfg in cfgs:
+        runs = cfg["runs"] * max(runs_per_call, 1)
+        # `runs_per_call` is the modal-level "runs across this trigger";
+        # `cfg["runs"]` is per-judge in this config. Multiply because
+        # each judge invocation is its own API call.
+        for pf in cfg["prediction_fields"]:
+            subj_keys = _subjects_for_pred_field(
+                pf, gen_ids_by_field=gen_ids_by_field,
+                annotation_ids=annotation_ids,
+            )
+            if generation_mode == "missing":
+                done = _already_scored_subjects(
+                    db, project_id, metric_id=cfg["metric"], pred_field=pf
+                )
+                missing = [s for s in subj_keys if s not in done]
+                total += len(missing) * runs
+            else:
+                total += len(subj_keys) * runs
+    return total
+
+
+def _load_llm_judge_configs(db: Session, project_id: str, judge_model_id: str) -> List[Dict[str, Any]]:
+    """Pull the project's enabled LLM-judge configs that name this
+    `judge_model_id` in their judges ensemble. Returns dicts with
+    `metric` (id), `prediction_fields`, and `runs` (for this judge)."""
+    from project_models import Project
+    proj = db.query(Project).filter(Project.id == project_id).first()
+    if not proj:
+        return []
+    eval_cfg = proj.evaluation_config or {}
+    if not isinstance(eval_cfg, dict):
+        try:
+            import json as _json
+            eval_cfg = _json.loads(eval_cfg)
+        except Exception:
+            return []
+    out: List[Dict[str, Any]] = []
+    for c in eval_cfg.get("evaluation_configs") or []:
+        if c.get("enabled") is False:
+            continue
+        metric = c.get("metric") or ""
+        if not metric.startswith("llm_judge_"):
+            continue
+        params = c.get("metric_parameters") or {}
+        # Two ensemble shapes the codebase uses:
+        # 1. judges: [{judge_model_id, runs}]            (preferred)
+        # 2. judge_model + runs_per_judge                (legacy single-judge)
+        runs_for_this_judge = 0
+        if isinstance(params.get("judges"), list):
+            for j in params["judges"]:
+                if (j or {}).get("judge_model_id") == judge_model_id:
+                    runs_for_this_judge = max(int(j.get("runs") or 1), 1)
+                    break
+        elif params.get("judge_model") == judge_model_id:
+            runs_for_this_judge = max(int(params.get("runs_per_judge") or 1), 1)
+        if runs_for_this_judge == 0:
+            continue
+        out.append(
+            {
+                "metric": metric,
+                "prediction_fields": list(c.get("prediction_fields") or []),
+                "runs": runs_for_this_judge,
+            }
         )
-        .distinct()
+    return out
+
+
+def _completed_generation_ids(db: Session, project_id: str) -> List[str]:
+    """All completed generation ids for the project. Cached scope —
+    helper resolves fields against this list rather than re-querying."""
+    from project_models import Task
+    from models import Generation
+    rows = (
+        db.query(Generation.id)
+        .join(Task, Task.id == Generation.task_id)
+        .filter(Task.project_id == project_id, Generation.status == "completed")
         .all()
     )
-    done = {(tid, ri) for tid, ri in done_rows}
+    return [r[0] for r in rows]
 
-    cells = 0
-    for tid in task_ids:
-        for ri in range(runs_per_call):
-            if (tid, ri) not in done:
-                cells += 1
-    return cells
+
+def _annotation_ids(db: Session, project_id: str) -> List[str]:
+    from project_models import Annotation, Task
+    rows = (
+        db.query(Annotation.id)
+        .join(Task, Task.id == Annotation.task_id)
+        .filter(Task.project_id == project_id)
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
+def _subjects_for_pred_field(
+    pred_field: str,
+    *,
+    gen_ids_by_field: List[str],
+    annotation_ids: List[str],
+) -> List[tuple]:
+    """Return a list of subject keys for one `prediction_fields` entry.
+
+    Each key is `(kind, id)` where kind ∈ {'generation','annotation'}.
+
+    Mirrors the worker's resolution at services/workers/tasks.py:234
+    and the human-eval block around line 3289-3291: a plain field name
+    (no `model:`/`human:`/`__all_*__` prefix) gets auto-prefixed to
+    `human:<field>` for annotation context AND used as a model field —
+    so the cost includes both subject sets, matching what the worker
+    will actually run.
+    """
+    if pred_field == "__all_model__":
+        return [("generation", gid) for gid in gen_ids_by_field]
+    if pred_field == "__all_human__" or pred_field.startswith("human:"):
+        return [("annotation", aid) for aid in annotation_ids]
+    if pred_field.startswith("model:"):
+        return [("generation", gid) for gid in gen_ids_by_field]
+    # Plain field name — both sides.
+    return [("generation", gid) for gid in gen_ids_by_field] + [
+        ("annotation", aid) for aid in annotation_ids
+    ]
+
+
+def _already_scored_subjects(
+    db: Session, project_id: str, *, metric_id: str, pred_field: str
+) -> set:
+    """Return subject keys (`(kind, id)`) already scored for this
+    metric+pred_field combination — i.e. what the worker would skip
+    under `evaluate_missing_only`.
+
+    field_name in `task_evaluations` follows the convention
+    `<metric>-<config_id>|<pred_field_normalized>|<reference>`.
+    The `<config_id>` suffix is unique per metric instance, so we
+    match on prefix `<metric>-`. Per worker logic, plain field names
+    are recorded with the `human:` prefix in annotation context — so a
+    plain pred_field maps to two field_name patterns, one for each
+    subject kind.
+    """
+    from project_models import Task
+    from models import TaskEvaluation, EvaluationRun
+
+    if pred_field.startswith("human:") or pred_field == "__all_human__":
+        # Annotation-side field. Match the prefixed form on the
+        # annotation_id side only.
+        norm = pred_field
+        subject_col = TaskEvaluation.annotation_id
+    elif pred_field == "__all_model__" or pred_field.startswith("model:"):
+        norm = pred_field
+        subject_col = TaskEvaluation.generation_id
+    else:
+        # Plain — recorded both as `<pf>` (model side) and `human:<pf>`
+        # (annotation side). Run two queries and union.
+        model_done = _scored_for(
+            db, project_id, metric_id=metric_id, pred_field_norm=pred_field,
+            subject_col=TaskEvaluation.generation_id, kind="generation",
+        )
+        human_done = _scored_for(
+            db, project_id, metric_id=metric_id,
+            pred_field_norm=f"human:{pred_field}",
+            subject_col=TaskEvaluation.annotation_id, kind="annotation",
+        )
+        return model_done | human_done
+    return _scored_for(
+        db, project_id, metric_id=metric_id, pred_field_norm=norm,
+        subject_col=subject_col,
+        kind="annotation" if subject_col is TaskEvaluation.annotation_id else "generation",
+    )
+
+
+def _scored_for(
+    db: Session, project_id: str, *, metric_id: str, pred_field_norm: str,
+    subject_col, kind: str,
+) -> set:
+    from sqlalchemy import and_
+    from models import TaskEvaluation, EvaluationRun
+    rows = (
+        db.query(subject_col)
+        .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
+        .filter(
+            EvaluationRun.project_id == project_id,
+            TaskEvaluation.field_name.like(f"{metric_id}-%|{pred_field_norm}|%"),
+            TaskEvaluation.metrics.isnot(None),
+            TaskEvaluation.error_message.is_(None),
+            subject_col.isnot(None),
+        )
+        .all()
+    )
+    return {(kind, r[0]) for r in rows if r[0] is not None}
 
 
 def _count_cells_to_generate(
