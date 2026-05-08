@@ -123,10 +123,13 @@ describe('EvaluationControlModal', () => {
       expect(screen.getByText('5 configurations will be run')).toBeInTheDocument()
     })
 
-    it('shows info note', () => {
+    it('does not render the legacy "Note: runs in background" hint', () => {
+      // Removed in PR #65 as visual clutter — the background-run
+      // behavior is obvious from the page UX. Test kept as a regression
+      // guard so the box doesn't quietly come back.
       render(<EvaluationControlModal {...defaultProps} />)
-      expect(screen.getByText(/Note:/)).toBeInTheDocument()
-      expect(screen.getByText(/background/)).toBeInTheDocument()
+      expect(screen.queryByText(/Note:/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/background/)).not.toBeInTheDocument()
     })
 
     it('renders start and cancel buttons', () => {
