@@ -111,22 +111,33 @@ export function GenerationProgress({
             if (data.type === 'complete') {
               logger.debug('Generation complete')
 
-              // Calculate success/failure counts for toast notification
-              const completedCount = data.generations?.filter(
+              // The complete payload now mirrors progress and includes
+              // the per-response generations array (api/routers/generation.py).
+              // Fall back to the last known statuses for older API builds
+              // that haven't shipped that field yet.
+              const generations: any[] =
+                data.generations ?? Object.values(statuses)
+              const completedCount = generations.filter(
                 (g: any) => g.status === 'completed'
-              ).length || 0
-              const failedCount = data.generations?.filter(
+              ).length
+              const failedCount = generations.filter(
                 (g: any) => g.status === 'failed'
-              ).length || 0
-              const totalCount = data.generations?.length || 0
+              ).length
+              const totalCount = generations.length
 
-              // Show appropriate completion toast
-              if (failedCount === 0 && completedCount > 0) {
+              if (completedCount === 0) {
+                addToast(
+                  t('generation.error.allFailed', {
+                    failed: failedCount || totalCount,
+                  }),
+                  'error'
+                )
+              } else if (failedCount === 0) {
                 addToast(
                   t('generation.success.allComplete', { count: completedCount }),
                   'success'
                 )
-              } else if (failedCount > 0) {
+              } else {
                 addToast(
                   t('generation.success.completeWithFailures', {
                     completed: completedCount,

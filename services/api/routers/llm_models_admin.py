@@ -1,6 +1,6 @@
 """Superadmin-only endpoints for managing the LLM model catalog.
 
-The catalog is seeded from `services/api/seeds/llm_models.yaml` at startup,
+The catalog is seeded from `services/shared/seeds/llm_models.yaml` at startup,
 gated by content hash. Use the reseed endpoint here to force a re-apply
 without restarting the API container — useful after editing the YAML on a
 running staging or prod environment.
