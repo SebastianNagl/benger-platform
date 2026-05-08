@@ -141,6 +141,67 @@ _REASONING_OUTPUT_UTILIZATION = 0.9
 _DEFAULT_OUTPUT_UTILIZATION = 0.6
 
 
+def _count_evaluation_judge_calls(
+    db: Session,
+    project_id: str,
+    judge_model_id: str,
+    runs_per_call: int,
+    generation_mode: Optional[str],
+) -> int:
+    """Count (task × run_index) judge calls that would actually fire for
+    `judge_model_id`.
+
+    Each LLM-judge metric records one row per judge invocation in
+    `evaluation_judge_runs` (linked via `evaluation_id` to the
+    `evaluation_runs` row carrying the project + task). For an ensemble
+    of size N, every task fans out into N parallel judge runs at each
+    `run_index`. That's the API-call boundary, so it's also the cost
+    boundary.
+
+    - mode in ('all', None): every (task × run_index) is one call.
+    - mode == 'missing': a call counts only when no completed
+      `evaluation_judge_runs` row exists for this (task, judge,
+      run_index). Mirrors the worker's `evaluate_missing_only` decision
+      in services/workers/tasks.py around line 2722, which skips a
+      task once a successful judge run is on file.
+
+    Deterministic metrics (BERTScore/BLEU/exact_match/etc.) do not
+    appear here — they don't go through `evaluation_judge_runs` and
+    incur compute time, not API cost.
+    """
+    from project_models import Task
+    from models import EvaluationRun, EvaluationJudgeRun
+
+    task_ids = [r[0] for r in db.query(Task.id).filter(Task.project_id == project_id).all()]
+    if not task_ids or runs_per_call <= 0:
+        return 0
+
+    if generation_mode != "missing":
+        return len(task_ids) * runs_per_call
+
+    # Bulk-load all completed (task_id, run_index) pairs for this judge
+    # once per call instead of N×M individual queries.
+    done_rows = (
+        db.query(EvaluationRun.task_id, EvaluationJudgeRun.run_index)
+        .join(EvaluationJudgeRun, EvaluationJudgeRun.evaluation_id == EvaluationRun.id)
+        .filter(
+            EvaluationRun.project_id == project_id,
+            EvaluationJudgeRun.judge_model_id == judge_model_id,
+            EvaluationJudgeRun.status == "completed",
+        )
+        .distinct()
+        .all()
+    )
+    done = {(tid, ri) for tid, ri in done_rows}
+
+    cells = 0
+    for tid in task_ids:
+        for ri in range(runs_per_call):
+            if (tid, ri) not in done:
+                cells += 1
+    return cells
+
+
 def _count_cells_to_generate(
     db: Session,
     project_id: str,
@@ -274,17 +335,35 @@ def estimate_cost(
             _REASONING_OUTPUT_UTILIZATION if is_reasoning else _DEFAULT_OUTPUT_UTILIZATION
         )
 
-        # Cell count is per-model: under mode=missing, a model that has
-        # mostly-successful prior runs may only have a handful of failed
-        # cells to retry, while another model may need every cell. Pricing
-        # the worst case across all models would mislead the user.
-        cells = _count_cells_to_generate(
-            db=db,
-            project_id=request.project_id,
-            model_id=model_id,
-            structure_keys=request.structure_keys,
-            generation_mode=request.generation_mode,
-        )
+        # Cell count is per-model and per-mode:
+        # - generation: count (task × structure) cells with no recent
+        #   successful response_generations row (for mode=missing).
+        # - evaluation: count (task × run_index) judge calls with no
+        #   successful evaluation_judge_runs row for this judge model.
+        # Without the eval-specific path the estimator would query the
+        # generations table for evaluation runs — counting whichever
+        # generations were missing instead of which judge calls are
+        # missing. Different question, different answer.
+        if request.mode == "evaluation":
+            cells = _count_evaluation_judge_calls(
+                db=db,
+                project_id=request.project_id,
+                judge_model_id=model_id,
+                runs_per_call=request.runs_per_call,
+                generation_mode=request.generation_mode,
+            )
+            # The judge-call count already factors run_index, so don't
+            # multiply by runs_per_call again below.
+            runs_already_counted = True
+        else:
+            cells = _count_cells_to_generate(
+                db=db,
+                project_id=request.project_id,
+                model_id=model_id,
+                structure_keys=request.structure_keys,
+                generation_mode=request.generation_mode,
+            )
+            runs_already_counted = False
 
         token_est = estimate_tokens_for_calls(
             project_id=request.project_id,
@@ -319,7 +398,10 @@ def estimate_cost(
             + (token_est.output_estimate / 1000.0) * pricing["output_per_1k"]
         )
         per_run = per_call * cells * request.samples_per_task
-        model_total = per_run * request.runs_per_call
+        # For evaluation, `cells` is already (tasks × run_index) so the
+        # outer runs_per_call multiplier would double-count. For
+        # generation it stays 1× per cell so the multiplier still applies.
+        model_total = per_run if runs_already_counted else per_run * request.runs_per_call
 
         per_model_costs.append(PerModelCost(
             model_id=model_id,
