@@ -17,6 +17,15 @@ export interface CostEstimatePanelProps {
   /** When true, fetches and renders. Trigger modals pass `isOpen` here so the
    *  estimate fetch only fires when the modal is actually visible. */
   enabled?: boolean
+  /** Mirror of the trigger endpoint's `mode` argument (all/missing/single).
+   *  When 'missing', the backend counts only the cells whose latest
+   *  generation failed or is absent — matching what the worker will
+   *  actually queue. Without this the estimate over-states cost for any
+   *  partial-rerun scenario. */
+  generationMode?: 'all' | 'missing' | 'single'
+  /** Active prompt structures the user picked. The backend uses these to
+   *  count cells per (task × structure) instead of just per task. */
+  structureKeys?: string[]
 }
 
 interface PerModelCost {
@@ -25,6 +34,7 @@ interface PerModelCost {
   per_run_usd: number
   total_usd: number
   pricing_known: boolean
+  cells_to_generate?: number
 }
 
 interface CostEstimateResponse {
@@ -58,6 +68,8 @@ export function CostEstimatePanel({
   runsPerCall,
   samplesPerTask = 1,
   enabled = true,
+  generationMode,
+  structureKeys,
 }: CostEstimatePanelProps) {
   const { t } = useI18n()
   const { addToast } = useToast()
@@ -82,6 +94,8 @@ export function CostEstimatePanel({
           judge_models: judgeModels,
           runs_per_call: runsPerCall,
           samples_per_task: samplesPerTask,
+          generation_mode: generationMode,
+          structure_keys: structureKeys,
         })
         if (!cancelled) setEstimate(data)
       } catch (err: any) {
@@ -99,7 +113,7 @@ export function CostEstimatePanel({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, projectId, mode, modelIds.join(','), judgeModels.join(','), runsPerCall, samplesPerTask])
+  }, [enabled, projectId, mode, modelIds.join(','), judgeModels.join(','), runsPerCall, samplesPerTask, generationMode, (structureKeys || []).join(',')])
 
   if (!enabled) return null
   if (mode === 'generation' && modelIds.length === 0) return null
