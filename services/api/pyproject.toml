@@ -28,6 +28,13 @@ dependencies = [
     "openai==1.109.1",
     "anthropic==0.97.0",
     "google-genai>=1.0.0",
+    # tiktoken powers the prompt-token count in services/api/services/
+    # token_estimation.py — without it the cost estimator falls back to
+    # a chars/4 heuristic (encoding="chars/4 (no tiktoken)") and
+    # under-estimates German text by ~20-30 %. requirements.txt already
+    # listed it but the api Dockerfile installs from pyproject.toml, so
+    # prod was running the fallback path silently.
+    "tiktoken>=0.5.0",
     "aiohttp==3.13.5",
     "python-jose[cryptography]==3.5.0",
     "jinja2==3.1.6",
