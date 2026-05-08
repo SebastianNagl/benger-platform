@@ -5381,6 +5381,7 @@
       "default": "Standard",
       "taskDetails": "Aufgabendetails",
       "model": "Modell",
+      "generation": "Generation",
       "copied": "Kopiert!",
       "copyJson": "JSON kopieren",
       "generationResults": "Generierungsergebnisse",

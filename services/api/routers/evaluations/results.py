@@ -1642,13 +1642,22 @@ async def get_sample_result_by_task_model(
             )
 
             if user:
+                # Mirror the cell aggregator's run-status filter
+                # (results.py: completed/running/pending only) so the modal
+                # never surfaces a row from a cancelled or failed run when
+                # the table cell already excluded it. Without this the modal
+                # eval tab can show a `{score:1, justification}` row from a
+                # cancelled judge run while the cell shows a different,
+                # valid score from an earlier successful run.
                 sample_results = (
                     db.query(TaskEvaluation)
                     .join(Annotation, TaskEvaluation.annotation_id == Annotation.id)
+                    .join(DBEvaluationRun, TaskEvaluation.evaluation_id == DBEvaluationRun.id)
                     .filter(
                         TaskEvaluation.task_id == task_id,
                         Annotation.completed_by == user.id,
                         TaskEvaluation.generation_id == None,  # noqa: E711
+                        DBEvaluationRun.status.in_(("completed", "running", "pending")),
                     )
                     .order_by(TaskEvaluation.created_at.desc())
                     .all()
@@ -1663,9 +1672,14 @@ async def get_sample_result_by_task_model(
                     GenerationModel,
                     TaskEvaluation.generation_id == GenerationModel.id,
                 )
+                .join(
+                    DBEvaluationRun,
+                    TaskEvaluation.evaluation_id == DBEvaluationRun.id,
+                )
                 .filter(
                     TaskEvaluation.task_id == task_id,
                     GenerationModel.model_id == model_id,
+                    DBEvaluationRun.status.in_(("completed", "running", "pending")),
                 )
             )
             if generation_id:
