@@ -1275,6 +1275,59 @@ async def get_project_results_by_task_model(
                 "summary": {},
             }
 
+        # F1: when `include_history` is OFF, the cell must reflect the
+        # SINGLE latest generation per (task_id, model_id) — not the latest
+        # eval row across all historical gens. Without this scope, an older
+        # gen's eval row silently feeds the cell when the latest gen has no
+        # valid eval (e.g. the only eval row for the latest gen came from a
+        # cancelled run and got filtered upstream by EvaluationRun.status).
+        # The user's mental model is "n/a if the current gen has no
+        # eval", not "fall back to whatever older gen still has a score".
+        # Mirrors the same pattern used by the /by-task-model sibling
+        # endpoint (this file, around line 777).
+        latest_gen_ids_subq = None
+        latest_ann_ids_subq = None
+        if not include_history:
+            project_task_ids = db.query(Task.id).filter(Task.project_id == project_id).subquery()
+            latest_gen = (
+                db.query(
+                    GenerationModel.id.label("gen_id"),
+                    func.row_number()
+                    .over(
+                        partition_by=[GenerationModel.task_id, GenerationModel.model_id],
+                        order_by=GenerationModel.created_at.desc(),
+                    )
+                    .label("rn"),
+                )
+                .filter(
+                    GenerationModel.status == "completed",
+                    GenerationModel.task_id.in_(db.query(project_task_ids.c.id)),
+                )
+                .subquery()
+            )
+            latest_gen_ids_subq = (
+                db.query(latest_gen.c.gen_id).filter(latest_gen.c.rn == 1).subquery()
+            )
+            latest_ann = (
+                db.query(
+                    Annotation.id.label("ann_id"),
+                    func.row_number()
+                    .over(
+                        partition_by=[Annotation.task_id, Annotation.completed_by],
+                        order_by=Annotation.created_at.desc(),
+                    )
+                    .label("rn"),
+                )
+                .filter(
+                    Annotation.completed_by.isnot(None),
+                    Annotation.task_id.in_(db.query(project_task_ids.c.id)),
+                )
+                .subquery()
+            )
+            latest_ann_ids_subq = (
+                db.query(latest_ann.c.ann_id).filter(latest_ann.c.rn == 1).subquery()
+            )
+
         # Subquery: rank results by (generation_id, field_name), ordered by created_at DESC
         # Keeps the latest result per generation per config/field combination
         gen_query = (
@@ -1297,6 +1350,10 @@ async def get_project_results_by_task_model(
             )
             .filter(TaskEvaluation.evaluation_id.in_(completed_eval_ids))
         )
+        if latest_gen_ids_subq is not None:
+            gen_query = gen_query.filter(
+                TaskEvaluation.generation_id.in_(db.query(latest_gen_ids_subq.c.gen_id))
+            )
         # When a single EvaluationRun bundles multiple metrics, every metric
         # produces its own row for the same (gen, model) cell. The aggregation
         # loop below assigns score by overwriting `task_model_scores[t][m]`
@@ -1360,6 +1417,10 @@ async def get_project_results_by_task_model(
                 TE2.annotation_id != None,  # noqa: E711
             )
         )
+        if latest_ann_ids_subq is not None:
+            ann_query = ann_query.filter(
+                TE2.annotation_id.in_(db.query(latest_ann_ids_subq.c.ann_id))
+            )
         if metric:
             from sqlalchemy import cast as _cast
             from sqlalchemy.dialects.postgresql import JSONB as _JSONB
