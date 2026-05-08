@@ -123,6 +123,20 @@ class OpenAIService(BaseAIService):
         """Check if OpenAI service is available (API key set)"""
         return self.client is not None
 
+    @staticmethod
+    def _is_responses_api_only_model(model_name: str) -> bool:
+        """OpenAI's `*-pro` reasoning tiers (gpt-5-pro, gpt-5.5-pro,
+        o3-pro, o4-pro, …) are exposed only via the `/v1/responses`
+        endpoint; calling them on `/v1/chat/completions` returns
+        `404 — not a chat model`. The base reasoning models (o3, o3-mini,
+        o4-mini) and the standard GPT-5 family work on chat-completions
+        and stay on that path.
+        """
+        m = model_name.lower()
+        if not m.endswith("-pro"):
+            return False
+        return m.startswith(("gpt-5", "o1", "o3", "o4"))
+
     @retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
     def generate(
         self,
@@ -183,6 +197,19 @@ class OpenAIService(BaseAIService):
 
         if not self.is_available():
             raise ValueError("OpenAI service is not available - check OPENAI_API_KEY configuration")
+
+        # `*-pro` reasoning tiers are only reachable via `/v1/responses`;
+        # the chat-completions endpoint returns "not a chat model" for them.
+        if self._is_responses_api_only_model(model_name):
+            return self._generate_via_responses_api(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                model_name=model_name,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                requested_seed=requested_seed,
+                **kwargs,
+            )
 
         try:
             start_time = datetime.now()
@@ -324,6 +351,156 @@ class OpenAIService(BaseAIService):
                     # Phase 6.5: stamped by user_aware_ai_service when
                     # the service was created. None for direct/standalone
                     # service instances (E2E mocks, scripts).
+                    "provider_route": getattr(self, "_key_resolution_route", None),
+                    "provider_name": getattr(self, "_provider_name", "openai"),
+                    "billed_user_id": getattr(self, "_invocation_user_id", None),
+                    "billed_organization_id": getattr(
+                        self, "_invocation_organization_id", None
+                    ),
+                },
+                success=True,
+                error=None,
+            )
+
+        except Exception as e:
+            return self._create_error_response(e, model_name, "OpenAI")
+
+    def _generate_via_responses_api(
+        self,
+        prompt: str,
+        system_prompt: str,
+        model_name: str,
+        max_tokens: int,
+        temperature: float,
+        requested_seed: int,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Call OpenAI's `/v1/responses` endpoint for `*-pro` reasoning models.
+
+        These models reject chat-completions; the responses API takes
+        `input` (instead of `messages`) and `max_output_tokens` (instead
+        of `max_completion_tokens`). System prompt is conveyed via the
+        `instructions` parameter so it doesn't compete with reasoning
+        budget for output tokens.
+
+        Output mapping keeps the same response-dict shape downstream
+        consumers expect: `content`, `usage` (with the legacy
+        `prompt_tokens`/`completion_tokens` aliases), and the same
+        metadata fields the chat-completions path produces.
+        """
+        try:
+            start_time = datetime.now()
+
+            api_params: Dict[str, Any] = {
+                "model": model_name,
+                "input": prompt,
+                # max_output_tokens caps the *visible* answer; reasoning
+                # tokens are billed separately and don't count toward it.
+                "max_output_tokens": max_tokens,
+            }
+            if system_prompt:
+                api_params["instructions"] = system_prompt
+
+            # `*-pro` tiers enforce temperature=1.0 like every other
+            # GPT-5/o-series model. Record the coercion the same way so
+            # researchers exporting data see consistent fields.
+            requested_temperature = temperature
+            api_params["temperature"] = 1.0
+            temperature_coerced = temperature != 1.0
+            if temperature_coerced:
+                logger.info(
+                    f"Overriding temperature={temperature} -> 1.0 for "
+                    f"{model_name} (Responses API enforces 1.0 for *-pro)"
+                )
+
+            reasoning_effort = kwargs.get("reasoning_effort")
+            if reasoning_effort in ("low", "medium", "high"):
+                api_params["reasoning"] = {"effort": reasoning_effort}
+                logger.info(f"🧠 Using reasoning.effort={reasoning_effort} for {model_name}")
+
+            # `*-pro` models silently ignore seed/top_p/etc. so we don't
+            # send them. Track which of the requested params were dropped
+            # so the audit trail mirrors the chat-completions path.
+            unsupported_dropped = ["top_p", "frequency_penalty", "presence_penalty", "seed"]
+
+            response = self.client.responses.create(**api_params)
+
+            end_time = datetime.now()
+            response_time_ms = int((end_time - start_time).total_seconds() * 1000)
+
+            # `output_text` is the SDK's convenience accessor that joins
+            # all visible message-content text items, skipping the hidden
+            # reasoning items. Empty string means a refusal or truncation.
+            content = (response.output_text or "").strip()
+
+            # Responses-API usage uses input_tokens/output_tokens; map to
+            # legacy keys so downstream cost/aggregation code keeps working.
+            usage = response.usage
+            prompt_tokens = getattr(usage, "input_tokens", 0)
+            completion_tokens = getattr(usage, "output_tokens", 0)
+            total_tokens = getattr(
+                usage, "total_tokens", prompt_tokens + completion_tokens
+            )
+
+            # Finish reason: responses-API emits status='completed' or
+            # status='incomplete' on the response itself; per-item
+            # reasons (length, content_filter, refusal) live on the last
+            # output item. Prefer the item-level reason when present.
+            status = getattr(response, "status", None)
+            finish_reason: Optional[str] = None
+            refusal = False
+            if response.output:
+                last = response.output[-1]
+                finish_reason = getattr(last, "stop_reason", None) or getattr(
+                    last, "finish_reason", None
+                )
+                refusal = bool(getattr(last, "refusal", None))
+            if not finish_reason:
+                # Fall back to response-level status — `incomplete` with
+                # `incomplete_details.reason == "max_output_tokens"` is
+                # the common truncation signal on this endpoint.
+                if status == "incomplete":
+                    details = getattr(response, "incomplete_details", None)
+                    finish_reason = getattr(details, "reason", "incomplete")
+                else:
+                    finish_reason = status
+
+            logger.info(f"🤖 OpenAI Responses-API Generation: {model_name}")
+            logger.info(
+                f"📊 Usage: {prompt_tokens} prompt + {completion_tokens} completion = "
+                f"{total_tokens} total tokens"
+            )
+            logger.info(f"⏱️ Response time: {response_time_ms}ms")
+
+            return self._create_response_dict(
+                content=content,
+                model=model_name,
+                usage={
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": total_tokens,
+                },
+                metadata={
+                    "temperature": api_params["temperature"],
+                    "requested_temperature": requested_temperature,
+                    "actual_temperature": api_params["temperature"],
+                    "temperature_coerced": temperature_coerced,
+                    "max_tokens": max_tokens,
+                    "response_time_ms": response_time_ms,
+                    "finish_reason": finish_reason,
+                    "seed": None,  # *-pro tiers don't honor seed
+                    "refusal": refusal,
+                    "truncated": derive_truncated(finish_reason),
+                    "error_type": None,
+                    "created_at": end_time.isoformat(),
+                    "unsupported_params_dropped": unsupported_dropped,
+                    "is_gpt5_series": "gpt-5" in model_name.lower(),
+                    "is_o_series": any(
+                        model_name.lower().startswith(p) for p in ("o1", "o3", "o4")
+                    ),
+                    "api_endpoint": "responses",
+                    "retry_attempts": _get_retry_history_snapshot(),
+                    "retry_count": len(_get_retry_history_snapshot()),
                     "provider_route": getattr(self, "_key_resolution_route", None),
                     "provider_name": getattr(self, "_provider_name", "openai"),
                     "billed_user_id": getattr(self, "_invocation_user_id", None),
