@@ -5401,6 +5401,7 @@
       "default": "Default",
       "taskDetails": "Task Details",
       "model": "Model",
+      "generation": "Generation",
       "copied": "Copied!",
       "copyJson": "Copy JSON",
       "generationResults": "Generation Results",

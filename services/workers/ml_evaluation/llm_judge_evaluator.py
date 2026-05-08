@@ -648,7 +648,14 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 # a parse error so retries get a fresh attempt, and if all
                 # retries fail the row is marked failed (mode='missing'
                 # eval picks it up next time).
-                if result and "score" in result and criterion and criterion.startswith("llm_judge_falloesung"):
+                #
+                # `criterion` arrives here with the `llm_judge_` prefix
+                # already stripped by the caller (services/workers/tasks.py
+                # `metric.replace("llm_judge_", "")`), so we match on
+                # `falloesung` directly. May also carry a config suffix
+                # like `falloesung-mmpfzsar-7wb3|loesung|musterlösung`,
+                # which `startswith` still accepts.
+                if result and "score" in result and criterion and criterion.startswith("falloesung"):
                     dimensions = result.get("dimensions")
                     if not isinstance(dimensions, dict) or not dimensions:
                         logger.warning(
