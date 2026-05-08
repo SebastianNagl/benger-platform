@@ -35,6 +35,11 @@ api:
         secretKeyRef:
           name: benger-api-secrets
           key: secret_key
+    - name: ENCRYPTION_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: encryption_key
     - name: LOG_LEVEL
       value: "DEBUG"
     - name: SCHEMA_VALIDATION_MODE
@@ -101,6 +106,11 @@ workers:
         secretKeyRef:
           name: benger-api-secrets
           key: secret_key
+    - name: ENCRYPTION_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: encryption_key
     - name: OPENAI_API_KEY
       valueFrom:
         secretKeyRef:

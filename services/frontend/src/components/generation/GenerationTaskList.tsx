@@ -83,11 +83,20 @@ function getAggregateStatus(
     (s) => s.status === 'completed' || s.status === 'failed'
   )
 
-  const hasCompleted = statusArray.some((s) => s.status === 'completed')
+  // A status with status='completed' but a non-null error_message is the
+  // worker's way of recording a per-call failure that finished its lifecycle
+  // (e.g. provider returned an api_error, the import-time `seeds` error).
+  // For colouring purposes treat those as failures, not successes.
+  const isSuccessfulCompletion = (s: TaskGenerationStatus) =>
+    s.status === 'completed' && !s.error_message
+
+  const hasCompleted = statusArray.some(isSuccessfulCompletion)
   const hasRunning = statusArray.some(
     (s) => s.status === 'running' || s.status === 'pending'
   )
-  const hasFailed = statusArray.some((s) => s.status === 'failed')
+  const hasFailed = statusArray.some(
+    (s) => s.status === 'failed' || (s.status === 'completed' && !!s.error_message)
+  )
 
   if (hasCompleted) return { status: 'completed', hasResults }
   if (hasRunning) return { status: 'running', hasResults }
@@ -528,16 +537,21 @@ export function GenerationTaskList({
                   const { status, hasResults } =
                     getAggregateStatus(modelStatuses)
 
-                  // Build tooltip showing status of each structure
+                  // Build tooltip showing status of each structure.
+                  // status='completed' + error_message means the worker
+                  // recorded a per-call failure that ran to lifecycle end —
+                  // count those in failed, not completed.
                   const structureCount = modelStatuses.length
                   const completedCount = modelStatuses.filter(
-                    (s) => s.status === 'completed'
+                    (s) => s.status === 'completed' && !s.error_message
                   ).length
                   const runningCount = modelStatuses.filter(
                     (s) => s.status === 'running' || s.status === 'pending'
                   ).length
                   const failedCount = modelStatuses.filter(
-                    (s) => s.status === 'failed'
+                    (s) =>
+                      s.status === 'failed' ||
+                      (s.status === 'completed' && !!s.error_message)
                   ).length
 
                   let tooltip = ''

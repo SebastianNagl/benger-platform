@@ -20,7 +20,7 @@ from database import get_db
 from models import Generation as DBGeneration
 from models import ResponseGeneration as DBResponseGeneration
 from models import User as DBUser
-from project_models import Project, Task
+from project_models import Project, ProjectOrganization, Task
 from routers.projects.helpers import (
     check_project_accessible,
     check_project_write_access,
@@ -404,9 +404,27 @@ async def start_generation(
             detail="Only contributors or admins can start generation for this project",
         )
 
-    # Extract organization context for API key resolution (Issue #1180)
+    # Extract organization context for API key resolution (Issue #1180).
+    # The frontend sets X-Organization-Context when the user has an explicit
+    # org tab selected. When it's missing/"private" we fall back to the
+    # project's M2M `project_organizations` link — otherwise org-level
+    # `require_private_keys: False` settings are silently bypassed for any
+    # request triggered from the Private tab.
     org_context = raw_request.headers.get("X-Organization-Context")
     org_id = org_context if org_context and org_context != "private" else None
+    if org_id is None:
+        linked_org_ids = [
+            row[0]
+            for row in db.query(ProjectOrganization.organization_id)
+            .filter(ProjectOrganization.project_id == project_id)
+            .all()
+        ]
+        if len(linked_org_ids) == 1:
+            org_id = linked_org_ids[0]
+        # If zero: project has no org → user-key fallback is appropriate.
+        # If multiple: caller must disambiguate via the header; leave None
+        # so the resolver continues to use the user's personal keys rather
+        # than guessing which org's keys to spend.
 
     # Get generation configuration
     generation_config = project.generation_config or {}
