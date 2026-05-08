@@ -99,6 +99,10 @@ jobs:
         run: make test-seed
 
       - name: Run ${{ matrix.shard }} tests
+        # html reporter writes services/frontend/playwright-report/ for the
+        # upload step below; line reporter keeps the streaming step log.
+        env:
+          E2E_REPORTER: html,line
         run: |
           case "${{ matrix.shard }}" in
             api)      make test-api ;;
@@ -116,7 +120,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nightly-playwright-report
-          path: services/frontend/playwright-report/
+          # test-results/ holds per-test traces/videos/screenshots; keep them
+          # alongside the html report so failures are debuggable even if the
+          # html generator itself crashed mid-run.
+          path: |
+            services/frontend/playwright-report/
+            services/frontend/test-results/
+          if-no-files-found: warn
           retention-days: 7
 
       - name: Cleanup

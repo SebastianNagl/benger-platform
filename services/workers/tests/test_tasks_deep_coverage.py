@@ -966,7 +966,16 @@ class TestRunSingleSampleEvaluation:
     def test_deterministic_metric_success(self):
         """Test that a deterministic metric (non-LLM) gets computed."""
         mock_evaluator = MagicMock()
+        # Phase 2 metric registry: production calls _compute_metric_with_details
+        # which returns the rich {value, method, details, error} dict. The
+        # extract_value shim then peels the bare value back out.
         mock_evaluator._compute_metric.return_value = 0.85
+        mock_evaluator._compute_metric_with_details.return_value = {
+            "value": 0.85,
+            "method": "bleu",
+            "details": {},
+            "error": None,
+        }
 
         db = _mock_db()
         eval_run_obj = MagicMock()
@@ -1047,11 +1056,21 @@ class TestRunSingleSampleEvaluation:
 
 class TestEvaluateLLMJudgeSingle:
     def test_success(self):
+        """Production now calls _evaluate_single_criterion(...) per metric
+        criterion (the prior call to a non-existent evaluate_single() was a
+        latent crash). The returned dict carries `score` per the
+        DEFAULT_CRITERIA scale; the helper normalizes to 0..1 using
+        score_scale."""
         db = _mock_db()
 
         mock_judge = MagicMock()
         mock_judge.ai_service = MagicMock()
-        mock_judge.evaluate_single.return_value = {"overall_score": 0.75, "details": {}}
+        mock_judge.score_scale = "0-1"
+        mock_judge.criteria = ["correctness"]
+        mock_judge._evaluate_single_criterion.return_value = {
+            "score": 0.75,
+            "justification": "ok",
+        }
 
         with patch("ml_evaluation.llm_judge_evaluator.create_llm_judge_for_user", return_value=mock_judge):
             with patch.object(tasks_module, "_get_provider_from_model", return_value="openai"):

@@ -1274,17 +1274,33 @@ export default function EvaluationDashboard() {
                 {filteredResults.slice(0, 1).flatMap((result) =>
                   Object.entries(result.metrics || {})
                     .slice(0, 4)
-                    .map(([key, value]) => (
-                      <ScoreCard
-                        key={key}
-                        metric={key}
-                        value={value}
-                        description={`${key} for ${result.model_id}`}
-                        higherIsBetter={true}
-                        formatAs="decimal"
-                        sampleSize={result.samples_evaluated}
-                      />
-                    ))
+                    .map(([key, value]) => {
+                      // Multi-run aggregate (migration 042): pull from the
+                      // statistics endpoint's runs_by_model_metric block when
+                      // available. Key shape is "model_id|metric_name". Falls
+                      // back to undefined for legacy single-run evals so the
+                      // ScoreCard renders unchanged.
+                      const runsKey = `${result.model_id}|${key}`
+                      const runsAggregateRaw = (statisticsData as any)?.runs_by_model_metric?.[runsKey]
+                      const runsAggregate = runsAggregateRaw && runsAggregateRaw.n_runs > 1
+                        ? {
+                            runs: runsAggregateRaw.n_runs,
+                            stdAcrossRuns: runsAggregateRaw.std_of_means ?? 0,
+                          }
+                        : undefined
+                      return (
+                        <ScoreCard
+                          key={key}
+                          metric={key}
+                          value={value}
+                          description={`${key} for ${result.model_id}`}
+                          higherIsBetter={true}
+                          formatAs="decimal"
+                          sampleSize={result.samples_evaluated}
+                          runsAggregate={runsAggregate}
+                        />
+                      )
+                    })
                 )}
               </div>
             )}

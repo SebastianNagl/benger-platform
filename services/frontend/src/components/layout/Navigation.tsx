@@ -485,9 +485,9 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
     // Superadmins see everything regardless of context
     if (user.is_superadmin) return true
 
-    // Private mode: Dashboard, Projects, Data, Generations, Evaluations
+    // Private mode: Dashboard, Projects, Data, Generations, Evaluations, Runs
     if (isPrivateMode) {
-      return ['/dashboard', '/projects', '/data', '/generations', '/evaluations', '/reports', '/leaderboards'].includes(href) ||
+      return ['/dashboard', '/projects', '/data', '/generations', '/evaluations', '/runs', '/reports', '/leaderboards'].includes(href) ||
         href.startsWith('/about') || href.startsWith('/how-to') ||
         href === '/models' || href === '/architecture'
     }
@@ -497,6 +497,7 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
       case '/data':
       case '/generations':
       case '/evaluations':
+      case '/runs':
         // CONTRIBUTOR and above
         return currentOrgRole === 'ORG_ADMIN' || currentOrgRole === 'CONTRIBUTOR'
       case '/projects':

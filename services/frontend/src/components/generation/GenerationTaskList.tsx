@@ -31,6 +31,11 @@ interface TaskGenerationStatus {
   generated_at: string | null
   error_message: string | null
   result_preview: string | null
+  // Multi-run progress (migration 041). Backend may omit these fields for
+  // legacy single-run rows; treat undefined as runs_requested=1.
+  runs_requested?: number
+  runs_completed?: number
+  runs_failed?: number
 }
 
 interface TaskWithGenerationStatus {
@@ -545,6 +550,28 @@ export function GenerationTaskList({
                     tooltip = t('generation.taskList.notYetGenerated')
                   }
 
+                  // Multi-run progress (migration 041): show "completed/requested"
+                  // when any structure has runs_requested > 1. Picks the max
+                  // requested across structures so a per-cell glance shows the
+                  // worst-case progress.
+                  const runsRequestedMax = modelStatuses.reduce(
+                    (max, s) => Math.max(max, s.runs_requested ?? 1),
+                    1,
+                  )
+                  const runsCompletedSum = modelStatuses.reduce(
+                    (sum, s) => sum + (s.runs_completed ?? 0),
+                    0,
+                  )
+                  const runsFailedSum = modelStatuses.reduce(
+                    (sum, s) => sum + (s.runs_failed ?? 0),
+                    0,
+                  )
+                  const showMultiRunBadge = runsRequestedMax > 1
+                  if (showMultiRunBadge) {
+                    tooltip += ` — runs ${runsCompletedSum}/${runsRequestedMax * Math.max(1, structureCount)}`
+                    if (runsFailedSum > 0) tooltip += ` (${runsFailedSum} failed)`
+                  }
+
                   const isGenerating =
                     generatingCell?.taskId === task.id &&
                     generatingCell?.modelId === model
@@ -589,6 +616,14 @@ export function GenerationTaskList({
                           getStatusIcon(status)
                         )}
                       </button>
+                      {showMultiRunBadge && (
+                        <span className="ml-1 inline-block rounded bg-zinc-100 px-1.5 py-0.5 align-middle text-[10px] font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                          {runsCompletedSum}/{runsRequestedMax * Math.max(1, structureCount)}
+                          {runsFailedSum > 0 && (
+                            <span className="ml-1 text-red-600 dark:text-red-400">!</span>
+                          )}
+                        </span>
+                      )}
                     </td>
                   )
                 })}

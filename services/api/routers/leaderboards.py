@@ -75,33 +75,10 @@ def detect_provider_from_model_id(model_id: str) -> str:
 def calculate_confidence_interval(
     values: List[float], confidence: float = 0.95
 ) -> Tuple[Optional[float], Optional[float], int]:
-    """
-    Calculate confidence interval using t-distribution.
+    """Confidence interval of the mean (t-distribution). Thin wrapper over bg_statistics."""
+    from bg_statistics import confidence_interval as _ci
 
-    Args:
-        values: List of metric values
-        confidence: Confidence level (default 95%)
-
-    Returns:
-        Tuple of (lower_bound, upper_bound, sample_count)
-        Returns (None, None, n) if insufficient data
-    """
-    if not STATS_AVAILABLE:
-        return (None, None, len(values))
-
-    n = len(values)
-    if n < 2:
-        return (None, None, n)
-
-    mean = np.mean(values)
-    se = stats.sem(values)  # Standard error of the mean
-
-    # t-distribution critical value
-    alpha = 1 - confidence
-    t_critical = stats.t.ppf(1 - alpha / 2, n - 1)
-
-    margin = t_critical * se
-    return (round(mean - margin, 4), round(mean + margin, 4), n)
+    return _ci(values, confidence=confidence)
 
 
 def calculate_significance(values_a: List[float], values_b: List[float]) -> Dict[str, Any]:

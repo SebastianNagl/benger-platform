@@ -51,6 +51,12 @@ class TaskGenerationStatus(BaseModel):
     generated_at: Optional[datetime] = None
     error_message: Optional[str] = None
     result_preview: Optional[str] = None  # First 100 chars of result
+    # Multi-run progress (migration 041). All three default to None when the
+    # caller queries a non-existent combination; for legacy single-run rows
+    # they're populated as (1, 1, 0) by the backfill.
+    runs_requested: Optional[int] = None
+    runs_completed: Optional[int] = None
+    runs_failed: Optional[int] = None
 
 
 class TaskWithGenerationStatus(BaseModel):
@@ -82,6 +88,10 @@ class GenerationParameters(BaseModel):
 
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     max_tokens: int = Field(default=4000, ge=100, le=16000)
+    # Phase 6.6: explicit seed for variance studies. Default 42 keeps
+    # the historical determinism behavior. Providers that don't accept
+    # a seed (Anthropic, Google, DeepInfra) record None on the row.
+    seed: int = Field(default=42, ge=0)
 
 
 class GenerationRequest(BaseModel):
@@ -96,6 +106,10 @@ class GenerationRequest(BaseModel):
         default=None,
         description="Per-model settings: {model_id: {max_tokens: int, reasoning_effort?: str, thinking_budget?: int}}",
     )
+    # Multi-run override: when set, this trigger generates N trials per
+    # (task, model, structure) regardless of the project default. None falls
+    # back to project.generation_config.runs_per_task (or 1 if unset).
+    runs_per_task: Optional[int] = Field(default=None, ge=1, le=25)
 
 
 class GenerationResponse(BaseModel):
@@ -217,6 +231,9 @@ def get_single_task_generation_status(
         generated_at=generation.completed_at or generation.created_at,
         error_message=generation.error_message if generation.status == "failed" else None,
         result_preview=result_preview,
+        runs_requested=getattr(generation, "runs_requested", None),
+        runs_completed=getattr(generation, "runs_completed", None),
+        runs_failed=getattr(generation, "runs_failed", None),
     )
 
 
@@ -402,10 +419,15 @@ async def start_generation(
             selected_config["parameters"] = {}
         selected_config["parameters"]["temperature"] = request.parameters.temperature
         selected_config["parameters"]["max_tokens"] = request.parameters.max_tokens
+        # Phase 6.6: persist the per-run seed so workers and audit
+        # rows reflect the exact value the user requested.
+        selected_config["parameters"]["seed"] = request.parameters.seed
         config_updated = True
         logger.info(
             f"Updated generation parameters for project {project_id}: "
-            f"temperature={request.parameters.temperature}, max_tokens={request.parameters.max_tokens}"
+            f"temperature={request.parameters.temperature}, "
+            f"max_tokens={request.parameters.max_tokens}, "
+            f"seed={request.parameters.seed}"
         )
 
     # Update per-model configs if provided
@@ -418,8 +440,16 @@ async def start_generation(
 
     # Save config changes if any
     if config_updated:
+        from sqlalchemy.orm.attributes import flag_modified
+
         generation_config["selected_configuration"] = selected_config
         project.generation_config = generation_config
+        # JSONB mutation guard: SQLAlchemy doesn't detect in-place dict edits,
+        # so without flag_modified the assignment above would not persist
+        # (the parent dict identity didn't change). Without this, the worker
+        # reads stale generation_config and falls back to SYSTEM_DEFAULTS for
+        # every parameter — silently dropping the per-trigger override.
+        flag_modified(project, "generation_config")
         db.add(project)
         db.commit()
 
@@ -580,6 +610,18 @@ async def start_generation(
             f"Cancelled {cancelled_count} existing pending/running generations for project {project_id}"
         )
 
+    # Resolve runs-per-task: per-trigger override → project default → 1.
+    # Capped at 25 by the request schema; project default is also bounded
+    # in the project-config router. The chosen value is stored on the
+    # parent ResponseGeneration so retries and dashboard counters use the
+    # value that was active when the trigger fired, not whatever the project
+    # default happens to be at retry time.
+    if request.runs_per_task is not None:
+        runs_per_task = request.runs_per_task
+    else:
+        runs_per_task = int(generation_config.get("runs_per_task", 1) or 1)
+        runs_per_task = max(1, min(25, runs_per_task))
+
     # Always use parallel processing for better performance
     # Queue generation jobs
     generation_job_ids = []
@@ -596,6 +638,9 @@ async def start_generation(
             model_id=model_id,
             structure_key=structure_key,  # Issue #762: Pass structure_key
             status="pending",
+            runs_requested=runs_per_task,
+            runs_completed=0,
+            runs_failed=0,
             created_by=current_user.id,
             organization_id=org_id,  # Issue #1180: Track org context
             created_at=datetime.now(),
@@ -606,20 +651,21 @@ async def start_generation(
         # Determine if we should force regeneration based on mode
         force_rerun = request.mode in ("all", "single")
 
-        # Collect task info for later dispatch
-        celery_tasks_to_dispatch.append(
-            (generation_id, project_id, task_id, model_id, structure_key, force_rerun, org_id)
-        )
+        # Fan out N trial jobs per cell (one Celery job per run_index).
+        for run_index in range(runs_per_task):
+            celery_tasks_to_dispatch.append(
+                (generation_id, project_id, task_id, model_id, structure_key, force_rerun, org_id, run_index)
+            )
 
     # Commit all generation records BEFORE dispatching Celery tasks
     # This ensures workers can find the records in the database
     db.commit()
 
     # Now dispatch all Celery tasks after records are committed
-    for gen_id, proj_id, t_id, m_id, s_key, force, o_id in celery_tasks_to_dispatch:
+    for gen_id, proj_id, t_id, m_id, s_key, force, o_id, run_idx in celery_tasks_to_dispatch:
         celery_app.send_task(
             "tasks.generate_response",
-            args=[gen_id, proj_id, t_id, m_id, s_key, force, o_id],
+            args=[gen_id, proj_id, t_id, m_id, s_key, force, o_id, run_idx],
             queue="generation",
         )
 

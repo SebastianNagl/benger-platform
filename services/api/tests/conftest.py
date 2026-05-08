@@ -27,6 +27,12 @@ if '/app' not in sys.path:
 shared_path = os.path.join(api_path, '..', 'shared')
 if os.path.exists(shared_path) and shared_path not in sys.path:
     sys.path.insert(0, shared_path)
+# Also expose `services/` so `from bg_statistics import ...` works in tests
+# (production runs do `from shared.X` via the Docker /shared mount; tests need
+# the same prefix path on disk to resolve).
+services_path = os.path.dirname(api_path)
+if os.path.exists(services_path) and services_path not in sys.path:
+    sys.path.insert(0, services_path)
 
 # Set test environment variables before importing modules
 # Use test PostgreSQL: Docker sets DATABASE_URI, local dev uses localhost:5433

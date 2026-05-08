@@ -105,8 +105,13 @@ describe('Toast Component', () => {
 
       await user.click(screen.getByText('Add Toast'))
 
-      const toastContainer = document.querySelector('.fixed.right-4.top-4.z-50')
+      // ToastContainer was bumped to z-[60] so toasts stack above
+      // HeadlessUI Dialogs (z-50). Selector dropped the z-class so it
+      // tracks future ordering tweaks; class assertion enforces the
+      // current value.
+      const toastContainer = document.querySelector('.fixed.right-4.top-4')
       expect(toastContainer).toBeInTheDocument()
+      expect(toastContainer).toHaveClass('z-[60]')
       expect(toastContainer).toHaveClass('pointer-events-none')
       expect(toastContainer).toHaveClass('max-w-sm')
       expect(toastContainer).toHaveClass('space-y-2')

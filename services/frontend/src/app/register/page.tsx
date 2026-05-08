@@ -6,9 +6,10 @@ import { LikertScale } from '@/components/shared/LikertScale'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { hasSlot, useSlot } from '@/lib/extensions/slots'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 
 const TOTAL_STEPS = 5
 
@@ -60,12 +61,15 @@ export default function RegisterPage() {
     atiSScores: {} as Record<string, number>,
     pttAScores: {} as Record<string, number>,
     kiExperienceScores: {} as Record<string, number>,
+    // Research data consent (gated by extended-edition slot)
+    researchDataConsent: false,
   })
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [invitationToken, setInvitationToken] = useState<string | null>(null)
   const [isInvitedUser, setIsInvitedUser] = useState(false)
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null)
+  const ResearchConsentSlot = useSlot('signup-step5-consent')
 
   // Options
   const legalExpertiseLevels = [
@@ -257,6 +261,12 @@ export default function RegisterPage() {
           if (formData.kiExperienceScores[key] === undefined)
             return t('register.psychometricRequired')
         }
+        if (
+          hasSlot('signup-step5-consent') &&
+          !formData.researchDataConsent
+        ) {
+          return t('register.researchConsent.required')
+        }
         return null
       }
       default:
@@ -329,6 +339,9 @@ export default function RegisterPage() {
           ati_s_scores: formData.atiSScores,
           ptt_a_scores: formData.pttAScores,
           ki_experience_scores: formData.kiExperienceScores,
+          research_data_consent_accepted: hasSlot('signup-step5-consent')
+            ? formData.researchDataConsent
+            : undefined,
         },
         invitationToken || undefined
       )
@@ -933,6 +946,19 @@ export default function RegisterPage() {
           required
         />
       </div>
+
+      {ResearchConsentSlot && (
+        <div className="border-t border-zinc-200 pt-4 dark:border-zinc-700">
+          <Suspense fallback={null}>
+            <ResearchConsentSlot
+              value={formData.researchDataConsent}
+              onChange={(v: boolean) =>
+                setFormData((prev) => ({ ...prev, researchDataConsent: v }))
+              }
+            />
+          </Suspense>
+        </div>
+      )}
     </div>
   )
 

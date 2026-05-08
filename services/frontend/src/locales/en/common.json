@@ -8,7 +8,8 @@
     "projects": "Projects",
     "dataManagement": "Data Management",
     "generation": "Generation",
-    "evaluation": "Evaluation",
+    "evaluation": "Evaluations",
+    "runs": "Runs",
     "howTo": "How-To",
     "models": "Models",
     "architecture": "Architecture",
@@ -380,6 +381,8 @@
           "temperature": "Temperature",
           "maxTokens": "Max Tokens",
           "batchSize": "Batch Size",
+          "seed": "Seed",
+          "seedHint": "Random seed for reproducibility (default: 42). Providers that don't accept a seed (Anthropic, Google) ignore this value.",
           "defaultParams": "Default Generation Parameters"
         },
         "step6": {
@@ -846,7 +849,11 @@
       "korrekturBlindToPeers": "Blind correction (other correctors)",
       "korrekturBlindToPeersHint": "Other correctors' grades stay hidden until you submit your own",
       "korrekturBlindToLlm": "Blind correction (LLM pre-grade)",
-      "korrekturBlindToLlmHint": "LLM pre-grades stay hidden until you submit your own"
+      "korrekturBlindToLlmHint": "LLM pre-grades stay hidden until you submit your own",
+      "korrekturBlindToNonJudge": "Blind correction (classic metrics)",
+      "korrekturBlindToNonJudgeHint": "Classic automated metrics (BLEU, ROUGE, BERTScore …) stay hidden until you submit your own",
+      "korrekturKeepBlindAfterSubmit": "Keep blind after submission",
+      "korrekturKeepBlindAfterSubmitHint": "When on, the entries above stay hidden even after you submit your own grade"
     },
     "evaluationMethods": {
       "title": "Evaluation Methods"
@@ -977,7 +984,8 @@
       "evaluationConfigSingular": "{count} config",
       "evaluationConfigPlural": "{count} configs",
       "description": "Select evaluation methods to run",
-      "configureFirst": "Configure label configuration first to enable evaluation methods"
+      "configureFirst": "Configure label configuration first to enable evaluation methods",
+      "runCta": "Start Evaluation"
     },
     "evaluationDefaults": {
       "title": "Evaluation Defaults",
@@ -985,8 +993,21 @@
       "save": "Save Defaults",
       "defaultTemperature": "Default Temperature",
       "temperatureHelp": "Used for LLM Judge unless overridden per-evaluation (0.0 = deterministic)",
+      "temperatureHelpModeOverride": "Ignored: the active strategy fills temperature per judge model.",
       "defaultMaxTokens": "Default Max Tokens",
-      "maxTokensHelp": "Maximum response length for LLM Judge (default: 500 tokens)"
+      "maxTokensHelp": "Maximum response length for LLM Judge (default: 500 tokens)",
+      "maxTokensHelpModeOverride": "Ignored: the active strategy fills max tokens per judge model.",
+      "modeLabel": "Default strategy",
+      "modeRecommended": "Recommended values (per judge model)",
+      "modeRecommendedDesc": "Use the provider-recommended evaluation values for each newly added judge model.",
+      "modeMinimum": "Minimum values (per judge model)",
+      "modeMinimumDesc": "Use the lowest provider-allowed temperature for each newly added judge model.",
+      "modeCustom": "Custom",
+      "modeCustomDesc": "Use the values entered below uniformly for all newly added judge configurations (min/max constraints still apply).",
+      "runsTitle": "Multi-Run",
+      "runsDescription": "How often each task should be evaluated by the judge. Applies when no judge ensemble is configured.",
+      "defaultRunsPerTask": "Default judge runs",
+      "runsPerTaskHelp": "Default 1. Values > 1 produce multiple ratings for variance / consistency analysis. Cap 25."
     },
     "generationDefaults": {
       "title": "Generation Defaults",
@@ -994,8 +1015,21 @@
       "save": "Save Defaults",
       "defaultTemperature": "Default Temperature",
       "temperatureHelp": "Used for all models unless overridden per-model (0.0 = deterministic)",
+      "temperatureHelpModeOverride": "Ignored: the active strategy fills temperature per model.",
       "defaultMaxTokens": "Default Max Tokens",
-      "maxTokensHelp": "Maximum response length for all models unless overridden per-model"
+      "maxTokensHelp": "Maximum response length for all models unless overridden per-model",
+      "maxTokensHelpModeOverride": "Ignored: the active strategy fills max tokens per model.",
+      "modeLabel": "Default strategy",
+      "modeRecommended": "Recommended values (per model)",
+      "modeRecommendedDesc": "Use the provider-recommended values for each newly added model.",
+      "modeMinimum": "Minimum values (per model)",
+      "modeMinimumDesc": "Use the lowest provider-allowed temperature for each newly added model.",
+      "modeCustom": "Custom",
+      "modeCustomDesc": "Use the values entered below uniformly for all newly added models (min/max constraints still apply).",
+      "runsTitle": "Multi-Run",
+      "runsDescription": "How often each task-model combination should be generated. Multiplies costs accordingly.",
+      "defaultRunsPerTask": "Default runs per task",
+      "runsPerTaskHelp": "Default 1. Values > 1 produce multiple trials for variance analysis. Cap 25."
     },
     "settings": {
       "title": "Settings",
@@ -2043,6 +2077,9 @@
     "nameRequired": "Please enter your name",
     "competenceRequired": "Please rate your competence in all legal areas",
     "psychometricRequired": "Please answer all psychometric scale items",
+    "researchConsent": {
+      "required": "You must agree to the research data use policy to create an account"
+    },
     "demographicsDescription": "This information helps us ensure diverse and representative research samples.",
     "ageLabel": "Age",
     "agePlaceholder": "e.g., 28",
@@ -2458,6 +2495,7 @@
       "temperature": "Temperature",
       "maxTokens": "Max Tokens",
       "batchSize": "Batch Size",
+      "seed": "Seed",
       "presentationMode": "Presentation Mode",
       "autoDetect": "Auto-detect",
       "useLabelConfig": "Use Label Config",
@@ -2494,6 +2532,8 @@
       "temperatureDesc": "0 = deterministic, higher = more creative",
       "defaultMaxTokens": "Default Max Tokens",
       "defaultMaxTokensDesc": "Default response length (100-16000)",
+      "seed": "Seed",
+      "seedDesc": "Random seed for reproducibility (default: 42). Providers that don't accept a seed (Anthropic, Google, Kimi/MiniMax) ignore this value.",
       "perModelTokenLimits": "Per-Model Token Limits",
       "perModelTokenLimitsDesc": "Leave blank to use the default. Set a custom value to override for specific models.",
       "totalGenerationsPerTask": "Total Generations Per Task:",
@@ -2507,7 +2547,11 @@
       "startGeneration": "Start Generation",
       "cancel": "Cancel",
       "queuedJobs": "Queued {tasks} generation jobs for {models} models. Estimated time: {minutes} minutes",
-      "failedToStart": "Failed to start generation"
+      "failedToStart": "Failed to start generation",
+      "recommended": "Recommended",
+      "resetToRecommended": "Reset to recommended",
+      "noRecommendation": "No recommendation",
+      "divergentRecommendations": "Different recommendations per model"
     }
   },
   "notifications": {
@@ -3820,6 +3864,7 @@
       "demoteLevel": "Demote one level (Tab)",
       "bold": "Bold (Ctrl+B)",
       "italic": "Italic (Ctrl+I)",
+      "underline": "Underline (Ctrl+U)",
       "bulletList": "Bullet list",
       "orderedList": "Numbered list",
       "heading": "Heading"
@@ -6225,7 +6270,12 @@
       "reasoningLevelDescription": "How much reasoning the model should use",
       "reasoningLow": "Low",
       "reasoningMedium": "Medium (Default)",
-      "reasoningHigh": "High"
+      "reasoningHigh": "High",
+      "recommended": "Recommended",
+      "resetToRecommended": "Reset to recommended",
+      "noRecommendation": "No recommendation",
+      "noRecommendationForKey": "No recommendation for this parameter",
+      "divergentRecommendations": "Different recommendations per model"
     },
     "list": {
       "predictions": "Predictions:",
@@ -7329,9 +7379,13 @@
     "noTasks": "No tasks found",
     "falloesungSaveSuccess": "Grade saved",
     "falloesungSaveError": "Failed to save grade",
-    "blindBanner": "Blind grading active: {what} are hidden until you submit.",
     "blindBannerLlm": "LLM judge scores",
+    "blindBannerNonJudge": "automated metrics",
     "blindBannerPeers": "other correctors' grades",
+    "blindTooltip": "Blind grading: {what} hidden until you submit",
+    "blindTooltipPersistent": "Blind grading (persistent): {what} hidden — also after you submit",
+    "blindTooltipLifted": "Blind grading lifted for this item — you've already submitted, so {what} are now visible",
+    "blindTooltipInactive": "All evaluations visible",
     "stats": {
       "totalTasks": "Total Tasks",
       "withFeedback": "With Correction",
@@ -7346,6 +7400,7 @@
       "korrektur_falloesung": "Grades (Falllösung)"
     },
     "itemFilter": {
+      "label": "Status",
       "open_for_me": "Open for me",
       "all": "All",
       "unassigned": "Unassigned",
@@ -7355,6 +7410,20 @@
       "completed_by_me": "Done by me",
       "completed_by_others": "Done by others",
       "fully_complete": "Complete"
+    },
+    "priorityFilter": {
+      "label": "Priority"
+    },
+    "assigneeFilter": {
+      "label": "Assigned"
+    },
+    "search": "Search",
+    "filters": "Filters",
+    "start": {
+      "cta": "Start grading",
+      "empty": "No open items to grade",
+      "allDone": "You've already graded every item",
+      "error": "Could not start grading"
     },
     "queueProgress": "{done} / {total} graded by you",
     "queueProgressTooltip": "Items you have graded in this project (across all filters)",
@@ -7422,12 +7491,18 @@
       "evaluation": "Evaluation",
       "queuePosition": "Item {index} of {total}"
     },
+    "table": {
+      "id": "#",
+      "type": "Type",
+      "assignees": "Assigned",
+      "status": "Status",
+      "actions": "Actions"
+    },
     "tabs": {
       "review": "Review",
+      "reference": "Reference",
       "falloesungGrade": "Grade (Standard Falllösung)",
-      "falloesungHint": "Grading on the Standard Falllösung rubric is in the \"Grade (Standard Falllösung)\" tab above.",
-      "falloesungLlmReference": "LLM pre-grade (reference only, not adopted)",
-      "falloesungNoLlmYet": "No LLM pre-grade exists for this solution yet. You're grading from scratch."
+      "falloesungLlmReference": "LLM pre-grade (reference only, not adopted)"
     },
     "comments": {
       "title": "Comments",
@@ -7498,7 +7573,9 @@
       "visibilitySection": "Blind grading",
       "visibilitySectionHelp": "Hides peer/LLM grades until you submit yours — then revealed for comparison.",
       "blindToLlmJudge": "Hide LLM judge scores",
-      "blindToPeerCorrectors": "Hide other correctors' grades"
+      "blindToNonJudgeMetrics": "Hide classic automated metrics (BLEU, ROUGE, BERTScore …)",
+      "blindToPeerCorrectors": "Hide other correctors' grades",
+      "keepBlindAfterSubmit": "Keep hidden after I submit"
     }
   },
   "emptyStates": {
@@ -8098,5 +8175,101 @@
   "progress": {
     "cancel": "Cancel",
     "dismiss": "Dismiss"
+  },
+  "runs": {
+    "title": "Runs",
+    "subtitle": "Inventory of individual generation and evaluation runs. Click a row to see the run's detail.",
+    "tabs": {
+      "evaluation": "Evaluations",
+      "generation": "Generations"
+    },
+    "filterProject": "Project",
+    "filterStatus": "Status",
+    "allProjects": "All projects",
+    "allStatuses": "All",
+    "totalCount": "{count} entries",
+    "loading": "Loading…",
+    "empty": "No entries",
+    "pageInfo": "Page {page} of {total}",
+    "prev": "Previous",
+    "next": "Next",
+    "col": {
+      "started": "Started",
+      "project": "Project",
+      "status": "Status",
+      "model": "Model",
+      "structure": "Structure",
+      "runs": "Runs",
+      "targetModel": "Target model",
+      "judges": "Judges",
+      "metrics": "Metrics",
+      "samples": "Samples",
+      "duration": "Duration"
+    }
+  },
+  "generations": {
+    "detail": {
+      "title": "Generation run",
+      "back": "Back to runs",
+      "loading": "Loading…",
+      "status": "Status",
+      "model": "Model",
+      "runs": "Runs",
+      "started": "Started",
+      "completed": "Completed",
+      "task": "Task",
+      "structure": "Structure",
+      "project": "Project",
+      "error": "Error",
+      "parameters": "Parameters",
+      "trials": "Per run",
+      "runIndex": "Run #",
+      "preview": "Response (preview)",
+      "response": "Response",
+      "prompt": "Prompt used",
+      "linkedEvaluations": "Linked evaluations",
+      "metric": "Metric",
+      "scoredSamples": "Samples scored"
+    }
+  },
+  "costEstimate": {
+    "title": "Cost estimate",
+    "subtitleGeneration": "Estimated cost of the planned generation.",
+    "subtitleEvaluation": "Estimated cost of the planned evaluation (judge calls).",
+    "loading": "Counting tokens and resolving prices…",
+    "totalLabel": "Estimated total cost",
+    "breakdown": "{tasks} tasks × {runs} run/runs × {models} model(s)",
+    "modelCol": "Model",
+    "perCallCol": "Per call",
+    "perRunCol": "Per run",
+    "totalCol": "Total",
+    "noPricing": "No pricing data",
+    "tokenLabel": "Token estimate per call"
+  },
+  "eval": {
+    "judgeAgreement": {
+      "titlePearson": "Inter-judge correlation (Pearson)",
+      "titleKappa": "Inter-judge agreement (κ)"
+    }
+  },
+  "extended": {
+    "researchConsent": {
+      "label": "I have read and agree to the use of my anonymized data for research.",
+      "linkText": "use of my anonymized data for research",
+      "agree": "I agree",
+      "close": "Close"
+    },
+    "researchDataPolicy": {
+      "title": "Research Data Use Policy",
+      "lead": "Use of this platform is conditional on granting us rights to your usage and annotation data for our research, on the condition that the data is anonymized.",
+      "scopeTitle": "Scope",
+      "scopeText": "This policy covers the data you generate while using BenGER: annotations, corrections, generations, evaluations, and the timing and behavioural metadata that accompanies them. It does not cover personal account data — that is governed by the separate Privacy Policy.",
+      "anonymizationTitle": "Anonymization",
+      "anonymizationText": "Before any data leaves the platform for research analysis, direct identifiers (name, email, account id) are stripped or replaced with stable pseudonyms. Aggregate statistics and per-pseudonym trajectories are what get studied, not your individual identity.",
+      "useTitle": "How we use it",
+      "useText": "Anonymized data is used to study how humans and large language models perform on German legal tasks: agreement, calibration, error patterns, and the design of better evaluation methods. Results may appear in academic papers, public benchmarks, or aggregate dashboards. Raw, attributable records are not published.",
+      "consentTitle": "Your consent",
+      "consentText": "Ticking the consent box at signup grants this permission for as long as your data remains anonymized. Pre-existing accounts on this deployment have been treated as having consented; if you'd prefer otherwise, contact the operators."
+    }
   }
 }

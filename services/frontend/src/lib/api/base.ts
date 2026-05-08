@@ -7,6 +7,37 @@
 
 import logger from '@/lib/utils/logger'
 
+/**
+ * FastAPI returns validation errors as `detail: [{loc, msg, type}, ...]`.
+ * Without flattening, `new Error(arr)` calls Array#toString and produces
+ * `"[object Object],..."` — opaque to the user. This turns the array into
+ * `"email: field required; password: too short"` while leaving plain-string
+ * details unchanged.
+ */
+function formatErrorDetail(detail: unknown): string | null {
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const parts = detail
+      .map((item) => {
+        if (!item || typeof item !== 'object') return String(item)
+        const e = item as { loc?: unknown[]; msg?: string; message?: string }
+        const msg = e.msg || e.message || JSON.stringify(item)
+        const loc = Array.isArray(e.loc)
+          ? e.loc.filter((p) => p !== 'body').join('.')
+          : ''
+        return loc ? `${loc}: ${msg}` : msg
+      })
+      .filter(Boolean)
+    return parts.length ? parts.join('; ') : null
+  }
+  if (detail && typeof detail === 'object') {
+    const m = (detail as { msg?: string; message?: string }).msg
+      || (detail as { msg?: string; message?: string }).message
+    return m || JSON.stringify(detail)
+  }
+  return null
+}
+
 // Server-side vs client-side API URL handling
 function getApiBaseUrl(): string {
   // Server-side (SSR) - use direct API container URL
@@ -163,6 +194,16 @@ export class BaseApiClient {
       if (orgMatch) {
         patterns.push(`/organizations/${orgMatch[1]}/api-keys`)
       }
+    }
+
+    // For project sub-resource mutations (generation-config / evaluation-config /
+    // prompt-structures / etc.), invalidate the project itself so the parent
+    // page's `fetchProject` doesn't read stale nested config from the 30s
+    // cache. Without this, adding/removing a prompt structure required a
+    // page refresh before the count badge / model lists reflected reality.
+    const projectMatch = mutationEndpoint.match(/^\/projects\/([^\/]+)\//)
+    if (projectMatch) {
+      patterns.push(`/projects/${projectMatch[1]}`)
     }
 
     // Invalidate each pattern
@@ -504,7 +545,9 @@ export class BaseApiClient {
               // Try to parse as JSON first
               errorData = JSON.parse(errorText)
               errorMessage =
-                errorData.detail || errorData.message || errorMessage
+                formatErrorDetail(errorData.detail) ||
+                errorData.message ||
+                errorMessage
             } catch {
               // If not JSON, use the text as-is
               errorMessage += ` - ${errorText}`

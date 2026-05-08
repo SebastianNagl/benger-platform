@@ -416,7 +416,7 @@ test-e2e: ## Run E2E Playwright tests (skips tests requiring optional extensions
 	@cd $(FRONTEND_DIR) && \
 	E2E_ISOLATED=true \
 	PLAYWRIGHT_BASE_URL=http://benger-test.localhost:8090 \
-	npx playwright test $(if $(FILE),$(FILE),) $(if $(GREP),--grep "$(GREP)",--grep-invert "@extended") --reporter=line
+	npx playwright test $(if $(FILE),$(FILE),) $(if $(GREP),--grep "$(GREP)",--grep-invert "@extended") --reporter=$(if $(E2E_REPORTER),$(E2E_REPORTER),line)
 
 .PHONY: test-api
 test-api: ## Run API tests only (use GREP="pattern" to filter, FILE="path" to target file)

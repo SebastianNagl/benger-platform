@@ -32,6 +32,15 @@ export interface BoxPlotData {
   mean?: number
   outliers?: number[]
   count?: number
+  /**
+   * Optional run-index for multi-run feature (migration 042). When set, the
+   * tooltip surfaces the run number and the bar's name should encode the
+   * grouping (e.g. "gpt-4o (run 0)") so the user can see per-run
+   * distributions side-by-side. The chart visualization itself is unchanged
+   * — it's the caller's responsibility to compute one BoxPlotData entry per
+   * (target_model, run_index) bucket and pass them all in via `data`.
+   */
+  runIndex?: number
 }
 
 interface BoxPlotChartProps {
@@ -88,6 +97,14 @@ function CustomTooltip({ active, payload, t }: any) {
           <div className="flex justify-between gap-4">
             <span className="text-gray-500">{t('evaluation.charts.boxPlot.n')}:</span>
             <span className="font-mono">{item.count?.toLocaleString()}</span>
+          </div>
+        )}
+        {item.runIndex !== undefined && (
+          <div className="flex justify-between gap-4 border-t border-gray-200 pt-1 dark:border-gray-700">
+            <span className="text-gray-500">
+              {t('evaluation.charts.boxPlot.run', 'Run')}:
+            </span>
+            <span className="font-mono">#{item.runIndex}</span>
           </div>
         )}
       </div>

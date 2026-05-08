@@ -27,6 +27,53 @@ from .llm_judge_prompts import (
 
 logger = logging.getLogger(__name__)
 
+
+# Phase 6.6: which response.metadata keys we surface as the
+# `call_metadata` block on each TaskEvaluation. Keep this list flat
+# and explicit so the persisted shape is predictable for researchers.
+_CALL_METADATA_KEYS = (
+    "seed",
+    "finish_reason",
+    "truncated",
+    "refusal",
+    "error_type",
+    "response_time_ms",
+    "temperature",
+    "requested_temperature",
+    "actual_temperature",
+    "temperature_coerced",
+    "max_tokens",
+    "retry_attempts",
+    "retry_count",
+    "provider_route",
+    "provider_name",
+    "billed_user_id",
+    "billed_organization_id",
+)
+
+
+def _extract_call_metadata(response: Dict[str, Any]) -> Dict[str, Any]:
+    """Pull the standard academic-rigor fields out of an AI service response.
+
+    The AI service's ``response["usage"]`` already holds token counts;
+    ``response["metadata"]`` holds latency / finish_reason / seed /
+    refusal / truncated / error_type and the retry+billing provenance.
+    This helper flattens them into one dict keyed for persistence under
+    ``task_evaluations.metrics[criterion].details.call_metadata``.
+    """
+    meta = response.get("metadata") or {}
+    usage = response.get("usage") or {}
+    out: Dict[str, Any] = {
+        "input_tokens": usage.get("prompt_tokens"),
+        "output_tokens": usage.get("completion_tokens"),
+        "total_tokens": usage.get("total_tokens"),
+    }
+    for key in _CALL_METADATA_KEYS:
+        if key in meta:
+            out[key] = meta[key]
+    return out
+
+
 # Default evaluation criteria and prompts
 DEFAULT_CRITERIA = {
     "helpfulness": {
@@ -202,6 +249,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
         score_scale: str = "1-5",
         thinking_budget: Optional[int] = None,
         reasoning_effort: Optional[str] = None,
+        seed: int = 42,
     ):
         """
         Initialize LLM Judge evaluator.
@@ -241,6 +289,9 @@ class LLMJudgeEvaluator(BaseEvaluator):
         self.score_scale = score_scale
         self.thinking_budget = thinking_budget
         self.reasoning_effort = reasoning_effort
+        # Phase 6.6: per-judge seed (default 42 keeps determinism). Forwarded
+        # to ai_service.generate() in _evaluate_single_criterion.
+        self.seed = seed
 
         # Merge all criteria: defaults + type-specific + custom
         self.all_criteria = {**DEFAULT_CRITERIA, **TYPE_SPECIFIC_CRITERIA, **self.custom_criteria}
@@ -413,7 +464,11 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         criterion=criterion,
                         task_data=task.get("data", {}),
                     )
-                    if result is not None:
+                    # Result can be a success payload (score+justification) or
+                    # a failure payload (error+_call_metadata) when all retries
+                    # exhaust. Skip the append when it's a failure so the
+                    # outer except doesn't sink the whole sample.
+                    if result is not None and not result.get("error") and "score" in result:
                         all_scores[criterion].append(result["score"])
 
                 samples_evaluated += 1
@@ -531,10 +586,19 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 prompt_template = prompt_template.replace("{" + key + "}", str(value))
             prompt = prompt_template
 
+        # Phase 6.6 (#3): on full retry exhaustion we return a failure
+        # dict (with ``error: True`` and ``_call_metadata``) instead of
+        # ``None`` so the persistence layer can still record the typed
+        # ``error_type`` column. We track the most recent provider /
+        # parse failure across attempts here.
+        last_failure: Optional[Dict[str, Any]] = None
+
         for attempt in range(self.max_retries):
             try:
-                # Build extra kwargs for thinking/reasoning parameters
-                extra_kwargs = {}
+                # Build extra kwargs for thinking/reasoning parameters.
+                # Phase 6.6: forward `seed` so providers that accept it
+                # (OpenAI/Cohere/Mistral/Grok) honor the per-judge value.
+                extra_kwargs = {"seed": self.seed}
                 if self.thinking_budget:
                     extra_kwargs["thinking_budget"] = self.thinking_budget
                 if self.reasoning_effort:
@@ -550,8 +614,28 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 )
 
                 if not response.get("success"):
-                    logger.warning(f"LLM judge call failed: {response.get('error')}")
-                    continue
+                    # Phase 6.6 (#4): the provider already retried 5x
+                    # via its own decorator. Retrying again here just
+                    # amplifies (5×3 = 15 attempts on rate-limit). Bail
+                    # out, but keep the metadata so the failure dict
+                    # below can record the typed error_type.
+                    logger.warning(
+                        f"LLM judge call failed (provider exhausted): {response.get('error')}"
+                    )
+                    last_failure = {
+                        "error": True,
+                        "error_message": response.get("error"),
+                        "_call_metadata": _extract_call_metadata(response),
+                        "_raw_output": response.get("content", ""),
+                        "_judge_prompts_used": {
+                            "system_prompt": "You are an expert evaluator. Respond only with valid JSON.",
+                            "evaluation_prompt": prompt,
+                            "criterion": criterion,
+                            "judge_model": self.judge_model,
+                            "temperature": self.temperature,
+                        },
+                    }
+                    break  # don't retry provider-side failures
 
                 content = response.get("content", "")
                 result = self._parse_evaluation_response(content)
@@ -573,15 +657,68 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         "judge_model": self.judge_model,
                         "temperature": self.temperature,
                     }
+                    # Phase 6.6: stop dropping the academic-rigor metadata
+                    # the AI service already captured. The persistence
+                    # layer (workers/tasks.py) folds this into
+                    # task_evaluations.metrics[criterion].details.
+                    result["_call_metadata"] = _extract_call_metadata(response)
+                    result["_raw_output"] = content
                     # Return the ENTIRE parsed response (all custom fields)
                     return result
 
+                # Provider call succeeded but we couldn't parse a score.
+                # This IS worth retrying (the model may produce valid
+                # JSON on the next attempt). Record the parse failure so
+                # we can return useful provenance if all retries fail.
+                last_failure = {
+                    "error": True,
+                    "error_message": "judge response missing parseable score",
+                    "_call_metadata": {
+                        **_extract_call_metadata(response),
+                        # Override error_type to parse_error: the call
+                        # succeeded, the response was just unusable.
+                        "error_type": "parse_error",
+                    },
+                    "_raw_output": content,
+                    "_judge_prompts_used": {
+                        "system_prompt": "You are an expert evaluator. Respond only with valid JSON.",
+                        "evaluation_prompt": prompt,
+                        "criterion": criterion,
+                        "judge_model": self.judge_model,
+                        "temperature": self.temperature,
+                    },
+                }
+
             except Exception as e:
                 logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                # Capture the exception too, classified the same way
+                # the AI service would classify it. Import is best-effort —
+                # a missing ai_services module (test envs without shared/
+                # on the path) shouldn't sink the retry loop.
+                try:
+                    from ai_services.base_service import classify_error_type
+                    error_type = classify_error_type(e)
+                except Exception:
+                    error_type = "unknown"
+                last_failure = {
+                    "error": True,
+                    "error_message": str(e),
+                    "_call_metadata": {
+                        "error_type": error_type,
+                    },
+                    "_raw_output": "",
+                    "_judge_prompts_used": {
+                        "system_prompt": "You are an expert evaluator. Respond only with valid JSON.",
+                        "evaluation_prompt": prompt,
+                        "criterion": criterion,
+                        "judge_model": self.judge_model,
+                        "temperature": self.temperature,
+                    },
+                }
                 if attempt < self.max_retries - 1:
                     time.sleep(1 * (attempt + 1))  # Exponential backoff
 
-        return None
+        return last_failure
 
     def evaluate_pairwise(
         self,
@@ -617,8 +754,10 @@ class LLMJudgeEvaluator(BaseEvaluator):
 
         for attempt in range(self.max_retries):
             try:
-                # Build extra kwargs for thinking/reasoning parameters
-                extra_kwargs = {}
+                # Build extra kwargs for thinking/reasoning parameters.
+                # Phase 6.6: forward `seed` so providers that accept it
+                # (OpenAI/Cohere/Mistral/Grok) honor the per-judge value.
+                extra_kwargs = {"seed": self.seed}
                 if self.thinking_budget:
                     extra_kwargs["thinking_budget"] = self.thinking_budget
                 if self.reasoning_effort:
@@ -925,6 +1064,7 @@ def create_llm_judge_for_user(
     thinking_budget: Optional[int] = None,
     reasoning_effort: Optional[str] = None,
     organization_id: Optional[str] = None,
+    seed: int = 42,
 ) -> LLMJudgeEvaluator:
     """
     Factory function to create LLM Judge evaluator with user's or org's API key.
@@ -982,6 +1122,7 @@ def create_llm_judge_for_user(
             score_scale=score_scale,
             thinking_budget=thinking_budget,
             reasoning_effort=reasoning_effort,
+            seed=seed,
         )
     except Exception as e:
         logger.error(f"Failed to create LLM judge: {e}")
@@ -995,4 +1136,5 @@ def create_llm_judge_for_user(
             score_scale=score_scale,
             thinking_budget=thinking_budget,
             reasoning_effort=reasoning_effort,
+            seed=seed,
         )

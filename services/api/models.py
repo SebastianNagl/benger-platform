@@ -272,6 +272,9 @@ class User(Base):
     mandatory_profile_completed = Column(Boolean, nullable=False, default=False, server_default="false")
     profile_confirmed_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Research data use consent (extended-edition policy; NULL on community deployments)
+    research_data_consent_accepted_at = Column(DateTime(timezone=True), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -751,6 +754,12 @@ class ResponseGeneration(Base):
     )  # pending, running, completed, failed
     # Number of responses generated
     responses_generated = Column(Integer, default=0, nullable=False)
+    # Multi-run support (migration 041): one ResponseGeneration row fans out
+    # into N child Generation rows, each with a unique run_index. The counters
+    # let the worker tick progress and the UI render "3/5" badges.
+    runs_requested = Column(Integer, nullable=False, server_default=text("1"))
+    runs_completed = Column(Integer, nullable=False, server_default=text("0"))
+    runs_failed = Column(Integer, nullable=False, server_default=text("0"))
     error_message = Column(Text, nullable=True)  # Error message if failed
     # Generation result (actual generated content)
     result = Column(JSON, nullable=True)
@@ -781,6 +790,16 @@ class Generation(Base):
     """Individual LLM generated response content database model"""
 
     __tablename__ = "generations"
+    __table_args__ = (
+        # Migration 041: at most one Generation per (parent ResponseGeneration,
+        # run_index). Idempotency for Celery redelivery of the same trial.
+        Index(
+            "uq_generations_parent_run_index",
+            "generation_id",
+            "run_index",
+            unique=True,
+        ),
+    )
 
     id = Column(String, primary_key=True, index=True)
     generation_id = Column(
@@ -797,6 +816,20 @@ class Generation(Base):
     response_metadata = Column(JSON, nullable=True)
     status = Column(String, default="completed", nullable=False)  # completed, failed
     error_message = Column(Text, nullable=True)  # Error message if failed
+    # Phase 6.6: academic-rigor metadata promoted to discrete columns
+    # for SQL-level slicing (added in migration 040). The same keys
+    # remain in response_metadata / usage_stats JSON for the long tail.
+    seed = Column(Integer, nullable=True)
+    finish_reason = Column(String(64), nullable=True)
+    truncated = Column(Boolean, nullable=False, server_default=text("false"))
+    refusal = Column(Boolean, nullable=False, server_default=text("false"))
+    error_type = Column(String(64), nullable=True)
+    latency_ms = Column(Integer, nullable=True)
+    input_tokens = Column(Integer, nullable=True)
+    output_tokens = Column(Integer, nullable=True)
+    # Multi-run support (migration 041): zero-indexed trial number within
+    # the parent ResponseGeneration. Unique on (generation_id, run_index).
+    run_index = Column(Integer, nullable=False, server_default=text("0"))
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Parsing support for LLM response structure
@@ -870,9 +903,60 @@ class EvaluationRun(Base):
     task_evaluations = relationship(
         "TaskEvaluation", back_populates="evaluation_run", cascade="all, delete-orphan"
     )
+    judge_runs = relationship(
+        "EvaluationJudgeRun", back_populates="evaluation_run", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<EvaluationRun(id={self.id}, project_id={self.project_id}, model_id={self.model_id})>"
+
+
+class EvaluationJudgeRun(Base):
+    """Per-judge-run child of EvaluationRun (migration 042).
+
+    One row per (judge_model, run_index). Lets one EvaluationRun fan out into
+    a multi-judge ensemble or repeated-same-judge runs without flattening the
+    user-visible "evaluation job" concept. TaskEvaluation rows hang off these.
+    """
+
+    __tablename__ = "evaluation_judge_runs"
+    __table_args__ = (
+        Index(
+            "uq_evaluation_judge_runs_eval_model_index",
+            "evaluation_id",
+            "judge_model_id",
+            "run_index",
+            unique=True,
+        ),
+    )
+
+    id = Column(String, primary_key=True, index=True)
+    evaluation_id = Column(
+        String,
+        ForeignKey("evaluation_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Nullable for non-judge metrics (deterministic evaluators have no model).
+    judge_model_id = Column(String, nullable=True)
+    run_index = Column(Integer, nullable=False, server_default=text("0"))
+    status = Column(String, nullable=False, server_default=text("'pending'"))
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    samples_evaluated = Column(Integer, nullable=True)
+    error_message = Column(Text, nullable=True)
+    metric_parameters_snapshot = Column(JSONB, nullable=True)
+
+    evaluation_run = relationship("EvaluationRun", back_populates="judge_runs")
+    task_evaluations = relationship(
+        "TaskEvaluation", back_populates="judge_run", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self):
+        return (
+            f"<EvaluationJudgeRun(id={self.id}, evaluation_id={self.evaluation_id}, "
+            f"judge_model_id={self.judge_model_id}, run_index={self.run_index})>"
+        )
 
 
 class EvaluationRunMetric(Base):
@@ -907,6 +991,16 @@ class TaskEvaluation(Base):
     evaluation_id = Column(
         String, ForeignKey("evaluation_runs.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # Migration 042 added the column (nullable + backfilled). Migration 043
+    # tightened to NOT NULL after every writer (run_evaluation, immediate
+    # eval, falloesung_tasks, korrektur grader, import_export) was updated
+    # to populate it.
+    judge_run_id = Column(
+        String,
+        ForeignKey("evaluation_judge_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     generation_id = Column(String, ForeignKey("generations.id", ondelete="SET NULL"), nullable=True)
     annotation_id = Column(String, ForeignKey("annotations.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -931,6 +1025,19 @@ class TaskEvaluation(Base):
     processing_time_ms = Column(Integer, nullable=True)
     # Prompt provenance for LLM judge evaluations
     judge_prompts_used = Column(JSON, nullable=True)
+    # Phase 6.6: academic-rigor metadata for the per-call judge invocation,
+    # promoted to discrete columns for SQL slicing (migration 040). The
+    # same keys still live under metrics[criterion].details.call_metadata
+    # in JSON for the long tail.
+    seed = Column(Integer, nullable=True)
+    finish_reason = Column(String(64), nullable=True)
+    truncated = Column(Boolean, nullable=False, server_default=text("false"))
+    refusal = Column(Boolean, nullable=False, server_default=text("false"))
+    error_type = Column(String(64), nullable=True)
+    latency_ms = Column(Integer, nullable=True)
+    input_tokens = Column(Integer, nullable=True)
+    output_tokens = Column(Integer, nullable=True)
+    raw_output = Column(Text, nullable=True)
     # First-class grader identity for human-graded evaluation rows (e.g.
     # korrektur_falloesung). Nullable because LLM-judge rows have no
     # human grader. Added in migration 037.
@@ -941,6 +1048,7 @@ class TaskEvaluation(Base):
 
     # Relationships
     evaluation_run = relationship("EvaluationRun", back_populates="task_evaluations")
+    judge_run = relationship("EvaluationJudgeRun", back_populates="task_evaluations")
     # Note: task and generation relationships available via foreign keys
 
     def __repr__(self):
@@ -975,6 +1083,15 @@ class LLMModel(Base):
     output_cost_per_million = Column(Float, nullable=True)
     # Model-specific parameter constraints (temperature, max_tokens, etc.)
     parameter_constraints = Column(JSON, nullable=True)
+    # Provider-recommended parameter values (migration 046). Shape:
+    #   {default: {key: value, ...},
+    #    evaluation: {key: value, ...},   # optional override for eval mode
+    #    provenance: {source: URL, retrieved: ISO-date}}
+    # NULL = no recommendation; UI shows "keine Empfehlung" badge.
+    # Worker resolution priority: user_per_model > user_project >
+    # recommended[mode] > recommended.default > SYSTEM_DEFAULTS
+    # then constraints.parameter_constraints clamps the final value.
+    recommended_parameters = Column(JSON, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
