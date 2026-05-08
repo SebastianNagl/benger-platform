@@ -44,18 +44,41 @@ interface SampleResult {
   processing_time_ms: number | null
 }
 
+/**
+ * Per-task consistency lookup (multi-run feature, migration 042).
+ * Keys are task_ids; values come from the statistics endpoint's
+ * task_consistency_by_model_metric block. Renders as an extra column when
+ * provided AND at least one row has data; hidden otherwise.
+ */
+export interface TaskConsistencyEntry {
+  n_runs: number
+  variance?: number | null
+  fleiss_kappa?: number | null
+  percent_agreement?: number | null
+}
+
 interface SampleResultsTableProps {
   data: SampleResult[]
   onRowClick?: (sample: SampleResult) => void
+  consistencyByTaskId?: Record<string, TaskConsistencyEntry>
 }
 
 export function SampleResultsTable({
   data,
   onRowClick,
+  consistencyByTaskId,
 }: SampleResultsTableProps) {
   const { t } = useI18n()
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>('all')
+
+  // Show the consistency column only when the caller supplied data AND at
+  // least one task has more than 1 run. For legacy single-run evaluations
+  // this stays hidden so the table layout doesn't change unexpectedly.
+  const showConsistencyColumn = useMemo(() => {
+    if (!consistencyByTaskId) return false
+    return Object.values(consistencyByTaskId).some((c) => (c?.n_runs ?? 0) > 1)
+  }, [consistencyByTaskId])
 
   const columns = useMemo<ColumnDef<SampleResult>[]>(
     () => [
@@ -170,6 +193,39 @@ export function SampleResultsTable({
         },
         size: 100,
       },
+      // Multi-run consistency column (migration 042). Shows variance across
+      // runs of the same task; rendered only when consistencyByTaskId is
+      // present and at least one task has n_runs > 1 (showConsistencyColumn).
+      ...(showConsistencyColumn
+        ? [
+            {
+              id: 'consistency',
+              header: t('evaluation.sampleResultsTable.consistency', 'Konsistenz'),
+              cell: ({ row }: { row: { original: SampleResult } }) => {
+                const c = consistencyByTaskId?.[row.original.task_id]
+                if (!c || (c.n_runs ?? 0) < 2) {
+                  return <span className="text-gray-400">—</span>
+                }
+                if (c.variance !== null && c.variance !== undefined) {
+                  return (
+                    <span className="font-mono text-xs" title={`n_runs=${c.n_runs}`}>
+                      σ²={c.variance.toFixed(4)}
+                    </span>
+                  )
+                }
+                if (c.fleiss_kappa !== null && c.fleiss_kappa !== undefined) {
+                  return (
+                    <span className="font-mono text-xs" title={`Fleiss κ across ${c.n_runs} runs`}>
+                      κ={c.fleiss_kappa.toFixed(3)}
+                    </span>
+                  )
+                }
+                return <span className="text-gray-400">—</span>
+              },
+              size: 110,
+            } as ColumnDef<SampleResult>,
+          ]
+        : []),
       {
         id: 'actions',
         header: t('evaluation.sampleResultsTable.details'),
@@ -190,7 +246,7 @@ export function SampleResultsTable({
         size: 80,
       },
     ],
-    [expandedRow, t]
+    [expandedRow, t, showConsistencyColumn, consistencyByTaskId]
   )
 
   const table = useReactTable({

@@ -8,7 +8,8 @@
     "projects": "Projekte",
     "dataManagement": "Datenverwaltung",
     "generation": "Generierung",
-    "evaluation": "Evaluierung",
+    "evaluation": "Evaluierungen",
+    "runs": "Läufe",
     "howTo": "Anleitung",
     "models": "Modelle",
     "architecture": "Architektur",
@@ -380,6 +381,8 @@
           "temperature": "Temperatur",
           "maxTokens": "Max Tokens",
           "batchSize": "Batch-Größe",
+          "seed": "Seed",
+          "seedHint": "Zufalls-Seed für Reproduzierbarkeit (Standard: 42). Anbieter ohne Seed-Unterstützung (Anthropic, Google) ignorieren diesen Wert.",
           "defaultParams": "Standard-Generierungsparameter"
         },
         "step6": {
@@ -846,7 +849,11 @@
       "korrekturBlindToPeers": "Blinde Korrektur (andere Korrektoren)",
       "korrekturBlindToPeersHint": "Bewertungen anderer Korrektoren bleiben verborgen, bis du selbst eingereicht hast",
       "korrekturBlindToLlm": "Blinde Korrektur (LLM-Vorbewertung)",
-      "korrekturBlindToLlmHint": "LLM-Vorbewertungen bleiben verborgen, bis du selbst eingereicht hast"
+      "korrekturBlindToLlmHint": "LLM-Vorbewertungen bleiben verborgen, bis du selbst eingereicht hast",
+      "korrekturBlindToNonJudge": "Blinde Korrektur (klassische Metriken)",
+      "korrekturBlindToNonJudgeHint": "Klassische automatische Bewertungen (BLEU, ROUGE, BERTScore …) bleiben verborgen, bis du selbst eingereicht hast",
+      "korrekturKeepBlindAfterSubmit": "Blind auch nach eigener Bewertung",
+      "korrekturKeepBlindAfterSubmitHint": "Wenn aktiv, bleiben die obigen Bewertungen verborgen — auch nachdem du deine eigene Bewertung eingereicht hast"
     },
     "evaluationMethods": {
       "title": "Evaluierungsmethoden"
@@ -977,7 +984,8 @@
       "evaluationConfigSingular": "{count} Konfiguration",
       "evaluationConfigPlural": "{count} Konfigurationen",
       "description": "Evaluierungsmethoden zur Ausführung auswählen",
-      "configureFirst": "Konfigurieren Sie zuerst die Label-Konfiguration, um Evaluierungsmethoden zu aktivieren"
+      "configureFirst": "Konfigurieren Sie zuerst die Label-Konfiguration, um Evaluierungsmethoden zu aktivieren",
+      "runCta": "Evaluierung starten"
     },
     "evaluationDefaults": {
       "title": "Evaluierungs-Standardeinstellungen",
@@ -985,8 +993,21 @@
       "save": "Speichern",
       "defaultTemperature": "Standard-Temperatur",
       "temperatureHelp": "Wird für LLM-Judge verwendet, sofern nicht pro Evaluierung überschrieben (0.0 = deterministisch)",
+      "temperatureHelpModeOverride": "Wird ignoriert: aktive Strategie befüllt Temperatur pro Judge-Modell.",
       "defaultMaxTokens": "Standard Max Tokens",
-      "maxTokensHelp": "Maximale Antwortlänge für LLM-Judge (Standard: 500 Tokens)"
+      "maxTokensHelp": "Maximale Antwortlänge für LLM-Judge (Standard: 500 Tokens)",
+      "maxTokensHelpModeOverride": "Wird ignoriert: aktive Strategie befüllt Max Tokens pro Judge-Modell.",
+      "modeLabel": "Standard-Strategie",
+      "modeRecommended": "Empfohlene Werte (pro Judge-Modell)",
+      "modeRecommendedDesc": "Verwende die vom Anbieter empfohlenen Eval-Werte für jedes neu hinzugefügte Judge-Modell.",
+      "modeMinimum": "Minimal-Werte (pro Judge-Modell)",
+      "modeMinimumDesc": "Verwende die niedrigste vom Anbieter zulässige Temperatur für jedes neu hinzugefügte Judge-Modell.",
+      "modeCustom": "Benutzerdefiniert",
+      "modeCustomDesc": "Verwende die unten eingegebenen Werte einheitlich für alle neu hinzugefügten Judge-Konfigurationen (Min/Max-Constraints werden weiterhin durchgesetzt).",
+      "runsTitle": "Multi-Run",
+      "runsDescription": "Wie oft jede Task vom Judge bewertet werden soll. Greift, wenn kein Judge-Ensemble konfiguriert ist.",
+      "defaultRunsPerTask": "Standard-Anzahl Judge-Läufe",
+      "runsPerTaskHelp": "Standardwert 1. Werte > 1 erzeugen mehrere Bewertungen für Varianz-/Konsistenzanalyse. Cap 25."
     },
     "generationDefaults": {
       "title": "Generierungs-Standardeinstellungen",
@@ -994,8 +1015,21 @@
       "save": "Speichern",
       "defaultTemperature": "Standard-Temperatur",
       "temperatureHelp": "Wird für alle Modelle verwendet, sofern nicht pro Modell überschrieben (0.0 = deterministisch)",
+      "temperatureHelpModeOverride": "Wird ignoriert: aktive Strategie befüllt Temperatur pro Modell.",
       "defaultMaxTokens": "Standard Max Tokens",
-      "maxTokensHelp": "Maximale Antwortlänge für alle Modelle, sofern nicht pro Modell überschrieben"
+      "maxTokensHelp": "Maximale Antwortlänge für alle Modelle, sofern nicht pro Modell überschrieben",
+      "maxTokensHelpModeOverride": "Wird ignoriert: aktive Strategie befüllt Max Tokens pro Modell.",
+      "modeLabel": "Standard-Strategie",
+      "modeRecommended": "Empfohlene Werte (pro Modell)",
+      "modeRecommendedDesc": "Verwende die vom Anbieter empfohlenen Werte für jedes neu hinzugefügte Modell.",
+      "modeMinimum": "Minimal-Werte (pro Modell)",
+      "modeMinimumDesc": "Verwende die niedrigste vom Anbieter zulässige Temperatur für jedes neu hinzugefügte Modell.",
+      "modeCustom": "Benutzerdefiniert",
+      "modeCustomDesc": "Verwende die unten eingegebenen Werte einheitlich für alle neu hinzugefügten Modelle (Min/Max-Constraints werden weiterhin durchgesetzt).",
+      "runsTitle": "Multi-Run",
+      "runsDescription": "Wie oft jede Task-Modell-Kombination generiert werden soll. Multipliziert die Kosten entsprechend.",
+      "defaultRunsPerTask": "Standard-Anzahl Läufe pro Task",
+      "runsPerTaskHelp": "Standardwert 1. Werte > 1 erzeugen mehrere Trials für Varianzanalyse. Cap 25."
     },
     "settings": {
       "title": "Einstellungen",
@@ -2023,6 +2057,9 @@
     "nameRequired": "Bitte geben Sie Ihren Namen ein",
     "competenceRequired": "Bitte bewerten Sie Ihre Kompetenz in allen Rechtsgebieten",
     "psychometricRequired": "Bitte beantworten Sie alle Fragen der psychometrischen Skalen",
+    "researchConsent": {
+      "required": "Um ein Konto zu erstellen, müssen Sie der Forschungsdatennutzungsrichtlinie zustimmen"
+    },
     "demographicsDescription": "Diese Informationen helfen uns, vielfältige und repräsentative Forschungsstichproben sicherzustellen.",
     "ageLabel": "Alter",
     "agePlaceholder": "z.B. 28",
@@ -2438,6 +2475,7 @@
       "temperature": "Temperatur",
       "maxTokens": "Max. Tokens",
       "batchSize": "Batch-Größe",
+      "seed": "Seed",
       "presentationMode": "Präsentationsmodus",
       "autoDetect": "Automatisch erkennen",
       "useLabelConfig": "Label-Konfiguration verwenden",
@@ -2474,6 +2512,8 @@
       "temperatureDesc": "0 = deterministisch, höher = kreativer",
       "defaultMaxTokens": "Standard Max. Tokens",
       "defaultMaxTokensDesc": "Standard-Antwortlänge (100-16000)",
+      "seed": "Seed",
+      "seedDesc": "Zufalls-Seed für Reproduzierbarkeit (Standard: 42). Anbieter ohne Seed-Unterstützung (Anthropic, Google, Kimi/MiniMax) ignorieren diesen Wert.",
       "perModelTokenLimits": "Token-Limits pro Modell",
       "perModelTokenLimitsDesc": "Leer lassen für Standardwert. Einen benutzerdefinierten Wert setzen, um für bestimmte Modelle zu überschreiben.",
       "totalGenerationsPerTask": "Generierungen pro Aufgabe insgesamt:",
@@ -2487,7 +2527,11 @@
       "startGeneration": "Generierung starten",
       "cancel": "Abbrechen",
       "queuedJobs": "{tasks} Generierungsaufträge für {models} Modelle in Warteschlange. Geschätzte Zeit: {minutes} Minuten",
-      "failedToStart": "Generierung konnte nicht gestartet werden"
+      "failedToStart": "Generierung konnte nicht gestartet werden",
+      "recommended": "Empfehlung",
+      "resetToRecommended": "Zurücksetzen auf Empfohlen",
+      "noRecommendation": "Keine Empfehlung",
+      "divergentRecommendations": "Verschiedene Empfehlungen pro Modell"
     }
   },
   "notifications": {
@@ -3800,6 +3844,7 @@
       "demoteLevel": "Eine Ebene tiefer (Tab)",
       "bold": "Fett (Ctrl+B)",
       "italic": "Kursiv (Ctrl+I)",
+      "underline": "Unterstrichen (Ctrl+U)",
       "bulletList": "Aufzaehlung",
       "orderedList": "Nummerierte Liste",
       "heading": "Ueberschrift"
@@ -6205,7 +6250,12 @@
       "reasoningLevelDescription": "Wie viel Überlegung das Modell verwenden soll",
       "reasoningLow": "Niedrig",
       "reasoningMedium": "Mittel (Standard)",
-      "reasoningHigh": "Hoch"
+      "reasoningHigh": "Hoch",
+      "recommended": "Empfehlung",
+      "resetToRecommended": "Zurücksetzen auf Empfohlen",
+      "noRecommendation": "Keine Empfehlung",
+      "noRecommendationForKey": "Keine Empfehlung für diesen Parameter",
+      "divergentRecommendations": "Verschiedene Empfehlungen pro Modell"
     },
     "list": {
       "predictions": "Vorhersagen:",
@@ -7379,9 +7429,13 @@
     "noTasks": "Keine Aufgaben gefunden",
     "falloesungSaveSuccess": "Bewertung gespeichert",
     "falloesungSaveError": "Bewertung konnte nicht gespeichert werden",
-    "blindBanner": "Blinde Korrektur aktiv: {what} sind verborgen, bis Sie eingereicht haben.",
     "blindBannerLlm": "LLM-Vorbewertungen",
+    "blindBannerNonJudge": "automatische Metriken",
     "blindBannerPeers": "Bewertungen anderer Korrektoren",
+    "blindTooltip": "Blinde Korrektur: {what} verborgen, bis Sie eingereicht haben",
+    "blindTooltipPersistent": "Blinde Korrektur (dauerhaft): {what} verborgen — auch nach Ihrer Einreichung",
+    "blindTooltipLifted": "Blinde Korrektur für dieses Item aufgehoben — Sie haben bereits eingereicht, {what} sind jetzt sichtbar",
+    "blindTooltipInactive": "Alle Bewertungen sichtbar",
     "stats": {
       "totalTasks": "Aufgaben gesamt",
       "withFeedback": "Mit Korrektur",
@@ -7401,6 +7455,7 @@
       "korrektur_falloesung": "Bewertungen (Falllösung)"
     },
     "itemFilter": {
+      "label": "Status",
       "open_for_me": "Für mich offen",
       "all": "Alle",
       "unassigned": "Nicht zugewiesen",
@@ -7410,6 +7465,20 @@
       "completed_by_me": "Von mir korrigiert",
       "completed_by_others": "Von anderen korrigiert",
       "fully_complete": "Vollständig"
+    },
+    "priorityFilter": {
+      "label": "Priorität"
+    },
+    "assigneeFilter": {
+      "label": "Zugewiesen"
+    },
+    "search": "Suchen",
+    "filters": "Filter",
+    "start": {
+      "cta": "Korrektur starten",
+      "empty": "Keine offenen Items zum Korrigieren",
+      "allDone": "Du hast alle Items bereits bewertet",
+      "error": "Konnte Korrektur nicht starten"
     },
     "queueProgress": "{done} / {total} von dir bewertet",
     "queueProgressTooltip": "Items, die du in diesem Projekt bewertet hast (über alle Filter hinweg)",
@@ -7472,12 +7541,18 @@
       "evaluation": "Evaluierung",
       "queuePosition": "Item {index} von {total}"
     },
+    "table": {
+      "id": "#",
+      "type": "Typ",
+      "assignees": "Zugewiesen",
+      "status": "Status",
+      "actions": "Aktionen"
+    },
     "tabs": {
       "review": "Review",
+      "reference": "Referenz",
       "falloesungGrade": "Bewertung (Standard Falllösung)",
-      "falloesungHint": "Die Bewertung nach dem Standard-Falllösung-Schema findet sich im Tab \"Bewertung (Standard Falllösung)\" oben.",
-      "falloesungLlmReference": "LLM-Vorbewertung (Vergleich, nicht übernommen)",
-      "falloesungNoLlmYet": "Für diese Lösung liegt noch keine LLM-Vorbewertung vor. Sie bewerten direkt nach dem Schema."
+      "falloesungLlmReference": "LLM-Vorbewertung (Vergleich, nicht übernommen)"
     },
     "comments": {
       "title": "Kommentare",
@@ -7548,7 +7623,9 @@
       "visibilitySection": "Blinde Korrektur",
       "visibilitySectionHelp": "Verbirgt fremde Bewertungen, bis Sie eingereicht haben — danach werden sie zum Vergleich sichtbar.",
       "blindToLlmJudge": "LLM-Vorbewertungen verbergen",
-      "blindToPeerCorrectors": "Bewertungen anderer Korrektoren verbergen"
+      "blindToNonJudgeMetrics": "Klassische automatische Metriken (BLEU, ROUGE, BERTScore …) verbergen",
+      "blindToPeerCorrectors": "Bewertungen anderer Korrektoren verbergen",
+      "keepBlindAfterSubmit": "Auch nach eigener Bewertung verborgen halten"
     }
   },
   "emptyStates": {
@@ -8086,5 +8163,101 @@
   "progress": {
     "cancel": "Abbrechen",
     "dismiss": "Schließen"
+  },
+  "runs": {
+    "title": "Läufe",
+    "subtitle": "Inventar einzelner Generierungs- und Evaluierungsläufe. Klicken Sie eine Zeile an, um die Details des Laufs zu sehen.",
+    "tabs": {
+      "evaluation": "Evaluierungen",
+      "generation": "Generierungen"
+    },
+    "filterProject": "Projekt",
+    "filterStatus": "Status",
+    "allProjects": "Alle Projekte",
+    "allStatuses": "Alle",
+    "totalCount": "{count} Einträge",
+    "loading": "Lade…",
+    "empty": "Keine Einträge",
+    "pageInfo": "Seite {page} von {total}",
+    "prev": "Zurück",
+    "next": "Weiter",
+    "col": {
+      "started": "Gestartet",
+      "project": "Projekt",
+      "status": "Status",
+      "model": "Modell",
+      "structure": "Struktur",
+      "runs": "Läufe",
+      "targetModel": "Ziel-Modell",
+      "judges": "Judges",
+      "metrics": "Metriken",
+      "samples": "Samples",
+      "duration": "Dauer"
+    }
+  },
+  "generations": {
+    "detail": {
+      "title": "Generierungs-Lauf",
+      "back": "Zurück zu Läufe",
+      "loading": "Lade…",
+      "status": "Status",
+      "model": "Modell",
+      "runs": "Läufe",
+      "started": "Gestartet",
+      "completed": "Abgeschlossen",
+      "task": "Task",
+      "structure": "Struktur",
+      "project": "Projekt",
+      "error": "Fehler",
+      "parameters": "Parameter",
+      "trials": "Pro Lauf",
+      "runIndex": "Lauf #",
+      "preview": "Antwort (Vorschau)",
+      "response": "Antwort",
+      "prompt": "Verwendeter Prompt",
+      "linkedEvaluations": "Verknüpfte Evaluierungen",
+      "metric": "Metrik",
+      "scoredSamples": "Bewertete Samples"
+    }
+  },
+  "costEstimate": {
+    "title": "Kostenschätzung",
+    "subtitleGeneration": "Geschätzte Kosten für die geplante Generierung.",
+    "subtitleEvaluation": "Geschätzte Kosten für die geplante Evaluierung (Judge-Aufrufe).",
+    "loading": "Tokens zählen und Preise ermitteln…",
+    "totalLabel": "Geschätzte Gesamtkosten",
+    "breakdown": "{tasks} Tasks × {runs} Lauf/Läufe × {models} Modell(e)",
+    "modelCol": "Modell",
+    "perCallCol": "Pro Aufruf",
+    "perRunCol": "Pro Lauf",
+    "totalCol": "Gesamt",
+    "noPricing": "Keine Preisdaten",
+    "tokenLabel": "Token-Schätzung pro Aufruf"
+  },
+  "eval": {
+    "judgeAgreement": {
+      "titlePearson": "Inter-Judge-Korrelation (Pearson)",
+      "titleKappa": "Inter-Judge-Übereinstimmung (κ)"
+    }
+  },
+  "extended": {
+    "researchConsent": {
+      "label": "Ich habe die Forschungsdatennutzungsrichtlinie gelesen und stimme der Nutzung meiner anonymisierten Daten für die Forschung zu.",
+      "linkText": "Nutzung meiner anonymisierten Daten für die Forschung",
+      "agree": "Ich stimme zu",
+      "close": "Schließen"
+    },
+    "researchDataPolicy": {
+      "title": "Forschungsdatennutzungsrichtlinie",
+      "lead": "Die Nutzung dieser Plattform setzt voraus, dass Sie uns Rechte an Ihren Nutzungs- und Annotationsdaten für unsere Forschung einräumen, unter der Bedingung, dass die Daten anonymisiert werden.",
+      "scopeTitle": "Geltungsbereich",
+      "scopeText": "Diese Richtlinie betrifft die Daten, die Sie bei der Nutzung von BenGER erzeugen: Annotationen, Korrekturen, Generierungen, Evaluationen sowie die zugehörigen Zeit- und Verhaltensmetadaten. Persönliche Kontodaten sind hiervon nicht erfasst – diese sind in der separaten Datenschutzerklärung geregelt.",
+      "anonymizationTitle": "Anonymisierung",
+      "anonymizationText": "Bevor Daten die Plattform für Forschungszwecke verlassen, werden direkte Identifikatoren (Name, E-Mail, Konto-ID) entfernt oder durch stabile Pseudonyme ersetzt. Untersucht werden aggregierte Statistiken und pseudonymisierte Verläufe, nicht Ihre individuelle Identität.",
+      "useTitle": "Verwendung",
+      "useText": "Anonymisierte Daten werden verwendet, um zu untersuchen, wie Menschen und große Sprachmodelle bei deutschsprachigen juristischen Aufgaben abschneiden: Übereinstimmung, Kalibrierung, Fehlermuster und die Entwicklung besserer Evaluationsmethoden. Ergebnisse können in wissenschaftlichen Publikationen, öffentlichen Benchmarks oder aggregierten Dashboards erscheinen. Rohdaten mit Personenbezug werden nicht veröffentlicht.",
+      "consentTitle": "Ihre Einwilligung",
+      "consentText": "Mit dem Setzen des Häkchens bei der Registrierung erteilen Sie diese Erlaubnis, solange Ihre Daten anonymisiert bleiben. Bestehende Konten dieses Deployments wurden als einwilligend behandelt; wenn Sie das anders handhaben möchten, wenden Sie sich bitte an die Betreiber."
+    }
   }
 }

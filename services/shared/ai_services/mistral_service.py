@@ -16,7 +16,8 @@ from datetime import datetime
 from functools import wraps
 from typing import Any, Dict, Optional
 
-from .base_service import BaseAIService
+from .base_service import BaseAIService, derive_truncated
+from .provider_capabilities import model_supports_seed
 from .response_validator import ResponseValidator
 
 logger = logging.getLogger(__name__)
@@ -170,6 +171,8 @@ class MistralService(BaseAIService):
         Returns:
             Dict with response data including content, metadata, and usage stats
         """
+        requested_seed = kwargs.get("seed", 42)
+
         # E2E Test Mode: Return mock response
         if os.getenv("E2E_TEST_MODE") == "true":
             logger.info(f"E2E Test Mode: Returning mock response for {model_name}")
@@ -186,6 +189,10 @@ class MistralService(BaseAIService):
                     "max_tokens": max_tokens,
                     "response_time_ms": 100,
                     "finish_reason": "stop",
+                    "truncated": False,
+                    "refusal": False,
+                    "error_type": None,
+                    "seed": requested_seed,
                     "created_at": datetime.now().isoformat(),
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),
@@ -209,14 +216,18 @@ class MistralService(BaseAIService):
                 messages.append({"role": "system", "content": system_prompt})
             messages.append({"role": "user", "content": prompt})
 
-            # Build API call parameters
+            # Build API call parameters. Mistral names the seed param
+            # `random_seed`; the caller-facing name stays `seed`.
+            # Phase 6.6 (#7): only forward seed when this model accepts it.
+            supports_seed_here = model_supports_seed("mistral", model_name)
             api_params = {
                 "model": api_model_name,
                 "messages": messages,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
-                "random_seed": 42,  # Add seed for maximum determinism
             }
+            if supports_seed_here:
+                api_params["random_seed"] = requested_seed
 
             # Add prompt_mode for Magistral models (reasoning models)
             prompt_mode = kwargs.get("prompt_mode")
@@ -247,6 +258,10 @@ class MistralService(BaseAIService):
             )
             logger.info(f"Response time: {response_time_ms}ms")
 
+            finish_reason = (
+                response.choices[0].finish_reason if response.choices else None
+            )
+
             return self._create_response_dict(
                 content=content,
                 model=model_name,
@@ -259,7 +274,11 @@ class MistralService(BaseAIService):
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                     "response_time_ms": response_time_ms,
-                    "finish_reason": response.choices[0].finish_reason if response.choices else "unknown",
+                    "finish_reason": finish_reason,
+                    "truncated": derive_truncated(finish_reason),
+                    "refusal": False,
+                    "error_type": None,
+                    "seed": requested_seed if supports_seed_here else None,
                     "created_at": end_time.isoformat(),
                     **self.get_invocation_provenance(),
                 },
@@ -297,6 +316,8 @@ class MistralService(BaseAIService):
         Returns:
             Dict with response data. The 'content' field will be a JSON string.
         """
+        requested_seed = kwargs.get("seed", 42)
+
         # E2E Test Mode: Return mock structured response
         if os.getenv("E2E_TEST_MODE") == "true":
             logger.info(f"E2E Test Mode: Returning mock structured response for {model_name}")
@@ -318,6 +339,11 @@ class MistralService(BaseAIService):
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                     "response_time_ms": 100,
+                    "finish_reason": "stop",
+                    "truncated": False,
+                    "refusal": False,
+                    "error_type": None,
+                    "seed": requested_seed,
                     "structured_output": True,
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),
@@ -351,15 +377,18 @@ Your response must be ONLY the JSON object, no other text before or after.
                 messages.append({"role": "system", "content": enhanced_system_prompt})
             messages.append({"role": "user", "content": prompt})
 
-            # Make Mistral API call with JSON mode
-            response = self.client.chat.complete(
-                model=api_model_name,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                random_seed=42,  # Add seed for maximum determinism
-                response_format={"type": "json_object"},
-            )
+            # Phase 6.6 (#7): only forward seed when this model accepts it.
+            supports_seed_here = model_supports_seed("mistral", model_name)
+            chat_kwargs: Dict[str, Any] = {
+                "model": api_model_name,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "response_format": {"type": "json_object"},
+            }
+            if supports_seed_here:
+                chat_kwargs["random_seed"] = requested_seed
+            response = self.client.chat.complete(**chat_kwargs)
 
             end_time = datetime.now()
             response_time_ms = int((end_time - start_time).total_seconds() * 1000)
@@ -385,13 +414,22 @@ Your response must be ONLY the JSON object, no other text before or after.
                 attempt_repair=True
             )
 
+            finish_reason = (
+                response.choices[0].finish_reason if response.choices else None
+            )
+
             result_metadata = {
                 "temperature": temperature,
                 "max_tokens": max_tokens,
                 "response_time_ms": response_time_ms,
                 "structured_output": True,
-                "finish_reason": response.choices[0].finish_reason if response.choices else "unknown",
+                "finish_reason": finish_reason,
+                "truncated": derive_truncated(finish_reason),
+                "refusal": False,
+                "error_type": None,
+                "seed": requested_seed if supports_seed_here else None,
                 "created_at": end_time.isoformat(),
+                **self.get_invocation_provenance(),
             }
 
             if validation_result.valid and validation_result.data is not None:

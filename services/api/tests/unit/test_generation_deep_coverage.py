@@ -683,6 +683,58 @@ class TestRetryGeneration:
         assert result["status"] == "pending"
 
     @pytest.mark.asyncio
+    @patch("routers.generation.celery_app")
+    async def test_retry_resets_multi_run_counters(self, mock_celery):
+        """Multi-run regression: retry must zero runs_completed/runs_failed
+        so the worker's status fan-in computes against a fresh attempt
+        rather than inheriting last run's numbers (which would mark the
+        retried parent as half-done before any trial actually re-ran)."""
+        from routers.generation import retry_generation
+
+        db = _mock_db()
+        gen = _make_generation(status_val="failed")
+        gen.retry_count = 0
+        gen.runs_requested = 3
+        gen.runs_completed = 1  # 1/3 succeeded last attempt
+        gen.runs_failed = 2  # 2/3 failed
+        project = Mock()
+        project.id = "proj-1"
+        project.generation_config = {}
+
+        call_count = {"n": 0}
+
+        def query_side_effect(*args, **kwargs):
+            call_count["n"] += 1
+            mock_q = Mock()
+            mock_q.filter.return_value = mock_q
+            if call_count["n"] == 1:
+                mock_q.first.return_value = gen
+            else:
+                mock_q.first.return_value = project
+            return mock_q
+
+        db.query.side_effect = query_side_effect
+        mock_task = Mock()
+        mock_task.id = "new-celery-id"
+        mock_celery.send_task.return_value = mock_task
+
+        await retry_generation(
+            generation_id="gen-1",
+            current_user=_make_user(),
+            db=db,
+        )
+
+        # Counters must be reset so the worker's fan-in starts fresh.
+        assert gen.runs_completed == 0
+        assert gen.runs_failed == 0
+        # runs_requested is the snapshot of the original trigger and
+        # must NOT be touched.
+        assert gen.runs_requested == 3
+        # Status reset, retry_count incremented.
+        assert gen.status == "pending"
+        assert gen.retry_count == 1
+
+    @pytest.mark.asyncio
     async def test_retry_not_found(self):
         from routers.generation import retry_generation
 

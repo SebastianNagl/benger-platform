@@ -61,6 +61,8 @@ export class AuthClient extends BaseApiClient {
       ati_s_scores?: Record<string, number>
       ptt_a_scores?: Record<string, number>
       ki_experience_scores?: Record<string, number>
+      // Research data use consent (extended-edition gating)
+      research_data_consent_accepted?: boolean
     },
     invitationToken?: string
   ): Promise<User> {

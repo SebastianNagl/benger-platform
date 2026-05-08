@@ -12,7 +12,8 @@ from typing import Any, Dict, Optional
 
 from openai import OpenAI
 
-from .base_service import BaseAIService
+from .base_service import BaseAIService, derive_truncated
+from .provider_capabilities import model_supports_seed
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +147,13 @@ class OpenAIService(BaseAIService):
         Returns:
             Dict with response data including content, metadata, and usage stats
         """
+        # Phase 6.6: caller may override the deterministic seed (default 42)
+        # for variance studies. Pulled from kwargs so existing call sites
+        # that don't pass anything keep getting the same seed they always
+        # got. GPT-5 silently drops it; we record what was *requested*
+        # alongside what was actually sent.
+        requested_seed = kwargs.get("seed", 42)
+
         # E2E Test Mode: Return mock response
         if os.getenv("E2E_TEST_MODE") == "true":
             logger.info(f"🧪 E2E Test Mode: Returning mock response for {model_name}")
@@ -162,6 +170,10 @@ class OpenAIService(BaseAIService):
                     "max_tokens": max_tokens,
                     "response_time_ms": 100,
                     "finish_reason": "stop",
+                    "truncated": False,
+                    "refusal": False,
+                    "error_type": None,
+                    "seed": requested_seed,
                     "created_at": datetime.now().isoformat(),
                     "e2e_test_mode": True,
                 },
@@ -193,8 +205,16 @@ class OpenAIService(BaseAIService):
                 "top_p": 1.0,
                 "frequency_penalty": 0.0,
                 "presence_penalty": 0.0,
-                "seed": 42,  # Add seed for maximum determinism
             }
+            # Phase 6.6 (#7): only forward seed when this specific model
+            # accepts it. Per-model overrides in llm_models.yaml
+            # (`constraints.seed.supported`) win over the provider-level
+            # default. ``supports_seed_here`` is also written into the
+            # response metadata below so consumers can tell when a
+            # requested seed was *not* honored.
+            supports_seed_here = model_supports_seed("openai", model_name)
+            if supports_seed_here:
+                api_params["seed"] = requested_seed
 
             # o-series and GPT-5 models require temperature=1 (API rejects other values).
             # Record BOTH the user-requested value and the value we actually
@@ -257,6 +277,16 @@ class OpenAIService(BaseAIService):
             )
             logger.info(f"⏱️ Response time: {response_time_ms}ms")
 
+            finish_reason = response.choices[0].finish_reason
+            # OpenAI surfaces safety refusals via message.refusal (gpt-4o+).
+            refusal = bool(getattr(message, "refusal", None))
+            # The seed actually sent reflects (a) per-model support and
+            # (b) GPT-5's silent drop. If neither honored it, record None.
+            if not supports_seed_here or "seed" in unsupported_dropped:
+                seed_in_metadata = None
+            else:
+                seed_in_metadata = requested_seed
+
             return self._create_response_dict(
                 content=content,
                 model=model_name,
@@ -275,7 +305,12 @@ class OpenAIService(BaseAIService):
                     "temperature_coerced": temperature_coerced,
                     "max_tokens": max_tokens,
                     "response_time_ms": response_time_ms,
-                    "finish_reason": response.choices[0].finish_reason,
+                    "finish_reason": finish_reason,
+                    # Phase 6.6: academic-rigor standard fields.
+                    "seed": seed_in_metadata,
+                    "refusal": refusal,
+                    "truncated": derive_truncated(finish_reason),
+                    "error_type": None,
                     "created_at": end_time.isoformat(),
                     "unsupported_params_dropped": unsupported_dropped,
                     "is_gpt5_series": is_gpt5,
@@ -332,6 +367,8 @@ class OpenAIService(BaseAIService):
         """
         import json
 
+        requested_seed = kwargs.get("seed", 42)
+
         # E2E Test Mode: Return mock structured response
         if os.getenv("E2E_TEST_MODE") == "true":
             logger.info(f"🧪 E2E Test Mode: Returning mock structured response for {model_name}")
@@ -354,6 +391,11 @@ class OpenAIService(BaseAIService):
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                     "response_time_ms": 100,
+                    "finish_reason": "stop",
+                    "truncated": False,
+                    "refusal": False,
+                    "error_type": None,
+                    "seed": requested_seed,
                     "structured_output": True,
                     "e2e_test_mode": True,
                 },
@@ -430,12 +472,20 @@ Your response must be ONLY the JSON object, no other text before or after.
                 }
             }
 
-            # Only add these params for non-GPT-5 models
+            # Only add these params for non-GPT-5 models. Phase 6.6 (#7):
+            # also gate seed on per-model support.
+            supports_seed_here = model_supports_seed("openai", model_name)
+            seed_in_metadata = requested_seed if supports_seed_here else None
             if not is_gpt5:
                 api_params["top_p"] = 1.0
                 api_params["frequency_penalty"] = 0.0
                 api_params["presence_penalty"] = 0.0
-                api_params["seed"] = 42
+                if supports_seed_here:
+                    api_params["seed"] = requested_seed
+            else:
+                # GPT-5 silently drops seed; record None so the persisted
+                # row reflects what actually happened.
+                seed_in_metadata = None
 
             if is_gpt5 or is_o_series:
                 api_params["max_completion_tokens"] = max_tokens
@@ -458,6 +508,9 @@ Your response must be ONLY the JSON object, no other text before or after.
             )
             logger.info(f"⏱️ Response time: {response_time_ms}ms")
 
+            finish_reason = response.choices[0].finish_reason
+            refusal = bool(getattr(message, "refusal", None))
+
             return self._create_response_dict(
                 content=content,
                 model=model_name,
@@ -470,9 +523,21 @@ Your response must be ONLY the JSON object, no other text before or after.
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                     "response_time_ms": response_time_ms,
-                    "finish_reason": response.choices[0].finish_reason,
+                    "finish_reason": finish_reason,
+                    "seed": seed_in_metadata,
+                    "refusal": refusal,
+                    "truncated": derive_truncated(finish_reason),
+                    "error_type": None,
                     "structured_output": True,
                     "created_at": end_time.isoformat(),
+                    "retry_attempts": _get_retry_history_snapshot(),
+                    "retry_count": len(_get_retry_history_snapshot()),
+                    "provider_route": getattr(self, "_key_resolution_route", None),
+                    "provider_name": getattr(self, "_provider_name", "openai"),
+                    "billed_user_id": getattr(self, "_invocation_user_id", None),
+                    "billed_organization_id": getattr(
+                        self, "_invocation_organization_id", None
+                    ),
                 },
                 success=True,
             )

@@ -105,6 +105,10 @@ jest.mock('@heroicons/react/24/outline', () => {
     return <svg data-testid="check-icon" {...props} />
   }
 
+  function ListBulletIcon(props: any) {
+    return <svg data-testid="list-bullet-icon" {...props} />
+  }
+
   return {
     ChevronDownIcon,
     UserIcon,
@@ -115,6 +119,7 @@ jest.mock('@heroicons/react/24/outline', () => {
     BeakerIcon,
     BuildingOfficeIcon,
     CheckIcon,
+    ListBulletIcon,
   }
 })
 

@@ -192,6 +192,7 @@ def create_user(
     ki_experience_scores: Optional[dict] = None,
     job: Optional[str] = None,
     years_of_experience: Optional[int] = None,
+    research_data_consent_accepted: Optional[bool] = None,
 ) -> User:
     """Create a new user"""
     # Import email validation
@@ -377,6 +378,10 @@ def create_user(
         db_user.job = job
     if years_of_experience is not None:
         db_user.years_of_experience = years_of_experience
+
+    if research_data_consent_accepted:
+        from datetime import datetime, timezone as _tz
+        db_user.research_data_consent_accepted_at = datetime.now(_tz.utc)
 
     # Check if all mandatory fields are present
     expertise_str = legal_expertise_level

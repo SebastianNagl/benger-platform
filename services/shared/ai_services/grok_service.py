@@ -17,7 +17,8 @@ from typing import Any, Dict, Optional
 
 import aiohttp
 
-from .base_service import BaseAIService
+from .base_service import BaseAIService, derive_truncated
+from .provider_capabilities import model_supports_seed
 from .response_validator import ResponseValidator
 
 logger = logging.getLogger(__name__)
@@ -158,6 +159,8 @@ class GrokService(BaseAIService):
         **kwargs
     ) -> Dict[str, Any]:
         """Async implementation of generate."""
+        requested_seed = kwargs.get("seed", 42)
+
         # E2E Test Mode: Return mock response
         if os.getenv("E2E_TEST_MODE") == "true":
             logger.info(f"E2E Test Mode: Returning mock response for {model_name}")
@@ -174,6 +177,10 @@ class GrokService(BaseAIService):
                     "max_tokens": max_tokens,
                     "response_time_ms": 100,
                     "finish_reason": "stop",
+                    "truncated": False,
+                    "refusal": False,
+                    "error_type": None,
+                    "seed": requested_seed,
                     "created_at": datetime.now().isoformat(),
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),
@@ -197,14 +204,17 @@ class GrokService(BaseAIService):
                 messages.append({"role": "system", "content": system_prompt})
             messages.append({"role": "user", "content": prompt})
 
-            # Prepare payload (OpenAI-compatible format)
+            # Prepare payload (OpenAI-compatible format). Phase 6.6 (#7):
+            # only forward seed when this model accepts it.
+            supports_seed_here = model_supports_seed("grok", model_name)
             payload = {
                 "model": api_model_name,
                 "messages": messages,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
-                "seed": 42,  # Add seed for maximum determinism
             }
+            if supports_seed_here:
+                payload["seed"] = requested_seed
 
             # Add reasoning_effort for grok-3-mini models
             reasoning_effort = kwargs.get("reasoning_effort")
@@ -252,6 +262,10 @@ class GrokService(BaseAIService):
             )
             logger.info(f"Response time: {response_time_ms}ms")
 
+            finish_reason = (
+                result["choices"][0].get("finish_reason") if result.get("choices") else None
+            )
+
             return self._create_response_dict(
                 content=content,
                 model=model_name,
@@ -264,7 +278,11 @@ class GrokService(BaseAIService):
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                     "response_time_ms": response_time_ms,
-                    "finish_reason": result["choices"][0].get("finish_reason", "unknown") if result.get("choices") else "unknown",
+                    "finish_reason": finish_reason,
+                    "truncated": derive_truncated(finish_reason),
+                    "refusal": False,
+                    "error_type": None,
+                    "seed": requested_seed if supports_seed_here else None,
                     "created_at": end_time.isoformat(),
                     **self.get_invocation_provenance(),
                 },
@@ -323,6 +341,8 @@ class GrokService(BaseAIService):
         **kwargs
     ) -> Dict[str, Any]:
         """Async implementation of generate_structured."""
+        requested_seed = kwargs.get("seed", 42)
+
         # E2E Test Mode: Return mock structured response
         if os.getenv("E2E_TEST_MODE") == "true":
             logger.info(f"E2E Test Mode: Returning mock structured response for {model_name}")
@@ -344,6 +364,11 @@ class GrokService(BaseAIService):
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                     "response_time_ms": 100,
+                    "finish_reason": "stop",
+                    "truncated": False,
+                    "refusal": False,
+                    "error_type": None,
+                    "seed": requested_seed,
                     "structured_output": True,
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),
@@ -377,15 +402,17 @@ Your response must be ONLY the JSON object, no other text before or after.
                 messages.append({"role": "system", "content": enhanced_system_prompt})
             messages.append({"role": "user", "content": prompt})
 
-            # Prepare payload with JSON mode
+            # Prepare payload with JSON mode. Phase 6.6 (#7): gate seed.
+            supports_seed_here = model_supports_seed("grok", model_name)
             payload = {
                 "model": api_model_name,
                 "messages": messages,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
-                "seed": 42,  # Add seed for maximum determinism
                 "response_format": {"type": "json_object"},
             }
+            if supports_seed_here:
+                payload["seed"] = requested_seed
 
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
@@ -429,13 +456,22 @@ Your response must be ONLY the JSON object, no other text before or after.
                 attempt_repair=True
             )
 
+            finish_reason = (
+                result["choices"][0].get("finish_reason") if result.get("choices") else None
+            )
+
             result_metadata = {
                 "temperature": temperature,
                 "max_tokens": max_tokens,
                 "response_time_ms": response_time_ms,
                 "structured_output": True,
-                "finish_reason": result["choices"][0].get("finish_reason", "unknown") if result.get("choices") else "unknown",
+                "finish_reason": finish_reason,
+                "truncated": derive_truncated(finish_reason),
+                "refusal": False,
+                "error_type": None,
+                "seed": requested_seed if supports_seed_here else None,
                 "created_at": end_time.isoformat(),
+                **self.get_invocation_provenance(),
             }
 
             if validation_result.valid and validation_result.data is not None:

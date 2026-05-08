@@ -700,6 +700,7 @@ describe('GenerationControlModal', () => {
             parameters: {
               temperature: 0,
               max_tokens: 4000,
+              seed: 42,
             },
           }
         )
@@ -757,6 +758,7 @@ describe('GenerationControlModal', () => {
             parameters: {
               temperature: 0,
               max_tokens: 4000,
+              seed: 42,
             },
           }
         )
@@ -1077,6 +1079,7 @@ describe('GenerationControlModal', () => {
             parameters: {
               temperature: 0,
               max_tokens: 4000,
+              seed: 42,
             },
           }
         )

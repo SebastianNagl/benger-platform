@@ -484,64 +484,17 @@ class AnalyticsService:
         return str(result) if result else None
 
     def _calculate_fleiss_kappa(self, ratings_matrix: List[List[Optional[str]]]) -> float:
-        """Calculate Fleiss' Kappa for multiple raters."""
-        import numpy as np
+        """Fleiss' Kappa for multiple raters; clamped to [0, 1] for the analytics dashboard."""
+        from bg_statistics import fleiss_kappa as _fleiss_kappa
 
-        if not ratings_matrix or not ratings_matrix[0]:
+        if not ratings_matrix or not any(any(r is not None for r in row) for row in ratings_matrix):
             return 1.0
 
-        # Get all unique categories
-        all_ratings = [r for row in ratings_matrix for r in row if r is not None]
-        if not all_ratings:
+        result = _fleiss_kappa(ratings_matrix)
+        if "error" in result or result.get("kappa") is None:
             return 1.0
-
-        categories = sorted(set(all_ratings))
-        n_categories = len(categories)
-        cat_to_idx = {c: i for i, c in enumerate(categories)}
-
-        n_items = len(ratings_matrix)
-
-        # Build count matrix
-        counts = np.zeros((n_items, n_categories))
-        for i, row in enumerate(ratings_matrix):
-            for rating in row:
-                if rating is not None and rating in cat_to_idx:
-                    counts[i, cat_to_idx[rating]] += 1
-
-        # Number of raters per item
-        n_raters_per_item = np.sum(counts, axis=1)
-
-        # Skip items with less than 2 raters
-        valid_items = n_raters_per_item >= 2
-        if not np.any(valid_items):
-            return 1.0
-
-        counts = counts[valid_items]
-        n_raters_per_item = n_raters_per_item[valid_items]
-        n_items = len(counts)
-
-        # Proportion of ratings per category
-        p_j = np.sum(counts, axis=0) / np.sum(counts)
-
-        # Per-item agreement
-        P_i = np.zeros(n_items)
-        for i in range(n_items):
-            n_i = n_raters_per_item[i]
-            if n_i > 1:
-                P_i[i] = (np.sum(counts[i] ** 2) - n_i) / (n_i * (n_i - 1))
-
-        # Overall observed agreement
-        P_bar = np.mean(P_i)
-
-        # Expected agreement by chance
-        P_e = np.sum(p_j**2)
-
-        # Calculate kappa
-        if P_e >= 1.0:
-            return 1.0 if P_bar >= 1.0 else 0.0
-
-        kappa = (P_bar - P_e) / (1 - P_e)
-        return float(max(0.0, min(1.0, kappa)))  # Clamp to [0, 1]
+        kappa = float(result["kappa"])
+        return max(0.0, min(1.0, kappa))
 
     def _calculate_user_analytics(
         self, db: Session, project_id: str, date_filter: List

@@ -327,10 +327,23 @@ export interface GenerationConfig {
       temperature?: number
       max_tokens?: number
       batch_size?: number
+      seed?: number
     }
     presentation_mode?: string
     model_configs?: Record<string, any>
   }
+  /** Project-level default trials per task-model combination
+   * (multi-run feature, migration 041). Optional — server defaults to 1
+   * when absent. Per-trigger overrides take precedence in the worker. */
+  runs_per_task?: number
+  /** Strategy used to pre-fill per-model parameters when a model is added
+   * to the selection. `recommended` pulls from each model's catalog
+   * `recommended_parameters` block; `minimum` uses each model's
+   * `parameter_constraints.temperature.min` (lowest stable value); `custom`
+   * uses the values entered into the project-level Defaults inputs.
+   * Constraint clamping (e.g. GPT-5 forces temp=1.0) always wins regardless
+   * of mode. Default: `recommended` when absent. */
+  defaults_mode?: 'recommended' | 'minimum' | 'custom'
   prompt_structures?: Record<string, PromptStructure>
   detected_data_types?: string[]
   available_options?: Record<string, any>

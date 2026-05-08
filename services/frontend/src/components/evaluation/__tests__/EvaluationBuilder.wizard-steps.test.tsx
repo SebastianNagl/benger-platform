@@ -781,65 +781,36 @@ describe('EvaluationBuilder wizard step rendering', () => {
   })
 
   // ==================== RUN EVALUATION / MODAL ====================
-
+  //
+  // The inner "Run evaluation" button + EvaluationControlModal mount
+  // were removed from EvaluationBuilder; the project page eval card
+  // footer is now the single trigger (see projects/[id]/page.tsx). The
+  // tests below assert the inner UI is gone, locking the cleanup.
   describe('Run evaluation modal', () => {
-    it('opens and closes evaluation control modal', async () => {
-      const user = userEvent.setup()
-      const evaluations = [
-        {
-          id: 'eval-1',
-          metric: 'bleu',
-          display_name: 'BLEU',
-          prediction_fields: ['model_answer'],
-          reference_fields: ['reference'],
-          metric_parameters: {},
-          enabled: true,
-          created_at: '2025-01-01',
-        },
-      ]
-      render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} />)
+    const evaluationsFixture = [
+      {
+        id: 'eval-1',
+        metric: 'bleu',
+        display_name: 'BLEU',
+        prediction_fields: ['model_answer'],
+        reference_fields: ['reference'],
+        metric_parameters: {},
+        enabled: true,
+        created_at: '2025-01-01',
+      },
+    ]
 
-      // Find run button (has PlayIcon)
-      const runBtn = screen.getAllByRole('button').find(b => b.querySelector('[data-testid="play-icon"]'))
-      expect(runBtn).toBeTruthy()
-      if (runBtn) {
-        await user.click(runBtn)
-
-        // Modal should open
-        await waitFor(() => {
-          expect(screen.getByTestId('eval-control-modal')).toBeInTheDocument()
-        })
-
-        // Close modal
-        await user.click(screen.getByTestId('modal-close'))
-      }
+    it('does not render an inner run button (removed in favor of page-level trigger)', () => {
+      render(<EvaluationBuilder {...defaultProps} evaluations={evaluationsFixture} />)
+      const runBtn = screen
+        .queryAllByRole('button')
+        .find((b) => b.querySelector('[data-testid="play-icon"]'))
+      expect(runBtn).toBeUndefined()
     })
 
-    it('calls onSave when modal success is triggered', async () => {
-      const mockSave = jest.fn()
-      const user = userEvent.setup()
-      const evaluations = [
-        {
-          id: 'eval-1',
-          metric: 'bleu',
-          display_name: 'BLEU',
-          prediction_fields: ['model_answer'],
-          reference_fields: ['reference'],
-          metric_parameters: {},
-          enabled: true,
-          created_at: '2025-01-01',
-        },
-      ]
-      render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} onSave={mockSave} />)
-
-      const runBtn = screen.getAllByRole('button').find(b => b.querySelector('[data-testid="play-icon"]'))
-      if (runBtn) {
-        await user.click(runBtn)
-        await waitFor(() => expect(screen.getByTestId('eval-control-modal')).toBeInTheDocument())
-        await user.click(screen.getByTestId('modal-success'))
-
-        expect(mockSave).toHaveBeenCalled()
-      }
+    it('does not mount its own EvaluationControlModal', () => {
+      render(<EvaluationBuilder {...defaultProps} evaluations={evaluationsFixture} />)
+      expect(screen.queryByTestId('eval-control-modal')).not.toBeInTheDocument()
     })
   })
 
@@ -922,52 +893,45 @@ describe('EvaluationBuilder wizard step rendering', () => {
   })
 
   // ==================== SAVING STATE ====================
-
+  //
+  // Inner Run button removed; saving-state visualization (disabled
+  // button + "running…" label) lives at the page-level trigger. These
+  // assertions lock that the inner wiring is gone.
   describe('Saving state', () => {
-    it('disables run button when saving', () => {
-      const evaluations = [
-        {
-          id: 'eval-1',
-          metric: 'bleu',
-          display_name: 'BLEU',
-          prediction_fields: ['model_answer'],
-          reference_fields: ['reference'],
-          metric_parameters: {},
-          enabled: true,
-          created_at: '2025-01-01',
-        },
-      ]
-      render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} saving={true} />)
+    const evaluations = [
+      {
+        id: 'eval-1',
+        metric: 'bleu',
+        display_name: 'BLEU',
+        prediction_fields: ['model_answer'],
+        reference_fields: ['reference'],
+        metric_parameters: {},
+        enabled: true,
+        created_at: '2025-01-01',
+      },
+    ]
 
-      const runBtn = screen.getAllByRole('button').find(b => b.querySelector('[data-testid="play-icon"]'))
-      if (runBtn) {
-        expect(runBtn).toBeDisabled()
-      }
+    it('does not render an inner run button when saving', () => {
+      render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} saving={true} />)
+      const runBtn = screen
+        .queryAllByRole('button')
+        .find((b) => b.querySelector('[data-testid="play-icon"]'))
+      expect(runBtn).toBeUndefined()
     })
 
-    it('shows running text when saving', () => {
-      const evaluations = [
-        {
-          id: 'eval-1',
-          metric: 'bleu',
-          display_name: 'BLEU',
-          prediction_fields: ['model_answer'],
-          reference_fields: ['reference'],
-          metric_parameters: {},
-          enabled: true,
-          created_at: '2025-01-01',
-        },
-      ]
+    it('does not render the inner "running" label', () => {
       render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} saving={true} />)
-
-      expect(screen.getByText('evaluationBuilder.runEvaluation.running')).toBeInTheDocument()
+      expect(screen.queryByText('evaluationBuilder.runEvaluation.running')).not.toBeInTheDocument()
     })
   })
 
   // ==================== CONFIGS COUNT ====================
-
+  //
+  // Inner enabled-config counter "X configs will be evaluated" used to
+  // sit next to the inner Run button; both moved to the page-level
+  // trigger area. This test asserts the inner counter is gone.
   describe('Evaluation configs count', () => {
-    it('shows count of enabled evaluations in the run section', () => {
+    it('does not render the inner "configs will be evaluated" counter', () => {
       const evaluations = [
         {
           id: 'eval-1',
@@ -991,9 +955,7 @@ describe('EvaluationBuilder wizard step rendering', () => {
         },
       ]
       render(<EvaluationBuilder {...defaultProps} evaluations={evaluations} />)
-
-      // Should show count = 1 (only enabled ones)
-      expect(screen.getByText(/evaluationBuilder.runEvaluation.configsWillBeEvaluated/)).toBeInTheDocument()
+      expect(screen.queryByText(/evaluationBuilder.runEvaluation.configsWillBeEvaluated/)).not.toBeInTheDocument()
     })
   })
 

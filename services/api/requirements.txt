@@ -11,7 +11,7 @@ bcrypt==4.3.0
 python-dotenv==1.2.2
 httpx==0.28.1
 celery==5.6.3
-redis>=5.0.0,<5.3.0
+redis>=5.0.0,<5.4.0
 sqlalchemy>=2.0.36
 psycopg2-binary>=2.9.10
 alembic>=1.14.0
@@ -36,6 +36,11 @@ jsonschema==4.26.0
 # (see services/workers/requirements.txt for thinc/spacy ABI rationale).
 numpy>=1.26.4,<2.0
 scipy>=1.11.0
+# Cost estimation endpoint (multi-run feature) tokenizes prompt templates to
+# estimate per-call input tokens. cl100k_base used as a proxy for non-OpenAI
+# models — frontend surfaces a "± ~20%" caveat. Same minimum as the workers
+# service to keep the wheel pinning consistent.
+tiktoken>=0.5.0
 # Monitoring and testing tools
 psutil>=6.1.0  # For system and memory monitoring
 locust==2.43.4  # For load testing

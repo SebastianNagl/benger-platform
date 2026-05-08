@@ -207,7 +207,9 @@ function ToastContainer({
 }) {
   return (
     <div
-      className="pointer-events-none fixed right-4 top-4 z-50 max-w-sm space-y-2"
+      // z-[60] keeps toasts above HeadlessUI Dialogs (which render at z-50);
+      // same-z + later DOM order let the dialog occlude toasts otherwise.
+      className="pointer-events-none fixed right-4 top-4 z-[60] max-w-sm space-y-2"
       data-testid="toast-container"
     >
       <AnimatePresence mode="popLayout">

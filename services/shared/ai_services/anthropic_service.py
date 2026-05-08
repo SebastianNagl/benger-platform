@@ -12,7 +12,8 @@ from typing import Any, Dict, Optional
 
 import anthropic
 
-from .base_service import BaseAIService
+from .base_service import BaseAIService, derive_truncated
+from .provider_capabilities import calculate_cost
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,12 @@ class AnthropicService(BaseAIService):
                     "response_time_ms": 150,
                     "cost_usd": 0.0,
                     "provider": "Anthropic",
+                    "finish_reason": "end_turn",
+                    "truncated": False,
+                    "refusal": False,
+                    "error_type": None,
+                    # Anthropic API does not accept a seed parameter.
+                    "seed": None,
                     "created_at": datetime.now().isoformat(),
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),
@@ -177,13 +184,21 @@ class AnthropicService(BaseAIService):
             output_tokens = response.usage.output_tokens if hasattr(response, "usage") else 0
             total_tokens = input_tokens + output_tokens
 
-            # Estimate cost (Claude Sonnet 3.5: $3/1M input, $15/1M output tokens)
-            cost_usd = (input_tokens * 0.000003) + (output_tokens * 0.000015)
+            # Phase 6.6 (#9): cost from llm_models.yaml (single source of
+            # truth) instead of a hardcoded Sonnet-3.5 estimate that
+            # silently misreports for Opus / Haiku / older snapshots.
+            # Falls back to 0.0 if the model isn't in the catalog.
+            cost_usd = calculate_cost("anthropic", model_name, input_tokens, output_tokens) or 0.0
 
             logger.info(f"🤖 Claude Generation: {model_name}")
             logger.info(f"📊 Tokens: {input_tokens} input + {output_tokens} output = {total_tokens}")
             logger.info(f"💰 Cost: ${cost_usd:.4f}")
             logger.info(f"⏱️ Response time: {response_time_ms}ms")
+
+            # Anthropic stop_reason values: end_turn, max_tokens,
+            # stop_sequence, tool_use, refusal (Claude 3.5+).
+            finish_reason = getattr(response, "stop_reason", None)
+            refusal = finish_reason == "refusal"
 
             return self._create_response_dict(
                 content=response_text,
@@ -199,6 +214,12 @@ class AnthropicService(BaseAIService):
                     "response_time_ms": response_time_ms,
                     "cost_usd": cost_usd,
                     "provider": "Anthropic",
+                    "finish_reason": finish_reason,
+                    "truncated": derive_truncated(finish_reason),
+                    "refusal": refusal,
+                    "error_type": None,
+                    # Anthropic API does not accept a seed parameter.
+                    "seed": None,
                     "created_at": end_time.isoformat(),
                     **self.get_invocation_provenance(),
                 },
@@ -259,6 +280,11 @@ class AnthropicService(BaseAIService):
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                     "response_time_ms": 150,
+                    "finish_reason": "tool_use",
+                    "truncated": False,
+                    "refusal": False,
+                    "error_type": None,
+                    "seed": None,
                     "structured_output": True,
                     "e2e_test_mode": True,
                     **self.get_invocation_provenance(),
@@ -310,6 +336,9 @@ class AnthropicService(BaseAIService):
             logger.info(f"💰 Cost: ${cost_usd:.4f}")
             logger.info(f"⏱️ Response time: {response_time_ms}ms")
 
+            finish_reason = getattr(response, "stop_reason", None)
+            refusal = finish_reason == "refusal"
+
             return self._create_response_dict(
                 content=content,
                 model=model_name,
@@ -324,6 +353,11 @@ class AnthropicService(BaseAIService):
                     "response_time_ms": response_time_ms,
                     "cost_usd": cost_usd,
                     "provider": "Anthropic",
+                    "finish_reason": finish_reason,
+                    "truncated": derive_truncated(finish_reason),
+                    "refusal": refusal,
+                    "error_type": None,
+                    "seed": None,
                     "structured_output": True,
                     "created_at": end_time.isoformat(),
                     **self.get_invocation_provenance(),

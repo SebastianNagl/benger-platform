@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy import JSON, Boolean, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import Float, ForeignKey, Integer, String, Table, Text
+from sqlalchemy import text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -368,6 +369,12 @@ class ResponseGeneration(Base):
     )  # pending, running, completed, failed
     # Number of responses generated
     responses_generated = Column(Integer, default=0, nullable=False)
+    # Multi-run support (migration 041): one ResponseGeneration row fans out
+    # into N child Generation rows with run_index 0..N-1. Counters drive both
+    # the worker's parent-status aggregation and the dashboard "3/5" badge.
+    runs_requested = Column(Integer, nullable=False, server_default=text("1"))
+    runs_completed = Column(Integer, nullable=False, server_default=text("0"))
+    runs_failed = Column(Integer, nullable=False, server_default=text("0"))
     error_message = Column(Text, nullable=True)  # Error message if failed
     # Generation result (actual generated content)
     result = Column(JSON, nullable=True)
@@ -418,6 +425,20 @@ class LLMResponse(Base):
         String, default="completed", nullable=False
     )  # completed, failed, parse_failed, parse_failed_max_retries
     error_message = Column(Text, nullable=True)  # Error message if failed
+    # Phase 6.6: academic-rigor metadata promoted to discrete columns
+    # for SQL slicing (migration 040). Kept in sync with the JSON
+    # blob via the worker write paths.
+    seed = Column(Integer, nullable=True)
+    finish_reason = Column(String(64), nullable=True)
+    truncated = Column(Boolean, nullable=False, server_default=text("false"))
+    refusal = Column(Boolean, nullable=False, server_default=text("false"))
+    error_type = Column(String(64), nullable=True)
+    latency_ms = Column(Integer, nullable=True)
+    input_tokens = Column(Integer, nullable=True)
+    output_tokens = Column(Integer, nullable=True)
+    # Multi-run support (migration 041): trial index within the parent
+    # ResponseGeneration's fan-out. Unique on (generation_id, run_index).
+    run_index = Column(Integer, nullable=False, server_default=text("0"))
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Parsing support for LLM response structure
@@ -473,9 +494,50 @@ class EvaluationRun(Base):
     task_evaluations = relationship(
         "TaskEvaluation", back_populates="evaluation_run", cascade="all, delete-orphan"
     )
+    judge_runs = relationship(
+        "EvaluationJudgeRun", back_populates="evaluation_run", cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<EvaluationRun(id={self.id}, project_id={self.project_id}, model_id={self.model_id})>"
+
+
+class EvaluationJudgeRun(Base):
+    """Per-judge-run child of EvaluationRun (migration 042).
+
+    Worker-side mirror of the API model. One row per (judge_model, run_index)
+    so a multi-judge ensemble or repeated-same-judge run can persist its
+    per-call results under one parent EvaluationRun.
+    """
+
+    __tablename__ = "evaluation_judge_runs"
+
+    id = Column(String, primary_key=True, index=True)
+    evaluation_id = Column(
+        String,
+        ForeignKey("evaluation_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    judge_model_id = Column(String, nullable=True)
+    run_index = Column(Integer, nullable=False, server_default=text("0"))
+    status = Column(String, nullable=False, server_default=text("'pending'"))
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    samples_evaluated = Column(Integer, nullable=True)
+    error_message = Column(Text, nullable=True)
+    metric_parameters_snapshot = Column(JSON, nullable=True)
+
+    evaluation_run = relationship("EvaluationRun", back_populates="judge_runs")
+    task_evaluations = relationship(
+        "TaskEvaluation", back_populates="judge_run", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self):
+        return (
+            f"<EvaluationJudgeRun(id={self.id}, evaluation_id={self.evaluation_id}, "
+            f"judge_model_id={self.judge_model_id}, run_index={self.run_index})>"
+        )
 
 
 class EvaluationRunMetric(Base):
@@ -506,6 +568,14 @@ class TaskEvaluation(Base):
     evaluation_id = Column(
         String, ForeignKey("evaluation_runs.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    # Migration 042 added the column (nullable). Migration 043 tightens to
+    # NOT NULL after every writer in workers + api was updated to populate it.
+    judge_run_id = Column(
+        String,
+        ForeignKey("evaluation_judge_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     generation_id = Column(String, nullable=True)  # No FK constraint for workers compatibility
     annotation_id = Column(String, nullable=True, index=True)  # No FK constraint for workers compatibility
@@ -530,10 +600,24 @@ class TaskEvaluation(Base):
     processing_time_ms = Column(Integer, nullable=True)
     # Prompt provenance for LLM judge evaluations
     judge_prompts_used = Column(JSON, nullable=True)
+    # Phase 6.6: per-call judge metadata promoted to discrete columns
+    # (migration 040). Same shape as Generation; raw_output here mirrors
+    # generations.response_content for the LLM-judge path, which never
+    # had a dedicated raw-text column before.
+    seed = Column(Integer, nullable=True)
+    finish_reason = Column(String(64), nullable=True)
+    truncated = Column(Boolean, nullable=False, server_default=text("false"))
+    refusal = Column(Boolean, nullable=False, server_default=text("false"))
+    error_type = Column(String(64), nullable=True)
+    latency_ms = Column(Integer, nullable=True)
+    input_tokens = Column(Integer, nullable=True)
+    output_tokens = Column(Integer, nullable=True)
+    raw_output = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships
     evaluation_run = relationship("EvaluationRun", back_populates="task_evaluations")
+    judge_run = relationship("EvaluationJudgeRun", back_populates="task_evaluations")
 
     def __repr__(self):
         return f"<TaskEvaluation(id={self.id}, evaluation_id={self.evaluation_id}, task_id={self.task_id}, passed={self.passed})>"
@@ -562,6 +646,18 @@ class LLMModel(Base):
     config_schema = Column(JSON, nullable=True)
     # Default configuration parameters
     default_config = Column(JSON, nullable=True)
+    # Per-million-token pricing (kept in sync with the API model so the
+    # worker can compute trial cost without a cross-service call).
+    input_cost_per_million = Column(Float, nullable=True)
+    output_cost_per_million = Column(Float, nullable=True)
+    # Hard constraints (e.g. fixed temperature, unsupported_params) — read by
+    # the worker's clamp step after _resolve_param picks a value.
+    parameter_constraints = Column(JSON, nullable=True)
+    # Provider-recommended parameter values (migration 046). Read by
+    # _resolve_param as the "recommended" tier of the precedence chain;
+    # without this declaration the worker can't see the column even though
+    # it exists in the DB, so all generations fall through to SYSTEM_DEFAULTS.
+    recommended_parameters = Column(JSON, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

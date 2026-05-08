@@ -448,8 +448,11 @@ class TestResourceMonitoring:
             # Get initial CPU percent
             initial_cpu = process.cpu_percent(interval=0.1)
 
-            # Do CPU-intensive work
-            for _ in range(1000000):
+            # A small CPU burst — the goal is to verify the monitoring
+            # plumbing returns numbers, not to stress the CPU. The previous
+            # 1_000_000-iteration loop ran for >120s in containerized CI
+            # and timed out without adding test signal.
+            for _ in range(1000):
                 _ = sum(i * i for i in range(100))
 
             # Get final CPU percent

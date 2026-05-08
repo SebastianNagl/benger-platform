@@ -322,10 +322,17 @@ class TestConfiguredMethodsDeep:
             },
         }
 
-        eval_run = Mock()
-        eval_run.model_id = "gpt-4"
-        eval_run.metrics = {"bleu": 0.85, "llm_judge_quality": 0.92}
-        eval_run.completed_at = datetime(2025, 7, 1, tzinfo=timezone.utc)
+        # Mock row tuples shaped like the (metric, cnt, last_run) projection
+        # the production raw_counts query returns. eval_run.metrics no longer
+        # drives has_results — the SQL aggregation does.
+        bleu_row = Mock()
+        bleu_row.metric = "bleu"
+        bleu_row.cnt = 5
+        bleu_row.last_run = datetime(2025, 7, 1, tzinfo=timezone.utc)
+        llm_row = Mock()
+        llm_row.metric = "llm_judge_quality"
+        llm_row.cnt = 3
+        llm_row.last_run = datetime(2025, 7, 1, tzinfo=timezone.utc)
 
         call_count = {"n": 0}
 
@@ -334,11 +341,12 @@ class TestConfiguredMethodsDeep:
             mock_q = MagicMock()
             mock_q.filter.return_value = mock_q
             mock_q.join.return_value = mock_q
+            mock_q.group_by.return_value = mock_q
 
             if call_count["n"] == 1:
                 mock_q.first.return_value = project
             else:
-                mock_q.all.return_value = [eval_run]
+                mock_q.all.return_value = [bleu_row, llm_row]
 
             return mock_q
 
