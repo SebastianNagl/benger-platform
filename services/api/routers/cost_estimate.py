@@ -38,6 +38,13 @@ class CostEstimateRequest(BaseModel):
     runs_per_call: int = Field(default=1, ge=1, le=25)
     samples_per_task: int = Field(default=1, ge=1, le=10)
     task_sample_size: int = Field(default=10, ge=1, le=50)
+    # Without these the estimator counts every (task, structure) combo for
+    # every model, even when the user picked "Generate missing" — which
+    # only fires the cells whose latest gen failed or is absent. Mirror
+    # the trigger endpoint's `mode` and `structure_keys` so the cost
+    # number matches what the worker will actually queue.
+    generation_mode: Optional[Literal["all", "missing", "single"]] = None
+    structure_keys: Optional[List[str]] = None
 
 
 class PerModelCost(BaseModel):
@@ -46,6 +53,7 @@ class PerModelCost(BaseModel):
     per_run_usd: float
     total_usd: float
     pricing_known: bool
+    cells_to_generate: int = 0
 
 
 class TokenBreakdown(BaseModel):
@@ -133,6 +141,70 @@ _REASONING_OUTPUT_UTILIZATION = 0.9
 _DEFAULT_OUTPUT_UTILIZATION = 0.6
 
 
+def _count_cells_to_generate(
+    db: Session,
+    project_id: str,
+    model_id: str,
+    structure_keys: Optional[List[str]],
+    generation_mode: Optional[str],
+) -> int:
+    """Count (task, structure) cells that would actually fire for `model_id`.
+
+    Mirrors the should_generate() decision in
+    services/api/routers/generation_task_list.py around lines 555-585:
+
+    - mode in ('all', 'single', None): every (task, structure) cell counts,
+      regardless of existing generations.
+    - mode == 'missing': a cell counts only when the latest matching
+      `response_generations` row has status='failed' or no row exists
+      at all. Cells whose latest is `completed`/`pending`/`running` are
+      skipped — they wouldn't be re-queued.
+
+    The cell count, not raw task count, is what drives cost: with one
+    structure active and 14/15 tasks already succeeded, "Generate missing"
+    fires 1 cell, not 15.
+    """
+    from project_models import Task
+    from models import ResponseGeneration as DBResponseGeneration
+
+    task_ids = [r[0] for r in db.query(Task.id).filter(Task.project_id == project_id).all()]
+    if not task_ids:
+        return 0
+    structures: List[Optional[str]] = list(structure_keys) if structure_keys else [None]
+
+    if generation_mode != "missing":
+        return len(task_ids) * len(structures)
+
+    # mode == "missing": check latest row per (task, model, structure)
+    from sqlalchemy import case
+    cells = 0
+    for task_id in task_ids:
+        for sk in structures:
+            q = db.query(DBResponseGeneration).filter(
+                DBResponseGeneration.task_id == task_id,
+                DBResponseGeneration.model_id == model_id,
+            )
+            if sk is not None:
+                # Match exact structure_key, falling back to legacy NULL rows
+                # — same precedence the worker uses
+                # (generation_task_list.py:196-208).
+                q = q.filter(
+                    (DBResponseGeneration.structure_key == sk)
+                    | (DBResponseGeneration.structure_key.is_(None))
+                ).order_by(
+                    case((DBResponseGeneration.structure_key == sk, 0), else_=1),
+                    DBResponseGeneration.created_at.desc(),
+                )
+            else:
+                q = q.filter(DBResponseGeneration.structure_key.is_(None)).order_by(
+                    DBResponseGeneration.created_at.desc()
+                )
+            latest = q.first()
+            if latest is None or latest.status == "failed":
+                cells += 1
+    return cells
+
+
 @router.post("/cost-estimate", response_model=CostEstimateResponse)
 def estimate_cost(
     request: CostEstimateRequest,
@@ -202,6 +274,18 @@ def estimate_cost(
             _REASONING_OUTPUT_UTILIZATION if is_reasoning else _DEFAULT_OUTPUT_UTILIZATION
         )
 
+        # Cell count is per-model: under mode=missing, a model that has
+        # mostly-successful prior runs may only have a handful of failed
+        # cells to retry, while another model may need every cell. Pricing
+        # the worst case across all models would mislead the user.
+        cells = _count_cells_to_generate(
+            db=db,
+            project_id=request.project_id,
+            model_id=model_id,
+            structure_keys=request.structure_keys,
+            generation_mode=request.generation_mode,
+        )
+
         token_est = estimate_tokens_for_calls(
             project_id=request.project_id,
             model_id=model_id,
@@ -226,6 +310,7 @@ def estimate_cost(
                 per_run_usd=0.0,
                 total_usd=0.0,
                 pricing_known=False,
+                cells_to_generate=cells,
             ))
             continue
 
@@ -233,7 +318,7 @@ def estimate_cost(
             (token_est.input_mean / 1000.0) * pricing["input_per_1k"]
             + (token_est.output_estimate / 1000.0) * pricing["output_per_1k"]
         )
-        per_run = per_call * total_tasks * request.samples_per_task
+        per_run = per_call * cells * request.samples_per_task
         model_total = per_run * request.runs_per_call
 
         per_model_costs.append(PerModelCost(
@@ -242,6 +327,7 @@ def estimate_cost(
             per_run_usd=round(per_run, 4),
             total_usd=round(model_total, 2),
             pricing_known=True,
+            cells_to_generate=cells,
         ))
         total_usd += model_total
 
@@ -253,13 +339,19 @@ def estimate_cost(
             encoding="unavailable",
         )
 
+    mode_note = (
+        f" Counting only the cells that would actually fire under "
+        f"generation_mode='{request.generation_mode}'"
+        if request.generation_mode == "missing"
+        else " Counting every (task × structure) cell"
+    )
     note = (
         "Estimate accuracy ± ~20%. Token counts use cl100k_base as a proxy "
         "for non-OpenAI models. Output utilization is 90% of max_tokens for "
         "reasoning-tier models (Pro/o-series — hidden reasoning tokens are "
         "billed as output) and 60% for non-reasoning models. Each model's "
         "max_tokens is read from selected_configuration.model_configs, "
-        "falling back to the project default."
+        "falling back to the project default." + mode_note + "."
     )
 
     return CostEstimateResponse(
