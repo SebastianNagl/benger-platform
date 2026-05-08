@@ -23,7 +23,11 @@ from database import get_db
 from models import LLMModel, User
 from project_models import Project
 from routers.projects.helpers import check_project_accessible, get_org_context_from_request
-from services.token_estimation import estimate_tokens_for_calls, sample_task_texts
+from services.token_estimation import (
+    estimate_tokens_for_calls,
+    sample_prediction_inputs,
+    sample_task_texts,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +143,14 @@ def _is_reasoning_model(llm_model_row: LLMModel) -> bool:
 # pretending every call hits the cap exactly.
 _REASONING_OUTPUT_UTILIZATION = 0.9
 _DEFAULT_OUTPUT_UTILIZATION = 0.6
+
+# LLM judges output a structured score + short reasoning — typically
+# 500-2000 tokens regardless of how high max_tokens is configured. Using
+# the generation utilization (0.6 × 16K = 9.6K) over-counts the output
+# bill by ~5× for a judge call. We pick 0.15 because typical judge
+# `max_tokens` is 8K-16K and 0.15 × that = 1.2K-2.4K, the realistic band
+# for a GPT-5-family judge producing JSON-shaped scoring + rationale.
+_EVAL_OUTPUT_UTILIZATION = 0.15
 
 
 def _count_evaluation_judge_calls(
@@ -293,15 +305,27 @@ def estimate_cost(
     if not target_models:
         raise HTTPException(status_code=400, detail="model_ids required (or judge_models for evaluation)")
 
-    # Sample task texts for prompt-length estimation. For evaluation we use
-    # the same texts; the actual evaluation prompt wraps prediction +
-    # reference but the order of magnitude is similar.
-    sample_texts = sample_task_texts(
-        db=db,
-        project_id=request.project_id,
-        sample_size=request.task_sample_size,
-        seed=42,
-    )
+    # Sample texts to estimate input length.
+    # - generation: raw task data (Sachverhalt) is what fills the prompt.
+    # - evaluation: the judge sees `judge_prompt + reference + prediction`
+    #   where the prediction (prior generation output) is by far the
+    #   largest variable component. Sampling raw tasks here under-counts
+    #   eval input tokens by 3-5× on Gutachten-style outputs and
+    #   produces an embarrassingly small dollar figure.
+    if request.mode == "evaluation":
+        sample_texts = sample_prediction_inputs(
+            db=db,
+            project_id=request.project_id,
+            sample_size=request.task_sample_size,
+            seed=42,
+        )
+    else:
+        sample_texts = sample_task_texts(
+            db=db,
+            project_id=request.project_id,
+            sample_size=request.task_sample_size,
+            seed=42,
+        )
     if not sample_texts:
         sample_texts = [""]
 
@@ -331,9 +355,14 @@ def estimate_cost(
         )
         llm_model_row = db.query(LLMModel).filter(LLMModel.id == model_id).first()
         is_reasoning = bool(llm_model_row and _is_reasoning_model(llm_model_row))
-        utilization = (
-            _REASONING_OUTPUT_UTILIZATION if is_reasoning else _DEFAULT_OUTPUT_UTILIZATION
-        )
+        if request.mode == "evaluation":
+            # Judges emit a small structured score + reasoning, not the
+            # full max_tokens budget — see _EVAL_OUTPUT_UTILIZATION.
+            utilization = _EVAL_OUTPUT_UTILIZATION
+        elif is_reasoning:
+            utilization = _REASONING_OUTPUT_UTILIZATION
+        else:
+            utilization = _DEFAULT_OUTPUT_UTILIZATION
 
         # Cell count is per-model and per-mode:
         # - generation: count (task × structure) cells with no recent
@@ -427,13 +456,23 @@ def estimate_cost(
         if request.generation_mode == "missing"
         else " Counting every (task × structure) cell"
     )
+    if request.mode == "evaluation":
+        utilization_note = (
+            " For evaluation, input is sampled from recent generation outputs "
+            "(the prediction the judge sees) and output utilization is 15 % of "
+            "max_tokens — judges emit a short score + rationale, not a full "
+            "completion."
+        )
+    else:
+        utilization_note = (
+            " Output utilization is 90 % of max_tokens for reasoning-tier "
+            "models (Pro/o-series) and 60 % otherwise."
+        )
     note = (
         "Estimate accuracy ± ~20%. Token counts use cl100k_base as a proxy "
-        "for non-OpenAI models. Output utilization is 90% of max_tokens for "
-        "reasoning-tier models (Pro/o-series — hidden reasoning tokens are "
-        "billed as output) and 60% for non-reasoning models. Each model's "
-        "max_tokens is read from selected_configuration.model_configs, "
-        "falling back to the project default." + mode_note + "."
+        "for non-OpenAI models. Each model's max_tokens is read from "
+        "selected_configuration.model_configs, falling back to the project "
+        "default." + utilization_note + mode_note + "."
     )
 
     return CostEstimateResponse(

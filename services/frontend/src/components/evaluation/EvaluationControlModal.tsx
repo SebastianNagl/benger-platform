@@ -258,13 +258,6 @@ export function EvaluationControlModal({
                         </div>
                       )}
 
-                      {/* Info */}
-                      <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
-                        <p className="text-sm text-blue-800 dark:text-blue-300">
-                          <strong>{t('evaluation.controlModal.note')}</strong> {t('evaluation.controlModal.backgroundInfo')}
-                        </p>
-                      </div>
-
                       {/* Inline cost preview — renders only when at least
                           one llm_judge_* metric is configured (deterministic
                           metrics like exact_match incur no API cost).
