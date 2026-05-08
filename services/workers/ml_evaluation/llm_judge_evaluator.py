@@ -640,6 +640,43 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 content = response.get("content", "")
                 result = self._parse_evaluation_response(content)
 
+                # Metric-specific schema validation. For criteria whose
+                # prompt template asks for a multi-dimension grading
+                # (currently `llm_judge_falloesung`), a response carrying
+                # only `{score, justification}` is a format-break by the
+                # judge model — not a legitimate 1/100 grade. Treat it as
+                # a parse error so retries get a fresh attempt, and if all
+                # retries fail the row is marked failed (mode='missing'
+                # eval picks it up next time).
+                if result and "score" in result and criterion and criterion.startswith("llm_judge_falloesung"):
+                    dimensions = result.get("dimensions")
+                    if not isinstance(dimensions, dict) or not dimensions:
+                        logger.warning(
+                            f"Judge returned malformed schema for {criterion}: "
+                            f"missing 'dimensions' object — retrying"
+                        )
+                        last_failure = {
+                            "error": True,
+                            "error_message": (
+                                f"Judge returned malformed schema (no dimensions) for {criterion}"
+                            ),
+                            "_call_metadata": {
+                                **_extract_call_metadata(response),
+                                "error_type": "parse_error",
+                            },
+                            "_raw_output": content,
+                            "_judge_prompts_used": {
+                                "system_prompt": "You are an expert evaluator. Respond only with valid JSON.",
+                                "evaluation_prompt": prompt,
+                                "criterion": criterion,
+                                "judge_model": self.judge_model,
+                                "temperature": self.temperature,
+                            },
+                        }
+                        # Drop the malformed result so the retry path runs
+                        # (the conditional below would otherwise accept it).
+                        result = None
+
                 if result and "score" in result:
                     score = float(result["score"])
                     # Clamp score to valid range based on score_scale
