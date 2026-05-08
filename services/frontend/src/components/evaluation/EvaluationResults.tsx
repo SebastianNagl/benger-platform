@@ -822,7 +822,12 @@ export function EvaluationResults({
       setAnnotationLoading(false)
     }
 
-    // Fetch generation results only for model cells
+    // Fetch generation results only for model cells. Capture the
+    // single generation_id we'll lock the Evaluation tab to so all
+    // three tabs describe the same generation. Without this lock the
+    // Generation tab can show today's output while the Evaluation tab
+    // shows yesterday's eval of a stale generation.
+    let lockedGenerationId: string | undefined
     if (isAnnotatorCell) {
       setGenerationData([])
       setGenerationLoading(false)
@@ -833,7 +838,12 @@ export function EvaluationResults({
           params.append('include_history', 'true')
         }
         const result = await apiClient.get(`/generation-tasks/generation-result?${params}`)
-        setGenerationData(result.results || [])
+        const gens = result.results || []
+        setGenerationData(gens)
+        // The endpoint returns latest first when include_history=false; with
+        // include_history=true it still returns most-recent first. Either way
+        // the first row is the generation the user expects to see.
+        lockedGenerationId = gens[0]?.generation_id
       } catch (err) {
         console.error('Failed to fetch generation result:', err)
       } finally {
@@ -841,9 +851,17 @@ export function EvaluationResults({
       }
     }
 
-    // Fetch per-task evaluation results
+    // Fetch per-task evaluation results scoped to lockedGenerationId
+    // (annotator cells skip this scope — annotations are subjects, not
+    // generations). Without the scope the eval tab silently shows
+    // evaluations of any historical generation.
     try {
-      const result = await apiClient.getTaskEvaluation(taskId, modelId, showHistory)
+      const result = await apiClient.getTaskEvaluation(
+        taskId,
+        modelId,
+        showHistory,
+        isAnnotatorCell ? undefined : lockedGenerationId,
+      )
       setEvaluationData(result)
     } catch (err) {
       console.error('Failed to fetch evaluation sample result:', err)
@@ -1872,7 +1890,20 @@ function ResultDetailsModal({
               </DialogTitle>
               {modelId && (
                 <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  {t('evaluation.multiFieldResults.model')}: {modelId} {taskId && `| ${t('evaluation.multiFieldResults.task')}: ${taskId.slice(0, 8)}...`}
+                  {t('evaluation.multiFieldResults.model')}: {modelId}
+                  {/* Surface the generation's timestamp + id so the user
+                   * can tell which generation the three tabs are
+                   * describing. Without this the modal looked identical
+                   * for two different generations of the same (task,
+                   * model) — the cell that was about to lie. */}
+                  {!isAnnotatorCell && generationData && generationData[0] && (
+                    <> · {t('evaluation.multiFieldResults.generation') ?? 'Generation'}: {
+                      generationData[0].generated_at
+                        ? new Date(generationData[0].generated_at).toLocaleString()
+                        : (generationData[0].generation_id || '').slice(0, 8) + '…'
+                    }</>
+                  )}
+                  {taskId && <> · {t('evaluation.multiFieldResults.task')}: {taskId.slice(0, 8)}…</>}
                 </p>
               )}
             </div>

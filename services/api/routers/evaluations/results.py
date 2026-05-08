@@ -718,7 +718,6 @@ async def get_results_by_task_model(
         from models import TaskEvaluation
         from models import Generation as GenerationModel
         from models import LLMModel
-        from services.evaluation.human_eval_runs import HUMAN_GRADED_METRICS
 
         # Verify evaluation exists
         evaluation = db.query(DBEvaluationRun).filter(DBEvaluationRun.id == evaluation_id).first()
@@ -735,23 +734,20 @@ async def get_results_by_task_model(
                 detail="Access denied",
             )
 
-        # Detect a human-graded run (model_id='human' + the metric is in
-        # HUMAN_GRADED_METRICS). For these runs, multiple correctors append
-        # rows to the same singleton EvaluationRun — so the "include_history"
-        # toggle controls whether each cell shows the latest grade or the
-        # mean across all grading scores. LLM runs always use latest-only.
-        is_human_run = (
-            evaluation.model_id == "human"
-            and (evaluation.eval_metadata or {}).get("evaluation_type")
-            in HUMAN_GRADED_METRICS
-        )
-        aggregate_mean = is_human_run and include_history
+        # `include_history` controls cell aggregation:
+        #   off  → cell shows the score of the LATEST generation per (task,
+        #          model) only (the user's mental model: "what are the
+        #          current results"). For human-graded runs, "latest" means
+        #          the most recently appended grade row.
+        #   on   → cell shows the arithmetic mean across all historical
+        #          rows for that (task, model) — multiple generations for
+        #          LLM runs, or multiple correctors for human runs.
+        # Without this, three historical gpt-5.4 generations contributed
+        # 24 rows to a single cell average (8 metrics × 3 gens) silently.
+        aggregate_mean = include_history
 
-        # Get sample results: when aggregating, fetch all rows and average in
-        # Python (the score lives inside a JSON dict so SQL-side AVG would
-        # require JSON-path extraction); otherwise dedup latest-per-target
-        # via the existing window function.
         if aggregate_mean:
+            # Fetch all eval rows; cell_scores collector below averages them.
             sample_results = (
                 db.query(
                     TaskEvaluation.task_id,
@@ -768,6 +764,33 @@ async def get_results_by_task_model(
                 .all()
             )
         else:
+            # Two-step dedup:
+            # 1. latest_gen_id per (task_id, model_id) — picks the single
+            #    most recent generation that should drive the cell.
+            # 2. latest eval per (generation_id, field_name) within the set
+            #    of latest gens — picks the freshest eval if a gen was
+            #    re-evaluated.
+            #
+            # Without step 1, the previous implementation kept the latest
+            # eval of EVERY historical generation, then averaged them all
+            # into the cell (silently — the user expected "latest only").
+            latest_gen = (
+                db.query(
+                    GenerationModel.id.label("gen_id"),
+                    func.row_number()
+                    .over(
+                        partition_by=[GenerationModel.task_id, GenerationModel.model_id],
+                        order_by=GenerationModel.created_at.desc(),
+                    )
+                    .label("rn"),
+                )
+                .filter(GenerationModel.status == "completed")
+                .subquery()
+            )
+            latest_gen_ids = (
+                db.query(latest_gen.c.gen_id).filter(latest_gen.c.rn == 1).subquery()
+            )
+
             ranked_results = (
                 db.query(
                     TaskEvaluation.task_id,
@@ -786,7 +809,10 @@ async def get_results_by_task_model(
                     GenerationModel,
                     TaskEvaluation.generation_id == GenerationModel.id,
                 )
-                .filter(TaskEvaluation.evaluation_id == evaluation_id)
+                .filter(
+                    TaskEvaluation.evaluation_id == evaluation_id,
+                    TaskEvaluation.generation_id.in_(db.query(latest_gen_ids.c.gen_id)),
+                )
                 .subquery()
             )
             sample_results = (
@@ -801,24 +827,82 @@ async def get_results_by_task_model(
                 .all()
             )
 
-        # Query 2: Get annotation-based evaluation results
+        # Query 2: Get annotation-based evaluation results.
+        # Same latest-only / mean-of-all symmetry as the generation
+        # branch: when include_history is off, scope to the LATEST
+        # annotation per (task_id, completed_by) before joining evals.
+        # If a task has a fresh annotation that hasn't been evaluated
+        # yet, this leaves the cell empty (rendered as n/a) instead of
+        # silently surfacing an evaluation of an older annotation —
+        # which is what the user explicitly asked for.
         from models import User as DBUser
 
-        annotation_eval_results = (
-            db.query(
-                TaskEvaluation.task_id,
-                TaskEvaluation.annotation_id,
-                TaskEvaluation.field_name,
-                TaskEvaluation.metrics,
-                TaskEvaluation.created_at,
+        if aggregate_mean:
+            annotation_eval_results = (
+                db.query(
+                    TaskEvaluation.task_id,
+                    TaskEvaluation.annotation_id,
+                    TaskEvaluation.field_name,
+                    TaskEvaluation.metrics,
+                    TaskEvaluation.created_at,
+                )
+                .filter(
+                    TaskEvaluation.evaluation_id == evaluation_id,
+                    TaskEvaluation.generation_id == None,  # noqa: E711
+                    TaskEvaluation.annotation_id != None,  # noqa: E711
+                )
+                .all()
             )
-            .filter(
-                TaskEvaluation.evaluation_id == evaluation_id,
-                TaskEvaluation.generation_id == None,  # noqa: E711
-                TaskEvaluation.annotation_id != None,  # noqa: E711
+        else:
+            latest_ann = (
+                db.query(
+                    Annotation.id.label("ann_id"),
+                    func.row_number()
+                    .over(
+                        partition_by=[Annotation.task_id, Annotation.completed_by],
+                        order_by=Annotation.created_at.desc(),
+                    )
+                    .label("rn"),
+                )
+                .filter(Annotation.completed_by.isnot(None))
+                .subquery()
             )
-            .all()
-        )
+            latest_ann_ids = (
+                db.query(latest_ann.c.ann_id).filter(latest_ann.c.rn == 1).subquery()
+            )
+            ranked_ann_evals = (
+                db.query(
+                    TaskEvaluation.task_id,
+                    TaskEvaluation.annotation_id,
+                    TaskEvaluation.field_name,
+                    TaskEvaluation.metrics,
+                    TaskEvaluation.created_at,
+                    func.row_number()
+                    .over(
+                        partition_by=[TaskEvaluation.annotation_id, TaskEvaluation.field_name],
+                        order_by=TaskEvaluation.created_at.desc(),
+                    )
+                    .label("rn"),
+                )
+                .filter(
+                    TaskEvaluation.evaluation_id == evaluation_id,
+                    TaskEvaluation.generation_id == None,  # noqa: E711
+                    TaskEvaluation.annotation_id.isnot(None),
+                    TaskEvaluation.annotation_id.in_(db.query(latest_ann_ids.c.ann_id)),
+                )
+                .subquery()
+            )
+            annotation_eval_results = (
+                db.query(
+                    ranked_ann_evals.c.task_id,
+                    ranked_ann_evals.c.annotation_id,
+                    ranked_ann_evals.c.field_name,
+                    ranked_ann_evals.c.metrics,
+                    ranked_ann_evals.c.created_at,
+                )
+                .filter(ranked_ann_evals.c.rn == 1)
+                .all()
+            )
 
         if not sample_results and not annotation_eval_results:
             return {
@@ -1493,6 +1577,16 @@ async def get_sample_result_by_task_model(
     task_id: str = Query(..., description="Task ID"),
     model_id: str = Query(..., description="Model ID"),
     include_history: bool = Query(True, description="Include all historical results. When false, deduplicate to latest per field_name."),
+    generation_id: Optional[str] = Query(
+        None,
+        description=(
+            "Restrict results to evaluations of this exact generation. "
+            "Used by the result modal to keep its three tabs (Annotation, "
+            "Generation, Evaluation) locked to the same generation_id — "
+            "without it the modal could show today's generation in one tab "
+            "and yesterday's eval of a stale generation in another."
+        ),
+    ),
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -1563,7 +1657,7 @@ async def get_sample_result_by_task_model(
                 sample_results = []
         else:
             # Generation-based evaluation: join on Generation model
-            sample_results = (
+            q = (
                 db.query(TaskEvaluation)
                 .join(
                     GenerationModel,
@@ -1573,9 +1667,14 @@ async def get_sample_result_by_task_model(
                     TaskEvaluation.task_id == task_id,
                     GenerationModel.model_id == model_id,
                 )
-                .order_by(TaskEvaluation.created_at.desc())
-                .all()
             )
+            if generation_id:
+                # Modal tab-cohesion path: scope to the exact generation
+                # the user is viewing in the Generation tab. Without this
+                # the modal showed evals of any historical generation
+                # while the Generation tab showed only the latest.
+                q = q.filter(TaskEvaluation.generation_id == generation_id)
+            sample_results = q.order_by(TaskEvaluation.created_at.desc()).all()
 
         if not sample_results:
             return {
