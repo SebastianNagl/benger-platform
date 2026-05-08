@@ -3,7 +3,7 @@ Cost estimate endpoint for the multi-run feature.
 
 Returns a per-call / per-run / total cost estimate for a generation or
 evaluation trigger. Pricing is read from the `llm_models` DB table (seeded
-from `services/api/seeds/llm_models.yaml`); token counts come from
+from `services/shared/seeds/llm_models.yaml`); token counts come from
 `services/api/services/token_estimation.py` (tiktoken with cl100k_base proxy).
 
 Estimate accuracy is best-effort — UI surfaces a "± ~20%" caveat.

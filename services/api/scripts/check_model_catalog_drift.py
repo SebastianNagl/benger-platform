@@ -27,11 +27,23 @@ import os
 import sys
 from pathlib import Path
 
-# Make the api source importable when run from inside the container or repo root
+# Make the api source + shared seeds package importable when run from
+# inside the container, the repo root, or PR CI.
 _HERE = Path(__file__).resolve()
 for candidate in (_HERE.parent.parent, Path("/app")):
     if candidate.exists() and (candidate / "database.py").exists():
         sys.path.insert(0, str(candidate))
+        break
+# `seeds.llm_models_loader` moved to services/shared/seeds (so workers can
+# import it too — see commit history). Add the shared dir to sys.path so
+# `from seeds.llm_models_loader import load_catalog` resolves regardless
+# of which entry point launched this script.
+for shared_candidate in (
+    _HERE.parent.parent.parent / "shared",
+    Path("/shared"),
+):
+    if shared_candidate.exists() and (shared_candidate / "seeds").exists():
+        sys.path.insert(0, str(shared_candidate))
         break
 
 from sqlalchemy import create_engine
