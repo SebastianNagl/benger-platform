@@ -2241,7 +2241,8 @@
       "stopFailed": "Failed to stop generation",
       "pauseFailed": "Failed to pause generation",
       "resumeFailed": "Failed to resume generation",
-      "retryFailed": "Failed to retry generation"
+      "retryFailed": "Failed to retry generation",
+      "allFailed": "Generation finished: all {failed} responses failed."
     },
     "success": {
       "projectSelected": "Project selected successfully",

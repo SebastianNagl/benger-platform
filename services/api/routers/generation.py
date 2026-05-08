@@ -794,6 +794,7 @@ async def generation_progress_websocket(
                                     "type": "complete",
                                     "project_id": project_id,
                                     "message": "All generation tasks completed",
+                                    "generations": status_data["generations"],
                                 }
                             )
                             break

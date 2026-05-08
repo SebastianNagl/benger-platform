@@ -70,6 +70,16 @@ api:
         secretKeyRef:
           name: benger-api-secrets
           key: secret_key
+    # Pinning the encryption key explicitly decouples it from SECRET_KEY
+    # rotations. EncryptionService used to derive the Fernet key from
+    # SECRET_KEY via PBKDF2 with a fixed salt — any change to SECRET_KEY
+    # silently invalidated every previously stored API key (observed
+    # 2026-05-08 with InvalidToken errors on user OpenAI/Google rows).
+    - name: ENCRYPTION_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: encryption_key
     # Schema validation mode for API (can be overridden for staging)
     - name: SCHEMA_VALIDATION_MODE
       value: "strict"
@@ -157,6 +167,12 @@ workers:
         secretKeyRef:
           name: benger-api-secrets
           key: secret_key
+    # See api env block above for context on why ENCRYPTION_KEY is pinned.
+    - name: ENCRYPTION_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: encryption_key
     - name: OPENAI_API_KEY
       valueFrom:
         secretKeyRef:

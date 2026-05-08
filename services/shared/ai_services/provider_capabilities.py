@@ -128,7 +128,7 @@ PROVIDER_CAPABILITIES: Dict[str, Dict[str, Any]] = {
             # ``seed`` parameter. The default is True; the few hosted
             # families that don't (Kimi K2.x, MiniMax) carry an explicit
             # ``constraints.seed.supported: false`` per-model override
-            # in services/api/seeds/llm_models.yaml.
+            # in services/shared/seeds/llm_models.yaml.
             "seed_support": True,
             "recommended_seed": 42,
         },
@@ -358,7 +358,7 @@ def model_supports_seed(provider: str, model_name: str) -> bool:
 def get_model_cost(provider: str, model_name: str) -> Optional[ModelCost]:
     """Get cost information for a specific model.
 
-    Costs are sourced from `services/api/seeds/llm_models.yaml` (the same
+    Costs are sourced from `services/shared/seeds/llm_models.yaml` (the same
     file the seed function loads). The result is cached in-process; call
     `reload_capability_caches()` after editing the YAML in a long-running
     process to clear both this cache and the seed-support cache.

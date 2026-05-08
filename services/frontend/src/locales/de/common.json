@@ -2262,7 +2262,8 @@
       "stopFailed": "Fehler beim Stoppen der Generierung",
       "pauseFailed": "Fehler beim Pausieren der Generierung",
       "resumeFailed": "Fehler beim Fortsetzen der Generierung",
-      "retryFailed": "Fehler beim Wiederholen der Generierung"
+      "retryFailed": "Fehler beim Wiederholen der Generierung",
+      "allFailed": "Generierung beendet: alle {failed} Antworten fehlgeschlagen."
     },
     "success": {
       "projectSelected": "Projekt erfolgreich ausgewählt",
