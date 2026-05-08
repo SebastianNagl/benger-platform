@@ -593,6 +593,28 @@ class LLMJudgeEvaluator(BaseEvaluator):
         # parse failure across attempts here.
         last_failure: Optional[Dict[str, Any]] = None
 
+        # For criteria that demand a multi-dimension grading shape
+        # (currently only `llm_judge_falloesung*`), pull the matching
+        # JSON schema from extended and route through `generate_structured`
+        # so the provider is structurally constrained to emit dimensions.
+        # Smaller models (gpt-5-mini, etc.) otherwise default to a
+        # `{"score":N,"justification":…}` shortcut that the parser
+        # then has to reject — wasting a full eval run's worth of tokens.
+        # `criterion` arrives without the `llm_judge_` prefix (callers
+        # in tasks.py strip it via `metric.replace("llm_judge_", "")`),
+        # so match on `falloesung` directly. Community edition without
+        # the extended package falls back to the prompt-only `generate`
+        # path.
+        falloesung_schema = None
+        if criterion and criterion.startswith("falloesung"):
+            try:
+                from benger_extended.workers.falloesung_constants import (
+                    FALLOESUNG_JSON_SCHEMA,
+                )
+                falloesung_schema = FALLOESUNG_JSON_SCHEMA
+            except ImportError:
+                falloesung_schema = None
+
         for attempt in range(self.max_retries):
             try:
                 # Build extra kwargs for thinking/reasoning parameters.
@@ -604,14 +626,25 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 if self.reasoning_effort:
                     extra_kwargs["reasoning_effort"] = self.reasoning_effort
 
-                response = self.ai_service.generate(
-                    prompt=prompt,
-                    system_prompt="You are an expert evaluator. Respond only with valid JSON.",
-                    model_name=self.judge_model,
-                    max_tokens=self.max_tokens,
-                    temperature=self.temperature,
-                    **extra_kwargs,
-                )
+                if falloesung_schema is not None:
+                    response = self.ai_service.generate_structured(
+                        prompt=prompt,
+                        system_prompt="You are an expert evaluator. Respond only with valid JSON.",
+                        model_name=self.judge_model,
+                        json_schema=falloesung_schema,
+                        max_tokens=self.max_tokens,
+                        temperature=self.temperature,
+                        **extra_kwargs,
+                    )
+                else:
+                    response = self.ai_service.generate(
+                        prompt=prompt,
+                        system_prompt="You are an expert evaluator. Respond only with valid JSON.",
+                        model_name=self.judge_model,
+                        max_tokens=self.max_tokens,
+                        temperature=self.temperature,
+                        **extra_kwargs,
+                    )
 
                 if not response.get("success"):
                     # Phase 6.6 (#4): the provider already retried 5x
