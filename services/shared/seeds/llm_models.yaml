@@ -38,6 +38,13 @@ models:
     is_active: true
     input_cost_per_million: 30.0
     output_cost_per_million: 180.0
+    default_config:
+      reasoning_config:
+        parameter: reasoning_effort
+        type: select
+        values: [low, medium, high]
+        default: medium
+        label: Thinking/Reasoning Level
     constraints:
       temperature:
         supported: false
@@ -59,6 +66,11 @@ models:
       default:
         temperature: 1.0
         max_tokens: 32000
+        # `high` (OpenAI's API default for *-pro) reliably exhausts the
+        # full max_tokens budget on hidden reasoning, leaving no room
+        # for visible answer text. `medium` finishes in ~5 min on a
+        # complex German legal Sachverhalt with content present.
+        reasoning_effort: medium
       provenance:
         source: https://platform.openai.com/docs/guides/reasoning
         retrieved: '2026-05-08'
@@ -183,6 +195,13 @@ models:
     is_active: true
     input_cost_per_million: 30.0
     output_cost_per_million: 180.0
+    default_config:
+      reasoning_config:
+        parameter: reasoning_effort
+        type: select
+        values: [low, medium, high]
+        default: medium
+        label: Thinking/Reasoning Level
     constraints:
       temperature:
         supported: false
@@ -202,6 +221,9 @@ models:
       default:
         temperature: 1.0
         max_tokens: 32000
+        # See gpt-5.5-pro: `high` exhausts the budget on hidden reasoning;
+        # `medium` is the OpenAI-documented sweet spot for Pro tiers.
+        reasoning_effort: medium
       provenance:
         source: https://platform.openai.com/docs/guides/reasoning
         retrieved: '2026-05-08'
