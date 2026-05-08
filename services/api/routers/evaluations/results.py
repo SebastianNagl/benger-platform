@@ -827,24 +827,82 @@ async def get_results_by_task_model(
                 .all()
             )
 
-        # Query 2: Get annotation-based evaluation results
+        # Query 2: Get annotation-based evaluation results.
+        # Same latest-only / mean-of-all symmetry as the generation
+        # branch: when include_history is off, scope to the LATEST
+        # annotation per (task_id, completed_by) before joining evals.
+        # If a task has a fresh annotation that hasn't been evaluated
+        # yet, this leaves the cell empty (rendered as n/a) instead of
+        # silently surfacing an evaluation of an older annotation —
+        # which is what the user explicitly asked for.
         from models import User as DBUser
 
-        annotation_eval_results = (
-            db.query(
-                TaskEvaluation.task_id,
-                TaskEvaluation.annotation_id,
-                TaskEvaluation.field_name,
-                TaskEvaluation.metrics,
-                TaskEvaluation.created_at,
+        if aggregate_mean:
+            annotation_eval_results = (
+                db.query(
+                    TaskEvaluation.task_id,
+                    TaskEvaluation.annotation_id,
+                    TaskEvaluation.field_name,
+                    TaskEvaluation.metrics,
+                    TaskEvaluation.created_at,
+                )
+                .filter(
+                    TaskEvaluation.evaluation_id == evaluation_id,
+                    TaskEvaluation.generation_id == None,  # noqa: E711
+                    TaskEvaluation.annotation_id != None,  # noqa: E711
+                )
+                .all()
             )
-            .filter(
-                TaskEvaluation.evaluation_id == evaluation_id,
-                TaskEvaluation.generation_id == None,  # noqa: E711
-                TaskEvaluation.annotation_id != None,  # noqa: E711
+        else:
+            latest_ann = (
+                db.query(
+                    Annotation.id.label("ann_id"),
+                    func.row_number()
+                    .over(
+                        partition_by=[Annotation.task_id, Annotation.completed_by],
+                        order_by=Annotation.created_at.desc(),
+                    )
+                    .label("rn"),
+                )
+                .filter(Annotation.completed_by.isnot(None))
+                .subquery()
             )
-            .all()
-        )
+            latest_ann_ids = (
+                db.query(latest_ann.c.ann_id).filter(latest_ann.c.rn == 1).subquery()
+            )
+            ranked_ann_evals = (
+                db.query(
+                    TaskEvaluation.task_id,
+                    TaskEvaluation.annotation_id,
+                    TaskEvaluation.field_name,
+                    TaskEvaluation.metrics,
+                    TaskEvaluation.created_at,
+                    func.row_number()
+                    .over(
+                        partition_by=[TaskEvaluation.annotation_id, TaskEvaluation.field_name],
+                        order_by=TaskEvaluation.created_at.desc(),
+                    )
+                    .label("rn"),
+                )
+                .filter(
+                    TaskEvaluation.evaluation_id == evaluation_id,
+                    TaskEvaluation.generation_id == None,  # noqa: E711
+                    TaskEvaluation.annotation_id.isnot(None),
+                    TaskEvaluation.annotation_id.in_(db.query(latest_ann_ids.c.ann_id)),
+                )
+                .subquery()
+            )
+            annotation_eval_results = (
+                db.query(
+                    ranked_ann_evals.c.task_id,
+                    ranked_ann_evals.c.annotation_id,
+                    ranked_ann_evals.c.field_name,
+                    ranked_ann_evals.c.metrics,
+                    ranked_ann_evals.c.created_at,
+                )
+                .filter(ranked_ann_evals.c.rn == 1)
+                .all()
+            )
 
         if not sample_results and not annotation_eval_results:
             return {
