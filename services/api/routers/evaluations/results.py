@@ -1669,11 +1669,18 @@ async def get_sample_result_by_task_model(
                 )
             )
             if generation_id:
-                # Modal tab-cohesion path: scope to the exact generation
-                # the user is viewing in the Generation tab. Without this
-                # the modal showed evals of any historical generation
-                # while the Generation tab showed only the latest.
-                q = q.filter(TaskEvaluation.generation_id == generation_id)
+                # Modal tab-cohesion path. The frontend obtains its
+                # `generation_id` from `/generation-tasks/generation-result`,
+                # which returns `response_generations.id` (the parent row
+                # per task/model/structure). `task_evaluations.generation_id`
+                # FKs to the inner `generations` table, so a direct equality
+                # on `TaskEvaluation.generation_id == generation_id` never
+                # matches and the modal renders empty even when the page
+                # shows a score for that cell. Filter on the joined
+                # `Generation.generation_id` (which is the FK back to
+                # ResponseGeneration) instead — that's the column whose
+                # value matches what the frontend sent.
+                q = q.filter(GenerationModel.generation_id == generation_id)
             sample_results = q.order_by(TaskEvaluation.created_at.desc()).all()
 
         if not sample_results:
