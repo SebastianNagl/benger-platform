@@ -1475,9 +1475,16 @@ export default function EvaluationDashboard() {
         {/* Operation Toasts for evaluation status */}
         {renderToasts()}
 
-        {/* Evaluation Control Modal */}
+        {/* Evaluation Control Modal — projectId + evaluationConfigs are
+            required for the inline cost-preview panel. Without them the
+            modal renders the same buttons but skips the cost section
+            entirely; the projects-page mount has them, so the two
+            entry points must mirror each other. */}
         <EvaluationControlModal
           isOpen={showEvaluationModal}
+          projectId={selectedProject?.id?.toString()}
+          evaluationConfigs={(projectEvalConfig?.evaluation_configs || [])
+            .filter((c: any) => c.enabled !== false)}
           onClose={() => setShowEvaluationModal(false)}
           onRunWithMode={handleRunEvaluation}
           onSuccess={() => setShowEvaluationModal(false)}

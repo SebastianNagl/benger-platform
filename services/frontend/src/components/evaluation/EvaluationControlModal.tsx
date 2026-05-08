@@ -267,7 +267,10 @@ export function EvaluationControlModal({
 
                       {/* Inline cost preview — renders only when at least
                           one llm_judge_* metric is configured (deterministic
-                          metrics like exact_match incur no API cost). */}
+                          metrics like exact_match incur no API cost).
+                          generationMode forwards the all/missing radio so
+                          the backend counts only the judge calls that will
+                          actually fire. */}
                       {judgeModelIds.length > 0 && projectId && (
                         <CostEstimatePanel
                           projectId={projectId}
@@ -275,6 +278,7 @@ export function EvaluationControlModal({
                           judgeModels={judgeModelIds}
                           runsPerCall={costRunsPerCall}
                           enabled={isOpen}
+                          generationMode={mode}
                         />
                       )}
                     </div>
