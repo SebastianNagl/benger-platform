@@ -82,6 +82,57 @@ def _resolve_pricing(db: Session, model_id: str) -> Optional[Dict[str, float]]:
     }
 
 
+def _resolve_max_tokens_for_model(
+    project_gen_config: Dict[str, Any],
+    model_id: str,
+    project_default: int,
+) -> int:
+    """Per-model `max_tokens` lookup.
+
+    The cost estimate must mirror the worker's parameter-resolution chain
+    (services/workers/tasks.py::_resolve_param) — otherwise an estimate
+    computed against the project's 4 000 default while the actual call
+    runs at the per-model 32 000 override (e.g. gpt-5.5-pro after the
+    Pro-tier max_tokens bump) understates cost by ~8x.
+
+    Priority (highest → lowest):
+      1. selected_configuration.model_configs[model_id].max_tokens
+      2. selected_configuration.parameters.max_tokens (passed in as project_default)
+    """
+    sel = (project_gen_config or {}).get("selected_configuration") or {}
+    model_overrides = (sel.get("model_configs") or {}).get(model_id) or {}
+    if "max_tokens" in model_overrides and model_overrides["max_tokens"]:
+        return int(model_overrides["max_tokens"])
+    return int(project_default)
+
+
+def _is_reasoning_model(llm_model_row: LLMModel) -> bool:
+    """A model is reasoning-tier if its catalog entry declares a
+    reasoning-effort selector (default_config.reasoning_config) or a
+    recommended reasoning_effort value. These are the cohorts whose
+    output reliably approaches the configured max_tokens budget
+    because hidden reasoning tokens are billed as output tokens.
+    """
+    dc = getattr(llm_model_row, "default_config", None) or {}
+    if isinstance(dc, dict) and dc.get("reasoning_config"):
+        return True
+    rp = getattr(llm_model_row, "recommended_parameters", None) or {}
+    if isinstance(rp, dict):
+        rec_default = rp.get("default") or {}
+        if isinstance(rec_default, dict) and rec_default.get("reasoning_effort"):
+            return True
+    return False
+
+
+# Non-reasoning models rarely use more than ~60 % of the configured
+# max_tokens budget on real prompts. Reasoning-tier models (Pro/o-series)
+# routinely fill 80–95 % because hidden reasoning tokens count toward
+# output. Picking 0.9 keeps the estimate slightly conservative without
+# pretending every call hits the cap exactly.
+_REASONING_OUTPUT_UTILIZATION = 0.9
+_DEFAULT_OUTPUT_UTILIZATION = 0.6
+
+
 @router.post("/cost-estimate", response_model=CostEstimateResponse)
 def estimate_cost(
     request: CostEstimateRequest,
@@ -127,20 +178,36 @@ def estimate_cost(
     if total_tasks == 0:
         raise HTTPException(status_code=400, detail="Project has no tasks to estimate against")
 
-    # Use the project's configured max_tokens to bound the output estimate.
-    gen_params = (project.generation_config or {}).get("selected_configuration", {}).get("parameters", {})
-    max_tokens = int(gen_params.get("max_tokens", 4000) or 4000)
+    # Project-default max_tokens is the fallback when a model has no
+    # per-model override. Per-model values (e.g. 32 000 for gpt-5.5-pro)
+    # are read inside the loop because they vary by model.
+    project_gen_config = project.generation_config or {}
+    gen_params = project_gen_config.get("selected_configuration", {}).get("parameters", {})
+    project_default_max_tokens = int(gen_params.get("max_tokens", 4000) or 4000)
 
     per_model_costs: List[PerModelCost] = []
     total_usd = 0.0
     token_breakdown: Optional[TokenBreakdown] = None
 
     for model_id in target_models:
+        # Each model can carry its own max_tokens override and its own
+        # reasoning-tier classification. Cost estimates must reflect what
+        # the worker will actually send, not the project default.
+        model_max_tokens = _resolve_max_tokens_for_model(
+            project_gen_config, model_id, project_default_max_tokens
+        )
+        llm_model_row = db.query(LLMModel).filter(LLMModel.id == model_id).first()
+        is_reasoning = bool(llm_model_row and _is_reasoning_model(llm_model_row))
+        utilization = (
+            _REASONING_OUTPUT_UTILIZATION if is_reasoning else _DEFAULT_OUTPUT_UTILIZATION
+        )
+
         token_est = estimate_tokens_for_calls(
             project_id=request.project_id,
             model_id=model_id,
             prompt_samples=sample_texts,
-            max_output_tokens=max_tokens,
+            max_output_tokens=model_max_tokens,
+            output_utilization=utilization,
         )
         if token_breakdown is None:
             token_breakdown = TokenBreakdown(
@@ -188,8 +255,11 @@ def estimate_cost(
 
     note = (
         "Estimate accuracy ± ~20%. Token counts use cl100k_base as a proxy "
-        "for non-OpenAI models; output utilization assumes 60% of the "
-        "configured max_tokens. Pricing read from llm_models DB."
+        "for non-OpenAI models. Output utilization is 90% of max_tokens for "
+        "reasoning-tier models (Pro/o-series — hidden reasoning tokens are "
+        "billed as output) and 60% for non-reasoning models. Each model's "
+        "max_tokens is read from selected_configuration.model_configs, "
+        "falling back to the project default."
     )
 
     return CostEstimateResponse(
