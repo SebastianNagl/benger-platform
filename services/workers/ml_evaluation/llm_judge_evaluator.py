@@ -556,8 +556,33 @@ class LLMJudgeEvaluator(BaseEvaluator):
 
         criterion_config = self.all_criteria.get(criterion, {})
 
-        # Use custom prompt template if provided, otherwise use default
-        prompt_template = self.custom_prompt_template or SINGLE_EVALUATION_PROMPT
+        # Use custom prompt template if provided, otherwise use default.
+        # For falloesung-prefixed criteria, swap in the dedicated
+        # multi-dimension Bewertungsschema prompt from extended — without
+        # this, the judge is sent the generic
+        # "Score from 1 (poor) to 5 (excellent)" rubric, has no idea what
+        # the 10 falloesung dimensions mean or what their scales are, and
+        # (now that the json_schema forces it to fill in dimensions)
+        # collapses to "5 = excellent → fill every dim with its schema
+        # max", producing a flood of perfect scores. Pair this with the
+        # FALLOESUNG_JSON_SCHEMA wiring a few lines below — schema
+        # without the prompt yields ungrounded grades; prompt without
+        # the schema yields the wrong-shape `{score, justification}`
+        # the parser used to reject. Both are needed.
+        falloesung_prompt = None
+        if criterion and criterion.startswith("falloesung"):
+            try:
+                from benger_extended.workers.falloesung_constants import (
+                    FALLOESUNG_PROMPT_TEMPLATE,
+                )
+                falloesung_prompt = FALLOESUNG_PROMPT_TEMPLATE
+            except ImportError:
+                falloesung_prompt = None
+        prompt_template = (
+            self.custom_prompt_template
+            or falloesung_prompt
+            or SINGLE_EVALUATION_PROMPT
+        )
 
         # Build template variables - support multiple naming conventions for flexibility
         template_vars = {
