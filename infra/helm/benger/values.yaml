@@ -244,11 +244,11 @@ frontend:
           - "*.what-a-benger.net"
   resources:
     limits:
-      cpu: 200m
-      memory: 256Mi
+      cpu: 500m
+      memory: 1Gi
     requests:
-      cpu: 50m
-      memory: 128Mi
+      cpu: 100m
+      memory: 512Mi
   autoscaling:
     enabled: false
     minReplicas: 1

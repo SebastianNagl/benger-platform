@@ -142,6 +142,60 @@ def estimate_tokens_for_calls(
     return estimate
 
 
+def sample_prediction_inputs(
+    *,
+    db,
+    project_id: str,
+    sample_size: int = 10,
+    seed: Optional[int] = None,
+) -> List[str]:
+    """Sample texts that approximate what an LLM judge actually sees.
+
+    The judge input is roughly:
+        judge_prompt_template (~500-1000 tokens, near-constant)
+      + reference_text         (~1000-3000 tokens, per-config)
+      + prediction             (~the model's full Gutachten — by far the
+                               dominant component on the BenGER prompts)
+
+    We return recent successful prediction texts because the prediction
+    is the largest and most variable component. Estimating eval cost
+    against the raw Sachverhalt (sample_task_texts) under-counts by
+    ~3-5× — Gutachten outputs are 4-15K tokens, the Sachverhalt is
+    ~1-3K. The estimator multiplies prompt length by token cost, so
+    that's a ~3-5× under-estimate of the input bill.
+
+    Falls back to sample_task_texts when the project has no successful
+    generations yet (cold start).
+    """
+    from project_models import Task
+    from models import Generation
+
+    rows = (
+        db.query(Generation.response_content)
+        .join(Task, Task.id == Generation.task_id)
+        .filter(Task.project_id == project_id)
+        .filter(Generation.status == "completed")
+        .filter(Generation.response_content.isnot(None))
+        .order_by(Generation.created_at.desc())
+        .limit(max(sample_size * 5, 50))
+        .all()
+    )
+    texts: List[str] = [r[0] for r in rows if r[0]]
+    if not texts:
+        return sample_task_texts(db=db, project_id=project_id, sample_size=sample_size, seed=seed)
+
+    if seed is not None:
+        rng = random.Random(seed)
+        if len(texts) > sample_size:
+            texts = rng.sample(texts, sample_size)
+        else:
+            texts = list(texts)
+    else:
+        texts = texts[:sample_size]
+
+    return texts
+
+
 def sample_task_texts(
     *,
     db,

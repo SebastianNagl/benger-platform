@@ -591,7 +591,10 @@ export function EvaluationControlModal({
                       {/* Inline cost preview — renders only when at least
                           one llm_judge_* metric is in the SELECTED set.
                           Deterministic metrics (exact_match etc.) and
-                          unselected judge configs incur no API cost. */}
+                          unselected judge configs incur no API cost.
+                          generationMode forwards the all/missing radio so
+                          the backend counts only the judge calls that will
+                          actually fire under the chosen mode. */}
                       {judgeModelIds.length > 0 && projectId && (
                         <CostEstimatePanel
                           projectId={projectId}
@@ -604,6 +607,7 @@ export function EvaluationControlModal({
                             availableAnnotators.length > 0 ? selectedAnnotators : undefined
                           }
                           evaluationConfigs={costEvaluationConfigs}
+                          generationMode={mode}
                         />
                       )}
                     </div>

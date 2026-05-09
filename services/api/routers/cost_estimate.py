@@ -23,7 +23,11 @@ from database import get_db
 from models import LLMModel, User
 from project_models import Project
 from routers.projects.helpers import check_project_accessible, get_org_context_from_request
-from services.token_estimation import estimate_tokens_for_calls, sample_task_texts
+from services.token_estimation import (
+    estimate_tokens_for_calls,
+    sample_prediction_inputs,
+    sample_task_texts,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +58,13 @@ class CostEstimateRequest(BaseModel):
     # then narrow the generation/annotation subject pools respectively.
     annotator_user_ids: Optional[List[str]] = None
     evaluation_configs: List[EvalConfigForCost] = Field(default_factory=list)
+    # Without these the estimator counts every (task, structure) combo for
+    # every model, even when the user picked "Generate missing" — which
+    # only fires the cells whose latest gen failed or is absent. Mirror
+    # the trigger endpoint's `mode` and `structure_keys` so the cost
+    # number matches what the worker will actually queue.
+    generation_mode: Optional[Literal["all", "missing", "single"]] = None
+    structure_keys: Optional[List[str]] = None
 
     @model_validator(mode="after")
     def _reject_cross_mode_keys(self) -> "CostEstimateRequest":
@@ -83,6 +94,7 @@ class PerModelCost(BaseModel):
     per_run_usd: float
     total_usd: float
     pricing_known: bool
+    cells_to_generate: int = 0
 
 
 class TokenBreakdown(BaseModel):
@@ -191,6 +203,366 @@ def _resolve_pricing(db: Session, model_id: str) -> Optional[Dict[str, float]]:
     }
 
 
+def _resolve_max_tokens_for_model(
+    project_gen_config: Dict[str, Any],
+    model_id: str,
+    project_default: int,
+) -> int:
+    """Per-model `max_tokens` lookup.
+
+    The cost estimate must mirror the worker's parameter-resolution chain
+    (services/workers/tasks.py::_resolve_param) — otherwise an estimate
+    computed against the project's 4 000 default while the actual call
+    runs at the per-model 32 000 override (e.g. gpt-5.5-pro after the
+    Pro-tier max_tokens bump) understates cost by ~8x.
+
+    Priority (highest → lowest):
+      1. selected_configuration.model_configs[model_id].max_tokens
+      2. selected_configuration.parameters.max_tokens (passed in as project_default)
+    """
+    sel = (project_gen_config or {}).get("selected_configuration") or {}
+    model_overrides = (sel.get("model_configs") or {}).get(model_id) or {}
+    if "max_tokens" in model_overrides and model_overrides["max_tokens"]:
+        return int(model_overrides["max_tokens"])
+    return int(project_default)
+
+
+def _is_reasoning_model(llm_model_row: LLMModel) -> bool:
+    """A model is reasoning-tier if its catalog entry declares a
+    reasoning-effort selector (default_config.reasoning_config) or a
+    recommended reasoning_effort value. These are the cohorts whose
+    output reliably approaches the configured max_tokens budget
+    because hidden reasoning tokens are billed as output tokens.
+    """
+    dc = getattr(llm_model_row, "default_config", None) or {}
+    if isinstance(dc, dict) and dc.get("reasoning_config"):
+        return True
+    rp = getattr(llm_model_row, "recommended_parameters", None) or {}
+    if isinstance(rp, dict):
+        rec_default = rp.get("default") or {}
+        if isinstance(rec_default, dict) and rec_default.get("reasoning_effort"):
+            return True
+    return False
+
+
+# Non-reasoning models rarely use more than ~60 % of the configured
+# max_tokens budget on real prompts. Reasoning-tier models (Pro/o-series)
+# routinely fill 80–95 % because hidden reasoning tokens count toward
+# output. Picking 0.9 keeps the estimate slightly conservative without
+# pretending every call hits the cap exactly.
+_REASONING_OUTPUT_UTILIZATION = 0.9
+_DEFAULT_OUTPUT_UTILIZATION = 0.6
+
+# LLM judges output a structured score + short reasoning — typically
+# 500-2000 tokens regardless of how high max_tokens is configured. Using
+# the generation utilization (0.6 × 16K = 9.6K) over-counts the output
+# bill by ~5× for a judge call. We pick 0.15 because typical judge
+# `max_tokens` is 8K-16K and 0.15 × that = 1.2K-2.4K, the realistic band
+# for a GPT-5-family judge producing JSON-shaped scoring + rationale.
+_EVAL_OUTPUT_UTILIZATION = 0.15
+
+
+def _count_evaluation_judge_calls(
+    db: Session,
+    project_id: str,
+    judge_model_id: str,
+    runs_per_call: int,
+    generation_mode: Optional[str],
+) -> int:
+    """Count LLM-judge API calls that would actually fire for
+    ``judge_model_id`` across all the project's enabled LLM-judge configs.
+
+    The project's `evaluation_config.evaluation_configs` lists every
+    metric configured. Only configs whose `metric` starts with
+    `llm_judge_` cost API tokens — deterministic metrics (BERTScore,
+    BLEU, ROUGE, semsim, METEOR, MoverScore, coherence, exact_match)
+    are compute-only.
+
+    For each LLM-judge config that names this judge in its
+    `metric_parameters.judges[].judge_model_id`:
+
+    - Resolve subjects per `prediction_fields` entry:
+        * `__all_model__`         → every completed generation
+        * `__all_human__`         → every annotation
+        * starts with `human:`    → every annotation (the suffix is the
+                                    field inside the annotation, not a
+                                    subject filter)
+        * any other plain string  → the worker auto-evaluates the field
+                                    on BOTH models AND humans (services/
+                                    workers/tasks.py around lines 234,
+                                    3289-3291) — so the cost has to as
+                                    well, otherwise the human-side bill
+                                    is invisible. Returns generations
+                                    AND annotations.
+    - Multiply by `runs` from the judge spec.
+    - For mode='missing', subtract subjects whose `task_evaluations`
+      row is already scored under the matching field_name pattern
+      `<metric>-<config_id>|<pred_field_normalized>|...`.
+
+    Returns the total API-call count across all judge configs that
+    target ``judge_model_id``.
+    """
+    cfgs = _load_llm_judge_configs(db, project_id, judge_model_id)
+    if not cfgs:
+        return 0
+
+    # Resolve the project's universe of subjects once.
+    gen_ids_by_field = _completed_generation_ids(db, project_id)
+    annotation_ids = _annotation_ids(db, project_id)
+
+    total = 0
+    for cfg in cfgs:
+        runs = cfg["runs"] * max(runs_per_call, 1)
+        # `runs_per_call` is the modal-level "runs across this trigger";
+        # `cfg["runs"]` is per-judge in this config. Multiply because
+        # each judge invocation is its own API call.
+        for pf in cfg["prediction_fields"]:
+            subj_keys = _subjects_for_pred_field(
+                pf, gen_ids_by_field=gen_ids_by_field,
+                annotation_ids=annotation_ids,
+            )
+            if generation_mode == "missing":
+                done = _already_scored_subjects(
+                    db, project_id, metric_id=cfg["metric"], pred_field=pf
+                )
+                missing = [s for s in subj_keys if s not in done]
+                total += len(missing) * runs
+            else:
+                total += len(subj_keys) * runs
+    return total
+
+
+def _load_llm_judge_configs(db: Session, project_id: str, judge_model_id: str) -> List[Dict[str, Any]]:
+    """Pull the project's enabled LLM-judge configs that name this
+    `judge_model_id` in their judges ensemble. Returns dicts with
+    `metric` (id), `prediction_fields`, and `runs` (for this judge)."""
+    from project_models import Project
+    proj = db.query(Project).filter(Project.id == project_id).first()
+    if not proj:
+        return []
+    eval_cfg = proj.evaluation_config or {}
+    if not isinstance(eval_cfg, dict):
+        try:
+            import json as _json
+            eval_cfg = _json.loads(eval_cfg)
+        except Exception:
+            return []
+    out: List[Dict[str, Any]] = []
+    for c in eval_cfg.get("evaluation_configs") or []:
+        if c.get("enabled") is False:
+            continue
+        metric = c.get("metric") or ""
+        if not metric.startswith("llm_judge_"):
+            continue
+        params = c.get("metric_parameters") or {}
+        # Two ensemble shapes the codebase uses:
+        # 1. judges: [{judge_model_id, runs}]            (preferred)
+        # 2. judge_model + runs_per_judge                (legacy single-judge)
+        runs_for_this_judge = 0
+        if isinstance(params.get("judges"), list):
+            for j in params["judges"]:
+                if (j or {}).get("judge_model_id") == judge_model_id:
+                    runs_for_this_judge = max(int(j.get("runs") or 1), 1)
+                    break
+        elif params.get("judge_model") == judge_model_id:
+            runs_for_this_judge = max(int(params.get("runs_per_judge") or 1), 1)
+        if runs_for_this_judge == 0:
+            continue
+        out.append(
+            {
+                "metric": metric,
+                "prediction_fields": list(c.get("prediction_fields") or []),
+                "runs": runs_for_this_judge,
+            }
+        )
+    return out
+
+
+def _completed_generation_ids(db: Session, project_id: str) -> List[str]:
+    """All completed generation ids for the project. Cached scope —
+    helper resolves fields against this list rather than re-querying."""
+    from project_models import Task
+    from models import Generation
+    rows = (
+        db.query(Generation.id)
+        .join(Task, Task.id == Generation.task_id)
+        .filter(Task.project_id == project_id, Generation.status == "completed")
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
+def _annotation_ids(db: Session, project_id: str) -> List[str]:
+    from project_models import Annotation, Task
+    rows = (
+        db.query(Annotation.id)
+        .join(Task, Task.id == Annotation.task_id)
+        .filter(Task.project_id == project_id)
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
+def _subjects_for_pred_field(
+    pred_field: str,
+    *,
+    gen_ids_by_field: List[str],
+    annotation_ids: List[str],
+) -> List[tuple]:
+    """Return a list of subject keys for one `prediction_fields` entry.
+
+    Each key is `(kind, id)` where kind ∈ {'generation','annotation'}.
+
+    Mirrors the worker's resolution at services/workers/tasks.py:234
+    and the human-eval block around line 3289-3291: a plain field name
+    (no `model:`/`human:`/`__all_*__` prefix) gets auto-prefixed to
+    `human:<field>` for annotation context AND used as a model field —
+    so the cost includes both subject sets, matching what the worker
+    will actually run.
+    """
+    if pred_field == "__all_model__":
+        return [("generation", gid) for gid in gen_ids_by_field]
+    if pred_field == "__all_human__" or pred_field.startswith("human:"):
+        return [("annotation", aid) for aid in annotation_ids]
+    if pred_field.startswith("model:"):
+        return [("generation", gid) for gid in gen_ids_by_field]
+    # Plain field name — both sides.
+    return [("generation", gid) for gid in gen_ids_by_field] + [
+        ("annotation", aid) for aid in annotation_ids
+    ]
+
+
+def _already_scored_subjects(
+    db: Session, project_id: str, *, metric_id: str, pred_field: str
+) -> set:
+    """Return subject keys (`(kind, id)`) already scored for this
+    metric+pred_field combination — i.e. what the worker would skip
+    under `evaluate_missing_only`.
+
+    field_name in `task_evaluations` follows the convention
+    `<metric>-<config_id>|<pred_field_normalized>|<reference>`.
+    The `<config_id>` suffix is unique per metric instance, so we
+    match on prefix `<metric>-`. Per worker logic, plain field names
+    are recorded with the `human:` prefix in annotation context — so a
+    plain pred_field maps to two field_name patterns, one for each
+    subject kind.
+    """
+    from project_models import Task
+    from models import TaskEvaluation, EvaluationRun
+
+    if pred_field.startswith("human:") or pred_field == "__all_human__":
+        # Annotation-side field. Match the prefixed form on the
+        # annotation_id side only.
+        norm = pred_field
+        subject_col = TaskEvaluation.annotation_id
+    elif pred_field == "__all_model__" or pred_field.startswith("model:"):
+        norm = pred_field
+        subject_col = TaskEvaluation.generation_id
+    else:
+        # Plain — recorded both as `<pf>` (model side) and `human:<pf>`
+        # (annotation side). Run two queries and union.
+        model_done = _scored_for(
+            db, project_id, metric_id=metric_id, pred_field_norm=pred_field,
+            subject_col=TaskEvaluation.generation_id, kind="generation",
+        )
+        human_done = _scored_for(
+            db, project_id, metric_id=metric_id,
+            pred_field_norm=f"human:{pred_field}",
+            subject_col=TaskEvaluation.annotation_id, kind="annotation",
+        )
+        return model_done | human_done
+    return _scored_for(
+        db, project_id, metric_id=metric_id, pred_field_norm=norm,
+        subject_col=subject_col,
+        kind="annotation" if subject_col is TaskEvaluation.annotation_id else "generation",
+    )
+
+
+def _scored_for(
+    db: Session, project_id: str, *, metric_id: str, pred_field_norm: str,
+    subject_col, kind: str,
+) -> set:
+    from sqlalchemy import and_
+    from models import TaskEvaluation, EvaluationRun
+    rows = (
+        db.query(subject_col)
+        .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
+        .filter(
+            EvaluationRun.project_id == project_id,
+            TaskEvaluation.field_name.like(f"{metric_id}-%|{pred_field_norm}|%"),
+            TaskEvaluation.metrics.isnot(None),
+            TaskEvaluation.error_message.is_(None),
+            subject_col.isnot(None),
+        )
+        .all()
+    )
+    return {(kind, r[0]) for r in rows if r[0] is not None}
+
+
+def _count_cells_to_generate(
+    db: Session,
+    project_id: str,
+    model_id: str,
+    structure_keys: Optional[List[str]],
+    generation_mode: Optional[str],
+) -> int:
+    """Count (task, structure) cells that would actually fire for `model_id`.
+
+    Mirrors the should_generate() decision in
+    services/api/routers/generation_task_list.py around lines 555-585:
+
+    - mode in ('all', 'single', None): every (task, structure) cell counts,
+      regardless of existing generations.
+    - mode == 'missing': a cell counts only when the latest matching
+      `response_generations` row has status='failed' or no row exists
+      at all. Cells whose latest is `completed`/`pending`/`running` are
+      skipped — they wouldn't be re-queued.
+
+    The cell count, not raw task count, is what drives cost: with one
+    structure active and 14/15 tasks already succeeded, "Generate missing"
+    fires 1 cell, not 15.
+    """
+    from project_models import Task
+    from models import ResponseGeneration as DBResponseGeneration
+
+    task_ids = [r[0] for r in db.query(Task.id).filter(Task.project_id == project_id).all()]
+    if not task_ids:
+        return 0
+    structures: List[Optional[str]] = list(structure_keys) if structure_keys else [None]
+
+    if generation_mode != "missing":
+        return len(task_ids) * len(structures)
+
+    # mode == "missing": check latest row per (task, model, structure)
+    from sqlalchemy import case
+    cells = 0
+    for task_id in task_ids:
+        for sk in structures:
+            q = db.query(DBResponseGeneration).filter(
+                DBResponseGeneration.task_id == task_id,
+                DBResponseGeneration.model_id == model_id,
+            )
+            if sk is not None:
+                # Match exact structure_key, falling back to legacy NULL rows
+                # — same precedence the worker uses
+                # (generation_task_list.py:196-208).
+                q = q.filter(
+                    (DBResponseGeneration.structure_key == sk)
+                    | (DBResponseGeneration.structure_key.is_(None))
+                ).order_by(
+                    case((DBResponseGeneration.structure_key == sk, 0), else_=1),
+                    DBResponseGeneration.created_at.desc(),
+                )
+            else:
+                q = q.filter(DBResponseGeneration.structure_key.is_(None)).order_by(
+                    DBResponseGeneration.created_at.desc()
+                )
+            latest = q.first()
+            if latest is None or latest.status == "failed":
+                cells += 1
+    return cells
+
+
 @router.post("/cost-estimate", response_model=CostEstimateResponse)
 def estimate_cost(
     request: CostEstimateRequest,
@@ -218,15 +590,27 @@ def estimate_cost(
     if not target_models:
         raise HTTPException(status_code=400, detail="model_ids required (or judge_models for evaluation)")
 
-    # Sample task texts for prompt-length estimation. For evaluation we use
-    # the same texts; the actual evaluation prompt wraps prediction +
-    # reference but the order of magnitude is similar.
-    sample_texts = sample_task_texts(
-        db=db,
-        project_id=request.project_id,
-        sample_size=request.task_sample_size,
-        seed=42,
-    )
+    # Sample texts to estimate input length.
+    # - generation: raw task data (Sachverhalt) is what fills the prompt.
+    # - evaluation: the judge sees `judge_prompt + reference + prediction`
+    #   where the prediction (prior generation output) is by far the
+    #   largest variable component. Sampling raw tasks here under-counts
+    #   eval input tokens by 3-5× on Gutachten-style outputs and
+    #   produces an embarrassingly small dollar figure.
+    if request.mode == "evaluation":
+        sample_texts = sample_prediction_inputs(
+            db=db,
+            project_id=request.project_id,
+            sample_size=request.task_sample_size,
+            seed=42,
+        )
+    else:
+        sample_texts = sample_task_texts(
+            db=db,
+            project_id=request.project_id,
+            sample_size=request.task_sample_size,
+            seed=42,
+        )
     if not sample_texts:
         sample_texts = [""]
 
@@ -236,9 +620,12 @@ def estimate_cost(
     if total_tasks == 0:
         raise HTTPException(status_code=400, detail="Project has no tasks to estimate against")
 
-    # Use the project's configured max_tokens to bound the output estimate.
-    gen_params = (project.generation_config or {}).get("selected_configuration", {}).get("parameters", {})
-    max_tokens = int(gen_params.get("max_tokens", 4000) or 4000)
+    # Project-default max_tokens is the fallback when a model has no
+    # per-model override. Per-model values (e.g. 32 000 for gpt-5.5-pro)
+    # are read inside the loop because they vary by model.
+    project_gen_config = project.generation_config or {}
+    gen_params = project_gen_config.get("selected_configuration", {}).get("parameters", {})
+    project_default_max_tokens = int(gen_params.get("max_tokens", 4000) or 4000)
 
     # Subject counting (issue #69): when the eval modal sends configs, size
     # the cost by actual (subject × prediction_field) cells the run will
@@ -267,11 +654,59 @@ def estimate_cost(
     token_breakdown: Optional[TokenBreakdown] = None
 
     for model_id in target_models:
+        # Each model can carry its own max_tokens override and its own
+        # reasoning-tier classification. Cost estimates must reflect what
+        # the worker will actually send, not the project default.
+        model_max_tokens = _resolve_max_tokens_for_model(
+            project_gen_config, model_id, project_default_max_tokens
+        )
+        llm_model_row = db.query(LLMModel).filter(LLMModel.id == model_id).first()
+        is_reasoning = bool(llm_model_row and _is_reasoning_model(llm_model_row))
+        if request.mode == "evaluation":
+            # Judges emit a small structured score + reasoning, not the
+            # full max_tokens budget — see _EVAL_OUTPUT_UTILIZATION.
+            utilization = _EVAL_OUTPUT_UTILIZATION
+        elif is_reasoning:
+            utilization = _REASONING_OUTPUT_UTILIZATION
+        else:
+            utilization = _DEFAULT_OUTPUT_UTILIZATION
+
+        # Cell count is per-model and per-mode:
+        # - generation: count (task × structure) cells with no recent
+        #   successful response_generations row (for mode=missing).
+        # - evaluation: count (task × run_index) judge calls with no
+        #   successful evaluation_judge_runs row for this judge model.
+        # Without the eval-specific path the estimator would query the
+        # generations table for evaluation runs — counting whichever
+        # generations were missing instead of which judge calls are
+        # missing. Different question, different answer.
+        if request.mode == "evaluation":
+            cells = _count_evaluation_judge_calls(
+                db=db,
+                project_id=request.project_id,
+                judge_model_id=model_id,
+                runs_per_call=request.runs_per_call,
+                generation_mode=request.generation_mode,
+            )
+            # The judge-call count already factors run_index, so don't
+            # multiply by runs_per_call again below.
+            runs_already_counted = True
+        else:
+            cells = _count_cells_to_generate(
+                db=db,
+                project_id=request.project_id,
+                model_id=model_id,
+                structure_keys=request.structure_keys,
+                generation_mode=request.generation_mode,
+            )
+            runs_already_counted = False
+
         token_est = estimate_tokens_for_calls(
             project_id=request.project_id,
             model_id=model_id,
             prompt_samples=sample_texts,
-            max_output_tokens=max_tokens,
+            max_output_tokens=model_max_tokens,
+            output_utilization=utilization,
         )
         if token_breakdown is None:
             token_breakdown = TokenBreakdown(
@@ -290,6 +725,7 @@ def estimate_cost(
                 per_run_usd=0.0,
                 total_usd=0.0,
                 pricing_known=False,
+                cells_to_generate=cells,
             ))
             continue
 
@@ -297,12 +733,19 @@ def estimate_cost(
             (token_est.input_mean / 1000.0) * pricing["input_per_1k"]
             + (token_est.output_estimate / 1000.0) * pricing["output_per_1k"]
         )
-        # Eval mode with explicit configs prices the actual cell count;
-        # everything else (generation, or eval without configs) keeps the
-        # tasks-based legacy formula.
-        units_per_run = subject_count if eval_uses_subject_count else total_tasks
-        per_run = per_call * units_per_run * request.samples_per_task
-        model_total = per_run * request.runs_per_call
+        # Eval mode with explicit configs (issue #69) prices the actual
+        # (subject × prediction_field) cell count. Otherwise, the legacy
+        # cells-based formula applies — for generation that's
+        # `tasks × structure_keys × samples_per_task` (so structure_keys
+        # multiplication from main is preserved); for eval-without-configs
+        # `cells` is `(tasks × run_index)` and the runs multiplier is
+        # already folded in (`runs_already_counted=True`).
+        if eval_uses_subject_count:
+            per_run = per_call * subject_count * request.samples_per_task
+            model_total = per_run * request.runs_per_call
+        else:
+            per_run = per_call * cells * request.samples_per_task
+            model_total = per_run if runs_already_counted else per_run * request.runs_per_call
 
         per_model_costs.append(PerModelCost(
             model_id=model_id,
@@ -310,6 +753,7 @@ def estimate_cost(
             per_run_usd=round(per_run, 4),
             total_usd=round(model_total, 2),
             pricing_known=True,
+            cells_to_generate=cells,
         ))
         total_usd += model_total
 
@@ -321,13 +765,33 @@ def estimate_cost(
             encoding="unavailable",
         )
 
-    # E2: the eval-with-configs path introduces additional approximation
-    # sources beyond the original ±20% disclaimer. Surface them when active
-    # so the user knows the variance band is wider for scoped runs.
+    mode_note = (
+        f" Counting only the cells that would actually fire under "
+        f"generation_mode='{request.generation_mode}'"
+        if request.generation_mode == "missing"
+        else " Counting every (task × structure) cell"
+    )
+    if request.mode == "evaluation":
+        utilization_note = (
+            " For evaluation, input is sampled from recent generation outputs "
+            "(the prediction the judge sees) and output utilization is 15 % of "
+            "max_tokens — judges emit a short score + rationale, not a full "
+            "completion."
+        )
+    else:
+        utilization_note = (
+            " Output utilization is 90 % of max_tokens for reasoning-tier "
+            "models (Pro/o-series) and 60 % otherwise."
+        )
+    # E2 (issue #69): the eval-with-configs path introduces additional
+    # approximation sources beyond the ±20% disclaimer. Surface them when
+    # active (see the `if eval_uses_subject_count` branch below) so the
+    # user knows the variance band is wider for scoped runs.
     note = (
         "Estimate accuracy ± ~20%. Token counts use cl100k_base as a proxy "
-        "for non-OpenAI models; output utilization assumes 60% of the "
-        "configured max_tokens. Pricing read from llm_models DB."
+        "for non-OpenAI models. Each model's max_tokens is read from "
+        "selected_configuration.model_configs, falling back to the project "
+        "default." + utilization_note + mode_note + "."
     )
     if eval_uses_subject_count:
         note += (
