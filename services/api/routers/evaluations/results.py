@@ -502,13 +502,20 @@ async def get_metric_distribution(
                 detail="No samples found for this evaluation",
             )
 
-        # Extract metric values
+        # Extract metric values. Use _coerce_metric_value because metrics
+        # can be in either the legacy flat shape (bare float at the top
+        # level) OR the canonical nested shape ({value, method, details,
+        # error}). Falloesung's immediate-eval rows are nested; bulk-eval
+        # rows are flat — a direct float() cast would crash on nested
+        # rows. _coerce_metric_value tries .value first, then .total_score
+        # / .score (legacy korrektur), then bare float fallback, so it
+        # handles all shapes uniformly.
         values = []
         for sample in samples:
             if sample.metrics and metric_name in sample.metrics:
-                value = sample.metrics[metric_name]
-                if value is not None:
-                    values.append(float(value))
+                coerced = _coerce_metric_value(sample.metrics[metric_name])
+                if coerced is not None:
+                    values.append(coerced)
 
         if not values:
             raise HTTPException(
