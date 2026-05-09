@@ -535,6 +535,21 @@ class LLMJudgeEvaluator(BaseEvaluator):
         Returns:
             Dict with 'score' (1-5 or 0-1) and 'justification', or None if evaluation failed
         """
+        # Falloesung must never reach this generic 1–5 LLM judge — it has its
+        # own multi-dimension Bewertungsschema prompt + JSON schema in
+        # benger_extended. Both eval paths (immediate-eval at
+        # services/workers/tasks.py:4120 and bulk-eval at :3036 / :3441)
+        # route through extended hooks instead. Fail loud here so a future
+        # regression that forgets to dispatch is visible immediately rather
+        # than silently producing wrong-rubric scores.
+        if criterion and criterion.startswith("falloesung"):
+            raise RuntimeError(
+                "Metric 'llm_judge_falloesung' must be routed through "
+                "benger_extended.workers.get_falloesung_bulk_compute_fn(); "
+                "direct LLMJudgeEvaluator._evaluate_single_criterion calls "
+                "are not supported. See services/workers/tasks.py:3036 / :3441."
+            )
+
         # E2E test mock: return deterministic scores without real API call
         if self.ai_service is None:
             import os
@@ -556,33 +571,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
 
         criterion_config = self.all_criteria.get(criterion, {})
 
-        # Use custom prompt template if provided, otherwise use default.
-        # For falloesung-prefixed criteria, swap in the dedicated
-        # multi-dimension Bewertungsschema prompt from extended — without
-        # this, the judge is sent the generic
-        # "Score from 1 (poor) to 5 (excellent)" rubric, has no idea what
-        # the 10 falloesung dimensions mean or what their scales are, and
-        # (now that the json_schema forces it to fill in dimensions)
-        # collapses to "5 = excellent → fill every dim with its schema
-        # max", producing a flood of perfect scores. Pair this with the
-        # FALLOESUNG_JSON_SCHEMA wiring a few lines below — schema
-        # without the prompt yields ungrounded grades; prompt without
-        # the schema yields the wrong-shape `{score, justification}`
-        # the parser used to reject. Both are needed.
-        falloesung_prompt = None
-        if criterion and criterion.startswith("falloesung"):
-            try:
-                from benger_extended.workers.falloesung_constants import (
-                    FALLOESUNG_PROMPT_TEMPLATE,
-                )
-                falloesung_prompt = FALLOESUNG_PROMPT_TEMPLATE
-            except ImportError:
-                falloesung_prompt = None
-        prompt_template = (
-            self.custom_prompt_template
-            or falloesung_prompt
-            or SINGLE_EVALUATION_PROMPT
-        )
+        # Use custom prompt template if provided, otherwise use default
+        prompt_template = self.custom_prompt_template or SINGLE_EVALUATION_PROMPT
 
         # Build template variables - support multiple naming conventions for flexibility
         template_vars = {
@@ -618,28 +608,6 @@ class LLMJudgeEvaluator(BaseEvaluator):
         # parse failure across attempts here.
         last_failure: Optional[Dict[str, Any]] = None
 
-        # For criteria that demand a multi-dimension grading shape
-        # (currently only `llm_judge_falloesung*`), pull the matching
-        # JSON schema from extended and route through `generate_structured`
-        # so the provider is structurally constrained to emit dimensions.
-        # Smaller models (gpt-5-mini, etc.) otherwise default to a
-        # `{"score":N,"justification":…}` shortcut that the parser
-        # then has to reject — wasting a full eval run's worth of tokens.
-        # `criterion` arrives without the `llm_judge_` prefix (callers
-        # in tasks.py strip it via `metric.replace("llm_judge_", "")`),
-        # so match on `falloesung` directly. Community edition without
-        # the extended package falls back to the prompt-only `generate`
-        # path.
-        falloesung_schema = None
-        if criterion and criterion.startswith("falloesung"):
-            try:
-                from benger_extended.workers.falloesung_constants import (
-                    FALLOESUNG_JSON_SCHEMA,
-                )
-                falloesung_schema = FALLOESUNG_JSON_SCHEMA
-            except ImportError:
-                falloesung_schema = None
-
         for attempt in range(self.max_retries):
             try:
                 # Build extra kwargs for thinking/reasoning parameters.
@@ -651,25 +619,14 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 if self.reasoning_effort:
                     extra_kwargs["reasoning_effort"] = self.reasoning_effort
 
-                if falloesung_schema is not None:
-                    response = self.ai_service.generate_structured(
-                        prompt=prompt,
-                        system_prompt="You are an expert evaluator. Respond only with valid JSON.",
-                        model_name=self.judge_model,
-                        json_schema=falloesung_schema,
-                        max_tokens=self.max_tokens,
-                        temperature=self.temperature,
-                        **extra_kwargs,
-                    )
-                else:
-                    response = self.ai_service.generate(
-                        prompt=prompt,
-                        system_prompt="You are an expert evaluator. Respond only with valid JSON.",
-                        model_name=self.judge_model,
-                        max_tokens=self.max_tokens,
-                        temperature=self.temperature,
-                        **extra_kwargs,
-                    )
+                response = self.ai_service.generate(
+                    prompt=prompt,
+                    system_prompt="You are an expert evaluator. Respond only with valid JSON.",
+                    model_name=self.judge_model,
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature,
+                    **extra_kwargs,
+                )
 
                 if not response.get("success"):
                     # Phase 6.6 (#4): the provider already retried 5x
@@ -697,69 +654,6 @@ class LLMJudgeEvaluator(BaseEvaluator):
 
                 content = response.get("content", "")
                 result = self._parse_evaluation_response(content)
-
-                # Metric-specific schema validation. For criteria whose
-                # prompt template asks for a multi-dimension grading
-                # (currently `llm_judge_falloesung`), a response carrying
-                # only `{score, justification}` is a format-break by the
-                # judge model — not a legitimate 1/100 grade. Treat it as
-                # a parse error so retries get a fresh attempt, and if all
-                # retries fail the row is marked failed (mode='missing'
-                # eval picks it up next time).
-                #
-                # `criterion` arrives here with the `llm_judge_` prefix
-                # already stripped by the caller (services/workers/tasks.py
-                # `metric.replace("llm_judge_", "")`), so we match on
-                # `falloesung` directly. May also carry a config suffix
-                # like `falloesung-mmpfzsar-7wb3|loesung|musterlösung`,
-                # which `startswith` still accepts.
-                # Falloesung's schema-conformant response carries
-                # `total_score` (0-100) at the top level, not the legacy
-                # `score` key the rest of this function expects. Bridge
-                # the two before any score-presence checks run, so the
-                # structured response flows through the existing path
-                # (clamping, score_scale=0-100 normalization at the
-                # caller, persistence as raw_score / metric_score).
-                # Without this, every successful structured-output call
-                # would still fall through to the "missing parseable
-                # score" parse-failure branch at line 752.
-                if (
-                    result
-                    and criterion
-                    and criterion.startswith("falloesung")
-                    and "score" not in result
-                    and "total_score" in result
-                ):
-                    result["score"] = result["total_score"]
-
-                if result and "score" in result and criterion and criterion.startswith("falloesung"):
-                    dimensions = result.get("dimensions")
-                    if not isinstance(dimensions, dict) or not dimensions:
-                        logger.warning(
-                            f"Judge returned malformed schema for {criterion}: "
-                            f"missing 'dimensions' object — retrying"
-                        )
-                        last_failure = {
-                            "error": True,
-                            "error_message": (
-                                f"Judge returned malformed schema (no dimensions) for {criterion}"
-                            ),
-                            "_call_metadata": {
-                                **_extract_call_metadata(response),
-                                "error_type": "parse_error",
-                            },
-                            "_raw_output": content,
-                            "_judge_prompts_used": {
-                                "system_prompt": "You are an expert evaluator. Respond only with valid JSON.",
-                                "evaluation_prompt": prompt,
-                                "criterion": criterion,
-                                "judge_model": self.judge_model,
-                                "temperature": self.temperature,
-                            },
-                        }
-                        # Drop the malformed result so the retry path runs
-                        # (the conditional below would otherwise accept it).
-                        result = None
 
                 if result and "score" in result:
                     score = float(result["score"])
