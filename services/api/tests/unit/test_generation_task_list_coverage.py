@@ -39,6 +39,21 @@ def _mock_request(headers=None):
     return mock
 
 
+def _is_project_org_query(args):
+    """True for db.query(ProjectOrganization.organization_id) — added in
+    b4cf252 to discover linked orgs when X-Organization-Context is missing."""
+    return bool(args) and getattr(args[0], "key", None) == "organization_id"
+
+
+def _empty_query():
+    """Mock query that returns [] for .all() — used for the project-org lookup
+    so org_id stays None and the existing user-key fallback path runs."""
+    mock_q = MagicMock()
+    mock_q.filter.return_value = mock_q
+    mock_q.all.return_value = []
+    return mock_q
+
+
 def _mock_db():
     return MagicMock(spec=Session)
 
@@ -502,9 +517,12 @@ class TestStartGeneration:
         assert "No tasks" in exc.value.detail
 
     @pytest.mark.asyncio
+    @patch("sqlalchemy.orm.attributes.flag_modified")
     @patch("routers.generation_task_list.celery_app")
     @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_all_mode_with_cancellation_and_dispatch(self, mock_perms, mock_celery):
+    async def test_all_mode_with_cancellation_and_dispatch(self, mock_perms, mock_celery, _mock_flag):
+        # flag_modified introspects the ORM mapper; the test's project is a
+        # plain Mock with no mapper, so we patch it out for this branch.
         from routers.generation_task_list import start_generation, GenerationRequest, GenerationParameters
 
         db = _mock_db()
@@ -524,6 +542,8 @@ class TestStartGeneration:
         call_count = {"n": 0}
 
         def query_side_effect(*args, **kwargs):
+            if _is_project_org_query(args):
+                return _empty_query()
             call_count["n"] += 1
             mock_q = MagicMock()
             mock_q.filter.return_value = mock_q
@@ -587,6 +607,8 @@ class TestStartGeneration:
         call_count = {"n": 0}
 
         def query_side_effect(*args, **kwargs):
+            if _is_project_org_query(args):
+                return _empty_query()
             call_count["n"] += 1
             mock_q = MagicMock()
             mock_q.filter.return_value = mock_q
@@ -635,6 +657,8 @@ class TestStartGeneration:
         call_count = {"n": 0}
 
         def query_side_effect(*args, **kwargs):
+            if _is_project_org_query(args):
+                return _empty_query()
             call_count["n"] += 1
             mock_q = MagicMock()
             mock_q.filter.return_value = mock_q
@@ -690,6 +714,8 @@ class TestStartGeneration:
         call_count = {"n": 0}
 
         def query_side_effect(*args, **kwargs):
+            if _is_project_org_query(args):
+                return _empty_query()
             call_count["n"] += 1
             mock_q = MagicMock()
             mock_q.filter.return_value = mock_q

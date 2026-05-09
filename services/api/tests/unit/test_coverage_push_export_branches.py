@@ -22,6 +22,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from models import (
+    EvaluationJudgeRun,
     EvaluationRun,
     Generation,
     Organization,
@@ -87,6 +88,7 @@ def _setup_project_with_data(db, users, *, add_annotations=True, add_generations
     annotations = []
     generations = []
     eval_runs = []
+    judge_runs = []
     task_evals = []
     qr_list = []
 
@@ -192,12 +194,23 @@ def _setup_project_with_data(db, users, *, add_annotations=True, add_generations
         eval_runs.append(er)
         db.commit()
 
+        # Migration 043: TaskEvaluation.judge_run_id is NOT NULL.
+        jr_id = str(uuid.uuid4())
+        jr = EvaluationJudgeRun(
+            id=jr_id, evaluation_id=er_id, judge_model_id=None,
+            run_index=0, status="completed",
+        )
+        db.add(jr)
+        judge_runs.append(jr)
+        db.commit()
+
         for j, task in enumerate(tasks):
             te_id = str(uuid.uuid4())
             gen_id = generations[j].id if generations else None
             te = TaskEvaluation(
                 id=te_id,
                 evaluation_id=er_id,
+                judge_run_id=jr_id,
                 task_id=task.id,
                 generation_id=gen_id,
                 field_name="config1:answer",
@@ -220,6 +233,7 @@ def _setup_project_with_data(db, users, *, add_annotations=True, add_generations
         "annotations": annotations,
         "generations": generations,
         "eval_runs": eval_runs,
+        "judge_runs": judge_runs,
         "task_evals": task_evals,
         "questionnaire_responses": qr_list,
         "org": org,
@@ -366,6 +380,7 @@ class TestExportTxtFormat:
         te = TaskEvaluation(
             id=te_id,
             evaluation_id=data["eval_runs"][0].id,
+            judge_run_id=data["judge_runs"][0].id,
             task_id=data["tasks"][0].id,
             generation_id=None,
             field_name="task_field",

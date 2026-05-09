@@ -3,6 +3,7 @@ Test for Issue #581: Fix 500 error on data import
 Tests the fix for redundant ResponseGeneration import and missing project_id field
 """
 
+import json
 import os
 import sys
 from unittest.mock import MagicMock, Mock, patch
@@ -14,10 +15,32 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 from sqlalchemy.orm import Session
 
 
-def _mock_request():
+def _mock_request(body=None):
+    """Mock Request with an async stream() that yields the given body bytes.
+
+    The streaming-import handler reads `request.stream()` directly, so tests
+    must seed it with the JSON bytes the endpoint should parse.
+    """
     mock_request = Mock()
     mock_request.headers = {}
     mock_request.state = Mock(spec=[])
+
+    if body is None:
+        chunks = []
+    elif isinstance(body, bytes):
+        chunks = [body]
+    elif isinstance(body, str):
+        chunks = [body.encode("utf-8")]
+    elif hasattr(body, "model_dump_json"):
+        chunks = [body.model_dump_json().encode("utf-8")]
+    else:
+        chunks = [json.dumps(body).encode("utf-8")]
+
+    async def _stream():
+        for chunk in chunks:
+            yield chunk
+
+    mock_request.stream = _stream
     return mock_request
 
 
@@ -100,7 +123,7 @@ class TestImportFix581:
 
         # Test import as org_admin
         result = await import_data(
-            project_id="test-project-id", data=data, request=_mock_request(), current_user=mock_user_org_admin, db=mock_db
+            project_id="test-project-id", request=_mock_request(body=data), current_user=mock_user_org_admin, db=mock_db
         )
 
         # Verify success
@@ -129,7 +152,7 @@ class TestImportFix581:
 
         # Test import as superadmin
         result = await import_data(
-            project_id="test-project-id", data=data, request=_mock_request(), current_user=mock_user_superadmin, db=mock_db
+            project_id="test-project-id", request=_mock_request(body=data), current_user=mock_user_superadmin, db=mock_db
         )
 
         # Verify success
@@ -162,8 +185,7 @@ class TestImportFix581:
         with patch('projects_api.uuid.uuid4', side_effect=["task-id", "resp-gen-id", "gen-id"]):
             await import_data(
                 project_id="test-project-id",
-                data=data,
-                request=_mock_request(),
+                request=_mock_request(body=data),
                 current_user=mock_user_org_admin,
                 db=mock_db,
             )
@@ -231,7 +253,7 @@ class TestImportFix581:
 
         # Import should work without creating ResponseGeneration
         result = await import_data(
-            project_id="test-project-id", data=data, request=_mock_request(), current_user=mock_user_org_admin, db=mock_db
+            project_id="test-project-id", request=_mock_request(body=data), current_user=mock_user_org_admin, db=mock_db
         )
 
         assert result["created_tasks"] == 1
