@@ -748,6 +748,8 @@ export function GenerationControlModal({
                       modelIds={selectedModels}
                       runsPerCall={runsPerTask}
                       enabled={isOpen}
+                      generationMode={mode}
+                      structureKeys={hasStructures ? selectedStructures : undefined}
                     />
                   </div>
                 )}

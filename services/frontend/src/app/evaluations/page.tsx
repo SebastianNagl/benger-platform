@@ -1494,7 +1494,10 @@ export default function EvaluationDashboard() {
         {/* Evaluation Control Modal — passes the same projectId +
             evaluationConfigs as `/projects/[id]` so the metric / model /
             annotator scope and the inline cost-estimate panel render
-            identically across both entry points. */}
+            identically across both entry points. The HEAD version
+            replaces main's untyped pass-through filter — strict
+            field projection matches the modal's typed prop interface
+            introduced by the targeted-reevaluate-scope feature. */}
         <EvaluationControlModal
           isOpen={showEvaluationModal}
           projectId={selectedProject?.id?.toString()}

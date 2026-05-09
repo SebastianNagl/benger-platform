@@ -535,6 +535,21 @@ class LLMJudgeEvaluator(BaseEvaluator):
         Returns:
             Dict with 'score' (1-5 or 0-1) and 'justification', or None if evaluation failed
         """
+        # Falloesung must never reach this generic 1–5 LLM judge — it has its
+        # own multi-dimension Bewertungsschema prompt + JSON schema in
+        # benger_extended. Both eval paths (immediate-eval at
+        # services/workers/tasks.py:4120 and bulk-eval at :3036 / :3441)
+        # route through extended hooks instead. Fail loud here so a future
+        # regression that forgets to dispatch is visible immediately rather
+        # than silently producing wrong-rubric scores.
+        if criterion and criterion.startswith("falloesung"):
+            raise RuntimeError(
+                "Metric 'llm_judge_falloesung' must be routed through "
+                "benger_extended.workers.get_falloesung_bulk_compute_fn(); "
+                "direct LLMJudgeEvaluator._evaluate_single_criterion calls "
+                "are not supported. See services/workers/tasks.py:3036 / :3441."
+            )
+
         # E2E test mock: return deterministic scores without real API call
         if self.ai_service is None:
             import os

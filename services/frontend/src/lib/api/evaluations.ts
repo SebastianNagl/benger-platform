@@ -182,11 +182,15 @@ export class EvaluationsClient extends BaseApiClient {
     )
   }
 
-  // Get per-task evaluation results for a task-model combination
+  // Get per-task evaluation results for a task-model combination.
+  // `generationId` (optional) locks the response to evaluations of one
+  // exact generation — used by the result modal so its Generation and
+  // Evaluation tabs describe the same generation_id.
   async getTaskEvaluation(
     taskId: string,
     modelId: string,
     includeHistory: boolean = true,
+    generationId?: string,
   ): Promise<{
     task_id: string
     model_id: string
@@ -218,6 +222,9 @@ export class EvaluationsClient extends BaseApiClient {
     })
     if (!includeHistory) {
       params.append('include_history', 'false')
+    }
+    if (generationId) {
+      params.append('generation_id', generationId)
     }
     return await this.request(
       `/evaluations/sample-result?${params.toString()}`,

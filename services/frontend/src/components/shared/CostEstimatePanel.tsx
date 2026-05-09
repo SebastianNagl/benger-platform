@@ -22,6 +22,15 @@ export interface CostEstimatePanelProps {
    *  rules (e.g. llm_judge_falloesung's unprefixed-field convention). */
   annotatorUserIds?: string[]
   evaluationConfigs?: Array<{ metric?: string; prediction_fields: string[] }>
+  /** Mirror of the trigger endpoint's `mode` argument (all/missing/single).
+   *  When 'missing', the backend counts only the cells whose latest
+   *  generation failed or is absent — matching what the worker will
+   *  actually queue. Without this the estimate over-states cost for any
+   *  partial-rerun scenario. */
+  generationMode?: 'all' | 'missing' | 'single'
+  /** Active prompt structures the user picked. The backend uses these to
+   *  count cells per (task × structure) instead of just per task. */
+  structureKeys?: string[]
 }
 
 interface PerModelCost {
@@ -30,6 +39,7 @@ interface PerModelCost {
   per_run_usd: number
   total_usd: number
   pricing_known: boolean
+  cells_to_generate?: number
 }
 
 /**
@@ -86,6 +96,8 @@ export function CostEstimatePanel({
   enabled = true,
   annotatorUserIds,
   evaluationConfigs,
+  generationMode,
+  structureKeys,
 }: CostEstimatePanelProps) {
   const { t } = useI18n()
   const { addToast } = useToast()
@@ -112,6 +124,8 @@ export function CostEstimatePanel({
           samples_per_task: samplesPerTask,
           annotator_user_ids: annotatorUserIds,
           evaluation_configs: evaluationConfigs,
+          generation_mode: generationMode,
+          structure_keys: structureKeys,
         })
         if (!cancelled) setEstimate(data)
       } catch (err: any) {
@@ -139,6 +153,8 @@ export function CostEstimatePanel({
     samplesPerTask,
     (annotatorUserIds ?? []).join(','),
     hashConfigs(evaluationConfigs),
+    generationMode,
+    (structureKeys || []).join(','),
   ])
 
   if (!enabled) return null
