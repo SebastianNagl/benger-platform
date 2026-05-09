@@ -688,6 +688,25 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 # `falloesung` directly. May also carry a config suffix
                 # like `falloesung-mmpfzsar-7wb3|loesung|musterlösung`,
                 # which `startswith` still accepts.
+                # Falloesung's schema-conformant response carries
+                # `total_score` (0-100) at the top level, not the legacy
+                # `score` key the rest of this function expects. Bridge
+                # the two before any score-presence checks run, so the
+                # structured response flows through the existing path
+                # (clamping, score_scale=0-100 normalization at the
+                # caller, persistence as raw_score / metric_score).
+                # Without this, every successful structured-output call
+                # would still fall through to the "missing parseable
+                # score" parse-failure branch at line 752.
+                if (
+                    result
+                    and criterion
+                    and criterion.startswith("falloesung")
+                    and "score" not in result
+                    and "total_score" in result
+                ):
+                    result["score"] = result["total_score"]
+
                 if result and "score" in result and criterion and criterion.startswith("falloesung"):
                     dimensions = result.get("dimensions")
                     if not isinstance(dimensions, dict) or not dimensions:
