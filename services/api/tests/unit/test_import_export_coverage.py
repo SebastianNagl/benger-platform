@@ -20,12 +20,49 @@ import pytest
 from sqlalchemy.orm import Session
 
 
-def _mock_request(headers=None):
-    """Create a mock Request object."""
+def _mock_request(headers=None, body=None):
+    """Create a mock Request object.
+
+    `body` can be bytes, str, or a JSON-serialisable Python object. When
+    provided, exposes `request.stream()` as an async generator so the
+    streaming-import handler can consume the body the same way Starlette
+    delivers it in production.
+    """
     r = Mock()
     r.headers = headers or {}
     r.state = Mock(spec=[])
+
+    if body is None:
+        chunks = []
+    elif isinstance(body, bytes):
+        chunks = [body]
+    elif isinstance(body, str):
+        chunks = [body.encode("utf-8")]
+    else:
+        chunks = [json.dumps(body).encode("utf-8")]
+
+    async def _stream():
+        for chunk in chunks:
+            yield chunk
+
+    r.stream = _stream
     return r
+
+
+def _import_data_to_body(data):
+    """Convert a ProjectImportData (or Mock thereof) into a JSON body.
+
+    Tests build `ProjectImportData` instances or duck-typed mocks; the
+    streaming handler now reads the raw body, so we serialise back to JSON.
+    """
+    if hasattr(data, "model_dump_json"):
+        return data.model_dump_json().encode("utf-8")
+    payload = {
+        "data": getattr(data, "data", []) or [],
+        "meta": getattr(data, "meta", None),
+        "evaluation_runs": getattr(data, "evaluation_runs", None),
+    }
+    return json.dumps(payload).encode("utf-8")
 
 
 def _mock_user(is_superadmin=False, user_id="user-123"):
@@ -122,8 +159,7 @@ class TestImportProjectData:
         with pytest.raises(Exception) as exc_info:
             await import_project_data(
                 project_id="nonexistent",
-                data=Mock(data=[], meta={}, evaluation_runs=None),
-                request=_mock_request(),
+                request=_mock_request(body={"data": [], "meta": {}}),
                 current_user=_mock_user(),
                 db=mock_db,
             )
@@ -141,8 +177,7 @@ class TestImportProjectData:
         with pytest.raises(Exception) as exc_info:
             await import_project_data(
                 project_id="project-123",
-                data=Mock(data=[], meta={}, evaluation_runs=None),
-                request=_mock_request(),
+                request=_mock_request(body={"data": [], "meta": {}}),
                 current_user=_mock_user(),
                 db=mock_db,
             )
@@ -169,8 +204,7 @@ class TestImportProjectData:
 
         result = await import_project_data(
             project_id="project-123",
-            data=data,
-            request=_mock_request(),
+            request=_mock_request(body=_import_data_to_body(data)),
             current_user=_mock_user(),
             db=mock_db,
         )
@@ -213,8 +247,7 @@ class TestImportProjectData:
 
         result = await import_project_data(
             project_id="project-123",
-            data=data,
-            request=_mock_request(),
+            request=_mock_request(body=_import_data_to_body(data)),
             current_user=_mock_user(),
             db=mock_db,
         )
@@ -261,8 +294,7 @@ class TestImportProjectData:
 
         result = await import_project_data(
             project_id="project-123",
-            data=data,
-            request=_mock_request(),
+            request=_mock_request(body=_import_data_to_body(data)),
             current_user=_mock_user(),
             db=mock_db,
         )
@@ -298,8 +330,7 @@ class TestImportProjectData:
 
         result = await import_project_data(
             project_id="project-123",
-            data=data,
-            request=_mock_request(),
+            request=_mock_request(body=_import_data_to_body(data)),
             current_user=_mock_user(),
             db=mock_db,
         )
@@ -336,8 +367,7 @@ class TestImportProjectData:
 
         result = await import_project_data(
             project_id="project-123",
-            data=data,
-            request=_mock_request(),
+            request=_mock_request(body=_import_data_to_body(data)),
             current_user=_mock_user(),
             db=mock_db,
         )
@@ -361,8 +391,7 @@ class TestImportProjectData:
         with pytest.raises(Exception) as exc_info:
             await import_project_data(
                 project_id="project-123",
-                data=data,
-                request=_mock_request(),
+                request=_mock_request(body=_import_data_to_body(data)),
                 current_user=_mock_user(),
                 db=mock_db,
             )
@@ -389,8 +418,7 @@ class TestImportProjectData:
 
         result = await import_project_data(
             project_id="project-123",
-            data=data,
-            request=_mock_request(),
+            request=_mock_request(body=_import_data_to_body(data)),
             current_user=_mock_user(),
             db=mock_db,
         )
@@ -863,11 +891,15 @@ class TestImportFullProject:
         return db
 
     def _create_upload_file(self, data, filename="test.json"):
-        """Create a mock UploadFile."""
+        """Create a mock UploadFile.
+
+        The handler reads from `file.file` (a file-like object) rather than
+        `await file.read()`, so we hand back a BytesIO that supports seek/read.
+        """
         content = json.dumps(data).encode("utf-8")
         file = Mock()
         file.filename = filename
-        file.read = AsyncMock(return_value=content)
+        file.file = BytesIO(content)
         return file
 
     def _create_zip_upload_file(self, data, filename="test.zip"):
@@ -879,7 +911,7 @@ class TestImportFullProject:
         zip_buffer.seek(0)
         file = Mock()
         file.filename = filename
-        file.read = AsyncMock(return_value=zip_buffer.getvalue())
+        file.file = zip_buffer
         return file
 
     @pytest.mark.asyncio
@@ -937,7 +969,7 @@ class TestImportFullProject:
 
         file = Mock()
         file.filename = "bad.json"
-        file.read = AsyncMock(return_value=b"not valid json{{{")
+        file.file = BytesIO(b"not valid json{{{")
 
         with pytest.raises(Exception) as exc_info:
             await import_full_project(
@@ -970,7 +1002,7 @@ class TestImportFullProject:
         content = json.dumps(data).encode("utf-8")
         file = Mock()
         file.filename = filename
-        file.read = AsyncMock(return_value=content)
+        file.file = BytesIO(content)
         return file
 
     @pytest.mark.asyncio
@@ -999,7 +1031,7 @@ class TestImportFullProject:
 
         file = Mock()
         file.filename = "test.csv"
-        file.read = AsyncMock(return_value=b"data")
+        file.file = BytesIO(b"data")
 
         with pytest.raises(Exception) as exc_info:
             await import_full_project(
@@ -1053,7 +1085,7 @@ class TestImportFullProject:
         zip_buffer.seek(0)
         file = Mock()
         file.filename = filename
-        file.read = AsyncMock(return_value=zip_buffer.getvalue())
+        file.file = zip_buffer
         return file
 
     @pytest.mark.asyncio
@@ -1064,7 +1096,7 @@ class TestImportFullProject:
 
         file = Mock()
         file.filename = "corrupt.zip"
-        file.read = AsyncMock(return_value=b"not a zip file")
+        file.file = BytesIO(b"not a zip file")
 
         with pytest.raises(Exception) as exc_info:
             await import_full_project(
@@ -1088,7 +1120,7 @@ class TestImportFullProject:
 
         file = Mock()
         file.filename = "nojson.zip"
-        file.read = AsyncMock(return_value=zip_buffer.getvalue())
+        file.file = zip_buffer
 
         with pytest.raises(Exception) as exc_info:
             await import_full_project(

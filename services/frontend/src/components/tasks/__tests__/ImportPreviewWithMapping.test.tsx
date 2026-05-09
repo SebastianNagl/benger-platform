@@ -328,33 +328,6 @@ describe('ImportPreviewWithMapping', () => {
       })
     })
 
-    it('displays Excel sheet information', async () => {
-      const excelResult = {
-        ...mockImportResult,
-        format: 'excel' as const,
-        metadata: {
-          totalRows: 3,
-          sheets: ['Sheet1', 'Sheet2', 'Sheet3'],
-        },
-      }
-      ;(universalImport.importFile as jest.Mock).mockResolvedValue(excelResult)
-
-      render(
-        <ImportPreviewWithMapping
-          file={mockFile}
-          templateFields={templateFields}
-          onImport={mockOnImport}
-          onCancel={mockOnCancel}
-        />
-      )
-
-      await waitFor(() => {
-        expect(screen.getByText('Sheets')).toBeInTheDocument()
-        expect(screen.getByText('Sheet1')).toBeInTheDocument()
-        expect(screen.getByText('Sheet2')).toBeInTheDocument()
-        expect(screen.getByText('Sheet3')).toBeInTheDocument()
-      })
-    })
   })
 
   describe('Field Mapping Tab', () => {

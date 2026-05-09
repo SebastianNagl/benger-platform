@@ -154,6 +154,11 @@ class LLMLeaderboardEntry(BaseModel):
     provider: str
     evaluation_count: int
     samples_evaluated: int
+    # Distinct generations the model produced (regardless of how many
+    # metrics were run against each). Mirrors `annotation_count` on the
+    # human/co-creation leaderboards so the LLM table can show a "Generations"
+    # column with the same semantics.
+    generation_count: int = 0
     metrics: Dict[str, Optional[float]]
     average_score: Optional[float]  # None for models without evaluations
     # Confidence interval for average score (95% CI)
@@ -341,11 +346,19 @@ async def get_llm_leaderboard(
     all_metrics_seen = set()
 
     if eval_ids:
-        # Query sample results grouped by model_id
-        # This gives us per-model metrics from all evaluations
+        # Track unique evaluations per model for counting
+        model_evaluations: Dict[str, set] = {}
+        # Track distinct generations per model so we can surface a "Generations"
+        # column that matches the human-leaderboard `annotation_count` shape:
+        # one entity per model output, regardless of how many metrics scored it.
+        model_generations: Dict[str, set] = {}
+
+        # Query sample results grouped by model_id; per-model metrics from all
+        # evaluations. Pulling Generation.id so we can dedupe by generation.
         sample_results_query = (
             db.query(
                 Generation.model_id,
+                Generation.id.label("generation_id"),
                 TaskEvaluation.metrics,
                 TaskEvaluation.evaluation_id,
                 EvaluationRun.completed_at,
@@ -357,21 +370,24 @@ async def get_llm_leaderboard(
             .all()
         )
 
-        # Track unique evaluations per model for counting
-        model_evaluations: Dict[str, set] = {}
-
-        for model_id, metrics, eval_id, completed_at in sample_results_query:
+        for model_id, generation_id, metrics, eval_id, completed_at in sample_results_query:
             if model_id not in model_data:
                 model_data[model_id] = {
                     "evaluation_count": 0,
                     "samples_evaluated": 0,
+                    "generation_count": 0,
                     "metrics_raw": {},
                     "last_evaluated": None,
                 }
                 model_evaluations[model_id] = set()
+                model_generations[model_id] = set()
 
             # Track unique evaluations for this model
             model_evaluations[model_id].add(eval_id)
+            # Track unique generations for this model (one per distinct
+            # Generation.id; n metrics × m generations would otherwise inflate
+            # the count to n*m).
+            model_generations[model_id].add(generation_id)
 
             # Count samples
             model_data[model_id]["samples_evaluated"] += 1
@@ -409,6 +425,9 @@ async def get_llm_leaderboard(
         # Set evaluation counts from unique evaluation IDs
         for model_id, eval_set in model_evaluations.items():
             model_data[model_id]["evaluation_count"] = len(eval_set)
+        # Set generation counts from the deduped generation_id sets
+        for model_id, gen_set in model_generations.items():
+            model_data[model_id]["generation_count"] = len(gen_set)
 
     # Calculate average metrics and confidence intervals per model
     for model_id, data in model_data.items():
@@ -469,6 +488,7 @@ async def get_llm_leaderboard(
                 model_data[model.id] = {
                     "evaluation_count": 0,
                     "samples_evaluated": 0,
+                    "generation_count": 0,
                     "metrics_raw": {},
                     "metrics": {},
                     "average_score": None,
@@ -509,6 +529,7 @@ async def get_llm_leaderboard(
                 provider=info["provider"],
                 evaluation_count=data["evaluation_count"],
                 samples_evaluated=data["samples_evaluated"],
+                generation_count=data.get("generation_count", 0),
                 metrics=data["metrics"],
                 average_score=data["average_score"],
                 ci_lower=data.get("ci_lower"),

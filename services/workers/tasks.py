@@ -2341,6 +2341,7 @@ def run_evaluation(
     organization_id: Optional[str] = None,
     task_ids: Optional[List[str]] = None,
     model_ids: Optional[List[str]] = None,
+    annotator_user_ids: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """
     Run evaluation based on configured field mappings.
@@ -2371,6 +2372,16 @@ def run_evaluation(
         f"🎯 Starting evaluation for project {project_id}, "
         f"evaluation {evaluation_id}{version_filter_msg}"
     )
+    # E3: surface scope filters at the start of the run so debugging
+    # "why did this score only N cells" needs only the log, not the
+    # eval_metadata blob. Cheap (just lengths), fires once per run.
+    if task_ids or model_ids or annotator_user_ids:
+        logger.info(
+            f"[evaluation {evaluation_id}] scope filters active: "
+            f"task_ids={len(task_ids) if task_ids else 0}, "
+            f"model_ids={len(model_ids) if model_ids else 0}, "
+            f"annotator_user_ids={len(annotator_user_ids) if annotator_user_ids else 0}"
+        )
 
     try:
         from datetime import datetime
@@ -2812,7 +2823,8 @@ def run_evaluation(
                         Generation.label_config_version == label_config_version
                     )
 
-                # Filter by model_ids if specified (for single-cell re-evaluation)
+                # Filter by model_ids if specified (for single-cell re-evaluation
+                # or for scoped runs from the eval modal — issue #69).
                 if model_ids:
                     generations_query = generations_query.filter(
                         Generation.model_id.in_(model_ids)
@@ -3226,10 +3238,23 @@ def run_evaluation(
 
             # Pre-load all annotations once (avoids N+1 queries per config x task)
             task_id_list = [t.id for t in tasks]
-            all_annotations = db.query(Annotation).filter(
+            ann_query = db.query(Annotation).filter(
                 Annotation.task_id.in_(task_id_list),
                 Annotation.was_cancelled == False,
-            ).all()
+            )
+            if annotator_user_ids:
+                ann_pre_count = ann_query.count()
+                ann_query = ann_query.filter(Annotation.completed_by.in_(annotator_user_ids))
+            all_annotations = ann_query.all()
+            if annotator_user_ids:
+                # E3: same observability story as the model_ids log above —
+                # log the scope-driven reduction so reproducibility/debugging
+                # has a paper trail beyond the eval_metadata blob.
+                logger.info(
+                    f"[evaluation {evaluation_id}] annotator_user_ids filter "
+                    f"active ({len(annotator_user_ids)} ids); annotation pool "
+                    f"reduced from {ann_pre_count} to {len(all_annotations)}"
+                )
             annotations_by_task: dict[str, list] = {}
             for ann in all_annotations:
                 annotations_by_task.setdefault(ann.task_id, []).append(ann)
@@ -3276,19 +3301,25 @@ def run_evaluation(
                     )
                     continue
 
-                # Collect human prediction fields from this config
+                # Collect human prediction fields from this config.
+                # Classification (including the falloesung backward-compat rule
+                # and any metric rules registered by extended) is centralized
+                # in `services/shared/eval_field_classification.py` so the
+                # worker and the cost endpoint stay in lockstep.
+                from eval_field_classification import classify_pred_fields
+                human_fields_raw, _llm_fields = classify_pred_fields(metric, prediction_fields)
                 human_pred_fields = []
-                for pf in prediction_fields:
-                    if pf.startswith("human:"):
-                        human_pred_fields.append(("human:" + pf[6:], pf[6:]))  # (prefixed, base)
-                    elif pf == "__all_human__":
+                for pf in human_fields_raw:
+                    if pf == "__all_human__":
                         human_pred_fields.append(("__all_human__", "__all_human__"))
-
-                # Backward compat: llm_judge_falloesung with unprefixed fields evaluates annotations
-                if not human_pred_fields and metric == "llm_judge_falloesung":
-                    for pf in prediction_fields:
-                        if not pf.startswith("model:") and pf not in ("__all_model__", "__all_human__"):
-                            human_pred_fields.append((f"human:{pf}", pf))
+                    elif pf.startswith("human:"):
+                        human_pred_fields.append((pf, pf[6:]))  # (prefixed, base)
+                    else:
+                        # Backward-compat path returned an unprefixed field —
+                        # synthesize the prefixed form for the downstream
+                        # `human:<base>` lookup against extracted annotation
+                        # values.
+                        human_pred_fields.append((f"human:{pf}", pf))
 
                 if not human_pred_fields:
                     continue

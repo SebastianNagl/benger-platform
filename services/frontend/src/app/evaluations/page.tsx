@@ -18,7 +18,10 @@ import {
 } from '@/components/evaluation/ChartTypeSelector'
 import { DynamicChartRenderer } from '@/components/evaluation/DynamicChartRenderer'
 import { EvaluationResultsTable } from '@/components/evaluation/EvaluationResultsTable'
-import { EvaluationControlModal } from '@/components/evaluation/EvaluationControlModal'
+import {
+  EvaluationControlModal,
+  type EvaluationRunScope,
+} from '@/components/evaluation/EvaluationControlModal'
 import {
   ChartData,
   EvaluationResults,
@@ -759,15 +762,26 @@ export default function EvaluationDashboard() {
     [updateEvaluation, selectedProject]
   )
 
-  // Handler to run evaluation on the spot
-  const handleRunEvaluation = async (forceRerun: boolean = false) => {
+  // Handler to run evaluation on the spot. Honours the user-narrowed scope
+  // from the modal: when the modal hands us a filtered metric set, model
+  // ids, or annotator ids, those are forwarded to /evaluations/run so the
+  // actual run matches the cost preview the user just saw. When `scope` is
+  // omitted (legacy/no-modal callers) we fall back to running every enabled
+  // config without scope filters — preserves prior behaviour.
+  const handleRunEvaluation = async (
+    forceRerun: boolean = false,
+    scope?: EvaluationRunScope,
+  ) => {
     if (!selectedProject) return
 
     setRunningEvaluation(true)
     try {
-      // Get configs from the current project's evaluation_config
-      const evaluationConfigs = deriveEvaluationConfigs(projectEvalConfig)
-      const configs = evaluationConfigs.filter((e: any) => e.enabled !== false)
+      const configs =
+        scope?.evaluationConfigs && scope.evaluationConfigs.length > 0
+          ? scope.evaluationConfigs
+          : deriveEvaluationConfigs(projectEvalConfig).filter(
+              (e: any) => e.enabled !== false,
+            )
 
       if (configs.length === 0) {
         addToast(
@@ -782,6 +796,8 @@ export default function EvaluationDashboard() {
         project_id: selectedProject.id.toString(),
         evaluation_configs: configs,
         force_rerun: forceRerun,
+        model_ids: scope?.modelIds,
+        annotator_user_ids: scope?.annotatorUserIds,
       })
 
       // Use operation toast for real-time status updates
@@ -1475,9 +1491,23 @@ export default function EvaluationDashboard() {
         {/* Operation Toasts for evaluation status */}
         {renderToasts()}
 
-        {/* Evaluation Control Modal */}
+        {/* Evaluation Control Modal — passes the same projectId +
+            evaluationConfigs as `/projects/[id]` so the metric / model /
+            annotator scope and the inline cost-estimate panel render
+            identically across both entry points. */}
         <EvaluationControlModal
           isOpen={showEvaluationModal}
+          projectId={selectedProject?.id?.toString()}
+          evaluationConfigs={(projectEvalConfig?.evaluation_configs ?? [])
+            .filter((e) => e.enabled)
+            .map((e) => ({
+              id: e.id,
+              metric: e.metric,
+              display_name: e.display_name,
+              prediction_fields: e.prediction_fields,
+              reference_fields: e.reference_fields,
+              metric_parameters: e.metric_parameters,
+            }))}
           onClose={() => setShowEvaluationModal(false)}
           onRunWithMode={handleRunEvaluation}
           onSuccess={() => setShowEvaluationModal(false)}

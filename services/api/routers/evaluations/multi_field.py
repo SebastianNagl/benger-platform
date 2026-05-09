@@ -56,6 +56,7 @@ class EvaluationRunRequest(BaseModel):
     force_rerun: bool = False  # If True, re-evaluate all; if False, only evaluate missing
     task_ids: Optional[List[str]] = None  # Filter to specific tasks (for single-cell re-evaluation)
     model_ids: Optional[List[str]] = None  # Filter to specific models (for single-cell re-evaluation)
+    annotator_user_ids: Optional[List[str]] = None  # Filter annotation-side judge fan-out to specific annotators
     # (H) Top-level seed mirrors GenerationRequest.parameters.seed. When set,
     # every metric_parameters block in this run inherits the seed unless it
     # carries its own metric_parameters.seed (per-config override wins for
@@ -88,6 +89,50 @@ class AvailableFieldsResponse(BaseModel):
     human_annotation_fields: List[str]
     reference_fields: List[str]
     all_fields: List[str]
+
+
+def _resolve_scope_block(
+    db: Session,
+    eval_metadata: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """Surface the scope filters that the run was dispatched with so the
+    frontend detail view can render a "Scoped to: …" line. Resolves
+    `annotator_user_ids` to display names via the same pseudonym rule
+    used by /evaluated-models. Returns None when no scope filter was
+    active (the common full-sweep case)."""
+    if not eval_metadata:
+        return None
+    task_ids = eval_metadata.get("task_ids") or []
+    model_ids = eval_metadata.get("model_ids") or []
+    annotator_user_ids = eval_metadata.get("annotator_user_ids") or []
+    if not (task_ids or model_ids or annotator_user_ids):
+        return None
+
+    annotators: List[Dict[str, str]] = []
+    if annotator_user_ids:
+        from models import User as DBUser
+
+        rows = (
+            db.query(DBUser.id, DBUser.username, DBUser.name, DBUser.pseudonym, DBUser.use_pseudonym)
+            .filter(DBUser.id.in_(annotator_user_ids))
+            .all()
+        )
+        # Preserve the request order so the UI list matches what the user
+        # saw in the modal at dispatch time.
+        by_id = {row.id: row for row in rows}
+        for uid in annotator_user_ids:
+            row = by_id.get(uid)
+            if row is None:
+                annotators.append({"user_id": uid, "display": uid[:8]})
+                continue
+            display = row.pseudonym if (row.use_pseudonym and row.pseudonym) else (row.name or row.username)
+            annotators.append({"user_id": uid, "display": display})
+
+    return {
+        "task_ids": list(task_ids) if task_ids else [],
+        "model_ids": list(model_ids) if model_ids else [],
+        "annotators": annotators,
+    }
 
 
 # ============= Endpoints =============
@@ -141,6 +186,54 @@ async def run_evaluation(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No enabled evaluation configurations",
             )
+
+        # Scope-filter validation (issue #69). Reject silent no-ops where the
+        # user supplies ids that don't correspond to anything on this project
+        # — a silent zero-result run is worse than a 400 because it looks
+        # like the worker hung. Same treatment for model_ids (existing gap).
+        if request.annotator_user_ids:
+            valid_annotator_ids = {
+                uid for (uid,) in db.query(Annotation.completed_by)
+                .join(Task, Annotation.task_id == Task.id)
+                .filter(
+                    Task.project_id == request.project_id,
+                    Annotation.was_cancelled == False,  # noqa: E712
+                )
+                .distinct()
+            }
+            invalid_annotators = [
+                uid for uid in request.annotator_user_ids if uid not in valid_annotator_ids
+            ]
+            if invalid_annotators:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "annotator_user_ids contains ids without annotations on "
+                        f"this project: {invalid_annotators}"
+                    ),
+                )
+
+        if request.model_ids:
+            valid_model_ids = {
+                mid for (mid,) in db.query(DBLLMResponse.model_id)
+                .join(
+                    DBResponseGeneration,
+                    DBLLMResponse.generation_id == DBResponseGeneration.id,
+                )
+                .filter(DBResponseGeneration.project_id == request.project_id)
+                .distinct()
+            }
+            invalid_models = [
+                mid for mid in request.model_ids if mid not in valid_model_ids
+            ]
+            if invalid_models:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        "model_ids contains ids without generations on "
+                        f"this project: {invalid_models}"
+                    ),
+                )
 
         # Split configs into human-graded vs LLM-driven. Human-graded
         # metrics (e.g. korrektur_falloesung) have no worker; each writes
@@ -241,6 +334,7 @@ async def run_evaluation(
                 "organization_id": organization_id,
                 "task_ids": request.task_ids,
                 "model_ids": request.model_ids,
+                "annotator_user_ids": request.annotator_user_ids,
                 # (H) Run-level seed snapshotted on eval_metadata even when
                 # it's None, for unambiguous post-hoc reproducibility.
                 "_top_level_seed": request.seed,
@@ -254,21 +348,26 @@ async def run_evaluation(
         db.add(evaluation)
         db.commit()
 
-        # Dispatch Celery task
+        # Dispatch Celery task. Using `kwargs=` instead of `args=` keeps the
+        # call site robust to future parameter additions on
+        # `tasks.run_evaluation`: a positional list silently mis-binds when
+        # the worker signature is reordered, whereas kwargs are matched by
+        # name. (D1: previously this was a 10-element positional list.)
         try:
             task = celery_app.send_task(
                 "tasks.run_evaluation",
-                args=[
-                    evaluation.id,
-                    request.project_id,
-                    dispatched_configs,
-                    request.batch_size,
-                    request.label_config_version,
-                    not request.force_rerun,  # evaluate_missing_only: inverse of force_rerun
-                    organization_id,
-                    request.task_ids,
-                    request.model_ids,
-                ],
+                kwargs={
+                    "evaluation_id": evaluation.id,
+                    "project_id": request.project_id,
+                    "evaluation_configs": dispatched_configs,
+                    "batch_size": request.batch_size,
+                    "label_config_version": request.label_config_version,
+                    "evaluate_missing_only": not request.force_rerun,
+                    "organization_id": organization_id,
+                    "task_ids": request.task_ids,
+                    "model_ids": request.model_ids,
+                    "annotator_user_ids": request.annotator_user_ids,
+                },
                 queue="celery",
             )
 
@@ -787,6 +886,11 @@ async def get_evaluation_run_results(
             # also unblocks any future overlay (judge_seeds, custom flags)
             # without a schema change.
             "eval_metadata": eval_metadata,
+            # Scope filters resolved to display-friendly form (issue #69).
+            # null when the run was a full sweep; otherwise carries the
+            # task_ids / model_ids / annotator user_ids+displays that the
+            # modal narrowed the run to.
+            "scope": _resolve_scope_block(db, eval_metadata),
             "created_at": evaluation.created_at,
             "completed_at": evaluation.completed_at,
         }

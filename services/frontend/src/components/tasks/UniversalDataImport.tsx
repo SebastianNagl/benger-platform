@@ -140,7 +140,7 @@ export function UniversalDataImport({
 
           <input
             type="file"
-            accept=".json,.jsonl,.csv,.tsv,.txt,.xlsx,.xls"
+            accept=".json,.jsonl,.csv,.tsv,.txt"
             onChange={handleFileSelect}
             className="hidden"
             id="file-upload"
@@ -154,7 +154,7 @@ export function UniversalDataImport({
         </div>
 
         {/* Format examples */}
-        <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="text-center">
             <DocumentTextIcon className="mx-auto mb-2 h-8 w-8 text-gray-400" />
             <p className="text-sm font-medium">
@@ -171,15 +171,6 @@ export function UniversalDataImport({
             </p>
             <p className="text-xs text-gray-500">
               {t('tasks.import.formatLabels.csvDesc')}
-            </p>
-          </div>
-          <div className="text-center">
-            <TableCellsIcon className="mx-auto mb-2 h-8 w-8 text-green-600" />
-            <p className="text-sm font-medium">
-              {t('tasks.import.formatLabels.excel')}
-            </p>
-            <p className="text-xs text-gray-500">
-              {t('tasks.import.formatLabels.excelDesc')}
             </p>
           </div>
           <div className="text-center">

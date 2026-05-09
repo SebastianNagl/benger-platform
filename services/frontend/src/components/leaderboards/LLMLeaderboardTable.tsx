@@ -44,8 +44,24 @@ const TIME_PERIOD_KEYS: { value: TimePeriod; key: string }[] = [
 // Always-shown ranking metrics. Extended on each render with whatever the
 // backend reports in `available_metrics` for the current project, intersected
 // with the metric registry so junk keys like *_response / *_passed never
-// appear in the dropdown.
-const CORE_METRICS = ['average', 'accuracy', 'f1_score', 'raw_score'] as const
+// appear in the dropdown. Notenpunkte sits in this list because it's the
+// default ranking metric in prod (German legal grading) — mirrors the human
+// and co-creation leaderboards which also default to grade points.
+const CORE_METRICS = [
+  'llm_judge_falloesung_grade_points',
+  'average',
+  'accuracy',
+  'f1_score',
+  'raw_score',
+] as const
+
+// Metrics whose values are already on a 0-100 / absolute scale and must NOT
+// be re-multiplied to a percent. Mirrors `NATIVELY_PERCENT_METRICS` +
+// grade-points handling in the Annotator/Co-Creation leaderboard formatter.
+const NATIVELY_PERCENT_METRICS = new Set([
+  'llm_judge_falloesung',
+  'korrektur_falloesung',
+])
 
 function camelize(key: string): string {
   return key.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase())
@@ -97,7 +113,10 @@ export function LLMLeaderboardTable() {
     string[]
   >([])
   const [period, setPeriod] = useState<TimePeriod>('overall')
-  const [metric, setMetric] = useState('average')
+  // Default to Notenpunkte (Falllösung) so the LLM leaderboard opens on the
+  // same scoring axis as the human + co-creation leaderboards. Models
+  // without judge results just show n/a and sort to the bottom.
+  const [metric, setMetric] = useState('llm_judge_falloesung_grade_points')
   const [aggregation, setAggregation] = useState<'average' | 'sum'>('average')
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([])
   const [selectedEvaluationTypes, setSelectedEvaluationTypes] = useState<
@@ -215,8 +234,17 @@ export function LLMLeaderboardTable() {
 
   const formatScore = (score: number | null) => {
     if (score === null || score === undefined) return 'n/a'
+    // Notenpunkte: same shape as the human/co-creation leaderboards.
+    if (metric.endsWith('grade_points')) {
+      return aggregation === 'sum'
+        ? `${score.toFixed(1)} NP`
+        : `${score.toFixed(1)} / 18 NP`
+    }
     if (aggregation === 'sum') {
       return score.toFixed(2)
+    }
+    if (NATIVELY_PERCENT_METRICS.has(metric)) {
+      return score.toFixed(1) + '%'
     }
     return (score * 100).toFixed(1) + '%'
   }
@@ -224,11 +252,6 @@ export function LLMLeaderboardTable() {
   const formatCI = (ci_lower: number | null, ci_upper: number | null) => {
     if (ci_lower === null || ci_upper === null) return null
     return `${(ci_lower * 100).toFixed(1)}% - ${(ci_upper * 100).toFixed(1)}%`
-  }
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '-'
-    return new Date(dateStr).toLocaleDateString()
   }
 
   const toggleProject = (projectId: string) => {
@@ -489,20 +512,11 @@ export function LLMLeaderboardTable() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   {t('leaderboards.llm.model')}
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  {t('leaderboards.llm.provider')}
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  {t('leaderboards.llm.generations', 'Generations')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   {getScoreColumnLabel()}
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  {t('leaderboards.llm.evaluations')}
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  {t('leaderboards.llm.samples')}
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  {t('leaderboards.llm.lastEvaluated')}
                 </th>
               </tr>
             </thead>
@@ -529,28 +543,28 @@ export function LLMLeaderboardTable() {
                       )}
                     </td>
                     <td className="px-4 py-4 text-sm">
-                      <div
-                        className={
-                          hasScore
-                            ? 'font-medium text-zinc-900 dark:text-white'
-                            : 'font-medium text-zinc-500 dark:text-zinc-400'
-                        }
-                      >
-                        {entry.model_name}
-                      </div>
-                      <div className="text-xs text-zinc-500">
-                        {entry.model_id}
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={
+                            hasScore
+                              ? 'font-medium text-zinc-900 dark:text-white'
+                              : 'font-medium text-zinc-500 dark:text-zinc-400'
+                          }
+                        >
+                          {entry.model_name}
+                        </span>
+                        <Badge
+                          className={
+                            providerColors[entry.provider.toLowerCase()] ||
+                            providerColors.unknown
+                          }
+                        >
+                          {entry.provider}
+                        </Badge>
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-sm">
-                      <Badge
-                        className={
-                          providerColors[entry.provider.toLowerCase()] ||
-                          providerColors.unknown
-                        }
-                      >
-                        {entry.provider}
-                      </Badge>
+                    <td className="whitespace-nowrap px-4 py-4 text-right text-sm text-zinc-500">
+                      {(entry.generation_count ?? 0).toLocaleString()}
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 text-right text-sm">
                       {hasScore ? (
@@ -571,15 +585,6 @@ export function LLMLeaderboardTable() {
                             [{formatCI(entry.ci_lower, entry.ci_upper)}]
                           </div>
                         )}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-right text-sm text-zinc-500">
-                      {entry.evaluation_count}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-right text-sm text-zinc-500">
-                      {entry.samples_evaluated.toLocaleString()}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-right text-sm text-zinc-500">
-                      {formatDate(entry.last_evaluated)}
                     </td>
                   </tr>
                 )
