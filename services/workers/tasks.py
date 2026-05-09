@@ -2736,15 +2736,24 @@ def run_evaluation(
             evaluated_by_gen: dict[str, set[str]] = {}
             if evaluate_missing_only:
                 task_id_list = [t.id for t in tasks]
+                # Mirror the read path in
+                # `services/api/routers/evaluations/results.py` (status
+                # filter on EvaluationRun): rows from cancelled/failed runs
+                # are hidden as `n/a` in the UI, so the missing-detector
+                # must also ignore them — otherwise a phantom row from a
+                # killed run masks the cell as "already evaluated" and it
+                # never gets retried.
                 existing = (
                     db.query(
                         TaskEvaluation.generation_id,
                         TaskEvaluation.field_name,
                         TaskEvaluation.metrics,
                     )
+                    .join(EvaluationRun, TaskEvaluation.evaluation_id == EvaluationRun.id)
                     .filter(
                         TaskEvaluation.task_id.in_(task_id_list),
                         TaskEvaluation.generation_id.isnot(None),
+                        EvaluationRun.status.in_(("completed", "running", "pending")),
                     )
                     .all()
                 )
@@ -3354,15 +3363,21 @@ def run_evaluation(
             # Pre-load existing annotation evaluations once (shared across all configs)
             evaluated_by_ann: dict[str, set[str]] = {}
             if evaluate_missing_only:
+                # Same EvaluationRun.status filter as the generation-side
+                # block above — keep the two queries in lockstep so the
+                # missing-detector's view of "already evaluated" matches
+                # what the read path in results.py actually surfaces.
                 existing_ann = (
                     db.query(
                         TaskEvaluation.annotation_id,
                         TaskEvaluation.field_name,
                         TaskEvaluation.metrics,
                     )
+                    .join(EvaluationRun, TaskEvaluation.evaluation_id == EvaluationRun.id)
                     .filter(
                         TaskEvaluation.task_id.in_(task_id_list),
                         TaskEvaluation.annotation_id.isnot(None),
+                        EvaluationRun.status.in_(("completed", "running", "pending")),
                     )
                     .all()
                 )
