@@ -3033,13 +3033,49 @@ def run_evaluation(
                                                 continue
 
                                             # One LLM call per judge_run.
-                                            result = jr_evaluator._evaluate_single_criterion(
-                                                context=context,
-                                                ground_truth=eval_ground_truth,
-                                                prediction=str(prediction) if prediction else "",
-                                                criterion=criterion,
-                                                task_data=task.data,
-                                            )
+                                            # Falloesung is dispatched through the extended
+                                            # package: the prompt, JSON schema, parser and
+                                            # dimensions semantics are extended-only logic.
+                                            # Platform owns persistence (the loop below);
+                                            # extended owns compute. Mirror of the
+                                            # immediate-eval hook at the
+                                            # ``run_single_sample_evaluation`` site below.
+                                            if metric == "llm_judge_falloesung":
+                                                try:
+                                                    from benger_extended.workers import (
+                                                        get_falloesung_bulk_compute_fn,
+                                                    )
+                                                except ImportError as exc:
+                                                    raise RuntimeError(
+                                                        "Metric 'llm_judge_falloesung' requires the "
+                                                        "benger_extended package; it is not installed "
+                                                        "in this worker."
+                                                    ) from exc
+                                                falloesung_bulk_fn = get_falloesung_bulk_compute_fn()
+                                                sachverhalt = (
+                                                    _get_insensitive(task.data, "sachverhalt")
+                                                    if task.data
+                                                    else ""
+                                                )
+                                                result = falloesung_bulk_fn(
+                                                    ai_service=jr_evaluator.ai_service,
+                                                    judge_model=jr_evaluator.judge_model,
+                                                    temperature=jr_evaluator.temperature,
+                                                    max_tokens=jr_evaluator.max_tokens,
+                                                    sachverhalt=str(sachverhalt) if sachverhalt else "",
+                                                    musterloesung=eval_ground_truth,
+                                                    prediction=str(prediction) if prediction else "",
+                                                    thinking_budget=getattr(jr_evaluator, "thinking_budget", None),
+                                                    reasoning_effort=getattr(jr_evaluator, "reasoning_effort", None),
+                                                )
+                                            else:
+                                                result = jr_evaluator._evaluate_single_criterion(
+                                                    context=context,
+                                                    ground_truth=eval_ground_truth,
+                                                    prediction=str(prediction) if prediction else "",
+                                                    criterion=criterion,
+                                                    task_data=task.data,
+                                                )
 
                                             judge_prompts = (
                                                 result.pop("_judge_prompts_used", None)
@@ -3438,13 +3474,45 @@ def run_evaluation(
                                                     })
                                                     continue
 
-                                                result = jr_evaluator._evaluate_single_criterion(
-                                                    context=context,
-                                                    ground_truth=eval_ground_truth,
-                                                    prediction=str(prediction) if prediction else "",
-                                                    criterion=criterion,
-                                                    task_data=task.data,
-                                                )
+                                                # Falloesung dispatched through extended (see
+                                                # symmetric branch on the generation side); platform
+                                                # owns persistence, extended owns compute.
+                                                if metric == "llm_judge_falloesung":
+                                                    try:
+                                                        from benger_extended.workers import (
+                                                            get_falloesung_bulk_compute_fn,
+                                                        )
+                                                    except ImportError as exc:
+                                                        raise RuntimeError(
+                                                            "Metric 'llm_judge_falloesung' requires the "
+                                                            "benger_extended package; it is not installed "
+                                                            "in this worker."
+                                                        ) from exc
+                                                    falloesung_bulk_fn = get_falloesung_bulk_compute_fn()
+                                                    sachverhalt = (
+                                                        _get_insensitive(task.data, "sachverhalt")
+                                                        if task.data
+                                                        else ""
+                                                    )
+                                                    result = falloesung_bulk_fn(
+                                                        ai_service=jr_evaluator.ai_service,
+                                                        judge_model=jr_evaluator.judge_model,
+                                                        temperature=jr_evaluator.temperature,
+                                                        max_tokens=jr_evaluator.max_tokens,
+                                                        sachverhalt=str(sachverhalt) if sachverhalt else "",
+                                                        musterloesung=eval_ground_truth,
+                                                        prediction=str(prediction) if prediction else "",
+                                                        thinking_budget=getattr(jr_evaluator, "thinking_budget", None),
+                                                        reasoning_effort=getattr(jr_evaluator, "reasoning_effort", None),
+                                                    )
+                                                else:
+                                                    result = jr_evaluator._evaluate_single_criterion(
+                                                        context=context,
+                                                        ground_truth=eval_ground_truth,
+                                                        prediction=str(prediction) if prediction else "",
+                                                        criterion=criterion,
+                                                        task_data=task.data,
+                                                    )
 
                                                 judge_prompts = (
                                                     result.pop("_judge_prompts_used", None)
