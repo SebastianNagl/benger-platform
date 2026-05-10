@@ -11,8 +11,7 @@ import { UniversalDataImport } from '../UniversalDataImport'
 const mockT = (key: string) => {
   const translations: Record<string, string> = {
     'tasks.import.title': 'Import Data',
-    'tasks.import.supportedFormats':
-      'Supported: JSON, CSV, TSV, TXT, Excel (.xlsx)',
+    'tasks.import.supportedFormats': 'Supported: JSON, CSV, TSV, TXT',
     'tasks.import.smartMapping': 'Smart field mapping included',
     'tasks.import.dropHere': 'Drag & drop your file here',
     'tasks.import.clickBrowse': 'or click to browse',
@@ -21,8 +20,6 @@ const mockT = (key: string) => {
     'tasks.import.formatLabels.jsonDesc': 'Structured data',
     'tasks.import.formatLabels.csv': 'CSV',
     'tasks.import.formatLabels.csvDesc': 'Comma separated',
-    'tasks.import.formatLabels.excel': 'Excel',
-    'tasks.import.formatLabels.excelDesc': '.xlsx files',
     'tasks.import.formatLabels.more': 'More',
     'tasks.import.formatLabels.moreDesc': 'TSV, TXT',
     'tasks.import.examples.jsonTitle': 'Example JSON structure',
@@ -82,7 +79,7 @@ describe('UniversalDataImport', () => {
     it('should display supported formats alert', () => {
       render(<UniversalDataImport {...defaultProps} />)
       expect(
-        screen.getByText('Supported: JSON, CSV, TSV, TXT, Excel (.xlsx)')
+        screen.getByText('Supported: JSON, CSV, TSV, TXT')
       ).toBeInTheDocument()
       expect(
         screen.getByText('Smart field mapping included')
@@ -101,7 +98,7 @@ describe('UniversalDataImport', () => {
         'input[type="file"]'
       ) as HTMLInputElement
       expect(fileInput).toBeInTheDocument()
-      expect(fileInput.accept).toBe('.json,.jsonl,.csv,.tsv,.txt,.xlsx,.xls')
+      expect(fileInput.accept).toBe('.json,.jsonl,.csv,.tsv,.txt')
     })
 
     it('should show Choose File button', () => {
@@ -117,8 +114,6 @@ describe('UniversalDataImport', () => {
       expect(screen.getByText('Structured data')).toBeInTheDocument()
       expect(screen.getByText('CSV')).toBeInTheDocument()
       expect(screen.getByText('Comma separated')).toBeInTheDocument()
-      expect(screen.getByText('Excel')).toBeInTheDocument()
-      expect(screen.getByText('.xlsx files')).toBeInTheDocument()
       expect(screen.getByText('More')).toBeInTheDocument()
       expect(screen.getByText('TSV, TXT')).toBeInTheDocument()
     })
@@ -194,21 +189,6 @@ describe('UniversalDataImport', () => {
       expect(screen.getByTestId('import-preview')).toBeInTheDocument()
     })
 
-    it('should show preview for Excel file', () => {
-      const { container } = render(<UniversalDataImport {...defaultProps} />)
-      const file = new File([new ArrayBuffer(100)], 'data.xlsx', {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      })
-      const fileInput = container.querySelector(
-        'input[type="file"]'
-      ) as HTMLInputElement
-      Object.defineProperty(fileInput, 'files', {
-        value: [file],
-        writable: false,
-      })
-      fireEvent.change(fileInput)
-      expect(screen.getByTestId('import-preview')).toBeInTheDocument()
-    })
   })
 
   describe('Drag and Drop', () => {

@@ -17,6 +17,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from models import (
+    EvaluationJudgeRun,
     EvaluationRun,
     EvaluationType,
     Organization,
@@ -95,9 +96,32 @@ def _make_eval_run(db, project_id, user_id, model_id="gpt-4o", status="completed
 
 
 def _make_task_eval(db, eval_id, task_id, field_name="c", predicted="A", reference="B", metrics=None):
+    # Migration 043: judge_run_id is NOT NULL. Reuse the per-eval synthetic
+    # judge_run when present, otherwise create one (matches the 043 backfill).
+    jr = (
+        db.query(EvaluationJudgeRun)
+        .filter(
+            EvaluationJudgeRun.evaluation_id == eval_id,
+            EvaluationJudgeRun.judge_model_id.is_(None),
+            EvaluationJudgeRun.run_index == 0,
+        )
+        .first()
+    )
+    if jr is None:
+        jr = EvaluationJudgeRun(
+            id=str(uuid.uuid4()),
+            evaluation_id=eval_id,
+            judge_model_id=None,
+            run_index=0,
+            status="completed",
+        )
+        db.add(jr)
+        db.commit()
+
     te = TaskEvaluation(
         id=str(uuid.uuid4()),
         evaluation_id=eval_id,
+        judge_run_id=jr.id,
         task_id=task_id,
         field_name=field_name,
         answer_type="choice",

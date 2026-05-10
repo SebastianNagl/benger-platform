@@ -280,9 +280,24 @@ async def get_evaluated_models(
         # use_pseudonym=true users appear under their pseudonym instead
         # of their real name/username.
         from models import User as DBUser
-        annotator_models = {}  # synthetic_id -> display_name
+        # synthetic_id ("annotator:{display}") -> display_name. Kept keyed by
+        # the public synthetic id because eval_runs the worker writes carry
+        # this exact shape as `eval_run.model_id`; downstream display sites
+        # (evaluations/page.tsx, reports/[id]/page.tsx, EvaluationResults.tsx)
+        # also strip this prefix to render the annotator name. Changing the
+        # on-wire shape would cascade into all of those.
+        annotator_models: dict[str, str] = {}
+        # synthetic_id -> [user_id, ...]. A list, not a single id, so two
+        # distinct users with coincidentally identical display names (e.g.
+        # both pseudonym='X') don't silently overwrite each other. The
+        # response builder later emits one row per user_id, all sharing the
+        # same `model_id` but each carrying its own `user_id`. Picker keys
+        # on `user_id`, so dispatch is unambiguous; aggregated stats still
+        # collapse by display (pre-existing behavior — eval_runs don't
+        # disambiguate by user).
+        annotator_user_ids: dict[str, list[str]] = {}
         annotation_evals = (
-            db.query(DBUser.username, DBUser.name, DBUser.pseudonym, DBUser.use_pseudonym)
+            db.query(DBUser.id, DBUser.username, DBUser.name, DBUser.pseudonym, DBUser.use_pseudonym)
             .distinct()
             .join(Annotation, Annotation.completed_by == DBUser.id)
             .join(TaskEvaluation, TaskEvaluation.annotation_id == Annotation.id)
@@ -293,10 +308,17 @@ async def get_evaluated_models(
                 TaskEvaluation.generation_id == None,  # noqa: E711
             )
         )
-        for username, name, pseudonym, use_pseudonym in annotation_evals.all():
+        for user_id, username, name, pseudonym, use_pseudonym in annotation_evals.all():
             display = pseudonym if (use_pseudonym and pseudonym) else (name or username)
             synthetic_id = f"annotator:{display}"
             annotator_models[synthetic_id] = f"Annotator: {display}"
+            # Dedupe: `.distinct()` is on the full tuple, so a user whose
+            # username/name/pseudonym changed over time can appear in
+            # multiple rows. Append-only would duplicate the user_id and
+            # produce two identical response rows.
+            existing = annotator_user_ids.setdefault(synthetic_id, [])
+            if user_id not in existing:
+                existing.append(user_id)
 
         # Combine all model sources when include_configured is True
         # Include models from sample results and direct evaluations
@@ -375,7 +397,11 @@ async def get_evaluated_models(
                     if coerced is not None:
                         eval_data[model_id]["all_scores"].append(coerced)
 
-        # Build result list
+        # Build result list. Annotator rows expand into one entry per
+        # underlying user_id so two distinct users sharing a display name
+        # surface as two pickable rows in the eval modal (otherwise the
+        # second user_id would silently overwrite the first and the
+        # annotator-scoped dispatch would target the wrong person).
         results = []
         for model_id in all_model_ids:
             data = eval_data[model_id]
@@ -392,36 +418,46 @@ async def get_evaluated_models(
             # Detect provider
             provider = detect_provider_from_model_id(model_id)
 
-            # Use display name for annotator models
             is_annotator = model_id in annotator_models
             display_name = annotator_models.get(model_id, model_id)
+            # For annotators, iterate the user_id list (one row per user).
+            # For non-annotators, the loop runs exactly once with user_id=None.
+            user_ids: list[Optional[str]] = (
+                list(annotator_user_ids.get(model_id, []))
+                if is_annotator
+                else [None]
+            )
 
-            result = {
-                "model_id": model_id,
-                "model_name": display_name,
-                "provider": "Annotator" if is_annotator else provider,
-                "evaluation_count": data["evaluation_count"] or (1 if is_annotator else 0),
-                "total_samples": data["total_samples"],
-                "last_evaluated": (
-                    data["last_evaluated"].isoformat() if data["last_evaluated"] else None
-                ),
-                "average_score": round(average_score, 4) if average_score is not None else None,
-                "ci_lower": ci_lower,
-                "ci_upper": ci_upper,
-            }
+            for uid in user_ids:
+                result = {
+                    "model_id": model_id,
+                    "model_name": display_name,
+                    "provider": "Annotator" if is_annotator else provider,
+                    "evaluation_count": data["evaluation_count"] or (1 if is_annotator else 0),
+                    "total_samples": data["total_samples"],
+                    "last_evaluated": (
+                        data["last_evaluated"].isoformat() if data["last_evaluated"] else None
+                    ),
+                    "average_score": round(average_score, 4) if average_score is not None else None,
+                    "ci_lower": ci_lower,
+                    "ci_upper": ci_upper,
+                    # D2: only emit user_id key for annotator rows so non-annotator
+                    # rows aren't cluttered with a redundant null field.
+                    **({"user_id": uid} if is_annotator and uid else {}),
+                }
 
-            # Add status flags when include_configured is True
-            if include_configured:
-                result["is_configured"] = model_id in configured_models
-                result["has_generations"] = model_id in models_with_generations
-                # Check both direct evaluations and sample-level evaluation results
-                result["has_results"] = (
-                    data["evaluation_count"] > 0
-                    or model_id in models_with_evaluation_results
-                    or is_annotator
-                )
+                # Add status flags when include_configured is True
+                if include_configured:
+                    result["is_configured"] = model_id in configured_models
+                    result["has_generations"] = model_id in models_with_generations
+                    # Check both direct evaluations and sample-level evaluation results
+                    result["has_results"] = (
+                        data["evaluation_count"] > 0
+                        or model_id in models_with_evaluation_results
+                        or is_annotator
+                    )
 
-            results.append(result)
+                results.append(result)
 
         # Sort: configured models first, then by average score descending
         if include_configured:

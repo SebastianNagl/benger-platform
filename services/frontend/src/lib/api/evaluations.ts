@@ -949,6 +949,7 @@ export class EvaluationsClient extends BaseApiClient {
     force_rerun?: boolean  // If true, re-evaluate all; if false, only evaluate missing
     task_ids?: string[]    // Filter to specific tasks (for single-cell re-evaluation)
     model_ids?: string[]   // Filter to specific models (for single-cell re-evaluation)
+    annotator_user_ids?: string[]  // Filter annotation-side judge fan-out to specific annotators
   }): Promise<{
     evaluation_id: string
     project_id: string
@@ -1134,6 +1135,9 @@ export class EvaluationsClient extends BaseApiClient {
       average_score: number | null
       ci_lower: number | null
       ci_upper: number | null
+      // Underlying User.id, only set when provider === "Annotator". Used by
+      // the eval modal to dispatch annotator-scoped runs.
+      user_id?: string | null
       // Status flags (only present when includeConfigured=true)
       is_configured?: boolean
       has_generations?: boolean

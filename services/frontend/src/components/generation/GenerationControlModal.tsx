@@ -1,6 +1,6 @@
 'use client'
 import { Button } from '@/components/shared/Button'
-import { CostEstimatePanel } from '@/components/shared/CostEstimateModal'
+import { CostEstimatePanel } from '@/components/shared/CostEstimatePanel'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'

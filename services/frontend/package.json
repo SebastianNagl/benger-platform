@@ -89,7 +89,6 @@
     "clsx": "^2.1.0",
     "critters": "^0.0.25",
     "date-fns": "^4.1.0",
-    "exceljs": "^4.4.0",
     "fast-glob": "^3.3.0",
     "flexsearch": "^0.8.205",
     "framer-motion": "^10.18.0",

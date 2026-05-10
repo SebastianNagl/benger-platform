@@ -46,6 +46,47 @@ export async function DELETE(
   return proxyRequest(request, resolvedParams.path, 'DELETE')
 }
 
+// Forward all upstream response headers (skipping ones the runtime owns) and
+// rewrite Set-Cookie Domain= so cookies work across multi-org subdomains. Runs
+// identically for buffered and streamed bodies — body-independent.
+function forwardHeadersAndCookies(
+  upstream: Response,
+  downstream: NextResponse,
+  request: NextRequest
+) {
+  upstream.headers.forEach((value, key) => {
+    if (
+      !['content-length', 'transfer-encoding', 'set-cookie'].includes(
+        key.toLowerCase()
+      )
+    ) {
+      downstream.headers.set(key, value)
+    }
+  })
+
+  const setCookieHeaders = upstream.headers.getSetCookie()
+  if (setCookieHeaders && setCookieHeaders.length > 0) {
+    const host = getExternalHost(request)
+    const cookieDomain = getCookieDomainFromHost(host)
+    setCookieHeaders.forEach((cookieString) => {
+      let modifiedCookie = cookieString.replace(/Domain=[^;]+;?/gi, '')
+      if (cookieDomain) {
+        modifiedCookie += `; Domain=${cookieDomain}`
+      }
+      if (!modifiedCookie.includes('SameSite')) {
+        modifiedCookie += '; SameSite=Lax'
+      }
+
+      logger.debug('Setting cookie:', {
+        original: cookieString.substring(0, 100),
+        modified: modifiedCookie.substring(0, 100),
+      })
+
+      downstream.headers.append('Set-Cookie', modifiedCookie)
+    })
+  }
+}
+
 async function proxyRequest(
   request: NextRequest,
   pathSegments: string[],
@@ -170,47 +211,40 @@ async function proxyRequest(
         status: 204,
         statusText: response.statusText,
       })
-
-      // Forward response headers, with special handling for Set-Cookie headers
-      response.headers.forEach((value, key) => {
-        if (
-          !['content-length', 'transfer-encoding', 'set-cookie'].includes(
-            key.toLowerCase()
-          )
-        ) {
-          nextResponse.headers.set(key, value)
-        }
-      })
-
-      // Handle Set-Cookie headers specially - they need to be appended, not set
-      const setCookieHeaders = response.headers.getSetCookie()
-      if (setCookieHeaders && setCookieHeaders.length > 0) {
-        const host = getExternalHost(request)
-        const cookieDomain = getCookieDomainFromHost(host)
-        setCookieHeaders.forEach((cookieString) => {
-          // Remove any existing domain restriction
-          let modifiedCookie = cookieString.replace(/Domain=[^;]+;?/gi, '')
-
-          // Set cookie domain for cross-subdomain sharing
-          if (cookieDomain) {
-            modifiedCookie += `; Domain=${cookieDomain}`
-          }
-
-          // Also ensure SameSite is set to Lax for development
-          if (!modifiedCookie.includes('SameSite')) {
-            modifiedCookie += '; SameSite=Lax'
-          }
-
-          logger.debug('Setting cookie (204):', {
-            original: cookieString.substring(0, 100),
-            modified: modifiedCookie.substring(0, 100),
-          })
-
-          nextResponse.headers.append('Set-Cookie', modifiedCookie)
-        })
-      }
-
+      forwardHeadersAndCookies(response, nextResponse, request)
       return nextResponse
+    }
+
+    // Stream attachment / binary responses through without buffering. Triggered
+    // by Content-Disposition: attachment (file downloads — bulk-export sets
+    // this even when Content-Type is application/json) or by binary/CSV-style
+    // Content-Type. Buffering these via `await response.text()` was OOMing the
+    // frontend pod on multi-MB exports (GH #68). Drops `content-length` /
+    // `transfer-encoding` (already excluded by the helper) so Node emits
+    // chunked transfer encoding correctly.
+    const contentDisposition = response.headers.get('content-disposition') ?? ''
+    const contentType = (response.headers.get('content-type') ?? '').toLowerCase()
+    const isAttachment = /^\s*attachment\b/i.test(contentDisposition)
+    const STREAMABLE_TYPES = [
+      'application/zip',
+      'application/octet-stream',
+      'application/pdf',
+      'text/csv',
+      'text/tab-separated-values',
+    ]
+    const isStreamableType =
+      STREAMABLE_TYPES.some((t) => contentType.startsWith(t)) ||
+      contentType.startsWith('image/') ||
+      contentType.startsWith('video/') ||
+      contentType.startsWith('audio/')
+
+    if (response.body !== null && (isAttachment || isStreamableType)) {
+      const streamed = new NextResponse(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+      })
+      forwardHeadersAndCookies(response, streamed, request)
+      return streamed
     }
 
     // Get response data for other status codes
@@ -232,46 +266,7 @@ async function proxyRequest(
       status: response.status,
       statusText: response.statusText,
     })
-
-    // Forward response headers, with special handling for Set-Cookie headers
-    response.headers.forEach((value, key) => {
-      if (
-        !['content-length', 'transfer-encoding', 'set-cookie'].includes(
-          key.toLowerCase()
-        )
-      ) {
-        nextResponse.headers.set(key, value)
-      }
-    })
-
-    // Handle Set-Cookie headers specially - they need to be appended, not set
-    const setCookieHeaders = response.headers.getSetCookie()
-    if (setCookieHeaders && setCookieHeaders.length > 0) {
-      const host = getExternalHost(request)
-      const cookieDomain = getCookieDomainFromHost(host)
-      setCookieHeaders.forEach((cookieString) => {
-        // Remove any existing domain restriction
-        let modifiedCookie = cookieString.replace(/Domain=[^;]+;?/gi, '')
-
-        // Set cookie domain for cross-subdomain sharing
-        if (cookieDomain) {
-          modifiedCookie += `; Domain=${cookieDomain}`
-        }
-
-        // Also ensure SameSite is set to Lax for development
-        if (!modifiedCookie.includes('SameSite')) {
-          modifiedCookie += '; SameSite=Lax'
-        }
-
-        logger.debug('Setting cookie:', {
-          original: cookieString.substring(0, 100),
-          modified: modifiedCookie.substring(0, 100),
-        })
-
-        nextResponse.headers.append('Set-Cookie', modifiedCookie)
-      })
-    }
-
+    forwardHeadersAndCookies(response, nextResponse, request)
     return nextResponse
   } catch (error) {
     console.error('❌ Proxy error:', {

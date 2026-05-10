@@ -4,6 +4,7 @@ Covers set, get status, remove, test, test-saved, and available-models endpoints
 """
 
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
@@ -287,21 +288,27 @@ class TestAvailableModels:
         user = _make_user()
         mock_db = _mock_db()
 
-        model = Mock()
-        model.id = "gpt-4"
-        model.name = "GPT-4"
-        model.description = "OpenAI GPT-4"
-        model.provider = "openai"
-        model.model_type = "llm"
-        model.capabilities = ["text"]
-        model.config_schema = {}
-        model.default_config = {}
-        model.input_cost_per_million = 30.0
-        model.output_cost_per_million = 60.0
-        model.is_active = True
-        model.parameter_constraints = None
-        model.created_at = datetime.now(timezone.utc)
-        model.updated_at = None
+        # SimpleNamespace, not Mock: FastAPI's jsonable_encoder probes pydantic
+        # markers via attribute access, and Mock auto-vivifies them, leading
+        # to infinite recursion in is_pydantic_v1_model_instance's warning
+        # filter setup.
+        model = SimpleNamespace(
+            id="gpt-4",
+            name="GPT-4",
+            description="OpenAI GPT-4",
+            provider="openai",
+            model_type="llm",
+            capabilities=["text"],
+            config_schema={},
+            default_config={},
+            input_cost_per_million=30.0,
+            output_cost_per_million=60.0,
+            is_active=True,
+            parameter_constraints=None,
+            recommended_parameters=None,
+            created_at=datetime.now(timezone.utc),
+            updated_at=None,
+        )
 
         mock_q = MagicMock()
         mock_q.filter.return_value = mock_q

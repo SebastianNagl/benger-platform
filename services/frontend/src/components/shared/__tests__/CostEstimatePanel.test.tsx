@@ -12,7 +12,7 @@
  */
 import '@testing-library/jest-dom'
 import { render, screen, waitFor } from '@testing-library/react'
-import { CostEstimatePanel } from '../CostEstimateModal'
+import { CostEstimatePanel } from '../CostEstimatePanel'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({

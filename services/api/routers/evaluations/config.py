@@ -325,6 +325,27 @@ async def update_project_evaluation_config(
                             detail="judges[].runs must be an integer between 1 and 25",
                         )
 
+                # Phase 7 consolidation guard: Falllösung's prompt template
+                # hardcodes a 0–100 raw rubric (10 dimensions summing to 100).
+                # If a config sets score_scale to anything else, the worker's
+                # score-scale ladder produces nonsense (e.g. score_scale="1-5"
+                # would compute (75 - 1) / 4 = 18.5 from a 75/100 raw score).
+                # Reject at config-save time so the misconfiguration fails
+                # loud here instead of silently mis-grading every cell at
+                # eval time.
+                if cfg.get("metric") == "llm_judge_falloesung":
+                    score_scale = mp.get("score_scale")
+                    if score_scale is not None and score_scale != "0-100":
+                        raise HTTPException(
+                            status_code=422,
+                            detail=(
+                                "llm_judge_falloesung requires "
+                                "metric_parameters.score_scale='0-100' "
+                                "(falloesung's prompt is a fixed 0–100 "
+                                f"rubric); got {score_scale!r}"
+                            ),
+                        )
+
         # Update the evaluation config
         # IMPORTANT: Include label_config_version to prevent unnecessary regeneration on GET
         # Without this, the GET endpoint will regenerate the config on every page reload,

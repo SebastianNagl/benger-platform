@@ -2341,6 +2341,7 @@ def run_evaluation(
     organization_id: Optional[str] = None,
     task_ids: Optional[List[str]] = None,
     model_ids: Optional[List[str]] = None,
+    annotator_user_ids: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """
     Run evaluation based on configured field mappings.
@@ -2371,6 +2372,16 @@ def run_evaluation(
         f"🎯 Starting evaluation for project {project_id}, "
         f"evaluation {evaluation_id}{version_filter_msg}"
     )
+    # E3: surface scope filters at the start of the run so debugging
+    # "why did this score only N cells" needs only the log, not the
+    # eval_metadata blob. Cheap (just lengths), fires once per run.
+    if task_ids or model_ids or annotator_user_ids:
+        logger.info(
+            f"[evaluation {evaluation_id}] scope filters active: "
+            f"task_ids={len(task_ids) if task_ids else 0}, "
+            f"model_ids={len(model_ids) if model_ids else 0}, "
+            f"annotator_user_ids={len(annotator_user_ids) if annotator_user_ids else 0}"
+        )
 
     try:
         from datetime import datetime
@@ -2725,15 +2736,24 @@ def run_evaluation(
             evaluated_by_gen: dict[str, set[str]] = {}
             if evaluate_missing_only:
                 task_id_list = [t.id for t in tasks]
+                # Mirror the read path in
+                # `services/api/routers/evaluations/results.py` (status
+                # filter on EvaluationRun): rows from cancelled/failed runs
+                # are hidden as `n/a` in the UI, so the missing-detector
+                # must also ignore them — otherwise a phantom row from a
+                # killed run masks the cell as "already evaluated" and it
+                # never gets retried.
                 existing = (
                     db.query(
                         TaskEvaluation.generation_id,
                         TaskEvaluation.field_name,
                         TaskEvaluation.metrics,
                     )
+                    .join(EvaluationRun, TaskEvaluation.evaluation_id == EvaluationRun.id)
                     .filter(
                         TaskEvaluation.task_id.in_(task_id_list),
                         TaskEvaluation.generation_id.isnot(None),
+                        EvaluationRun.status.in_(("completed", "running", "pending")),
                     )
                     .all()
                 )
@@ -2812,7 +2832,8 @@ def run_evaluation(
                         Generation.label_config_version == label_config_version
                     )
 
-                # Filter by model_ids if specified (for single-cell re-evaluation)
+                # Filter by model_ids if specified (for single-cell re-evaluation
+                # or for scoped runs from the eval modal — issue #69).
                 if model_ids:
                     generations_query = generations_query.filter(
                         Generation.model_id.in_(model_ids)
@@ -2936,6 +2957,14 @@ def run_evaluation(
                                         sample_results.append({
                                             "id": str(_guard_uuid.uuid4()),
                                             "evaluation_id": evaluation_id,
+                                            # Migration 043 made judge_run_id NOT NULL.
+                                            # When the judge can't initialize there's no
+                                            # per-judge child run to point at, so we
+                                            # attach the per-evaluation default fallback
+                                            # so the row persists as a terminal-error
+                                            # marker instead of crashing with a
+                                            # NotNullViolation.
+                                            "judge_run_id": default_judge_run_id,
                                             "task_id": task.id,
                                             "generation_id": generation.id,
                                             "field_name": field_key,
@@ -3107,40 +3136,66 @@ def run_evaluation(
 
                                             import uuid as _ok_uuid
 
-                                            per_judge_results.append({
-                                                "id": str(_ok_uuid.uuid4()),
-                                                "evaluation_id": evaluation_id,
-                                                "judge_run_id": jr_id,
-                                                "task_id": task.id,
-                                                "generation_id": generation.id,
-                                                "field_name": field_key,
-                                                "answer_type": "text",
-                                                "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
-                                                "prediction": str(prediction)[:1000] if prediction else "",
-                                                "metrics": {
-                                                    metric: score,
-                                                    "raw_score": raw_score,
-                                                    f"{metric}_response": result,
-                                                    **(
-                                                        {f"{metric}_grade_points": result["grade_points"]}
-                                                        if result and result.get("grade_points") is not None
-                                                        else {}
-                                                    ),
-                                                    **(
-                                                        {f"{metric}_passed": 1.0 if result["passed"] else 0.0}
+                                            if metric == "llm_judge_falloesung":
+                                                # Phase 7 consolidation: route falloesung
+                                                # through extended's canonical row-builder
+                                                # so immediate-eval and bulk-eval persist
+                                                # the same nested {value, method, details,
+                                                # error} shape. Generic llm_judge_* metrics
+                                                # keep the legacy flat shape (else branch).
+                                                from benger_extended.workers.falloesung_tasks import (
+                                                    build_falloesung_row_dict,
+                                                )
+                                                per_judge_results.append({
+                                                    "id": str(_ok_uuid.uuid4()),
+                                                    "evaluation_id": evaluation_id,
+                                                    "judge_run_id": jr_id,
+                                                    "task_id": task.id,
+                                                    "generation_id": generation.id,
+                                                    "annotation_id": None,
+                                                    "field_name": field_key,
+                                                    "answer_type": "text",
+                                                    "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                                    "prediction": str(prediction)[:1000] if prediction else "",
+                                                    "error_message": error_msg,
+                                                    "judge_prompts_used": judge_prompts,
+                                                    **build_falloesung_row_dict(result=result, error_message=error_msg),
+                                                })
+                                            else:
+                                                per_judge_results.append({
+                                                    "id": str(_ok_uuid.uuid4()),
+                                                    "evaluation_id": evaluation_id,
+                                                    "judge_run_id": jr_id,
+                                                    "task_id": task.id,
+                                                    "generation_id": generation.id,
+                                                    "field_name": field_key,
+                                                    "answer_type": "text",
+                                                    "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                                    "prediction": str(prediction)[:1000] if prediction else "",
+                                                    "metrics": {
+                                                        metric: score,
+                                                        "raw_score": raw_score,
+                                                        f"{metric}_response": result,
+                                                        **(
+                                                            {f"{metric}_grade_points": result["grade_points"]}
+                                                            if result and result.get("grade_points") is not None
+                                                            else {}
+                                                        ),
+                                                        **(
+                                                            {f"{metric}_passed": 1.0 if result["passed"] else 0.0}
+                                                            if result and "passed" in result
+                                                            else {}
+                                                        ),
+                                                    },
+                                                    "passed": (
+                                                        result.get("passed", score > 0.5)
                                                         if result and "passed" in result
-                                                        else {}
+                                                        else (score > 0.5 if score is not None else False)
                                                     ),
-                                                },
-                                                "passed": (
-                                                    result.get("passed", score > 0.5)
-                                                    if result and "passed" in result
-                                                    else (score > 0.5 if score is not None else False)
-                                                ),
-                                                "error_message": error_msg,
-                                                "judge_prompts_used": judge_prompts,
-                                                **_llm_judge_columns_from_result(result),
-                                            })
+                                                    "error_message": error_msg,
+                                                    "judge_prompts_used": judge_prompts,
+                                                    **_llm_judge_columns_from_result(result),
+                                                })
 
                                         # Push every per-judge result through the
                                         # shared aggregation + commit path below.
@@ -3152,15 +3207,34 @@ def run_evaluation(
                                             else:
                                                 samples_failed += 1
                                             metric_key = f"{field_key}|{metric}"
-                                            primary_value = sample_result["metrics"].get(metric)
+                                            # Falloesung's canonical nested shape stores the
+                                            # numeric value at metrics[metric].value;
+                                            # generic llm_judge_* metrics store it directly
+                                            # as metrics[metric]. Handle both.
+                                            primary_raw = sample_result["metrics"].get(metric)
+                                            if isinstance(primary_raw, dict):
+                                                primary_value = primary_raw.get("value")
+                                            else:
+                                                primary_value = primary_raw
                                             if primary_value is not None and isinstance(primary_value, (int, float)):
                                                 aggregate_metrics.setdefault(metric_key, []).append(primary_value)
-                                            for suffix in ("_grade_points", "_passed"):
-                                                sub_key_name = f"{metric}{suffix}"
-                                                sub_value = sample_result["metrics"].get(sub_key_name)
-                                                if sub_value is not None and isinstance(sub_value, (int, float)):
-                                                    sub_metric_key = f"{field_key}|{sub_key_name}"
-                                                    aggregate_metrics.setdefault(sub_metric_key, []).append(sub_value)
+                                            if metric == "llm_judge_falloesung":
+                                                # Sub-metric extracts come from the nested
+                                                # details blob via the extended helper.
+                                                from benger_extended.workers.falloesung_tasks import (
+                                                    build_falloesung_aggregate_extracts,
+                                                )
+                                                for sub_key, sub_value in build_falloesung_aggregate_extracts(sample_result).items():
+                                                    aggregate_metrics.setdefault(
+                                                        f"{field_key}|{metric}_{sub_key}", []
+                                                    ).append(sub_value)
+                                            else:
+                                                for suffix in ("_grade_points", "_passed"):
+                                                    sub_key_name = f"{metric}{suffix}"
+                                                    sub_value = sample_result["metrics"].get(sub_key_name)
+                                                    if sub_value is not None and isinstance(sub_value, (int, float)):
+                                                        sub_metric_key = f"{field_key}|{sub_key_name}"
+                                                        aggregate_metrics.setdefault(sub_metric_key, []).append(sub_value)
 
                                         if sample_results:
                                             for r in sample_results:
@@ -3241,6 +3315,9 @@ def run_evaluation(
                                     sample_results.append({
                                         "id": str(_uuid.uuid4()),
                                         "evaluation_id": evaluation_id,
+                                        # Migration 043 NOT NULL fallback (see guard
+                                        # branch above for rationale).
+                                        "judge_run_id": default_judge_run_id,
                                         "task_id": task.id,
                                         "generation_id": generation.id,
                                         "field_name": field_key,
@@ -3262,10 +3339,23 @@ def run_evaluation(
 
             # Pre-load all annotations once (avoids N+1 queries per config x task)
             task_id_list = [t.id for t in tasks]
-            all_annotations = db.query(Annotation).filter(
+            ann_query = db.query(Annotation).filter(
                 Annotation.task_id.in_(task_id_list),
                 Annotation.was_cancelled == False,
-            ).all()
+            )
+            if annotator_user_ids:
+                ann_pre_count = ann_query.count()
+                ann_query = ann_query.filter(Annotation.completed_by.in_(annotator_user_ids))
+            all_annotations = ann_query.all()
+            if annotator_user_ids:
+                # E3: same observability story as the model_ids log above —
+                # log the scope-driven reduction so reproducibility/debugging
+                # has a paper trail beyond the eval_metadata blob.
+                logger.info(
+                    f"[evaluation {evaluation_id}] annotator_user_ids filter "
+                    f"active ({len(annotator_user_ids)} ids); annotation pool "
+                    f"reduced from {ann_pre_count} to {len(all_annotations)}"
+                )
             annotations_by_task: dict[str, list] = {}
             for ann in all_annotations:
                 annotations_by_task.setdefault(ann.task_id, []).append(ann)
@@ -3273,15 +3363,21 @@ def run_evaluation(
             # Pre-load existing annotation evaluations once (shared across all configs)
             evaluated_by_ann: dict[str, set[str]] = {}
             if evaluate_missing_only:
+                # Same EvaluationRun.status filter as the generation-side
+                # block above — keep the two queries in lockstep so the
+                # missing-detector's view of "already evaluated" matches
+                # what the read path in results.py actually surfaces.
                 existing_ann = (
                     db.query(
                         TaskEvaluation.annotation_id,
                         TaskEvaluation.field_name,
                         TaskEvaluation.metrics,
                     )
+                    .join(EvaluationRun, TaskEvaluation.evaluation_id == EvaluationRun.id)
                     .filter(
                         TaskEvaluation.task_id.in_(task_id_list),
                         TaskEvaluation.annotation_id.isnot(None),
+                        EvaluationRun.status.in_(("completed", "running", "pending")),
                     )
                     .all()
                 )
@@ -3312,19 +3408,25 @@ def run_evaluation(
                     )
                     continue
 
-                # Collect human prediction fields from this config
+                # Collect human prediction fields from this config.
+                # Classification (including the falloesung backward-compat rule
+                # and any metric rules registered by extended) is centralized
+                # in `services/shared/eval_field_classification.py` so the
+                # worker and the cost endpoint stay in lockstep.
+                from eval_field_classification import classify_pred_fields
+                human_fields_raw, _llm_fields = classify_pred_fields(metric, prediction_fields)
                 human_pred_fields = []
-                for pf in prediction_fields:
-                    if pf.startswith("human:"):
-                        human_pred_fields.append(("human:" + pf[6:], pf[6:]))  # (prefixed, base)
-                    elif pf == "__all_human__":
+                for pf in human_fields_raw:
+                    if pf == "__all_human__":
                         human_pred_fields.append(("__all_human__", "__all_human__"))
-
-                # Backward compat: llm_judge_falloesung with unprefixed fields evaluates annotations
-                if not human_pred_fields and metric == "llm_judge_falloesung":
-                    for pf in prediction_fields:
-                        if not pf.startswith("model:") and pf not in ("__all_model__", "__all_human__"):
-                            human_pred_fields.append((f"human:{pf}", pf))
+                    elif pf.startswith("human:"):
+                        human_pred_fields.append((pf, pf[6:]))  # (prefixed, base)
+                    else:
+                        # Backward-compat path returned an unprefixed field —
+                        # synthesize the prefixed form for the downstream
+                        # `human:<base>` lookup against extracted annotation
+                        # values.
+                        human_pred_fields.append((f"human:{pf}", pf))
 
                 if not human_pred_fields:
                     continue
@@ -3390,6 +3492,9 @@ def run_evaluation(
                                             sample_results.append({
                                                 "id": str(_ann_uuid.uuid4()),
                                                 "evaluation_id": evaluation_id,
+                                                # Migration 043 NOT NULL fallback —
+                                                # mirrors the gen-side guard above.
+                                                "judge_run_id": default_judge_run_id,
                                                 "task_id": task.id,
                                                 "generation_id": None,
                                                 "annotation_id": annotation.id,
@@ -3537,41 +3642,65 @@ def run_evaluation(
                                                         or "LLM judge evaluation failed"
                                                     )
 
-                                                per_judge_results.append({
-                                                    "id": str(_ann_uuid.uuid4()),
-                                                    "evaluation_id": evaluation_id,
-                                                    "judge_run_id": jr_id,
-                                                    "task_id": task.id,
-                                                    "generation_id": None,
-                                                    "annotation_id": annotation.id,
-                                                    "field_name": field_key,
-                                                    "answer_type": "text",
-                                                    "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
-                                                    "prediction": str(prediction)[:1000] if prediction else "",
-                                                    "metrics": {
-                                                        metric: score,
-                                                        "raw_score": raw_score,
-                                                        f"{metric}_response": result,
-                                                        **(
-                                                            {f"{metric}_grade_points": result["grade_points"]}
-                                                            if result and result.get("grade_points") is not None
-                                                            else {}
-                                                        ),
-                                                        **(
-                                                            {f"{metric}_passed": 1.0 if result["passed"] else 0.0}
+                                                if metric == "llm_judge_falloesung":
+                                                    # Phase 7 consolidation (annotation-side
+                                                    # mirror of the gen-side branch above):
+                                                    # canonical nested shape via
+                                                    # build_falloesung_row_dict.
+                                                    from benger_extended.workers.falloesung_tasks import (
+                                                        build_falloesung_row_dict,
+                                                    )
+                                                    per_judge_results.append({
+                                                        "id": str(_ann_uuid.uuid4()),
+                                                        "evaluation_id": evaluation_id,
+                                                        "judge_run_id": jr_id,
+                                                        "task_id": task.id,
+                                                        "generation_id": None,
+                                                        "annotation_id": annotation.id,
+                                                        "field_name": field_key,
+                                                        "answer_type": "text",
+                                                        "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                                        "prediction": str(prediction)[:1000] if prediction else "",
+                                                        "error_message": error_msg,
+                                                        "judge_prompts_used": judge_prompts,
+                                                        **build_falloesung_row_dict(result=result, error_message=error_msg),
+                                                    })
+                                                else:
+                                                    per_judge_results.append({
+                                                        "id": str(_ann_uuid.uuid4()),
+                                                        "evaluation_id": evaluation_id,
+                                                        "judge_run_id": jr_id,
+                                                        "task_id": task.id,
+                                                        "generation_id": None,
+                                                        "annotation_id": annotation.id,
+                                                        "field_name": field_key,
+                                                        "answer_type": "text",
+                                                        "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                                        "prediction": str(prediction)[:1000] if prediction else "",
+                                                        "metrics": {
+                                                            metric: score,
+                                                            "raw_score": raw_score,
+                                                            f"{metric}_response": result,
+                                                            **(
+                                                                {f"{metric}_grade_points": result["grade_points"]}
+                                                                if result and result.get("grade_points") is not None
+                                                                else {}
+                                                            ),
+                                                            **(
+                                                                {f"{metric}_passed": 1.0 if result["passed"] else 0.0}
+                                                                if result and "passed" in result
+                                                                else {}
+                                                            ),
+                                                        },
+                                                        "passed": (
+                                                            result.get("passed", score > 0.5)
                                                             if result and "passed" in result
-                                                            else {}
+                                                            else (score > 0.5 if score is not None else False)
                                                         ),
-                                                    },
-                                                    "passed": (
-                                                        result.get("passed", score > 0.5)
-                                                        if result and "passed" in result
-                                                        else (score > 0.5 if score is not None else False)
-                                                    ),
-                                                    "error_message": error_msg,
-                                                    "judge_prompts_used": judge_prompts,
-                                                    **_llm_judge_columns_from_result(result),
-                                                })
+                                                        "error_message": error_msg,
+                                                        "judge_prompts_used": judge_prompts,
+                                                        **_llm_judge_columns_from_result(result),
+                                                    })
 
                                             for sample_result in per_judge_results:
                                                 sample_results.append(sample_result)
@@ -3581,15 +3710,30 @@ def run_evaluation(
                                                 else:
                                                     samples_failed += 1
                                                 metric_key = f"{field_key}|{metric}"
-                                                primary_value = sample_result["metrics"].get(metric)
+                                                # Falloesung canonical nested shape vs
+                                                # generic flat — see gen-side comments.
+                                                primary_raw = sample_result["metrics"].get(metric)
+                                                if isinstance(primary_raw, dict):
+                                                    primary_value = primary_raw.get("value")
+                                                else:
+                                                    primary_value = primary_raw
                                                 if primary_value is not None and isinstance(primary_value, (int, float)):
                                                     aggregate_metrics.setdefault(metric_key, []).append(primary_value)
-                                                for suffix in ("_grade_points", "_passed"):
-                                                    sub_key_name = f"{metric}{suffix}"
-                                                    sub_value = sample_result["metrics"].get(sub_key_name)
-                                                    if sub_value is not None and isinstance(sub_value, (int, float)):
-                                                        sub_metric_key = f"{field_key}|{sub_key_name}"
-                                                        aggregate_metrics.setdefault(sub_metric_key, []).append(sub_value)
+                                                if metric == "llm_judge_falloesung":
+                                                    from benger_extended.workers.falloesung_tasks import (
+                                                        build_falloesung_aggregate_extracts,
+                                                    )
+                                                    for sub_key, sub_value in build_falloesung_aggregate_extracts(sample_result).items():
+                                                        aggregate_metrics.setdefault(
+                                                            f"{field_key}|{metric}_{sub_key}", []
+                                                        ).append(sub_value)
+                                                else:
+                                                    for suffix in ("_grade_points", "_passed"):
+                                                        sub_key_name = f"{metric}{suffix}"
+                                                        sub_value = sample_result["metrics"].get(sub_key_name)
+                                                        if sub_value is not None and isinstance(sub_value, (int, float)):
+                                                            sub_metric_key = f"{field_key}|{sub_key_name}"
+                                                            aggregate_metrics.setdefault(sub_metric_key, []).append(sub_value)
 
                                             if sample_results:
                                                 for sr in sample_results:
@@ -3661,6 +3805,9 @@ def run_evaluation(
                                         sample_results.append({
                                             "id": str(_ann_uuid.uuid4()),
                                             "evaluation_id": evaluation_id,
+                                            # Migration 043 NOT NULL fallback —
+                                            # mirrors the gen-side bare-except above.
+                                            "judge_run_id": default_judge_run_id,
                                             "task_id": task.id,
                                             "generation_id": None,
                                             "annotation_id": annotation.id,

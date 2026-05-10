@@ -32,14 +32,6 @@ describe('detectFileFormat', () => {
     expect(detectFileFormat(makeFile('data.txt'))).toBe('tsv')
   })
 
-  it('detects excel from .xlsx extension', () => {
-    expect(detectFileFormat(makeFile('data.xlsx'))).toBe('excel')
-  })
-
-  it('detects excel from .xls extension', () => {
-    expect(detectFileFormat(makeFile('data.xls'))).toBe('excel')
-  })
-
   it('detects json from content when no extension match', () => {
     expect(detectFileFormat(makeFile('data.unknown'), '{"key": "value"}')).toBe('json')
   })
