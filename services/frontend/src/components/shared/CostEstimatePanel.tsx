@@ -282,6 +282,17 @@ export function CostEstimatePanel({
               Sample: {estimate.sample_size} Tasks
             </div>
           </div>
+
+          {/* Disclaimer / note assembled by the API: "Estimate accuracy
+              ± ~20%…" plus mode-specific utilization detail and (when
+              eval-with-configs is active) a wider-variance caveat for
+              the subject-count formula. Surfaces what assumptions the
+              cost number rests on. */}
+          {estimate.note && (
+            <div className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-500">
+              {estimate.note}
+            </div>
+          )}
         </div>
       )}
     </div>

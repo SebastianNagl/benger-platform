@@ -18,12 +18,37 @@ import { EvaluationControlModal } from '../EvaluationControlModal'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (_key: string, fallback?: any) => {
-      if (typeof fallback === 'string') return fallback
-      if (fallback && typeof fallback === 'object' && 'count' in fallback) {
-        return `${fallback.count}`
+    // The component uses two t() shapes:
+    //   (a) t('key.path')                              — the test assertions
+    //       below check translated text, so we keep an explicit map for the
+    //       keys this suite touches (mirrors EvaluationControlModal.test.tsx).
+    //   (b) t('key.path', { count: N })                — count param shape
+    //       — return the bare count to match the existing assertions.
+    //   (c) t('key.path', 'literal fallback')          — fallback shape — pass
+    //       the fallback through.
+    t: (key: string, paramOrFallback?: any) => {
+      if (typeof paramOrFallback === 'string') return paramOrFallback
+      if (paramOrFallback && typeof paramOrFallback === 'object' && 'count' in paramOrFallback) {
+        return `${paramOrFallback.count}`
       }
-      return _key
+      const translations: Record<string, string> = {
+        'evaluation.controlModal.title': 'Run Evaluation',
+        'evaluation.controlModal.evaluationMode': 'Evaluation Mode',
+        'evaluation.controlModal.evaluateMissingOnly': 'Missing Only',
+        'evaluation.controlModal.evaluateMissingOnlyDesc': 'Only evaluate samples without results',
+        'evaluation.controlModal.evaluateAll': 'All Samples',
+        'evaluation.controlModal.evaluateAllDesc': 'Re-evaluate all samples, overwriting existing results',
+        'evaluation.controlModal.evaluationConfigurations': 'Evaluation Configurations',
+        'evaluation.controlModal.oneConfigWillBeRun': '1 configuration will be run',
+        'evaluation.controlModal.starting': 'Starting...',
+        'evaluation.controlModal.startEvaluation': 'Start Evaluation',
+        'evaluation.controlModal.cancel': 'Cancel',
+        'evaluation.controlModal.failedToStart': 'Failed to start evaluation',
+        'evaluation.controlModal.noConfigsFound': 'No configs found',
+        'evaluation.controlModal.projectIdRequired': 'Project ID is required',
+        'shared.alertDialog.close': 'Close',
+      }
+      return translations[key] || key
     },
   }),
 }))
