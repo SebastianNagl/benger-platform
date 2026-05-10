@@ -61,6 +61,14 @@ interface EvaluationData {
     judges_by_config?: Record<string, JudgeRunSummary[]>
     any_judge_failed?: boolean
   }
+  // Issue #69: scope filters resolved to display form. null when the run
+  // was a full sweep; otherwise carries the narrowed-to set so the UI
+  // can render a "Scoped to:" line.
+  scope?: {
+    task_ids: string[]
+    model_ids: string[]
+    annotators: { user_id: string; display: string }[]
+  } | null
   created_at: string
 }
 
@@ -422,6 +430,34 @@ export default function EvaluationDashboard({
         {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* Summary Cards */}
+            {evaluation.scope && (
+              <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+                <span className="font-medium">
+                  {t('evaluations.detail.scopedTo', 'Eingeschränkt auf:')}
+                </span>{' '}
+                {[
+                  evaluation.scope.model_ids.length > 0 &&
+                    t('evaluations.detail.scopeModelsCount', '{count} Modell(e)').replace(
+                      '{count}',
+                      String(evaluation.scope.model_ids.length),
+                    ),
+                  evaluation.scope.annotators.length > 0 &&
+                    `${evaluation.scope.annotators.length === 1
+                      ? t('evaluations.detail.scopeOneAnnotator', '1 Annotator:in')
+                      : t('evaluations.detail.scopeAnnotatorsCount', '{count} Annotator:innen').replace(
+                          '{count}',
+                          String(evaluation.scope.annotators.length),
+                        )} (${evaluation.scope.annotators.map((a) => a.display).join(', ')})`,
+                  evaluation.scope.task_ids.length > 0 &&
+                    t('evaluations.detail.scopeTasksCount', '{count} Task(s)').replace(
+                      '{count}',
+                      String(evaluation.scope.task_ids.length),
+                    ),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card className="p-4">
                 <div className="text-sm text-gray-600">{t('evaluations.detail.totalSamples')}</div>

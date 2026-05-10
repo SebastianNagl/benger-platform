@@ -1,15 +1,12 @@
 /**
- * Tests for universal import/export functionality
- * Issue #369: Verify Excel functionality works after replacing xlsx with exceljs
+ * Tests for universal import/export functionality (JSON / CSV / TSV / TXT).
  */
 
-import * as ExcelJS from 'exceljs'
 import {
   detectFileFormat,
   exportData,
   importFile,
   parseCSV,
-  parseExcel,
   parseJSON,
 } from '../universalImport'
 
@@ -25,14 +22,6 @@ afterAll(() => {
 
 describe('Universal Import/Export', () => {
   describe('detectFileFormat', () => {
-    it('should detect Excel files by extension', () => {
-      const xlsxFile = new File([''], 'test.xlsx')
-      const xlsFile = new File([''], 'test.xls')
-
-      expect(detectFileFormat(xlsxFile)).toBe('excel')
-      expect(detectFileFormat(xlsFile)).toBe('excel')
-    })
-
     it('should detect CSV files by extension', () => {
       const csvFile = new File([''], 'test.csv')
       expect(detectFileFormat(csvFile)).toBe('csv')
@@ -49,117 +38,7 @@ describe('Universal Import/Export', () => {
     })
   })
 
-  describe('parseExcel', () => {
-    it('should parse Excel file with ExcelJS', async () => {
-      // Create a mock Excel file using ExcelJS
-      const workbook = new ExcelJS.Workbook()
-      const worksheet = workbook.addWorksheet('TestSheet')
-
-      // Add headers
-      worksheet.addRow(['Name', 'Age', 'Email'])
-
-      // Add data
-      worksheet.addRow(['John Doe', 30, 'john@example.com'])
-      worksheet.addRow(['Jane Smith', 25, 'jane@example.com'])
-
-      // Convert to buffer
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx', {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      })
-
-      // Parse the file
-      const result = await parseExcel(file)
-
-      expect(result.format).toBe('excel')
-      expect(result.data).toHaveLength(2)
-      expect(result.headers).toEqual(['Name', 'Age', 'Email'])
-      expect(result.data[0]).toEqual({
-        Name: 'John Doe',
-        Age: 30,
-        Email: 'john@example.com',
-      })
-      expect(result.metadata?.sheets).toContain('TestSheet')
-    })
-
-    it('should handle empty Excel files', async () => {
-      const workbook = new ExcelJS.Workbook()
-      workbook.addWorksheet('EmptySheet')
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'empty.xlsx', {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      })
-
-      const result = await parseExcel(file)
-
-      expect(result.format).toBe('excel')
-      expect(result.data).toHaveLength(0)
-      expect(result.headers).toEqual([])
-    })
-
-    it('should select specific sheet by name', async () => {
-      const workbook = new ExcelJS.Workbook()
-      workbook.addWorksheet('Sheet1').addRow(['Col1', 'Col2'])
-      const sheet2 = workbook.addWorksheet('Sheet2')
-      sheet2.addRow(['Name', 'Value'])
-      sheet2.addRow(['Test', 123])
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'multi-sheet.xlsx')
-
-      const result = await parseExcel(file, { sheet: 'Sheet2' })
-
-      expect(result.data).toHaveLength(1)
-      expect(result.data[0]).toEqual({ Name: 'Test', Value: 123 })
-    })
-
-    it('should transform headers to camelCase when requested', async () => {
-      const workbook = new ExcelJS.Workbook()
-      const worksheet = workbook.addWorksheet('TestSheet')
-
-      worksheet.addRow(['First Name', 'Last Name', 'Email Address'])
-      worksheet.addRow(['John', 'Doe', 'john@example.com'])
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx')
-
-      const result = await parseExcel(file, { transformHeaders: true })
-
-      expect(result.headers).toEqual(['firstName', 'lastName', 'emailAddress'])
-      expect(result.data[0]).toHaveProperty('firstName', 'John')
-      expect(result.data[0]).toHaveProperty('lastName', 'Doe')
-      expect(result.data[0]).toHaveProperty('emailAddress', 'john@example.com')
-    })
-  })
-
   describe('exportData', () => {
-    it('should export data to Excel format', async () => {
-      const data = [
-        { name: 'John', age: 30, email: 'john@example.com' },
-        { name: 'Jane', age: 25, email: 'jane@example.com' },
-      ]
-
-      // Mock downloadBlob
-      const createElementSpy = jest.spyOn(document, 'createElement')
-      const createObjectURLSpy = jest
-        .spyOn(URL, 'createObjectURL')
-        .mockReturnValue('blob:url')
-      const revokeObjectURLSpy = jest
-        .spyOn(URL, 'revokeObjectURL')
-        .mockImplementation()
-
-      await exportData(data, 'excel', 'test-export')
-
-      expect(createElementSpy).toHaveBeenCalledWith('a')
-      expect(createObjectURLSpy).toHaveBeenCalled()
-      expect(revokeObjectURLSpy).toHaveBeenCalled()
-
-      createElementSpy.mockRestore()
-      createObjectURLSpy.mockRestore()
-      revokeObjectURLSpy.mockRestore()
-    })
-
     it('should export data to JSON format', async () => {
       const data = [{ test: 'value' }]
 
@@ -197,50 +76,6 @@ describe('Universal Import/Export', () => {
 
       createObjectURLSpy.mockRestore()
       revokeObjectURLSpy.mockRestore()
-    })
-  })
-
-  describe('Security - Input Validation', () => {
-    it('should handle malformed Excel files gracefully', async () => {
-      const malformedFile = new File(['not an excel file'], 'bad.xlsx')
-
-      await expect(parseExcel(malformedFile)).rejects.toThrow(
-        'Failed to parse Excel file'
-      )
-    })
-
-    it('should sanitize file inputs to prevent injection', async () => {
-      const workbook = new ExcelJS.Workbook()
-      const worksheet = workbook.addWorksheet('Test')
-
-      // Add potentially dangerous content
-      worksheet.addRow([
-        '<script>alert("xss")</script>',
-        '=1+1',
-        '../../etc/passwd',
-      ])
-      worksheet.addRow(['Normal', 'Data', 'Here'])
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx')
-
-      const result = await parseExcel(file)
-
-      // Verify that dangerous content is treated as plain text
-      expect(result.data[0]['<script>alert("xss")</script>']).toBe('Normal')
-      expect(result.data[0]['=1+1']).toBe('Data')
-      expect(result.data[0]['../../etc/passwd']).toBe('Here')
-    })
-
-    it('should limit file size processing', async () => {
-      // This would be implemented with actual file size checks in production
-      const largeFile = new File(
-        [new ArrayBuffer(100 * 1024 * 1024)],
-        'large.xlsx'
-      ) // 100MB
-
-      // In production, you would check file.size before processing
-      expect(largeFile.size).toBeGreaterThan(50 * 1024 * 1024) // > 50MB
     })
   })
 
@@ -362,121 +197,7 @@ describe('Universal Import/Export', () => {
     })
   })
 
-  describe('parseExcel - Advanced', () => {
-    it('should select sheet by index', async () => {
-      const workbook = new ExcelJS.Workbook()
-      workbook.addWorksheet('Sheet1').addRow(['Col1'])
-      const sheet2 = workbook.addWorksheet('Sheet2')
-      sheet2.addRow(['Name'])
-      sheet2.addRow(['Test'])
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx')
-
-      const result = await parseExcel(file, { sheet: 1 })
-
-      expect(result.data).toHaveLength(1)
-      expect(result.data[0].Name).toBe('Test')
-    })
-
-    it('should handle formula cells', async () => {
-      const workbook = new ExcelJS.Workbook()
-      const worksheet = workbook.addWorksheet('Sheet1')
-      worksheet.addRow(['Value', 'Formula'])
-      const row = worksheet.addRow([10, { formula: 'A2*2', result: 20 }])
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx')
-
-      const result = await parseExcel(file)
-
-      expect(result.data[0].Formula).toBe(20)
-    })
-
-    it('should handle date cells', async () => {
-      const workbook = new ExcelJS.Workbook()
-      const worksheet = workbook.addWorksheet('Sheet1')
-      worksheet.addRow(['Date'])
-      const date = new Date('2024-01-15')
-      worksheet.addRow([date])
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx')
-
-      const result = await parseExcel(file)
-
-      expect(result.data[0].Date).toBe(date.toISOString())
-    })
-
-    it('should skip empty rows by default', async () => {
-      const workbook = new ExcelJS.Workbook()
-      const worksheet = workbook.addWorksheet('Sheet1')
-      worksheet.addRow(['Name'])
-      worksheet.addRow(['John'])
-      worksheet.addRow([]) // Empty row
-      worksheet.addRow(['Jane'])
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx')
-
-      const result = await parseExcel(file)
-
-      expect(result.data.length).toBeLessThanOrEqual(3)
-    })
-
-    it('should include empty rows when skipEmptyRows is false', async () => {
-      const workbook = new ExcelJS.Workbook()
-      const worksheet = workbook.addWorksheet('Sheet1')
-      worksheet.addRow(['Name'])
-      worksheet.addRow(['John'])
-      worksheet.addRow(['']) // Row with empty value (not completely empty array)
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx')
-
-      const result = await parseExcel(file, { skipEmptyRows: false })
-
-      expect(result.data.length).toBeGreaterThanOrEqual(2)
-    })
-
-    it('should handle non-existent sheet name gracefully', async () => {
-      const workbook = new ExcelJS.Workbook()
-      workbook.addWorksheet('Sheet1').addRow(['Col1'])
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx')
-
-      const result = await parseExcel(file, { sheet: 'NonExistent' })
-
-      expect(result.data).toBeDefined()
-    })
-
-    it('should handle file read errors', async () => {
-      const file = new File([''], 'test.xlsx')
-      Object.defineProperty(file, 'arrayBuffer', {
-        value: () => Promise.reject(new Error('Read error')),
-      })
-
-      await expect(parseExcel(file)).rejects.toThrow()
-    })
-  })
-
   describe('importFile', () => {
-    it('should import Excel file through universal handler', async () => {
-      const workbook = new ExcelJS.Workbook()
-      const worksheet = workbook.addWorksheet('Sheet1')
-      worksheet.addRow(['Name', 'Age'])
-      worksheet.addRow(['John', 30])
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx')
-
-      const result = await importFile(file)
-
-      expect(result.format).toBe('excel')
-      expect(result.data).toHaveLength(1)
-    })
-
     it('should import JSON file through universal handler', async () => {
       const content = JSON.stringify([{ name: 'John' }])
       const file = new File([content], 'test.json')
@@ -609,30 +330,6 @@ describe('Universal Import/Export', () => {
     })
   })
 
-  describe('exportExcel - Advanced', () => {
-    it('should handle empty data', async () => {
-      await exportData([], 'excel', 'empty')
-
-      expect(global.URL.createObjectURL).toHaveBeenCalled()
-    })
-
-    it('should auto-size columns', async () => {
-      const data = [{ short: 'hi', long: 'this is a very long text value' }]
-
-      await exportData(data, 'excel', 'test')
-
-      expect(global.URL.createObjectURL).toHaveBeenCalled()
-    })
-
-    it('should cap column width at 50', async () => {
-      const data = [{ col: 'x'.repeat(100) }]
-
-      await exportData(data, 'excel', 'test')
-
-      expect(global.URL.createObjectURL).toHaveBeenCalled()
-    })
-  })
-
   describe('Edge Cases and Error Scenarios', () => {
     it('should handle malformed JSON gracefully', () => {
       const content = 'not valid json at all'
@@ -736,38 +433,8 @@ describe('Universal Import/Export', () => {
       expect(format).toBe('unknown')
     })
 
-    it('should handle Excel file with multiple empty sheets', async () => {
-      const workbook = new ExcelJS.Workbook()
-      workbook.addWorksheet('Empty1')
-      workbook.addWorksheet('Empty2')
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx')
-
-      const result = await parseExcel(file)
-
-      expect(result.metadata?.sheets).toEqual(['Empty1', 'Empty2'])
-      expect(result.data).toHaveLength(0)
-    })
-
-    it('should handle Excel with special characters in headers', async () => {
-      const workbook = new ExcelJS.Workbook()
-      const worksheet = workbook.addWorksheet('Sheet1')
-      worksheet.addRow(['Name (Required)', 'Email@Address', 'Age#'])
-      worksheet.addRow(['John', 'john@test.com', 30])
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx')
-
-      const result = await parseExcel(file, { transformHeaders: true })
-
-      expect(result.headers).toContain('nameRequired')
-      expect(result.headers).toContain('emailAddress')
-      expect(result.headers).toContain('age')
-    })
-
     it('should handle CSV with BOM (Byte Order Mark)', async () => {
-      const bom = '\uFEFF'
+      const bom = '﻿'
       const content = bom + 'Name,Age\nJohn,30'
 
       const result = await parseCSV(content)
@@ -826,51 +493,6 @@ describe('Universal Import/Export', () => {
       const result = await parseCSV(content, { detectTypes: false })
 
       expect(typeof result.data[0].Age).toBe('string')
-    })
-
-    it('should handle Excel with sheet index out of bounds', async () => {
-      const workbook = new ExcelJS.Workbook()
-      workbook.addWorksheet('Sheet1').addRow(['Col1'])
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx')
-
-      const result = await parseExcel(file, { sheet: 999 })
-
-      expect(result.data).toBeDefined()
-    })
-
-    it('should handle Excel with mixed data types in columns', async () => {
-      const workbook = new ExcelJS.Workbook()
-      const worksheet = workbook.addWorksheet('Sheet1')
-      worksheet.addRow(['Value'])
-      worksheet.addRow([123])
-      worksheet.addRow(['text'])
-      worksheet.addRow([true])
-      worksheet.addRow([new Date('2024-01-01')])
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx')
-
-      const result = await parseExcel(file)
-
-      expect(result.data).toHaveLength(4)
-      expect(typeof result.data[0].Value).toBe('number')
-      expect(typeof result.data[1].Value).toBe('string')
-    })
-
-    it('should handle Excel with only headers', async () => {
-      const workbook = new ExcelJS.Workbook()
-      const worksheet = workbook.addWorksheet('Sheet1')
-      worksheet.addRow(['Header1', 'Header2', 'Header3'])
-
-      const buffer = await workbook.xlsx.writeBuffer()
-      const file = new File([buffer], 'test.xlsx')
-
-      const result = await parseExcel(file)
-
-      expect(result.headers).toEqual(['Header1', 'Header2', 'Header3'])
-      expect(result.data).toHaveLength(0)
     })
 
     it('should handle FileReader errors for text files', async () => {

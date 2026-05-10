@@ -267,22 +267,26 @@ class TestDataExportImportRoundtrip:
 
     def _import(self, db_session, target_project_id, export_data, user_id):
         from routers.projects.import_export import import_project_data
-        from project_schemas import ProjectImportData
 
         mock_user = Mock()
         mock_user.id = user_id
         mock_user.is_superadmin = True
+
+        body = json.dumps({
+            "data": export_data["tasks"],
+            "evaluation_runs": export_data.get("evaluation_runs"),
+        }).encode("utf-8")
+
+        async def _stream():
+            yield body
+
         mock_request = Mock()
         mock_request.headers = {}
         mock_request.state = Mock(spec=[])
-
-        import_payload = ProjectImportData(
-            data=export_data["tasks"],
-            evaluation_runs=export_data.get("evaluation_runs"),
-        )
+        mock_request.stream = _stream
 
         result = run(
-            import_project_data(target_project_id, import_payload, request=mock_request, current_user=mock_user, db=db_session)
+            import_project_data(target_project_id, request=mock_request, current_user=mock_user, db=db_session)
         )
         return result
 
@@ -803,15 +807,19 @@ class TestRoundtripExtensions:
         # The single-project import schema accepts korrektur_comments under the
         # `data` payload via the extended ProjectImportData fields.
         from routers.projects.import_export import import_project_data
-        from project_schemas import ProjectImportData
         mock_user = Mock(); mock_user.id = user.id; mock_user.is_superadmin = True
+        body = json.dumps({
+            "data": export["tasks"],
+            "evaluation_runs": export.get("evaluation_runs"),
+            "korrektur_comments": export.get("korrektur_comments"),
+        }).encode("utf-8")
+
+        async def _stream():
+            yield body
+
         mock_request = Mock(); mock_request.headers = {}; mock_request.state = Mock(spec=[])
-        payload = ProjectImportData(
-            data=export["tasks"],
-            evaluation_runs=export.get("evaluation_runs"),
-            korrektur_comments=export.get("korrektur_comments"),
-        )
-        run(import_project_data(target.id, payload, request=mock_request, current_user=mock_user, db=db_session))
+        mock_request.stream = _stream
+        run(import_project_data(target.id, request=mock_request, current_user=mock_user, db=db_session))
 
         imported = (
             db_session.query(KorrekturComment)

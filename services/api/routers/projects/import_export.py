@@ -4,11 +4,18 @@ import csv
 import io
 import json
 import logging
+import tempfile
 import uuid
 import zipfile
 from datetime import datetime
 from io import BytesIO
 from typing import Any, Dict, List
+
+# Spool incoming import bodies in RAM up to this size; spill to disk above it.
+# Keeps small imports allocation-free (no disk hit, no regression vs the
+# previous Pydantic auto-parse path) while bounding peak heap on multi-MB
+# imports — the API-side mirror of the proxy's response-streaming fix (GH #68).
+_IMPORT_SPOOL_THRESHOLD = 4 * 1024 * 1024
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +141,7 @@ from auth_module.models import User as AuthUser
 from database import get_db
 from routers.projects.serializers import _parse_iso
 from models import (
+    EvaluationJudgeRun,
     EvaluationRun,
     EvaluationRunMetric,
     Generation,
@@ -171,7 +179,6 @@ router = APIRouter()
 @router.post("/{project_id}/import")
 async def import_project_data(
     project_id: str,
-    data: ProjectImportData,
     request: Request,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
@@ -181,6 +188,27 @@ async def import_project_data(
 
     Supports Label Studio format with BenGER extensions.
     """
+    # Stream the request body to a SpooledTemporaryFile instead of letting
+    # Pydantic auto-parse buffer the whole payload in memory. Small imports
+    # stay in RAM (under the spool threshold); large ones spill to disk so
+    # peak heap is bounded by the parsed object graph, not the raw bytes too.
+    with tempfile.SpooledTemporaryFile(max_size=_IMPORT_SPOOL_THRESHOLD) as spooled:
+        async for chunk in request.stream():
+            spooled.write(chunk)
+        spooled.seek(0)
+        try:
+            raw_payload = json.load(spooled)
+        except json.JSONDecodeError as exc:
+            # Match FastAPI's Pydantic-body behaviour (422 for unprocessable
+            # body) so existing clients and tests don't observe a behaviour
+            # change just because the parse path moved into the handler.
+            raise HTTPException(status_code=422, detail=f"Invalid JSON body: {exc}")
+
+    try:
+        data = ProjectImportData.model_validate(raw_payload)
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
     # Verify project exists
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -211,6 +239,11 @@ async def import_project_data(
     try:
         # Import evaluation runs first so task evaluations can reference them
         evaluation_run_id_mapping = {}  # old er id -> new er id
+        # Migration 043: TaskEvaluation.judge_run_id is NOT NULL. Legacy
+        # exports pre-date the column; create one synthetic catch-all
+        # judge_run per imported EvaluationRun (mirroring 043's backfill)
+        # so TaskEvaluations without an explicit judge_run_id can attach.
+        evaluation_run_judge_run: Dict[str, str] = {}  # new er id -> jr id
         if data.evaluation_runs:
             for er_data in data.evaluation_runs:
                 old_er_id = er_data.get("id")
@@ -229,6 +262,12 @@ async def import_project_data(
                     created_by=er_data.get("created_by", current_user.id),
                 )
                 db.add(er)
+                jr_id = str(uuid.uuid4())
+                db.add(EvaluationJudgeRun(
+                    id=jr_id, evaluation_id=new_er_id, judge_model_id=None,
+                    run_index=0, status="completed",
+                ))
+                evaluation_run_judge_run[new_er_id] = jr_id
                 created_evaluation_runs += 1
                 if old_er_id:
                     evaluation_run_id_mapping[old_er_id] = new_er_id
@@ -450,9 +489,10 @@ async def import_project_data(
                     for eval_data in gen_data.get("evaluations", []):
                         te_id = str(uuid.uuid4())
                         eval_run_id = eval_data.get("evaluation_run_id") or eval_data.get("evaluation_id")
+                        new_er_id = evaluation_run_id_mapping.get(eval_run_id, eval_run_id)
                         te = TaskEvaluation(
                             id=te_id,
-                            evaluation_id=evaluation_run_id_mapping.get(eval_run_id, eval_run_id),
+                            evaluation_id=new_er_id,
                             task_id=task_id,
                             generation_id=new_gen_id,
                             annotation_id=annotation_id_mapping.get(eval_data.get("annotation_id")),
@@ -468,9 +508,11 @@ async def import_project_data(
                             judge_prompts_used=eval_data.get("judge_prompts_used"),
                             # Migration 042: forward judge_run_id when the
                             # export carries it. Older exports pre-date the
-                            # field; migration 043 backfills NULLs to a
-                            # synthetic per-eval judge_run before tightening.
-                            judge_run_id=eval_data.get("judge_run_id"),
+                            # field; fall back to the synthetic catch-all
+                            # judge_run created above for this evaluation_run
+                            # (mirrors migration 043's backfill).
+                            judge_run_id=eval_data.get("judge_run_id")
+                                or evaluation_run_judge_run.get(new_er_id),
                         )
                         db.add(te)
                         created_task_evaluations += 1
@@ -484,9 +526,10 @@ async def import_project_data(
             for eval_data in task_level_evaluations:
                 te_id = str(uuid.uuid4())
                 eval_run_id = eval_data.get("evaluation_run_id") or eval_data.get("evaluation_id")
+                new_er_id = evaluation_run_id_mapping.get(eval_run_id, eval_run_id)
                 te = TaskEvaluation(
                     id=te_id,
-                    evaluation_id=evaluation_run_id_mapping.get(eval_run_id, eval_run_id),
+                    evaluation_id=new_er_id,
                     task_id=task_id,
                     generation_id=None,
                     # Map annotation_id through the mapping built during annotation
@@ -505,7 +548,8 @@ async def import_project_data(
                     processing_time_ms=eval_data.get("processing_time_ms"),
                     judge_prompts_used=eval_data.get("judge_prompts_used"),
                     # Migration 042: see comment on the generation-attached path above.
-                    judge_run_id=eval_data.get("judge_run_id"),
+                    judge_run_id=eval_data.get("judge_run_id")
+                        or evaluation_run_judge_run.get(new_er_id),
                 )
                 db.add(te)
                 created_task_evaluations += 1
@@ -1353,30 +1397,37 @@ async def import_full_project(
     """
     org_context = get_org_context_from_request(request)
     try:
-        # Read and validate file - accept both JSON and ZIP files
+        # Parse the upload directly off the SpooledTemporaryFile that Starlette
+        # gives us via UploadFile.file — Starlette already spills past ~1 MB to
+        # disk, so calling `await file.read()` would re-buffer the whole thing
+        # back into RAM as a `bytes` object (and then `.decode()` would make a
+        # second string copy). Reading file-like preserves the disk spillover
+        # and keeps peak heap to roughly the parsed dict graph alone.
         if file.filename.endswith('.zip'):
-            # Handle ZIP file - extract JSON from within
-            zip_content = await file.read()
             try:
-                with zipfile.ZipFile(BytesIO(zip_content), 'r') as zip_file:
+                with zipfile.ZipFile(file.file, 'r') as zip_file:
                     json_files = [f for f in zip_file.namelist() if f.endswith('.json')]
                     if not json_files:
                         raise HTTPException(
                             status_code=400, detail="ZIP file contains no JSON files"
                         )
                     # Use first JSON file found (for single project import)
-                    content = zip_file.read(json_files[0])
+                    with zip_file.open(json_files[0]) as inner_json:
+                        try:
+                            import_data = json.load(inner_json)
+                        except json.JSONDecodeError:
+                            raise HTTPException(
+                                status_code=400, detail="Invalid JSON format"
+                            )
             except zipfile.BadZipFile:
                 raise HTTPException(status_code=400, detail="Invalid ZIP file format")
         elif file.filename.endswith('.json'):
-            content = await file.read()
+            try:
+                import_data = json.load(file.file)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=400, detail="Invalid JSON format")
         else:
             raise HTTPException(status_code=400, detail="Only JSON and ZIP files are supported")
-
-        try:
-            import_data = json.loads(content.decode('utf-8'))
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid JSON format")
 
         # Validate format version
         format_version = import_data.get("format_version", "1.0.0")

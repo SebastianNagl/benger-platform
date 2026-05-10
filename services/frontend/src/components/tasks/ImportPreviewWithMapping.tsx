@@ -254,18 +254,6 @@ export function ImportPreviewWithMapping({
                 <p className="text-sm font-medium text-gray-500">{t('tasks.import.size')}</p>
                 <p className="text-sm">{formatFileSize(file?.size || 0)}</p>
               </div>
-              {importResult.metadata?.sheets && (
-                <div className="col-span-2">
-                  <p className="text-sm font-medium text-gray-500">{t('tasks.import.sheets')}</p>
-                  <div className="mt-1 flex gap-2">
-                    {importResult.metadata.sheets.map((sheet) => (
-                      <Badge key={sheet} variant="outline">
-                        {sheet}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Errors */}

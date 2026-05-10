@@ -65,6 +65,15 @@ def _create_tables():
                     "REFERENCES users(id) ON DELETE SET NULL"
                 )
             )
+            # Migration 045: research-data consent timestamp on users. Same
+            # `create_all`-skips-existing-tables drift as the line above.
+            conn.execute(
+                text(
+                    "ALTER TABLE users "
+                    "ADD COLUMN IF NOT EXISTS research_data_consent_accepted_at "
+                    "TIMESTAMP WITH TIME ZONE"
+                )
+            )
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

@@ -19,8 +19,6 @@ jest.mock('@/contexts/I18nContext', () => ({
         'evaluation.controlModal.evaluationConfigurations': 'Evaluation Configurations',
         'evaluation.controlModal.oneConfigWillBeRun': '1 configuration will be run',
         'evaluation.controlModal.configsWillBeRun': `${params?.count} configurations will be run`,
-        'evaluation.controlModal.note': 'Note:',
-        'evaluation.controlModal.backgroundInfo': 'Evaluation runs in the background.',
         'evaluation.controlModal.starting': 'Starting...',
         'evaluation.controlModal.startEvaluation': 'Start Evaluation',
         'evaluation.controlModal.cancel': 'Cancel',
@@ -270,7 +268,9 @@ describe('EvaluationControlModal', () => {
       await user.click(screen.getByText('Start Evaluation'))
 
       await waitFor(() => {
-        expect(onRunWithMode).toHaveBeenCalledWith(false) // missing mode -> forceRerun=false
+        // Second arg is the user-narrowed scope payload; modal always sends
+        // it now, so we just assert on the forceRerun positional.
+        expect(onRunWithMode).toHaveBeenCalledWith(false, expect.any(Object))
         expect(mockRunEvaluation).not.toHaveBeenCalled()
       })
     })
@@ -289,7 +289,7 @@ describe('EvaluationControlModal', () => {
       await user.click(screen.getByText('Start Evaluation'))
 
       await waitFor(() => {
-        expect(onRunWithMode).toHaveBeenCalledWith(true)
+        expect(onRunWithMode).toHaveBeenCalledWith(true, expect.any(Object))
       })
     })
 

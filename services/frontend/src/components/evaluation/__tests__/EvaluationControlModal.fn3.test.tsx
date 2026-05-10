@@ -72,7 +72,7 @@ describe('EvaluationControlModal fn3', () => {
     fireEvent.click(startBtn)
 
     await waitFor(() => {
-      expect(onRunWithMode).toHaveBeenCalledWith(false)
+      expect(onRunWithMode).toHaveBeenCalledWith(false, expect.any(Object))
     })
     expect(onSuccess).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
@@ -99,7 +99,7 @@ describe('EvaluationControlModal fn3', () => {
     fireEvent.click(startBtn)
 
     await waitFor(() => {
-      expect(onRunWithMode).toHaveBeenCalledWith(true)
+      expect(onRunWithMode).toHaveBeenCalledWith(true, expect.any(Object))
     })
   })
 

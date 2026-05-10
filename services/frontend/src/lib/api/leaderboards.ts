@@ -59,6 +59,10 @@ export interface LLMLeaderboardEntry {
   provider: string
   evaluation_count: number
   samples_evaluated: number
+  // Distinct generations the model produced. Mirrors `annotation_count` on the
+  // human/co-creation leaderboards so UI can show a "Generations" column with
+  // the same semantics.
+  generation_count: number
   metrics: Record<string, number | null>
   average_score: number | null // null for models without evaluations
   // 95% confidence interval for average score

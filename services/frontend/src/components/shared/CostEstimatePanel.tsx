@@ -1,6 +1,5 @@
 'use client'
 
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { useEffect, useState } from 'react'
 
 import { useToast } from '@/components/shared/Toast'
@@ -17,6 +16,12 @@ export interface CostEstimatePanelProps {
   /** When true, fetches and renders. Trigger modals pass `isOpen` here so the
    *  estimate fetch only fires when the modal is actually visible. */
   enabled?: boolean
+  /** Eval-only (issue #69): scope filters that narrow the (subject ×
+   *  prediction_field) cell count the backend prices against. The
+   *  optional `metric` lets the backend apply per-metric classification
+   *  rules (e.g. llm_judge_falloesung's unprefixed-field convention). */
+  annotatorUserIds?: string[]
+  evaluationConfigs?: Array<{ metric?: string; prediction_fields: string[] }>
   /** Mirror of the trigger endpoint's `mode` argument (all/missing/single).
    *  When 'missing', the backend counts only the cells whose latest
    *  generation failed or is absent — matching what the worker will
@@ -37,11 +42,32 @@ interface PerModelCost {
   cells_to_generate?: number
 }
 
+/**
+ * Stable string representation of the eval-configs prop for use in a
+ * `useEffect` deps array. JSON.stringify works but allocates a fresh
+ * string each render and is opaque in DevTools — this `metric:fields|...`
+ * shape is short, comparable, and reads cleanly in the deps list.
+ */
+function hashConfigs(
+  cfgs: Array<{ metric?: string; prediction_fields: string[] }> | undefined,
+): string {
+  if (!cfgs || cfgs.length === 0) return ''
+  return cfgs.map(c => `${c.metric ?? ''}:${c.prediction_fields.join(',')}`).join('|')
+}
+
 interface CostEstimateResponse {
   mode: 'generation' | 'evaluation'
   runs_per_call: number
   sample_size: number
   tasks_total: number
+  /** (subject × prediction_field) cells the eval will (re-)score; 0 for
+   *  generation mode or eval-without-configs (legacy fallback). */
+  subject_count: number
+  /** ISO timestamp (UTC) of when subject_count was computed. Surfaced as
+   *  an "as of …" tooltip so users know how stale the preview is — the
+   *  count moves whenever a generation completes between preview and
+   *  Run-click. */
+  estimated_at: string
   per_model: PerModelCost[]
   total_usd: number
   token_estimate: {
@@ -56,9 +82,9 @@ interface CostEstimateResponse {
 /**
  * Inline cost-preview panel embedded into Start Generation / Start Evaluation
  * modals. Calls /api/llm-models/cost-estimate when `enabled` flips to true and
- * renders per-model + total cost with a "± ~20%" caveat. The presentational
- * counterpart of the legacy standalone CostEstimateModal — the trigger modals
- * now render this inline instead of opening a separate dialog.
+ * renders per-model + total cost with a "± ~20%" caveat. (File renamed from
+ * `CostEstimateModal.tsx` once the standalone-dialog flavor was retired —
+ * the trigger modals now render this inline.)
  */
 export function CostEstimatePanel({
   projectId,
@@ -68,6 +94,8 @@ export function CostEstimatePanel({
   runsPerCall,
   samplesPerTask = 1,
   enabled = true,
+  annotatorUserIds,
+  evaluationConfigs,
   generationMode,
   structureKeys,
 }: CostEstimatePanelProps) {
@@ -94,6 +122,8 @@ export function CostEstimatePanel({
           judge_models: judgeModels,
           runs_per_call: runsPerCall,
           samples_per_task: samplesPerTask,
+          annotator_user_ids: annotatorUserIds,
+          evaluation_configs: evaluationConfigs,
           generation_mode: generationMode,
           structure_keys: structureKeys,
         })
@@ -113,7 +143,19 @@ export function CostEstimatePanel({
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, projectId, mode, modelIds.join(','), judgeModels.join(','), runsPerCall, samplesPerTask, generationMode, (structureKeys || []).join(',')])
+  }, [
+    enabled,
+    projectId,
+    mode,
+    modelIds.join(','),
+    judgeModels.join(','),
+    runsPerCall,
+    samplesPerTask,
+    (annotatorUserIds ?? []).join(','),
+    hashConfigs(evaluationConfigs),
+    generationMode,
+    (structureKeys || []).join(','),
+  ])
 
   if (!enabled) return null
   if (mode === 'generation' && modelIds.length === 0) return null
@@ -143,6 +185,28 @@ export function CostEstimatePanel({
           <div className="flex items-baseline justify-between">
             <span className="text-xs text-zinc-600 dark:text-zinc-400">
               {t('costEstimate.totalLabel', 'Geschätzte Gesamtkosten')}
+              {/* E4: staleness hint — subject_count depends on live DB
+                  state (a generation completing in the background changes
+                  it). Surface "as of HH:MM:SS" so users have a paper trail
+                  if the actual cost diverges. Only shown for the eval-with-
+                  configs path because the legacy tasks-count formula is
+                  effectively static within a session. */}
+              {estimate.subject_count > 0 && estimate.estimated_at && (
+                <span
+                  className="ml-2 cursor-help text-zinc-400"
+                  title={(() => {
+                    try {
+                      const ts = new Date(estimate.estimated_at)
+                      return String(t('costEstimate.estimatedAt', 'Berechnet um {time}'))
+                        .replace('{time}', ts.toLocaleTimeString())
+                    } catch {
+                      return estimate.estimated_at
+                    }
+                  })()}
+                >
+                  ⓘ
+                </span>
+              )}
             </span>
             <span className="text-xl font-semibold text-zinc-900 dark:text-white">
               ${estimate.total_usd.toFixed(2)}
@@ -150,6 +214,16 @@ export function CostEstimatePanel({
           </div>
           <div className="text-xs text-zinc-500 dark:text-zinc-500">
             {(() => {
+              // When the eval modal supplies configs the backend prices the
+              // actual cell count; surface that instead of the project-wide
+              // task count so the breakdown matches the dollar number.
+              if (estimate.subject_count > 0) {
+                const tpl = t('costEstimate.breakdownCells', '{cells} Zellen × {runs} Lauf/Läufe × {models} Modell(e)')
+                return String(tpl)
+                  .replace('{cells}', String(estimate.subject_count))
+                  .replace('{runs}', String(estimate.runs_per_call))
+                  .replace('{models}', String(estimate.per_model.length))
+              }
               const tpl = t('costEstimate.breakdown', '{tasks} Tasks × {runs} Lauf/Läufe × {models} Modell(e)')
               return String(tpl)
                 .replace('{tasks}', String(estimate.tasks_total))
@@ -209,10 +283,16 @@ export function CostEstimatePanel({
             </div>
           </div>
 
-          <div className="flex items-start gap-2 text-[11px] text-amber-700 dark:text-amber-400">
-            <ExclamationTriangleIcon className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-            <span>{estimate.note}</span>
-          </div>
+          {/* Disclaimer / note assembled by the API: "Estimate accuracy
+              ± ~20%…" plus mode-specific utilization detail and (when
+              eval-with-configs is active) a wider-variance caveat for
+              the subject-count formula. Surfaces what assumptions the
+              cost number rests on. */}
+          {estimate.note && (
+            <div className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-500">
+              {estimate.note}
+            </div>
+          )}
         </div>
       )}
     </div>

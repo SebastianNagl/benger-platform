@@ -22,6 +22,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from models import (
+    EvaluationJudgeRun,
     EvaluationRun,
     Generation,
     HumanEvaluationSession,
@@ -87,6 +88,7 @@ def _setup_eval_project(db, users, *, add_human_evals=False, add_automated=True,
     annotations = []
     generations = []
     eval_runs = []
+    judge_runs = []
     task_evals = []
 
     for i in range(num_tasks):
@@ -166,12 +168,23 @@ def _setup_eval_project(db, users, *, add_human_evals=False, add_automated=True,
         eval_runs.append(er)
         db.commit()
 
+        # Migration 043: TaskEvaluation.judge_run_id is NOT NULL.
+        jr_id = str(uuid.uuid4())
+        jr = EvaluationJudgeRun(
+            id=jr_id, evaluation_id=er_id, judge_model_id=None,
+            run_index=0, status="completed",
+        )
+        db.add(jr)
+        judge_runs.append(jr)
+        db.commit()
+
         for j, task in enumerate(tasks):
             te_id = str(uuid.uuid4())
             gen_id = generations[j].id if generations else None
             te = TaskEvaluation(
                 id=te_id,
                 evaluation_id=er_id,
+                judge_run_id=jr_id,
                 task_id=task.id,
                 generation_id=gen_id,
                 field_name="answer",
@@ -247,6 +260,7 @@ def _setup_eval_project(db, users, *, add_human_evals=False, add_automated=True,
         "annotations": annotations,
         "generations": generations,
         "eval_runs": eval_runs,
+        "judge_runs": judge_runs,
         "task_evals": task_evals,
         "org": org,
     }
@@ -645,6 +659,7 @@ class TestGetProjectResultsByTaskModel:
         te = TaskEvaluation(
             id=te_id,
             evaluation_id=er_id,
+            judge_run_id=data["judge_runs"][0].id,
             task_id=data["tasks"][0].id,
             generation_id=None,
             annotation_id=data["annotations"][0].id,
@@ -715,6 +730,7 @@ class TestGetSampleResultByTaskModel:
         te = TaskEvaluation(
             id=te_id,
             evaluation_id=er_id,
+            judge_run_id=data["judge_runs"][0].id,
             task_id=task_id,
             generation_id=None,
             annotation_id=data["annotations"][0].id,
