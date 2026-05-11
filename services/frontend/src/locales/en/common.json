@@ -7449,7 +7449,8 @@
     },
     "targetType": {
       "annotation": "Annotation",
-      "generation": "Generation"
+      "generation": "Generation",
+      "secret": "Hidden"
     },
     "totalItems": "{count} items",
     "noItems": "No items",
@@ -7579,6 +7580,7 @@
         "requeue_for_me": "Show skipped again to me",
         "ignore_skipped": "Hide skipped permanently"
       },
+      "allowSkip": "Allow skip",
       "requireCommentOnSkip": "Require comment on skip",
       "allowSelfCorrection": "Allow correcting one's own annotations",
       "visibilitySection": "Blind grading",
