@@ -7511,7 +7511,8 @@
     },
     "targetType": {
       "annotation": "Annotation",
-      "generation": "Generierung"
+      "generation": "Generierung",
+      "secret": "Geheim"
     },
     "totalItems": "{count} Elemente",
     "noItems": "Keine Elemente",
@@ -7636,6 +7637,7 @@
         "requeue_for_me": "Übersprungenes erneut anzeigen",
         "ignore_skipped": "Übersprungenes ausblenden"
       },
+      "allowSkip": "Überspringen erlauben",
       "requireCommentOnSkip": "Begründung beim Überspringen erforderlich",
       "allowSelfCorrection": "Eigene Annotationen korrigieren erlaubt",
       "visibilitySection": "Blinde Korrektur",
