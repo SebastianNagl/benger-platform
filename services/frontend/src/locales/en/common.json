@@ -3067,14 +3067,23 @@
           "image": ""
         },
         {
-          "name": "Johannes Sigmund",
-          "role": "Research Associate",
-          "institution": "TU Braunschweig",
+          "name": "Sofija Milijas",
+          "role": "Project Coordination",
+          "institution": "Technical University of Munich",
           "url": "",
           "image": ""
         }
       ],
       "teamDatasetSenior": [
+        {
+          "name": "Matthias Grabmair",
+          "role": "Project Supervisor",
+          "institution": "Technical University of Munich",
+          "url": "",
+          "image": ""
+        }
+      ],
+      "acknowledgements": [
         {
           "name": "Liane Wörner",
           "role": "Criminal Law",
@@ -3093,22 +3102,6 @@
           "name": "Dominik Brodowski",
           "role": "Criminal Law",
           "institution": "Saarland University",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Matthias Grabmair",
-          "role": "Project Supervisor",
-          "institution": "Technical University of Munich",
-          "url": "",
-          "image": ""
-        }
-      ],
-      "acknowledgements": [
-        {
-          "name": "Sofija Milijas",
-          "role": "Project Coordination",
-          "institution": "Technical University of Munich",
           "url": "",
           "image": ""
         },
