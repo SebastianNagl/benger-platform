@@ -3049,14 +3049,23 @@
           "image": ""
         },
         {
-          "name": "Johannes Sigmund",
-          "role": "Wissenschaftlicher Mitarbeiter",
-          "institution": "TU Braunschweig",
+          "name": "Sofija Milijas",
+          "role": "Projektkoordination",
+          "institution": "Technische Universität München",
           "url": "",
           "image": ""
         }
       ],
       "teamDatasetSenior": [
+        {
+          "name": "Matthias Grabmair",
+          "role": "Projektleitung",
+          "institution": "Technische Universität München",
+          "url": "",
+          "image": ""
+        }
+      ],
+      "acknowledgements": [
         {
           "name": "Liane Wörner",
           "role": "Strafrecht",
@@ -3075,22 +3084,6 @@
           "name": "Dominik Brodowski",
           "role": "Strafrecht",
           "institution": "Universität des Saarlandes",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Matthias Grabmair",
-          "role": "Projektleitung",
-          "institution": "Technische Universität München",
-          "url": "",
-          "image": ""
-        }
-      ],
-      "acknowledgements": [
-        {
-          "name": "Sofija Milijas",
-          "role": "Projektkoordination",
-          "institution": "Technische Universität München",
           "url": "",
           "image": ""
         },
