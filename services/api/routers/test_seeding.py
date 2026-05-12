@@ -190,13 +190,20 @@ async def seed_mock_generations(
                 model_id=model_id,
                 status="completed",
                 responses_generated=len(model_gens),
+                runs_requested=0,
+                runs_completed=0,
+                runs_failed=0,
                 created_by=current_user.id,
                 created_at=datetime.utcnow(),
                 completed_at=datetime.utcnow(),
             )
             db.add(response_gen)
 
-            # Create individual Generation records
+            # Create individual Generation records. Migration 041 requires a
+            # unique (generation_id, run_index) per child — track our own
+            # contiguous index that increments only on actual inserts (so
+            # task-not-found skips don't leave gaps).
+            run_index = 0
             for gen_data in model_gens:
                 task_id = gen_data.get("task_id")
                 output = gen_data.get("output", "")
@@ -217,6 +224,7 @@ async def seed_mock_generations(
                     generation_id=response_gen_id,
                     task_id=task_id,
                     model_id=model_id,
+                    run_index=run_index,
                     case_data=str(task.data) if task.data else "",
                     response_content=output,
                     status="completed",
@@ -227,6 +235,10 @@ async def seed_mock_generations(
                 )
                 db.add(generation)
                 created_ids.append(generation_id)
+                run_index += 1
+
+            response_gen.runs_requested = run_index
+            response_gen.runs_completed = run_index
 
         db.commit()
 
@@ -357,7 +369,7 @@ async def seed_mock_evaluation(
     _check_test_environment()
 
     try:
-        from models import Evaluation, EvaluationSampleResult, Generation
+        from models import Evaluation, EvaluationJudgeRun, EvaluationSampleResult, Generation
         from project_models import Project
 
         # Verify project exists
@@ -409,6 +421,21 @@ async def seed_mock_evaluation(
             db.add(evaluation)
             evaluation_ids.append(evaluation_id)
 
+            # Migration 042/043: each TaskEvaluation must hang off an
+            # EvaluationJudgeRun. Use the catch-all shape (judge_model_id=NULL,
+            # run_index=0) — same pattern migration 043 uses for orphan backfill.
+            judge_run_id = str(uuid.uuid4())
+            judge_run = EvaluationJudgeRun(
+                id=judge_run_id,
+                evaluation_id=evaluation_id,
+                judge_model_id=None,
+                run_index=0,
+                status="completed",
+                completed_at=datetime.utcnow(),
+                samples_evaluated=len(model_results),
+            )
+            db.add(judge_run)
+
             # Create EvaluationSampleResult records
             for result_data in model_results:
                 generation = result_data["generation"]
@@ -418,6 +445,7 @@ async def seed_mock_evaluation(
                 sample_result = EvaluationSampleResult(
                     id=str(uuid.uuid4()),
                     evaluation_id=evaluation_id,
+                    judge_run_id=judge_run_id,
                     task_id=generation.task_id,
                     generation_id=generation.id,
                     field_name="answer",
