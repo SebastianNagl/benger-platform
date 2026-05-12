@@ -89,6 +89,7 @@ def _seed_project_with_subjects(
         id=str(uuid.uuid4()),
         project_id=project.id,
         organization_id=test_org.id,
+        assigned_by=admin.id,
     ))
     test_db.flush()
 
