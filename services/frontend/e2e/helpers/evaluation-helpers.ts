@@ -256,11 +256,51 @@ export class EvaluationHelpers {
   }
 
   /**
+   * Expand the inner "Evaluierungsmethoden" / "Evaluation Methods" SubSection
+   * inside the (already-opened) Evaluation ConfigCard. The EvaluationBuilder
+   * — and therefore the Add Evaluation button — only renders when this
+   * SubSection is open. SubSection defaults to collapsed.
+   *
+   * Idempotent: silent no-op if the section is already expanded (button
+   * already in DOM).
+   */
+  async expandEvaluationMethodsSection(): Promise<void> {
+    if (
+      await this.page
+        .locator('[data-testid="add-evaluation-button"]')
+        .isVisible({ timeout: 500 })
+        .catch(() => false)
+    ) {
+      return
+    }
+
+    const sectionTitles = [
+      'Evaluierungsmethoden',
+      'Evaluation Methods',
+      'Evaluation Methoden',
+    ]
+    for (const title of sectionTitles) {
+      const header = this.page.locator(`button:has(h2:text-is("${title}"))`).first()
+      if (await header.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await header.click()
+        await this.page.waitForTimeout(500)
+        return
+      }
+    }
+    // Don't throw — fall through and let openAddEvaluationWizard surface the
+    // real failure ("Add Evaluation button not found"). A locale change or
+    // SubSection rename should still produce that diagnosable error.
+  }
+
+  /**
    * Click "Add Evaluation" button to open the wizard
    * Throws if button cannot be found
    */
   async openAddEvaluationWizard(): Promise<void> {
     console.log(`[openAddEvaluationWizard] starting at URL: ${this.page.url()}`)
+    // The button lives inside a SubSection that's collapsed by default —
+    // expand it first so the button is in the DOM.
+    await this.expandEvaluationMethodsSection()
     const testIdButton = this.page.locator('[data-testid="add-evaluation-button"]')
     if (await testIdButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await testIdButton.click()
