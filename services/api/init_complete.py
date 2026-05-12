@@ -558,7 +558,7 @@ def setup_e2e_evaluations(db):
     """
     from datetime import datetime
 
-    from models import EvaluationRun, TaskEvaluation, Generation, User
+    from models import EvaluationJudgeRun, EvaluationRun, TaskEvaluation, Generation, User
     from project_models import Project, Task
 
     admin = db.query(User).filter(User.email == "admin@example.com").first()
@@ -642,6 +642,22 @@ def setup_e2e_evaluations(db):
         )
         db.add(evaluation)
 
+        # Migration 042/043: every TaskEvaluation must hang off an
+        # EvaluationJudgeRun. The e2e config has no judge_model in
+        # metric_parameters, so use the catch-all shape (judge_model_id=NULL,
+        # run_index=0) — same pattern migration 043 uses for orphan backfill.
+        judge_run_id = str(uuid.uuid4())
+        judge_run = EvaluationJudgeRun(
+            id=judge_run_id,
+            evaluation_id=evaluation_id,
+            judge_model_id=None,
+            run_index=0,
+            status="completed",
+            completed_at=datetime.utcnow(),
+            samples_evaluated=len(tasks),
+        )
+        db.add(judge_run)
+
         # Create TaskEvaluation for each task
         for i, task in enumerate(tasks):
             if i >= len(scores):
@@ -655,6 +671,7 @@ def setup_e2e_evaluations(db):
             sample_result = TaskEvaluation(
                 id=str(uuid.uuid4()),
                 evaluation_id=evaluation_id,
+                judge_run_id=judge_run_id,
                 task_id=task.id,
                 generation_id=gen.id,
                 field_name="answer",
