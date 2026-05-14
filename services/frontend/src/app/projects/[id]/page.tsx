@@ -3794,23 +3794,27 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               {t('project.quickActions.title')}
             </h2>
             <div className="space-y-3">
-              {userCompletedAllTasks && (
-                <div className="flex w-full items-center justify-center gap-2 rounded-md bg-emerald-50 px-4 py-2.5 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
-                  <CheckCircleIcon className="h-5 w-5" />
-                  <span className="font-medium">
-                    {t('project.quickActions.allTasksAnnotated')}
-                  </span>
-                </div>
+              {currentProject.enable_annotation !== false && (
+                <>
+                  {userCompletedAllTasks && (
+                    <div className="flex w-full items-center justify-center gap-2 rounded-md bg-emerald-50 px-4 py-2.5 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
+                      <CheckCircleIcon className="h-5 w-5" />
+                      <span className="font-medium">
+                        {t('project.quickActions.allTasksAnnotated')}
+                      </span>
+                    </div>
+                  )}
+                  <Button
+                    onClick={handleStartLabeling}
+                    variant="primary"
+                    className="w-full"
+                    disabled={currentProject.task_count === 0}
+                  >
+                    <PlayIcon className="mr-2 h-4 w-4" />
+                    {t('project.quickActions.startLabeling')}
+                  </Button>
+                </>
               )}
-              <Button
-                onClick={handleStartLabeling}
-                variant="primary"
-                className="w-full"
-                disabled={currentProject.task_count === 0}
-              >
-                <PlayIcon className="mr-2 h-4 w-4" />
-                {t('project.quickActions.startLabeling')}
-              </Button>
 
               {canSeeQuickAction('projectData') && (
                 <Button
