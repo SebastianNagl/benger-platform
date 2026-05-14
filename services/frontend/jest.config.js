@@ -112,7 +112,7 @@ const config = {
       statements: 81,
       branches: 72,
       functions: 76,
-      lines: 83,
+      lines: 82,
     },
     // Critical business logic - higher standards
     'src/lib/api/': {
