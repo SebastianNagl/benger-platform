@@ -2699,11 +2699,38 @@ def run_evaluation(
                                     _jr.completed_at = datetime.now()
                                     db.commit()
 
+                            # Stash the construction kwargs alongside the
+                            # in-memory evaluator. Sub-tasks (post-fan-out)
+                            # need to re-instantiate the evaluator per worker
+                            # process via `create_llm_judge_for_user` — they
+                            # can't be passed the already-built evaluator
+                            # instance (not picklable across Celery). The
+                            # orchestrator is the one place all the param
+                            # resolution (`_resolve_judge`, temperature
+                            # clamping, per-run seed perturbation) happens;
+                            # stashing the resolved kwargs here threads the
+                            # decision through to sub-tasks unchanged.
+                            judge_evaluator_kwargs = {
+                                "judge_model": judge_model,
+                                "provider": provider,
+                                "temperature": judge_temp,
+                                "max_tokens": judge_max_tokens,
+                                "criteria": params.get("dimensions"),
+                                "custom_criteria": params.get("custom_criteria"),
+                                "custom_prompt_template": params.get("custom_prompt_template"),
+                                "answer_type": params.get("answer_type"),
+                                "field_mappings": params.get("field_mappings"),
+                                "score_scale": params.get("score_scale", "1-5"),
+                                "thinking_budget": params.get("thinking_budget"),
+                                "reasoning_effort": params.get("reasoning_effort"),
+                                "seed": judge_seed,
+                            }
                             judge_runs_by_config[config_id].append({
                                 "judge_model_id": judge_model,
                                 "run_index": run_index,
                                 "judge_run_id": jr_id,
                                 "evaluator": evaluator,
+                                "judge_evaluator_kwargs": judge_evaluator_kwargs,
                             })
 
                     # Populate legacy single-judge maps from the first
@@ -2798,7 +2825,7 @@ def run_evaluation(
             uses_all_model = any(
                 "__all_model__" in c.get("prediction_fields", []) for c in enabled_configs
             )
-            gen_cells: List[tuple] = []  # (task_id, generation_id)
+            gen_cells: List[tuple] = []  # (task_id, generation_id, already_done_field_keys)
             for task in tasks:
                 generations_query = db.query(Generation).filter(Generation.task_id == task.id)
                 if not uses_all_model:
@@ -2815,12 +2842,16 @@ def run_evaluation(
                     )
                 generations = generations_query.all()
                 for gen in generations:
+                    gen_done = evaluated_by_gen.get(gen.id, set())
                     if evaluate_missing_only:
-                        gen_done = evaluated_by_gen.get(gen.id, set())
                         if all_expected_field_keys and all_expected_field_keys.issubset(gen_done):
                             # Fully evaluated already; nothing to dispatch for this cell.
                             continue
-                    gen_cells.append((task.id, gen.id))
+                    # Pass the per-cell already-done set to the sub-task so it
+                    # can skip already-evaluated field_keys WITHOUT firing the
+                    # LLM judge call (ON CONFLICT DO NOTHING would catch the
+                    # INSERT but the LLM call would already have happened).
+                    gen_cells.append((task.id, gen.id, sorted(gen_done) if gen_done else []))
 
             # Annotation-side enumeration. The legacy body at ~3357-3412
             # pre-loaded all annotations once (with the annotator_user_ids
@@ -2885,11 +2916,11 @@ def run_evaluation(
                             )
 
                 for ann in all_annotations:
+                    ann_done = evaluated_by_ann.get(ann.id, set())
                     if evaluate_missing_only:
-                        ann_done = evaluated_by_ann.get(ann.id, set())
                         if all_expected_field_keys and all_expected_field_keys.issubset(ann_done):
                             continue
-                    ann_cells.append((ann.task_id, ann.id))
+                    ann_cells.append((ann.task_id, ann.id, sorted(ann_done) if ann_done else []))
 
             # ── Build serialized judge_run_ids_by_config for Celery kwargs ────
             # The full `judge_runs_by_config` dict (built upstream during judge
@@ -2903,6 +2934,11 @@ def run_evaluation(
                         "judge_model_id": e.get("judge_model_id"),
                         "run_index": e.get("run_index"),
                         "judge_run_id": e.get("judge_run_id"),
+                        # Threaded through to sub-tasks so each worker process
+                        # can re-instantiate the LLMJudgeEvaluator without
+                        # redoing param resolution. See orchestrator's
+                        # judge-init block for the source of these values.
+                        "judge_evaluator_kwargs": e.get("judge_evaluator_kwargs"),
                     }
                     for e in entries
                 ]
@@ -2967,7 +3003,7 @@ def run_evaluation(
             )
 
             header_sigs = []
-            for (cell_task_id, cell_gen_id) in gen_cells:
+            for (cell_task_id, cell_gen_id, cell_already_done) in gen_cells:
                 header_sigs.append(
                     evaluate_generation_cell.signature(
                         kwargs={
@@ -2981,11 +3017,12 @@ def run_evaluation(
                             "organization_id": organization_id,
                             "triggered_by_user_id": triggered_by,
                             "label_config_version": label_config_version,
+                            "already_evaluated_field_keys": cell_already_done,
                         },
                         queue="evaluation",
                     )
                 )
-            for (cell_task_id, cell_ann_id) in ann_cells:
+            for (cell_task_id, cell_ann_id, cell_already_done) in ann_cells:
                 header_sigs.append(
                     evaluate_annotation_cell.signature(
                         kwargs={
@@ -2998,6 +3035,7 @@ def run_evaluation(
                             "default_judge_run_id": default_judge_run_id,
                             "organization_id": organization_id,
                             "triggered_by_user_id": triggered_by,
+                            "already_evaluated_field_keys": cell_already_done,
                         },
                         queue="evaluation",
                     )
@@ -3830,7 +3868,7 @@ def _reconstruct_judge_evaluators_for_cell(
         the config (for the legacy guard branches that still consult it
         in scalar form)
     """
-    from llm_judge_evaluator import create_llm_judge_for_user
+    from ml_evaluation.llm_judge_evaluator import create_llm_judge_for_user
 
     judge_runs_by_config: Dict[str, List[Dict[str, Any]]] = {}
     llm_judge_evaluators: Dict[str, Any] = {}
@@ -3840,7 +3878,6 @@ def _reconstruct_judge_evaluators_for_cell(
         if not metric.startswith("llm_judge_"):
             continue
         config_id = config.get("id", "unknown")
-        params = config.get("metric_parameters", {}) or {}
         entries = judge_run_ids_by_config.get(config_id, []) or []
         judge_runs_by_config.setdefault(config_id, [])
 
@@ -3848,20 +3885,19 @@ def _reconstruct_judge_evaluators_for_cell(
             judge_model_id = entry["judge_model_id"]
             run_index = entry["run_index"]
             judge_run_id = entry["judge_run_id"]
+            # The orchestrator stashed the fully-resolved construction
+            # kwargs at trigger time (`_resolve_judge` chain, temperature
+            # clamp, seed perturbation). Sub-tasks just unpack them; we
+            # never recompute or re-resolve here so a divergence between
+            # orchestrator + sub-task param logic is impossible.
+            construct_kwargs = entry.get("judge_evaluator_kwargs") or {}
+
             try:
                 evaluator = create_llm_judge_for_user(
-                    user_id=triggered_by_user_id,
                     db=db,
-                    metric_name=metric,
+                    user_id=triggered_by_user_id,
                     organization_id=organization_id,
-                    judge_model_id=judge_model_id,
-                    score_scale=params.get("score_scale", "0-1"),
-                    answer_type=params.get("answer_type"),
-                    temperature=params.get("temperature"),
-                    max_tokens=params.get("max_tokens"),
-                    thinking_budget=params.get("thinking_budget"),
-                    reasoning_effort=params.get("reasoning_effort"),
-                    seed=params.get("seed"),
+                    **construct_kwargs,
                 )
             except Exception as init_err:
                 logger.warning(
@@ -4003,6 +4039,7 @@ def evaluate_generation_cell(
     organization_id: Optional[str],
     triggered_by_user_id: str,
     label_config_version: Optional[str] = None,
+    already_evaluated_field_keys: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Per-(task, generation) sub-task dispatched by the eval orchestrator.
 
@@ -4063,6 +4100,18 @@ def evaluate_generation_cell(
         )
         sample_evaluator = _build_sample_evaluator_for_cell(evaluation_id, configs_for_cell)
 
+        # Pre-normalize the orchestrator-supplied "already done" set so the
+        # per-field-pair skip check below is a cheap set membership lookup
+        # instead of re-normalizing each iteration. Skipping here avoids the
+        # wasted LLM-judge call that would otherwise happen (the ON CONFLICT
+        # DO NOTHING insert would drop the row, but the LLM call already
+        # happened — burning quota). Mirror of the legacy skip at
+        # ex-`tasks.py:2906-2909`.
+        _already_done_normalized = {
+            _normalize_field_key(fk, is_annotation=False)
+            for fk in (already_evaluated_field_keys or [])
+        }
+
         # Local accumulators (returned to caller via counter bump at end).
         sample_results: List[Dict[str, Any]] = []
         local_samples_evaluated = 0
@@ -4090,6 +4139,15 @@ def evaluate_generation_cell(
 
                 for ref_field in reference_fields:
                     field_key = f"{config_id}|{pred_field}|{ref_field}"
+
+                    # Per-field-pair skip when this cell already has a row
+                    # for this (config, pred, ref). Lifted from legacy
+                    # ex-`tasks.py:2906-2909`. Without this, partial-cell
+                    # retries would re-call the LLM judge for already-done
+                    # field_keys (ON CONFLICT only stops the INSERT, not
+                    # the upstream LLM call).
+                    if _normalize_field_key(field_key, is_annotation=False) in _already_done_normalized:
+                        continue
 
                     # Ground truth extraction.
                     if ref_field.startswith("task."):
@@ -4446,6 +4504,7 @@ def evaluate_annotation_cell(
     default_judge_run_id: str,
     organization_id: Optional[str],
     triggered_by_user_id: str,
+    already_evaluated_field_keys: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Per-(task, annotation) sub-task dispatched by the eval orchestrator.
 
@@ -4485,6 +4544,14 @@ def evaluate_annotation_cell(
             db=db,
         )
         sample_evaluator = _build_sample_evaluator_for_cell(evaluation_id, configs_for_cell)
+
+        # Pre-normalize per-cell already-done set (annotation-side mirror of
+        # the generation-side skip). Same rationale — avoid the wasted
+        # LLM-judge call on partial-cell retries.
+        _already_done_normalized = {
+            _normalize_field_key(fk, is_annotation=True)
+            for fk in (already_evaluated_field_keys or [])
+        }
 
         sample_results: List[Dict[str, Any]] = []
         local_samples_evaluated = 0
@@ -4531,6 +4598,12 @@ def evaluate_annotation_cell(
                 for actual_pred_field, prediction in field_predictions:
                     for ref_field in reference_fields:
                         field_key = f"{config_id}|{actual_pred_field}|{ref_field}"
+
+                        # Per-field-pair skip — mirror of legacy
+                        # ex-`tasks.py:3485-3488`. Same wasted-LLM-call
+                        # rationale as the gen-side sub-task.
+                        if _normalize_field_key(field_key, is_annotation=True) in _already_done_normalized:
+                            continue
 
                         gt_key = (task.id, ref_field)
                         if gt_key not in gt_cache:
