@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import '@/test-utils/locationMock'
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -30,16 +31,11 @@ describe('GlobalError', () => {
     digest: 'abc123',
   })
 
-  // Mock window.location.reload
-  const mockReload = jest.fn()
-
   beforeEach(() => {
     jest.clearAllMocks()
     jest.spyOn(console, 'error').mockImplementation(() => {})
     jest.spyOn(console, 'log').mockImplementation(() => {})
-    // Mock reload before each test
-    delete (window as any).location
-    ;(window as any).location = { reload: mockReload }
+    // window.location.reload is auto-spied per test by jest-location-mock.
   })
 
   afterEach(() => {

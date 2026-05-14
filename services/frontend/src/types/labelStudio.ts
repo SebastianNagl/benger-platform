@@ -72,6 +72,11 @@ export interface Project {
   // when > 0; computed by routers/projects/helpers.calculate_generation_stats.
   generation_count?: number
 
+  // EvaluationRun tallies — feed the Statistiken "Evaluations" tile and
+  // contribute to progress_percentage when enable_evaluation is true.
+  evaluation_count?: number
+  evaluations_completed_count?: number
+
   // BenGER specific
   llm_model_ids?: string[]
   generation_config?: GenerationConfig

@@ -98,6 +98,13 @@ def _setup_generate_llm_mocks(
 
     ai_service = MagicMock()
     ai_service.is_available.return_value = True
+    # Issue #82: real services always have these four attributes set by
+    # user_aware_ai_service. Without them, the worker tries to JSON-
+    # serialize child MagicMocks into response_metadata and crashes.
+    ai_service._key_resolution_route = "user_key"
+    ai_service._provider_name = model_provider.lower()
+    ai_service._invocation_user_id = "u1"
+    ai_service._invocation_organization_id = None
 
     if ai_response_fn is None:
         async def ai_response_fn(**kwargs):
@@ -399,6 +406,11 @@ class TestGenerateLLMResponsesStructureKeyListFormat:
 
         ai_service = MagicMock()
         ai_service.is_available.return_value = True
+        # Issue #82: see helper note above.
+        ai_service._key_resolution_route = "user_key"
+        ai_service._provider_name = "openai"
+        ai_service._invocation_user_id = "u1"
+        ai_service._invocation_organization_id = None
 
         def mock_gen_response(**kwargs):
             return {"response_text": "answer", "prompt_tokens": 5, "completion_tokens": 5, "total_tokens": 10, "cost_usd": 0.001}

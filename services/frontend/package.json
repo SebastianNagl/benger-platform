@@ -151,6 +151,7 @@
     "jest": "^30.3.0",
     "jest-axe": "^10.0.0",
     "jest-environment-jsdom": "^30.3.0",
+    "jest-location-mock": "^3.0.0",
     "msw": "^2.13.6",
     "next-test-api-route-handler": "^5.0.4",
     "postcss": "^8.5.8",

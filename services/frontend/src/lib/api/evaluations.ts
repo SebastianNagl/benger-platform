@@ -1136,8 +1136,10 @@ export class EvaluationsClient extends BaseApiClient {
       ci_lower: number | null
       ci_upper: number | null
       // Underlying User.id, only set when provider === "Annotator". Used by
-      // the eval modal to dispatch annotator-scoped runs.
-      user_id?: string | null
+      // the eval modal to dispatch annotator-scoped runs. Backend emits the
+      // key only on annotator rows (metadata.py: `**({"user_id": uid} if
+      // is_annotator and uid else {})`), so the type is `?: string`, never null.
+      user_id?: string
       // Status flags (only present when includeConfigured=true)
       is_configured?: boolean
       has_generations?: boolean

@@ -1,6 +1,8 @@
 /**
  * @jest-environment jsdom
  */
+import '@/test-utils/locationMock'
+
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DevModeIndicator } from '../DevModeIndicator'
@@ -30,9 +32,8 @@ describe('DevModeIndicator', () => {
       },
     })
 
-    // Mock window.location
-    delete (window as any).location
-    ;(window as any).location = { hostname: 'localhost' }
+    // window.location is mocked globally by jest-location-mock; default
+    // hostname is 'localhost', which matches what these tests assert.
   })
 
   afterEach(() => {
@@ -48,7 +49,6 @@ describe('DevModeIndicator', () => {
     it('shows indicator when dev auth enabled, localhost, and user exists', async () => {
       process.env.NODE_ENV = 'development'
       delete process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN
-      ;(window as any).location = { hostname: 'localhost' }
 
       render(<DevModeIndicator />)
 
@@ -59,7 +59,6 @@ describe('DevModeIndicator', () => {
 
     it('hides indicator when dev auth disabled', async () => {
       process.env.NODE_ENV = 'test'
-      ;(window as any).location = { hostname: 'localhost' }
 
       render(<DevModeIndicator />)
 
@@ -71,7 +70,6 @@ describe('DevModeIndicator', () => {
     it('hides indicator when user is null', async () => {
       process.env.NODE_ENV = 'development'
       delete process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN
-      ;(window as any).location = { hostname: 'localhost' }
       mockUseAuth.mockReturnValue({ user: null })
 
       render(<DevModeIndicator />)
@@ -84,7 +82,6 @@ describe('DevModeIndicator', () => {
     it('hides indicator when user is undefined', async () => {
       process.env.NODE_ENV = 'development'
       delete process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN
-      ;(window as any).location = { hostname: 'localhost' }
       mockUseAuth.mockReturnValue({ user: undefined })
 
       render(<DevModeIndicator />)
@@ -99,7 +96,6 @@ describe('DevModeIndicator', () => {
     beforeEach(() => {
       process.env.NODE_ENV = 'development'
       delete process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN
-      ;(window as any).location = { hostname: 'localhost' }
     })
 
     it('renders badge with correct text', async () => {
@@ -194,7 +190,6 @@ describe('DevModeIndicator', () => {
     beforeEach(() => {
       process.env.NODE_ENV = 'development'
       delete process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN
-      ;(window as any).location = { hostname: 'localhost' }
       mockUseAuth.mockReturnValue({
         user: {
           id: '1',
@@ -398,7 +393,6 @@ describe('DevModeIndicator', () => {
     beforeEach(() => {
       process.env.NODE_ENV = 'development'
       delete process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN
-      ;(window as any).location = { hostname: 'localhost' }
     })
 
     it('handles user with special characters in username', async () => {
@@ -500,7 +494,6 @@ describe('DevModeIndicator', () => {
     beforeEach(() => {
       process.env.NODE_ENV = 'development'
       delete process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN
-      ;(window as any).location = { hostname: 'localhost' }
     })
 
     it('shows indicator when user logs in', async () => {
@@ -570,7 +563,6 @@ describe('DevModeIndicator', () => {
     beforeEach(() => {
       process.env.NODE_ENV = 'development'
       delete process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN
-      ;(window as any).location = { hostname: 'localhost' }
     })
 
     it('badge is keyboard accessible', async () => {
@@ -637,7 +629,6 @@ describe('DevModeIndicator', () => {
     it('handles rapid toggle clicks', async () => {
       process.env.NODE_ENV = 'development'
       delete process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN
-      ;(window as any).location = { hostname: 'localhost' }
 
       const user = userEvent.setup()
       render(<DevModeIndicator />)
@@ -660,7 +651,6 @@ describe('DevModeIndicator', () => {
     it('handles missing user properties gracefully', async () => {
       process.env.NODE_ENV = 'development'
       delete process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN
-      ;(window as any).location = { hostname: 'localhost' }
       mockUseAuth.mockReturnValue({
         user: {
           id: '1',
@@ -689,7 +679,6 @@ describe('DevModeIndicator', () => {
     it('handles hostname with port number', async () => {
       process.env.NODE_ENV = 'development'
       delete process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN
-      ;(window as any).location = { hostname: 'localhost' }
 
       const user = userEvent.setup()
       render(<DevModeIndicator />)
@@ -709,7 +698,6 @@ describe('DevModeIndicator', () => {
     beforeEach(() => {
       process.env.NODE_ENV = 'development'
       delete process.env.NEXT_PUBLIC_DISABLE_AUTO_LOGIN
-      ;(window as any).location = { hostname: 'localhost' }
     })
 
     it('includes shadow on badge', async () => {

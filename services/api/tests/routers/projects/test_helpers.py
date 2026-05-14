@@ -27,6 +27,10 @@ def test_calculate_project_stats_batch_with_projects():
         Mock(project_id='p2', annotation_count=18),
     ]
 
+    evaluation_stats = [
+        Mock(project_id='p1', evaluation_count=3, evaluations_completed_count=2),
+    ]
+
     # Setup mock query chain for task stats
     task_query_mock = Mock()
     task_query_mock.filter.return_value.group_by.return_value.all.return_value = task_stats
@@ -37,8 +41,14 @@ def test_calculate_project_stats_batch_with_projects():
         annotation_stats
     )
 
+    # Setup mock query chain for evaluation stats
+    evaluation_query_mock = Mock()
+    evaluation_query_mock.filter.return_value.group_by.return_value.all.return_value = (
+        evaluation_stats
+    )
+
     # Setup db.query to return different mocks on consecutive calls
-    db.query.side_effect = [task_query_mock, annotation_query_mock]
+    db.query.side_effect = [task_query_mock, annotation_query_mock, evaluation_query_mock]
 
     # Call function
     result = calculate_project_stats_batch(db, ['p1', 'p2'])
@@ -49,9 +59,14 @@ def test_calculate_project_stats_batch_with_projects():
     assert result['p1']['task_count'] == 10
     assert result['p1']['completed_tasks_count'] == 5
     assert result['p1']['annotation_count'] == 8
+    assert result['p1']['evaluation_count'] == 3
+    assert result['p1']['evaluations_completed_count'] == 2
     assert result['p2']['task_count'] == 20
     assert result['p2']['completed_tasks_count'] == 15
     assert result['p2']['annotation_count'] == 18
+    # p2 has no eval rows → zero-initialised
+    assert result['p2']['evaluation_count'] == 0
+    assert result['p2']['evaluations_completed_count'] == 0
 
 
 def test_calculate_project_stats_batch_empty_list():
@@ -77,7 +92,11 @@ def test_calculate_project_stats_batch_missing_annotations():
         annotation_stats
     )
 
-    db.query.side_effect = [task_query_mock, annotation_query_mock]
+    # No evaluation rows for either project
+    evaluation_query_mock = Mock()
+    evaluation_query_mock.filter.return_value.group_by.return_value.all.return_value = []
+
+    db.query.side_effect = [task_query_mock, annotation_query_mock, evaluation_query_mock]
 
     result = calculate_project_stats_batch(db, ['p1', 'p2'])
 
@@ -85,11 +104,29 @@ def test_calculate_project_stats_batch_missing_annotations():
     assert result['p1']['task_count'] == 10
     assert result['p1']['completed_tasks_count'] == 5
     assert result['p1']['annotation_count'] == 0
+    assert result['p1']['evaluation_count'] == 0
 
     # p2 should have annotation stats but zero task stats
     assert result['p2']['task_count'] == 0
     assert result['p2']['completed_tasks_count'] == 0
     assert result['p2']['annotation_count'] == 18
+    assert result['p2']['evaluation_count'] == 0
+
+
+def _annotation_only_project_mock():
+    """Project mock with only the annotation stage enabled.
+
+    Generation/evaluation are disabled so calculate_project_stats only fires
+    the task / annotation / completed-task / evaluation-count count queries
+    (5 total). Configs are None so the gen_models_count branch is also skipped.
+    """
+    project = Mock()
+    project.enable_annotation = True
+    project.enable_generation = False
+    project.enable_evaluation = False
+    project.generation_config = None
+    project.evaluation_config = None
+    return project
 
 
 def test_calculate_project_stats():
@@ -109,10 +146,24 @@ def test_calculate_project_stats():
     completed_tasks_query = Mock()
     completed_tasks_query.filter.return_value.count.return_value = 5
 
-    # db.query returns different mocks for each model
-    db.query.side_effect = [task_count_query, annotation_count_query, completed_tasks_query]
+    # Evaluation count + completed-evaluation count queries (always fire, used
+    # for the Statistiken tile even when enable_evaluation is False).
+    evaluation_count_query = Mock()
+    evaluation_count_query.filter.return_value.count.return_value = 0
+    evaluations_completed_query = Mock()
+    evaluations_completed_query.filter.return_value.count.return_value = 0
 
-    calculate_project_stats(db, 'project-1', response)
+    db.query.side_effect = [
+        task_count_query,
+        annotation_count_query,
+        completed_tasks_query,
+        evaluation_count_query,
+        evaluations_completed_query,
+    ]
+
+    calculate_project_stats(
+        db, 'project-1', response, project=_annotation_only_project_mock()
+    )
 
     # Verify response was populated
     assert response.task_count == 10
@@ -129,7 +180,9 @@ def test_calculate_project_stats_zero_tasks():
     # All counts are zero
     db.query.return_value.filter.return_value.count.return_value = 0
 
-    calculate_project_stats(db, 'empty-project', response)
+    calculate_project_stats(
+        db, 'empty-project', response, project=_annotation_only_project_mock()
+    )
 
     assert response.task_count == 0
     assert response.progress_percentage == 0.0

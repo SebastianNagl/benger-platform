@@ -1,6 +1,15 @@
 // Jest DOM matchers
 import '@testing-library/jest-dom'
 
+// jest-location-mock is NOT loaded globally here. It swaps `window._globalProxy`
+// with a Proxy, which breaks JSDOM's WebSocket bookkeeping (`openSockets.get(window)`
+// looks up under the real window but registration happened under the Proxy →
+// `.delete()` crashes at WebSocket-impl.js:229 in unrelated suites that use
+// WebSockets). Test files that need to mock window.location should opt in
+// per-file by importing `@/test-utils/locationMock` (which loads
+// jest-location-mock plus a patch that handles relative URLs in href setters).
+
+
 // Mock fetch globally for all tests
 global.fetch = jest.fn(() =>
   Promise.resolve({

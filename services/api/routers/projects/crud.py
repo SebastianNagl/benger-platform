@@ -21,6 +21,7 @@ from project_models import Project, ProjectOrganization, Task
 from project_schemas import PaginatedResponse, ProjectCreate, ProjectResponse, ProjectUpdate
 from routers.projects.helpers import (
     apply_generation_stats,
+    apply_mixed_progress,
     calculate_generation_stats,
     calculate_generation_stats_batch,
     calculate_project_stats,
@@ -148,29 +149,33 @@ async def list_projects(
 
             # Apply pre-fetched statistics
             stats = stats_map.get(
-                project.id, {'task_count': 0, 'completed_tasks_count': 0, 'annotation_count': 0}
+                project.id,
+                {
+                    'task_count': 0,
+                    'completed_tasks_count': 0,
+                    'annotation_count': 0,
+                    'evaluation_count': 0,
+                    'evaluations_completed_count': 0,
+                },
             )
             response.task_count = stats['task_count']
             response.completed_tasks_count = stats['completed_tasks_count']
             response.annotation_count = stats['annotation_count']
+            response.evaluation_count = stats['evaluation_count']
+            response.evaluations_completed_count = stats['evaluations_completed_count']
             # Mirror to legacy aliases (see calculate_project_stats note).
             response.num_tasks = response.task_count
             response.num_annotations = response.annotation_count
 
-            # Calculate progress based on Label Studio approach
-            if response.task_count > 0:
-                response.progress_percentage = min(
-                    100.0, (response.completed_tasks_count / response.task_count) * 100
-                )
-            else:
-                response.progress_percentage = 0.0
-
             # Apply pre-fetched generation statistics (no DB query per project)
-            apply_generation_stats(
-                project,
-                response,
-                gen_stats_map.get(project.id, {"generation_count": 0, "completed_generations": 0}),
+            gen_stats = gen_stats_map.get(
+                project.id, {"generation_count": 0, "completed_generations": 0}
             )
+            apply_generation_stats(project, response, gen_stats)
+
+            # Progress: weighted mix across enabled stages. Uses the
+            # already-fetched generation completion count to stay query-free.
+            apply_mixed_progress(project, response, gen_stats.get("completed_generations", 0))
 
             # Note: organizations are already handled in from_orm method
             # Don't need to set them again here
@@ -412,7 +417,7 @@ async def get_project(
     response.created_by_name = project.creator.name if project.creator else None
 
     # Calculate statistics
-    calculate_project_stats(db, project.id, response)
+    calculate_project_stats(db, project.id, response, project=project)
     calculate_generation_stats(db, project, response)
 
     # Note: organizations are already handled in from_orm method
@@ -552,7 +557,7 @@ async def update_project(
     response.created_by_name = project.creator.name if project.creator else None
 
     # Calculate statistics including generation_models_count
-    calculate_project_stats(db, project.id, response)
+    calculate_project_stats(db, project.id, response, project=project)
     calculate_generation_stats(db, project, response)
 
     # Note: organizations are already handled in from_orm method
@@ -777,7 +782,7 @@ async def update_project_visibility(
 
     response = ProjectResponse.from_orm(project)
     response.created_by_name = project.creator.name if project.creator else None
-    calculate_project_stats(db, project.id, response)
+    calculate_project_stats(db, project.id, response, project=project)
     calculate_generation_stats(db, project, response)
 
     return response
@@ -813,7 +818,7 @@ def recalculate_project_statistics(
     temp_response = ProjectResponse.from_orm(project)
 
     # Calculate statistics using our helper function
-    calculate_project_stats(db, project_id, temp_response)
+    calculate_project_stats(db, project_id, temp_response, project=project)
 
     return {
         "message": "Project statistics recalculated successfully",

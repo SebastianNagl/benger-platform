@@ -553,34 +553,50 @@ async def start_generation(
     # Determine which task-model-structure combinations to generate
     tasks_to_queue = []
 
+    # Issue #83: Bulk-fetch the latest status per (task_id, model_id, structure_key)
+    # in a single round-trip instead of one SELECT per cell. For projects with
+    # thousands of cells, the per-cell scan exceeded the browser's fetch-abort
+    # threshold even though the handler completed correctly server-side.
+    latest_status: Dict[tuple, str] = {}
+    if request.mode == "missing":
+        task_ids_list = [t.id for t in tasks]
+        latest_rows = (
+            db.query(
+                DBResponseGeneration.task_id,
+                DBResponseGeneration.model_id,
+                DBResponseGeneration.structure_key,
+                DBResponseGeneration.status,
+            )
+            .filter(
+                DBResponseGeneration.project_id == project_id,
+                DBResponseGeneration.task_id.in_(task_ids_list),
+                DBResponseGeneration.model_id.in_(model_ids),
+            )
+            .distinct(
+                DBResponseGeneration.task_id,
+                DBResponseGeneration.model_id,
+                DBResponseGeneration.structure_key,
+            )
+            .order_by(
+                DBResponseGeneration.task_id,
+                DBResponseGeneration.model_id,
+                DBResponseGeneration.structure_key,
+                DBResponseGeneration.created_at.desc(),
+            )
+            .all()
+        )
+        latest_status = {
+            (r.task_id, r.model_id, r.structure_key): r.status for r in latest_rows
+        }
+
     for task in tasks:
         for model_id in model_ids:
             for structure_key in structure_keys:
-                # Check if we should generate this combination
-                should_generate = False
-
                 if request.mode in ("all", "single"):
                     should_generate = True
                 else:  # mode == "missing"
-                    # Check the MOST RECENT generation for this task-model-structure combination
-                    # This allows retrying failed tasks even if older completed records exist
-                    query = db.query(DBResponseGeneration).filter(
-                        DBResponseGeneration.task_id == task.id,
-                        DBResponseGeneration.model_id == model_id,
-                    )
-
-                    # Add structure_key filter if specified
-                    if structure_key is not None:
-                        query = query.filter(DBResponseGeneration.structure_key == structure_key)
-                    else:
-                        # For backward compatibility, check for NULL structure_key
-                        query = query.filter(DBResponseGeneration.structure_key.is_(None))
-
-                    # Get the most recent record by created_at
-                    latest = query.order_by(DBResponseGeneration.created_at.desc()).first()
-
-                    # Generate if no record exists OR if the latest record failed
-                    should_generate = (latest is None) or (latest.status == "failed")
+                    latest = latest_status.get((task.id, model_id, structure_key))
+                    should_generate = (latest is None) or (latest == "failed")
 
                 if should_generate:
                     tasks_to_queue.append((task.id, model_id, structure_key))

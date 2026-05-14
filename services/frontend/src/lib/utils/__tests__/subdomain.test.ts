@@ -227,28 +227,5 @@ describe('cookie helpers', () => {
     expect(getLastOrgSlug()).toBe('my org')
   })
 
-  it('getLastOrgSlug returns null in SSR context', () => {
-    const origDocument = global.document
-    // @ts-ignore
-    delete global.document
-    expect(getLastOrgSlug()).toBeNull()
-    global.document = origDocument
-  })
-
-  it('setLastOrgSlug does nothing in SSR context', () => {
-    const origDocument = global.document
-    // @ts-ignore
-    delete global.document
-    // Should not throw
-    setLastOrgSlug('test')
-    global.document = origDocument
-  })
-
-  it('clearLastOrgSlug does nothing in SSR context', () => {
-    const origDocument = global.document
-    // @ts-ignore
-    delete global.document
-    clearLastOrgSlug()
-    global.document = origDocument
-  })
+  // SSR cases live in subdomain.ssr.test.ts (node env).
 })

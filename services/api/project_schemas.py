@@ -306,6 +306,10 @@ class ProjectResponse(ProjectBase):
     min_annotations_per_task: int = 1
     completed_tasks_count: int = 0
     progress_percentage: float = 0.0
+    # Evaluation tallies — feed the Statistiken "Evaluations" tile and
+    # contribute to progress_percentage when enable_evaluation is true.
+    evaluation_count: int = 0
+    evaluations_completed_count: int = 0
     is_private: bool = False
     is_public: bool = False
     public_role: Optional[str] = None

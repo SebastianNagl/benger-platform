@@ -1040,7 +1040,7 @@
       "saveSettings": "Einstellungen speichern",
       "featureVisibility": {
         "title": "Sichtbarkeit der Bereiche",
-        "help": "Wählen Sie, welche Konfigurationsbereiche auf dieser Seite angezeigt werden. Daten und APIs bleiben erhalten."
+        "help": "Wählen Sie, welche Konfigurationsbereiche auf dieser Seite angezeigt werden. Diese Schalter steuern auch die Statistik-Kachel und den Fortschrittsbalken: nur aktivierte Bereiche fließen in den Projektfortschritt ein."
       },
       "visibilityDangerZone": {
         "title": "Projekt-Sichtbarkeit",
@@ -1156,6 +1156,7 @@
       "totalTasks": "Aufgaben gesamt",
       "annotations": "Annotationen",
       "generations": "Generierungen",
+      "evaluations": "Evaluierungen",
       "corrections": "Korrekturen",
       "correctionsFalloesungBreakdown": "↳ Falllösung-Bewertungen",
       "correctionsCommentsBreakdown": "↳ Kommentare",

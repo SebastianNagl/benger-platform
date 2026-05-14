@@ -1,3 +1,5 @@
+import '@/test-utils/locationMock'
+
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { render, screen, waitFor } from '@testing-library/react'
@@ -59,13 +61,9 @@ describe('RegisterPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
 
-    // Mock window.location using Object.defineProperty to avoid jsdom navigation errors
-    delete (window as any).location
-    window.location = {
-      search: '',
-      pathname: '/register',
-      href: 'http://localhost/register',
-    } as any
+    // jest-location-mock provides window.location; set the path via the
+    // History API so the mocked Location reflects pathname=/register.
+    window.history.pushState({}, '', 'http://localhost/register')
     ;(useAuth as jest.Mock).mockReturnValue({
       user: null,
       signup: mockSignup,

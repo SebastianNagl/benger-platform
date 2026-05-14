@@ -1040,7 +1040,7 @@
       "saveSettings": "Save Settings",
       "featureVisibility": {
         "title": "Section visibility",
-        "help": "Choose which configuration sections render on this page. Data and APIs are preserved."
+        "help": "Choose which configuration sections render on this page. These toggles also drive the Statistics box and progress bar: only enabled stages contribute to the project's progress percentage."
       },
       "visibilityDangerZone": {
         "title": "Project visibility",
@@ -1156,6 +1156,7 @@
       "totalTasks": "Total Tasks",
       "annotations": "Annotations",
       "generations": "Generations",
+      "evaluations": "Evaluations",
       "corrections": "Corrections",
       "correctionsFalloesungBreakdown": "↳ Falllösung grades",
       "correctionsCommentsBreakdown": "↳ Comments",
