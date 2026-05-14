@@ -40,13 +40,114 @@ from project_models import (
 from project_schemas import ProjectResponse
 
 
-def calculate_project_stats(db: Session, project_id: str, response: ProjectResponse) -> None:
-    """Calculate and set project statistics on a response object
+def _generation_models_count(project: Project) -> int:
+    selected = (project.generation_config or {}).get("selected_configuration") or {}
+    models = selected.get("models") or []
+    return len(models)
+
+
+def _evaluation_methods_count(project: Project) -> int:
+    """Number of distinct evaluation methods configured on the project.
+
+    Counts entries in evaluation_config.evaluation_configs (new shape, one
+    entry per field × method) and falls back to selected_methods (legacy
+    per-field map).
+    """
+    eval_cfg = project.evaluation_config or {}
+    new_shape = eval_cfg.get("evaluation_configs") or []
+    if new_shape:
+        return len(new_shape)
+    legacy = eval_cfg.get("selected_methods") or {}
+    return len(legacy)
+
+
+def _mix_progress(parts: List[tuple]) -> float:
+    """parts = [(completed, expected), ...] across stages. Stages with
+    expected == 0 are ignored so the bar isn't permanently stuck at 0 when
+    a stage is enabled but hasn't been configured yet."""
+    relevant = [(c, e) for (c, e) in parts if e > 0]
+    if not relevant:
+        return 0.0
+    completed_sum = sum(c for c, _ in relevant)
+    expected_sum = sum(e for _, e in relevant)
+    return min(100.0, (completed_sum / expected_sum) * 100)
+
+
+def _progress_parts(
+    project: Optional[Project],
+    response: ProjectResponse,
+    completed_generations: int,
+) -> List[tuple]:
+    """Per-stage (completed, expected) tuples gated on enable_* flags.
+
+    Stages with expected == 0 (e.g. evaluation enabled but no eval methods
+    configured yet) are still returned; _mix_progress skips them so the
+    progress bar isn't pinned at 0 forever for half-configured projects.
+    """
+    if project is None:
+        return []
+
+    parts: List[tuple] = []
+
+    if getattr(project, "enable_annotation", True):
+        parts.append((response.completed_tasks_count, response.task_count))
+
+    gen_models = _generation_models_count(project)
+    if getattr(project, "enable_generation", True):
+        # One ResponseGeneration is expected per (task × configured model).
+        parts.append((completed_generations, response.task_count * gen_models))
+
+    if getattr(project, "enable_evaluation", True):
+        # One EvaluationRun is expected per (configured model × configured
+        # eval method). Cap the completed count at expected so a
+        # mis-tracked re-run can't push progress over 100 %.
+        eval_methods = _evaluation_methods_count(project)
+        expected_eval = gen_models * eval_methods
+        completed_eval = (
+            min(response.evaluations_completed_count, expected_eval)
+            if expected_eval > 0
+            else 0
+        )
+        parts.append((completed_eval, expected_eval))
+
+    return parts
+
+
+def apply_mixed_progress(
+    project: Project,
+    response: ProjectResponse,
+    completed_generations: int,
+) -> None:
+    """Set response.progress_percentage to the per-stage mix gated on enable_* flags.
+
+    Shared by `calculate_project_stats` (single-project path) and the
+    batch path in list_projects so both produce identical numbers.
+    """
+    response.progress_percentage = _mix_progress(
+        _progress_parts(project, response, completed_generations)
+    )
+
+
+def calculate_project_stats(
+    db: Session,
+    project_id: str,
+    response: ProjectResponse,
+    project: Optional[Project] = None,
+) -> None:
+    """Calculate and set project statistics on a response object.
+
+    Progress is a weighted mix across the enable_annotation / enable_generation
+    / enable_evaluation stages: sum(completed) / sum(expected) across stages
+    that are both enabled and have nonzero expected work. A project with only
+    annotation enabled (the historical default) behaves identically to before.
 
     NOTE: For batch operations (e.g., list_projects), use calculate_project_stats_batch
     instead to avoid N+1 query problem.
     """
     from project_models import Annotation
+
+    if project is None:
+        project = db.query(Project).filter(Project.id == project_id).first()
 
     response.task_count = db.query(Task).filter(Task.project_id == project_id).count()
     # Count annotations that aren't cancelled
@@ -59,27 +160,48 @@ def calculate_project_stats(db: Session, project_id: str, response: ProjectRespo
         db.query(Task).filter(Task.project_id == project_id, Task.is_labeled == True).count()
     )
 
+    # Generation completion (tasks × models) — mirrors the logic in
+    # calculate_generation_stats but the count is needed here too so the
+    # progress mix has a numerator for the generation stage.
+    completed_generations = 0
+    gen_models = _generation_models_count(project) if project is not None else 0
+    if response.task_count > 0 and gen_models > 0:
+        completed_generations = (
+            db.query(ResponseGeneration)
+            .join(Task, ResponseGeneration.task_id == Task.id)
+            .filter(
+                Task.project_id == project_id,
+                ResponseGeneration.status == "completed",
+            )
+            .count()
+        )
+
+    # Evaluation tallies — feed the Statistiken tile and the progress mix.
+    response.evaluation_count = (
+        db.query(EvaluationRun).filter(EvaluationRun.project_id == project_id).count()
+    )
+    response.evaluations_completed_count = (
+        db.query(EvaluationRun)
+        .filter(
+            EvaluationRun.project_id == project_id,
+            EvaluationRun.status == "completed",
+        )
+        .count()
+    )
+
     # Mirror to the legacy aliases so frontends reading either name see the
     # same value (the labeling page reads num_tasks for the "Task X of Y"
     # progress counter).
     response.num_tasks = response.task_count
     response.num_annotations = response.annotation_count
 
-    # Calculate progress based on Label Studio approach
-    if response.task_count > 0:
-        response.progress_percentage = min(
-            100.0, (response.completed_tasks_count / response.task_count) * 100
-        )
-    else:
-        response.progress_percentage = 0.0
+    apply_mixed_progress(project, response, completed_generations)
 
 
 def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[str, Dict[str, int]]:
     """Calculate project statistics for multiple projects using optimized queries.
 
-    Replaces N+1 query pattern with 2 aggregation queries.
-    - Before: 1 + (N × 3) queries for N projects
-    - After: 2 queries total (99.3% reduction for 100 projects)
+    Replaces N+1 query pattern with grouped aggregation queries.
 
     Args:
         db: Database session
@@ -90,6 +212,8 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
         - task_count
         - completed_tasks_count
         - annotation_count
+        - evaluation_count
+        - evaluations_completed_count
     """
     from project_models import Annotation
 
@@ -121,16 +245,37 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
         .group_by(Annotation.project_id)
     )
 
+    # Query 3: EvaluationRun stats — total runs + completed runs per project.
+    # Feeds both the Statistiken "Evaluations" tile and the progress mix.
+    evaluation_stats_query = (
+        db.query(
+            EvaluationRun.project_id,
+            func.count(EvaluationRun.id).label('evaluation_count'),
+            func.sum(
+                case((EvaluationRun.status == 'completed', 1), else_=0)
+            ).label('evaluations_completed_count'),
+        )
+        .filter(EvaluationRun.project_id.in_(project_ids))
+        .group_by(EvaluationRun.project_id)
+    )
+
     # Execute queries
     task_stats = task_stats_query.all()
     annotation_stats = annotation_stats_query.all()
+    evaluation_stats = evaluation_stats_query.all()
 
     # Build stats lookup dictionary
     stats_map = {}
 
     # Initialize all projects with zero stats
     for project_id in project_ids:
-        stats_map[project_id] = {'task_count': 0, 'completed_tasks_count': 0, 'annotation_count': 0}
+        stats_map[project_id] = {
+            'task_count': 0,
+            'completed_tasks_count': 0,
+            'annotation_count': 0,
+            'evaluation_count': 0,
+            'evaluations_completed_count': 0,
+        }
 
     # Populate task stats
     for stat in task_stats:
@@ -140,6 +285,13 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
     # Populate annotation stats
     for stat in annotation_stats:
         stats_map[stat.project_id]['annotation_count'] = stat.annotation_count or 0
+
+    # Populate evaluation stats
+    for stat in evaluation_stats:
+        stats_map[stat.project_id]['evaluation_count'] = stat.evaluation_count or 0
+        stats_map[stat.project_id]['evaluations_completed_count'] = (
+            stat.evaluations_completed_count or 0
+        )
 
     return stats_map
 

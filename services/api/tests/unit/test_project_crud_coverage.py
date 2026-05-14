@@ -229,13 +229,25 @@ class TestListProjectsEndpoint:
 class TestProjectHelpersCoverage:
     """Tests for helper functions in routers/projects/helpers.py — targets lines 485-900."""
 
+    @staticmethod
+    def _annotation_only_project():
+        project = Mock()
+        project.enable_annotation = True
+        project.enable_generation = False
+        project.enable_evaluation = False
+        project.generation_config = None
+        project.evaluation_config = None
+        return project
+
     def test_calculate_project_stats_no_tasks(self):
         from routers.projects.helpers import calculate_project_stats
         mock_db = MagicMock()
         mock_db.query.return_value.filter.return_value.count.return_value = 0
 
         response = Mock()
-        calculate_project_stats(mock_db, "proj-1", response)
+        calculate_project_stats(
+            mock_db, "proj-1", response, project=self._annotation_only_project()
+        )
         assert response.task_count == 0
         assert response.progress_percentage == 0.0
 
@@ -252,19 +264,19 @@ class TestProjectHelpersCoverage:
         # completed tasks count
         completed_q = MagicMock()
         completed_q.filter.return_value.count.return_value = 7
+        # evaluation count + completed-evaluation count (always queried)
+        eval_total_q = MagicMock()
+        eval_total_q.filter.return_value.count.return_value = 0
+        eval_completed_q = MagicMock()
+        eval_completed_q.filter.return_value.count.return_value = 0
 
-        call_count = [0]
-        def side_effect(model):
-            call_count[0] += 1
-            if call_count[0] == 1:
-                return task_q
-            elif call_count[0] == 2:
-                return ann_q
-            return completed_q
-        mock_db.query.side_effect = side_effect
+        queue = [task_q, ann_q, completed_q, eval_total_q, eval_completed_q]
+        mock_db.query.side_effect = lambda *args, **kwargs: queue.pop(0)
 
         response = Mock()
-        calculate_project_stats(mock_db, "proj-1", response)
+        calculate_project_stats(
+            mock_db, "proj-1", response, project=self._annotation_only_project()
+        )
         assert response.task_count == 10
         assert response.progress_percentage == 70.0
 

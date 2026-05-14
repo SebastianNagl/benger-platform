@@ -386,17 +386,38 @@ class TestCalculateGenerationStats:
         assert response.generation_models_count == 0
 
 
+def _annotation_only_project():
+    """Project mock: only annotation stage contributes to progress."""
+    project = Mock()
+    project.enable_annotation = True
+    project.enable_generation = False
+    project.enable_evaluation = False
+    project.generation_config = None
+    project.evaluation_config = None
+    return project
+
+
 class TestCalculateProjectStats:
-    """Tests for calculate_project_stats."""
+    """Tests for calculate_project_stats.
+
+    The helper always issues 5 count queries (task / annotation /
+    completed-task / evaluation-total / evaluation-completed). The last two
+    are independent of the enable_evaluation flag because the response
+    object always exposes them for the Statistiken tile. Pass annotation-
+    only project mocks so generation contributes nothing and the mix
+    collapses to the annotation ratio.
+    """
 
     def test_basic_stats(self):
         from routers.projects.helpers import calculate_project_stats
 
         db = MagicMock()
-        db.query.return_value.filter.return_value.count.side_effect = [10, 5, 7]
+        db.query.return_value.filter.return_value.count.side_effect = [10, 5, 7, 0, 0]
 
         response = Mock()
-        calculate_project_stats(db, "proj-1", response)
+        calculate_project_stats(
+            db, "proj-1", response, project=_annotation_only_project()
+        )
 
         assert response.task_count == 10
         assert response.annotation_count == 5
@@ -407,10 +428,12 @@ class TestCalculateProjectStats:
         from routers.projects.helpers import calculate_project_stats
 
         db = MagicMock()
-        db.query.return_value.filter.return_value.count.side_effect = [0, 0, 0]
+        db.query.return_value.filter.return_value.count.side_effect = [0, 0, 0, 0, 0]
 
         response = Mock()
-        calculate_project_stats(db, "proj-1", response)
+        calculate_project_stats(
+            db, "proj-1", response, project=_annotation_only_project()
+        )
 
         assert response.task_count == 0
         assert response.progress_percentage == 0.0
@@ -419,18 +442,22 @@ class TestCalculateProjectStats:
         from routers.projects.helpers import calculate_project_stats
 
         db = MagicMock()
-        db.query.return_value.filter.return_value.count.side_effect = [5, 10, 5]
+        db.query.return_value.filter.return_value.count.side_effect = [5, 10, 5, 0, 0]
 
         response = Mock()
-        calculate_project_stats(db, "proj-1", response)
+        calculate_project_stats(
+            db, "proj-1", response, project=_annotation_only_project()
+        )
         assert response.progress_percentage == 100.0
 
     def test_over_100_percent_capped(self):
         from routers.projects.helpers import calculate_project_stats
 
         db = MagicMock()
-        db.query.return_value.filter.return_value.count.side_effect = [5, 10, 6]
+        db.query.return_value.filter.return_value.count.side_effect = [5, 10, 6, 0, 0]
 
         response = Mock()
-        calculate_project_stats(db, "proj-1", response)
+        calculate_project_stats(
+            db, "proj-1", response, project=_annotation_only_project()
+        )
         assert response.progress_percentage == 100.0
