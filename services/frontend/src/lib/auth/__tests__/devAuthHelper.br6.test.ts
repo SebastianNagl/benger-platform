@@ -48,14 +48,7 @@ describe('DevAuthHelper branch coverage', () => {
       expect(mockGetCookieDomain).toHaveBeenCalled()
     })
 
-    it('does nothing when document is undefined (server-side)', () => {
-      const originalDocument = global.document
-      delete (global as any).document
-
-      expect(() => devAuthHelper.markManualLogout()).not.toThrow()
-
-      global.document = originalDocument
-    })
+    // Server-side branch covered in devAuthHelper.ssr.test.ts (node env).
   })
 
   describe('clearManualLogout', () => {
@@ -75,13 +68,6 @@ describe('DevAuthHelper branch coverage', () => {
       expect(mockGetCookieDomain).toHaveBeenCalled()
     })
 
-    it('does nothing when document is undefined (server-side)', () => {
-      const originalDocument = global.document
-      delete (global as any).document
-
-      expect(() => devAuthHelper.clearManualLogout()).not.toThrow()
-
-      global.document = originalDocument
-    })
+    // Server-side branch covered in devAuthHelper.ssr.test.ts (node env).
   })
 })
