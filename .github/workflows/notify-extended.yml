@@ -2,7 +2,9 @@ name: Notify Extended
 
 # Fires repository_dispatch (event-type: core-updated) at the downstream
 # extended-edition repo whenever main moves. The downstream repo's CI/CD
-# rebuilds against the new platform code and ships staging.
+# rebuilds against the new platform code and deploys to production
+# (the `deploy-prod` job runs on any non-pull_request event, including
+# this dispatch — see extended/.github/workflows/cicd.yml).
 #
 # The downstream repo is named via the EXTENDED_REPO secret (owner/repo) and
 # EXTENDED_REPO_NAME secret (just the repo name, used as the App token scope)
