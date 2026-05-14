@@ -722,15 +722,25 @@ class TestGetSampleResultByTaskModel:
             if call_count["n"] == 1:
                 q.filter.return_value.first.return_value = task
             else:
-                q.join.return_value.filter.return_value.order_by.return_value.all.return_value = []
+                # Production chain: TaskEvaluation → Generation → EvaluationRun,
+                # then .filter().filter().order_by().all() — the second filter
+                # only fires when generation_id is truthy, which it is here
+                # because we pass an explicit empty string below to match what
+                # FastAPI would normalise an unset Query(None) to.
+                q.join.return_value.join.return_value.filter.return_value.order_by.return_value.all.return_value = []
             return q
 
         mock_db.query.side_effect = query_side_effect
 
+        # Pass include_history/generation_id explicitly — otherwise they hold
+        # the raw fastapi.Query sentinels (truthy), which makes the production
+        # code take the extra `.filter()` branch the mock chain wasn't shaped for.
         result = await get_sample_result_by_task_model(
             request=_mock_request(),
             task_id="task-1",
             model_id="gpt-4",
+            include_history=True,
+            generation_id=None,
             current_user=_mock_user(),
             db=mock_db,
         )

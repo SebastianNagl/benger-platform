@@ -130,6 +130,7 @@ def _seed_project_with_subjects(
                 generation_id=rg.id,
                 task_id=task.id,
                 model_id=model_id,
+                run_index=0,
                 case_data="{}",
                 response_content="...",
                 status="completed",

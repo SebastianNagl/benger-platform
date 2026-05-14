@@ -12,6 +12,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from models import (
+    EvaluationJudgeRun,
     EvaluationRun,
     HumanEvaluationSession,
     LikertScaleEvaluation,
@@ -130,7 +131,7 @@ def response_generation(test_db: Session, test_project: Project, admin_user: Use
 @pytest.fixture
 def test_generations(test_db: Session, test_tasks, response_generation):
     generations = []
-    for task in test_tasks:
+    for i, task in enumerate(test_tasks):
         gen = Generation(
             id=f"gen-eval-{uuid.uuid4().hex[:8]}",
             generation_id=response_generation.id,
@@ -140,6 +141,7 @@ def test_generations(test_db: Session, test_tasks, response_generation):
             response_content="Generated response",
             status="completed",
             parse_status="success",
+            run_index=i,
             created_at=datetime.utcnow(),
         )
         test_db.add(gen)
@@ -166,8 +168,20 @@ def evaluation_run(test_db: Session, test_project: Project, admin_user: User):
         completed_at=datetime.utcnow(),
     )
     test_db.add(eval_run)
+    test_db.flush()
+    # Migration 043 made TaskEvaluation.judge_run_id NOT NULL; use the
+    # catch-all judge-run shape that orphan backfill uses.
+    judge_run = EvaluationJudgeRun(
+        id=f"jr-{uuid.uuid4().hex[:8]}",
+        evaluation_id=eval_run.id,
+        judge_model_id=None,
+        run_index=0,
+        status="completed",
+    )
+    test_db.add(judge_run)
     test_db.commit()
     test_db.refresh(eval_run)
+    eval_run._test_judge_run = judge_run
     return eval_run
 
 
@@ -179,6 +193,7 @@ def task_evaluations(test_db: Session, evaluation_run, test_tasks, test_generati
         te = TaskEvaluation(
             id=f"te-{uuid.uuid4().hex[:8]}",
             evaluation_id=evaluation_run.id,
+            judge_run_id=evaluation_run._test_judge_run.id,
             task_id=task.id,
             generation_id=gen.id,
             field_name="text_answer",
@@ -215,6 +230,7 @@ def classification_evaluations(test_db: Session, evaluation_run, test_tasks, tes
         te = TaskEvaluation(
             id=f"te-cls-{uuid.uuid4().hex[:8]}",
             evaluation_id=evaluation_run.id,
+            judge_run_id=evaluation_run._test_judge_run.id,
             task_id=task.id,
             generation_id=gen.id,
             field_name="classification",

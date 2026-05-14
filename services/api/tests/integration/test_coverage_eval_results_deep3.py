@@ -13,6 +13,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from models import (
+    EvaluationJudgeRun,
     EvaluationRun,
     Generation,
     HumanEvaluationSession,
@@ -86,6 +87,19 @@ def _make_eval_run(db, project, admin_id="admin-test-id", *, status="completed",
     )
     db.add(er)
     db.flush()
+    # Migration 043 made TaskEvaluation.judge_run_id NOT NULL. Tests that
+    # insert TaskEvaluations need a parent judge run; use the catch-all
+    # shape (judge_model_id=NULL, run_index=0) that orphan backfill uses.
+    judge_run = EvaluationJudgeRun(
+        id=_uid(),
+        evaluation_id=er.id,
+        judge_model_id=None,
+        run_index=0,
+        status="completed",
+    )
+    db.add(judge_run)
+    db.flush()
+    er._test_judge_run = judge_run
     return er
 
 
@@ -95,6 +109,7 @@ def _make_task_evaluation(db, eval_run, task, *, metrics=None, generation=None,
     te = TaskEvaluation(
         id=_uid(),
         evaluation_id=eval_run.id,
+        judge_run_id=eval_run._test_judge_run.id,
         task_id=task.id,
         generation_id=generation.id if generation else None,
         annotation_id=annotation.id if annotation else None,
