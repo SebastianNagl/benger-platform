@@ -89,6 +89,7 @@ def _seed_project_with_subjects(
         id=str(uuid.uuid4()),
         project_id=project.id,
         organization_id=test_org.id,
+        assigned_by=admin.id,
     ))
     test_db.flush()
 
@@ -124,10 +125,10 @@ def _seed_project_with_subjects(
             test_db.flush()
             test_db.add(Generation(
                 id=str(uuid.uuid4()),
-                project_id=project.id,  # used by cost_estimate filter
                 generation_id=rg.id,
                 task_id=task.id,
                 model_id=model_id,
+                case_data="...",
                 response_content="...",
                 status="completed",
                 parse_status="success",
