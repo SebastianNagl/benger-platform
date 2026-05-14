@@ -133,7 +133,7 @@ class PasswordResetService:
         Args:
             db: Database session
             user: User to send email to
-            base_url: Base URL for reset link
+            base_url: Base URL for reset link (used as fallback if FRONTEND_URL is unset)
             language: Language for email template
 
         Returns:
@@ -141,74 +141,20 @@ class PasswordResetService:
         """
         import os
 
-        from app.email_service import EmailService
+        from email_service import EmailService
 
-        # Generate reset token
         token = self.create_password_reset_token(db, user)
 
-        # Use FRONTEND_URL from environment
         frontend_url = os.getenv("FRONTEND_URL", base_url)
         reset_link = f"{frontend_url}/reset-password/{token}"
 
-        # Prepare email content
-        if language == "de":
-            subject = "Passwort zurücksetzen - BenGER"
-            html_body = f"""
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2>Passwort zurücksetzen</h2>
-                <p>Hallo {user.name or user.username},</p>
-                <p>Sie haben eine Anfrage zum Zurücksetzen Ihres Passworts gestellt.</p>
-                <p>Klicken Sie auf den folgenden Link, um Ihr Passwort zurückzusetzen:</p>
-                <div style="margin: 30px 0;">
-                    <a href="{reset_link}" 
-                       style="background-color: #10b981; color: white; padding: 12px 24px; 
-                              text-decoration: none; border-radius: 6px; display: inline-block;">
-                        Passwort zurücksetzen
-                    </a>
-                </div>
-                <p>Oder kopieren Sie diesen Link in Ihren Browser:</p>
-                <p style="word-break: break-all; color: #6b7280;">{reset_link}</p>
-                <p>Dieser Link ist 24 Stunden gültig.</p>
-                <p>Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.</p>
-                <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-                <p style="color: #6b7280; font-size: 14px;">
-                    BenGER - Benchmark for German Legal Reasoning
-                </p>
-            </div>
-            """
-        else:
-            subject = "Reset Your Password - BenGER"
-            html_body = f"""
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2>Reset Your Password</h2>
-                <p>Hello {user.name or user.username},</p>
-                <p>You have requested to reset your password.</p>
-                <p>Click the following link to reset your password:</p>
-                <div style="margin: 30px 0;">
-                    <a href="{reset_link}" 
-                       style="background-color: #10b981; color: white; padding: 12px 24px; 
-                              text-decoration: none; border-radius: 6px; display: inline-block;">
-                        Reset Password
-                    </a>
-                </div>
-                <p>Or copy this link to your browser:</p>
-                <p style="word-break: break-all; color: #6b7280;">{reset_link}</p>
-                <p>This link will expire in 24 hours.</p>
-                <p>If you didn't request this, you can safely ignore this email.</p>
-                <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-                <p style="color: #6b7280; font-size: 14px;">
-                    BenGER - Benchmark for German Legal Reasoning
-                </p>
-            </div>
-            """
-
-        # Send email
         email_service = EmailService()
-        success = await email_service.send_email(
-            to_email=user.email, subject=subject, html_body=html_body
+        return await email_service.send_password_reset_email(
+            to_email=user.email,
+            user_name=user.name or user.username,
+            reset_link=reset_link,
+            language=language,
         )
-
-        return success
 
 
 # Create a singleton instance

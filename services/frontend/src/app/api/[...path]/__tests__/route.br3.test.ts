@@ -43,7 +43,7 @@ describe('[...path] route branch coverage', () => {
     jest.restoreAllMocks()
   })
 
-  it('rejects auth endpoints (not verify-email)', async () => {
+  it('rejects auth endpoints not in the public allowlist', async () => {
     const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
       new Response('{}', { status: 200 })
     )
@@ -66,6 +66,34 @@ describe('[...path] route branch coverage', () => {
       { params: Promise.resolve({ path: ['auth', 'verify-email', 'token123'] }) }
     )
     expect(res.status).toBe(200)
+    fetchSpy.mockRestore()
+  })
+
+  it('allows auth/request-password-reset', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response('{"message":"ok"}', { status: 200 })
+    )
+    const { POST } = require('../route')
+    const res = await POST(
+      makeRequest('benger.localhost', 'auth/request-password-reset', 'POST'),
+      { params: Promise.resolve({ path: ['auth', 'request-password-reset'] }) }
+    )
+    expect(res.status).toBe(200)
+    expect(fetchSpy).toHaveBeenCalled()
+    fetchSpy.mockRestore()
+  })
+
+  it('allows auth/reset-password', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response('{"message":"ok"}', { status: 200 })
+    )
+    const { POST } = require('../route')
+    const res = await POST(
+      makeRequest('benger.localhost', 'auth/reset-password', 'POST'),
+      { params: Promise.resolve({ path: ['auth', 'reset-password'] }) }
+    )
+    expect(res.status).toBe(200)
+    expect(fetchSpy).toHaveBeenCalled()
     fetchSpy.mockRestore()
   })
 
