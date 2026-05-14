@@ -533,32 +533,72 @@ def _count_cells_to_generate(
     if generation_mode != "missing":
         return len(task_ids) * len(structures)
 
-    # mode == "missing": check latest row per (task, model, structure)
-    from sqlalchemy import case
+    # Issue #83: mode == "missing" — bulk-fetch latest status per cell in two
+    # round-trips (exact structure_key matches + NULL fallback rows) instead
+    # of one query per (task, structure). The Python merge below preserves
+    # the exact-match-preferred-over-NULL precedence the worker uses.
+    sk_values: List[str] = [s for s in structures if s is not None]
+    has_none = None in structures
+
+    exact_map: Dict[tuple, str] = {}
+    if sk_values:
+        rows_exact = (
+            db.query(
+                DBResponseGeneration.task_id,
+                DBResponseGeneration.structure_key,
+                DBResponseGeneration.status,
+            )
+            .filter(
+                DBResponseGeneration.project_id == project_id,
+                DBResponseGeneration.task_id.in_(task_ids),
+                DBResponseGeneration.model_id == model_id,
+                DBResponseGeneration.structure_key.in_(sk_values),
+            )
+            .distinct(
+                DBResponseGeneration.task_id,
+                DBResponseGeneration.structure_key,
+            )
+            .order_by(
+                DBResponseGeneration.task_id,
+                DBResponseGeneration.structure_key,
+                DBResponseGeneration.created_at.desc(),
+            )
+            .all()
+        )
+        exact_map = {(r.task_id, r.structure_key): r.status for r in rows_exact}
+
+    null_map: Dict[str, str] = {}
+    if sk_values or has_none:
+        rows_null = (
+            db.query(
+                DBResponseGeneration.task_id,
+                DBResponseGeneration.status,
+            )
+            .filter(
+                DBResponseGeneration.project_id == project_id,
+                DBResponseGeneration.task_id.in_(task_ids),
+                DBResponseGeneration.model_id == model_id,
+                DBResponseGeneration.structure_key.is_(None),
+            )
+            .distinct(DBResponseGeneration.task_id)
+            .order_by(
+                DBResponseGeneration.task_id,
+                DBResponseGeneration.created_at.desc(),
+            )
+            .all()
+        )
+        null_map = {r.task_id: r.status for r in rows_null}
+
     cells = 0
     for task_id in task_ids:
         for sk in structures:
-            q = db.query(DBResponseGeneration).filter(
-                DBResponseGeneration.task_id == task_id,
-                DBResponseGeneration.model_id == model_id,
-            )
             if sk is not None:
-                # Match exact structure_key, falling back to legacy NULL rows
-                # — same precedence the worker uses
-                # (generation_task_list.py:196-208).
-                q = q.filter(
-                    (DBResponseGeneration.structure_key == sk)
-                    | (DBResponseGeneration.structure_key.is_(None))
-                ).order_by(
-                    case((DBResponseGeneration.structure_key == sk, 0), else_=1),
-                    DBResponseGeneration.created_at.desc(),
-                )
+                status_val = exact_map.get((task_id, sk))
+                if status_val is None:
+                    status_val = null_map.get(task_id)
             else:
-                q = q.filter(DBResponseGeneration.structure_key.is_(None)).order_by(
-                    DBResponseGeneration.created_at.desc()
-                )
-            latest = q.first()
-            if latest is None or latest.status == "failed":
+                status_val = null_map.get(task_id)
+            if status_val is None or status_val == "failed":
                 cells += 1
     return cells
 

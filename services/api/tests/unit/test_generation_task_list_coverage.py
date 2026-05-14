@@ -598,11 +598,20 @@ class TestStartGeneration:
         task2 = Mock()
         task2.id = "task-2"
 
-        completed_gen = Mock()
-        completed_gen.status = "completed"
+        # Issue #83: missing-mode no longer issues one SELECT per cell — it
+        # issues a single DISTINCT ON bulk query that returns (task_id,
+        # model_id, structure_key, status) rows. Mock that shape directly.
+        latest_row_task1 = Mock()
+        latest_row_task1.task_id = "task-1"
+        latest_row_task1.model_id = "gpt-4"
+        latest_row_task1.structure_key = None
+        latest_row_task1.status = "completed"
 
-        failed_gen = Mock()
-        failed_gen.status = "failed"
+        latest_row_task2 = Mock()
+        latest_row_task2.task_id = "task-2"
+        latest_row_task2.model_id = "gpt-4"
+        latest_row_task2.structure_key = None
+        latest_row_task2.status = "failed"
 
         call_count = {"n": 0}
 
@@ -612,14 +621,14 @@ class TestStartGeneration:
             call_count["n"] += 1
             mock_q = MagicMock()
             mock_q.filter.return_value = mock_q
+            mock_q.distinct.return_value = mock_q
             mock_q.order_by.return_value = mock_q
 
             if call_count["n"] == 1:
-                mock_q.all.return_value = [task1, task2]
+                mock_q.all.return_value = [task1, task2]  # tasks query
             elif call_count["n"] == 2:
-                mock_q.first.return_value = completed_gen
-            elif call_count["n"] == 3:
-                mock_q.first.return_value = failed_gen
+                # Single bulk DISTINCT ON returning latest per cell.
+                mock_q.all.return_value = [latest_row_task1, latest_row_task2]
             else:
                 mock_q.first.return_value = None
                 mock_q.all.return_value = []
