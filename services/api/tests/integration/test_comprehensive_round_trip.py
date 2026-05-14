@@ -203,13 +203,17 @@ class TestComprehensiveRoundTrip:
                 config_id="config-1",
                 status="completed",
                 responses_generated=2,
+                runs_requested=2,
+                runs_completed=2,
+                runs_failed=0,
                 generation_metadata={"temperature": 0.7},
                 created_by=test_user.id,
             )
             response_generations.append(resp_gen)
             session.add(resp_gen)
 
-        # Create generations (LLM responses)
+        # Create generations (LLM responses). Migration 041 requires a unique
+        # (generation_id, run_index) per child — use the inner-loop index.
         generations = []
         for i, (task, resp_gen) in enumerate(zip(tasks, response_generations)):
             for j in range(2):
@@ -218,6 +222,7 @@ class TestComprehensiveRoundTrip:
                     generation_id=resp_gen.id,
                     task_id=task.id,
                     model_id="gpt-4",
+                    run_index=j,
                     case_data=json.dumps(
                         {"input": task.data['text']}
                     ),  # Must be string (Text field)

@@ -13,6 +13,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from models import (
+    EvaluationJudgeRun,
     EvaluationRun,
     EvaluationType,
     Generation,
@@ -98,6 +99,17 @@ def _make_eval_project(db, admin, org, *, num_tasks=3, num_models=2,
         db.add(er)
         eval_runs.append(er)
     db.flush()
+    # Migration 043 made TaskEvaluation.judge_run_id NOT NULL; every
+    # EvaluationRun needs a parent judge run. Use the catch-all shape
+    # (judge_model_id=NULL, run_index=0) that orphan backfill uses.
+    for er in eval_runs:
+        jr = EvaluationJudgeRun(
+            id=_uid(), evaluation_id=er.id, judge_model_id=None,
+            run_index=0, status="completed",
+        )
+        db.add(jr)
+        er._test_judge_run = jr
+    db.flush()
 
     generations = []
     if with_generations:
@@ -111,10 +123,10 @@ def _make_eval_project(db, admin, org, *, num_tasks=3, num_models=2,
             db.add(rg)
             db.flush()
 
-            for t in tasks:
+            for i, t in enumerate(tasks):
                 gen = Generation(
                     id=_uid(), generation_id=rg.id, task_id=t.id,
-                    model_id=model_id,
+                    model_id=model_id, run_index=i,
                     case_data=json.dumps({"text": f"case for {t.id}"}),
                     response_content=f"Answer from {model_id}",
                     status="completed",
@@ -131,6 +143,7 @@ def _make_eval_project(db, admin, org, *, num_tasks=3, num_models=2,
                 te = TaskEvaluation(
                     id=_uid(),
                     evaluation_id=er.id,
+                    judge_run_id=er._test_judge_run.id,
                     task_id=gen.task_id,
                     generation_id=gen.id,
                     field_name="answer",

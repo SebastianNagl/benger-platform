@@ -103,6 +103,52 @@ def task(test_db: Session, project: Project, admin_user: User) -> Task:
     return t
 
 
+def _ensure_anchor_judge_run(db: Session, project: Project, admin_id: str) -> str:
+    """Return an EvaluationJudgeRun id attached to a NON-orphan EvaluationRun.
+
+    The pre-038 legacy state this test recreates predates migration 042 (which
+    added evaluation_judge_runs) and 043 (which made TaskEvaluation.judge_run_id
+    NOT NULL with ON DELETE CASCADE). Pointing each fake TaskEvaluation at a
+    judge_run owned by an orphan EvaluationRun would let migration 038's
+    DELETE-orphan-runs cascade right through into the TaskEvaluations we want
+    the migration to repoint. Anchor all of them at a separate, non-korrektur
+    EvaluationRun so the cascade can't reach.
+    """
+    cached = getattr(_ensure_anchor_judge_run, "_cache", {})
+    if project.id in cached:
+        return cached[project.id]
+    anchor_run_id = str(uuid.uuid4())
+    db.execute(
+        text(
+            """
+            INSERT INTO evaluation_runs
+              (id, project_id, model_id, evaluation_type_ids, metrics,
+               eval_metadata, status, samples_evaluated, has_sample_results,
+               created_by, created_at)
+            VALUES
+              (:id, :pid, 'anchor-test',
+               '["anchor"]'::json, '{}'::json, '{}'::json,
+               'completed', 0, false, :uid, now())
+            """
+        ),
+        {"id": anchor_run_id, "pid": project.id, "uid": admin_id},
+    )
+    anchor_judge_id = str(uuid.uuid4())
+    db.execute(
+        text(
+            """
+            INSERT INTO evaluation_judge_runs
+              (id, evaluation_id, judge_model_id, run_index, status, started_at, completed_at)
+            VALUES (:id, :rid, NULL, 0, 'completed', now(), now())
+            """
+        ),
+        {"id": anchor_judge_id, "rid": anchor_run_id},
+    )
+    cached[project.id] = anchor_judge_id
+    _ensure_anchor_judge_run._cache = cached  # type: ignore[attr-defined]
+    return anchor_judge_id
+
+
 def _seed_orphan_run_with_eval(
     db: Session, project: Project, task: Task, grader: User, score: float
 ) -> tuple[str, str]:
@@ -134,16 +180,21 @@ def _seed_orphan_run_with_eval(
             "uid": grader.id,
         },
     )
+    # Anchor the TaskEvaluation at a judge_run owned by a NON-orphan
+    # EvaluationRun so migration 038's DELETE of the orphan run can't cascade
+    # through judge_run_id and wipe the TaskEvaluation before our assertions
+    # see it. See _ensure_anchor_judge_run for the full reasoning.
+    judge_run_id = _ensure_anchor_judge_run(db, project, grader.id)
     eval_id = str(uuid.uuid4())
     db.execute(
         text(
             """
             INSERT INTO task_evaluations
-              (id, evaluation_id, task_id, field_name, answer_type,
+              (id, evaluation_id, judge_run_id, task_id, field_name, answer_type,
                ground_truth, prediction, metrics, passed, judge_prompts_used,
                created_at)
             VALUES
-              (:id, :rid, :tid, 'loesung', 'long_text',
+              (:id, :rid, :jrid, :tid, 'loesung', 'long_text',
                '""'::json, '""'::json,
                (:metrics)::json, :passed,
                (:jpu)::json, now())
@@ -152,6 +203,7 @@ def _seed_orphan_run_with_eval(
         {
             "id": eval_id,
             "rid": run_id,
+            "jrid": judge_run_id,
             "tid": task.id,
             "metrics": f'{{"korrektur_falloesung": {score}}}',
             "passed": score >= 50,

@@ -138,6 +138,7 @@ def _setup_evaluation_project(db, admin, org, *, num_tasks=3, with_evaluations=T
                 generation_id=rg.id,
                 task_id=t.id,
                 model_id="gpt-4o",
+                run_index=i,
                 case_data=f'{{"text": "Case data for task {i}"}}',
                 response_content=f"Generated answer for task {i}",
                 label_config_version="v1",
