@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import '@/test-utils/locationMock'
 
 // Unmock AuthContext so we test the real implementation
 jest.unmock('@/contexts/AuthContext')
@@ -490,9 +491,9 @@ describe('AuthContext', () => {
   describe('logout function', () => {
     it('successfully logs out user', async () => {
       process.env.NODE_ENV = 'development'
-      // Mock window.location to track href assignment
-      delete (window as any).location
-      ;(window as any).location = { href: 'http://benger.localhost/dashboard', pathname: '/dashboard' }
+      // Production code writes to window.location.href — jest-location-mock
+      // captures those writes. Set the starting URL via the History API.
+      window.location.href = 'http://benger.localhost/dashboard'
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AuthProvider>{children}</AuthProvider>
@@ -578,8 +579,7 @@ describe('AuthContext', () => {
 
     it('successfully signs up user with invitation token and redirects to org subdomain', async () => {
       // Mock window.location to track href assignment
-      delete (window as any).location
-      ;(window as any).location = { href: 'http://benger.localhost/register', pathname: '/register' }
+      window.location.href = 'http://benger.localhost/register'
 
       const { getOrgUrl } = require('@/lib/utils/subdomain')
 
@@ -825,8 +825,7 @@ describe('AuthContext', () => {
 
     it('allows changing current organization (triggers navigation)', async () => {
       // Mock window.location for navigation
-      delete (window as any).location
-      ;(window as any).location = { href: 'http://benger.localhost/dashboard', pathname: '/dashboard' }
+      window.location.href = 'http://benger.localhost/dashboard'
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AuthProvider>{children}</AuthProvider>
@@ -859,8 +858,7 @@ describe('AuthContext', () => {
 
     it('allows setting current organization to null', async () => {
       // Mock window.location for navigation
-      delete (window as any).location
-      ;(window as any).location = { href: 'http://test-org.benger.localhost/dashboard', pathname: '/dashboard' }
+      window.location.href = 'http://test-org.benger.localhost/dashboard'
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AuthProvider>{children}</AuthProvider>
@@ -1309,8 +1307,7 @@ describe('AuthContext', () => {
 
     it('updates organization manager when current organization changes', async () => {
       // Mock window.location for navigation
-      delete (window as any).location
-      ;(window as any).location = { href: 'http://benger.localhost/dashboard', pathname: '/dashboard' }
+      window.location.href = 'http://benger.localhost/dashboard'
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AuthProvider>{children}</AuthProvider>
@@ -1701,9 +1698,9 @@ describe('AuthContext', () => {
       // Returning user has a stored org slug
       getLastOrgSlug.mockReturnValue('test-org')
 
-      // Mock window.location to track href assignment
-      delete (window as any).location
-      ;(window as any).location = { href: 'http://benger.localhost/dashboard', pathname: '/dashboard' }
+      // Production code writes to window.location.href — jest-location-mock
+      // captures those writes. Set the starting URL via the History API.
+      window.location.href = 'http://benger.localhost/dashboard'
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AuthProvider>{children}</AuthProvider>
@@ -1769,8 +1766,7 @@ describe('AuthContext', () => {
       getLastOrgSlug.mockReturnValue('removed-org')
 
       // Mock window.location
-      delete (window as any).location
-      ;(window as any).location = { href: 'http://benger.localhost/dashboard', pathname: '/dashboard' }
+      window.location.href = 'http://benger.localhost/dashboard'
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AuthProvider>{children}</AuthProvider>
@@ -1916,7 +1912,7 @@ describe('AuthContext', () => {
 
   describe('public route edge cases', () => {
     it('skips auth check on public route without auth indicators', async () => {
-      ;(window as any).location = { pathname: '/login' }
+      window.history.pushState({}, '', '/login')
       localStorage.removeItem('auth_verified')
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -1934,7 +1930,7 @@ describe('AuthContext', () => {
     })
 
     it('verifies auth on public route with auth_verified flag', async () => {
-      ;(window as any).location = { pathname: '/login' }
+      window.history.pushState({}, '', '/login')
       localStorage.setItem('auth_verified', 'true')
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -1962,7 +1958,7 @@ describe('AuthContext', () => {
       ]
 
       for (const route of publicRoutes) {
-        ;(window as any).location = { pathname: route }
+        window.history.pushState({}, '', route)
         localStorage.removeItem('auth_verified')
         jest.clearAllMocks()
 

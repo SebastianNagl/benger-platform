@@ -16,6 +16,7 @@
  * - validateStep default case
  */
 import '@testing-library/jest-dom'
+import '@/test-utils/locationMock'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { render, screen, waitFor } from '@testing-library/react'
@@ -81,12 +82,9 @@ describe('RegisterPage - branch coverage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
 
-    delete (window as any).location
-    window.location = {
-      search: '',
-      pathname: '/register',
-      href: 'http://localhost/register',
-    } as any
+    // jest-location-mock provides the URL; set the path/search via the
+    // History API so the mocked Location reflects it.
+    window.history.pushState({}, '', 'http://localhost/register')
 
     ;(useAuth as jest.Mock).mockReturnValue({
       user: null,

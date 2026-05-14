@@ -97,14 +97,7 @@ describe('FastRefreshDetector', () => {
       expect(fastRefreshDetector.isActive()).toBe(false)
     })
 
-    it('should return false on server-side', () => {
-      const originalWindow = global.window
-      delete (global as any).window
-
-      expect(fastRefreshDetector.isActive()).toBe(false)
-
-      global.window = originalWindow
-    })
+    // Server-side case lives in fastRefreshDetector.ssr.test.ts (node env).
 
     it('should return false when no refresh is active', () => {
       process.env.NODE_ENV = 'development'
@@ -152,14 +145,7 @@ describe('FastRefreshDetector', () => {
   })
 
   describe('getTimeSinceLastRefresh', () => {
-    it('should return Infinity on server-side', () => {
-      const originalWindow = global.window
-      delete (global as any).window
-
-      expect(fastRefreshDetector.getTimeSinceLastRefresh()).toBe(Infinity)
-
-      global.window = originalWindow
-    })
+    // Server-side case lives in fastRefreshDetector.ssr.test.ts (node env).
 
     it('should return Infinity when no refresh has occurred', () => {
       expect(fastRefreshDetector.getTimeSinceLastRefresh()).toBe(Infinity)
@@ -212,27 +198,11 @@ describe('FastRefreshDetector', () => {
       ).toBeTruthy()
     })
 
-    it('should handle server-side gracefully', () => {
-      const originalWindow = global.window
-      delete (global as any).window
-
-      expect(() =>
-        fastRefreshDetector.markHandled('TestComponent')
-      ).not.toThrow()
-
-      global.window = originalWindow
-    })
+    // Server-side case lives in fastRefreshDetector.ssr.test.ts (node env).
   })
 
   describe('hasBeenHandled', () => {
-    it('should return false on server-side', () => {
-      const originalWindow = global.window
-      delete (global as any).window
-
-      expect(fastRefreshDetector.hasBeenHandled('TestComponent')).toBe(false)
-
-      global.window = originalWindow
-    })
+    // Server-side case lives in fastRefreshDetector.ssr.test.ts (node env).
 
     it('should return false when component has not been handled', () => {
       expect(fastRefreshDetector.hasBeenHandled('TestComponent')).toBe(false)
