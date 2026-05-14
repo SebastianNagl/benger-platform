@@ -12,6 +12,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from models import (
+    EvaluationJudgeRun,
     EvaluationRun,
     Generation,
     ResponseGeneration,
@@ -103,12 +104,13 @@ def _make_project(db, admin, org, *, with_annotations=True, with_generations=Tru
         db.add(rg)
         db.flush()
 
-        for t in tasks:
+        for i, t in enumerate(tasks):
             gen = Generation(
                 id=_uid(),
                 generation_id=rg.id,
                 task_id=t.id,
                 model_id="gpt-4o",
+                run_index=i,
                 case_data=json.dumps({"text": "case data"}),
                 response_content="Generated answer",
                 status="completed",
@@ -134,10 +136,23 @@ def _make_project(db, admin, org, *, with_annotations=True, with_generations=Tru
         db.flush()
         eval_runs.append(er)
 
+        # Migration 043 made TaskEvaluation.judge_run_id NOT NULL; use the
+        # catch-all judge-run shape that orphan backfill uses.
+        judge_run = EvaluationJudgeRun(
+            id=_uid(),
+            evaluation_id=er.id,
+            judge_model_id=None,
+            run_index=0,
+            status="completed",
+        )
+        db.add(judge_run)
+        db.flush()
+
         for i, t in enumerate(tasks):
             te = TaskEvaluation(
                 id=_uid(),
                 evaluation_id=er.id,
+                judge_run_id=judge_run.id,
                 task_id=t.id,
                 generation_id=generations[i].id if generations else None,
                 field_name="answer",

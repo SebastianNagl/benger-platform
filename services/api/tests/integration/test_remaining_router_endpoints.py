@@ -915,13 +915,7 @@ class TestDashboardEndpoints:
 
     def test_dashboard_stats_counts_match_data(self, client, test_db, test_users, test_org, auth_headers):
         """Verify dashboard counts match actual data in the database."""
-        from models import (
-            EvaluationJudgeRun,
-            EvaluationRun,
-            Generation,
-            ResponseGeneration,
-            TaskEvaluation,
-        )
+        from models import EvaluationJudgeRun, EvaluationRun, Generation, ResponseGeneration, TaskEvaluation
         from project_models import Annotation, Project, ProjectOrganization, Task
 
         admin = test_users[0]
@@ -983,17 +977,16 @@ class TestDashboardEndpoints:
         )
         test_db.add(er)
         test_db.flush()
-        # TaskEvaluation.judge_run_id is NOT NULL (migration 042+ tightened
-        # this once all writers were updated to populate it). Seed a judge
-        # run so the row passes the constraint.
-        jr = EvaluationJudgeRun(
-            id=_uid(), evaluation_id=er.id, judge_model_id="gpt-4o",
+        # Migration 043 made TaskEvaluation.judge_run_id NOT NULL; use the
+        # catch-all judge-run shape that orphan backfill uses.
+        judge_run = EvaluationJudgeRun(
+            id=_uid(), evaluation_id=er.id, judge_model_id=None,
             run_index=0, status="completed",
         )
-        test_db.add(jr)
+        test_db.add(judge_run)
         test_db.flush()
         test_db.add(TaskEvaluation(
-            id=_uid(), evaluation_id=er.id, judge_run_id=jr.id,
+            id=_uid(), evaluation_id=er.id, judge_run_id=judge_run.id,
             task_id=tasks[0].id,
             field_name="text", answer_type="text",
             metrics={"accuracy": 0.9}, prediction="pred", ground_truth="gt",

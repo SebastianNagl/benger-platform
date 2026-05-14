@@ -79,12 +79,13 @@ def _setup(db, admin, org, *, num_tasks=3, generation_config=None, with_generati
         db.add(rg)
         db.flush()
 
-        for t in tasks:
+        for i, t in enumerate(tasks):
             gen = Generation(
                 id=_uid(),
                 generation_id=rg.id,
                 task_id=t.id,
                 model_id="gpt-4o",
+                run_index=i,
                 case_data=f'{{"text": "Case data for {t.id}"}}',
                 response_content=f"Generated response for {t.id}",
                 label_config_version="v1",

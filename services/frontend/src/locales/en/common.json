@@ -3068,14 +3068,23 @@
           "image": ""
         },
         {
-          "name": "Johannes Sigmund",
-          "role": "Research Associate",
-          "institution": "TU Braunschweig",
+          "name": "Sofija Milijas",
+          "role": "Project Coordination",
+          "institution": "Technical University of Munich",
           "url": "",
           "image": ""
         }
       ],
       "teamDatasetSenior": [
+        {
+          "name": "Matthias Grabmair",
+          "role": "Project Supervisor",
+          "institution": "Technical University of Munich",
+          "url": "",
+          "image": ""
+        }
+      ],
+      "acknowledgements": [
         {
           "name": "Liane Wörner",
           "role": "Criminal Law",
@@ -3094,22 +3103,6 @@
           "name": "Dominik Brodowski",
           "role": "Criminal Law",
           "institution": "Saarland University",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Matthias Grabmair",
-          "role": "Project Supervisor",
-          "institution": "Technical University of Munich",
-          "url": "",
-          "image": ""
-        }
-      ],
-      "acknowledgements": [
-        {
-          "name": "Sofija Milijas",
-          "role": "Project Coordination",
-          "institution": "Technical University of Munich",
           "url": "",
           "image": ""
         },
@@ -7450,7 +7443,8 @@
     },
     "targetType": {
       "annotation": "Annotation",
-      "generation": "Generation"
+      "generation": "Generation",
+      "secret": "Hidden"
     },
     "totalItems": "{count} items",
     "noItems": "No items",
@@ -7521,6 +7515,7 @@
       "addComment": "Add a comment...",
       "addGeneralComment": "Add a general comment...",
       "submit": "Submit",
+      "saveGeneralNote": "Save note",
       "reply": "Reply",
       "replyPlaceholder": "Write a reply...",
       "resolve": "Resolve",
@@ -7580,6 +7575,7 @@
         "requeue_for_me": "Show skipped again to me",
         "ignore_skipped": "Hide skipped permanently"
       },
+      "allowSkip": "Allow skip",
       "requireCommentOnSkip": "Require comment on skip",
       "allowSelfCorrection": "Allow correcting one's own annotations",
       "visibilitySection": "Blind grading",

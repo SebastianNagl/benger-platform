@@ -123,12 +123,15 @@ def _seed_project_with_subjects(
             )
             test_db.add(rg)
             test_db.flush()
+            # Generation has no project_id column — the cost-estimate
+            # filter joins via ResponseGeneration.project_id instead.
             test_db.add(Generation(
                 id=str(uuid.uuid4()),
                 generation_id=rg.id,
                 task_id=task.id,
                 model_id=model_id,
-                case_data="...",
+                run_index=0,
+                case_data="{}",
                 response_content="...",
                 status="completed",
                 parse_status="success",

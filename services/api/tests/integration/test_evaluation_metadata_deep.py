@@ -17,6 +17,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from models import (
+    EvaluationJudgeRun,
     EvaluationRun,
     EvaluationType,
     Generation,
@@ -118,7 +119,7 @@ def _build(db, admin, org, *, num_tasks=5, num_models=3,
         for i, t in enumerate(tasks):
             gen = Generation(
                 id=_uid(), generation_id=rg.id, task_id=t.id,
-                model_id=model_id,
+                model_id=model_id, run_index=i,
                 case_data=json.dumps(t.data),
                 response_content=f"Answer from {model_id}",
                 label_config_version="v1", status="completed",
@@ -145,12 +146,24 @@ def _build(db, admin, org, *, num_tasks=5, num_models=3,
         db.flush()
         eval_runs.append(er)
 
+        # Migration 043 made TaskEvaluation.judge_run_id NOT NULL; use the
+        # catch-all judge-run shape that orphan backfill uses.
+        judge_run = EvaluationJudgeRun(
+            id=_uid(), evaluation_id=er.id, judge_model_id=None,
+            run_index=0, status="completed",
+        )
+        db.add(judge_run)
+        db.flush()
+        er._test_judge_run = judge_run
+
         # Per-sample TaskEvaluations
         for i, t in enumerate(tasks):
             accuracy_val = base_accuracy.get(model_id, 0.75) + (i * 0.02 - 0.04)
             accuracy_val = max(0, min(1, accuracy_val))
             te = TaskEvaluation(
-                id=_uid(), evaluation_id=er.id, task_id=t.id,
+                id=_uid(), evaluation_id=er.id,
+                judge_run_id=judge_run.id,
+                task_id=t.id,
                 generation_id=gens[i].id,
                 field_name="answer", answer_type="choices",
                 ground_truth={"value": "Ja"},
@@ -166,7 +179,9 @@ def _build(db, admin, org, *, num_tasks=5, num_models=3,
     if with_annotation_evals and eval_runs:
         for i, (ann, t) in enumerate(zip(annotations, tasks)):
             te = TaskEvaluation(
-                id=_uid(), evaluation_id=eval_runs[0].id, task_id=t.id,
+                id=_uid(), evaluation_id=eval_runs[0].id,
+                judge_run_id=eval_runs[0]._test_judge_run.id,
+                task_id=t.id,
                 generation_id=None, annotation_id=ann.id,
                 field_name="answer", answer_type="choices",
                 ground_truth={"value": "Ja"},
