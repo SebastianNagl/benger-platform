@@ -128,7 +128,13 @@ class TestListProjectsHappyPath:
     @pytest.mark.asyncio
     @patch("routers.projects.crud.calculate_generation_stats")
     @patch("routers.projects.crud.calculate_project_stats_batch", return_value={
-        "proj-1": {"task_count": 5, "completed_tasks_count": 2, "annotation_count": 3}
+        "proj-1": {
+            "task_count": 5,
+            "completed_tasks_count": 2,
+            "annotation_count": 3,
+            "evaluation_count": 0,
+            "evaluations_completed_count": 0,
+        }
     })
     @patch("routers.projects.crud.get_accessible_project_ids", return_value=None)
     @patch("routers.projects.crud.ProjectResponse")
