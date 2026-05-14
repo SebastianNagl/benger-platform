@@ -7524,7 +7524,8 @@
       "general": "General Comments"
     },
     "highlights": {
-      "selectText": "Select a label, then highlight text to comment on it"
+      "selectText": "Select a label, then highlight text to comment on it",
+      "selectTextNoLabel": "Select text in the solution to leave an inline comment."
     },
     "evaluations": {
       "title": "Evaluation Results",
