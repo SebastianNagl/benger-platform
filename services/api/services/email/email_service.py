@@ -500,7 +500,7 @@ class EmailService:
                 <p>Oder kopieren Sie diesen Link in Ihren Browser:</p>
                 <p style="color: #007bff;">{reset_link}</p>
                 <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                    Dieser Link ist 1 Stunde gültig. Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.
+                    Dieser Link ist 24 Stunden gültig. Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.
                 </p>
             </body>
             </html>
@@ -520,7 +520,7 @@ class EmailService:
                 <p>Or copy and paste this link into your browser:</p>
                 <p style="color: #007bff;">{reset_link}</p>
                 <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                    This link will expire in 1 hour. If you didn't request this, you can safely ignore this email.
+                    This link will expire in 24 hours. If you didn't request this, you can safely ignore this email.
                 </p>
             </body>
             </html>

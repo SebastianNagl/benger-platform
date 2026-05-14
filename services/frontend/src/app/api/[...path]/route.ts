@@ -96,9 +96,20 @@ async function proxyRequest(
   try {
     const path = pathSegments.join('/')
 
-    // Allow verify-email endpoints through the catch-all
-    // Other auth endpoints have dedicated handlers for cookie management
-    if (path.startsWith('auth/') && !path.includes('verify-email')) {
+    // Auth endpoints that manage session cookies have dedicated handlers
+    // under src/app/api/auth/. Public auth endpoints (verify-email,
+    // request-password-reset, reset-password) don't touch cookies, so they
+    // are allowed through the catch-all here. Adding one to PUBLIC_AUTH_PATHS
+    // without a dedicated handler is intentional.
+    const PUBLIC_AUTH_PATHS = [
+      'verify-email',
+      'request-password-reset',
+      'reset-password',
+    ]
+    if (
+      path.startsWith('auth/') &&
+      !PUBLIC_AUTH_PATHS.some((p) => path.includes(p))
+    ) {
       logger.debug('Auth endpoint should use dedicated handler:', path)
       return NextResponse.json(
         { error: 'Use dedicated auth handler' },
