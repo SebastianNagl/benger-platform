@@ -820,15 +820,17 @@ export function ProjectListTable({
                         })}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`/projects/${project.id}/label`)
-                          }}
-                          className="mr-4 text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
-                        >
-                          {t('projects.list.label')}
-                        </button>
+                        {project.enable_annotation !== false && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/projects/${project.id}/label`)
+                            }}
+                            className="mr-4 text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
+                          >
+                            {t('projects.list.label')}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   )
