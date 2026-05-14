@@ -8,7 +8,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, HTTPException, Request
-from sqlalchemy import case, func
+from sqlalchemy import case, cast, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session, joinedload
 
 from auth_module import require_user
@@ -38,6 +39,44 @@ from project_models import (
     TaskAssignment,
 )
 from project_schemas import ProjectResponse
+
+
+# Metric-key noise stripped out of the "scored (subject, metric) pairs" tally.
+# Mirrors the dropdown filter in routers/evaluations/metadata.py so the tile and
+# the metric list agree on what counts as a "real" metric.
+_METRIC_NOISE_SUFFIXES = ("_details", "_raw", "_passed", "_grade_points", "_response")
+_METRIC_EXCLUDED_KEYS = {"raw_score", "error"}
+
+
+def _metric_key_is_real(key: Optional[str]) -> bool:
+    if not key or key in _METRIC_EXCLUDED_KEYS:
+        return False
+    return not key.endswith(_METRIC_NOISE_SUFFIXES)
+
+
+def _scored_pairs_query(db: Session):
+    """Base query that yields (project_id, subject_id, metric_key) for every
+    (annotation|generation, metric) pair that has at least one scored row in a
+    completed evaluation run. Caller adds project filters + DISTINCT."""
+    subject_expr = func.coalesce(
+        TaskEvaluation.annotation_id, TaskEvaluation.generation_id
+    )
+    metrics_jsonb = cast(TaskEvaluation.metrics, JSONB)
+    return (
+        db.query(
+            EvaluationRun.project_id,
+            subject_expr.label("subject_id"),
+            func.jsonb_object_keys(metrics_jsonb).label("metric_key"),
+        )
+        .select_from(TaskEvaluation)
+        .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
+        .filter(
+            EvaluationRun.status == "completed",
+            subject_expr.isnot(None),
+            TaskEvaluation.metrics.isnot(None),
+            func.jsonb_typeof(metrics_jsonb) == "object",
+        )
+    )
 
 
 def _generation_models_count(project: Project) -> int:
@@ -176,18 +215,21 @@ def calculate_project_stats(
             .count()
         )
 
-    # Evaluation tallies — feed the Statistiken tile and the progress mix.
-    response.evaluation_count = (
-        db.query(EvaluationRun).filter(EvaluationRun.project_id == project_id).count()
+    # Evaluation tallies — count distinct (subject, metric) pairs that have at
+    # least one scored row in a completed run. Matches the user's intuition of
+    # "how many of my answers have been evaluated on how many metrics"; the old
+    # job-count masked partial coverage (a 1-job run scoring 314 of 500
+    # subjects looked identical to a fully-scored run).
+    pairs = (
+        _scored_pairs_query(db)
+        .filter(EvaluationRun.project_id == project_id)
+        .distinct()
+        .all()
     )
-    response.evaluations_completed_count = (
-        db.query(EvaluationRun)
-        .filter(
-            EvaluationRun.project_id == project_id,
-            EvaluationRun.status == "completed",
-        )
-        .count()
+    response.evaluation_count = sum(
+        1 for _pid, sub_id, mk in pairs if _metric_key_is_real(mk)
     )
+    response.evaluations_completed_count = response.evaluation_count
 
     # Mirror to the legacy aliases so frontends reading either name see the
     # same value (the labeling page reads num_tasks for the "Task X of Y"
@@ -245,24 +287,21 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
         .group_by(Annotation.project_id)
     )
 
-    # Query 3: EvaluationRun stats — total runs + completed runs per project.
-    # Feeds both the Statistiken "Evaluations" tile and the progress mix.
-    evaluation_stats_query = (
-        db.query(
-            EvaluationRun.project_id,
-            func.count(EvaluationRun.id).label('evaluation_count'),
-            func.sum(
-                case((EvaluationRun.status == 'completed', 1), else_=0)
-            ).label('evaluations_completed_count'),
-        )
+    # Query 3: Scored (subject, metric) pairs per project. Same definition as
+    # the single-project path — see calculate_project_stats for the rationale.
+    # Pulls DISTINCT (project_id, subject_id, metric_key) tuples and counts in
+    # Python so we can strip noise keys (_raw, _details, etc.) consistently
+    # with routers/evaluations/metadata.py.
+    evaluation_pairs_query = (
+        _scored_pairs_query(db)
         .filter(EvaluationRun.project_id.in_(project_ids))
-        .group_by(EvaluationRun.project_id)
+        .distinct()
     )
 
     # Execute queries
     task_stats = task_stats_query.all()
     annotation_stats = annotation_stats_query.all()
-    evaluation_stats = evaluation_stats_query.all()
+    evaluation_pairs = evaluation_pairs_query.all()
 
     # Build stats lookup dictionary
     stats_map = {}
@@ -286,12 +325,17 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
     for stat in annotation_stats:
         stats_map[stat.project_id]['annotation_count'] = stat.annotation_count or 0
 
-    # Populate evaluation stats
-    for stat in evaluation_stats:
-        stats_map[stat.project_id]['evaluation_count'] = stat.evaluation_count or 0
-        stats_map[stat.project_id]['evaluations_completed_count'] = (
-            stat.evaluations_completed_count or 0
-        )
+    # Populate evaluation stats — count scored (subject, metric) pairs per
+    # project after filtering noise keys.
+    for project_id, _sub_id, metric_key in evaluation_pairs:
+        if not _metric_key_is_real(metric_key):
+            continue
+        if project_id in stats_map:
+            stats_map[project_id]['evaluation_count'] += 1
+    for project_id in project_ids:
+        stats_map[project_id]['evaluations_completed_count'] = stats_map[project_id][
+            'evaluation_count'
+        ]
 
     return stats_map
 
