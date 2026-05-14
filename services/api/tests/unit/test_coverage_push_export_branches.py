@@ -165,6 +165,7 @@ def _setup_project_with_data(db, users, *, add_annotations=True, add_generations
                 generation_id=rg_id,
                 task_id=task.id,
                 model_id="gpt-4o",
+                run_index=0,
                 case_data=json.dumps(task.data),
                 response_content=f"Generated response for task {task.inner_id}",
                 usage_stats={"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},

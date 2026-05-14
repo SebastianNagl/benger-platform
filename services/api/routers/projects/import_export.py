@@ -447,16 +447,23 @@ async def import_project_data(
                         db.add(response_generation)
                         model_response_generations[model_id] = response_gen_id
 
-                # Now create Generation records with proper generation_id references
+                # Now create Generation records with proper generation_id references.
+                # Migration 041 added a unique constraint on (generation_id, run_index)
+                # — multiple gens sharing a parent (same model_id) must have distinct
+                # run_index values, so count children per parent as we go.
+                run_index_per_parent: dict[str, int] = {}
                 for gen_data in generations_to_import:
                     model_id = gen_data.get("model_id", "unknown")
                     response_gen_id = model_response_generations[model_id]
+                    run_index = run_index_per_parent.get(response_gen_id, 0)
+                    run_index_per_parent[response_gen_id] = run_index + 1
 
                     new_gen_id = str(uuid.uuid4())
                     original_gen_id = gen_data.get("id")
                     generation = Generation(
                         id=new_gen_id,
                         generation_id=response_gen_id,  # Link to ResponseGeneration
+                        run_index=run_index,
                         task_id=task_id,
                         model_id=model_id,
                         response_content=gen_data.get("response_content", ""),

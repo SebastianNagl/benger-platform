@@ -170,6 +170,7 @@ class TestBulkExportTasks:
                     case_data=json.dumps(task.data),
                     response_metadata={"tokens": 100 + j * 10},
                     status="completed",
+                    run_index=j,
                 )
                 generations.append(generation)
                 session.add(generation)
@@ -643,7 +644,7 @@ class TestBulkExportTasks:
         """Test that evaluation runs are included at top level."""
         from unittest.mock import Mock
 
-        from models import EvaluationRun, TaskEvaluation
+        from models import EvaluationJudgeRun, EvaluationRun, TaskEvaluation
         from routers.projects.tasks import bulk_export_tasks
 
         session = test_db_session
@@ -665,10 +666,23 @@ class TestBulkExportTasks:
         session.add(eval_run)
         session.flush()
 
+        # Migration 043 made TaskEvaluation.judge_run_id NOT NULL; use the
+        # catch-all judge-run shape that orphan backfill uses.
+        judge_run = EvaluationJudgeRun(
+            id=str(uuid.uuid4()),
+            evaluation_id=eval_run.id,
+            judge_model_id=None,
+            run_index=0,
+            status="completed",
+        )
+        session.add(judge_run)
+        session.flush()
+
         # Create per-task evaluation for the first task
         task_eval = TaskEvaluation(
             id=str(uuid.uuid4()),
             evaluation_id=eval_run.id,
+            judge_run_id=judge_run.id,
             task_id=data["tasks"][0].id,
             field_name="answer",
             answer_type="text",
@@ -739,7 +753,7 @@ class TestBulkExportTasks:
         """Test that evaluations with generation_id are nested under their generation."""
         from unittest.mock import Mock
 
-        from models import EvaluationRun, TaskEvaluation
+        from models import EvaluationJudgeRun, EvaluationRun, TaskEvaluation
         from routers.projects.tasks import bulk_export_tasks
 
         session = test_db_session
@@ -768,10 +782,23 @@ class TestBulkExportTasks:
         session.add(eval_run)
         session.flush()
 
+        # Migration 043 made TaskEvaluation.judge_run_id NOT NULL; use the
+        # catch-all judge-run shape that orphan backfill uses.
+        judge_run = EvaluationJudgeRun(
+            id=str(uuid.uuid4()),
+            evaluation_id=eval_run.id,
+            judge_model_id=None,
+            run_index=0,
+            status="completed",
+        )
+        session.add(judge_run)
+        session.flush()
+
         # Create evaluation linked to a generation (uses config_id:pred:ref field_name format)
         gen_eval = TaskEvaluation(
             id=str(uuid.uuid4()),
             evaluation_id=eval_run.id,
+            judge_run_id=judge_run.id,
             task_id=target_task.id,
             generation_id=target_gen.id,
             field_name=f"{config_id}:__all_model__:answer",
@@ -787,6 +814,7 @@ class TestBulkExportTasks:
         task_eval = TaskEvaluation(
             id=str(uuid.uuid4()),
             evaluation_id=eval_run.id,
+            judge_run_id=judge_run.id,
             task_id=target_task.id,
             generation_id=None,
             field_name="summary",

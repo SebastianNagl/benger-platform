@@ -224,11 +224,12 @@ test.describe('Project Settings Behavior', () => {
     await confirmSkipButton.click()
     await page.waitForTimeout(2000)
 
-    // Should advance to next task (skipped task removed from cycle with default requeue_for_others)
-    // After skipping 1 of 3 tasks, cycle has 2 remaining — shows "Task 1 of 2"
-    const taskIndicator = page.locator('text=/Task 1.*2|Aufgabe 1.*2/i')
+    // Should advance to next task. The counter shows absolute progress
+    // against project.num_tasks (see LabelingInterface — 56b53b0), so after
+    // skipping 1 of 3 tasks it reads "Task 2 of 3", not "1 of 2".
+    const taskIndicator = page.locator('text=/Task 2.*3|Aufgabe 2.*3/i')
     await expect(taskIndicator).toBeVisible({ timeout: 5000 })
-    console.log('Task skipped successfully, now on task 1 of 2')
+    console.log('Task skipped successfully, now on task 2 of 3')
   })
 
   test('annotation_time_limit shows countdown timer @extended', async () => {
@@ -382,10 +383,12 @@ test.describe('Project Settings Behavior', () => {
     await skipButton.click()
     await page.waitForTimeout(2000)
 
-    // Should now be on task 1 of 1 (skipped task removed from cycle)
-    const taskIndicator2 = page.locator('text=/Task 1.*1|Aufgabe 1.*1/i')
+    // Counter shows absolute progress against project.num_tasks (see
+    // LabelingInterface — 56b53b0), so after skipping 1 of 2 it reads
+    // "Task 2 of 2" even though the cycle has 1 remaining task.
+    const taskIndicator2 = page.locator('text=/Task 2.*2|Aufgabe 2.*2/i')
     await expect(taskIndicator2).toBeVisible({ timeout: 10000 })
-    console.log('After skip: task removed from cycle, now 1 of 1')
+    console.log('After skip: task removed from cycle, now 2 of 2')
   })
 
   test('skip_queue=requeue_for_me keeps task in cycle after skip', async () => {

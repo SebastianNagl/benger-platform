@@ -17,6 +17,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from models import (
+    EvaluationJudgeRun,
     EvaluationRun,
     Generation,
     HumanEvaluationSession,
@@ -100,7 +101,7 @@ def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=Tr
             for i, t in enumerate(tasks):
                 gen = Generation(
                     id=_uid(), generation_id=rg.id, task_id=t.id,
-                    model_id=model_id,
+                    model_id=model_id, run_index=i,
                     case_data=json.dumps(t.data),
                     response_content=f"Answer from {model_id} for task {i}",
                     label_config_version="v1", status="completed",
@@ -127,13 +128,25 @@ def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=Tr
         db.flush()
         eval_runs.append(er)
 
+        # Migration 043 made TaskEvaluation.judge_run_id NOT NULL; use the
+        # catch-all judge-run shape that orphan backfill uses.
+        judge_run = EvaluationJudgeRun(
+            id=_uid(), evaluation_id=er.id, judge_model_id=None,
+            run_index=0, status="completed",
+        )
+        db.add(judge_run)
+        db.flush()
+        er._test_judge_run = judge_run
+
         # Per-sample TaskEvaluations
         model_gens = [g for g in generations if g.model_id == model_id]
         for i, t in enumerate(tasks):
             gen_id = model_gens[i].id if i < len(model_gens) else None
             accuracy_val = 1.0 if i % 3 != 0 else 0.0
             te = TaskEvaluation(
-                id=_uid(), evaluation_id=er.id, task_id=t.id,
+                id=_uid(), evaluation_id=er.id,
+                judge_run_id=judge_run.id,
+                task_id=t.id,
                 generation_id=gen_id,
                 field_name="answer", answer_type="choices",
                 ground_truth={"value": "Ja"},

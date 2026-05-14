@@ -72,14 +72,19 @@ test.describe('LLM Judge Thinking Configuration', () => {
     const mainContent = page.locator('main').first()
     await expect(mainContent).toBeVisible({ timeout: 15000 })
 
-    // Model Selection section should be present (EN or DE)
+    // Model Selection lives inside the Generation ConfigCard, which renders
+    // its body lazily (`{expanded && children}` in ConfigCard.tsx — 32e99d7).
+    // On a fresh page load the card is collapsed and "Modell"/"Modellauswahl"
+    // are not in the DOM, so assert on the always-rendered Generation card
+    // title + QuickAction button instead.
     await expect(async () => {
       const bodyText = await mainContent.textContent()
-      const hasModelSection =
-        bodyText?.includes('Model Selection') ||
-        bodyText?.includes('Modellauswahl') ||
-        bodyText?.includes('Modell')
-      expect(hasModelSection).toBe(true)
+      const hasGenerationSection =
+        bodyText?.includes('Generierungskonfiguration') ||
+        bodyText?.includes('Generation Configuration') ||
+        bodyText?.includes('Generierung') ||
+        bodyText?.includes('Generation')
+      expect(hasGenerationSection).toBe(true)
     }).toPass({ timeout: 15000 })
   })
 

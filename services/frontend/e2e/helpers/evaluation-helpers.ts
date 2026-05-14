@@ -649,28 +649,41 @@ export class EvaluationHelpers {
       return
     }
 
-    // HeadlessUI: find the answer type button by its current displayed value
+    // HeadlessUI v2: Listbox.Options is unmounted when closed, so once it
+    // shows up `getByRole('listbox')` resolves to a single open listbox.
     const answerTypeButton = this.answerTypeButton()
-
     await expect(answerTypeButton).toBeVisible({ timeout: 5000 })
-
     await answerTypeButton.click()
-    await this.page.waitForTimeout(300)
 
-    // Use data-value attribute for reliable value-based selection
-    const option = this.page.locator(`[role="option"][data-value="${value}"]`)
-    if (await option.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await option.click()
-    } else {
-      // Fallback: match by visible text
-      const textOption = this.page.getByRole('option', { name: new RegExp(value, 'i') })
-      if (await textOption.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await textOption.click()
-      } else {
-        await this.page.keyboard.press('Escape')
-        throw new Error(`Could not find answer type option: ${value}`)
-      }
+    // expect() auto-retries; isVisible() does not — so reach for the listbox
+    // via expect to absorb HeadlessUI's mount/transition timing.
+    const listbox = this.page.getByRole('listbox')
+    try {
+      await expect(listbox).toBeVisible({ timeout: 5000 })
+    } catch {
+      const buttonTexts = await this.page
+        .locator('[data-testid="evaluation-wizard-body"] button')
+        .allTextContents()
+        .catch(() => [])
+      throw new Error(
+        `Answer type listbox did not open after clicking ${JSON.stringify(
+          (await answerTypeButton.textContent().catch(() => '')) || ''
+        )}. wizardButtons=${JSON.stringify(buttonTexts)} value=${value}`
+      )
     }
+
+    // Scope option search to the open listbox so an unrelated [role="option"]
+    // elsewhere on the page can't shadow the lookup.
+    const option = listbox.locator(`[data-value="${value}"]`)
+    if (await option.count() === 0) {
+      const optionTexts = await listbox.getByRole('option').allTextContents()
+      await this.page.keyboard.press('Escape')
+      throw new Error(
+        `Could not find answer type option data-value="${value}". ` +
+          `Visible options: ${JSON.stringify(optionTexts)}`
+      )
+    }
+    await option.click()
     await this.page.waitForTimeout(300)
   }
 
@@ -693,12 +706,17 @@ export class EvaluationHelpers {
   }
 
   /**
-   * Locator for the answer type HeadlessUI button
+   * Locator for the answer type HeadlessUI button. Scoped to the wizard
+   * body so a stray button elsewhere on the page (e.g. a "Classification"
+   * filter in a sibling card) can't shadow the real dropdown.
    */
   private answerTypeButton() {
-    return this.page.locator('button').filter({
-      hasText: /Free.form|Short Text|Long Text|NER|Named Entity|Span|Freitext|Kurztext|Langtext|Rating|Binary|Choice|Classification/i
-    }).first()
+    return this.page
+      .locator('[data-testid="evaluation-wizard-body"] button')
+      .filter({
+        hasText: /Free.form|Short Text|Long Text|NER|Named Entity|Span|Freitext|Kurztext|Langtext|Rating|Binary|Choice|Classification/i,
+      })
+      .first()
   }
 
   /**
