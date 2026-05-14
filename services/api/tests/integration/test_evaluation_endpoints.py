@@ -22,6 +22,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from models import (
+    EvaluationJudgeRun,
     EvaluationRun,
     EvaluationType,
     Generation,
@@ -193,6 +194,7 @@ def _create_evaluation_project(
                 generation_id=rg.id,
                 task_id=task.id,
                 model_id="gpt-4o",
+                run_index=0,
                 case_data=f"Fall {task.inner_id}",
                 response_content="Die Rechtsfolge lautet ...",
                 status="completed",
@@ -253,12 +255,26 @@ def _create_evaluation_project(
         evaluation_runs.append(eval_run)
         test_db.flush()
 
+        # Migration 043 made TaskEvaluation.judge_run_id NOT NULL; use the
+        # catch-all judge-run shape that orphan backfill uses.
+        judge_run = EvaluationJudgeRun(
+            id=str(uuid.uuid4()),
+            evaluation_id=eval_run.id,
+            judge_model_id=None,
+            run_index=0,
+            status="completed",
+        )
+        test_db.add(judge_run)
+        test_db.flush()
+        eval_run._test_judge_run = judge_run
+
         # --- TaskEvaluations (per-sample) ---
         if with_task_evaluations and generations:
             for i, (task, gen) in enumerate(zip(tasks, generations)):
                 te = TaskEvaluation(
                     id=str(uuid.uuid4()),
                     evaluation_id=eval_run.id,
+                    judge_run_id=judge_run.id,
                     task_id=task.id,
                     generation_id=gen.id,
                     field_name="answer_type",

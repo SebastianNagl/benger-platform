@@ -124,6 +124,7 @@ def _setup_export_project(db, users, num_tasks=3, add_annotations=True, add_gene
                 generation_id=rg.id,
                 task_id=tid,
                 model_id="gpt-4o",
+                run_index=0,
                 case_data=f"Test document {i}",
                 response_content=f"Generated response for document {i}",
                 status="completed",

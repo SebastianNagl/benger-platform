@@ -22,6 +22,7 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
 from models import (
+    EvaluationJudgeRun,
     EvaluationRun,
     Generation,
     ResponseGeneration,
@@ -146,6 +147,7 @@ def project_with_full_data(db_session, user):
             generation_id=rg.id,
             task_id=t.id,
             model_id="gpt-4o",
+            run_index=0,
             response_content=f"Response for task {t.inner_id}",
             case_data=json.dumps(t.data),
             response_metadata={"tokens": 200},
@@ -187,12 +189,34 @@ def project_with_full_data(db_session, user):
     db_session.add(er_ann)
     db_session.flush()
 
+    # Migration 043 made TaskEvaluation.judge_run_id NOT NULL; every
+    # EvaluationRun needs a parent judge run. Use the catch-all shape
+    # (judge_model_id=NULL, run_index=0) that orphan backfill uses.
+    er_gen._test_judge_run = EvaluationJudgeRun(
+        id=str(uuid.uuid4()),
+        evaluation_id=er_gen.id,
+        judge_model_id=None,
+        run_index=0,
+        status="completed",
+    )
+    db_session.add(er_gen._test_judge_run)
+    er_ann._test_judge_run = EvaluationJudgeRun(
+        id=str(uuid.uuid4()),
+        evaluation_id=er_ann.id,
+        judge_model_id=None,
+        run_index=0,
+        status="completed",
+    )
+    db_session.add(er_ann._test_judge_run)
+    db_session.flush()
+
     # --- Task evaluations (generation-level) ---
     gen_evals = []
     for gen in generations:
         te = TaskEvaluation(
             id=str(uuid.uuid4()),
             evaluation_id=er_gen.id,
+            judge_run_id=er_gen._test_judge_run.id,
             task_id=gen.task_id,
             generation_id=gen.id,
             field_name="cfg1:prediction:reference",
@@ -213,6 +237,7 @@ def project_with_full_data(db_session, user):
         te = TaskEvaluation(
             id=str(uuid.uuid4()),
             evaluation_id=er_ann.id,
+            judge_run_id=er_ann._test_judge_run.id,
             task_id=t.id,
             generation_id=None,
             field_name="exact_match:answer:reference",

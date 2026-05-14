@@ -297,10 +297,11 @@ class TestGetProject:
         )
         test_db.add(rg)
         test_db.flush()
-        for t in tasks:
+        for i, t in enumerate(tasks):
             gen = Generation(
                 id=_uid(), generation_id=rg.id, task_id=t.id,
-                model_id="gpt-4o", case_data="{}", response_content="answer",
+                model_id="gpt-4o", run_index=i,
+                case_data="{}", response_content="answer",
                 label_config_version="v1", status="completed",
             )
             test_db.add(gen)
