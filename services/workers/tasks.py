@@ -924,8 +924,18 @@ def generate_llm_responses(
                 ai_service = user_aware_ai_service.get_ai_service_for_user(
                     db, user_id, model.provider, organization_id=organization_id
                 )
-                key_source = f"org {organization_id}" if organization_id else f"user {user_id}"
-                logger.info(f"Using API key from {key_source} for {model.provider}")
+                # Read the actual resolution route off the service so the log
+                # reflects which key path the resolver took, not just whether
+                # an org_id was passed (issue #82).
+                route = (
+                    getattr(ai_service, "_key_resolution_route", "user_key")
+                    if ai_service
+                    else "unresolved"
+                )
+                logger.info(
+                    f"Using API key via {route} "
+                    f"(org_context={organization_id}, user={user_id}) for {model.provider}"
+                )
             except Exception as e:
                 error_msg = str(e)
                 if (
@@ -1498,6 +1508,13 @@ def generate_llm_responses(
                                         "system_prompt", "instruction_prompt",
                                     }
                                 },
+                                # Issue #82: stamp the key-resolution audit
+                                # fields directly off the service so every
+                                # provider (not just openai) lands them.
+                                "key_resolution_route": getattr(ai_service, "_key_resolution_route", None),
+                                "provider_name": getattr(ai_service, "_provider_name", None),
+                                "invocation_user_id": getattr(ai_service, "_invocation_user_id", None),
+                                "invocation_organization_id": getattr(ai_service, "_invocation_organization_id", None),
                             }
                             logger.info(
                                 f"✅ Using response_text format, content length: {len(response_text)}"
@@ -1522,6 +1539,11 @@ def generate_llm_responses(
                                         "system_prompt", "instruction_prompt",
                                     }
                                 },
+                                # Issue #82: same key-resolution audit fields.
+                                "key_resolution_route": getattr(ai_service, "_key_resolution_route", None),
+                                "provider_name": getattr(ai_service, "_provider_name", None),
+                                "invocation_user_id": getattr(ai_service, "_invocation_user_id", None),
+                                "invocation_organization_id": getattr(ai_service, "_invocation_organization_id", None),
                             }
                             logger.info(
                                 f"✅ Using content format, content length: {len(response_text)}"
