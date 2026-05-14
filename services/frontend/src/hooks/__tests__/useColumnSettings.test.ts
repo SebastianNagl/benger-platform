@@ -120,20 +120,7 @@ describe('useColumnSettings Hook', () => {
       expect(localStorageMock.getItem).not.toHaveBeenCalled()
     })
 
-    it('should handle SSR (window undefined)', () => {
-      const originalWindow = global.window
-      // @ts-ignore - intentionally deleting for SSR test
-      delete global.window
-
-      const { result } = renderHook(() =>
-        useColumnSettings(mockProjectId, mockUserId, mockDefaultColumns)
-      )
-
-      expect(result.current.columns).toHaveLength(4)
-
-      // Restore window
-      global.window = originalWindow
-    })
+    // SSR case lives in useColumnSettings.ssr.test.ts (node env).
   })
 
   describe('2. Data Fetching/State Management', () => {
@@ -918,20 +905,7 @@ describe('useTablePreferences Hook', () => {
       expect(localStorageMock.getItem).not.toHaveBeenCalled()
     })
 
-    it('should handle SSR (window undefined)', () => {
-      const originalWindow = global.window
-      // @ts-ignore - intentionally deleting for SSR test
-      delete global.window
-
-      const { result } = renderHook(() =>
-        useTablePreferences(mockProjectId, mockUserId)
-      )
-
-      expect(result.current.preferences).toBeDefined()
-
-      // Restore window
-      global.window = originalWindow
-    })
+    // SSR case lives in useColumnSettings.ssr.test.ts (node env).
   })
 
   describe('2. Data Fetching/State Management', () => {

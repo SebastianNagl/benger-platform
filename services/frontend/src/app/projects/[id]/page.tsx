@@ -1355,22 +1355,37 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     )
   }
 
-  // Use server-calculated progress_percentage if available (Issue #257)
-  // This properly handles multi-annotator scenarios where progress is based on
-  // completed tasks (meeting min_annotations_per_task requirement) rather than raw annotation count
-  const completionRate =
-    currentProject.progress_percentage !== undefined
-      ? Math.round(currentProject.progress_percentage)
-      : (currentProject.task_count ?? 0) > 0
-        ? Math.min(
-            100,
-            Math.round(
-              ((currentProject.annotation_count ?? 0) /
-                (currentProject.task_count ?? 0)) *
-                100
-            )
-          )
-        : 0
+  // Use server-calculated progress_percentage when present — it's the
+  // source of truth and mixes the enabled stages (annotation /
+  // generation / evaluation). The fallback below mirrors the backend's
+  // _mix_progress for the rare case where the server hasn't populated
+  // the field yet (e.g. a stale cached response).
+  const completionRate = (() => {
+    if (currentProject.progress_percentage !== undefined) {
+      return Math.round(currentProject.progress_percentage)
+    }
+    const taskCount = currentProject.task_count ?? 0
+    const genModels = currentProject.generation_models_count ?? 0
+    const parts: Array<[number, number]> = []
+    if (currentProject.enable_annotation !== false) {
+      parts.push([currentProject.completed_tasks_count ?? 0, taskCount])
+    }
+    if (currentProject.enable_generation !== false) {
+      // We don't have completed_generations on the client; treat the
+      // generation stage as 0/0 in the fallback so it gets ignored.
+      parts.push([0, taskCount * genModels])
+    }
+    if (currentProject.enable_evaluation !== false) {
+      const completed = currentProject.evaluations_completed_count ?? 0
+      const expected = currentProject.evaluation_count ?? 0
+      parts.push([Math.min(completed, expected), expected])
+    }
+    const relevant = parts.filter(([, expected]) => expected > 0)
+    if (relevant.length === 0) return 0
+    const completedSum = relevant.reduce((acc, [c]) => acc + c, 0)
+    const expectedSum = relevant.reduce((acc, [, e]) => acc + e, 0)
+    return Math.min(100, Math.round((completedSum / expectedSum) * 100))
+  })()
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-10 pt-16 sm:px-6 lg:px-8">
@@ -3902,21 +3917,33 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   {currentProject.task_count}
                 </dd>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {t('project.statistics.annotations')}
-                </dt>
-                <dd className="text-sm font-medium text-zinc-900 dark:text-white">
-                  {currentProject.annotation_count}
-                </dd>
-              </div>
-              {((currentProject as any).generation_count ?? 0) > 0 && (
+              {currentProject.enable_annotation !== false && (
+                <div className="flex justify-between">
+                  <dt className="text-sm text-zinc-500 dark:text-zinc-400">
+                    {t('project.statistics.annotations')}
+                  </dt>
+                  <dd className="text-sm font-medium text-zinc-900 dark:text-white">
+                    {currentProject.annotation_count}
+                  </dd>
+                </div>
+              )}
+              {currentProject.enable_generation !== false && (
                 <div className="flex justify-between">
                   <dt className="text-sm text-zinc-500 dark:text-zinc-400">
                     {t('project.statistics.generations')}
                   </dt>
                   <dd className="text-sm font-medium text-zinc-900 dark:text-white">
-                    {(currentProject as any).generation_count}
+                    {currentProject.generation_count ?? 0}
+                  </dd>
+                </div>
+              )}
+              {currentProject.enable_evaluation !== false && (
+                <div className="flex justify-between">
+                  <dt className="text-sm text-zinc-500 dark:text-zinc-400">
+                    {t('project.statistics.evaluations')}
+                  </dt>
+                  <dd className="text-sm font-medium text-zinc-900 dark:text-white">
+                    {currentProject.evaluation_count ?? 0}
                   </dd>
                 </div>
               )}

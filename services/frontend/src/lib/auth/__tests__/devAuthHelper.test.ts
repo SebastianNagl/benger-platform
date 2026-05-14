@@ -42,14 +42,7 @@ describe('DevAuthHelper', () => {
       expect(timestamp).toBeLessThanOrEqual(afterTime)
     })
 
-    it('should handle server-side (no document)', () => {
-      const originalDocument = global.document
-      delete (global as any).document
-
-      expect(() => devAuthHelper.markManualLogout()).not.toThrow()
-
-      global.document = originalDocument
-    })
+    // Server-side case lives in devAuthHelper.ssr.test.ts (node env).
   })
 
   describe('clearManualLogout', () => {
@@ -61,13 +54,6 @@ describe('DevAuthHelper', () => {
       expect(document.cookie).not.toContain('manual_logout=')
     })
 
-    it('should handle server-side (no document)', () => {
-      const originalDocument = global.document
-      delete (global as any).document
-
-      expect(() => devAuthHelper.clearManualLogout()).not.toThrow()
-
-      global.document = originalDocument
-    })
+    // Server-side case lives in devAuthHelper.ssr.test.ts (node env).
   })
 })
