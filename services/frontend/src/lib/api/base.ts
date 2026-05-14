@@ -206,6 +206,21 @@ export class BaseApiClient {
       patterns.push(`/projects/${projectMatch[1]}`)
     }
 
+    // Notification mark-as-read / bulk mutations affect both the list
+    // (`/notifications/`) and the unread-count badge. Without this, the
+    // post-mutation refetch in useNotifications.markAllAsRead cache-hits
+    // the 30s GET entries and overwrites the optimistic update, so the
+    // dropdown + bell badge stay stale until the page is reloaded.
+    if (
+      mutationEndpoint === '/notifications/mark-all-read' ||
+      mutationEndpoint.startsWith('/notifications/mark-read/') ||
+      mutationEndpoint === '/notifications/bulk/mark-read' ||
+      mutationEndpoint === '/notifications/bulk/delete'
+    ) {
+      patterns.push('/notifications/')
+      patterns.push('/notifications/unread-count')
+    }
+
     // Invalidate each pattern
     patterns.forEach((pattern) => {
       this.invalidateCache(pattern)
