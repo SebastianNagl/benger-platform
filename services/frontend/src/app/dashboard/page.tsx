@@ -11,6 +11,11 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
+// Compact a stat-tile count into a fixed-width form so 6+ digit values don't
+// overflow the card. 100000 -> "100k", 1234567 -> "1234k".
+const formatStatCount = (n: number): string =>
+  n >= 100000 ? `${Math.floor(n / 1000)}k` : String(n)
+
 export default function DashboardPage() {
   const { t } = useI18n()
   const { projects, fetchProjects, loading } = useProjectStore()
@@ -158,7 +163,7 @@ export default function DashboardPage() {
                     {t('dashboard.stats.projects')}
                   </dt>
                   <dd className="text-lg font-medium text-zinc-900 dark:text-white">
-                    {dashboardStats.project_count}
+                    {formatStatCount(dashboardStats.project_count)}
                   </dd>
                 </dl>
               </div>
@@ -193,7 +198,7 @@ export default function DashboardPage() {
                     {t('dashboard.stats.issues')}
                   </dt>
                   <dd className="text-lg font-medium text-zinc-900 dark:text-white">
-                    {dashboardStats.task_count}
+                    {formatStatCount(dashboardStats.task_count)}
                   </dd>
                 </dl>
               </div>
@@ -228,7 +233,7 @@ export default function DashboardPage() {
                     {t('dashboard.stats.annotations')}
                   </dt>
                   <dd className="text-lg font-medium text-zinc-900 dark:text-white">
-                    {dashboardStats.annotation_count}
+                    {formatStatCount(dashboardStats.annotation_count)}
                   </dd>
                 </dl>
               </div>
@@ -263,7 +268,7 @@ export default function DashboardPage() {
                     {t('dashboard.stats.generations')}
                   </dt>
                   <dd className="text-lg font-medium text-zinc-900 dark:text-white">
-                    {dashboardStats.projects_with_generations}
+                    {formatStatCount(dashboardStats.projects_with_generations)}
                   </dd>
                 </dl>
               </div>
@@ -298,7 +303,7 @@ export default function DashboardPage() {
                     {t('dashboard.stats.evaluations')}
                   </dt>
                   <dd className="text-lg font-medium text-zinc-900 dark:text-white">
-                    {dashboardStats.projects_with_evaluations}
+                    {formatStatCount(dashboardStats.projects_with_evaluations)}
                   </dd>
                 </dl>
               </div>

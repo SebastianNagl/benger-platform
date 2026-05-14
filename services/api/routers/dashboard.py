@@ -10,8 +10,13 @@ from sqlalchemy.orm import Session
 
 from auth_module import User, require_user
 from database import get_db
+from models import EvaluationRun
 from redis_cache import RedisCache
-from routers.projects.helpers import get_accessible_project_ids
+from routers.projects.helpers import (
+    _metric_key_is_real,
+    _scored_pairs_query,
+    get_accessible_project_ids,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +41,10 @@ async def get_dashboard_stats(
     """
     org_context = request.headers.get("X-Organization-Context")
 
-    # Create cache key based on user ID and org context
-    cache_key = f"dashboard_stats:{current_user.id}:{org_context or 'private'}"
+    # Create cache key based on user ID and org context. The `v2` suffix
+    # invalidates the old "count of task_evaluations rows" answer when this
+    # deploy lands — see _scored_pairs_query for the new semantics.
+    cache_key = f"dashboard_stats:v2:{current_user.id}:{org_context or 'private'}"
 
     # Try to get from cache first
     cached_stats = cache.get(cache_key)
@@ -68,8 +75,7 @@ async def get_dashboard_stats(
                     (SELECT COUNT(*) FROM projects) as project_count,
                     (SELECT COUNT(*) FROM tasks) as task_count,
                     (SELECT COUNT(*) FROM annotations WHERE jsonb_array_length(result) > 0 AND was_cancelled = false) as annotation_count,
-                    (SELECT COUNT(*) FROM generations) as projects_with_generations,
-                    (SELECT COUNT(*) FROM task_evaluations) as projects_with_evaluations
+                    (SELECT COUNT(*) FROM generations) as projects_with_generations
             """
             )
             result = db.execute(stats_query).fetchone()
@@ -90,21 +96,30 @@ async def get_dashboard_stats(
                      WHERE jsonb_array_length(a.result) > 0 AND a.was_cancelled = false) as annotation_count,
                     (SELECT COUNT(*) FROM generations g
                      INNER JOIN tasks t ON g.task_id = t.id
-                     INNER JOIN accessible_projects ap ON t.project_id = ap.id) as projects_with_generations,
-                    (SELECT COUNT(*) FROM task_evaluations te
-                     INNER JOIN evaluation_runs er ON te.evaluation_id = er.id
-                     INNER JOIN accessible_projects ap ON er.project_id = ap.id) as projects_with_evaluations
+                     INNER JOIN accessible_projects ap ON t.project_id = ap.id) as projects_with_generations
             """
             bind_params = {f"pid_{i}": pid for i, pid in enumerate(accessible_ids)}
             stats_query = text(stats_query_str).bindparams(**bind_params)
             result = db.execute(stats_query).fetchone()
+
+        # Evaluations: distinct (subject, metric) pairs that have at least one
+        # scored row in a completed run. Same definition as the project page
+        # tile — see helpers._scored_pairs_query.
+        scored_pairs_q = _scored_pairs_query(db).distinct()
+        if accessible_ids is not None:
+            scored_pairs_q = scored_pairs_q.filter(
+                EvaluationRun.project_id.in_(accessible_ids)
+            )
+        evaluations_count = sum(
+            1 for _pid, sub_id, mk in scored_pairs_q.all() if _metric_key_is_real(mk)
+        )
 
         stats = {
             "project_count": result.project_count if result else 0,
             "task_count": result.task_count if result else 0,
             "annotation_count": result.annotation_count if result else 0,
             "projects_with_generations": result.projects_with_generations if result else 0,
-            "projects_with_evaluations": result.projects_with_evaluations if result else 0,
+            "projects_with_evaluations": evaluations_count,
         }
 
         # Cache the results for 5 minutes (dashboard stats don't change frequently)
