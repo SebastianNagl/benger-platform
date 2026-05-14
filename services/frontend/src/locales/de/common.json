@@ -7582,7 +7582,8 @@
       "general": "Allgemeine Kommentare"
     },
     "highlights": {
-      "selectText": "Wählen Sie ein Label und markieren Sie Text, um einen Kommentar hinzuzufügen"
+      "selectText": "Wählen Sie ein Label und markieren Sie Text, um einen Kommentar hinzuzufügen",
+      "selectTextNoLabel": "Markiere Text in der Lösung, um einen Kommentar zu setzen."
     },
     "evaluations": {
       "title": "Evaluierungsergebnisse",
