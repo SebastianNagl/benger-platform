@@ -2807,7 +2807,7 @@ def run_evaluation(
                     .filter(
                         TaskEvaluation.task_id.in_(task_id_list),
                         TaskEvaluation.generation_id.isnot(None),
-                        EvaluationRun.status.in_(("completed", "running", "pending")),
+                        EvaluationRun.status.in_(("completed", "running", "pending", "cancelled")),
                     )
                     .all()
                 )
@@ -2905,7 +2905,7 @@ def run_evaluation(
                         .filter(
                             TaskEvaluation.task_id.in_(task_id_list),
                             TaskEvaluation.annotation_id.isnot(None),
-                            EvaluationRun.status.in_(("completed", "running", "pending")),
+                            EvaluationRun.status.in_(("completed", "running", "pending", "cancelled")),
                         )
                         .all()
                     )
