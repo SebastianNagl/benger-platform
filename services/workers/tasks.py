@@ -3041,6 +3041,28 @@ def run_evaluation(
                     )
                 )
 
+            # Final cancel check just before chord dispatch. The
+            # orchestrator's setup phase (judge_run creation, work-unit
+            # enumeration, missing-only preload) can run for ~25 s on a
+            # ZJS-scale eval; an admin or operator hitting Cancel during
+            # that window should stop us BEFORE we fan out 6940 sub-tasks
+            # that each immediately short-circuit on their own
+            # parent-status check. Saves Celery message churn + worker
+            # CPU for no useful work.
+            db.refresh(evaluation)
+            if evaluation.status in ("cancelled", "failed", "completed"):
+                logger.info(
+                    f"Eval {evaluation_id} reached terminal status "
+                    f"'{evaluation.status}' during orchestrator setup; "
+                    f"skipping chord dispatch."
+                )
+                return {
+                    "status": "cancelled_before_dispatch",
+                    "evaluation_id": evaluation_id,
+                    "current_status": evaluation.status,
+                    "cells_would_have_dispatched": cells_dispatched,
+                }
+
             callback_sig = finalize_evaluation_run.signature(
                 kwargs={"evaluation_id": evaluation_id},
                 queue="evaluation",
@@ -3947,6 +3969,91 @@ def _build_sample_evaluator_for_cell(
     return SampleEvaluator(evaluation_id, field_configs, metric_parameters)
 
 
+_CELL_ATTEMPT_TTL_SECS = 86400
+_CELL_ATTEMPT_LIMIT = 3
+
+
+def _record_cell_attempt(evaluation_id: str, cell_key: str) -> int:
+    """Per-cell attempt counter in Redis, used as a poison-cell guard.
+
+    With `acks_late=True` + `reject_on_worker_lost=True` on the cell
+    sub-tasks, a cell that deterministically crashes the worker (e.g.
+    deterministic OOM on a 50KB generation with all embedding metrics)
+    would be redelivered indefinitely — `max_retries` only counts
+    explicit `self.retry()` calls, not broker-level redeliveries. This
+    counter caps that loop: after `_CELL_ATTEMPT_LIMIT` redeliveries
+    the sub-task records the failure reason and short-circuits, the
+    chord still completes, and the parent run finalizes without
+    burning unbounded LLM/judge quota.
+
+    Falls back to "first attempt" on Redis error rather than blocking
+    the eval; a Redis outage shouldn't fail-open into burning quota
+    long-term, but during the outage we'd rather process normally.
+    """
+    try:
+        client = redis.from_url(app.conf.broker_url)
+        key = f"benger:cell_attempts:{evaluation_id}:{cell_key}"
+        n = client.incr(key)
+        client.expire(key, _CELL_ATTEMPT_TTL_SECS)
+        return int(n)
+    except Exception as ex:
+        logger.warning(f"_record_cell_attempt redis error: {ex}; treating as first attempt")
+        return 1
+
+
+def _record_cell_failure_reason(db, evaluation_id: str, reason: str) -> None:
+    """Increment `eval_metadata.failures_by_reason[reason]` so the UI
+    can surface *why* cells silently failed (rate-limit, judge timeout,
+    poison cell, etc.) instead of just `samples_failed=N` with no
+    breakdown. Uses `jsonb_set(... , create_missing=true)` so the
+    nested object is created on first failure of any kind.
+
+    Skips entirely when the parent is already terminal, mirroring the
+    `_bump_evaluation_counters` guard."""
+    from sqlalchemy import text as _text
+
+    db.execute(
+        _text(
+            """
+            UPDATE evaluation_runs
+               SET eval_metadata = (
+                 jsonb_set(
+                   COALESCE(eval_metadata::jsonb, '{}'::jsonb),
+                   ARRAY['failures_by_reason', :reason],
+                   to_jsonb(
+                     COALESCE(
+                       (eval_metadata::jsonb->'failures_by_reason'->>:reason)::int,
+                       0
+                     ) + 1
+                   ),
+                   true
+                 )
+               )::json
+             WHERE id = :evaluation_id
+               AND status NOT IN ('completed', 'failed', 'cancelled')
+            """
+        ),
+        {"evaluation_id": evaluation_id, "reason": reason},
+    )
+
+
+def _classify_cell_failure(exc: BaseException) -> str:
+    """Bucket a cell exception into a stable string the UI can group
+    on. Conservative: just use the exception class name if we don't
+    recognise a known LLM-provider error pattern."""
+    name = type(exc).__name__.lower()
+    msg = str(exc).lower()
+    if "rate" in name or "rate_limit" in msg or "rate limit" in msg or "429" in msg:
+        return "rate_limit"
+    if "timeout" in name or "timeout" in msg:
+        return "timeout"
+    if "content" in msg and ("policy" in msg or "filter" in msg):
+        return "content_policy"
+    if "quota" in msg or "exceeded" in msg:
+        return "quota_exceeded"
+    return type(exc).__name__
+
+
 def _bulk_upsert_task_evaluations(
     db, rows: List[Dict[str, Any]]
 ) -> Tuple[int, int, int]:
@@ -4104,6 +4211,23 @@ def evaluate_generation_cell(
         if parent_status in ("cancelled", "failed", "completed"):
             return {"status": "skipped", "reason": f"parent_{parent_status}",
                     "evaluation_id": evaluation_id, "generation_id": generation_id}
+
+        # Poison-cell guard: cap broker-level redeliveries via Redis
+        # counter so a deterministic-OOM cell doesn't loop forever.
+        attempts = _record_cell_attempt(evaluation_id, f"gen:{generation_id}")
+        if attempts > _CELL_ATTEMPT_LIMIT:
+            logger.error(
+                f"evaluate_generation_cell: poison cell — gen {generation_id} "
+                f"hit attempt #{attempts} for eval {evaluation_id}; bailing"
+            )
+            _record_cell_failure_reason(db, evaluation_id, "poison_cell_max_attempts")
+            _bump_evaluation_counters(
+                db, evaluation_id=evaluation_id,
+                samples_evaluated=0, samples_passed=0, samples_failed=1,
+            )
+            db.commit()
+            return {"status": "poisoned", "evaluation_id": evaluation_id,
+                    "generation_id": generation_id, "attempts": attempts}
 
         gen = db.query(Generation).filter(Generation.id == generation_id).first()
         if not gen:
@@ -4517,9 +4641,10 @@ def evaluate_generation_cell(
         )
         db.rollback()
         # Don't propagate — the chord finalizer must still fire. Best-effort
-        # increment of `samples_failed` so the finalizer's parent-status
-        # logic accounts for this cell.
+        # increment of `samples_failed` and record the failure reason so
+        # the UI can surface *why* the cell silently produced no row.
         try:
+            _record_cell_failure_reason(db, evaluation_id, _classify_cell_failure(e))
             _bump_evaluation_counters(
                 db,
                 evaluation_id=evaluation_id,
@@ -4585,6 +4710,22 @@ def evaluate_annotation_cell(
         if parent_status in ("cancelled", "failed", "completed"):
             return {"status": "skipped", "reason": f"parent_{parent_status}",
                     "evaluation_id": evaluation_id, "annotation_id": annotation_id}
+
+        # Poison-cell guard — mirror of evaluate_generation_cell.
+        attempts = _record_cell_attempt(evaluation_id, f"ann:{annotation_id}")
+        if attempts > _CELL_ATTEMPT_LIMIT:
+            logger.error(
+                f"evaluate_annotation_cell: poison cell — ann {annotation_id} "
+                f"hit attempt #{attempts} for eval {evaluation_id}; bailing"
+            )
+            _record_cell_failure_reason(db, evaluation_id, "poison_cell_max_attempts")
+            _bump_evaluation_counters(
+                db, evaluation_id=evaluation_id,
+                samples_evaluated=0, samples_passed=0, samples_failed=1,
+            )
+            db.commit()
+            return {"status": "poisoned", "evaluation_id": evaluation_id,
+                    "annotation_id": annotation_id, "attempts": attempts}
 
         annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
         if not annotation:
@@ -4957,6 +5098,7 @@ def evaluate_annotation_cell(
         )
         db.rollback()
         try:
+            _record_cell_failure_reason(db, evaluation_id, _classify_cell_failure(e))
             _bump_evaluation_counters(
                 db,
                 evaluation_id=evaluation_id,

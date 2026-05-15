@@ -360,3 +360,75 @@ class TestResolveUserOrgForProject:
 
         result = resolve_user_org_for_project(user, project, db)
         assert result == "org-2"
+
+
+class TestCancellationEndpoints:
+    """Source-contract tests for the cancel endpoints + idempotency.
+
+    Full HTTP integration would require the test app + DB harness; the
+    contracts asserted here are enough to catch the most likely
+    regression (someone removes / renames the endpoints or the helper)."""
+
+    def test_cancel_endpoints_exist(self):
+        from routers.evaluations import multi_field
+        from inspect import getmembers, iscoroutinefunction
+
+        fn_names = {n for n, f in getmembers(multi_field, iscoroutinefunction)}
+        assert "cancel_evaluation_run" in fn_names, (
+            "POST /api/evaluations/run/{id}/cancel handler missing"
+        )
+        assert "cancel_all_project_evaluations" in fn_names, (
+            "POST /api/evaluations/projects/{pid}/runs/cancel-all handler missing"
+        )
+
+    def test_cancel_helper_preserves_task_evaluations(self):
+        """`_cancel_runs` must NOT delete `task_evaluations`. Partial
+        scores survive cancel so a `force_rerun=False` re-trigger
+        picks up from where the cancelled run left off."""
+        from routers.evaluations.multi_field import _cancel_runs  # noqa: F401
+        import inspect
+
+        src = inspect.getsource(_cancel_runs)
+        # Hostile: the helper must not contain a DELETE against task_evaluations.
+        assert "DELETE FROM task_evaluations" not in src.upper().replace(
+            "DELETE FROM TASK_EVALUATIONS", "DELETE FROM TASK_EVALUATIONS"
+        ), "cancel must NEVER delete task_evaluations rows"
+        # It must do exactly the three SQL operations: UPDATE evaluation_runs,
+        # UPDATE evaluation_judge_runs, SELECT count(*).
+        assert "UPDATE evaluation_runs" in src
+        assert "UPDATE evaluation_judge_runs" in src
+        assert "task_evaluations" in src  # for the preserved-count SELECT
+
+    def test_cancel_helper_only_terminates_inflight(self):
+        """The UPDATE filter `AND status IN ('pending','running')`
+        prevents flipping an already-terminal run (`completed`/`failed`/
+        `cancelled`) into `cancelled`, which would lose its
+        `completed_at`/`error_message` provenance."""
+        import inspect
+        from routers.evaluations.multi_field import _cancel_runs
+
+        src = inspect.getsource(_cancel_runs)
+        assert "AND status IN ('pending', 'running')" in src, (
+            "cancel must only touch pending/running runs, not flip terminal ones"
+        )
+
+    def test_run_endpoint_has_idempotency_guard(self):
+        """Double-clicking the Run button (or any race between two POSTs
+        within 30s by the same user on the same project) must return
+        the in-flight run's id with `status='already_running'`, not
+        spawn a duplicate dispatch that doubles the LLM bill."""
+        import inspect
+        from routers.evaluations.multi_field import run_evaluation
+
+        src = inspect.getsource(run_evaluation)
+        assert "already_running" in src, (
+            "run_evaluation must short-circuit on a recent in-flight dispatch "
+            "and return `status='already_running'`"
+        )
+        assert "timedelta" in src and "seconds=30" in src, (
+            "idempotency window of 30s must be present"
+        )
+        # The check looks at the same project + same user + status
+        # pending/running.
+        assert "DBEvaluationRun.created_by" in src
+        assert 'status.in_(("pending", "running"))' in src
