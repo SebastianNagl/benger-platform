@@ -246,6 +246,71 @@ def test_cell_sub_tasks_short_circuit_on_parent_cancel():
             raise AssertionError(f"function {fn_name} not found in tasks.py")
 
 
+def test_cell_sub_tasks_have_poison_cell_guard():
+    """A cell that deterministically OOMs would be redelivered
+    indefinitely under `reject_on_worker_lost=True` (broker-level
+    redeliveries don't decrement `max_retries`). The Redis-backed
+    `_record_cell_attempt` counter caps redeliveries and short-circuits
+    after `_CELL_ATTEMPT_LIMIT` so the chord still completes."""
+    src = _tasks_source()
+    assert "_record_cell_attempt" in src, "missing poison-cell counter helper"
+    assert "_CELL_ATTEMPT_LIMIT" in src, "missing poison-cell limit constant"
+    # Both sub-tasks invoke the guard near entry and short-circuit
+    # past the limit. Grep for both call sites and the bail-out branch.
+    assert src.count("_record_cell_attempt(evaluation_id, ") >= 2, (
+        "both cell sub-tasks must call _record_cell_attempt to share the cap"
+    )
+    assert 'reason": "poison_cell_max_attempts' in src or \
+        "poison_cell_max_attempts" in src, (
+        "poison-cell skip path must tag the failure_reason so the UI can "
+        "surface 'N cells went poison'"
+    )
+
+
+def test_cell_sub_tasks_record_failure_reasons():
+    """When a cell sub-task hits a transient error and bumps
+    `samples_failed=1` without writing a TaskEvaluation row, the user
+    sees a pass-rate drop with no signal as to *why*. Both sub-tasks
+    must classify the exception and increment
+    `eval_metadata.failures_by_reason[<reason>]` so the InflightRunsBanner
+    can display 'rate_limit: 139, timeout: 12' on the runs view."""
+    src = _tasks_source()
+    assert "_record_cell_failure_reason" in src, (
+        "missing failure-reason tracker helper"
+    )
+    assert "_classify_cell_failure" in src, (
+        "missing exception → reason classifier"
+    )
+    # Both cell sub-tasks should call the recorder in their outer
+    # except block.
+    assert src.count("_record_cell_failure_reason(db, evaluation_id, ") >= 2, (
+        "both cell sub-tasks must record the failure reason in the outer "
+        "exception handler so the UI can surface a breakdown"
+    )
+
+
+def test_orchestrator_pre_chord_cancel_check():
+    """Orchestrator setup (judge_run creation + work-unit enumeration +
+    missing-only preload) takes ~25s on a ZJS-scale eval. If the user
+    cancels DURING setup, we must skip the chord dispatch — otherwise
+    we fan out 6940 sub-tasks that each immediately short-circuit on
+    their own parent-status check (Celery message churn + worker CPU
+    for no useful work)."""
+    src = _tasks_source()
+    import ast
+    tree = ast.parse(src)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == "run_evaluation":
+            body_src = ast.get_source_segment(src, node) or ""
+            assert "cancelled_before_dispatch" in body_src, (
+                "orchestrator must re-check EvaluationRun.status just before "
+                "chord dispatch and bail (status 'cancelled_before_dispatch') "
+                "rather than fan out useless sub-tasks"
+            )
+            return
+    raise AssertionError("run_evaluation function not found")
+
+
 def test_counter_bump_skips_when_parent_terminal():
     """Defense in depth against the finalize TOCTOU race: even if a
     late sub-task bump lands between finalize's `db.refresh` and
