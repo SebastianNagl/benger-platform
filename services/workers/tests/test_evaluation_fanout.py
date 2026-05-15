@@ -197,17 +197,25 @@ def test_sub_tasks_use_acks_late_for_chord_completeness():
         "tasks.evaluate_annotation_cell",
         "tasks.finalize_evaluation_run",
     ):
-        # Find the decorator block for this task and assert the flags appear in it.
+        # Find the decorator block for this task. Anchor on `)\s*\ndef `
+        # rather than the lazy `.*?)` — the lazy form stops at the FIRST
+        # `)` it sees, which is fragile if a future kwarg value contains
+        # parens (e.g. `retry_backoff_max=timedelta(seconds=30)`). The
+        # `\)\s*\ndef ` anchor guarantees we capture through the actual
+        # decorator close.
         m = re.search(
-            r'@app\.task\(\s*name="' + re.escape(tag) + r'".*?\)',
+            r'@app\.task\(\s*name="' + re.escape(tag) + r'".*?\)\s*\ndef ',
             src, re.DOTALL,
         )
         assert m, f"could not locate decorator for {tag}"
         deco = m.group(0)
-        assert "acks_late=True" in deco, (
+        # Anchor on the actual kwarg (whitespace-tolerant) so a stray
+        # `acks_late=True` inside a docstring or comment block doesn't
+        # falsely satisfy the assertion.
+        assert re.search(r"\backs_late\s*=\s*True\b", deco), (
             f"{tag} must set acks_late=True so worker death triggers redelivery"
         )
-        assert "reject_on_worker_lost=True" in deco, (
+        assert re.search(r"\breject_on_worker_lost\s*=\s*True\b", deco), (
             f"{tag} must set reject_on_worker_lost=True for redelivery on SIGKILL"
         )
 
