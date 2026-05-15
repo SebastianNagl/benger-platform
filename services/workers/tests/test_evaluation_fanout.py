@@ -263,6 +263,14 @@ def test_orchestrator_preloads_missing_only_skip_sets():
             assert "all_expected_field_keys.issubset" in body_src, (
                 "orchestrator must skip fully-evaluated cells before dispatch"
             )
+            # Status filter must include 'cancelled' so successful rows
+            # under a cancelled parent run are still reused on re-trigger
+            # in missing-only mode (e.g. an admin cancels mid-run and the
+            # user re-triggers via the UI's "evaluate missing" path).
+            assert body_src.count('"cancelled"') >= 2, (
+                "preload status filter must include 'cancelled' at both "
+                "gen-side and ann-side sites"
+            )
             return
     raise AssertionError("run_evaluation function not found")
 
