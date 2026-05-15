@@ -112,20 +112,30 @@ api:
 workers:
   name: workers
   replicaCount: 1
-  # Bumped 4 → 16 with the per-cell eval fan-out (PR #94). The legacy
-  # bundled `tasks.run_evaluation` ran serially in one fork so 4 was
-  # plenty; under chord fan-out each sub-task is one (task, generation)
-  # cell, and the worker needs 16+ concurrent forks to saturate the
-  # ZJS Fälle scale (6940 cells × 7 metrics) in 1–2 h instead of days.
+  # Default kept at 4 to fit the 12 Gi worker memory limit for evals
+  # that load all three embedding-based evaluators (BERTScore +
+  # MoverScore + sentence-transformers) — each fork's full RSS reaches
+  # ~1.5–2 GB under those workloads (see the resources comment below;
+  # the bare ~600 MB figure is just weights, not tokenizer caches +
+  # SQLAlchemy buffers + Python overhead).
   #
-  # Memory budget rechecked: each fork still loads its own ~600 MB of
-  # embedding evaluators when those metrics are configured. With the
-  # 12 Gi worker limit (see `resources.limits.memory` below), 16 forks
-  # × 600 MB ≈ 9.6 Gi peak when all three embedding metrics fire — fits
-  # with headroom. Most evals (including ZJS Fälle, which is
-  # llm_judge_falloesung only) load no embeddings at all and stay well
-  # under the limit.
-  concurrency: 16
+  # The per-cell fan-out (PR #94) parallelizes evaluation across cells
+  # rather than relying on multi-fork concurrency, but for workloads
+  # that *don't* load embedding metrics (e.g. ZJS Fälle: llm_judge_
+  # falloesung only), operators can safely bump this to 16 to saturate
+  # the chord faster:
+  #
+  #   kubectl patch deployment/benger-workers -n benger --type=json \
+  #     -p '[{"op": "replace", "path": "/spec/template/spec/containers/0/command",
+  #          "value": ["celery","-A","tasks","worker","--loglevel=info",
+  #                    "--concurrency=16","-Q",
+  #                    "celery,emails,default,generation,evaluation"]}]'
+  #
+  # A future change can either (a) auto-tune concurrency by inspecting
+  # the config's metric set at orchestrator dispatch, or (b) raise the
+  # memory limit to ~24 Gi if the host has headroom (currently 22 Gi
+  # total / ~17 Gi free, so a 24 Gi pod wouldn't fit).
+  concurrency: 4
   deploymentStrategy:
     type: RollingUpdate
     rollingUpdate:
