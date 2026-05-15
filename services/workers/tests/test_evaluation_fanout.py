@@ -169,6 +169,16 @@ def test_counter_bump_uses_atomic_sql_increment():
     assert "jsonb_set" in src, (
         "expected jsonb_set for atomic samples_passed/samples_failed bumps"
     )
+    # Postgres 18 (the post-Broadcom Bitnami image content) enforces
+    # FIPS-strict OpenSSL and refuses implicit json↔jsonb coercion. The
+    # `eval_metadata` column is `json` (legacy), so the bump UPDATE must
+    # cast explicitly: read as `::jsonb`, write back as `::json`.
+    assert "eval_metadata::jsonb" in src, (
+        "expected explicit ::jsonb cast on read side (Postgres 18 FIPS-strict)"
+    )
+    assert ")::json" in src, (
+        "expected explicit ::json cast on write side (Postgres 18 FIPS-strict)"
+    )
 
 
 def test_finalizer_has_idempotency_guard():
