@@ -3947,37 +3947,46 @@ def _build_sample_evaluator_for_cell(
     return SampleEvaluator(evaluation_id, field_configs, metric_parameters)
 
 
-def _bulk_upsert_task_evaluations(db, rows: List[Dict[str, Any]]) -> int:
+def _bulk_upsert_task_evaluations(
+    db, rows: List[Dict[str, Any]]
+) -> Tuple[int, int, int]:
     """Insert TaskEvaluation rows with `ON CONFLICT DO NOTHING` against
     the partial unique index `uq_task_evaluations_cell` from migration 048.
 
-    Returns the rowcount actually inserted (may be < len(rows) if some
-    were silently deduped against an existing row — that's the idempotency
-    guarantee under concurrent retries / redelivered Celery tasks).
+    Returns `(rows_actually_inserted, passed_count, failed_count)` —
+    counts derived from `RETURNING passed` so the caller can bump parent
+    counters by the *real* number of rows that landed, not by the number
+    requested. On a Celery message redelivery, all rows hit conflict and
+    `(0, 0, 0)` is returned: the redelivered task contributes nothing to
+    `samples_evaluated` / `samples_passed` / `samples_failed`, eliminating
+    the double-bump race that an unconditional `samples_evaluated += N`
+    would have on retry.
+
+    SQLAlchemy's bare `ON CONFLICT DO NOTHING` (no `index_elements`)
+    catches any unique-constraint violation. The only partial unique
+    index on this table is `uq_task_evaluations_cell` (migration 048);
+    UUID PKs are generated fresh per insert so PK collisions are
+    statistically impossible. If a future migration adds another unique
+    index here, tighten this to `index_where=` to pin the conflict
+    target.
     """
     if not rows:
-        return 0
+        return (0, 0, 0)
     from sqlalchemy.dialects.postgresql import insert as pg_insert
     from models import TaskEvaluation
 
-    # The unique index uses COALESCE() expressions and a WHERE predicate,
-    # so SQLAlchemy's `index_elements` shortcut can't infer it. Reference
-    # the index by name via `constraint=`.
-    stmt = pg_insert(TaskEvaluation.__table__).values(rows)
-    stmt = stmt.on_conflict_do_nothing(index_elements=None)
-    # Force the conflict target to our partial expression index. psycopg2
-    # accepts `ON CONFLICT ON CONSTRAINT` syntax via `constraint=` for
-    # named constraints, but for expression indexes we must use the
-    # `index_where` clause. The simplest reliable form is to emit the
-    # raw conflict target.
-    from sqlalchemy import text as _text
-
-    # SQLAlchemy's on_conflict_do_nothing with index_elements=None emits
-    # bare `ON CONFLICT DO NOTHING` which Postgres treats as "any unique
-    # constraint" — that's what we want here (only one unique index that
-    # could fire is the one from migration 048).
+    stmt = (
+        pg_insert(TaskEvaluation.__table__)
+        .values(rows)
+        .on_conflict_do_nothing()
+        .returning(TaskEvaluation.__table__.c.passed)
+    )
     result = db.execute(stmt)
-    return result.rowcount or 0
+    returned = result.fetchall()
+    n_inserted = len(returned)
+    n_passed = sum(1 for r in returned if r.passed)
+    n_failed = n_inserted - n_passed
+    return (n_inserted, n_passed, n_failed)
 
 
 def _bump_evaluation_counters(
@@ -4003,6 +4012,14 @@ def _bump_evaluation_counters(
 
     if samples_evaluated == 0 and samples_passed == 0 and samples_failed == 0:
         return
+    # The `status NOT IN ('completed','failed','cancelled')` filter is
+    # the TOCTOU guard for finalize: once the chord callback marks the
+    # parent terminal, any late sub-task bump (e.g. from a Celery
+    # message redelivery after the chord backend's barrier released)
+    # becomes a no-op (rowcount=0) instead of clobbering the finalized
+    # counters or resurrecting `eval_metadata`. Also covers the
+    # admin-cancels-mid-run case — once status='cancelled' lands, no
+    # further per-cell work mutates the parent row.
     db.execute(
         _text(
             """
@@ -4021,6 +4038,7 @@ def _bump_evaluation_counters(
                    )::json,
                    has_sample_results = true
              WHERE id = :evaluation_id
+               AND status NOT IN ('completed', 'failed', 'cancelled')
             """
         ),
         {
@@ -4032,7 +4050,13 @@ def _bump_evaluation_counters(
     )
 
 
-@app.task(name="tasks.evaluate_generation_cell", bind=True, max_retries=2)
+@app.task(
+    name="tasks.evaluate_generation_cell",
+    bind=True,
+    max_retries=2,
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
 def evaluate_generation_cell(
     self,
     evaluation_id: str,
@@ -4066,6 +4090,20 @@ def evaluate_generation_cell(
     try:
         from models import EvaluationRun, Generation, TaskEvaluation
         from project_models import Annotation, Task
+
+        # Parent-status short-circuit. The legacy bundled task checked
+        # `EvaluationRun.status` at the top of each iteration and bailed
+        # if the user/admin cancelled mid-run; with chord fan-out, the
+        # ~6940 cells are already in-flight when cancel happens, so each
+        # sub-task must re-check itself or the cancellation does nothing
+        # but mark the parent terminal. Avoid burning LLM quota on
+        # cancelled work.
+        parent_status = db.query(EvaluationRun.status).filter(
+            EvaluationRun.id == evaluation_id
+        ).scalar()
+        if parent_status in ("cancelled", "failed", "completed"):
+            return {"status": "skipped", "reason": f"parent_{parent_status}",
+                    "evaluation_id": evaluation_id, "generation_id": generation_id}
 
         gen = db.query(Generation).filter(Generation.id == generation_id).first()
         if not gen:
@@ -4449,13 +4487,18 @@ def evaluate_generation_cell(
                         local_samples_failed += 1
 
         # Bulk upsert + atomic counter bump. One commit per sub-task.
-        _bulk_upsert_task_evaluations(db, sample_results)
+        # Bump by the *actually inserted* row count (from RETURNING),
+        # not by the locally-tallied counts. On Celery message
+        # redelivery, all rows conflict and `n_inserted == 0`, so the
+        # redelivered task contributes nothing to the parent counters
+        # — defense against the `acks_late=True` double-bump path.
+        n_inserted, n_passed, n_failed = _bulk_upsert_task_evaluations(db, sample_results)
         _bump_evaluation_counters(
             db,
             evaluation_id=evaluation_id,
-            samples_evaluated=local_samples_evaluated,
-            samples_passed=local_samples_passed,
-            samples_failed=local_samples_failed,
+            samples_evaluated=n_inserted,
+            samples_passed=n_passed,
+            samples_failed=n_failed,
         )
         db.commit()
         return {
@@ -4463,9 +4506,9 @@ def evaluate_generation_cell(
             "evaluation_id": evaluation_id,
             "task_id": task_id,
             "generation_id": generation_id,
-            "samples_added": local_samples_evaluated,
-            "samples_passed": local_samples_passed,
-            "samples_failed": local_samples_failed,
+            "samples_added": n_inserted,
+            "samples_passed": n_passed,
+            "samples_failed": n_failed,
         }
     except Exception as e:
         logger.error(
@@ -4498,7 +4541,13 @@ def evaluate_generation_cell(
         db.close()
 
 
-@app.task(name="tasks.evaluate_annotation_cell", bind=True, max_retries=2)
+@app.task(
+    name="tasks.evaluate_annotation_cell",
+    bind=True,
+    max_retries=2,
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
 def evaluate_annotation_cell(
     self,
     evaluation_id: str,
@@ -4528,6 +4577,14 @@ def evaluate_annotation_cell(
         from project_models import Annotation, Task
         from annotation_utils import extract_all_field_values as _extract_all_fields
         from eval_field_classification import classify_pred_fields
+
+        # Parent-status short-circuit — mirror of evaluate_generation_cell.
+        parent_status = db.query(EvaluationRun.status).filter(
+            EvaluationRun.id == evaluation_id
+        ).scalar()
+        if parent_status in ("cancelled", "failed", "completed"):
+            return {"status": "skipped", "reason": f"parent_{parent_status}",
+                    "evaluation_id": evaluation_id, "annotation_id": annotation_id}
 
         annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
         if not annotation:
@@ -4874,13 +4931,14 @@ def evaluate_annotation_cell(
                             local_samples_evaluated += 1
                             local_samples_failed += 1
 
-        _bulk_upsert_task_evaluations(db, sample_results)
+        # Bump by RETURNING-derived counts — see gen sub-task for rationale.
+        n_inserted, n_passed, n_failed = _bulk_upsert_task_evaluations(db, sample_results)
         _bump_evaluation_counters(
             db,
             evaluation_id=evaluation_id,
-            samples_evaluated=local_samples_evaluated,
-            samples_passed=local_samples_passed,
-            samples_failed=local_samples_failed,
+            samples_evaluated=n_inserted,
+            samples_passed=n_passed,
+            samples_failed=n_failed,
         )
         db.commit()
         return {
@@ -4888,9 +4946,9 @@ def evaluate_annotation_cell(
             "evaluation_id": evaluation_id,
             "task_id": task_id,
             "annotation_id": annotation_id,
-            "samples_added": local_samples_evaluated,
-            "samples_passed": local_samples_passed,
-            "samples_failed": local_samples_failed,
+            "samples_added": n_inserted,
+            "samples_passed": n_passed,
+            "samples_failed": n_failed,
         }
     except Exception as e:
         logger.error(
@@ -4920,7 +4978,12 @@ def evaluate_annotation_cell(
         db.close()
 
 
-@app.task(name="tasks.finalize_evaluation_run", bind=True)
+@app.task(
+    name="tasks.finalize_evaluation_run",
+    bind=True,
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
 def finalize_evaluation_run(
     self,
     _sub_task_results: Any,
