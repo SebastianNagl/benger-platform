@@ -4112,33 +4112,49 @@ def _bulk_upsert_task_evaluations(
     """
     if not rows:
         return (0, 0, 0)
+    from collections import defaultdict
     from sqlalchemy.dialects.postgresql import insert as pg_insert
     from models import TaskEvaluation
 
-    # Normalize row shapes. The cell sub-task's `sample_results` mixes
-    # rows from SampleEvaluator (which return `confidence_score`,
-    # `processing_time_ms`, etc.) with hand-built error/judge dicts
-    # that omit those keys. SQLAlchemy's multi-row `.values([dict, ...])`
-    # uses the FIRST row's key set as the column list and rejects later
-    # rows that omit any of those columns with:
-    #   "INSERT value for column X is explicitly rendered as a bound
-    #    parameter in the VALUES clause; a Python-side value or SQL
-    #    expression is required"
-    # Fill in `None` for every key any row has but a given row lacks.
-    if len(rows) > 1:
-        all_keys = set().union(*(r.keys() for r in rows))
-        rows = [{k: r.get(k) for k in all_keys} for r in rows]
+    # The cell sub-task's `sample_results` mixes rows from
+    # `SampleEvaluator.evaluate_sample()` (which return full payloads
+    # incl. `confidence_score`/`processing_time_ms`) with hand-built
+    # error/judge dicts that omit those keys. Two Postgres failure
+    # modes if we pass mixed shapes to one multi-row INSERT:
+    #
+    #   1. SQLAlchemy uses the FIRST row's key set as the column
+    #      list and rejects later rows that drop a column with:
+    #        "INSERT value for column X is explicitly rendered as a
+    #         bound parameter in the VALUES clause; a Python-side
+    #         value or SQL expression is required"
+    #
+    #   2. If we union-fill missing keys with None to satisfy (1),
+    #      we override Postgres' server defaults for NOT NULL columns
+    #      like `truncated` (server_default=false) and `refusal`
+    #      (server_default=false). The explicit NULL fails the
+    #      NOT NULL constraint.
+    #
+    # Fix: group rows by their column keyset, then one multi-row
+    # INSERT per group. Each group has a consistent column list,
+    # server defaults still apply to columns NO row in the group
+    # provides, and `ON CONFLICT DO NOTHING` + `RETURNING passed`
+    # work per-group exactly as before.
+    groups = defaultdict(list)
+    for r in rows:
+        groups[tuple(sorted(r.keys()))].append(r)
 
-    stmt = (
-        pg_insert(TaskEvaluation.__table__)
-        .values(rows)
-        .on_conflict_do_nothing()
-        .returning(TaskEvaluation.__table__.c.passed)
-    )
-    result = db.execute(stmt)
-    returned = result.fetchall()
-    n_inserted = len(returned)
-    n_passed = sum(1 for r in returned if r.passed)
+    n_inserted = n_passed = 0
+    for _, group_rows in groups.items():
+        stmt = (
+            pg_insert(TaskEvaluation.__table__)
+            .values(group_rows)
+            .on_conflict_do_nothing()
+            .returning(TaskEvaluation.__table__.c.passed)
+        )
+        result = db.execute(stmt)
+        returned = result.fetchall()
+        n_inserted += len(returned)
+        n_passed += sum(1 for r in returned if r.passed)
     n_failed = n_inserted - n_passed
     return (n_inserted, n_passed, n_failed)
 

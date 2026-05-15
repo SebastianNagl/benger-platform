@@ -267,29 +267,36 @@ def test_cell_sub_tasks_have_poison_cell_guard():
     )
 
 
-def test_bulk_upsert_normalizes_mixed_row_shapes():
+def test_bulk_upsert_groups_mixed_row_shapes_per_keyset():
     """The cell sub-task's `sample_results` mixes rows from
-    `SampleEvaluator.evaluate_sample()` (full dicts with
+    `SampleEvaluator.evaluate_sample()` (full payloads with
     `confidence_score`, `processing_time_ms`) with hand-built error
-    dicts that omit those keys. SQLAlchemy's multi-row
-    `.values([dict, ...])` uses the first row's key set and rejects
-    later rows that drop columns:
-        "INSERT value for column X is explicitly rendered as a bound
-         parameter in the VALUES clause; a Python-side value or SQL
-         expression is required"
-    Pin: helper must union-fill missing keys with None before insert.
+    dicts that omit those keys. Two Postgres failure modes if we pass
+    mixed shapes to one multi-row INSERT:
+      1. SQLAlchemy uses the first row's keyset and rejects later
+         rows that drop columns ("explicitly rendered as a bound
+         parameter" error).
+      2. If we union-fill missing keys with None to satisfy (1), we
+         override Postgres' server defaults on NOT NULL columns
+         (`truncated`/`refusal` have `server_default=false`) and the
+         insert fails the NOT NULL constraint.
 
-    Hit on prod 2026-05-15 (ZJS Fälle): 39 of 53 cells errored in 6
-    min because of this exact mismatch.
+    Pin: helper must group by keyset and emit one INSERT per group,
+    so each group has a consistent column list AND server defaults
+    still apply to columns NO row in the group provides.
+
+    Both failure modes hit on prod ZJS Fälle (2026-05-15):
+      - First retrigger (PR #94 worker): mode 1, ~70% of cells errored
+      - Second retrigger (post-hotfix #97 union-fill): mode 2, ~100%
+        of LLM-judge cells errored on `truncated`/`refusal` NOT NULL
     """
     from unittest.mock import MagicMock
-    from sqlalchemy.dialects import postgresql
     from tasks import _bulk_upsert_task_evaluations
 
-    captured = {}
+    executed_stmts = []
 
     def fake_execute(stmt):
-        captured["stmt"] = stmt
+        executed_stmts.append(stmt)
         r = MagicMock()
         r.fetchall.return_value = []
         return r
@@ -298,8 +305,9 @@ def test_bulk_upsert_normalizes_mixed_row_shapes():
     fake_db.execute.side_effect = fake_execute
 
     rows = [
+        # Success-shape row (SampleEvaluator output): has `confidence_score`.
         {
-            "id": "11111111-1111-1111-1111-111111111111",
+            "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
             "evaluation_id": "22222222-2222-2222-2222-222222222222",
             "judge_run_id": "33333333-3333-3333-3333-333333333333",
             "task_id": "44444444-4444-4444-4444-444444444444",
@@ -312,8 +320,25 @@ def test_bulk_upsert_normalizes_mixed_row_shapes():
             "confidence_score": 0.8,
             "processing_time_ms": 42,
         },
+        # Another success-shape row, same keyset (should batch with row 1).
         {
-            "id": "66666666-6666-6666-6666-666666666666",
+            "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "evaluation_id": "22222222-2222-2222-2222-222222222222",
+            "judge_run_id": "33333333-3333-3333-3333-333333333333",
+            "task_id": "44444444-4444-4444-4444-444444444444",
+            "generation_id": "55555555-5555-5555-5555-555555555555",
+            "field_name": "meteor|p|r",
+            "answer_type": "text",
+            "ground_truth": "x", "prediction": "y",
+            "metrics": {"meteor": 0.3},
+            "passed": False,
+            "confidence_score": 0.4,
+            "processing_time_ms": 7,
+        },
+        # Error-shape row: missing `confidence_score`/`processing_time_ms`,
+        # has `error_message` instead.
+        {
+            "id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
             "evaluation_id": "22222222-2222-2222-2222-222222222222",
             "judge_run_id": "33333333-3333-3333-3333-333333333333",
             "task_id": "44444444-4444-4444-4444-444444444444",
@@ -328,15 +353,37 @@ def test_bulk_upsert_normalizes_mixed_row_shapes():
     ]
     _bulk_upsert_task_evaluations(fake_db, rows)
 
-    # The compiled SQL must include BOTH `error_message` (from row 2)
-    # and `confidence_score` (from row 1). If either column is missing
-    # from the column list, the row that has that key would fail with
-    # the "explicitly rendered" error described above.
-    sql = str(
-        captured["stmt"].compile(dialect=postgresql.dialect())
-    ).lower()
-    assert "error_message" in sql
-    assert "confidence_score" in sql
+    # Should produce exactly 2 INSERT statements, one per distinct
+    # keyset (2 success-shape rows in one, 1 error-shape row in the other).
+    assert len(executed_stmts) == 2, (
+        f"expected 2 INSERTs (one per keyset); got {len(executed_stmts)}"
+    )
+
+
+def test_bulk_upsert_does_not_null_fill_to_preserve_server_defaults():
+    """Critical sub-property of the per-keyset grouping fix: each
+    group's INSERT must only include columns the rows in that group
+    have, so columns no row provides (e.g. `truncated`/`refusal` on
+    a row that's not from the LLM-judge path) fall back to Postgres'
+    server defaults. Union-filling with None overrides those defaults
+    and fails the NOT NULL constraint."""
+    import inspect
+    from tasks import _bulk_upsert_task_evaluations
+
+    src = inspect.getsource(_bulk_upsert_task_evaluations)
+    # The helper must NOT carry the union-fill pattern that overrides
+    # server defaults. Search for the broken pattern explicitly.
+    assert "set().union(*(r.keys()" not in src, (
+        "helper must not union-fill missing keys with None — that "
+        "overrides server defaults on NOT NULL columns like "
+        "truncated/refusal and fails the insert"
+    )
+    # Positive: must group by keyset.
+    assert "defaultdict" in src, "helper must group rows by keyset via defaultdict"
+    assert "sorted(r.keys())" in src or "tuple(sorted" in src, (
+        "helper must key the per-keyset grouping on a stable tuple "
+        "(sorted column names)"
+    )
 
 
 def test_bulk_upsert_emits_on_conflict_do_nothing_returning_passed():
