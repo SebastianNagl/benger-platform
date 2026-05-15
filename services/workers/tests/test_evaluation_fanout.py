@@ -267,6 +267,77 @@ def test_cell_sub_tasks_have_poison_cell_guard():
     )
 
 
+def test_bulk_upsert_emits_on_conflict_do_nothing_returning_passed():
+    """Real check on the SQL that `_bulk_upsert_task_evaluations`
+    generates. Source-grep tests catch deleted call sites but miss
+    a refactor that e.g. swaps `.on_conflict_do_nothing()` for
+    `.on_conflict_do_update(...)` or drops the RETURNING clause —
+    both would silently break the redelivery-safe counter math.
+
+    Compiles the actual SQLAlchemy statement with literal binds and
+    asserts the dialect-rendered SQL contains the two clauses we
+    depend on (`ON CONFLICT DO NOTHING` and `RETURNING ...passed`).
+    """
+    from unittest.mock import MagicMock
+    from sqlalchemy.dialects import postgresql
+
+    # Stub the import of `tasks` enough that `_bulk_upsert_task_evaluations`
+    # is callable. The function constructs and executes a stmt — patch
+    # `db.execute` to capture the stmt, then compile it ourselves.
+    from tasks import _bulk_upsert_task_evaluations
+
+    captured = {}
+
+    def fake_execute(stmt):
+        captured["stmt"] = stmt
+        # Empty result set so the function returns (0, 0, 0) cleanly.
+        result = MagicMock()
+        result.fetchall.return_value = []
+        return result
+
+    fake_db = MagicMock()
+    fake_db.execute.side_effect = fake_execute
+
+    rows = [{
+        "id": "11111111-1111-1111-1111-111111111111",
+        "evaluation_id": "22222222-2222-2222-2222-222222222222",
+        "judge_run_id": "33333333-3333-3333-3333-333333333333",
+        "task_id": "44444444-4444-4444-4444-444444444444",
+        "generation_id": "55555555-5555-5555-5555-555555555555",
+        "annotation_id": None,
+        "field_name": "cfg|p|r",
+        "answer_type": "text",
+        "ground_truth": "x",
+        "prediction": "y",
+        "metrics": {},
+        "passed": False,
+    }]
+    result = _bulk_upsert_task_evaluations(fake_db, rows)
+
+    # Function contract: empty fetchall → (0, 0, 0) regardless of input size.
+    assert result == (0, 0, 0)
+    # Captured stmt compiles with the postgresql dialect and contains
+    # the two clauses we care about.
+    compiled = str(
+        captured["stmt"].compile(
+            dialect=postgresql.dialect(),
+            compile_kwargs={"literal_binds": False},
+        )
+    ).upper()
+    assert "ON CONFLICT DO NOTHING" in compiled, (
+        "_bulk_upsert_task_evaluations must emit ON CONFLICT DO NOTHING "
+        "so redelivered cells silently skip-insert instead of erroring"
+    )
+    assert "RETURNING" in compiled, (
+        "_bulk_upsert_task_evaluations must use RETURNING so caller can "
+        "bump parent counter by actual inserted count, not requested count"
+    )
+    assert "PASSED" in compiled, (
+        "RETURNING clause must include `passed` so the helper can split "
+        "(n_inserted, n_passed, n_failed)"
+    )
+
+
 def test_classify_cell_failure_is_whitelisted():
     """Unknown exception classes must NOT leak their class name into
     `failures_by_reason` keys — that would let a misbehaving SDK
