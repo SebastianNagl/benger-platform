@@ -3969,8 +3969,25 @@ def _build_sample_evaluator_for_cell(
     return SampleEvaluator(evaluation_id, field_configs, metric_parameters)
 
 
-_CELL_ATTEMPT_TTL_SECS = 86400
+# 7-day TTL covers even pathologically slow evals (concurrency=1 with
+# 90s LLM judge timeouts compounding); a 1-day TTL would expire mid-run
+# and let a poison cell reset to "first attempt" exactly when it should
+# be bailed.
+_CELL_ATTEMPT_TTL_SECS = 7 * 86400
 _CELL_ATTEMPT_LIMIT = 3
+
+# Whitelist of failure-reason buckets the classifier can emit. Anything
+# off this list lands in `"other"` so a misbehaving LLM SDK emitting
+# one new exception class per call can't grow `failures_by_reason`
+# unboundedly inside the parent's JSON column.
+_FAILURE_REASON_BUCKETS = frozenset({
+    "rate_limit",
+    "timeout",
+    "content_policy",
+    "quota_exceeded",
+    "poison_cell_max_attempts",
+    "other",
+})
 
 
 def _record_cell_attempt(evaluation_id: str, cell_key: str) -> int:
@@ -4038,20 +4055,36 @@ def _record_cell_failure_reason(db, evaluation_id: str, reason: str) -> None:
 
 
 def _classify_cell_failure(exc: BaseException) -> str:
-    """Bucket a cell exception into a stable string the UI can group
-    on. Conservative: just use the exception class name if we don't
-    recognise a known LLM-provider error pattern."""
-    name = type(exc).__name__.lower()
+    """Bucket a cell exception into one of `_FAILURE_REASON_BUCKETS`.
+
+    Whitelist-only — unknown exception types map to `"other"` rather
+    than leak their class name into `eval_metadata.failures_by_reason`,
+    which would let a misbehaving SDK grow the JSON object unboundedly.
+
+    Exception-name match is anchored on substring (`endswith` /
+    suffix) so `EnumerateError` doesn't false-positive into
+    `rate_limit` just because "rate" appears inside "enumerate".
+    """
+    cls_name = type(exc).__name__
+    cls_lower = cls_name.lower()
     msg = str(exc).lower()
-    if "rate" in name or "rate_limit" in msg or "rate limit" in msg or "429" in msg:
+    # Known LLM-provider error class names typically end with the
+    # canonical suffix (RateLimitError, TimeoutError, ContentPolicyViolationError).
+    if (
+        cls_lower.endswith("ratelimiterror")
+        or cls_lower.endswith("ratelimit")
+        or "rate limit" in msg
+        or "rate_limit" in msg
+        or "429" in msg
+    ):
         return "rate_limit"
-    if "timeout" in name or "timeout" in msg:
+    if cls_lower.endswith("timeouterror") or cls_lower.endswith("timeout"):
         return "timeout"
     if "content" in msg and ("policy" in msg or "filter" in msg):
         return "content_policy"
-    if "quota" in msg or "exceeded" in msg:
+    if "quota" in msg and ("exceeded" in msg or "limit" in msg):
         return "quota_exceeded"
-    return type(exc).__name__
+    return "other"
 
 
 def _bulk_upsert_task_evaluations(
