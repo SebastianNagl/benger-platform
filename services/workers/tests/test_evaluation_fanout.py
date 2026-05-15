@@ -267,6 +267,78 @@ def test_cell_sub_tasks_have_poison_cell_guard():
     )
 
 
+def test_bulk_upsert_normalizes_mixed_row_shapes():
+    """The cell sub-task's `sample_results` mixes rows from
+    `SampleEvaluator.evaluate_sample()` (full dicts with
+    `confidence_score`, `processing_time_ms`) with hand-built error
+    dicts that omit those keys. SQLAlchemy's multi-row
+    `.values([dict, ...])` uses the first row's key set and rejects
+    later rows that drop columns:
+        "INSERT value for column X is explicitly rendered as a bound
+         parameter in the VALUES clause; a Python-side value or SQL
+         expression is required"
+    Pin: helper must union-fill missing keys with None before insert.
+
+    Hit on prod 2026-05-15 (ZJS Fälle): 39 of 53 cells errored in 6
+    min because of this exact mismatch.
+    """
+    from unittest.mock import MagicMock
+    from sqlalchemy.dialects import postgresql
+    from tasks import _bulk_upsert_task_evaluations
+
+    captured = {}
+
+    def fake_execute(stmt):
+        captured["stmt"] = stmt
+        r = MagicMock()
+        r.fetchall.return_value = []
+        return r
+
+    fake_db = MagicMock()
+    fake_db.execute.side_effect = fake_execute
+
+    rows = [
+        {
+            "id": "11111111-1111-1111-1111-111111111111",
+            "evaluation_id": "22222222-2222-2222-2222-222222222222",
+            "judge_run_id": "33333333-3333-3333-3333-333333333333",
+            "task_id": "44444444-4444-4444-4444-444444444444",
+            "generation_id": "55555555-5555-5555-5555-555555555555",
+            "field_name": "rouge|p|r",
+            "answer_type": "text",
+            "ground_truth": "x", "prediction": "y",
+            "metrics": {"rouge": 0.5},
+            "passed": True,
+            "confidence_score": 0.8,
+            "processing_time_ms": 42,
+        },
+        {
+            "id": "66666666-6666-6666-6666-666666666666",
+            "evaluation_id": "22222222-2222-2222-2222-222222222222",
+            "judge_run_id": "33333333-3333-3333-3333-333333333333",
+            "task_id": "44444444-4444-4444-4444-444444444444",
+            "generation_id": "55555555-5555-5555-5555-555555555555",
+            "field_name": "bleu|p|r",
+            "answer_type": "text",
+            "ground_truth": "x", "prediction": "y",
+            "metrics": {},
+            "passed": False,
+            "error_message": "boom",
+        },
+    ]
+    _bulk_upsert_task_evaluations(fake_db, rows)
+
+    # The compiled SQL must include BOTH `error_message` (from row 2)
+    # and `confidence_score` (from row 1). If either column is missing
+    # from the column list, the row that has that key would fail with
+    # the "explicitly rendered" error described above.
+    sql = str(
+        captured["stmt"].compile(dialect=postgresql.dialect())
+    ).lower()
+    assert "error_message" in sql
+    assert "confidence_score" in sql
+
+
 def test_bulk_upsert_emits_on_conflict_do_nothing_returning_passed():
     """Real check on the SQL that `_bulk_upsert_task_evaluations`
     generates. Source-grep tests catch deleted call sites but miss
