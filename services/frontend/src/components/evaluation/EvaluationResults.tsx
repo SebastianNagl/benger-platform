@@ -14,6 +14,7 @@ import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { useToast } from '@/components/shared/Toast'
+import { InflightRunsBanner } from '@/components/evaluation/InflightRunsBanner'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { TaskDataViewModal } from '@/components/tasks/TaskDataViewModal'
@@ -1133,6 +1134,17 @@ export function EvaluationResults({
 
   return (
     <div className="space-y-4">
+      {/* In-flight runs banner — surfaces every `pending`/`running` run
+          with per-run cancel and a bulk "cancel all" so an operator can
+          stop a runaway or duplicate dispatch without resorting to
+          kubectl exec / direct SQL. Partial scores survive cancel; a
+          subsequent `force_rerun=false` re-trigger picks up where the
+          cancelled run left off. */}
+      <InflightRunsBanner
+        projectId={String(projectId)}
+        evaluations={results.evaluations}
+        onChanged={fetchResults}
+      />
       {/* Header with metric selector, controls, and action buttons */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
