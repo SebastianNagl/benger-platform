@@ -112,12 +112,29 @@ api:
 workers:
   name: workers
   replicaCount: 1
-  # Lowered from 8 to 4: each Celery fork loads its own copy of the
-  # embedding-based evaluators (BERTScore German BERT, MoverScore POT
-  # backend, sentence-transformers for semsim). With 8 forks all loading
-  # ~600MB models, peak memory ~5 GB just for models — easily blows past
-  # the worker limit on multi-metric runs. 4 still parallelizes nicely
-  # while halving peak resident model memory.
+  # Default kept at 4 to fit the 12 Gi worker memory limit for evals
+  # that load all three embedding-based evaluators (BERTScore +
+  # MoverScore + sentence-transformers) — each fork's full RSS reaches
+  # ~1.5–2 GB under those workloads (see the resources comment below;
+  # the bare ~600 MB figure is just weights, not tokenizer caches +
+  # SQLAlchemy buffers + Python overhead).
+  #
+  # The per-cell fan-out (PR #94) parallelizes evaluation across cells
+  # rather than relying on multi-fork concurrency, but for workloads
+  # that *don't* load embedding metrics (e.g. ZJS Fälle: llm_judge_
+  # falloesung only), operators can safely bump this to 16 to saturate
+  # the chord faster:
+  #
+  #   kubectl patch deployment/benger-workers -n benger --type=json \
+  #     -p '[{"op": "replace", "path": "/spec/template/spec/containers/0/command",
+  #          "value": ["celery","-A","tasks","worker","--loglevel=info",
+  #                    "--concurrency=16","-Q",
+  #                    "celery,emails,default,generation,evaluation"]}]'
+  #
+  # A future change can either (a) auto-tune concurrency by inspecting
+  # the config's metric set at orchestrator dispatch, or (b) raise the
+  # memory limit to ~24 Gi if the host has headroom (currently 22 Gi
+  # total / ~17 Gi free, so a 24 Gi pod wouldn't fit).
   concurrency: 4
   deploymentStrategy:
     type: RollingUpdate

@@ -168,6 +168,15 @@ jest.mock('@/components/tasks/TaskDataViewModal', () => ({
     ) : null,
 }))
 
+// The InflightRunsBanner uses `useConfirm` from `@/hooks/useDialogs`,
+// which requires a `DialogProvider` wrapper. These tests render
+// EvaluationResults directly without that provider — the banner
+// itself is tested separately in `InflightRunsBanner.test.tsx`, so
+// stubbing it out here is the right scope boundary.
+jest.mock('@/components/evaluation/InflightRunsBanner', () => ({
+  InflightRunsBanner: () => null,
+}))
+
 jest.mock('@heroicons/react/24/outline', () => ({
   ArrowDownTrayIcon: (props: any) => <span data-testid="arrow-down-tray-icon" {...props} />,
   ArrowPathIcon: (props: any) => <span data-testid="arrow-path-icon" {...props} />,

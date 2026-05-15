@@ -966,6 +966,38 @@ export class EvaluationsClient extends BaseApiClient {
   }
 
   /**
+   * Cancel a single in-flight evaluation run. Partial TaskEvaluation
+   * rows are preserved on the server so a `force_rerun=false` re-trigger
+   * picks up from where the cancelled run left off.
+   */
+  async cancelEvaluationRun(evaluationId: string): Promise<{
+    cancelled_run_ids: string[]
+    failed_child_judge_run_count: number
+    preserved_task_evaluation_count: number
+    message: string
+  }> {
+    return this.request(`/evaluations/run/${evaluationId}/cancel`, {
+      method: 'POST',
+    })
+  }
+
+  /**
+   * Cancel every in-flight (pending or running) evaluation on a project.
+   * Useful when an operator wants to stop a runaway re-trigger or
+   * multiple stuck runs at once.
+   */
+  async cancelAllProjectEvaluations(projectId: string): Promise<{
+    cancelled_run_ids: string[]
+    failed_child_judge_run_count: number
+    preserved_task_evaluation_count: number
+    message: string
+  }> {
+    return this.request(`/evaluations/projects/${projectId}/runs/cancel-all`, {
+      method: 'POST',
+    })
+  }
+
+  /**
    * Get detailed evaluation results.
    * Returns per-field-combination scores grouped by evaluation config.
    */
