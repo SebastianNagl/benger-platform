@@ -17,4 +17,4 @@ RUN if [ -d "./shared" ]; then \
     fi
 
 # Start Celery Worker
-CMD ["celery", "-A", "tasks", "worker", "--loglevel=info", "-Q", "celery,emails,default,generation"]
+CMD ["celery", "-A", "tasks", "worker", "--loglevel=info", "-Q", "celery,emails,default,generation,evaluation"]

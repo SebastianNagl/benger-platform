@@ -3992,8 +3992,12 @@ def _bump_evaluation_counters(
 
     Postgres serializes row-level UPDATEs on `id = :evaluation_id`, so
     concurrent sub-task bumps don't lose updates. `samples_passed` and
-    `samples_failed` live inside the `eval_metadata` JSONB blob; bump
-    them with `jsonb_set` + `coalesce` so a missing key starts from 0.
+    `samples_failed` live inside the `eval_metadata` blob; bump them
+    with `jsonb_set` + `coalesce` so a missing key starts from 0. The
+    column is typed `json` (legacy), and Postgres 18 with FIPS-enforced
+    OpenSSL refuses implicit `json`↔`jsonb` coercion — so cast
+    explicitly: `eval_metadata::jsonb` for the read side, then
+    `(... )::json` to write back.
     """
     from sqlalchemy import text as _text
 
@@ -4004,15 +4008,17 @@ def _bump_evaluation_counters(
             """
             UPDATE evaluation_runs
                SET samples_evaluated = COALESCE(samples_evaluated, 0) + :n,
-                   eval_metadata = jsonb_set(
+                   eval_metadata = (
                        jsonb_set(
-                           COALESCE(eval_metadata, '{}'::jsonb),
-                           '{samples_passed}',
-                           to_jsonb(COALESCE((eval_metadata->>'samples_passed')::int, 0) + :p)
-                       ),
-                       '{samples_failed}',
-                       to_jsonb(COALESCE((eval_metadata->>'samples_failed')::int, 0) + :f)
-                   ),
+                           jsonb_set(
+                               COALESCE(eval_metadata::jsonb, '{}'::jsonb),
+                               '{samples_passed}',
+                               to_jsonb(COALESCE((eval_metadata->>'samples_passed')::int, 0) + :p)
+                           ),
+                           '{samples_failed}',
+                           to_jsonb(COALESCE((eval_metadata->>'samples_failed')::int, 0) + :f)
+                       )
+                   )::json,
                    has_sample_results = true
              WHERE id = :evaluation_id
             """

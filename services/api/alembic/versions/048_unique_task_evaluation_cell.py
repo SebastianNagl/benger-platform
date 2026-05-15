@@ -62,10 +62,10 @@ def upgrade() -> None:
           AND b.evaluation_id IS NOT NULL
           AND a.evaluation_id = b.evaluation_id
           AND a.judge_run_id = b.judge_run_id
-          AND COALESCE(a.generation_id, '00000000-0000-0000-0000-000000000000'::uuid)
-              = COALESCE(b.generation_id, '00000000-0000-0000-0000-000000000000'::uuid)
-          AND COALESCE(a.annotation_id, '00000000-0000-0000-0000-000000000000'::uuid)
-              = COALESCE(b.annotation_id, '00000000-0000-0000-0000-000000000000'::uuid)
+          AND COALESCE(a.generation_id, '00000000-0000-0000-0000-000000000000')
+              = COALESCE(b.generation_id, '00000000-0000-0000-0000-000000000000')
+          AND COALESCE(a.annotation_id, '00000000-0000-0000-0000-000000000000')
+              = COALESCE(b.annotation_id, '00000000-0000-0000-0000-000000000000')
           AND a.field_name = b.field_name
           AND (a.created_at < b.created_at
                OR (a.created_at = b.created_at AND a.id < b.id))
@@ -78,8 +78,8 @@ def upgrade() -> None:
         ON task_evaluations (
             evaluation_id,
             judge_run_id,
-            COALESCE(generation_id, '00000000-0000-0000-0000-000000000000'::uuid),
-            COALESCE(annotation_id, '00000000-0000-0000-0000-000000000000'::uuid),
+            COALESCE(generation_id, '00000000-0000-0000-0000-000000000000'),
+            COALESCE(annotation_id, '00000000-0000-0000-0000-000000000000'),
             field_name
         )
         WHERE evaluation_id IS NOT NULL
