@@ -4115,6 +4115,20 @@ def _bulk_upsert_task_evaluations(
     from sqlalchemy.dialects.postgresql import insert as pg_insert
     from models import TaskEvaluation
 
+    # Normalize row shapes. The cell sub-task's `sample_results` mixes
+    # rows from SampleEvaluator (which return `confidence_score`,
+    # `processing_time_ms`, etc.) with hand-built error/judge dicts
+    # that omit those keys. SQLAlchemy's multi-row `.values([dict, ...])`
+    # uses the FIRST row's key set as the column list and rejects later
+    # rows that omit any of those columns with:
+    #   "INSERT value for column X is explicitly rendered as a bound
+    #    parameter in the VALUES clause; a Python-side value or SQL
+    #    expression is required"
+    # Fill in `None` for every key any row has but a given row lacks.
+    if len(rows) > 1:
+        all_keys = set().union(*(r.keys() for r in rows))
+        rows = [{k: r.get(k) for k in all_keys} for r in rows]
+
     stmt = (
         pg_insert(TaskEvaluation.__table__)
         .values(rows)
