@@ -156,6 +156,106 @@ def test_bulk_upsert_uses_on_conflict_do_nothing():
     )
 
 
+def test_bulk_upsert_returns_actual_inserts_for_redelivery_safety():
+    """`_bulk_upsert_task_evaluations` must use `RETURNING` and return
+    the count of rows that ACTUALLY landed (after `ON CONFLICT DO
+    NOTHING` skipped duplicates). Sub-tasks must bump the parent
+    counter by this returned count, NOT by the requested count.
+
+    Why: with `acks_late=True`, a worker crashing between task
+    completion and ack triggers Celery to redeliver. The redelivered
+    task re-runs, all its inserts conflict (returning 0 rows), and the
+    counter bump must be 0 — otherwise `samples_evaluated` over-counts
+    and `samples_passed`/`samples_failed` drift from reality."""
+    src = _tasks_source()
+    assert ".returning(" in src, (
+        "_bulk_upsert_task_evaluations must use RETURNING so callers "
+        "can bump by the actually-inserted count, not the requested count"
+    )
+    # The sub-tasks must unpack and use the three-tuple return.
+    assert "n_inserted, n_passed, n_failed = _bulk_upsert_task_evaluations" in src, (
+        "sub-tasks must derive counter-bump values from the helper's "
+        "RETURNING-derived tuple, not from local in-loop tallies"
+    )
+
+
+def test_sub_tasks_use_acks_late_for_chord_completeness():
+    """Cell sub-tasks must have `acks_late=True` + `reject_on_worker_lost=True`.
+
+    Without `acks_late`, a worker SIGKILL/OOM mid-cell loses the
+    message; the chord barrier never sees that header's result, and
+    the chord callback (`finalize_evaluation_run`) never fires. The
+    parent EvaluationRun then sits in `running` forever. At ~6940 cells
+    per real eval, lost cells are essentially guaranteed.
+
+    `reject_on_worker_lost=True` ensures the message goes back to the
+    broker when the worker dies, instead of disappearing."""
+    src = _tasks_source()
+    # Both sub-tasks + the finalizer get the same treatment.
+    for tag in (
+        "tasks.evaluate_generation_cell",
+        "tasks.evaluate_annotation_cell",
+        "tasks.finalize_evaluation_run",
+    ):
+        # Find the decorator block for this task and assert the flags appear in it.
+        m = re.search(
+            r'@app\.task\(\s*name="' + re.escape(tag) + r'".*?\)',
+            src, re.DOTALL,
+        )
+        assert m, f"could not locate decorator for {tag}"
+        deco = m.group(0)
+        assert "acks_late=True" in deco, (
+            f"{tag} must set acks_late=True so worker death triggers redelivery"
+        )
+        assert "reject_on_worker_lost=True" in deco, (
+            f"{tag} must set reject_on_worker_lost=True for redelivery on SIGKILL"
+        )
+
+
+def test_cell_sub_tasks_short_circuit_on_parent_cancel():
+    """Once chord dispatches ~6940 sub-tasks, cancelling the parent run
+    only marks status='cancelled'; the sub-tasks themselves keep
+    running and burn LLM quota unless they re-check parent status.
+
+    Pin: both cell sub-tasks must read parent status at entry and skip
+    when it's terminal. Cheap (one indexed SELECT)."""
+    src = _tasks_source()
+    import ast
+    tree = ast.parse(src)
+    for fn_name in ("evaluate_generation_cell", "evaluate_annotation_cell"):
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name == fn_name:
+                body_src = ast.get_source_segment(src, node) or ""
+                assert "parent_status" in body_src and (
+                    '"cancelled"' in body_src or "'cancelled'" in body_src
+                ), (
+                    f"{fn_name} must read EvaluationRun.status at entry and "
+                    f"short-circuit on cancelled/terminal to avoid burning "
+                    f"LLM quota on already-cancelled evals"
+                )
+                break
+        else:
+            raise AssertionError(f"function {fn_name} not found in tasks.py")
+
+
+def test_counter_bump_skips_when_parent_terminal():
+    """Defense in depth against the finalize TOCTOU race: even if a
+    late sub-task bump lands between finalize's `db.refresh` and
+    `db.commit`, the SQL UPDATE filter `status NOT IN
+    ('completed','failed','cancelled')` makes it a no-op (rowcount=0).
+    Without this, the late bump silently clobbers the finalized
+    counters in `eval_metadata`."""
+    src = _tasks_source()
+    assert re.search(
+        r"status\s+NOT\s+IN\s*\(\s*'completed'\s*,\s*'failed'\s*,\s*'cancelled'\s*\)",
+        src,
+    ), (
+        "_bump_evaluation_counters UPDATE must include "
+        "`AND status NOT IN ('completed','failed','cancelled')` so late "
+        "bumps after finalize are no-ops"
+    )
+
+
 def test_counter_bump_uses_atomic_sql_increment():
     """`samples_evaluated` (and the JSON-blob counters
     `samples_passed`/`samples_failed`) must be bumped via SQL

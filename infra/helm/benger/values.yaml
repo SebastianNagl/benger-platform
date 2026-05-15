@@ -112,13 +112,20 @@ api:
 workers:
   name: workers
   replicaCount: 1
-  # Lowered from 8 to 4: each Celery fork loads its own copy of the
-  # embedding-based evaluators (BERTScore German BERT, MoverScore POT
-  # backend, sentence-transformers for semsim). With 8 forks all loading
-  # ~600MB models, peak memory ~5 GB just for models — easily blows past
-  # the worker limit on multi-metric runs. 4 still parallelizes nicely
-  # while halving peak resident model memory.
-  concurrency: 4
+  # Bumped 4 → 16 with the per-cell eval fan-out (PR #94). The legacy
+  # bundled `tasks.run_evaluation` ran serially in one fork so 4 was
+  # plenty; under chord fan-out each sub-task is one (task, generation)
+  # cell, and the worker needs 16+ concurrent forks to saturate the
+  # ZJS Fälle scale (6940 cells × 7 metrics) in 1–2 h instead of days.
+  #
+  # Memory budget rechecked: each fork still loads its own ~600 MB of
+  # embedding evaluators when those metrics are configured. With the
+  # 12 Gi worker limit (see `resources.limits.memory` below), 16 forks
+  # × 600 MB ≈ 9.6 Gi peak when all three embedding metrics fire — fits
+  # with headroom. Most evals (including ZJS Fälle, which is
+  # llm_judge_falloesung only) load no embeddings at all and stay well
+  # under the limit.
+  concurrency: 16
   deploymentStrategy:
     type: RollingUpdate
     rollingUpdate:
