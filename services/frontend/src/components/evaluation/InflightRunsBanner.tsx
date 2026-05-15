@@ -16,6 +16,7 @@
 import { Button } from '@/components/shared/Button'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
+import { useConfirm } from '@/hooks/useDialogs'
 import { apiClient } from '@/lib/api/client'
 import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
@@ -37,6 +38,12 @@ export interface InflightRunsBannerProps {
   onChanged: () => void
 }
 
+// Cap the number of distinct failure-reason badges rendered.
+// `_classify_cell_failure` whitelists 5 buckets server-side so this
+// will normally show ≤5; the cap is defense-in-depth in case anyone
+// ever bypasses the classifier.
+const MAX_FAILURE_BADGES = 8
+
 export function InflightRunsBanner({
   projectId,
   evaluations,
@@ -44,6 +51,7 @@ export function InflightRunsBanner({
 }: InflightRunsBannerProps) {
   const { t } = useI18n()
   const { addToast } = useToast()
+  const confirm = useConfirm()
   const [cancelling, setCancelling] = useState<Set<string>>(new Set())
   const [bulkCancelling, setBulkCancelling] = useState(false)
 
@@ -63,32 +71,36 @@ export function InflightRunsBanner({
   }
 
   const cancelOne = async (id: string) => {
-    if (
-      !window.confirm(
-        t(
-          'evaluation.cancel.confirmSingle',
-          'Diesen Lauf abbrechen? Bereits berechnete Bewertungen bleiben erhalten.'
-        )
-      )
-    ) {
-      return
-    }
+    const ok = await confirm({
+      title: t('evaluation.cancel.confirmSingleTitle', 'Lauf abbrechen?'),
+      message: t(
+        'evaluation.cancel.confirmSingleMessage',
+        'Bereits berechnete Bewertungen bleiben erhalten und werden beim nächsten Lauf wiederverwendet.'
+      ),
+      confirmText: t('evaluation.cancel.cancel', 'Abbrechen'),
+      cancelText: t('evaluation.cancel.keepRunning', 'Weiterlaufen lassen'),
+      variant: 'warning',
+    })
+    if (!ok) return
     markCancelling(id, true)
     try {
       const result = await apiClient.evaluations.cancelEvaluationRun(id)
       addToast(
         result.cancelled_run_ids.length > 0
-          ? t('evaluation.cancel.success', 'Lauf abgebrochen.') +
-              ` (${result.preserved_task_evaluation_count} Bewertungen erhalten)`
+          ? t('evaluation.cancel.successWithCount', {
+              preserved: result.preserved_task_evaluation_count,
+              defaultValue: `Lauf abgebrochen. ${result.preserved_task_evaluation_count} Bewertungen erhalten.`,
+            } as any)
           : result.message,
         'success'
       )
       onChanged()
     } catch (err) {
       addToast(
-        t('evaluation.cancel.error', 'Abbruch fehlgeschlagen.') +
-          ' ' +
-          (err instanceof Error ? err.message : String(err)),
+        t('evaluation.cancel.errorWithDetail', {
+          detail: err instanceof Error ? err.message : String(err),
+          defaultValue: `Abbruch fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`,
+        } as any),
         'error'
       )
     } finally {
@@ -97,16 +109,17 @@ export function InflightRunsBanner({
   }
 
   const cancelAll = async () => {
-    if (
-      !window.confirm(
-        t(
-          'evaluation.cancel.confirmAll',
-          `Alle ${inflight.length} laufenden/anstehenden Läufe abbrechen? Bereits berechnete Bewertungen bleiben erhalten.`
-        )
-      )
-    ) {
-      return
-    }
+    const ok = await confirm({
+      title: t('evaluation.cancel.confirmAllTitle', 'Alle Läufe abbrechen?'),
+      message: t('evaluation.cancel.confirmAllMessage', {
+        count: inflight.length,
+        defaultValue: `Alle ${inflight.length} laufenden bzw. anstehenden Läufe abbrechen? Bereits berechnete Bewertungen bleiben erhalten und werden beim nächsten Lauf wiederverwendet.`,
+      } as any),
+      confirmText: t('evaluation.cancel.cancelAllConfirm', 'Alle abbrechen'),
+      cancelText: t('evaluation.cancel.keepRunning', 'Weiterlaufen lassen'),
+      variant: 'danger',
+    })
+    if (!ok) return
     setBulkCancelling(true)
     try {
       const result = await apiClient.evaluations.cancelAllProjectEvaluations(
@@ -114,17 +127,21 @@ export function InflightRunsBanner({
       )
       addToast(
         result.cancelled_run_ids.length > 0
-          ? t('evaluation.cancel.bulkSuccess', 'Läufe abgebrochen.') +
-              ` (${result.cancelled_run_ids.length} Läufe, ${result.preserved_task_evaluation_count} Bewertungen erhalten)`
+          ? t('evaluation.cancel.bulkSuccessWithCount', {
+              runs: result.cancelled_run_ids.length,
+              preserved: result.preserved_task_evaluation_count,
+              defaultValue: `${result.cancelled_run_ids.length} Läufe abgebrochen, ${result.preserved_task_evaluation_count} Bewertungen erhalten.`,
+            } as any)
           : result.message,
         'success'
       )
       onChanged()
     } catch (err) {
       addToast(
-        t('evaluation.cancel.error', 'Abbruch fehlgeschlagen.') +
-          ' ' +
-          (err instanceof Error ? err.message : String(err)),
+        t('evaluation.cancel.errorWithDetail', {
+          detail: err instanceof Error ? err.message : String(err),
+          defaultValue: `Abbruch fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`,
+        } as any),
         'error'
       )
     } finally {
@@ -132,16 +149,40 @@ export function InflightRunsBanner({
     }
   }
 
+  // Aggregate failure-reason breakdown across in-flight runs.
+  // Sub-tasks bump `samples_failed` for transient errors that *produce
+  // no TaskEvaluation row* (rate-limit, content policy, judge timeout,
+  // poison cell) — without this surface the user sees a pass_rate
+  // drop with no signal as to why. Capped at MAX_FAILURE_BADGES to
+  // bound the layout.
+  const failureBuckets = (() => {
+    const totals: Record<string, number> = {}
+    for (const e of inflight) {
+      const reasons = e.eval_metadata?.failures_by_reason
+      if (!reasons) continue
+      for (const [reason, n] of Object.entries(reasons)) {
+        totals[reason] = (totals[reason] ?? 0) + n
+      }
+    }
+    return Object.entries(totals).sort((a, b) => b[1] - a[1])
+  })()
+  const shownFailures = failureBuckets.slice(0, MAX_FAILURE_BADGES)
+  const hiddenFailureCount = failureBuckets.length - shownFailures.length
+
   return (
-    <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
+    <div
+      role="status"
+      aria-live="polite"
+      className="rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20"
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm text-amber-900 dark:text-amber-100">
           <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0" />
           <span className="font-medium">
-            {t(
-              'evaluation.inflight.heading',
-              `${inflight.length} Auswertung(en) laufen gerade`
-            )}
+            {t('evaluation.inflight.heading', {
+              count: inflight.length,
+              defaultValue: `${inflight.length} Auswertung(en) laufen gerade`,
+            } as any)}
           </span>
         </div>
         {inflight.length > 1 && (
@@ -197,39 +238,30 @@ export function InflightRunsBanner({
           )
         })}
       </ul>
-      {/* Aggregate failure-reason breakdown across in-flight runs.
-          Sub-tasks bump `samples_failed` for transient errors that
-          *produce no TaskEvaluation row* (rate-limit, content policy,
-          judge timeout, poison cell) — without this surface the user
-          sees a pass_rate drop but no signal as to why. */}
-      {(() => {
-        const totals: Record<string, number> = {}
-        for (const e of inflight) {
-          const reasons = e.eval_metadata?.failures_by_reason
-          if (!reasons) continue
-          for (const [reason, n] of Object.entries(reasons)) {
-            totals[reason] = (totals[reason] ?? 0) + n
-          }
-        }
-        const entries = Object.entries(totals).sort((a, b) => b[1] - a[1])
-        if (entries.length === 0) return null
-        return (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-amber-900 dark:text-amber-100">
-            <span className="opacity-70">
-              {t('evaluation.inflight.failuresLabel', 'Fehlschläge nach Grund:')}
+      {shownFailures.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-amber-900 dark:text-amber-100">
+          <span className="opacity-70">
+            {t('evaluation.inflight.failuresLabel', 'Fehlschläge nach Grund:')}
+          </span>
+          {shownFailures.map(([reason, n]) => (
+            <span
+              key={reason}
+              className="rounded bg-amber-200/70 px-1.5 py-0.5 font-mono dark:bg-amber-800/40"
+              title={reason}
+            >
+              {reason}: {n}
             </span>
-            {entries.map(([reason, n]) => (
-              <span
-                key={reason}
-                className="rounded bg-amber-200/70 px-1.5 py-0.5 font-mono dark:bg-amber-800/40"
-                title={reason}
-              >
-                {reason}: {n}
-              </span>
-            ))}
-          </div>
-        )
-      })()}
+          ))}
+          {hiddenFailureCount > 0 && (
+            <span className="rounded bg-amber-300/70 px-1.5 py-0.5 dark:bg-amber-700/40">
+              {t('evaluation.inflight.failuresMore', {
+                count: hiddenFailureCount,
+                defaultValue: `+${hiddenFailureCount} weitere`,
+              } as any)}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   )
 }

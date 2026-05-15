@@ -267,6 +267,41 @@ def test_cell_sub_tasks_have_poison_cell_guard():
     )
 
 
+def test_classify_cell_failure_is_whitelisted():
+    """Unknown exception classes must NOT leak their class name into
+    `failures_by_reason` keys — that would let a misbehaving SDK
+    emitting one new exception per call grow the JSON object
+    unboundedly inside the parent's `eval_metadata`."""
+    from tasks import _FAILURE_REASON_BUCKETS, _classify_cell_failure
+
+    class WeirdSDKException(Exception):
+        pass
+
+    # An exception class the classifier doesn't recognise must bucket
+    # into the whitelist's catch-all, not leak the class name.
+    assert _classify_cell_failure(WeirdSDKException("boom")) == "other"
+    assert "WeirdSDKException" not in _FAILURE_REASON_BUCKETS
+
+
+def test_classify_cell_failure_no_substring_false_positives():
+    """The pre-fix classifier used `"rate" in exc.__class__.__name__.lower()`
+    which incorrectly bucketed `EnumerateError`, `AggregateError`,
+    `MigrateError` into `rate_limit`. Pin the fix: only classes whose
+    name actually ends in the canonical suffix get bucketed."""
+    from tasks import _classify_cell_failure
+
+    class EnumerateError(Exception): pass
+    class AggregateError(Exception): pass
+    class MigrateError(Exception): pass
+    class RateLimitError(Exception): pass
+
+    assert _classify_cell_failure(EnumerateError("...")) == "other"
+    assert _classify_cell_failure(AggregateError("...")) == "other"
+    assert _classify_cell_failure(MigrateError("...")) == "other"
+    # Real rate-limit class is still classified correctly.
+    assert _classify_cell_failure(RateLimitError("...")) == "rate_limit"
+
+
 def test_cell_sub_tasks_record_failure_reasons():
     """When a cell sub-task hits a transient error and bumps
     `samples_failed=1` without writing a TaskEvaluation row, the user

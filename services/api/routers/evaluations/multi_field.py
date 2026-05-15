@@ -2,9 +2,11 @@
 Evaluation run endpoints (N:M field mapping).
 """
 
+import hashlib
+import json as _stdjson
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -314,24 +316,57 @@ async def run_evaluation(
         dispatched_configs = [_with_run_seed(c.dict()) for c in llm_configs]
 
         # Idempotency guard: if the same user just dispatched an
-        # evaluation against this project that's still in-flight, return
-        # that run's id instead of spawning a duplicate. Without this,
-        # a double-click on the "Run" button dispatched two chord-fan-outs
-        # that processed every cell twice — at ZJS Fälle scale that
-        # silently doubled the LLM bill. 30s window covers the
-        # accidental-double-click case without blocking legitimate
-        # sequential re-triggers.
+        # evaluation against this project with the SAME config payload
+        # that's still in-flight, return that run's id instead of
+        # spawning a duplicate. Without this, a double-click on the
+        # "Run" button dispatched two chord-fan-outs that processed
+        # every cell twice — at ZJS Fälle scale that silently doubled
+        # the LLM bill. 30s window covers the accidental-double-click
+        # case without blocking legitimate sequential re-triggers.
+        #
+        # Hash includes the config payload + scope filters so two
+        # legitimate distinct evals on the same project (e.g. BLEU on
+        # tasks 1-10 then ROUGE on tasks 11-20) don't collapse into
+        # one. Uses sha1 over a stable JSON serialization; hash lands
+        # in `eval_metadata.dispatch_hash` for lookup.
         from datetime import timedelta as _td
-        recent_inflight = (
+        dispatch_payload = {
+            "configs": dispatched_configs,
+            "task_ids": request.task_ids or [],
+            "model_ids": request.model_ids or [],
+            "annotator_user_ids": request.annotator_user_ids or [],
+            "force_rerun": request.force_rerun,
+        }
+        dispatch_hash = hashlib.sha1(
+            _stdjson.dumps(dispatch_payload, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()
+        # `datetime.now(timezone.utc)` matches the timezone-aware
+        # `created_at` column (`DateTime(timezone=True)`); a naive
+        # `datetime.now()` would compare local-clock-as-if-UTC and
+        # silently break the 30s window on any non-UTC host.
+        # Filter the hash match in Python rather than SQL: the column
+        # is mapped as the generic `JSON` type (not `JSONB`), so the
+        # SQLAlchemy `.astext` accessor isn't available. The 30s window
+        # bounds the candidate set to a handful of rows per user/project,
+        # so a Python-side scan is cheaper than adding a JSON index +
+        # custom dialect SQL just for this lookup.
+        recent_candidates = (
             db.query(DBEvaluationRun)
             .filter(
                 DBEvaluationRun.project_id == request.project_id,
                 DBEvaluationRun.created_by == current_user.id,
                 DBEvaluationRun.status.in_(("pending", "running")),
-                DBEvaluationRun.created_at >= datetime.now() - _td(seconds=30),
+                DBEvaluationRun.created_at >= datetime.now(timezone.utc) - _td(seconds=30),
             )
             .order_by(DBEvaluationRun.created_at.desc())
-            .first()
+            .all()
+        )
+        recent_inflight = next(
+            (
+                r for r in recent_candidates
+                if (r.eval_metadata or {}).get("dispatch_hash") == dispatch_hash
+            ),
+            None,
         )
         if recent_inflight is not None:
             return EvaluationRunResponse(
@@ -357,12 +392,17 @@ async def run_evaluation(
             evaluation_type_ids=evaluation_type_ids,
             metrics={},
             status="pending",
-            created_at=datetime.now(),
+            created_at=datetime.now(timezone.utc),
             created_by=current_user.id,
             samples_evaluated=0,
             eval_metadata={
                 "evaluation_type": "evaluation",
                 "triggered_by": current_user.id,
+                # Stable hash of the dispatch payload — used by the
+                # idempotency lookup to distinguish two legitimately
+                # different in-flight evals from a double-click on the
+                # same one.
+                "dispatch_hash": dispatch_hash,
                 "evaluation_configs": dispatched_configs,
                 "batch_size": request.batch_size,
                 "label_config_version": request.label_config_version,
@@ -589,12 +629,24 @@ async def cancel_evaluation_run(
         )
 
     org_context = get_org_context_from_request(http_request)
-    if not auth_service.check_project_access(
-        current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
-    ):
+    # Single-run cancel: allow the user who triggered the run to cancel
+    # it, OR anyone with project EDIT permission. PROJECT_VIEW is too
+    # permissive here (an annotator could cancel an admin's 6940-cell
+    # eval); PROJECT_EDIT-only would block the user-cancels-own-run
+    # case. The disjunction matches the symmetry users expect: "I can
+    # cancel what I started."
+    is_owner = evaluation.created_by == current_user.id
+    has_edit = auth_service.check_project_access(
+        current_user, project, Permission.PROJECT_EDIT, db, org_context=org_context
+    )
+    if not (is_owner or has_edit):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have permission to cancel evaluations on this project",
+            detail=(
+                "You don't have permission to cancel this evaluation. "
+                "Only the user who triggered the run or a user with project "
+                "edit permission can cancel."
+            ),
         )
 
     if evaluation.status in ("completed", "failed", "cancelled"):
@@ -633,12 +685,18 @@ async def cancel_all_project_evaluations(
         )
 
     org_context = get_org_context_from_request(http_request)
+    # Bulk cancel is strictly PROJECT_EDIT — it nukes every in-flight
+    # run on the project regardless of who triggered them, so a
+    # read-only viewer must not be able to fire it.
     if not auth_service.check_project_access(
-        current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+        current_user, project, Permission.PROJECT_EDIT, db, org_context=org_context
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have permission to cancel evaluations on this project",
+            detail=(
+                "You don't have permission to bulk-cancel evaluations on "
+                "this project (requires project edit permission)."
+            ),
         )
 
     in_flight = (

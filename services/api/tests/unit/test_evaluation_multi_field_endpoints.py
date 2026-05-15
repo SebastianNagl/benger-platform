@@ -432,3 +432,66 @@ class TestCancellationEndpoints:
         # pending/running.
         assert "DBEvaluationRun.created_by" in src
         assert 'status.in_(("pending", "running"))' in src
+
+    def test_run_endpoint_idempotency_uses_tz_aware_datetime(self):
+        """The `created_at` column is `DateTime(timezone=True)`. A naive
+        `datetime.now()` compared against it is order-of-hours wrong on
+        any non-UTC host (CET in summer = UTC+2 makes the 30s window
+        either always-hit or never-hit). Pin the tz-aware call."""
+        import inspect
+        from routers.evaluations.multi_field import run_evaluation
+
+        src = inspect.getsource(run_evaluation)
+        assert "datetime.now(timezone.utc)" in src, (
+            "idempotency window must use tz-aware `datetime.now(timezone.utc)` "
+            "to match `EvaluationRun.created_at` (DateTime timezone=True)"
+        )
+
+    def test_run_endpoint_idempotency_includes_dispatch_hash(self):
+        """Without a config-payload hash in the lookup, firing BLEU on
+        tasks 1-10 then ROUGE on tasks 11-20 within 30s would return
+        the BLEU run id wrongly (two distinct evals collapse to one)."""
+        import inspect
+        from routers.evaluations.multi_field import run_evaluation
+
+        src = inspect.getsource(run_evaluation)
+        assert "dispatch_hash" in src, (
+            "idempotency lookup must include a stable hash of the dispatch "
+            "payload so two legitimately-different evals on the same project "
+            "by the same user within 30s aren't collapsed into one"
+        )
+        assert "sha1" in src or "blake2" in src or "sha256" in src, (
+            "dispatch_hash must be derived from a real hash function over the "
+            "config payload + scope filters"
+        )
+
+    def test_cancel_endpoints_require_appropriate_permission(self):
+        """A read-only viewer (`PROJECT_VIEW` only) MUST NOT be able to
+        cancel evaluations — that would let an annotator nuke an
+        admin's 6940-cell ZJS run. Per-run cancel allows owner-OR-edit;
+        bulk cancel requires strictly `PROJECT_EDIT`."""
+        import inspect
+        from routers.evaluations.multi_field import (
+            cancel_all_project_evaluations,
+            cancel_evaluation_run,
+        )
+
+        single = inspect.getsource(cancel_evaluation_run)
+        bulk = inspect.getsource(cancel_all_project_evaluations)
+
+        # Bulk: strictly PROJECT_EDIT.
+        assert "Permission.PROJECT_EDIT" in bulk, (
+            "cancel-all must require PROJECT_EDIT"
+        )
+        assert "Permission.PROJECT_VIEW" not in bulk, (
+            "cancel-all must NOT accept PROJECT_VIEW (too permissive)"
+        )
+
+        # Single: owner-OR-edit (the disjunction lets a user cancel
+        # their own runs without needing edit on the project).
+        assert "Permission.PROJECT_EDIT" in single, (
+            "cancel-single must check PROJECT_EDIT as one branch of the auth"
+        )
+        assert "created_by == current_user.id" in single, (
+            "cancel-single must allow the run's creator to cancel their own run"
+        )
