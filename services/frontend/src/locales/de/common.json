@@ -7448,6 +7448,12 @@
     "blindTooltipPersistent": "Blinde Korrektur (dauerhaft): {what} verborgen — auch nach Ihrer Einreichung",
     "blindTooltipLifted": "Blinde Korrektur für dieses Item aufgehoben — Sie haben bereits eingereicht, {what} sind jetzt sichtbar",
     "blindTooltipInactive": "Alle Bewertungen sichtbar",
+    "bewertung": {
+      "bewertungsanleitung": {
+        "label": "Bewertungsanleitung anzeigen",
+        "subtitle": "Identisch zur LLM-Korrektor-Anleitung"
+      }
+    },
     "stats": {
       "totalTasks": "Aufgaben gesamt",
       "withFeedback": "Mit Korrektur",
