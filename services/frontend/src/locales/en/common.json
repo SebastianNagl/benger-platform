@@ -7391,6 +7391,12 @@
     "blindTooltipPersistent": "Blind grading (persistent): {what} hidden — also after you submit",
     "blindTooltipLifted": "Blind grading lifted for this item — you've already submitted, so {what} are now visible",
     "blindTooltipInactive": "All evaluations visible",
+    "bewertung": {
+      "bewertungsanleitung": {
+        "label": "Show evaluation guidance",
+        "subtitle": "Same instructions the LLM corrector uses"
+      }
+    },
     "stats": {
       "totalTasks": "Total Tasks",
       "withFeedback": "With Correction",
