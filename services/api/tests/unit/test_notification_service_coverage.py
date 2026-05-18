@@ -108,7 +108,7 @@ class TestImportFallbacks:
 class TestCreateNotificationEdgeCases:
 
     @patch("notification_service.NotificationService._user_wants_notification")
-    @patch("notification_service.get_celery_app")
+    @patch("services.email.notification_service.get_celery_app")
     def test_create_notification_with_string_type(
         self, mock_task, mock_wants, mock_db, user_id
     ):

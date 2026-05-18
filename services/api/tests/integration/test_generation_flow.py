@@ -332,14 +332,13 @@ class TestWebSocketGeneration:
     """Test WebSocket functionality for real-time updates"""
 
     @pytest.mark.asyncio
-    async def test_websocket_connection(self, test_project, test_user):
+    async def test_websocket_connection(self, client, test_project, test_user):
         """Test WebSocket connection for generation progress"""
-        from fastapi.testclient import TestClient
-
-        client = TestClient(app)
-        # WS handshake now authenticates via the access_token cookie before
-        # `accept()` (see auth_module.verify_token_for_websocket). Without
-        # this the server closes with 4401.
+        # Use the shared `client` fixture (sets up dependency_overrides[get_db]
+        # → test_db) so the WS auth check sees the test_user committed to the
+        # test session. WS handshake now authenticates via the access_token
+        # cookie before `accept()` (see auth_module.verify_token_for_websocket);
+        # without it the server closes with 4401.
         client.cookies.set("access_token", test_user.token)
 
         with patch('routers.generation.get_redis_client') as mock_redis:
