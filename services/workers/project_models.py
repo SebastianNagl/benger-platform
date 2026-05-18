@@ -212,15 +212,22 @@ class Annotation(Base):
         )
 
 
-class AnnotationTimerSession(Base):
-    """Server-side timer tracking for annotation sessions (Issue #1205)."""
+class TimerSession(Base):
+    """Server-side timer tracking — annotation (Issue #1205) + korrektur
+    (issue #30 PR 3). Renamed from `annotation_timer_sessions` in
+    migration 050."""
 
-    __tablename__ = "annotation_timer_sessions"
+    __tablename__ = "timer_sessions"
 
     id = Column(String, primary_key=True, index=True)
     task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Polymorphic target (PR 3). 'task' for annotation (target_id NULL);
+    # 'annotation' or 'generation' for korrektur (target_id = the row id).
+    target_type = Column(String, nullable=False, server_default="task")
+    target_id = Column(String, nullable=True)
 
     started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     time_limit_seconds = Column(Integer, nullable=False)
@@ -230,9 +237,9 @@ class AnnotationTimerSession(Base):
     auto_submitted = Column(Boolean, default=False, nullable=False)
     draft_result = Column(JSONB, nullable=True)
 
-    __table_args__ = (
-        sa.UniqueConstraint("task_id", "user_id", name="unique_timer_session"),
-    )
+
+# Back-compat alias for code that imported the old name.
+AnnotationTimerSession = TimerSession
 
 
 class TaskDraft(Base):
