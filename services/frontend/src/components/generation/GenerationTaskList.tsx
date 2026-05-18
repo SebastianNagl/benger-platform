@@ -262,8 +262,12 @@ export function GenerationTaskList({
           console.error('WebSocket error:', error)
         }
 
-        ws.onclose = () => {
-          logger.debug('WebSocket disconnected')
+        ws.onclose = (ev) => {
+          logger.debug('WebSocket disconnected', ev.code)
+
+          // 4401 / 4403 = backend rejected the WS handshake on auth/access.
+          // Reconnecting can't fix it; stop so we don't hammer the server.
+          if (ev.code === 4401 || ev.code === 4403) return
 
           // Attempt to reconnect with exponential backoff (only if still mounted)
           if (mounted && reconnectAttemptsRef.current < 5) {

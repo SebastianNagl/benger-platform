@@ -65,7 +65,6 @@ async def stream_evaluation_status(
     evaluation_id: str,
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
 ):
     """
     Stream evaluation status updates via Server-Sent Events.
@@ -82,16 +81,42 @@ async def stream_evaluation_status(
 
     Authentication:
     - Uses cookie-based authentication (withCredentials: true from EventSource)
+
+    Session lifecycle: each poll iteration opens and closes its own DB
+    session instead of holding one across `await`. Holding a session for
+    the SSE lifetime would leave the connection IDLE IN TRANSACTION between
+    polls and drain the pool — see 2026-05-18 postmortem.
     """
-    # Check project access before starting stream
-    evaluation = db.query(DBEvaluationRun).filter(DBEvaluationRun.id == evaluation_id).first()
-    if evaluation and not check_project_accessible(db, current_user, evaluation.project_id, get_org_context_from_request(request)):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this evaluation's project",
-        )
+    # One-shot session for the up-front access check.
+    org_context = get_org_context_from_request(request)
+    db = next(get_db())
+    try:
+        evaluation = db.query(DBEvaluationRun).filter(DBEvaluationRun.id == evaluation_id).first()
+        if evaluation and not check_project_accessible(db, current_user, evaluation.project_id, org_context):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have access to this evaluation's project",
+            )
+    finally:
+        db.close()
 
     logger.info(f"SSE stream started for evaluation {evaluation_id} by user {current_user.id}")
+
+    def _snapshot() -> Optional[dict]:
+        """Open a short-lived session, return the current status dict (or
+        None if the evaluation has been deleted)."""
+        s = next(get_db())
+        try:
+            ev = s.query(DBEvaluationRun).filter(DBEvaluationRun.id == evaluation_id).first()
+            if not ev:
+                return None
+            return {
+                "status": ev.status,
+                "samples_evaluated": ev.samples_evaluated or 0,
+                "error_message": ev.error_message,
+            }
+        finally:
+            s.close()
 
     async def event_generator():
         last_status = None
@@ -103,38 +128,21 @@ async def stream_evaluation_status(
             iteration += 1
 
             try:
-                # Refresh the session to get latest data
-                db.expire_all()
-                evaluation = db.query(DBEvaluationRun).filter(DBEvaluationRun.id == evaluation_id).first()
-
-                if not evaluation:
+                snapshot = _snapshot()
+                if snapshot is None:
                     yield {"event": "error", "data": json.dumps({"error": "Evaluation not found"})}
                     break
 
-                current_status = evaluation.status
-                current_samples = evaluation.samples_evaluated or 0
+                current_status = snapshot["status"]
+                current_samples = snapshot["samples_evaluated"]
 
-                # Only send update if status or samples changed
                 if current_status != last_status or current_samples != last_samples:
-                    status_data = {
-                        "status": current_status,
-                        "samples_evaluated": current_samples,
-                        "error_message": evaluation.error_message,
-                    }
-
-                    yield {"event": "status", "data": json.dumps(status_data)}
-
+                    yield {"event": "status", "data": json.dumps(snapshot)}
                     last_status = current_status
                     last_samples = current_samples
 
-                # Send done event and close stream when evaluation finishes
                 if current_status in ["completed", "failed"]:
-                    done_data = {
-                        "status": current_status,
-                        "samples_evaluated": current_samples,
-                        "error_message": evaluation.error_message,
-                    }
-                    yield {"event": "done", "data": json.dumps(done_data)}
+                    yield {"event": "done", "data": json.dumps(snapshot)}
                     break
 
                 await asyncio.sleep(1)

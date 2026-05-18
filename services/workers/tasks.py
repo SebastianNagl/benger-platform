@@ -2184,6 +2184,100 @@ def send_bulk_invitations_task(invitations_data: List[Dict]) -> Dict[str, Any]:
     return {"sent": sent, "failed": failed, "total": len(invitations_data), "results": results}
 
 
+@app.task(
+    name="emails.send_notification_batch",
+    autoretry_for=(Exception,),
+    retry_kwargs={"max_retries": 3, "countdown": 60},
+)
+def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any]:
+    """Send a batch of in-app-notification emails.
+
+    Replaces the prior pattern in `notification_service.create_notification`
+    where `asyncio.create_task(_send_email_notifications(db, ...))` ran the
+    sync `requests.post` SendGrid call on the API event loop and reused the
+    request-scoped DB session in a fire-and-forget task. Both were
+    catastrophic under fan-out (notify_project_created → every org member +
+    every superadmin); see 2026-05-18 postmortem.
+
+    Owns its own DB session. Failures per-recipient are logged and swallowed
+    so one bad email doesn't tank the whole batch; the task-level retry is
+    reserved for total failures (e.g. SessionLocal unreachable).
+    """
+    if not notification_data:
+        return {"sent": 0, "failed": 0, "skipped": 0}
+
+    sent = failed = skipped = 0
+    db = SessionLocal()
+    try:
+        from email_service import email_service
+        from models import Notification, User
+        try:
+            from email_validation import is_valid_email
+        except ImportError:
+            def is_valid_email(e: str) -> bool:
+                return "@" in (e or "") and "." in (e or "")
+
+        for notif_dict in notification_data:
+            try:
+                user = db.query(User).filter(User.id == notif_dict["user_id"]).first()
+                if not user or not user.email:
+                    skipped += 1
+                    continue
+
+                if not is_valid_email(user.email):
+                    logger.warning(
+                        f"Skipping notification for user {user.id} — invalid email: {user.email}"
+                    )
+                    skipped += 1
+                    continue
+
+                if HAS_NOTIFICATION_SERVICE and not NotificationService._user_wants_channel(
+                    db, user.id, notif_dict["type"], "email"
+                ):
+                    skipped += 1
+                    continue
+
+                # Hydrate a minimal Notification ORM object — only the
+                # attributes the template path reads. We pass an unattached
+                # instance, never add it to the session.
+                notif = Notification(
+                    id=notif_dict.get("id"),
+                    user_id=notif_dict["user_id"],
+                    type=notif_dict["type"],
+                    title=notif_dict.get("title", ""),
+                    message=notif_dict.get("message", ""),
+                    data=notif_dict.get("data") or {},
+                )
+
+                # `send_notification_email` is `async` but the underlying
+                # SendGrid call is sync. Run via asyncio.run on the worker
+                # process — Celery doesn't have an event loop by default.
+                import asyncio as _aio
+                ok = _aio.run(
+                    email_service.send_notification_email(
+                        user_email=user.email,
+                        notification=notif,
+                        context={"user_name": getattr(user, "name", None)},
+                    )
+                )
+                if ok:
+                    sent += 1
+                else:
+                    failed += 1
+            except Exception as e:
+                logger.error(
+                    f"Notification email failed for {notif_dict.get('user_id')}: {e}"
+                )
+                failed += 1
+    finally:
+        db.close()
+
+    logger.info(
+        f"📬 send_notification_batch: {sent} sent, {failed} failed, {skipped} skipped"
+    )
+    return {"sent": sent, "failed": failed, "skipped": skipped, "total": len(notification_data)}
+
+
 # Label Studio tasks removed - using native annotation system
 
 # NOTE: Label Studio sync function removed - using native annotation system

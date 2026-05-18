@@ -90,7 +90,11 @@ class SendGridClient:
             }
 
         try:
-            # Send request to SendGrid
+            # Send request to SendGrid. The timeout is critical: this used to
+            # be called from an async handler via asyncio.create_task — a
+            # hanging SendGrid response would freeze the event loop. The send
+            # path now runs on a Celery worker, but the timeout stays
+            # belt-and-suspenders.
             response = requests.post(
                 self.api_url,
                 headers={
@@ -98,6 +102,7 @@ class SendGridClient:
                     "Content-Type": "application/json",
                 },
                 json=payload,
+                timeout=(5, 15),
             )
 
             if response.status_code in [200, 201, 202]:

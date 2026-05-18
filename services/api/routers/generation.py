@@ -24,7 +24,8 @@ from fastapi import (
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from auth_module import User, require_user
+from auth_module import User, WebSocketAuthError, require_user, verify_token_for_websocket
+from auth_module.user_service import get_user_by_id
 from database import get_db
 from models import Generation as DBLLMResponse
 from models import ResponseGeneration as DBResponseGeneration
@@ -678,12 +679,34 @@ async def get_parse_metrics(
 
 @ws_router.websocket("/projects/{project_id}/generation-progress")
 async def generation_progress_websocket(
-    websocket: WebSocket, project_id: str, db: Session = Depends(get_db)
+    websocket: WebSocket, project_id: str
 ):
     """
     WebSocket endpoint for real-time generation progress updates.
     Clients connect to receive live updates about generation status.
+
+    Auth: cookie-based JWT validated before `accept()`. Session lifecycle:
+    the polling fallback opens a fresh session per iteration instead of
+    holding one across `await asyncio.sleep(2)` (see 2026-05-18 postmortem).
     """
+    # Authenticate + authorize BEFORE the upgrade.
+    try:
+        payload = verify_token_for_websocket(websocket)
+    except WebSocketAuthError as e:
+        logger.info(f"WS auth rejected for project {project_id}: {e}")
+        await websocket.close(code=4401)
+        return
+
+    user_id = payload.get("user_id")
+    auth_db = next(get_db())
+    try:
+        user = get_user_by_id(auth_db, user_id) if user_id else None
+        if not user or not check_project_accessible(auth_db, user, project_id):
+            await websocket.close(code=4403)
+            return
+    finally:
+        auth_db.close()
+
     await websocket.accept()
 
     redis_client = None
@@ -752,14 +775,21 @@ async def generation_progress_websocket(
 
             while True:
                 try:
-                    # Get latest generation status from database
-                    generations = (
-                        db.query(DBResponseGeneration)
-                        .filter(DBResponseGeneration.project_id == project_id)
-                        .order_by(DBResponseGeneration.created_at.desc())
-                        .limit(5)
-                        .all()
-                    )
+                    # Open a per-iteration session so we never hold a
+                    # connection across `await asyncio.sleep(2)`. The fallback
+                    # path runs whenever Redis is unavailable; same pool-leak
+                    # rules apply as the primary path.
+                    poll_db = next(get_db())
+                    try:
+                        generations = (
+                            poll_db.query(DBResponseGeneration)
+                            .filter(DBResponseGeneration.project_id == project_id)
+                            .order_by(DBResponseGeneration.created_at.desc())
+                            .limit(5)
+                            .all()
+                        )
+                    finally:
+                        poll_db.close()
 
                     if generations:
                         # Send status update
