@@ -821,12 +821,15 @@ describe('AnnotationTab', () => {
 
       await waitFor(() => {
         expect(mockStartProgress).toHaveBeenCalled()
-        expect(mockUpdateProgress).toHaveBeenCalled()
         expect(mockCompleteProgress).toHaveBeenCalledWith(
           expect.any(String),
           'success'
         )
       })
+      // Export no longer fires fake 30 %/70 % `updateProgress` calls; the
+      // bar is indeterminate while the request is in flight (see commit
+      // 0ae2be0). The lifecycle is start → complete only.
+      expect(mockUpdateProgress).not.toHaveBeenCalled()
     })
 
     it('should track progress during delete', async () => {

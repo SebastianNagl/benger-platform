@@ -564,18 +564,17 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
     try {
       const taskIds = Array.from(selectedTasks)
 
+      // The backend streams a single response; there's no per-row progress
+      // signal to drive a real percentage, so use an indeterminate bar
+      // instead of a fake 30%-jumps-immediately-then-hangs UX.
       startProgress(progressId, t('annotationTab.buttons.bulkExport'), {
         sublabel: t('annotationTab.messages.exportingSelected', {
           count: selectedTasks.size,
         }),
-        indeterminate: false,
+        indeterminate: true,
       })
 
-      updateProgress(progressId, 30, t('annotationTab.messages.fetchingData'))
-
       const blob = await projectsAPI.bulkExportTasks(projectId, taskIds, 'json')
-
-      updateProgress(progressId, 70, t('annotationTab.messages.fetchingData'))
 
       // Download the exported file
       const url = window.URL.createObjectURL(blob)
@@ -588,11 +587,6 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
 
-      updateProgress(
-        progressId,
-        100,
-        t('annotationTab.messages.exportComplete')
-      )
       completeProgress(progressId, 'success')
 
       addToast(
@@ -623,18 +617,16 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
     try {
       const taskIds = filteredTasks.map((task) => task.id)
 
+      // Indeterminate — no real per-row progress signal from the backend
+      // stream; the previous fake 30%→70%→100% was misleading.
       startProgress(progressId, t('annotationTab.buttons.export'), {
         sublabel: t('annotationTab.messages.exportingSelected', {
           count: filteredTasks.length,
         }),
-        indeterminate: false,
+        indeterminate: true,
       })
 
-      updateProgress(progressId, 30, t('annotationTab.messages.fetchingData'))
-
       const blob = await projectsAPI.bulkExportTasks(projectId, taskIds, 'json')
-
-      updateProgress(progressId, 70, t('annotationTab.messages.fetchingData'))
 
       // Download the exported file
       const url = window.URL.createObjectURL(blob)
@@ -647,11 +639,6 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
 
-      updateProgress(
-        progressId,
-        100,
-        t('annotationTab.messages.exportComplete')
-      )
       completeProgress(progressId, 'success')
 
       addToast(
