@@ -9,9 +9,9 @@ description = "BenGER API Gateway"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi==0.136.1",
-    "uvicorn[standard]==0.46.0",
-    "pydantic==2.13.3",
-    "python-multipart==0.0.26",
+    "uvicorn[standard]==0.47.0",
+    "pydantic==2.13.4",
+    "python-multipart==0.0.29",
     "PyJWT[crypto]==2.12.1",
     "cryptography>=43.0.0,<47.0.0",
     "bcrypt==4.3.0",
@@ -26,7 +26,7 @@ dependencies = [
     # starlette version is managed by fastapi
     "anyio==4.13.0",
     "openai==1.109.1",
-    "anthropic==0.97.0",
+    "anthropic==0.102.0",
     "google-genai>=1.0.0",
     # tiktoken powers the prompt-token count in services/api/services/
     # token_estimation.py — without it the cost estimator falls back to
