@@ -9,6 +9,7 @@ import { Pagination } from '@/components/shared/Pagination'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { apiClient, getApiUrl } from '@/lib/api/client'
+import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
 import { Project } from '@/types/labelStudio'
 import { canStartGeneration } from '@/utils/permissions'
 import {
@@ -266,8 +267,13 @@ export function GenerationTaskList({
           logger.debug('WebSocket disconnected', ev.code)
 
           // 4401 / 4403 = backend rejected the WS handshake on auth/access.
-          // Reconnecting can't fix it; stop so we don't hammer the server.
-          if (ev.code === 4401 || ev.code === 4403) return
+          // Reconnecting can't fix it; fire the session-expired UX (red toast
+          // + full-reload to /login). The redirect tears down the component
+          // tree so no need to flip `mounted` first.
+          if (ev.code === 4401 || ev.code === 4403) {
+            redirectToLoginAsExpired()
+            return
+          }
 
           // Attempt to reconnect with exponential backoff (only if still mounted)
           if (mounted && reconnectAttemptsRef.current < 5) {

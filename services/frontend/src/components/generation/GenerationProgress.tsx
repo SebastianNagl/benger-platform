@@ -6,6 +6,7 @@ import { Card } from '@/components/shared/Card'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient, getApiUrl } from '@/lib/api/client'
+import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
 import {
   ArrowPathIcon,
   CheckCircleIcon,
@@ -171,10 +172,11 @@ export function GenerationProgress({
           wsRef.current = null
 
           // 4401 / 4403 = backend rejected the WS handshake on auth/access.
-          // Reconnecting can't fix it; drop to polling so we don't loop.
+          // Reconnecting can't fix it; fire the standard session-expired UX
+          // (red toast on /login + full reload). The full reload tears down
+          // this component, so any pending reconnect timers are moot.
           if (ev.code === 4401 || ev.code === 4403) {
-            setConnectionError(t('generation.connectionFallback'))
-            startPolling()
+            redirectToLoginAsExpired()
             return
           }
 
