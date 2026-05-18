@@ -29,8 +29,9 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from auth_module import WebSocketAuthError, verify_token_for_websocket
 from auth_module.user_service import get_user_by_id
@@ -76,6 +77,7 @@ def _snapshot_project_progress(project_id: str) -> tuple[int, int]:
 async def evaluation_progress_websocket(
     websocket: WebSocket,
     project_id: str,
+    db: Session = Depends(get_db),
 ):
     """Push a "tick" event whenever the project's in-flight evaluation
     state changes (row count delta or run-status flip). Frontend
@@ -86,10 +88,13 @@ async def evaluation_progress_websocket(
         {"type": "tick", "row_count": int, "active_runs": int}
         {"type": "idle", "message": "..."}                # no in-flight runs
         {"type": "connection", "status": "connected"}     # one-shot on accept
+
+    `db` arrives via Depends so test dependency overrides apply. We close
+    it explicitly right after the access check so it does NOT linger for
+    the WS lifetime — the polling loop opens its own per-iteration
+    sessions (see module docstring).
     """
-    # Authenticate and authorize BEFORE accepting the upgrade. An
-    # unauthenticated client must never consume server resources past the
-    # handshake (frontend reconnect storms would otherwise drain the pool).
+    # Authenticate and authorize BEFORE accepting the upgrade.
     try:
         payload = verify_token_for_websocket(websocket)
     except WebSocketAuthError as e:
@@ -98,13 +103,15 @@ async def evaluation_progress_websocket(
         return
 
     user_id = payload.get("user_id")
-    db = next(get_db())
     try:
         user = get_user_by_id(db, user_id) if user_id else None
         if not user or not check_project_accessible(db, user, project_id):
             await websocket.close(code=4403)
             return
     finally:
+        # End the implicit transaction and return the connection to the
+        # pool. FastAPI's Depends cleanup will call close() again later;
+        # SQLAlchemy treats the second close as a no-op.
         db.close()
 
     await websocket.accept()
