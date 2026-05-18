@@ -116,44 +116,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [storeRemove]
   )
 
-  // Subscribe to store changes so progress toasts that flip from
-  // status='running' (persistent, duration=0) to a terminal status get an
-  // auto-dismiss timer attached on the fly. The regular addToast path
-  // arms its own timer; this hook closes the gap for upserts that go
-  // through `upsertProgressToast` directly.
-  useEffect(() => {
-    const unsubscribe = useNotificationStore.subscribe(
-      (state) => state.toasts,
-      (current, prev) => {
-        for (const t of current) {
-          const isTerminal =
-            t.progress && t.progress.status !== 'running'
-          const dur = t.duration ?? DEFAULT_TOAST_DURATION_MS
-          const alreadyScheduled = timeoutsRef.current.has(t.id)
-          if (isTerminal && dur > 0 && !alreadyScheduled) {
-            const handle = setTimeout(() => {
-              storeRemove(t.id)
-              timeoutsRef.current.delete(t.id)
-            }, dur)
-            timeoutsRef.current.set(t.id, handle)
-          }
-        }
-        // Cancel timers for toasts that have been removed externally.
-        const ids = new Set(current.map((t) => t.id))
-        for (const [id, handle] of timeoutsRef.current.entries()) {
-          if (!ids.has(id)) {
-            clearTimeout(handle)
-            timeoutsRef.current.delete(id)
-          }
-        }
-        // `prev` is unused — kept in signature for the subscribeWithSelector
-        // contract.
-        void prev
-      }
-    )
-    return unsubscribe
-  }, [storeRemove])
-
   // Mount: register the module dispatcher and drain any pending flashes
   // (sessionStorage for same-origin reload, URL params for cross-origin
   // redirects). Strip the URL params after dispatch so they don't linger.
