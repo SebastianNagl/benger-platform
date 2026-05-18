@@ -85,7 +85,7 @@ class TestCreateNotification:
     def test_empty_user_ids_commits_nothing(self):
         from services.email.notification_service import NotificationService
         db = MagicMock()
-        with patch("services.email.notification_service.asyncio", MagicMock()):
+        with patch("services.email.notification_service.get_celery_app", MagicMock()):
             result = NotificationService.create_notification(
                 db=db, user_ids=[],
                 notification_type="project_created",
@@ -113,7 +113,7 @@ class TestCreateNotification:
         pref.email_enabled = False
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = pref
-        with patch("services.email.notification_service.asyncio", MagicMock()):
+        with patch("services.email.notification_service.get_celery_app", MagicMock()):
             result = NotificationService.create_notification(
                 db=db, user_ids=["user-1"],
                 notification_type="project_created",

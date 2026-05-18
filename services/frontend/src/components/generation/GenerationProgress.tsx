@@ -165,10 +165,18 @@ export function GenerationProgress({
           setConnectionError(t('generation.connectionError'))
         }
 
-        ws.onclose = () => {
-          logger.debug('WebSocket disconnected')
+        ws.onclose = (ev) => {
+          logger.debug('WebSocket disconnected', ev.code)
           setIsConnected(false)
           wsRef.current = null
+
+          // 4401 / 4403 = backend rejected the WS handshake on auth/access.
+          // Reconnecting can't fix it; drop to polling so we don't loop.
+          if (ev.code === 4401 || ev.code === 4403) {
+            setConnectionError(t('generation.connectionFallback'))
+            startPolling()
+            return
+          }
 
           // Attempt to reconnect with exponential backoff
           if (reconnectAttemptsRef.current < 5) {
