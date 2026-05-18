@@ -59,9 +59,51 @@ export function GenerationProgress({
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttemptsRef = useRef(0)
+  // Ref to a one-shot status fetcher; populated once inside the effect
+  // so the WS message handler can call it without stale-closure issues.
+  // Triggered when the WS receives a per-generation publish event from
+  // the worker (workers/tasks.py:_publish_progress), which doesn't carry
+  // the full generations list — we fetch the same payload the polling
+  // fallback would, just on demand instead of on a 2 s timer.
+  const fetchStatusOnceRef = useRef<() => void>(() => {})
 
   // Connect to WebSocket
   useEffect(() => {
+    // One-shot fetcher shared by the WS per-row handler and the polling
+    // fallback. Updates statuses + overall progress + fires onComplete.
+    const fetchStatusOnce = async () => {
+      try {
+        const data = await apiClient.get(
+          `/projects/${projectId}/generation-status`
+        )
+        if (!data || !data.generations) return
+        const newStatuses: Record<string, GenerationStatus> = {}
+        data.generations.forEach((gen: any) => {
+          newStatuses[gen.id] = {
+            id: gen.id,
+            model_id: gen.model_id,
+            status: gen.status,
+            progress: gen.progress,
+            message: gen.error_message,
+          }
+        })
+        setStatuses(newStatuses)
+        const completed = data.generations.filter((g: any) =>
+          ['completed', 'failed', 'stopped'].includes(g.status)
+        ).length
+        const total = data.generations.length
+        if (total > 0) {
+          setOverallProgress((completed / total) * 100)
+        }
+        if (data.is_running === false) {
+          onComplete()
+        }
+      } catch (error) {
+        console.error('one-shot status fetch error:', error)
+      }
+    }
+    fetchStatusOnceRef.current = fetchStatusOnce
+
     const connectWebSocket = () => {
       try {
         // Get WebSocket URL from API URL
@@ -107,6 +149,13 @@ export function GenerationProgress({
               ).length
               const total = data.generations.length
               setOverallProgress((completed / total) * 100)
+            } else if (data.type === 'progress' && data.generation_id) {
+              // Worker-side per-row publish (workers/tasks.py:_publish_progress)
+              // — single generation_id, not a full list. The component can't
+              // build state from one row alone, so just trigger a one-shot
+              // refetch of the full status. Same data the polling fallback
+              // would pull; we just pull it on demand instead of on a timer.
+              fetchStatusOnceRef.current()
             }
 
             if (data.type === 'complete') {
