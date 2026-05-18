@@ -732,8 +732,19 @@ export function EvaluationResults({
           // Let onclose handle reconnect/fallback so we don't double-fire.
         }
 
-        ws.onclose = () => {
+        ws.onclose = (ev) => {
           if (closed) return
+          // 4401 / 4403 are application-defined close codes the backend
+          // emits when the WS handshake fails auth (no/invalid token) or
+          // access (no project membership). Reconnecting cannot fix these
+          // and a stale browser tab would otherwise hammer the server
+          // forever with bad tokens. Drop straight to polling — the HTTP
+          // request will return 401 and the global auth interceptor will
+          // bounce the user to login if the session is genuinely expired.
+          if (ev.code === 4401 || ev.code === 4403) {
+            startPollingFallback()
+            return
+          }
           // Exponential backoff up to 5 attempts, then drop to polling.
           if (reconnectAttempts < 5) {
             const delay = Math.min(1000 * 2 ** reconnectAttempts, 10000)

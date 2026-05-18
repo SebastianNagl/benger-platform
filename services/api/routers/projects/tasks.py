@@ -919,19 +919,34 @@ async def bulk_delete_tasks(
 
 
 @router.post("/{project_id}/tasks/bulk-export")
-async def bulk_export_tasks(
+def bulk_export_tasks(
     project_id: str,
     data: dict,
     request: Request,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
-    """Bulk export tasks from a project"""
+    """Bulk export tasks from a project.
 
+    Streams the response chunk-by-chunk and uses `yield_per` on the heavy
+    queries so peak memory stays bounded regardless of project size.
+    Previously the handler loaded every task / annotation / generation /
+    evaluation row into Python with `.all()`, built one nested dict, and
+    `json.dumps(...)`-ed it with `indent=2` — that OOMKilled the API pod on
+    2026-05-18 when a 581-task / 8k-generation / 57k-eval project was
+    exported (1.5 GiB container limit).
+
+    Also `def` (not `async def`) so FastAPI runs it in the threadpool — the
+    sync DB iteration no longer blocks the event loop during the export.
+    """
     task_ids = data.get("task_ids", [])
     format = data.get("format", "json")
 
-    # Verify project exists and user has access
+    if format not in ("json", "csv", "tsv"):
+        raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")
+
+    # Project + access check up front (still uses the request-scoped session;
+    # closes naturally when the threadpool worker returns).
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -940,83 +955,57 @@ async def bulk_export_tasks(
     if not check_project_accessible(db, current_user, project_id, org_context):
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Get tasks
-    tasks = db.query(Task).filter(Task.id.in_(task_ids), Task.project_id == project_id).all()
+    # Capture scalars now — we'll reference them inside the generator after
+    # the closure has been handed off to StreamingResponse.
+    project_title = project.title
+    exported_at_iso = datetime.now().isoformat()
+    filename_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    # Get annotations for these tasks
-    annotations = db.query(Annotation).filter(Annotation.task_id.in_(task_ids)).all()
-
-    # Get generations for these tasks
-    generations = db.query(Generation).filter(Generation.task_id.in_(task_ids)).all()
-
-    # Get questionnaire responses for these tasks
-    questionnaire_responses = (
-        db.query(PostAnnotationResponse)
-        .filter(PostAnnotationResponse.task_id.in_(task_ids))
-        .all()
-    )
-    qr_by_annotation = {qr.annotation_id: qr for qr in questionnaire_responses}
-
-    # Get evaluation runs and per-task evaluations for this project
-    evaluation_runs = (
-        db.query(EvaluationRun)
-        .filter(EvaluationRun.project_id == project_id)
-        .all()
-    )
-    eval_run_ids = [er.id for er in evaluation_runs]
-    task_evaluations = (
-        db.query(TaskEvaluation)
-        .filter(
-            TaskEvaluation.evaluation_id.in_(eval_run_ids),
-            TaskEvaluation.task_id.in_(task_ids),
-        )
-        .all()
-        if eval_run_ids
-        else []
-    )
-
+    from project_models import KorrekturComment as _KC
     from routers.projects.serializers import (
         build_evaluation_indexes,
         build_judge_model_lookup,
         serialize_annotation,
         serialize_evaluation_run,
         serialize_generation,
+        serialize_human_evaluation_data,
+        serialize_korrektur_comment,
         serialize_task,
         serialize_task_evaluation,
     )
 
-    eval_run_by_id = {er.id: er for er in evaluation_runs}
-    judge_model_lookup = build_judge_model_lookup(evaluation_runs)
-    te_by_task, te_by_generation = build_evaluation_indexes(task_evaluations)
-
-    export_data = {
-        "project_id": project_id,
-        "project_title": project.title,
-        "exported_at": datetime.now().isoformat(),
-        "evaluation_runs": [
-            serialize_evaluation_run(er, mode="data") for er in evaluation_runs
-        ],
-        "tasks": [],
-    }
-
-    for task in tasks:
+    def _build_task_obj(task: Task,
+                        eval_run_by_id: dict, judge_model_lookup: dict) -> dict:
+        """Build the per-task export dict. Queries this task's related rows
+        on the request session so peak memory stays one-task-wide."""
         task_data = serialize_task(task, mode="data")
         task_data["annotations"] = []
         task_data["generations"] = []
         task_data["evaluations"] = []
 
-        # Add annotations for this task (with questionnaire responses)
-        task_annotations = [a for a in annotations if a.task_id == task.id]
-        for ann in task_annotations:
-            qr = qr_by_annotation.get(ann.id)
+        anns = db.query(Annotation).filter(Annotation.task_id == task.id).all()
+        qrs = db.query(PostAnnotationResponse).filter(
+            PostAnnotationResponse.task_id == task.id
+        ).all()
+        qr_by_annotation = {qr.annotation_id: qr for qr in qrs}
+        for ann in anns:
             task_data["annotations"].append(
-                serialize_annotation(ann, mode="data", questionnaire_response=qr)
+                serialize_annotation(
+                    ann, mode="data", questionnaire_response=qr_by_annotation.get(ann.id)
+                )
             )
 
-        # Add generations for this task (with nested evaluations)
-        task_generations = [g for g in generations if g.task_id == task.id]
-        for gen in task_generations:
-            gen_evals = te_by_generation.get(gen.id, [])
+        gens = db.query(Generation).filter(Generation.task_id == task.id).all()
+        task_te = []
+        if eval_run_by_id:
+            task_te = db.query(TaskEvaluation).filter(
+                TaskEvaluation.task_id == task.id,
+                TaskEvaluation.evaluation_id.in_(eval_run_by_id.keys()),
+            ).all()
+        te_by_task_id, te_by_gen_id = build_evaluation_indexes(task_te)
+
+        for gen in gens:
+            gen_evals = te_by_gen_id.get(gen.id, [])
             eval_dicts = [
                 serialize_task_evaluation(
                     te, mode="data",
@@ -1029,10 +1018,9 @@ async def bulk_export_tasks(
                 serialize_generation(gen, mode="data", evaluations=eval_dicts)
             )
 
-        # Add task-level evaluations (annotation/ground-truth evals without a generation)
-        for te in te_by_task.get(task.id, []):
+        for te in te_by_task_id.get(task.id, []):
             if te.generation_id is not None:
-                continue  # Already nested under the generation above
+                continue
             task_data["evaluations"].append(
                 serialize_task_evaluation(
                     te, mode="data",
@@ -1041,110 +1029,114 @@ async def bulk_export_tasks(
                 )
             )
 
-        export_data["tasks"].append(task_data)
+        return task_data
 
-    # Top-level human-eval + Korrektur blocks. Mirrors `GET /export` so the
-    # bulk-export → import round-trip stays complete.
-    from routers.projects.serializers import (
-        serialize_human_evaluation_data,
-        serialize_korrektur_comment,
-    )
-    from project_models import KorrekturComment as _KC
+    # The streaming generators below capture the request-scoped `db` via
+    # closure. FastAPI keeps the Depends(get_db) session open until the
+    # response body is fully consumed (i.e. until the generator returns),
+    # so iterating `yield_per` against it is safe. The per-iteration-session
+    # pattern that fixes the WS/SSE leaks does NOT apply here: exports are
+    # short-lived and continuously query the DB, not idle in transaction.
 
-    export_data.update(
-        serialize_human_evaluation_data(db, project_id, task_ids)
-    )
-    export_data["korrektur_comments"] = [
-        serialize_korrektur_comment(c)
-        for c in db.query(_KC).filter(_KC.project_id == project_id).all()
-    ]
+    def _json_stream():
+        eval_runs = db.query(EvaluationRun).filter(
+            EvaluationRun.project_id == project_id
+        ).all()
+        eval_run_by_id = {er.id: er for er in eval_runs}
+        judge_model_lookup = build_judge_model_lookup(eval_runs)
 
-    # Format the response
+        header = {
+            "project_id": project_id,
+            "project_title": project_title,
+            "exported_at": exported_at_iso,
+            "evaluation_runs": [serialize_evaluation_run(er, mode="data") for er in eval_runs],
+        }
+        # Compact, no indent — ~30% smaller than indent=2 and faster.
+        prefix = json.dumps(header)[:-1]  # drop closing `}` so we can append more keys
+        yield prefix + ', "tasks": ['
+
+        first = True
+        task_q = db.query(Task).filter(
+            Task.id.in_(task_ids), Task.project_id == project_id
+        )
+        for task in task_q.yield_per(50):
+            obj = _build_task_obj(task, eval_run_by_id, judge_model_lookup)
+            yield ("" if first else ",") + json.dumps(obj)
+            first = False
+
+        yield "], "
+
+        # Human-eval block. The helper does its own queries and returns a
+        # dict; serialize each top-level key as its own JSON fragment.
+        human_eval = serialize_human_evaluation_data(db, project_id, task_ids) or {}
+        human_eval_items = list(human_eval.items())
+        for idx, (k, v) in enumerate(human_eval_items):
+            yield json.dumps(k) + ":" + json.dumps(v)
+            if idx < len(human_eval_items) - 1:
+                yield ","
+        if human_eval_items:
+            yield ","
+
+        yield '"korrektur_comments": ['
+        first = True
+        kc_q = db.query(_KC).filter(_KC.project_id == project_id)
+        for kc in kc_q.yield_per(100):
+            yield ("" if first else ",") + json.dumps(serialize_korrektur_comment(kc))
+            first = False
+        yield "]}"
+
+    def _csv_or_tsv_stream(delimiter: str):
+        """Stream CSV/TSV one task at a time. Each row is `task_id, task_data,
+        is_labeled, annotation_count, generation_count, evaluation_count, created_at`
+        (matches the legacy shape)."""
+        import csv
+        import io
+
+        buf = io.StringIO()
+        writer = csv.writer(buf, delimiter=delimiter)
+        writer.writerow([
+            "task_id", "task_data", "is_labeled",
+            "annotation_count", "generation_count", "evaluation_count",
+            "created_at",
+        ])
+        yield buf.getvalue()
+        buf.seek(0); buf.truncate()
+
+        eval_runs = db.query(EvaluationRun).filter(
+            EvaluationRun.project_id == project_id
+        ).all()
+        eval_run_by_id = {er.id: er for er in eval_runs}
+        judge_model_lookup = build_judge_model_lookup(eval_runs)
+
+        task_q = db.query(Task).filter(
+            Task.id.in_(task_ids), Task.project_id == project_id
+        )
+        for task in task_q.yield_per(50):
+            obj = _build_task_obj(task, eval_run_by_id, judge_model_lookup)
+            writer.writerow([
+                obj["id"],
+                json.dumps(obj["data"]),
+                obj["is_labeled"],
+                len(obj["annotations"]),
+                len(obj["generations"]),
+                len(obj["evaluations"]),
+                obj["created_at"],
+            ])
+            yield buf.getvalue()
+            buf.seek(0); buf.truncate()
+
+    from fastapi.responses import StreamingResponse
+
     if format == "json":
-        content = json.dumps(export_data, indent=2)
-        media_type = "application/json"
-        filename = f"tasks_export_{project_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        gen, media_type, ext = _json_stream(), "application/json", "json"
     elif format == "csv":
-        import csv
-        import io
+        gen, media_type, ext = _csv_or_tsv_stream(","), "text/csv", "csv"
+    else:  # tsv
+        gen, media_type, ext = _csv_or_tsv_stream("\t"), "text/tab-separated-values", "tsv"
 
-        output = io.StringIO()
-        writer = csv.writer(output)
-
-        # Header
-        writer.writerow(
-            [
-                "task_id",
-                "task_data",
-                "is_labeled",
-                "annotation_count",
-                "generation_count",
-                "evaluation_count",
-                "created_at",
-            ]
-        )
-
-        # Data rows
-        for task in export_data["tasks"]:
-            writer.writerow(
-                [
-                    task["id"],
-                    json.dumps(task["data"]),
-                    task["is_labeled"],
-                    len(task["annotations"]),
-                    len(task["generations"]),
-                    len(task["evaluations"]),
-                    task["created_at"],
-                ]
-            )
-
-        content = output.getvalue()
-        media_type = "text/csv"
-        filename = f"tasks_export_{project_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    elif format == "tsv":
-        import csv
-        import io
-
-        output = io.StringIO()
-        writer = csv.writer(output, delimiter="\t")
-
-        # Header
-        writer.writerow(
-            [
-                "task_id",
-                "task_data",
-                "is_labeled",
-                "annotation_count",
-                "generation_count",
-                "evaluation_count",
-                "created_at",
-            ]
-        )
-
-        # Data rows
-        for task in export_data["tasks"]:
-            writer.writerow(
-                [
-                    task["id"],
-                    json.dumps(task["data"]),
-                    task["is_labeled"],
-                    len(task["annotations"]),
-                    len(task["generations"]),
-                    len(task["evaluations"]),
-                    task["created_at"],
-                ]
-            )
-
-        content = output.getvalue()
-        media_type = "text/tab-separated-values"
-        filename = f"tasks_export_{project_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.tsv"
-    else:
-        raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")
-
-    from fastapi.responses import Response
-
-    return Response(
-        content=content,
+    filename = f"tasks_export_{project_id}_{filename_ts}.{ext}"
+    return StreamingResponse(
+        gen,
         media_type=media_type,
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )

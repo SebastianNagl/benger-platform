@@ -129,19 +129,31 @@ async def lifespan(app: FastAPI):
                         settings.database_url
                     )
 
-                    with engine.connect() as conn:
-                        context = MigrationContext.configure(conn)
-                        current_rev = context.get_current_revision()
+                    # Postgres advisory lock so concurrent processes (multiple
+                    # uvicorn workers, replicas) don't race on `alembic
+                    # upgrade`. The first holder runs migrations; the rest
+                    # block on `pg_advisory_lock` until the lock is released,
+                    # then see "Already at head" and proceed. The constant ID
+                    # (0xBE9E70 ≈ "BENGER0") is arbitrary but stable.
+                    ALEMBIC_LOCK_ID = 0xBE9E70
 
-                    if current_rev is None:
-                        logger.info("No migrations found, running initial setup...")
-                        command.upgrade(alembic_cfg, "head")
-                        logger.info("Database schema created via Alembic migrations")
-                    else:
-                        logger.info(f"Current migration: {current_rev}")
-                        # Check if we need to upgrade
-                        command.upgrade(alembic_cfg, "head")
-                        logger.info("Database migrations up to date")
+                    with engine.connect() as conn:
+                        from sqlalchemy import text
+                        conn.execute(text(f"SELECT pg_advisory_lock({ALEMBIC_LOCK_ID})"))
+                        try:
+                            context = MigrationContext.configure(conn)
+                            current_rev = context.get_current_revision()
+
+                            if current_rev is None:
+                                logger.info("No migrations found, running initial setup...")
+                                command.upgrade(alembic_cfg, "head")
+                                logger.info("Database schema created via Alembic migrations")
+                            else:
+                                logger.info(f"Current migration: {current_rev}")
+                                command.upgrade(alembic_cfg, "head")
+                                logger.info("Database migrations up to date")
+                        finally:
+                            conn.execute(text(f"SELECT pg_advisory_unlock({ALEMBIC_LOCK_ID})"))
 
                 except Exception as migration_error:
                     logger.warning(f"Migration error (non-fatal): {migration_error}")

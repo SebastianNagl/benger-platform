@@ -7,7 +7,7 @@ This module contains the core authentication logic consolidated from auth.py
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, Request, WebSocket, status
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
@@ -113,6 +113,42 @@ def verify_token_cookie_or_header(request: Request) -> dict:
         )
 
     return verify_token(token)
+
+
+class WebSocketAuthError(Exception):
+    """Raised when a WebSocket handshake fails authentication.
+
+    WS handlers catch this and respond with `await websocket.close(code=4401)`
+    before `accept()`, so unauthenticated clients never consume server
+    resources (DB sessions, in-memory state) past the handshake.
+    """
+
+
+def verify_token_for_websocket(websocket: WebSocket) -> dict:
+    """Verify an access token presented during a WebSocket handshake.
+
+    Reads the JWT from (in order):
+      1. the `access_token` cookie — same-origin browser handshakes send this
+         automatically; this is the primary path used by the frontend
+      2. the `Authorization: Bearer <token>` header — non-browser callers
+
+    Returns the decoded payload. Raises `WebSocketAuthError` on any failure;
+    raising HTTPException would not work because there is no HTTP response
+    cycle past the WS upgrade.
+    """
+    token = websocket.cookies.get("access_token")
+    if not token:
+        auth_header = websocket.headers.get("Authorization") or ""
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1]
+
+    if not token:
+        raise WebSocketAuthError("No access token provided")
+
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError as e:
+        raise WebSocketAuthError(f"Invalid token: {e}")
 
 
 def create_tokens_with_refresh(

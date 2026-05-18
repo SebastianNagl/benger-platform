@@ -12,12 +12,32 @@ Tests cover:
 Uses the shared PostgreSQL test database with per-test transaction rollback.
 """
 
+import asyncio
 import json
 import os
 import sys
 import uuid
 
 import pytest
+
+
+def _collect_stream(response) -> str:
+    """Drain a StreamingResponse's body iterator into a single string.
+
+    bulk_export_tasks is now a sync `def` handler that returns a
+    StreamingResponse; tests call it directly (no ASGI), so we have to
+    iterate the (always-async) body_iterator ourselves.
+    """
+    async def _consume():
+        chunks = []
+        async for chunk in response.body_iterator:
+            if isinstance(chunk, bytes):
+                chunks.append(chunk.decode("utf-8"))
+            else:
+                chunks.append(chunk)
+        return "".join(chunks)
+
+    return asyncio.run(_consume())
 
 # Add path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
@@ -277,14 +297,11 @@ class TestBulkExportTasks:
         mock_user.id = data["tasks"][0].created_by
 
         # Call endpoint
-        from asyncio import run
-
-        response = run(
-            bulk_export_tasks(project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session)
+        response = bulk_export_tasks(
+            project_id, request_data, request=_make_mock_request(),
+            current_user=mock_user, db=session,
         )
-
-        # Parse JSON response
-        content = response.body.decode("utf-8")
+        content = _collect_stream(response)
         export_data = json.loads(content)
 
         # Verify structure
@@ -327,14 +344,11 @@ class TestBulkExportTasks:
         mock_user.id = data["tasks"][0].created_by
 
         # Call endpoint
-        from asyncio import run
-
-        response = run(
-            bulk_export_tasks(project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session)
+        response = bulk_export_tasks(
+            project_id, request_data, request=_make_mock_request(),
+            current_user=mock_user, db=session,
         )
-
-        # Parse JSON response
-        content = response.body.decode("utf-8")
+        content = _collect_stream(response)
         export_data = json.loads(content)
 
         # Verify structure
@@ -376,14 +390,11 @@ class TestBulkExportTasks:
         mock_user.id = data["tasks"][0].created_by
 
         # Call endpoint
-        from asyncio import run
-
-        response = run(
-            bulk_export_tasks(project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session)
+        response = bulk_export_tasks(
+            project_id, request_data, request=_make_mock_request(),
+            current_user=mock_user, db=session,
         )
-
-        # Parse JSON response
-        content = response.body.decode("utf-8")
+        content = _collect_stream(response)
         export_data = json.loads(content)
 
         # Verify structure
@@ -420,14 +431,10 @@ class TestBulkExportTasks:
         mock_user.id = data["tasks"][0].created_by
 
         # Call endpoint
-        from asyncio import run
-
-        response = run(
-            bulk_export_tasks(project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session)
+        response = bulk_export_tasks(
+            project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session,
         )
-
-        # Parse CSV response
-        content = response.body.decode("utf-8")
+        content = _collect_stream(response)
         csv_reader = csv.reader(io.StringIO(content))
 
         rows = list(csv_reader)
@@ -476,14 +483,10 @@ class TestBulkExportTasks:
         mock_user.id = data["tasks"][0].created_by
 
         # Call endpoint
-        from asyncio import run
-
-        response = run(
-            bulk_export_tasks(project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session)
+        response = bulk_export_tasks(
+            project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session,
         )
-
-        # Parse TSV response
-        content = response.body.decode("utf-8")
+        content = _collect_stream(response)
         tsv_reader = csv.reader(io.StringIO(content), delimiter="\t")
 
         rows = list(tsv_reader)
@@ -528,14 +531,10 @@ class TestBulkExportTasks:
         mock_user.id = test_user.id
 
         # Call endpoint
-        from asyncio import run
-
-        response = run(
-            bulk_export_tasks(test_project.id, request_data, request=_make_mock_request(), current_user=mock_user, db=session)
+        response = bulk_export_tasks(
+            test_project.id, request_data, request=_make_mock_request(), current_user=mock_user, db=session,
         )
-
-        # Parse JSON response
-        content = response.body.decode("utf-8")
+        content = _collect_stream(response)
         export_data = json.loads(content)
 
         # Verify empty arrays (not None or missing)
@@ -564,14 +563,10 @@ class TestBulkExportTasks:
         mock_user = Mock()
         mock_user.id = data["tasks"][0].created_by
 
-        from asyncio import run
-
-        response = run(
-            bulk_export_tasks(project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session)
+        response = bulk_export_tasks(
+            project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session,
         )
-
-        # Parse export
-        content = response.body.decode("utf-8")
+        content = _collect_stream(response)
         export_data = json.loads(content)
 
         # Verify export has required structure for import
@@ -617,13 +612,10 @@ class TestBulkExportTasks:
         mock_user = Mock()
         mock_user.id = test_user.id
 
-        from asyncio import run
-
-        response = run(
-            bulk_export_tasks(project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session)
+        response = bulk_export_tasks(
+            project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session,
         )
-
-        content = response.body.decode("utf-8")
+        content = _collect_stream(response)
         export_data = json.loads(content)
 
         # Find the annotation with the questionnaire response
@@ -834,13 +826,10 @@ class TestBulkExportTasks:
         mock_user = Mock()
         mock_user.id = test_user.id
 
-        from asyncio import run
-
-        response = run(
-            bulk_export_tasks(project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session)
+        response = bulk_export_tasks(
+            project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session,
         )
-
-        content = response.body.decode("utf-8")
+        content = _collect_stream(response)
         export_data = json.loads(content)
 
         # Find the target task in export

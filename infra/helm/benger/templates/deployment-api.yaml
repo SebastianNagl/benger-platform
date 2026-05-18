@@ -43,7 +43,10 @@ spec:
               protocol: TCP
           livenessProbe:
             httpGet:
-              path: /health
+              # /healthz is dependency-free (no DB, no Redis). /health pings
+              # Redis and is reserved for readiness — a sick Redis should
+              # pull the pod from the LB but not get it SIGKILLed.
+              path: /healthz
               port: http
             initialDelaySeconds: 120
             periodSeconds: 15
