@@ -17,8 +17,11 @@ import os
 import re
 
 
-REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-ROUTER = os.path.join(REPO, "api", "routers", "leaderboards.py")
+# tests live at services/api/tests/unit/ on the host, or /app/tests/unit/ in
+# the container. Both resolve to "two levels up" pointing at the services/api
+# root (host) or /app (container).
+_API_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ROUTER = os.path.join(_API_ROOT, "routers", "leaderboards.py")
 
 
 def _src() -> str:
