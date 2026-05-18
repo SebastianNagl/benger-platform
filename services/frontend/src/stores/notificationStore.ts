@@ -23,6 +23,22 @@ import {
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
+export type ProgressStatus = 'running' | 'success' | 'error'
+
+export interface ToastProgress {
+  // 0–100. Ignored when `indeterminate` is true.
+  progress: number
+  status: ProgressStatus
+  // Optional secondary line under the main message.
+  sublabel?: string
+  // True for indeterminate work (no real per-step signal); the bar animates
+  // continuously instead of advancing a percentage.
+  indeterminate?: boolean
+  // Optional cancel callback. When present and `status === 'running'`, the
+  // toast renders a cancel × in addition to dismiss.
+  onCancel?: () => void
+}
+
 export interface ToastItem {
   id: string
   type: ToastType
@@ -31,6 +47,11 @@ export interface ToastItem {
   // Wall-clock time the toast was created. Used by ToastProvider on rehydrate
   // to compute the remaining auto-dismiss window after a page reload.
   createdAt: number
+  // Optional progress payload. When set, the toast renders a ProgressIndicator
+  // instead of the plain message and defaults to persistent (duration=0) until
+  // the producer flips status off `'running'`. Lets the progress UI share the
+  // same renderer + screen position as the regular toast system.
+  progress?: ToastProgress
 }
 
 interface NotificationState {
@@ -46,6 +67,15 @@ interface NotificationActions {
   ) => string
   removeToast: (id: string) => void
   clearToasts: () => void
+  // Create or replace a progress toast keyed by `id` (so the progress system
+  // can drive updates by stable id rather than message). Persistent
+  // (duration=0) by default while status is 'running'.
+  upsertProgressToast: (
+    id: string,
+    message: string,
+    progress: ToastProgress,
+    options?: { type?: ToastType; duration?: number }
+  ) => void
   flash: (message: string, type?: ToastType, duration?: number) => void
   consumeFlashes: () => ToastItem[]
   flashRedirect: (
@@ -105,6 +135,47 @@ export const useNotificationStore = create<NotificationStore>()(
             }),
             false,
             'removeToast'
+          )
+        },
+
+        upsertProgressToast: (
+          id: string,
+          message: string,
+          progress: ToastProgress,
+          options?: { type?: ToastType; duration?: number }
+        ) => {
+          const isRunning = progress.status === 'running'
+          set(
+            (state) => {
+              const existing = state.toasts.find((t) => t.id === id)
+              const type: ToastType =
+                options?.type ??
+                (progress.status === 'error'
+                  ? 'error'
+                  : progress.status === 'success'
+                  ? 'success'
+                  : 'info')
+              const duration =
+                options?.duration ??
+                (isRunning ? 0 : DEFAULT_TOAST_DURATION_MS)
+              const next: ToastItem = {
+                id,
+                type,
+                message,
+                duration,
+                createdAt: existing?.createdAt ?? Date.now(),
+                progress,
+              }
+              // Preserve insertion order if the id already exists (replace
+              // in place); append fresh otherwise. Cap to MAX_TOASTS.
+              const without = state.toasts.filter((t) => t.id !== id)
+              const reinserted = existing
+                ? state.toasts.map((t) => (t.id === id ? next : t))
+                : [...without, next].slice(-MAX_TOASTS)
+              return { toasts: reinserted }
+            },
+            false,
+            'upsertProgressToast'
           )
         },
 
