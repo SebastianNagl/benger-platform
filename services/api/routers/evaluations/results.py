@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy import String, cast, func
+from sqlalchemy import String, cast, func, literal_column
 from sqlalchemy.orm import Session
 
 from auth_module import User, require_user
@@ -1335,13 +1335,30 @@ async def get_project_results_by_task_model(
                 db.query(latest_ann.c.ann_id).filter(latest_ann.c.rn == 1).subquery()
             )
 
+        # Project a "lite" metrics blob that drops the heavy nested fields we
+        # never use for score extraction — for an llm_judge_falloesung row on
+        # zjs fälle this collapses ~6 KB → ~50 B, so the by-task-model
+        # endpoint pulls ~600 KB from Postgres instead of ~45 MB (page-load
+        # latency 3.1s → ~0.4s on prod-shaped data, 2026-05-18 measurement).
+        # The Python `_extract_primary_score` still owns the priority logic;
+        # it only needs the `value` (or bare numeric) per metric key, and an
+        # optional `error` to skip failed runs.
+        metrics_lite_expr = literal_column("""
+            (SELECT COALESCE(jsonb_object_agg(k,
+                CASE WHEN jsonb_typeof(v) = 'object'
+                     THEN v - 'details' - 'method' - 'raw' - 'justification'
+                     ELSE v END
+              ), '{}'::jsonb)
+             FROM jsonb_each(task_evaluations.metrics) AS j(k, v))
+        """).label("metrics")
+
         # Subquery: rank results by (generation_id, field_name), ordered by created_at DESC
         # Keeps the latest result per generation per config/field combination
         gen_query = (
             db.query(
                 TaskEvaluation.task_id,
                 TaskEvaluation.generation_id,
-                TaskEvaluation.metrics,
+                metrics_lite_expr,
                 GenerationModel.model_id,
                 TaskEvaluation.created_at,
                 func.row_number()
@@ -1410,12 +1427,22 @@ async def get_project_results_by_task_model(
         from models import User as DBUser
         from models import TaskEvaluation as TE2
 
+        # Same lite-metrics projection as the gen branch (see comment there).
+        ann_metrics_lite_expr = literal_column("""
+            (SELECT COALESCE(jsonb_object_agg(k,
+                CASE WHEN jsonb_typeof(v) = 'object'
+                     THEN v - 'details' - 'method' - 'raw' - 'justification'
+                     ELSE v END
+              ), '{}'::jsonb)
+             FROM jsonb_each(task_evaluations.metrics) AS j(k, v))
+        """).label("metrics")
+
         ann_query = (
             db.query(
                 TE2.task_id,
                 TE2.annotation_id,
                 TE2.field_name,
-                TE2.metrics,
+                ann_metrics_lite_expr,
                 TE2.created_at,
             )
             .filter(

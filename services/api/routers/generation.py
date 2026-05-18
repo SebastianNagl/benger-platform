@@ -679,14 +679,18 @@ async def get_parse_metrics(
 
 @ws_router.websocket("/projects/{project_id}/generation-progress")
 async def generation_progress_websocket(
-    websocket: WebSocket, project_id: str
+    websocket: WebSocket,
+    project_id: str,
+    db: Session = Depends(get_db),
 ):
     """
     WebSocket endpoint for real-time generation progress updates.
     Clients connect to receive live updates about generation status.
 
-    Auth: cookie-based JWT validated before `accept()`. Session lifecycle:
-    the polling fallback opens a fresh session per iteration instead of
+    Auth: cookie-based JWT validated before `accept()`. `db` is taken via
+    Depends so test dependency overrides apply; we close it explicitly
+    after the access check so it does NOT linger for the WS lifetime.
+    The polling fallback opens fresh sessions per iteration instead of
     holding one across `await asyncio.sleep(2)` (see 2026-05-18 postmortem).
     """
     # Authenticate + authorize BEFORE the upgrade.
@@ -698,14 +702,13 @@ async def generation_progress_websocket(
         return
 
     user_id = payload.get("user_id")
-    auth_db = next(get_db())
     try:
-        user = get_user_by_id(auth_db, user_id) if user_id else None
-        if not user or not check_project_accessible(auth_db, user, project_id):
+        user = get_user_by_id(db, user_id) if user_id else None
+        if not user or not check_project_accessible(db, user, project_id):
             await websocket.close(code=4403)
             return
     finally:
-        auth_db.close()
+        db.close()
 
     await websocket.accept()
 
