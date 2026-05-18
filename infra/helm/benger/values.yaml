@@ -9,8 +9,13 @@ global:
 
 api:
   name: api
-  replicaCount: 1
-  workers: 1  # uvicorn workers (keep at 1 — multiple workers hang on startup)
+  # 2 replicas removes the SPOF — rolling restarts no longer cause downtime.
+  # 4 uvicorn workers per replica matches the Dockerfile CMD. Both bumps are
+  # safe now that main.py wraps `alembic upgrade` in a Postgres advisory lock
+  # (the prior `workers: 1` comment was hiding that startup race).
+  # Effective DB pool budget: 2 × 4 × (10 + 20) = 240 slots.
+  replicaCount: 2
+  workers: 4
   deploymentStrategy:
     type: RollingUpdate
     rollingUpdate:

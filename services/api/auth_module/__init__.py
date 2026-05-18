@@ -35,6 +35,7 @@ from .models import (
 
 # Import all public functions and classes for easy access
 from .service import (
+    WebSocketAuthError,
     authenticate_user,
     create_access_token,
     create_tokens_with_refresh,
@@ -43,6 +44,7 @@ from .service import (
     revoke_refresh_token,
     verify_token,
     verify_token_cookie_or_header,
+    verify_token_for_websocket,
 )
 from .token_service import RefreshTokenService, TokenService
 from .user_service import (
@@ -79,6 +81,8 @@ __all__ = [
     "revoke_refresh_token",
     "verify_token",
     "verify_token_cookie_or_header",
+    "verify_token_for_websocket",
+    "WebSocketAuthError",
     "logout_user",
     # Dependencies
     "require_user",

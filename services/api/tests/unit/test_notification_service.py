@@ -67,7 +67,7 @@ class TestNotificationCreation:
     """Test notification creation"""
 
     @patch("notification_service.NotificationService._user_wants_notification")
-    @patch("notification_service.asyncio.create_task")
+    @patch("notification_service.get_celery_app")
     def test_create_notification_basic(
         self, mock_create_task, mock_wants_notif, mock_db, test_user
     ):
@@ -95,7 +95,7 @@ class TestNotificationCreation:
         assert len(result) == 1
 
     @patch("notification_service.NotificationService._user_wants_notification")
-    @patch("notification_service.asyncio.create_task")
+    @patch("notification_service.get_celery_app")
     def test_create_notification_with_organization(
         self, mock_create_task, mock_wants_notif, mock_db, test_user, test_organization
     ):
@@ -234,7 +234,7 @@ class TestNotificationIntegration:
 
     @patch("notification_service.NotificationService._user_wants_notification")
     @patch("notification_service.EMAIL_SERVICE_AVAILABLE", True)
-    @patch("notification_service.asyncio.create_task")
+    @patch("notification_service.get_celery_app")
     def test_create_and_send_notification(
         self, mock_create_task, mock_wants_notif, mock_db, test_user
     ):

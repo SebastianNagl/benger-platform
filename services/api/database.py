@@ -31,13 +31,27 @@ if not DATABASE_URL:
 # Configure pool based on environment for E2E test performance
 is_e2e_test = os.getenv("ENVIRONMENT") == "test"
 pool_config = {
-    "pool_size": 20 if is_e2e_test else 3,
-    "max_overflow": 30 if is_e2e_test else 7,
-    "pool_pre_ping": True,  # Verify connections before use
-    "pool_recycle": 3600,  # Recycle connections after 1 hour
+    "pool_size": 20 if is_e2e_test else 10,
+    "max_overflow": 30 if is_e2e_test else 20,
+    "pool_pre_ping": True,
+    "pool_recycle": 3600,
+    "pool_timeout": 5,
 }
 
-engine = create_engine(DATABASE_URL, **pool_config)
+# Postgres-side timeouts so a single hot path can't pin a backend forever.
+# statement_timeout: kill any query that runs longer than 15s.
+# idle_in_transaction_session_timeout: Postgres force-closes a backend that
+#   sits with an open transaction for 30s (the failure mode that wedged the
+#   pool in the 2026-05-18 incident — a streaming endpoint held a Session
+#   across `await asyncio.sleep(2)` and SQLAlchemy's auto-begin left the
+#   connection IDLE IN TRANSACTION between polls).
+# application_name: makes pg_stat_activity immediately diagnostic.
+connect_args = {
+    "options": "-c statement_timeout=15000 -c idle_in_transaction_session_timeout=30000",
+    "application_name": "benger-api",
+}
+
+engine = create_engine(DATABASE_URL, connect_args=connect_args, **pool_config)
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

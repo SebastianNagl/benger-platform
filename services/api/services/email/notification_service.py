@@ -8,7 +8,6 @@ This service handles:
 4. Notification cleanup and archival
 """
 
-import asyncio
 import logging
 import uuid
 from datetime import datetime, timedelta
@@ -40,6 +39,16 @@ except ImportError:
 
     async def send_notification_email(*args, **kwargs):
         return False
+
+# Celery client for dispatching email-send tasks to the workers. Imported
+# at module level (not inside the function) so unit tests can patch
+# `notification_service.get_celery_app` without depending on import side
+# effects. Tolerates absence so the module still loads in trimmed envs.
+try:
+    from celery_client import get_celery_app
+except ImportError:
+    def get_celery_app():
+        raise RuntimeError("celery_client not available — email dispatch disabled")
 
 
 # Import Project model for project-based notifications
@@ -156,18 +165,26 @@ class NotificationService:
                 )
             return []
 
-        # Send email notifications asynchronously for users who have email enabled.
-        # Schedule on the running event loop when available; in sync test/CLI
-        # contexts there is no loop and we silently skip the email side-effect.
-        if EMAIL_SERVICE_AVAILABLE and notifications:
+        # Dispatch email sends to a Celery worker. The worker opens its own
+        # DB session, hydrates a minimal Notification per recipient, and
+        # calls SendGrid synchronously. Previously this was
+        # `asyncio.create_task(_send_email_notifications(db, ...))` which
+        # (a) handed the request-scoped `db` to a fire-and-forget task and
+        # (b) blocked the API event loop on sync `requests.post()` per
+        # recipient. The fan-out from notify_project_created (every org
+        # member + every superadmin) wedged the only API replica on
+        # 2026-05-18.
+        if EMAIL_SERVICE_AVAILABLE and notification_data:
             try:
-                asyncio.create_task(
-                    NotificationService._send_email_notifications(db, notification_data)
+                get_celery_app().send_task(
+                    "emails.send_notification_batch",
+                    args=[notification_data],
+                    queue="emails",
                 )
-            except RuntimeError:
-                logger.debug(
-                    "No running event loop; skipping async email dispatch"
-                )
+            except Exception as e:
+                # Never let an email-dispatch failure surface to the caller;
+                # the in-app notification already committed above.
+                logger.warning(f"Failed to enqueue notification emails: {e}")
 
         return notifications
 
