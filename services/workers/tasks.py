@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -506,6 +507,57 @@ else:
 
 app.conf.broker_url = os.getenv("CELERY_BROKER_URL", broker_url)
 app.conf.result_backend = os.getenv("CELERY_RESULT_BACKEND", result_backend)
+
+
+# ---- Progress pub/sub (workers → API WebSocket clients) ---------------------
+#
+# Per-cell evaluation and per-row generation commits broadcast on a
+# project-scoped Redis channel. The API-side WS handlers
+# (routers/evaluations/ws.py, routers/generation.py) subscribe to that
+# channel and forward each message as a `tick` to the connected browser,
+# which then re-fetches the cell/row view. This replaces the prior
+# 2-second `count(*)` polling loop on the API side and gives the user
+# near-instant cell-by-cell feedback.
+#
+# Failure is best-effort: a Redis hiccup must never fail the underlying
+# DB commit. The publisher uses a lazy, process-local client built from
+# the Celery broker URL (already resolved above).
+_progress_redis_client: Optional["redis.Redis"] = None
+
+
+def _get_progress_redis():
+    """Return a lazily-built Redis client for progress publishing.
+
+    Reuses the Celery broker URL so worker pods need no additional config
+    or secret. Returns `None` if redis is unavailable for any reason —
+    callers must tolerate this and proceed (the commit path is more
+    important than the broadcast).
+    """
+    global _progress_redis_client
+    if _progress_redis_client is not None:
+        return _progress_redis_client
+    try:
+        _progress_redis_client = redis.Redis.from_url(
+            app.conf.broker_url,
+            socket_timeout=2,
+            socket_connect_timeout=2,
+            decode_responses=True,
+        )
+        return _progress_redis_client
+    except Exception as e:
+        logger.warning(f"progress redis client init failed: {e}")
+        return None
+
+
+def _publish_progress(channel: str, payload: Dict[str, Any]) -> None:
+    """Publish a progress event on `channel`. No-op on any error."""
+    client = _get_progress_redis()
+    if client is None:
+        return
+    try:
+        client.publish(channel, json.dumps(payload))
+    except Exception as e:
+        logger.warning(f"progress publish to {channel} failed: {e}")
 
 
 def _extract_field_value_from_annotation(annotation_results: List[Dict], field_name: str) -> Any:
@@ -1704,6 +1756,30 @@ def generate_llm_responses(
 
                         # Commit after each response to avoid losing work
                         db.commit()
+
+                        # Broadcast on the same throttle as the counter update
+                        # — every 10 rows or at end. The API-side WS handler
+                        # forwards this to GenerationTaskList / GenerationProgress
+                        # which then re-fetches the row list. The handler used
+                        # to poll for the same thing every 2 s; pub/sub lets us
+                        # drop that polling load entirely.
+                        if (
+                            responses_generated % 10 == 0
+                            or responses_generated == total_expected
+                        ):
+                            _publish_progress(
+                                f"generation:progress:{project_id}",
+                                {
+                                    "type": "progress",
+                                    "generation_id": generation.id,
+                                    "model_id": model_id,
+                                    "responses_generated": responses_generated,
+                                    "total_expected": total_expected,
+                                    "status": "running"
+                                    if responses_generated < total_expected
+                                    else "completed",
+                                },
+                            )
 
                     except Exception as e:
                         _last_error = str(e)
@@ -4782,6 +4858,21 @@ def evaluate_generation_cell(
             samples_failed=n_failed,
         )
         db.commit()
+        # Tell the API WS handler this cell landed so it can push a
+        # `tick` to connected EvaluationResults clients. The handler
+        # subscribes to `evaluation:progress:{project_id}` and re-fetches
+        # the task-model view on each tick.
+        if n_inserted > 0:
+            _publish_progress(
+                f"evaluation:progress:{project_id}",
+                {
+                    "type": "cell_complete",
+                    "evaluation_id": evaluation_id,
+                    "task_id": task_id,
+                    "generation_id": generation_id,
+                    "samples_added": n_inserted,
+                },
+            )
         return {
             "status": "ok",
             "evaluation_id": evaluation_id,
@@ -5239,6 +5330,18 @@ def evaluate_annotation_cell(
             samples_failed=n_failed,
         )
         db.commit()
+        # Same as the gen cell — broadcast so the API WS pushes a tick.
+        if n_inserted > 0:
+            _publish_progress(
+                f"evaluation:progress:{project_id}",
+                {
+                    "type": "cell_complete",
+                    "evaluation_id": evaluation_id,
+                    "task_id": task_id,
+                    "annotation_id": annotation_id,
+                    "samples_added": n_inserted,
+                },
+            )
         return {
             "status": "ok",
             "evaluation_id": evaluation_id,
