@@ -1,23 +1,41 @@
 /**
  * Progress Context
  *
- * Global context for managing progress indicators for long-running operations
+ * Public API for showing progress toasts. Backed by the same notification
+ * store + ToastProvider as regular toasts so progress + completion + error
+ * messages all render through one component, in one screen position, with
+ * one set of styles. There is no second overlay.
+ *
+ * Lifecycle:
+ *   startProgress(id, label, options?)   -> persistent toast with progress bar
+ *   updateProgress(id, n, sublabel?)     -> in-place update; stays persistent
+ *   completeProgress(id, status='success'|'error')
+ *                                        -> flips status; toast auto-dismisses
+ *                                           after DEFAULT_TOAST_DURATION_MS
+ *                                           (10 s); success toasts also reset
+ *                                           progress to 100.
+ *   removeProgress(id)                   -> immediate dismiss.
  */
 
 'use client'
 
-import { ProgressIndicator } from '@/components/shared/ProgressIndicator'
-import { useI18n } from '@/contexts/I18nContext'
-import { XMarkIcon } from '@heroicons/react/24/outline'
 import {
   createContext,
   ReactNode,
   useCallback,
   useContext,
-  useState,
+  useEffect,
+  useMemo,
+  useRef,
 } from 'react'
 
-interface ProgressItem {
+import {
+  DEFAULT_TOAST_DURATION_MS,
+  ToastProgress,
+  useNotificationStore,
+} from '@/stores/notificationStore'
+
+export interface ProgressItem {
   id: string
   label: string
   sublabel?: string
@@ -28,6 +46,9 @@ interface ProgressItem {
 }
 
 interface ProgressContextType {
+  // Derived from the toast store: every toast with a `progress` payload.
+  // Lets callers (and tests) introspect what's in flight without coupling
+  // to the underlying notification store layout.
   progressItems: ProgressItem[]
   startProgress: (
     id: string,
@@ -48,8 +69,48 @@ const ProgressContext = createContext<ProgressContextType | undefined>(
 )
 
 export function ProgressProvider({ children }: { children: ReactNode }) {
-  const { t } = useI18n()
-  const [progressItems, setProgressItems] = useState<ProgressItem[]>([])
+  const upsert = useNotificationStore((s) => s.upsertProgressToast)
+  const remove = useNotificationStore((s) => s.removeToast)
+  const toasts = useNotificationStore((s) => s.toasts)
+
+  const progressItems = useMemo<ProgressItem[]>(
+    () =>
+      toasts
+        .filter((t) => t.progress !== undefined)
+        .map((t) => ({
+          id: t.id,
+          label: t.message,
+          sublabel: t.progress!.sublabel,
+          progress: t.progress!.progress,
+          status: t.progress!.status,
+          indeterminate: t.progress!.indeterminate,
+          onCancel: t.progress!.onCancel,
+        })),
+    [toasts]
+  )
+
+  // Map of progress-id -> auto-dismiss timer handle. We arm the timer here
+  // (in addition to the ToastProvider subscriber that watches the same
+  // store) so consumers that render only ProgressProvider in isolation
+  // — tests, narrow embeds — still get the same dismiss behavior.
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map()
+  )
+  const clearTimer = useCallback((id: string) => {
+    const prev = timersRef.current.get(id)
+    if (prev) {
+      clearTimeout(prev)
+      timersRef.current.delete(id)
+    }
+  }, [])
+
+  useEffect(
+    () => () => {
+      timersRef.current.forEach((h) => clearTimeout(h))
+      timersRef.current.clear()
+    },
+    []
+  )
 
   const startProgress = useCallback(
     (
@@ -61,121 +122,95 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         onCancel?: () => void
       }
     ) => {
-      setProgressItems((prev) => {
-        // Remove existing item with same id
-        const filtered = prev.filter((item) => item.id !== id)
-        return [
-          ...filtered,
-          {
-            id,
-            label,
-            sublabel: options?.sublabel,
-            progress: 0,
-            status: 'running',
-            indeterminate: options?.indeterminate,
-            onCancel: options?.onCancel,
-          },
-        ]
-      })
+      // Restart of the same id: cancel any pending auto-dismiss from a
+      // prior completion so the restarted progress doesn't vanish on us.
+      clearTimer(id)
+      const progress: ToastProgress = {
+        progress: 0,
+        status: 'running',
+        sublabel: options?.sublabel,
+        indeterminate: options?.indeterminate,
+        onCancel: options?.onCancel,
+      }
+      upsert(id, label, progress)
     },
-    []
+    [upsert, clearTimer]
   )
 
   const updateProgress = useCallback(
     (id: string, progress: number, sublabel?: string) => {
-      setProgressItems((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                progress: Math.max(0, Math.min(100, progress)),
-                sublabel: sublabel !== undefined ? sublabel : item.sublabel,
-              }
-            : item
-        )
-      )
+      const existing = useNotificationStore
+        .getState()
+        .toasts.find((t) => t.id === id)
+      if (!existing) return
+      const next: ToastProgress = {
+        ...(existing.progress ?? { progress: 0, status: 'running' }),
+        progress: Math.max(0, Math.min(100, progress)),
+        sublabel:
+          sublabel !== undefined ? sublabel : existing.progress?.sublabel,
+      }
+      upsert(id, existing.message, next)
     },
-    []
+    [upsert]
   )
-
-  const removeProgress = useCallback((id: string) => {
-    setProgressItems((prev) => prev.filter((item) => item.id !== id))
-  }, [])
 
   const completeProgress = useCallback(
     (id: string, status: 'success' | 'error' = 'success') => {
-      setProgressItems((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, progress: 100, status } : item
-        )
-      )
-
-      // Auto-remove success items after delay
-      if (status === 'success') {
-        setTimeout(() => {
-          removeProgress(id)
-        }, 3000)
+      const existing = useNotificationStore
+        .getState()
+        .toasts.find((t) => t.id === id)
+      if (!existing) return
+      const next: ToastProgress = {
+        ...(existing.progress ?? { progress: 100, status: 'running' }),
+        progress: 100,
+        status,
       }
+      upsert(id, existing.message, next)
+      // Arm the auto-dismiss. Honors the user-facing rule: progress toasts
+      // stay until done, then behave like regular toasts (10 s default).
+      // Applies to BOTH success AND error — error toasts used to be
+      // sticky-forever in the old self-rolled overlay, but the unification
+      // brings them under the standard toast lifecycle. The ToastProvider's
+      // subscriber would also arm a timer for the same transition; its
+      // `alreadyScheduled` guard keeps the two paths idempotent.
+      clearTimer(id)
+      const handle = setTimeout(() => {
+        remove(id)
+        timersRef.current.delete(id)
+      }, DEFAULT_TOAST_DURATION_MS)
+      timersRef.current.set(id, handle)
     },
-    [removeProgress]
+    [upsert, remove, clearTimer]
+  )
+
+  const removeProgress = useCallback(
+    (id: string) => {
+      clearTimer(id)
+      remove(id)
+    },
+    [remove, clearTimer]
+  )
+
+  const value = useMemo(
+    () => ({
+      progressItems,
+      startProgress,
+      updateProgress,
+      completeProgress,
+      removeProgress,
+    }),
+    [
+      progressItems,
+      startProgress,
+      updateProgress,
+      completeProgress,
+      removeProgress,
+    ]
   )
 
   return (
-    <ProgressContext.Provider
-      value={{
-        progressItems,
-        startProgress,
-        updateProgress,
-        completeProgress,
-        removeProgress,
-      }}
-    >
+    <ProgressContext.Provider value={value}>
       {children}
-
-      {/* Progress Overlay */}
-      {progressItems.length > 0 && (
-        <div className="fixed bottom-4 right-4 z-50 w-full max-w-md space-y-3 px-4">
-          {progressItems.map((item) => (
-            <div
-              key={item.id}
-              className="animate-slide-up rounded-lg border border-zinc-200 bg-white p-4 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              <div className="mb-2 flex items-start justify-between">
-                <div className="flex-1">
-                  <ProgressIndicator
-                    progress={item.progress}
-                    label={item.label}
-                    sublabel={item.sublabel}
-                    status={item.status}
-                    indeterminate={item.indeterminate}
-                    showPercentage={!item.indeterminate}
-                  />
-                </div>
-                <div className="ml-4 flex items-center gap-1">
-                  {item.onCancel && item.status === 'running' && (
-                    <button
-                      onClick={item.onCancel}
-                      className="rounded p-1 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                      title={t('progress.cancel')}
-                    >
-                      <XMarkIcon className="h-4 w-4" />
-                    </button>
-                  )}
-                  {(item.status === 'error' || item.status === 'success') && (
-                    <button
-                      onClick={() => removeProgress(item.id)}
-                      className="rounded p-1 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                      title={t('progress.dismiss')}
-                    >
-                      <XMarkIcon className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </ProgressContext.Provider>
   )
 }
@@ -186,28 +221,4 @@ export function useProgress() {
     throw new Error('useProgress must be used within a ProgressProvider')
   }
   return context
-}
-
-// Animation styles
-const style = `
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-slide-up {
-  animation: slide-up 0.3s ease-out;
-}
-`
-
-if (typeof document !== 'undefined') {
-  const styleElement = document.createElement('style')
-  styleElement.textContent = style
-  document.head.appendChild(styleElement)
 }

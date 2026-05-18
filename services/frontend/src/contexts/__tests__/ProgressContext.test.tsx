@@ -5,11 +5,17 @@
 import { act, renderHook } from '@testing-library/react'
 import React from 'react'
 import { ProgressProvider, useProgress } from '../ProgressContext'
+import { useNotificationStore } from '@/stores/notificationStore'
 
 describe('ProgressContext', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     jest.useFakeTimers()
+    // ProgressProvider now stores progress items in the shared
+    // notification store (the unification with the Toast system).
+    // The store is module-level Zustand, so reset between tests to
+    // avoid leakage from prior cases.
+    useNotificationStore.setState({ toasts: [], pendingFlashes: [] })
   })
 
   afterEach(() => {
@@ -430,13 +436,13 @@ describe('ProgressContext', () => {
       expect(result.current.progressItems).toHaveLength(1)
 
       act(() => {
-        jest.advanceTimersByTime(3000)
+        jest.advanceTimersByTime(10000)
       })
 
       expect(result.current.progressItems).toHaveLength(0)
     })
 
-    it('does not auto-remove error items', () => {
+    it('auto-removes error items after default duration (was sticky-forever pre-unification)', () => {
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <ProgressProvider>{children}</ProgressProvider>
       )
@@ -452,10 +458,10 @@ describe('ProgressContext', () => {
       })
 
       act(() => {
-        jest.advanceTimersByTime(5000)
+        jest.advanceTimersByTime(10000)
       })
 
-      expect(result.current.progressItems).toHaveLength(1)
+      expect(result.current.progressItems).toHaveLength(0)
     })
 
     it('handles completion of non-existent items', () => {
@@ -612,7 +618,7 @@ describe('ProgressContext', () => {
       })
 
       act(() => {
-        jest.advanceTimersByTime(3000)
+        jest.advanceTimersByTime(10000)
       })
 
       expect(result.current.progressItems).toHaveLength(0)
@@ -673,11 +679,20 @@ describe('ProgressContext', () => {
         status: 'error',
       })
 
+      // Halfway through the default 10 s window — error toast is still up.
       act(() => {
         jest.advanceTimersByTime(5000)
       })
 
       expect(result.current.progressItems).toHaveLength(1)
+
+      // Past the full window — the unified lifecycle auto-dismisses error
+      // toasts too (was sticky-forever in the old self-rolled overlay).
+      act(() => {
+        jest.advanceTimersByTime(5000)
+      })
+
+      expect(result.current.progressItems).toHaveLength(0)
     })
 
     it('handles restart of same operation', () => {
@@ -893,7 +908,7 @@ describe('ProgressContext', () => {
       })
 
       act(() => {
-        jest.advanceTimersByTime(2999)
+        jest.advanceTimersByTime(9999)
       })
 
       expect(result.current.progressItems).toHaveLength(1)
@@ -912,7 +927,7 @@ describe('ProgressContext', () => {
       })
 
       act(() => {
-        jest.advanceTimersByTime(3000)
+        jest.advanceTimersByTime(10000)
       })
 
       expect(result.current.progressItems).toHaveLength(0)
@@ -930,8 +945,10 @@ describe('ProgressContext', () => {
         result.current.completeProgress('test-1', 'success')
       })
 
+      // 2 s gap before completing the second item — each has its own 10 s
+      // window from the moment completeProgress fired.
       act(() => {
-        jest.advanceTimersByTime(1000)
+        jest.advanceTimersByTime(2000)
       })
 
       act(() => {
@@ -939,15 +956,20 @@ describe('ProgressContext', () => {
         result.current.completeProgress('test-2', 'success')
       })
 
+      // Both still up: test-1 at 2 s / 10 s, test-2 at 0 s / 10 s.
+      expect(result.current.progressItems).toHaveLength(2)
+
+      // +8 s -> total 10 s for test-1 (dismissed), 8 s for test-2 (still up).
       act(() => {
-        jest.advanceTimersByTime(2000)
+        jest.advanceTimersByTime(8000)
       })
 
       expect(result.current.progressItems).toHaveLength(1)
       expect(result.current.progressItems[0].id).toBe('test-2')
 
+      // +2 s more -> test-2 hits its 10 s and dismisses.
       act(() => {
-        jest.advanceTimersByTime(1000)
+        jest.advanceTimersByTime(2000)
       })
 
       expect(result.current.progressItems).toHaveLength(0)
