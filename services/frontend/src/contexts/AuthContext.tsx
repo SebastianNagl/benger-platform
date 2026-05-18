@@ -4,6 +4,7 @@ import apiClientSingleton, { ApiClient, Organization, User } from '@/lib/api'
 import { devAuthHelper } from '@/lib/auth/devAuthHelper'
 import { logger } from '@/lib/utils/logger'
 import { OrganizationManager } from '@/lib/auth/organizationManager'
+import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
 import { sessionManager } from '@/lib/auth/sessionManager'
 import { parseSubdomain, getOrgUrl, getPrivateUrl, getLastOrgSlug, setLastOrgSlug, clearLastOrgSlug } from '@/lib/utils/subdomain'
 import { translate } from '@/lib/utils/translate'
@@ -115,13 +116,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Authentication failed on a protected route — redirect to login
+    // Authentication failed on a protected route — redirect to login WITH
+    // the standard "session expired" toast (parity with WebSocket-close
+    // 4401/4403 handling in the EvaluationResults / Generation components).
+    // The helper does a full-page navigation, so the local state clear
+    // below is belt-and-suspenders (the unmount handles it too).
     setUser(null)
     setOrganizations([])
     setCurrentOrganizationState(null)
     orgManager.clear()
-    authRedirect.toLogin(router)
-  }, [router, orgManager])
+    redirectToLoginAsExpired()
+  }, [orgManager])
 
   React.useEffect(() => {
     apiClient.setAuthFailureHandler(handleAuthFailure)
