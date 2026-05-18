@@ -649,16 +649,33 @@ def auto_submit_expired_timer(session_id: str) -> Dict[str, Any]:
 
     db = SessionLocal()
     try:
-        from project_models import Annotation, AnnotationTimerSession, Project, Task
+        from project_models import Annotation, TimerSession, Project, Task
 
-        session = db.query(AnnotationTimerSession).filter(
-            AnnotationTimerSession.id == session_id
+        session = db.query(TimerSession).filter(
+            TimerSession.id == session_id
         ).first()
 
         if not session:
             return {"status": "skipped", "reason": "session not found"}
         if session.completed_at:
             return {"status": "skipped", "reason": "already completed"}
+
+        # Issue #30 PR 3: korrektur timer sessions (target_type in
+        # ('annotation', 'generation')) expire WITHOUT auto-creating a grade.
+        # Korrektur is qualitative — auto-submitting a half-filled rubric as
+        # the final score would corrupt the IRR analysis. Expiry just stops
+        # the client countdown; the grader can still finish + submit via the
+        # normal endpoint, or skip. Strict-mode blocking of post-expiry
+        # submission can be added later if a project ever needs it.
+        if session.target_type and session.target_type != "task":
+            from datetime import datetime, timezone
+            session.completed_at = datetime.now(timezone.utc)
+            session.auto_submitted = True
+            db.commit()
+            return {
+                "status": "expired_korrektur",
+                "reason": "korrektur sessions don't auto-grade",
+            }
 
         # Check if user already has an annotation for this task (client beat us)
         existing = db.query(Annotation).filter(
