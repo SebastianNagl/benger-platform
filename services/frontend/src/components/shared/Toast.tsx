@@ -3,6 +3,8 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import React, { createContext, useCallback, useContext, useEffect, useRef } from 'react'
 import { useI18n } from '@/contexts/I18nContext'
+import { ProgressIndicator } from '@/components/shared/ProgressIndicator'
+import { XMarkIcon } from '@heroicons/react/24/outline'
 import {
   DEFAULT_TOAST_DURATION_MS,
   ToastItem,
@@ -113,6 +115,44 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     },
     [storeRemove]
   )
+
+  // Subscribe to store changes so progress toasts that flip from
+  // status='running' (persistent, duration=0) to a terminal status get an
+  // auto-dismiss timer attached on the fly. The regular addToast path
+  // arms its own timer; this hook closes the gap for upserts that go
+  // through `upsertProgressToast` directly.
+  useEffect(() => {
+    const unsubscribe = useNotificationStore.subscribe(
+      (state) => state.toasts,
+      (current, prev) => {
+        for (const t of current) {
+          const isTerminal =
+            t.progress && t.progress.status !== 'running'
+          const dur = t.duration ?? DEFAULT_TOAST_DURATION_MS
+          const alreadyScheduled = timeoutsRef.current.has(t.id)
+          if (isTerminal && dur > 0 && !alreadyScheduled) {
+            const handle = setTimeout(() => {
+              storeRemove(t.id)
+              timeoutsRef.current.delete(t.id)
+            }, dur)
+            timeoutsRef.current.set(t.id, handle)
+          }
+        }
+        // Cancel timers for toasts that have been removed externally.
+        const ids = new Set(current.map((t) => t.id))
+        for (const [id, handle] of timeoutsRef.current.entries()) {
+          if (!ids.has(id)) {
+            clearTimeout(handle)
+            timeoutsRef.current.delete(id)
+          }
+        }
+        // `prev` is unused — kept in signature for the subscribeWithSelector
+        // contract.
+        void prev
+      }
+    )
+    return unsubscribe
+  }, [storeRemove])
 
   // Mount: register the module dispatcher and drain any pending flashes
   // (sessionStorage for same-origin reload, URL params for cross-origin
@@ -256,37 +296,71 @@ function ToastItemView({
     }
   }
 
+  const progress = toast.progress
+  const showCancel =
+    progress?.status === 'running' && typeof progress.onCancel === 'function'
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 100, scale: 0.8 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 100, scale: 0.8 }}
-      className={`${getToastStyles(toast.type)} pointer-events-auto flex min-w-0 items-center space-x-3 rounded-lg border p-4 shadow-lg`}
+      className={`${getToastStyles(toast.type)} pointer-events-auto flex min-w-0 ${
+        progress ? 'items-start' : 'items-center'
+      } space-x-3 rounded-lg border p-4 shadow-lg`}
       role={toast.type === 'error' ? 'alert' : 'status'}
       data-testid="toast-item"
       data-toast-type={toast.type}
     >
-      <span className="flex-shrink-0 text-lg">{getIcon(toast.type)}</span>
-      <p className="min-w-0 flex-1 text-sm font-medium">{toast.message}</p>
-      <button
-        onClick={() => onRemove(toast.id)}
-        className="flex-shrink-0 text-current transition-opacity hover:opacity-70"
-      >
-        <span className="sr-only">{t('shared.toast.close')}</span>
-        <svg
-          className="h-4 w-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M6 18L18 6M6 6l12 12"
+      {!progress && (
+        <span className="flex-shrink-0 text-lg">{getIcon(toast.type)}</span>
+      )}
+      <div className="min-w-0 flex-1">
+        {progress ? (
+          <ProgressIndicator
+            progress={progress.progress}
+            label={toast.message}
+            sublabel={progress.sublabel}
+            status={progress.status}
+            indeterminate={progress.indeterminate}
+            showPercentage={!progress.indeterminate}
           />
-        </svg>
-      </button>
+        ) : (
+          <p className="text-sm font-medium">{toast.message}</p>
+        )}
+      </div>
+      <div className="flex flex-shrink-0 items-center gap-1">
+        {showCancel && (
+          <button
+            onClick={() => progress!.onCancel!()}
+            className="rounded p-1 transition-opacity hover:opacity-70"
+            data-testid="toast-cancel"
+            aria-label={t('progress.cancel')}
+          >
+            <XMarkIcon className="h-4 w-4" />
+          </button>
+        )}
+        <button
+          onClick={() => onRemove(toast.id)}
+          className="flex-shrink-0 rounded p-1 text-current transition-opacity hover:opacity-70"
+          aria-label={t('shared.toast.close')}
+        >
+          <span className="sr-only">{t('shared.toast.close')}</span>
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
     </motion.div>
   )
 }

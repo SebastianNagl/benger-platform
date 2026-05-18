@@ -128,7 +128,7 @@ describe('Toast Component', () => {
 
       await user.click(screen.getByText('Add Toast'))
 
-      const toast = screen.getByText('Test message').closest('div')
+      const toast = screen.getByTestId('toast-item')
       expect(toast).toHaveClass('pointer-events-auto')
       expect(toast).toHaveClass('rounded-lg')
       expect(toast).toHaveClass('border')
@@ -160,7 +160,7 @@ describe('Toast Component', () => {
 
       await user.click(screen.getByText('Add Toast'))
 
-      const toast = screen.getByText('Test message').closest('div')
+      const toast = screen.getByTestId('toast-item')
       expect(toast).toHaveClass('bg-emerald-50')
       expect(toast).toHaveClass('border-emerald-200')
       expect(toast).toHaveClass('text-emerald-800')
@@ -177,7 +177,7 @@ describe('Toast Component', () => {
 
       await user.click(screen.getByText('Add Toast'))
 
-      const toast = screen.getByText('Test message').closest('div')
+      const toast = screen.getByTestId('toast-item')
       expect(toast).toHaveClass('bg-red-50')
       expect(toast).toHaveClass('border-red-200')
       expect(toast).toHaveClass('text-red-800')
@@ -194,7 +194,7 @@ describe('Toast Component', () => {
 
       await user.click(screen.getByText('Add Toast'))
 
-      const toast = screen.getByText('Test message').closest('div')
+      const toast = screen.getByTestId('toast-item')
       expect(toast).toHaveClass('bg-amber-50')
       expect(toast).toHaveClass('border-amber-200')
       expect(toast).toHaveClass('text-amber-800')
@@ -211,7 +211,7 @@ describe('Toast Component', () => {
 
       await user.click(screen.getByText('Add Toast'))
 
-      const toast = screen.getByText('Test message').closest('div')
+      const toast = screen.getByTestId('toast-item')
       expect(toast).toHaveClass('bg-blue-50')
       expect(toast).toHaveClass('border-blue-200')
       expect(toast).toHaveClass('text-blue-800')
@@ -304,10 +304,14 @@ describe('Toast Component', () => {
 
       expect(screen.getByText(longMessage)).toBeInTheDocument()
       const messageElement = screen.getByText(longMessage)
+      // The text node itself is the <p>; min-w-0/flex-1 moved to its
+      // parent wrapper during the progress-toast unification so progress
+      // bars and plain messages share one container shape.
       expect(messageElement).toHaveClass('text-sm')
       expect(messageElement).toHaveClass('font-medium')
-      expect(messageElement).toHaveClass('min-w-0')
-      expect(messageElement).toHaveClass('flex-1')
+      const messageWrapper = messageElement.parentElement!
+      expect(messageWrapper).toHaveClass('min-w-0')
+      expect(messageWrapper).toHaveClass('flex-1')
     })
 
     it('handles empty message', async () => {
@@ -616,7 +620,7 @@ describe('Toast Component', () => {
 
       await user.click(screen.getByText('Add Toast'))
 
-      const toast = screen.getByText('Test message').closest('div')
+      const toast = screen.getByTestId('toast-item')
       expect(toast).toHaveClass('flex')
       expect(toast).toHaveClass('items-center')
       expect(toast).toHaveClass('space-x-3')
@@ -653,7 +657,7 @@ describe('Toast Component', () => {
 
       await user.click(screen.getByText('Add Toast'))
 
-      const toast = screen.getByText('Test message').closest('div')
+      const toast = screen.getByTestId('toast-item')
       expect(toast?.className).toContain('dark:bg-emerald-900/50')
       expect(toast?.className).toContain('dark:border-emerald-800')
       expect(toast?.className).toContain('dark:text-emerald-200')
