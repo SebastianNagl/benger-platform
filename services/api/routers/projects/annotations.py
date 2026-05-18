@@ -145,26 +145,19 @@ async def create_annotation(
     from extensions import on_annotation_created
     on_annotation_created(db, task_id, current_user.id, db_annotation.id, task.project_id)
 
-    # Mark task assignment as completed in manual/auto mode
+    # Mark task assignment as completed in manual/auto mode. Delegates to the
+    # shared helper so the same status-flip semantics apply across annotation
+    # and korrektur surfaces.
     if (
         project
         and project.assignment_mode in ["manual", "auto"]
         and not db_annotation.was_cancelled
         and db_annotation.result
     ):
-        assignment = (
-            db.query(TaskAssignment)
-            .filter(
-                TaskAssignment.task_id == task_id,
-                TaskAssignment.user_id == current_user.id,
-                TaskAssignment.status.in_(["assigned", "in_progress"]),
-            )
-            .first()
+        from utils.assignment_helpers import mark_assignment_completed
+        mark_assignment_completed(
+            db, task_id=task_id, user_id=current_user.id,
         )
-        if assignment:
-            assignment.status = "completed"
-            assignment.completed_at = datetime.now(timezone.utc)
-            db.commit()
 
     # Update report annotations section after annotation creation (Issue #770)
     try:
