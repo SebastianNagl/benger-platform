@@ -241,9 +241,14 @@ export const useNotificationStore = create<NotificationStore>()(
         // createdAt timestamp; on rehydrate, ToastProvider computes the
         // remaining auto-dismiss window (duration - elapsed) and either
         // evicts the toast or re-arms a setTimeout for the remainder.
-        // Persistent toasts (duration === 0) survive indefinitely.
+        // Persistent toasts (duration === 0) survive indefinitely — but
+        // PROGRESS toasts must not. Their producer (an in-flight export,
+        // upload, etc.) is gone with the page; persisting them would
+        // (a) leave a zombie bar forever since nothing will call
+        // completeProgress, and (b) drop the `onCancel` callback (functions
+        // don't survive JSON). Strip them at the serialization boundary.
         partialize: (state) => ({
-          toasts: state.toasts,
+          toasts: state.toasts.filter((t) => t.progress === undefined),
           pendingFlashes: state.pendingFlashes,
         }),
       }
