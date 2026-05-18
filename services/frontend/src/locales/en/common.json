@@ -4563,6 +4563,28 @@
     "accessDenied": "Access Denied",
     "noMethodsConfigured": "No evaluation methods configured",
     "onlyEvaluateMissing": "Only evaluate unevaluated generations",
+    "inflight": {
+      "heading": "{count} evaluation run(s) currently in progress",
+      "samples": "samples",
+      "failuresLabel": "Failures by reason:",
+      "failuresMore": "+{count} more"
+    },
+    "cancel": {
+      "cancel": "Cancel",
+      "cancelling": "Cancelling…",
+      "cancelAll": "Cancel all",
+      "cancellingAll": "Cancelling…",
+      "cancelAllConfirm": "Cancel all",
+      "keepRunning": "Keep running",
+      "confirmSingleTitle": "Cancel run?",
+      "confirmSingleMessage": "Already-computed evaluations are preserved and reused on the next run.",
+      "confirmAllTitle": "Cancel all runs?",
+      "confirmAllMessage": "Cancel all {count} running or pending runs? Already-computed evaluations are preserved and reused on the next run.",
+      "successWithCount": "Run cancelled. {preserved} evaluations preserved.",
+      "bulkSuccessWithCount": "{runs} runs cancelled, {preserved} evaluations preserved.",
+      "errorWithDetail": "Cancellation failed: {detail}",
+      "singleAria": "Cancel this run"
+    },
     "dashboard": {
       "title": "Evaluation Dashboard",
       "description": "Compare model performance across metrics with statistical rigor",

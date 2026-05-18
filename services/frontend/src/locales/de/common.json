@@ -4545,6 +4545,28 @@
     "accessDenied": "Zugriff verweigert",
     "noMethodsConfigured": "Keine Evaluierungsmethoden konfiguriert",
     "onlyEvaluateMissing": "Nur nicht evaluierte Generierungen auswerten",
+    "inflight": {
+      "heading": "{count} Auswertung(en) laufen gerade",
+      "samples": "Samples",
+      "failuresLabel": "Fehlschläge nach Grund:",
+      "failuresMore": "+{count} weitere"
+    },
+    "cancel": {
+      "cancel": "Abbrechen",
+      "cancelling": "Breche ab …",
+      "cancelAll": "Alle abbrechen",
+      "cancellingAll": "Breche ab …",
+      "cancelAllConfirm": "Alle abbrechen",
+      "keepRunning": "Weiterlaufen lassen",
+      "confirmSingleTitle": "Lauf abbrechen?",
+      "confirmSingleMessage": "Bereits berechnete Bewertungen bleiben erhalten und werden beim nächsten Lauf wiederverwendet.",
+      "confirmAllTitle": "Alle Läufe abbrechen?",
+      "confirmAllMessage": "Alle {count} laufenden bzw. anstehenden Läufe abbrechen? Bereits berechnete Bewertungen bleiben erhalten und werden beim nächsten Lauf wiederverwendet.",
+      "successWithCount": "Lauf abgebrochen. {preserved} Bewertungen erhalten.",
+      "bulkSuccessWithCount": "{runs} Läufe abgebrochen, {preserved} Bewertungen erhalten.",
+      "errorWithDetail": "Abbruch fehlgeschlagen: {detail}",
+      "singleAria": "Diesen Lauf abbrechen"
+    },
     "dashboard": {
       "title": "Evaluierungs-Dashboard",
       "description": "Modellleistung über Metriken hinweg mit statistischer Strenge vergleichen",
