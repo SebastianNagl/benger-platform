@@ -9,9 +9,10 @@ Requires: `make test-start` to have the test PostgreSQL container running.
 """
 
 import os
-from typing import Generator, List
+from typing import AsyncGenerator, Generator, List
 
 import pytest
+import pytest_asyncio
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
 from sqlalchemy import create_engine, event
@@ -146,6 +147,123 @@ def async_session(test_db: Session) -> Session:
     The tests can use this session directly since the FastAPI app uses sync DB operations.
     """
     return test_db
+
+
+# ---- Async fixtures (Phase 0 of the asyncpg migration) ---------------------
+#
+# Real `AsyncSession`-bound fixture for endpoints that opted into the new
+# `Depends(get_async_db)` dependency. Mirrors the sync `test_db` SAVEPOINT
+# pattern — outer transaction held open, nested savepoint per
+# session.commit(), outer transaction rolled back on teardown so tests stay
+# isolated.
+#
+# The event-listener restart-savepoint trick uses `AsyncSession.sync_session`
+# because the listener API still keys off the underlying sync Session.
+# AsyncSession's commit drives the wrapped sync session's events, so this
+# works the same way the sync fixture does — see SQLAlchemy docs "Joining a
+# Session into an external Transaction (such as for test suites)" (async
+# section).
+
+def _build_async_engine():
+    """Build a fresh async engine for the current test.
+
+    Deliberately not cached: pytest-asyncio's default is one event loop
+    per test. asyncpg connections bind to the loop they were created on,
+    so a module-cached engine emits `RuntimeError: ... attached to a
+    different loop` once a second test reuses pooled connections. A
+    per-test engine sidesteps the whole loop-binding class of bug at the
+    cost of one connection setup per test — negligible.
+
+    Mirror the prod `server_settings` so tests that assert on
+    statement_timeout / application_name exercise the same configured
+    surface as production (with a test-distinct app name).
+    """
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    async_url = os.environ["ASYNC_DATABASE_URL"]
+    return create_async_engine(
+        async_url,
+        pool_pre_ping=False,  # avoid the cross-loop ping bug entirely
+        pool_size=1,
+        max_overflow=2,
+        connect_args={
+            "server_settings": {
+                "statement_timeout": "15000",
+                "idle_in_transaction_session_timeout": "30000",
+                "application_name": "benger-api-test-async",
+            },
+        },
+    )
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_test_db():
+    """Per-test AsyncSession bound to an outer transaction that rolls back
+    on teardown. Test code calls `await session.commit()` freely; each
+    commit only rolls the savepoint, not the outer transaction.
+    """
+    from sqlalchemy import event
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    async_engine = _build_async_engine()
+    async with async_engine.connect() as conn:
+        trans = await conn.begin()
+        async_session = AsyncSession(bind=conn, expire_on_commit=False)
+        savepoint = await conn.begin_nested()
+
+        # AsyncSession exposes the underlying sync session via .sync_session
+        # — that's where the event listener attaches.
+        sync_session_obj = async_session.sync_session
+
+        @event.listens_for(sync_session_obj, "after_transaction_end")
+        def restart_savepoint(sess, transaction):
+            nonlocal savepoint
+            if transaction.nested and not transaction._parent.nested:
+                # Start a new savepoint on the underlying sync connection
+                # held by the AsyncConnection wrapper.
+                savepoint = conn.sync_connection.begin_nested()
+
+        try:
+            yield async_session
+        finally:
+            await async_session.close()
+            await trans.rollback()
+    await async_engine.dispose()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def async_test_client(async_test_db) -> AsyncGenerator[AsyncClient, None]:
+    """AsyncClient with dependency_overrides[get_async_db] wired to the
+    async_test_db fixture so async handlers see the test transaction.
+
+    Coexists with `async_client` (which serves the legacy sync-session
+    async-HTTP path used by older tests). New async tests should prefer
+    this fixture.
+    """
+    from database import get_async_db
+
+    async def override_get_async_db():
+        yield async_test_db
+
+    app.dependency_overrides[get_async_db] = override_get_async_db
+
+    original_test_env = os.environ.get("TESTING")
+    os.environ["TESTING"] = "true"
+
+    from httpx import ASGITransport
+
+    transport = ASGITransport(app=app)
+    client = AsyncClient(transport=transport, base_url="http://testserver")
+
+    try:
+        yield client
+    finally:
+        await client.aclose()
+        app.dependency_overrides.clear()
+        if original_test_env is None:
+            os.environ.pop("TESTING", None)
+        else:
+            os.environ["TESTING"] = original_test_env
 
 
 @pytest.fixture(scope="function")

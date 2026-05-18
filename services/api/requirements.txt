@@ -14,6 +14,10 @@ celery==5.6.3
 redis>=5.0.0,<5.4.0
 sqlalchemy>=2.0.36
 psycopg2-binary>=2.9.10
+# asyncpg is the asyncio Postgres driver used by the new async engine
+# (database.async_engine). Pre-flight 2026-05-18 confirmed the 0.30.x
+# series speaks PG 18.3 cleanly (Bitnami/Broadcom Photon rebuild).
+asyncpg>=0.30.0
 alembic>=1.14.0
 email-validator==2.3.0
 # starlette version is managed by fastapi

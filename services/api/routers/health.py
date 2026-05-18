@@ -8,10 +8,11 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from auth_module import User, require_superadmin, require_user
-from database import get_db
+from database import get_async_db, get_db
 
 logger = logging.getLogger(__name__)
 
@@ -77,16 +78,42 @@ async def cors_auth_test(request: Request, current_user: User = Depends(require_
 
 
 @router.get("/health/schema")
-async def health_check_schema(db: Session = Depends(get_db)):
-    """Validate database schema health"""
+async def health_check_schema(db: AsyncSession = Depends(get_async_db)):
+    """Validate database schema health.
+
+    This is the Phase 0 worked example for the asyncpg + AsyncSession
+    migration (see benger-platform/CLAUDE.md "Database — sync vs async"
+    and the prod-stability cleanup plan). The endpoint runs two leaf
+    queries with no service-layer plumbing, so it's the minimal end-to-end
+    proof that the async engine + dependency wiring works.
+
+    Additionally verifies that the Postgres-side `statement_timeout` set
+    via asyncpg's `server_settings` actually propagates — if it doesn't,
+    we'd lose the runaway-query guard for all future async handlers.
+    """
     try:
-        # Test critical table access with key columns that caused issues
-        db.execute(text("SELECT id, username, encrypted_openai_api_key FROM users LIMIT 1"))
-        db.execute(text("SELECT id, name FROM tasks LIMIT 1"))
+        # Smoke the schema. The pre-async version queried `tasks.name` which
+        # doesn't exist (`tasks` has `id, project_id, data, ...` — no `name`
+        # column), so the endpoint silently returned status:error before the
+        # async conversion too. Use real columns so the smoke check is
+        # actually useful.
+        await db.execute(
+            text("SELECT id, username, encrypted_openai_api_key FROM users LIMIT 1")
+        )
+        await db.execute(text("SELECT id, project_id FROM tasks LIMIT 1"))
+
+        # Confirm server_settings made it across the asyncpg connection.
+        st_row = await db.execute(text("SELECT current_setting('statement_timeout')"))
+        statement_timeout = st_row.scalar()
+        app_row = await db.execute(text("SELECT current_setting('application_name')"))
+        application_name = app_row.scalar()
 
         return {
             "status": "healthy",
             "schema": "validated",
+            "engine": "async",
+            "statement_timeout": statement_timeout,
+            "application_name": application_name,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as e:
