@@ -89,10 +89,10 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     [toasts]
   )
 
-  // Map of progress-id -> auto-dismiss timer handle. We arm the timer here
-  // (in addition to the ToastProvider subscriber that watches the same
-  // store) so consumers that render only ProgressProvider in isolation
-  // — tests, narrow embeds — still get the same dismiss behavior.
+  // Map of progress-id -> auto-dismiss timer handle. ProgressProvider is
+  // the single owner of the progress-toast lifecycle — it arms the timer
+  // when `completeProgress` flips status off 'running' and clears it on
+  // restart or manual remove.
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map()
   )
@@ -170,9 +170,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       // stay until done, then behave like regular toasts (10 s default).
       // Applies to BOTH success AND error — error toasts used to be
       // sticky-forever in the old self-rolled overlay, but the unification
-      // brings them under the standard toast lifecycle. The ToastProvider's
-      // subscriber would also arm a timer for the same transition; its
-      // `alreadyScheduled` guard keeps the two paths idempotent.
+      // brings them under the standard toast lifecycle.
       clearTimer(id)
       const handle = setTimeout(() => {
         remove(id)
