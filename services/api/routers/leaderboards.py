@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from auth_module.dependencies import get_current_user
 from database import get_db
 from models import EvaluationRun, TaskEvaluation, Generation, LLMModel, User
-from project_models import Annotation
+from project_models import Annotation, Project
 from routers.projects.helpers import check_project_accessible, get_org_context_from_request
 
 # Statistical imports for confidence intervals
@@ -40,6 +40,28 @@ def _filter_accessible_project_ids(
     if user.is_superadmin:
         return project_ids
     return [pid for pid in project_ids if check_project_accessible(db, user, pid, org_context)]
+
+
+def _apply_default_visibility_filter(query, project_ids):
+    """Issue #30 PR 5: when a leaderboard endpoint is called without an
+    explicit `project_ids` list, default to PUBLIC projects only.
+
+    Background: the unfiltered default was implicitly "every completed
+    EvaluationRun the database has," regardless of project visibility. That
+    silently mixed scores from private evaluation projects (e.g. ZJS Fälle —
+    34k+ BLEU-only task_evaluations) into the global per-model averages,
+    skewing rankings.
+
+    Caller contract: query must already join (or be ready to join)
+    `EvaluationRun.project_id == Project.id`. We add the join only when
+    `project_ids` is empty so callers that supplied an explicit list don't
+    pay an extra join.
+    """
+    if project_ids:
+        return query.filter(EvaluationRun.project_id.in_(project_ids))
+    return query.join(
+        Project, EvaluationRun.project_id == Project.id,
+    ).filter(Project.is_public.is_(True))
 
 
 def detect_provider_from_model_id(model_id: str) -> str:
@@ -297,10 +319,7 @@ async def get_llm_leaderboard(
 
     # Build base query for evaluations
     query = db.query(EvaluationRun).filter(EvaluationRun.status == "completed")
-
-    # Apply project filter
-    if project_ids:
-        query = query.filter(EvaluationRun.project_id.in_(project_ids))
+    query = _apply_default_visibility_filter(query, project_ids)
 
     # Apply time period filter
     now = datetime.utcnow()
@@ -591,9 +610,7 @@ async def get_llm_model_details(
     query = db.query(EvaluationRun).filter(
         EvaluationRun.model_id == model_id, EvaluationRun.status == "completed"
     )
-
-    if project_ids:
-        query = query.filter(EvaluationRun.project_id.in_(project_ids))
+    query = _apply_default_visibility_filter(query, project_ids)
 
     now = datetime.utcnow()
     if period == "monthly":
@@ -697,9 +714,7 @@ async def compare_llm_models(
     query = db.query(EvaluationRun).filter(
         EvaluationRun.model_id.in_(model_ids), EvaluationRun.status == "completed"
     )
-
-    if project_ids:
-        query = query.filter(EvaluationRun.project_id.in_(project_ids))
+    query = _apply_default_visibility_filter(query, project_ids)
 
     now = datetime.utcnow()
     if period == "monthly":
