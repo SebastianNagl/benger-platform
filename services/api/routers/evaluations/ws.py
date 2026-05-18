@@ -94,14 +94,17 @@ async def _run_pubsub_primary(
     import redis.asyncio as redis_async
 
     try:
-        kwargs = sync_redis_client.connection_pool.connection_kwargs
-        async_redis = redis_async.Redis(
-            host=kwargs.get("host", "localhost"),
-            port=kwargs.get("port", 6379),
-            db=kwargs.get("db", 0),
-            password=kwargs.get("password"),
-            decode_responses=True,
-        )
+        # Forward every connection arg the sync client used (host, port, db,
+        # password, ssl, etc.) so the async pubsub client AUTHs the same way.
+        # The dev Redis is requirepass-protected; without forwarding the
+        # password the subscribe still appears to succeed but the channel
+        # subscription never actually registers server-side and publishes go
+        # to /dev/null. PUBSUB CHANNELS would list our channel only by
+        # coincidence (left over from a prior client).
+        kwargs = dict(sync_redis_client.connection_pool.connection_kwargs)
+        kwargs.pop("connection_class", None)
+        kwargs["decode_responses"] = True
+        async_redis = redis_async.Redis(**kwargs)
         pubsub = async_redis.pubsub()
         channel = f"evaluation:progress:{project_id}"
         await pubsub.subscribe(channel)
@@ -111,14 +114,21 @@ async def _run_pubsub_primary(
         )
         return False
 
+    # Poll loop: `get_message(timeout=N)` is unreliable here — it returns None
+    # *immediately* when it drops the subscribe-confirmation under
+    # `ignore_subscribe_messages=True` (instead of blocking for N seconds as
+    # the kw name suggests). Poll at 100 ms and track elapsed-since-last-msg
+    # ourselves so the idle-close window is honored regardless of the
+    # subscribe-ack timing.
+    import asyncio as _aio
+    loop = _aio.get_event_loop()
+    last_msg_at = loop.time()
     try:
         while True:
             try:
-                # `get_message` with a timeout: avoids an unbounded `listen()`
-                # so we get a regular tick to check the idle-close condition.
                 msg = await pubsub.get_message(
                     ignore_subscribe_messages=True,
-                    timeout=_IDLE_CLOSE_SECONDS,
+                    timeout=0.1,
                 )
             except Exception as e:
                 logger.warning(
@@ -126,30 +136,36 @@ async def _run_pubsub_primary(
                 )
                 return False
 
-            if msg is None:
-                # Timeout fired with no message. Check the idle-close gate.
-                _, active_runs = _snapshot_project_progress(project_id)
-                if active_runs == 0:
-                    await websocket.send_json({
-                        "type": "idle",
-                        "message": (
-                            f"No in-flight runs for {_IDLE_CLOSE_SECONDS}s; closing."
-                        ),
-                    })
-                    return True
-                # In-flight runs but no recent commits — keep waiting.
+            if msg is None or msg.get("type") != "message":
+                # No real message in this poll. Check idle-close window.
+                if loop.time() - last_msg_at >= _IDLE_CLOSE_SECONDS:
+                    _, active_runs = _snapshot_project_progress(project_id)
+                    if active_runs == 0:
+                        await websocket.send_json({
+                            "type": "idle",
+                            "message": (
+                                f"No in-flight runs for {_IDLE_CLOSE_SECONDS}s; closing."
+                            ),
+                        })
+                        return True
+                    # In-flight runs — reset the idle timer so we don't keep
+                    # re-checking the DB every poll.
+                    last_msg_at = loop.time()
                 continue
 
+            last_msg_at = loop.time()
             try:
                 payload = json.loads(msg["data"])
             except (json.JSONDecodeError, TypeError, KeyError):
                 continue
 
             # Forward as `tick` — the frontend's existing handler treats
-            # `tick` and `idle` as the trigger to re-fetch. Carries the
-            # publisher's payload for any consumers that want richer
-            # information (e.g. samples_added for analytics).
-            await websocket.send_json({"type": "tick", **payload})
+            # `tick` and `idle` as the trigger to re-fetch. The publisher's
+            # payload is spread FIRST so our `"type": "tick"` wins (the
+            # worker sends `"type": "cell_complete"`, but the frontend gates
+            # on `data.type === 'tick'`). Richer fields like
+            # samples_added stay available for analytics consumers.
+            await websocket.send_json({**payload, "type": "tick"})
     except WebSocketDisconnect:
         return True
     finally:
