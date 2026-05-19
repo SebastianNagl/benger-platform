@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from auth_module import User, require_user
 from database import get_db
-from models import EvaluationRun, Generation, ResponseGeneration
+from models import EvaluationRun, Generation
 from project_models import Annotation, Task
 from redis_cache import RedisCache
 from routers.projects.helpers import (
@@ -46,7 +46,9 @@ def _live_dashboard_counts(db: Session, accessible_ids):
     """Belt-and-braces live counts for tasks / annotations / generations
     when project_summaries hasn't been populated yet. Mirrors the per-
     project predicates in services.aggregate_summaries._compute_project_summary
-    so the fallback values match what the beat task would write.
+    so the fallback values match what the beat task would write —
+    critically, generations counts only Generation rows with
+    parse_status="success", not raw ResponseGeneration rows.
 
     Brand-new projects (created since the last recompute_aggregates cycle)
     have no project_summaries rows, so reads through read_dashboard_sum
@@ -59,11 +61,19 @@ def _live_dashboard_counts(db: Session, accessible_ids):
         Annotation.was_cancelled == False,  # noqa: E712
         func.jsonb_array_length(Annotation.result) > 0,
     )
-    gen_q = select(func.count(ResponseGeneration.id))
+    # Generation count predicate must match aggregate_summaries:
+    # `select count(Generation.id) join Task where parse_status = 'success'`.
+    # An earlier version of this fallback used a plain ResponseGeneration
+    # count, which over-reported by including pending/failed parses.
+    gen_q = (
+        select(func.count(Generation.id))
+        .join(Task, Generation.task_id == Task.id)
+        .where(Generation.parse_status == "success")
+    )
     if accessible_ids is not None:
         task_q = task_q.where(Task.project_id.in_(accessible_ids))
         ann_q = ann_q.where(Annotation.project_id.in_(accessible_ids))
-        gen_q = gen_q.where(ResponseGeneration.project_id.in_(accessible_ids))
+        gen_q = gen_q.where(Task.project_id.in_(accessible_ids))
 
     return {
         "total_tasks": int(db.execute(task_q).scalar() or 0),
