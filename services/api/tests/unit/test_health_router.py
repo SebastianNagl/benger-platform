@@ -164,16 +164,31 @@ class TestHealthRouter:
         assert response.status_code in [401, 403]
 
     def test_schema_health_check_success(self, client):
-        """Test schema health check at /health/schema with healthy database"""
-        from database import get_db
+        """Test schema health check at /health/schema with healthy database.
+
+        /health/schema was converted to async (Phase 0); the dep is
+        get_async_db now, not get_db. The previous override silently
+        no-op'd and the test reached for the real async engine via the
+        test client, which intermittently trips
+        "Event loop is closed" on asyncpg's terminate path and flips
+        status to "error". Same fix as the companion
+        test_schema_health_check_database_error.
+        """
+        from database import get_async_db
         from main import app
 
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            mock_db.execute.return_value = Mock()
-            return mock_db
+        async def override_async_db():
+            mock_db = AsyncMock()
+            row_with_scalar = Mock()
+            row_with_scalar.scalar = Mock(return_value="15000")
+            row_app_name = Mock()
+            row_app_name.scalar = Mock(return_value="benger-api-async")
+            mock_db.execute = AsyncMock(
+                side_effect=[Mock(), Mock(), row_with_scalar, row_app_name]
+            )
+            yield mock_db
 
-        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_async_db] = override_async_db
 
         try:
             response = client.get("/health/schema")
