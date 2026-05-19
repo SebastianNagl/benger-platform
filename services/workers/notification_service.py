@@ -143,3 +143,54 @@ class NotificationService:
             logger.warning(f"Failed to enqueue notification emails: {e}")
 
         return notifications
+
+    @staticmethod
+    def _user_wants_channel(
+        db,
+        user_id: str,
+        notification_type,
+        channel: str,
+    ) -> bool:
+        """Check whether a specific channel ('in_app' or 'email') is
+        enabled for the given notification type. Defaults to True when
+        no preference row is recorded — matches API-side semantics in
+        services/api/services/email/notification_service.py:_user_wants_channel.
+
+        Worker's tasks.py (in the send_notification_batch task) calls
+        this to filter recipients before sending emails. Pre-2026-05-19
+        this method didn't exist on the worker side at all, so any
+        attempt to use it raised AttributeError and the per-recipient
+        try/except swallowed it — silently dropping every notification
+        email. Caught by end-to-end dispatch test post-consolidation.
+        """
+        from sqlalchemy import text
+
+        if hasattr(notification_type, "value"):
+            type_value = notification_type.value
+        elif isinstance(notification_type, str):
+            type_value = notification_type
+        else:
+            return False
+
+        try:
+            row = db.execute(
+                text(
+                    "SELECT in_app_enabled, email_enabled "
+                    "FROM notification_preferences "
+                    "WHERE user_id = :uid AND notification_type = :type"
+                ),
+                {"uid": user_id, "type": type_value},
+            ).first()
+        except Exception as e:
+            logger.warning(
+                f"_user_wants_channel: pref lookup failed ({e}); defaulting to True"
+            )
+            return True
+
+        if row is None:
+            return True
+        if channel == "in_app":
+            return bool(row[0])
+        if channel == "email":
+            return bool(row[1])
+        return False
