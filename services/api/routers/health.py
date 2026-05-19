@@ -32,18 +32,32 @@ async def health_check():
 
 
 @router.get("/health")
-async def health():
+async def health(db: AsyncSession = Depends(get_async_db)):
     """Health check endpoint for Docker healthcheck and Kubernetes probes.
 
-    Checks Redis connectivity. Returns 503 if Redis is unreachable so
-    Kubernetes removes the pod from the load balancer.
+    Required deps (return 503 → K8s evicts the pod):
+      - Redis: pre-existing — API can't serve cached endpoints or WS
+        pub/sub without it.
+      - Postgres: API can't serve anything without it. Newly added.
+
+    Soft deps (mark `degraded` but still 200):
+      - Celery workers: API can still serve sync requests; only async
+        tasks queue up. K8s shouldn't evict for this — operators
+        should alert on the body field.
+
+    Pre-existing /health only checked Redis: if all workers were down
+    or the DB was unreachable, /health still returned 200 and K8s kept
+    the pod in rotation.
     """
     health_status = {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "redis": "unknown",
+        "database": "unknown",
+        "celery_workers": "unknown",
     }
 
+    # Redis check (required)
     try:
         from services.redis_cache import cache
 
@@ -52,13 +66,56 @@ async def health():
             health_status["redis"] = "connected"
         else:
             health_status["redis"] = "unavailable"
-            health_status["status"] = "degraded"
+            health_status["status"] = "unhealthy"
             return JSONResponse(status_code=503, content=health_status)
     except Exception as e:
         logger.warning(f"Health check: Redis ping failed: {e}")
-        health_status["redis"] = f"error"
-        health_status["status"] = "degraded"
+        health_status["redis"] = "error"
+        health_status["status"] = "unhealthy"
         return JSONResponse(status_code=503, content=health_status)
+
+    # Database check (required). Tight timeout via the async engine's
+    # server_settings statement_timeout (15s); SELECT 1 finishes in
+    # single-digit ms when DB is healthy.
+    try:
+        await db.execute(text("SELECT 1"))
+        health_status["database"] = "connected"
+    except Exception as e:
+        logger.warning(f"Health check: DB ping failed: {e}")
+        health_status["database"] = "error"
+        health_status["status"] = "unhealthy"
+        return JSONResponse(status_code=503, content=health_status)
+
+    # Celery worker check (soft — degraded but 200). Inspect.ping()
+    # broadcasts to all workers; we accept any pong as "workers reachable".
+    # Wrap in a hard timeout so a broker hiccup can't slow /health to a
+    # crawl. Pre-existing behavior: total silence; now at least the
+    # body reflects the state so operators can alert on it.
+    try:
+        import asyncio
+
+        from celery_client import get_celery_app
+
+        def _ping_workers():
+            return get_celery_app().control.inspect(timeout=2.0).ping()
+
+        # Run the sync celery inspect in a thread so it can't block the
+        # event loop, with a 3s ceiling.
+        pong = await asyncio.wait_for(
+            asyncio.to_thread(_ping_workers), timeout=3.0
+        )
+        if pong:
+            health_status["celery_workers"] = f"reachable ({len(pong)} node(s))"
+        else:
+            health_status["celery_workers"] = "no_workers_responding"
+            health_status["status"] = "degraded"
+    except asyncio.TimeoutError:
+        health_status["celery_workers"] = "timeout"
+        health_status["status"] = "degraded"
+    except Exception as e:
+        logger.warning(f"Health check: Celery inspect failed: {e}")
+        health_status["celery_workers"] = "error"
+        health_status["status"] = "degraded"
 
     return health_status
 
