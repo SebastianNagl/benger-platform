@@ -104,6 +104,7 @@ class SendGridClient:
                 logger.info(f"Email sent successfully via SendGrid to {', '.join(to)}")
                 return {
                     "status": "success",
+                    "status_code": response.status_code,
                     "message_id": response.headers.get("X-Message-Id", "unknown"),
                     "recipients": to,
                 }
@@ -111,6 +112,7 @@ class SendGridClient:
                 logger.error(f"SendGrid API error: {response.status_code} - {response.text}")
                 return {
                     "status": "error",
+                    "status_code": response.status_code,
                     "error": f"SendGrid API error: {response.status_code}",
                     "details": response.text,
                     "recipients": to,
@@ -118,7 +120,8 @@ class SendGridClient:
 
         except Exception as e:
             logger.error(f"Failed to send email via SendGrid: {e}")
-            return {"status": "error", "error": str(e), "recipients": to}
+            # status_code=None signals a network/transport failure (retryable).
+            return {"status": "error", "status_code": None, "error": str(e), "recipients": to}
 
     async def verify_webhook_signature(self, signature: str, payload: bytes) -> bool:
         """Verify SendGrid webhook signature if needed"""

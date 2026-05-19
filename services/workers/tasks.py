@@ -2226,11 +2226,35 @@ def send_invitation_email_task(
                 "organization": organization_name,
                 "message_id": result.get("message_id", "unknown"),
             }
-        else:
-            error_msg = result.get("error", "Unknown SendGrid error")
-            logger.error(f"Failed to send invitation email to {to_email}: {error_msg}")
-            raise RuntimeError(f"SendGrid error: {error_msg}")
 
+        # Differentiate retryable vs permanent SendGrid failures. Without
+        # this every 400 (malformed recipient), 401 (bad API key), 403
+        # (suspended account), etc. burned three full 60s-spaced retries
+        # via autoretry_for=(Exception,) + max_retries=3, occupying the
+        # rate-limited (30/m) emails queue. 429 stays retryable — that's
+        # SendGrid asking us to back off.
+        status_code = result.get("status_code")
+        error_msg = result.get("error", "Unknown SendGrid error")
+        if status_code is not None and 400 <= status_code < 500 and status_code != 429:
+            logger.error(
+                f"Permanent SendGrid {status_code} for {to_email}; not retrying: {error_msg}"
+            )
+            return {
+                "status": "failed_permanent",
+                "invitation_id": invitation_id,
+                "recipient": to_email,
+                "status_code": status_code,
+                "error": error_msg,
+            }
+
+        logger.error(
+            f"Retryable SendGrid failure for {to_email} (status_code={status_code}): {error_msg}"
+        )
+        raise RuntimeError(f"SendGrid error: {error_msg}")
+
+    except RuntimeError:
+        # Already classified as retryable above — let autoretry_for see it.
+        raise
     except Exception as e:
         logger.error(f"Error sending invitation email to {to_email}: {str(e)}")
         raise
