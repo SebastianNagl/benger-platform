@@ -578,15 +578,23 @@ app = Celery("tasks")
 # Celery Beat Schedule for periodic tasks
 from celery.schedules import crontab
 
-# Beat schedule intentionally empty. The previous `process-daily-digests`
-# cron pointed at `digest.process_all_digests`, but the email-digest
-# feature was deliberately removed at the User-model level (the columns
-# `enable_email_digest`, `digest_frequency`, `digest_time`, `digest_days`,
-# `last_digest_sent` are all commented out in models.py with a "removed"
-# note). The cron + the two digest tasks + the digest_service module
-# are all deleted. Reviving requires restoring those User columns plus
-# adding a digest.html email template (also missing).
-app.conf.beat_schedule = {}
+# Beat schedule. `process-daily-digests` was removed with the email-digest
+# feature (User-model columns commented out in models.py).
+#
+# `recompute-aggregates`: refresh the precomputed leaderboard + project
+# summary tables every 12h. The API endpoints read these tables instead of
+# scanning task_evaluations on every request (OOMed prod 2026-05-19).
+# Migration 051 introduced the tables; see services/api/services/
+# aggregate_summaries.py for the SQL.
+app.conf.beat_schedule = {
+    "recompute-aggregates": {
+        "task": "tasks.recompute_aggregates",
+        "schedule": crontab(minute=0, hour="*/12"),
+        "args": (),
+        "kwargs": {},
+        "options": {"queue": "default"},
+    },
+}
 
 app.conf.timezone = "UTC"
 
@@ -5817,6 +5825,20 @@ def finalize_evaluation_run(
         flag_modified(evaluation, "eval_metadata")
         db.commit()
 
+        # Event-driven refresh of the precomputed aggregates so the
+        # leaderboard + dashboard reflect this new evaluation without
+        # waiting for the 12h beat. Fire-and-forget — coalesced via
+        # Redis lock in the recompute task itself, so a burst of finalizers
+        # collapses to a single execution. Failure to enqueue must not
+        # block the finalizer; just log it.
+        try:
+            app.send_task("tasks.recompute_aggregates", queue="default")
+        except Exception as _enqueue_exc:
+            logger.warning(
+                "recompute_aggregates enqueue after finalize failed: %s",
+                _enqueue_exc,
+            )
+
         # Report section update — lifted from ex-`tasks.py:3956-3958`.
         # report_service lives in /shared so both API and workers import it
         # via top-level name. The previous code hacked services/api/ onto
@@ -5900,3 +5922,81 @@ def finalize_evaluation_run(
         return {"status": "error", "evaluation_id": evaluation_id, "error": str(e)}
     finally:
         db.close()
+
+
+@app.task(name="tasks.recompute_aggregates", bind=True)
+def recompute_aggregates(self):
+    """Refresh the precomputed leaderboard + project-summary tables.
+
+    Runs every 12h via beat (see `app.conf.beat_schedule` above) and can be
+    triggered ad-hoc. Coalesces concurrent runs with a Redis lock so a burst
+    of triggers collapses to a single execution.
+
+    The heavy SQL lives in `services/api/services/aggregate_summaries.py`;
+    this is the Celery entry point. Total wall time on prod-scale data
+    (333 evaluation_runs / 60k task_evaluations) should be well under a
+    minute in the worker pod.
+    """
+    # Ensure services/api/services is reachable. The worker already adds
+    # the api dir to sys.path (see line ~347); this import just lazy-resolves
+    # so a circular-import in the API surface area can't crash worker boot.
+    from datetime import datetime as _dt
+
+    from services.aggregate_summaries import (
+        recompute_llm_leaderboard_scores,
+        recompute_project_summaries,
+    )
+
+    lock_key = "lock:recompute_aggregates"
+    lock_ttl_seconds = 600  # 10 min — generous ceiling on a normal run
+
+    try:
+        rc = redis.from_url(broker_url)
+    except Exception as exc:
+        logger.warning(
+            "recompute_aggregates: redis unavailable for coalescing lock (%s); "
+            "proceeding without dedup",
+            exc,
+        )
+        rc = None
+
+    have_lock = False
+    if rc is not None:
+        # SET NX EX -- only this caller proceeds if no other run is in flight.
+        have_lock = bool(rc.set(lock_key, "1", nx=True, ex=lock_ttl_seconds))
+        if not have_lock:
+            logger.info("recompute_aggregates: another run holds the lock; skipping")
+            return {"status": "skipped", "reason": "another_run_in_progress"}
+
+    db = SessionLocal()
+    try:
+        started = _dt.now()
+        ps_upserts = recompute_project_summaries(db)
+        lls_upserts = recompute_llm_leaderboard_scores(db)
+        elapsed = (_dt.now() - started).total_seconds()
+        logger.info(
+            "recompute_aggregates: project_summaries=%d llm_leaderboard_scores=%d elapsed=%.1fs",
+            ps_upserts,
+            lls_upserts,
+            elapsed,
+        )
+        return {
+            "status": "success",
+            "project_summaries_upserted": ps_upserts,
+            "llm_leaderboard_scores_upserted": lls_upserts,
+            "elapsed_seconds": elapsed,
+        }
+    except Exception as exc:
+        logger.error("recompute_aggregates failed: %s", exc, exc_info=True)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return {"status": "error", "error": str(exc)}
+    finally:
+        db.close()
+        if rc is not None and have_lock:
+            try:
+                rc.delete(lock_key)
+            except Exception:
+                pass
