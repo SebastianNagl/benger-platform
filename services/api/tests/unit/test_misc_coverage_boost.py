@@ -1007,14 +1007,14 @@ class TestResolvePerModelMetrics:
     """Cover lines 53-73: _resolve_per_model_metrics."""
 
     def test_empty_evaluation_ids(self):
-        from services.evaluation.report_service import _resolve_per_model_metrics
+        from report_service import _resolve_per_model_metrics
 
         db = Mock()
         result = _resolve_per_model_metrics(db, [])
         assert result == {}
 
     def test_no_results(self):
-        from services.evaluation.report_service import _resolve_per_model_metrics
+        from report_service import _resolve_per_model_metrics
 
         db = Mock()
         q = MagicMock()
@@ -1027,7 +1027,7 @@ class TestResolvePerModelMetrics:
         assert result == {}
 
     def test_with_valid_results(self):
-        from services.evaluation.report_service import _resolve_per_model_metrics
+        from report_service import _resolve_per_model_metrics
 
         db = Mock()
         q = MagicMock()
@@ -1052,7 +1052,7 @@ class TestResolvePerModelMetrics:
         assert abs(result["gpt-4"]["f1"] - 0.85) < 0.01  # Average of 0.9 and 0.8
 
     def test_skips_unknown_model_id(self):
-        from services.evaluation.report_service import _resolve_per_model_metrics
+        from report_service import _resolve_per_model_metrics
 
         db = Mock()
         q = MagicMock()
@@ -1076,7 +1076,7 @@ class TestResolvePerModelMetrics:
 
     def test_resolves_annotator_synthetic_ids(self):
         """Pass 2: annotation-based TaskEvaluation rows yield 'annotator:<display>'."""
-        from services.evaluation.report_service import _resolve_per_model_metrics
+        from report_service import _resolve_per_model_metrics
 
         db = Mock()
         q = MagicMock()
@@ -1102,7 +1102,7 @@ class TestUpdateMetadata:
     """Cover lines 364-366: _update_metadata."""
 
     def test_adds_section_to_completed(self):
-        from services.evaluation.report_service import _update_metadata
+        from report_service import _update_metadata
 
         report = Mock()
         report.content = {
@@ -1112,13 +1112,13 @@ class TestUpdateMetadata:
             }
         }
 
-        with patch("services.evaluation.report_service.flag_modified"):
+        with patch("report_service.flag_modified"):
             _update_metadata(report, "data")
             assert "data" in report.content["metadata"]["sections_completed"]
             assert report.content["metadata"]["last_auto_update"] != "old"
 
     def test_does_not_duplicate_section(self):
-        from services.evaluation.report_service import _update_metadata
+        from report_service import _update_metadata
 
         report = Mock()
         report.content = {
@@ -1128,7 +1128,7 @@ class TestUpdateMetadata:
             }
         }
 
-        with patch("services.evaluation.report_service.flag_modified"):
+        with patch("report_service.flag_modified"):
             _update_metadata(report, "data")
             assert report.content["metadata"]["sections_completed"].count("data") == 1
 
@@ -1137,7 +1137,7 @@ class TestGenerateUuid:
     """Cover line 25."""
 
     def test_generates_valid_uuid(self):
-        from services.evaluation.report_service import generate_uuid
+        from report_service import generate_uuid
         import uuid
 
         result = generate_uuid()
