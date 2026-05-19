@@ -14,20 +14,24 @@ import pytest
 class TestEncryptionServiceInit:
     """Test EncryptionService initialization and key derivation."""
 
-    def test_default_init_uses_fallback_key(self):
+    def test_init_without_any_key_raises(self):
+        """Regression: previously the fallback chain ended in the literal
+        "default-secret-key" / "benger-default-encryption-secret-key-32-bytes".
+        Either would have silently encrypted user API keys with a string
+        embedded in the repo. The consolidated impl now refuses to start."""
+        import pytest
+
         with patch.dict(os.environ, {}, clear=True):
-            # Remove all key env vars to force fallback
-            for k in ("ENCRYPTION_KEY", "SECRET_KEY", "JWT_SECRET_KEY"):
+            for k in ("ENCRYPTION_KEY", "SECRET_KEY", "JWT_SECRET_KEY", "BENGER_TEST_MODE"):
                 os.environ.pop(k, None)
-            from services.encryption_service import EncryptionService
-            svc = EncryptionService()
-            assert svc.encryption_key is not None
-            assert len(svc.encryption_key) > 0
+            from encryption_service import EncryptionService
+            with pytest.raises(RuntimeError, match="refuses to start"):
+                EncryptionService()
 
     def test_init_with_secret_key(self):
         with patch.dict(os.environ, {"SECRET_KEY": "my-secret-key-for-testing"}, clear=False):
             os.environ.pop("ENCRYPTION_KEY", None)
-            from services.encryption_service import EncryptionService
+            from encryption_service import EncryptionService
             svc = EncryptionService()
             assert svc.encryption_key is not None
 
@@ -35,7 +39,7 @@ class TestEncryptionServiceInit:
         with patch.dict(os.environ, {"JWT_SECRET_KEY": "jwt-secret-for-test"}, clear=False):
             os.environ.pop("ENCRYPTION_KEY", None)
             os.environ.pop("SECRET_KEY", None)
-            from services.encryption_service import EncryptionService
+            from encryption_service import EncryptionService
             svc = EncryptionService()
             assert svc.encryption_key is not None
 
@@ -43,14 +47,14 @@ class TestEncryptionServiceInit:
         from cryptography.fernet import Fernet
         valid_key = Fernet.generate_key().decode('utf-8')
         with patch.dict(os.environ, {"ENCRYPTION_KEY": valid_key}, clear=False):
-            from services.encryption_service import EncryptionService
+            from encryption_service import EncryptionService
             svc = EncryptionService()
             assert svc.encryption_key is not None
 
     def test_init_with_test_key(self):
         test_key = "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcw=="
         with patch.dict(os.environ, {"ENCRYPTION_KEY": test_key}, clear=False):
-            from services.encryption_service import EncryptionService
+            from encryption_service import EncryptionService
             svc = EncryptionService()
             assert svc.encryption_key == test_key.encode('utf-8')
 
@@ -58,14 +62,14 @@ class TestEncryptionServiceInit:
         # A short base64 string that decodes to < 32 bytes
         short_key = base64.b64encode(b"short").decode('utf-8')
         with patch.dict(os.environ, {"ENCRYPTION_KEY": short_key}, clear=False):
-            from services.encryption_service import EncryptionService
+            from encryption_service import EncryptionService
             svc = EncryptionService()
             assert svc.encryption_key is not None
 
     def test_init_with_long_base64_key(self):
         long_key = base64.b64encode(b"a" * 64).decode('utf-8')
         with patch.dict(os.environ, {"ENCRYPTION_KEY": long_key}, clear=False):
-            from services.encryption_service import EncryptionService
+            from encryption_service import EncryptionService
             svc = EncryptionService()
             assert svc.encryption_key is not None
 
@@ -74,7 +78,7 @@ class TestEncryptionServiceInit:
             "ENCRYPTION_KEY": "not-valid-base64!!!",
             "SECRET_KEY": "fallback-secret"
         }, clear=False):
-            from services.encryption_service import EncryptionService
+            from encryption_service import EncryptionService
             svc = EncryptionService()
             assert svc.encryption_key is not None
 
@@ -85,7 +89,7 @@ class TestEncryptDecrypt:
     def _make_service(self):
         with patch.dict(os.environ, {"SECRET_KEY": "test-secret-key-12345"}, clear=False):
             os.environ.pop("ENCRYPTION_KEY", None)
-            from services.encryption_service import EncryptionService
+            from encryption_service import EncryptionService
             return EncryptionService()
 
     def test_encrypt_and_decrypt_roundtrip(self):
@@ -153,7 +157,7 @@ class TestIsValidApiKeyFormat:
     def _make_service(self):
         with patch.dict(os.environ, {"SECRET_KEY": "test-secret-key"}, clear=False):
             os.environ.pop("ENCRYPTION_KEY", None)
-            from services.encryption_service import EncryptionService
+            from encryption_service import EncryptionService
             return EncryptionService()
 
     def test_openai_valid(self):
@@ -258,7 +262,7 @@ class TestFernetProperty:
     def _make_service(self):
         with patch.dict(os.environ, {"SECRET_KEY": "test-secret-key"}, clear=False):
             os.environ.pop("ENCRYPTION_KEY", None)
-            from services.encryption_service import EncryptionService
+            from encryption_service import EncryptionService
             return EncryptionService()
 
     def test_fernet_lazy_init(self):
@@ -276,7 +280,7 @@ class TestFernetProperty:
     def test_test_key_fernet_init(self):
         test_key = "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcw=="
         with patch.dict(os.environ, {"ENCRYPTION_KEY": test_key}, clear=False):
-            from services.encryption_service import EncryptionService
+            from encryption_service import EncryptionService
             svc = EncryptionService()
             # Should be able to create fernet from test key
             f = svc.fernet
