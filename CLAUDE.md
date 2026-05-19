@@ -81,19 +81,24 @@ Use the async fixtures when testing async handlers. Example: `services/api/tests
 
 ## Models — single canonical source in `/shared`
 
-`services/shared/models.py` is the canonical SQLAlchemy `Base`-bound model file for both the API and the workers. It's resolved automatically by `from models import X` because `/shared` is first on `sys.path` in both containers (`api/main.py` and `workers/tasks.py` both insert it at position 0 during startup; `workers/tests/conftest.py` adds it for pytest too).
+Three model files have been consolidated to `/shared` (2026-05-19):
 
-The repo previously had two independently-maintained parallel files (`services/api/models.py` 43 classes; `services/workers/models.py` 28 classes) that had actively drifted — most notably the worker's `User` was missing 45 columns the API carried (email verification, invitation tokens, password reset, pseudonym, …). A worker query like `db.query(User).filter(User.email_verified == True)` would `AttributeError` at runtime. The consolidation on 2026-05-19 also caught three classes (`EvaluationType`, `Invitation`, `UserNotificationPreference`) where the worker carried stale/wrong column or table names that no longer matched the DB, plus five worker-only classes that were entirely dead code.
+| File | Location | Contains |
+|---|---|---|
+| `models.py` | `services/shared/models.py` | Users, Orgs, Notifications, EvaluationRun/Type, Generation, etc. — 43 classes |
+| `project_models.py` | `services/shared/project_models.py` | Project, Task, Annotation, TaskAssignment, TimerSession, KorrekturComment, etc. — 13 classes |
+| `report_models.py` | `services/shared/report_models.py` | ProjectReport |
+
+All resolved automatically by `from models import X` / `from project_models import X` / `from report_models import X` because `/shared` is first on `sys.path` in both containers (`api/main.py` and `workers/tasks.py` insert it at position 0 during startup; `workers/tests/conftest.py` adds it for pytest too).
+
+The repo previously had independently-maintained parallel copies in `services/api/` and `services/workers/` that had actively drifted. Most notably the worker's `User` was missing 45 columns the API carried (email verification, invitation tokens, password reset, pseudonym, …) — a worker query like `db.query(User).filter(User.email_verified == True)` would `AttributeError` at runtime. The consolidation also caught three model classes (`EvaluationType`, `Invitation`, `UserNotificationPreference`) where the worker carried stale/wrong column or table names that no longer matched the DB, and 5 worker-only classes that were entirely dead code. project_models.py had a similar story: API was a clean superset everywhere.
 
 ### Rules
 
-1. **Touch `/shared/models.py`**, not the (now-deleted) per-service copies. There is no longer a second place to also update.
-2. **Don't put models into `services/api/` or `services/workers/`** — the import system will resolve `from models import X` to `/shared/models.py` regardless, but redundant copies just reintroduce the drift problem.
+1. **Touch `/shared/models.py` / `/shared/project_models.py` / `/shared/report_models.py`**, not the (now-deleted) per-service copies. There is no longer a second place to also update.
+2. **Don't put model files into `services/api/` or `services/workers/`** — the import system will resolve to the `/shared` versions regardless, but redundant copies just reintroduce the drift problem.
 3. **When you add a model that declares `relationship("Project", …)`** or similar, `project_models` must be on the metadata before the first query. The worker's `tasks.py` already eagerly imports `project_models` at module load (see `tasks.py:~262`); follow that pattern in any other entry point that wants to query relationship-bearing models.
-
-### Related work still on the docket
-
-`project_models.py` is still duplicated between `services/api/` (775 lines) and `services/workers/` (450 lines) — and has drifted (API has `KorrekturComment`, `PostAnnotationResponse`, `SkippedTask` that the worker lacks). Same consolidation pattern applies: move canonical to `/shared/project_models.py`, delete the two per-service copies, restart, verify. Not yet executed.
+4. **For one-shot scripts and `python -c` exploration**, import in the correct order: `models` first (registers `User`, `Notification`, etc.), then `project_models` (which references `User` via relationships). Reverse order raises `InvalidRequestError: expression 'User' failed to locate a name`.
 
 ## Health checks — what `/health` covers and what it doesn't
 
