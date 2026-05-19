@@ -135,10 +135,23 @@ class EmailService:
             return False
 
 
+        # notification.type can be a NotificationType enum OR a plain
+        # string (the worker's send_notification_batch_task hydrates an
+        # unattached Notification with `type=notif_dict["type"]` where
+        # the dict value is a string from the JSON payload — SQLAlchemy
+        # doesn't auto-coerce until commit, and we never add this
+        # instance to the session). Normalize once here.
+        if hasattr(notification.type, "value"):
+            type_value = notification.type.value
+        elif isinstance(notification.type, str):
+            type_value = notification.type
+        else:
+            type_value = "general"
+
         # Build template context
         template_context = {
             "notification": notification,
-            "notification_type": notification.type.value if notification.type else "general",
+            "notification_type": type_value,
             "user_email": user_email,
             **(context or {}),
         }
@@ -148,17 +161,19 @@ class EmailService:
         # never existed on the canonical (API-side) NotificationType
         # enum, so any NotificationType.TASK_CREATED lookup raised
         # AttributeError. With /shared/models.py canonical the enum
-        # values are TASK_ASSIGNED + ANNOTATION_COMPLETED.
+        # values are TASK_ASSIGNED + ANNOTATION_COMPLETED. Key the map
+        # by string value (`.value`) rather than enum object so a plain
+        # string `notification.type` (see above) also resolves.
         template_map = {
-            NotificationType.TASK_ASSIGNED: "task_assigned.html",
-            NotificationType.ANNOTATION_COMPLETED: "annotation_completed.html",
-            NotificationType.ORGANIZATION_INVITATION_SENT: "organization_invite.html",
-            NotificationType.DATA_UPLOAD_COMPLETED: "data_import_success.html",
-            NotificationType.EVALUATION_COMPLETED: "evaluation_completed.html",
-            NotificationType.LLM_GENERATION_COMPLETED: "llm_generation_completed.html",
+            NotificationType.TASK_ASSIGNED.value: "task_assigned.html",
+            NotificationType.ANNOTATION_COMPLETED.value: "annotation_completed.html",
+            NotificationType.ORGANIZATION_INVITATION_SENT.value: "organization_invite.html",
+            NotificationType.DATA_UPLOAD_COMPLETED.value: "data_import_success.html",
+            NotificationType.EVALUATION_COMPLETED.value: "evaluation_completed.html",
+            NotificationType.LLM_GENERATION_COMPLETED.value: "llm_generation_completed.html",
         }
 
-        template_name = template_map.get(notification.type, "default_notification.html")
+        template_name = template_map.get(type_value, "default_notification.html")
 
         try:
             # Render template
