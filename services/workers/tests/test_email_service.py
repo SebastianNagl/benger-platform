@@ -58,7 +58,7 @@ def email_service(mock_sendgrid_client):
 def notification():
     """Create a sample notification"""
     notif = Mock(spec=Notification)
-    notif.type = NotificationType.TASK_CREATED
+    notif.type = NotificationType.TASK_ASSIGNED
     notif.id = "notif_123"
     notif.message = "A new task has been created"
     return notif
@@ -403,7 +403,7 @@ class TestSendDigestEmail:
         notifications = []
         for i in range(5):
             notif = Mock(spec=Notification)
-            notif.type = NotificationType.TASK_CREATED
+            notif.type = NotificationType.TASK_ASSIGNED
             notif.id = f"notif_{i}"
             notifications.append(notif)
 
@@ -666,7 +666,7 @@ class TestEdgeCases:
         email_service.mail_client.send_message.return_value = {"status": "success"}
 
         notification_types = [
-            NotificationType.TASK_CREATED,
+            NotificationType.TASK_ASSIGNED,
             NotificationType.ANNOTATION_COMPLETED,
             NotificationType.ORGANIZATION_INVITATION_SENT,
             NotificationType.DATA_UPLOAD_COMPLETED,

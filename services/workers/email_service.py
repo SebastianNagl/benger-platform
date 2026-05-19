@@ -143,10 +143,14 @@ class EmailService:
             **(context or {}),
         }
 
-        # Select template based on notification type
+        # Select template based on notification type. Pre-consolidation
+        # this referenced TASK_CREATED / TASK_COMPLETED — those names
+        # never existed on the canonical (API-side) NotificationType
+        # enum, so any NotificationType.TASK_CREATED lookup raised
+        # AttributeError. With /shared/models.py canonical the enum
+        # values are TASK_ASSIGNED + ANNOTATION_COMPLETED.
         template_map = {
-            NotificationType.TASK_CREATED: "task_assigned.html",
-            NotificationType.TASK_COMPLETED: "task_completed.html",
+            NotificationType.TASK_ASSIGNED: "task_assigned.html",
             NotificationType.ANNOTATION_COMPLETED: "annotation_completed.html",
             NotificationType.ORGANIZATION_INVITATION_SENT: "organization_invite.html",
             NotificationType.DATA_UPLOAD_COMPLETED: "data_import_success.html",

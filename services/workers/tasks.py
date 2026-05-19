@@ -258,7 +258,12 @@ try:
 
     # Prompt import removed in Issue #759 - use generation_structure instead
     from models import LLMModel as DBLLMModel
-    from models import LLMResponse as DBLLMResponse  # Individual LLM responses
+    # Same table as `generations` — formerly the worker had a separate
+    # LLMResponse class definition mapping to the same __tablename__, but
+    # with /shared/models.py canonical, the API's `Generation` class is
+    # the single definition. The DBLLMResponse alias is preserved so
+    # callsites below don't have to change.
+    from models import Generation as DBLLMResponse
     # Eagerly register project_models on the Base metadata BEFORE importing
     # report_models, so SQLAlchemy can resolve the `relationship("Project")`
     # back-reference declared on ProjectReport. Without this, the first
