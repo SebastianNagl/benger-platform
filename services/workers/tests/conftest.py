@@ -14,6 +14,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
+# Sentinel for /shared/encryption_service.py — module-level
+# `encryption_service = EncryptionService()` runs at first import, BEFORE
+# pytest sets PYTEST_CURRENT_TEST. Without this, every worker test file
+# that transitively imports the module raises RuntimeError at collection
+# time. Mirrors what the API conftest does via JWT_SECRET_KEY / SECRET_KEY.
+os.environ.setdefault("BENGER_TEST_MODE", "1")
+
 # Ensure the workers source directory is at the front of sys.path
 # so that local modules (email_service, ml_evaluation, etc.) are
 # imported from workers, not from other services.

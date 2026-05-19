@@ -962,11 +962,15 @@ class TestDashboardEndpoints:
         )
         test_db.add(rg)
         test_db.flush()
-        test_db.add(Generation(
+        gen = Generation(
             id=_uid(), generation_id=rg.id, task_id=tasks[0].id,
             model_id="gpt-4o", case_data='{"text": "t0"}',
             response_content="response", status="completed",
-        ))
+            # Dashboard aggregator filters generations by parse_status="success"
+            # to match the precomputed project_summaries semantic.
+            parse_status="success",
+        )
+        test_db.add(gen)
         test_db.flush()
 
         # 1 evaluation
@@ -988,6 +992,10 @@ class TestDashboardEndpoints:
         test_db.add(TaskEvaluation(
             id=_uid(), evaluation_id=er.id, judge_run_id=judge_run.id,
             task_id=tasks[0].id,
+            # `_scored_pairs_query` requires a non-null subject (annotation_id
+            # OR generation_id) for the row to count toward the dashboard's
+            # evaluations tally.
+            generation_id=gen.id,
             field_name="text", answer_type="text",
             metrics={"accuracy": 0.9}, prediction="pred", ground_truth="gt",
             passed=True,

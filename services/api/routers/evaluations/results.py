@@ -1343,13 +1343,17 @@ async def get_project_results_by_task_model(
         # The Python `_extract_primary_score` still owns the priority logic;
         # it only needs the `value` (or bare numeric) per metric key, and an
         # optional `error` to skip failed runs.
+        # `task_evaluations.metrics` is `Column(JSON)` (text JSON), so
+        # `jsonb_each` requires an explicit cast — Postgres won't auto-promote
+        # `json` to `jsonb`. Production schemas where the column happens to
+        # be jsonb still work because the cast is a no-op there.
         metrics_lite_expr = literal_column("""
             (SELECT COALESCE(jsonb_object_agg(k,
                 CASE WHEN jsonb_typeof(v) = 'object'
                      THEN v - 'details' - 'method' - 'raw' - 'justification'
                      ELSE v END
               ), '{}'::jsonb)
-             FROM jsonb_each(task_evaluations.metrics) AS j(k, v))
+             FROM jsonb_each(task_evaluations.metrics::jsonb) AS j(k, v))
         """).label("metrics")
 
         # Subquery: rank results by (generation_id, field_name), ordered by created_at DESC
@@ -1434,7 +1438,7 @@ async def get_project_results_by_task_model(
                      THEN v - 'details' - 'method' - 'raw' - 'justification'
                      ELSE v END
               ), '{}'::jsonb)
-             FROM jsonb_each(task_evaluations.metrics) AS j(k, v))
+             FROM jsonb_each(task_evaluations.metrics::jsonb) AS j(k, v))
         """).label("metrics")
 
         ann_query = (
