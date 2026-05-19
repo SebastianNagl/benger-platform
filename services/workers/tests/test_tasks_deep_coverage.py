@@ -1078,6 +1078,16 @@ class TestEvaluateLLMJudgeSingle:
         mock_judge.ai_service = MagicMock()
         mock_judge.score_scale = "0-1"
         mock_judge.criteria = ["correctness"]
+        # llm_judge_evaluator commit 74b5665 added a multi-dim single-call
+        # branch in _evaluate_llm_judge_single that runs when
+        # judge.is_multidim_mode() is truthy. MagicMock() makes every
+        # method truthy by default — without this override the production
+        # code routes into the multi-dim path, calls
+        # _evaluate_multidim_single_call (also a MagicMock that returns a
+        # truthy mock with a "scores" attribute lookup that misses), and
+        # raises RuntimeError. Pin to False so we exercise the per-criterion
+        # path this test was written for.
+        mock_judge.is_multidim_mode.return_value = False
         mock_judge._evaluate_single_criterion.return_value = {
             "score": 0.75,
             "justification": "ok",
