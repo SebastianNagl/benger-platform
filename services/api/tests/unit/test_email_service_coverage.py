@@ -91,6 +91,27 @@ class TestInitTemplateEnvironment:
                         # Should still create the env despite mkdir failure
                         assert svc.template_env is not None
 
+    def test_canonical_template_dir_has_expected_templates(self, tmp_path):
+        """Regression: API and worker resolve their template dir to
+        /shared/email_templates/email so both render from a single source.
+        Point the env-var override at a tmp dir populated with the three
+        canonical templates and confirm the Jinja2 env loads each one —
+        guards against re-introducing the per-service template directories
+        (the prior layout left the worker pointing at an empty dir, so
+        every Celery-dispatched notification failed silently at lookup)."""
+        for name in ("default_notification.html", "task_assigned.html", "korrektur_assigned.html"):
+            (tmp_path / name).write_text("Subject: x\n<html></html>")
+
+        with patch.dict(os.environ, {"EMAIL_TEMPLATE_DIR": str(tmp_path)}), \
+             patch("services.email.email_service.SendGridClient"), \
+             patch("database.SessionLocal"):
+            from email_service import EmailService
+
+            svc = EmailService()
+            env = svc._init_template_environment()
+            for name in ("default_notification.html", "task_assigned.html", "korrektur_assigned.html"):
+                assert env.get_template(name) is not None
+
 
 # ─────────────────────────────────────────────
 # _render_template

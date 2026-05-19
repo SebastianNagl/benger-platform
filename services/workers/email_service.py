@@ -36,11 +36,23 @@ class EmailService:
 
     def _init_template_environment(self) -> Environment:
         """Initialize Jinja2 template environment for email templates"""
-        template_dir = Path(__file__).parent / "templates" / "email"
+        # Templates live in services/shared (mounted at /shared in both
+        # Docker images) so the API and the workers render from the same
+        # source. Previously this worker resolved to an empty local
+        # templates/email directory and every notification email dispatched
+        # from Celery failed silently at template lookup.
+        template_dir = Path(
+            os.environ.get("EMAIL_TEMPLATE_DIR", "/shared/email_templates/email")
+        )
 
         if not template_dir.exists():
             logger.warning(f"Template directory not found: {template_dir}")
-            template_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                template_dir.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                logger.warning(
+                    f"Cannot create template directory (read-only filesystem?): {template_dir}"
+                )
 
         env = Environment(
             loader=FileSystemLoader(str(template_dir)),
