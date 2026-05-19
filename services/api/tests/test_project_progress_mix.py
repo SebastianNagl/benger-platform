@@ -98,6 +98,9 @@ def _add_response_generations(test_db, project, *, status_counts):
                 )
             )
             idx += 1
+    # Test session runs with autoflush=False; flush so later helpers can
+    # query the rows back before commit.
+    test_db.flush()
 
 
 def _add_evaluation_runs(test_db, project, *, status_counts):
@@ -172,6 +175,7 @@ def _add_evaluation_runs(test_db, project, *, status_counts):
                         passed=True,
                     )
                 )
+                test_db.flush()
 
 
 def _stats(test_db, project):
@@ -220,19 +224,6 @@ def test_generation_only_project_reflects_generation_progress(test_db, test_user
     assert stats.progress_percentage == pytest.approx(50.0)
 
 
-@pytest.mark.skip(
-    reason=(
-        "Pre-existing failure (broken before the project_summaries refactor): "
-        "the test seeds an EvaluationRun with no TaskEvaluation children but "
-        "asserts an evaluation contribution to the progress mix. After commit "
-        "cb490be (count scored (subject, metric) pairs) the evaluation_count "
-        "is derived from task_evaluations, which the test doesn't seed. The "
-        "in-helper attempt to wire up TaskEvaluation + Generation rows here "
-        "doesn't surface the row through _scored_pairs_query for reasons "
-        "that need more dedicated investigation than the precomputed-summary "
-        "refactor scope. Tracked separately."
-    )
-)
 @pytest.mark.integration
 def test_all_three_enabled_project_mixes_all_stages(test_db, test_users):
     """Annotation + generation + evaluation: progress weights all three."""

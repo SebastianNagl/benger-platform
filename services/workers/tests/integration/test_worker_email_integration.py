@@ -96,7 +96,7 @@ class TestEmailServiceIntegration:
     ):
         """Test notification email with template rendering"""
         notification = Mock(spec=Notification)
-        notification.type = NotificationType.TASK_COMPLETED
+        notification.type = NotificationType.ANNOTATION_COMPLETED
         notification.id = "notif_integration_test"
         notification.message = "Your task has been completed"
 
@@ -256,7 +256,7 @@ class TestEmailServiceResilience:
     ):
         """Test email service continues with fallback when templates fail"""
         notification = Mock(spec=Notification)
-        notification.type = NotificationType.TASK_COMPLETED
+        notification.type = NotificationType.ANNOTATION_COMPLETED
         notification.id = "test_notif"
 
         # Simulate template error
