@@ -258,6 +258,14 @@ try:
     # Prompt import removed in Issue #759 - use generation_structure instead
     from models import LLMModel as DBLLMModel
     from models import LLMResponse as DBLLMResponse  # Individual LLM responses
+    # Eagerly register project_models on the Base metadata BEFORE importing
+    # report_models, so SQLAlchemy can resolve the `relationship("Project")`
+    # back-reference declared on ProjectReport. Without this, the first
+    # `db.query(DBProjectReport)` call (line ~1888 in generate_llm_responses)
+    # raises InvalidRequestError: "expression 'Project' failed to locate a
+    # name" because the worker's lazy project_models imports inside other
+    # task bodies hadn't run yet.
+    import project_models  # noqa: F401 — side-effect import
     from report_models import ProjectReport as DBProjectReport  # /shared — single source of truth
     from models import ResponseGeneration as DBResponseGeneration
 
@@ -462,11 +470,9 @@ from celery.schedules import crontab
 # feature was deliberately removed at the User-model level (the columns
 # `enable_email_digest`, `digest_frequency`, `digest_time`, `digest_days`,
 # `last_digest_sent` are all commented out in models.py with a "removed"
-# note). The task body queried `User.enable_email_digest == True` and
-# raised AttributeError at runtime — caught and counted as 1 error per
-# day in prod. The cron + the two digest tasks below are deleted; the
-# digest_service module is kept under /shared in case the feature is
-# resurrected, but it can't run without restoring the User columns.
+# note). The cron + the two digest tasks + the digest_service module
+# are all deleted. Reviving requires restoring those User columns plus
+# adding a digest.html email template (also missing).
 app.conf.beat_schedule = {}
 
 app.conf.timezone = "UTC"
@@ -2048,9 +2054,9 @@ def generate_llm_responses(
 # digest.process_all_digests and digest.send_test_digest tasks were
 # removed here — the underlying email-digest feature was deleted at the
 # User model level (see models.py around line 223), so both tasks could
-# only ever AttributeError at runtime. The matching beat schedule entry
-# is gone too. digest_service.py lives at services/shared/ in case the
-# feature is resurrected, but reviving needs the User columns
+# only ever AttributeError at runtime. The matching beat schedule entry,
+# the digest_service.py module, and the celery-beat scheduler container
+# in docker-compose are all gone too. Reviving needs the User columns
 # (enable_email_digest, digest_frequency, digest_time, digest_days,
 # last_digest_sent) plus a digest.html email template (also missing).
 
