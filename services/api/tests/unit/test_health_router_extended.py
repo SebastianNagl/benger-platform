@@ -64,17 +64,29 @@ class TestHealthEndpoints:
         assert response.json()["status"] == "healthy"
 
     def test_health_redis_connected(self, client):
-        """Test /health with connected Redis."""
-        with patch("routers.health.cache", create=True) as mock_module_cache:
-            # We need to patch the import inside the handler
+        """Test /health with connected Redis (and DB + Celery mocked OK)."""
+        from database import get_async_db
+
+        async def override_async_db():
+            mock_db = AsyncMock()
+            mock_db.execute = AsyncMock(return_value=Mock())
+            yield mock_db
+
+        app.dependency_overrides[get_async_db] = override_async_db
+        try:
             mock_redis = Mock()
             mock_redis.ping.return_value = True
-            with patch("services.redis_cache.cache") as mock_cache:
+            with patch("services.redis_cache.cache") as mock_cache, \
+                 patch("celery_client.get_celery_app") as mock_get_app:
                 mock_cache.is_available = True
                 mock_cache.redis_client = mock_redis
-
+                mock_get_app.return_value.control.inspect.return_value.ping.return_value = {
+                    "celery@w": {"ok": "pong"}
+                }
                 response = client.get("/health")
                 assert response.status_code == status.HTTP_200_OK
+        finally:
+            app.dependency_overrides.clear()
 
     def test_health_redis_unavailable(self, client):
         """Test /health with unavailable Redis returns 503."""
@@ -88,7 +100,10 @@ class TestHealthEndpoints:
             assert data["redis"] == "unavailable"
 
     def test_health_redis_ping_error(self, client):
-        """Test /health with Redis ping error returns 503."""
+        """Test /health with Redis ping error returns 503 + 'unhealthy'.
+        Redis is a required dep — failure means K8s must evict (`unhealthy`
+        is what the 503 body now carries; the prior "degraded" string was
+        inconsistent with the 503 status code)."""
         with patch("services.redis_cache.cache") as mock_cache:
             mock_cache.is_available = True
             mock_cache.redis_client = Mock()
@@ -97,7 +112,7 @@ class TestHealthEndpoints:
             response = client.get("/health")
             assert response.status_code == 503
             data = response.json()
-            assert data["status"] == "degraded"
+            assert data["status"] == "unhealthy"
 
     def test_health_cors_auth(self, client, mock_user):
         """Test /health/cors-auth endpoint."""
@@ -117,16 +132,27 @@ class TestHealthEndpoints:
             app.dependency_overrides.clear()
 
     def test_health_schema_check_success(self, client):
-        """Test /health/schema with healthy schema."""
-        from database import get_db
+        """Test /health/schema with healthy schema. Endpoint is async since
+        the Phase 0 migration — must override get_async_db, not get_db.
+        The handler unpacks .scalar() on two of the four queries (statement_
+        timeout + application_name) and stuffs them into the JSON body, so
+        plain Mock returns trigger a jsonify recursion."""
+        from database import get_async_db
 
-        mock_db = Mock(spec=Session)
-        mock_db.execute.return_value = None
+        async def override_async_db():
+            mock_db = AsyncMock()
+            # Sequence returns: two SELECTs return plain Mocks (unused),
+            # then statement_timeout and application_name with real values.
+            row_with_scalar = Mock()
+            row_with_scalar.scalar = Mock(return_value="15000")
+            row_app_name = Mock()
+            row_app_name.scalar = Mock(return_value="benger-api-async")
+            mock_db.execute = AsyncMock(
+                side_effect=[Mock(), Mock(), row_with_scalar, row_app_name]
+            )
+            yield mock_db
 
-        def override_get_db():
-            return mock_db
-
-        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_async_db] = override_async_db
         try:
             response = client.get("/health/schema")
             assert response.status_code == status.HTTP_200_OK
@@ -137,16 +163,16 @@ class TestHealthEndpoints:
             app.dependency_overrides.clear()
 
     def test_health_schema_check_failure(self, client):
-        """Test /health/schema with schema error."""
-        from database import get_db
+        """Test /health/schema with schema error. See success-case test
+        for the get_async_db override rationale."""
+        from database import get_async_db
 
-        mock_db = Mock(spec=Session)
-        mock_db.execute.side_effect = Exception("Missing column")
+        async def override_async_db():
+            mock_db = AsyncMock()
+            mock_db.execute = AsyncMock(side_effect=Exception("Missing column"))
+            yield mock_db
 
-        def override_get_db():
-            return mock_db
-
-        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_async_db] = override_async_db
         try:
             response = client.get("/health/schema")
             assert response.status_code == status.HTTP_200_OK
