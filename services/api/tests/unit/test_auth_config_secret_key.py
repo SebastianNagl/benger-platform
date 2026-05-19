@@ -5,6 +5,12 @@ email_verification.py used to read JWT_SECRET_KEY directly with a
 hardcoded "your-secret-key-here" literal fallback — verification
 tokens were signed with that literal string in prod. Both modules
 now resolve through auth_module.config to a single source.
+
+Tests here reload the auth_module subtree with patched env vars, so
+they MUST restore the original module state in teardown — otherwise
+later tests inherit a config.SECRET_KEY computed under the patched
+env (caught test_generation_config_merge failing in a cross-suite
+run 2026-05-19).
 """
 
 import importlib
@@ -14,6 +20,32 @@ import sys
 from unittest.mock import patch
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _restore_auth_module_modules():
+    """Snapshot the auth_module subtree of sys.modules before each test
+    and restore it afterwards. Without this, a test that pops or
+    overwrites `auth_module.config` leaks its patched-env state into
+    every subsequent test that imports auth_module."""
+    saved = {
+        name: mod
+        for name, mod in sys.modules.items()
+        if name == "auth_module" or name.startswith("auth_module.")
+    }
+    try:
+        yield
+    finally:
+        # Drop anything that was added during the test, restore originals.
+        for name in [
+            n
+            for n in sys.modules
+            if n == "auth_module" or n.startswith("auth_module.")
+        ]:
+            if name not in saved:
+                sys.modules.pop(name, None)
+        for name, mod in saved.items():
+            sys.modules[name] = mod
 
 
 def _reload_config():
