@@ -285,11 +285,19 @@ services:
     networks:
       - benger-network
     healthcheck:
+      # celery inspect ping has to spin a child process and re-import all
+      # tasks (heavy: AI services, registries, etc.) which routinely runs
+      # 15-20s in dev. The prior 10s timeout reported every healthy worker
+      # as "unhealthy", which in turn caused `make dev` to exit non-zero
+      # because the api service waits on worker being healthy. Bumped to
+      # 30s timeout + 60s start_period so the boot grace covers the
+      # first-import cost. Verified live: ping completes in ~3-5s once
+      # the module cache is warm.
       test: ["CMD", "celery", "-A", "tasks", "inspect", "ping"]
       interval: 30s
-      timeout: 10s
+      timeout: 30s
       retries: 3
-      start_period: 30s
+      start_period: 60s
     deploy:
       resources:
         limits:
