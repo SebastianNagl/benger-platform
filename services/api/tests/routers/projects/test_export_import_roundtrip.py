@@ -285,10 +285,25 @@ class TestDataExportImportRoundtrip:
         mock_request.headers = {}
         mock_request.state = Mock(spec=[])
         request_data = {"task_ids": task_ids, "format": "json"}
-        response = run(
-            bulk_export_tasks(project_id, request_data, request=mock_request, current_user=mock_user, db=db_session)
+        # bulk_export_tasks is a sync def returning a StreamingResponse
+        # (refactored 2026-05-18 — see the OOMKilled note in the handler
+        # docstring). Test had two stale assumptions: wrapped a sync
+        # call in asyncio.run() and read .body off a streaming response.
+        # The companion `import_project_data` below stays inside run()
+        # because it's still async; the two endpoints just have different
+        # shapes.
+        response = bulk_export_tasks(
+            project_id, request_data, request=mock_request, current_user=mock_user, db=db_session
         )
-        return json.loads(response.body.decode("utf-8"))
+
+        async def _consume() -> bytes:
+            chunks = []
+            async for chunk in response.body_iterator:
+                chunks.append(chunk if isinstance(chunk, bytes) else chunk.encode("utf-8"))
+            return b"".join(chunks)
+
+        body = run(_consume())
+        return json.loads(body.decode("utf-8"))
 
     def _import(self, db_session, target_project_id, export_data, user_id):
         from routers.projects.import_export import import_project_data

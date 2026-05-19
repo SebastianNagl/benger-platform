@@ -74,6 +74,131 @@ def _extract_call_metadata(response: Dict[str, Any]) -> Dict[str, Any]:
     return out
 
 
+def _preprocess_jinja_placeholders(template: str) -> str:
+    """Convert Jinja-style ``{{var}}`` placeholders to Python ``{var}`` syntax.
+
+    Allows users to author prompts using the more natural double-brace
+    syntax while keeping ``str.format()`` as the substitution engine.
+    Single-brace ``{var}`` usage in the template passes through unchanged.
+    """
+    return re.sub(r"\{\{(\w+)\}\}", r"{\1}", template)
+
+
+def _half_point_enum(max_score: float) -> List[float]:
+    """Produce the half-point enum [0, 0.5, 1.0, ..., max_score] for a dimension.
+
+    Mirrors ``falloesung_constants._build_falloesung_json_schema`` so OpenAI
+    strict mode can lock each dimension's ``score`` to a known set of values
+    and prevent smaller models from silently collapsing onto a 0–5 scale.
+    """
+    n = int(round(max_score * 2))
+    return [round(i / 2, 1) for i in range(n + 1)]
+
+
+def _build_rubric_json_schema(custom_criteria: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    """Strict OpenAI JSON schema for single-call multi-dimension rubrics.
+
+    Each criterion in ``custom_criteria`` with a ``max_score`` becomes a
+    property under ``scores`` with its ``score`` constrained to a half-
+    point enum in ``[0, max_score]`` and its ``max`` locked via ``const``.
+    The produced schema yields::
+
+        {"scores": {<key>: {"score": <num>, "max": <num>, "reason": <str>}, ...},
+         "total_score": <num>, "overall_assessment": <str>}
+
+    OpenAI strict mode requires ``additionalProperties: false`` and
+    enumerating every key under ``required``, so the schema is fully
+    closed. Criteria without ``max_score`` are skipped — multi-dim mode
+    is opt-in per criterion via that field.
+    """
+    score_properties: Dict[str, Any] = {}
+    score_required: List[str] = []
+    for key, definition in custom_criteria.items():
+        max_score = definition.get("max_score")
+        if max_score is None:
+            continue
+        score_properties[key] = {
+            "type": "object",
+            "properties": {
+                "score": {"type": "number", "enum": _half_point_enum(float(max_score))},
+                "max": {"type": "number", "const": max_score},
+                "reason": {"type": "string"},
+            },
+            "required": ["score", "max", "reason"],
+            "additionalProperties": False,
+        }
+        score_required.append(key)
+
+    return {
+        "type": "object",
+        "properties": {
+            "scores": {
+                "type": "object",
+                "properties": score_properties,
+                "required": score_required,
+                "additionalProperties": False,
+            },
+            "total_score": {"type": "number"},
+            "overall_assessment": {"type": "string"},
+        },
+        "required": ["scores", "total_score", "overall_assessment"],
+        "additionalProperties": False,
+    }
+
+
+def _parse_multidim_response(content: str) -> Optional[Dict[str, Any]]:
+    """Parse a single-call multi-dimension judge response.
+
+    Uses the three-stage extraction strategy from
+    ``falloesung_constants.parse_falloesung_response``:
+
+    1. Direct ``json.loads``.
+    2. Markdown fenced ```` ```json {...}``` ```` block.
+    3. Largest brace-matched object containing ``"scores"``.
+
+    Returns the parsed dict on success, ``None`` on parse failure. Does
+    not validate against any schema — callers are expected to clamp
+    per-dimension scores to ``[0, max_score]`` after parsing.
+    """
+    try:
+        return json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    fenced = re.search(r"```(?:json)?\s*(\{.*\})\s*```", content or "", re.DOTALL)
+    if fenced:
+        try:
+            return json.loads(fenced.group(1))
+        except json.JSONDecodeError:
+            pass
+
+    # Brace-matched candidates, longest first.
+    candidates: List[str] = []
+    depth = 0
+    start = -1
+    for i, ch in enumerate(content or ""):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0 and start >= 0:
+                candidates.append(content[start : i + 1])
+                start = -1
+    candidates.sort(key=len, reverse=True)
+    for candidate in candidates:
+        if '"scores"' not in candidate:
+            continue
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+
+    logger.warning(f"Failed to parse multi-dim judge response: {(content or '')[:200]}")
+    return None
+
+
 # Default evaluation criteria and prompts
 DEFAULT_CRITERIA = {
     "helpfulness": {
@@ -946,6 +1071,253 @@ class LLMJudgeEvaluator(BaseEvaluator):
 
         logger.warning(f"Failed to parse LLM judge response: {content[:200]}")
         return None
+
+    def is_multidim_mode(self) -> bool:
+        """Return True when ``custom_criteria`` carries per-dimension ``max_score``.
+
+        Presence of ``max_score`` on any custom criterion flips the judge
+        into single-call multi-dimension mode (one LLM call yields all
+        dimension scores + a total). Absence keeps the legacy per-criterion
+        fan-out path. Dispatch sites (immediate-eval, bulk-eval) check
+        this before deciding whether to call
+        :meth:`_evaluate_multidim_single_call` or
+        :meth:`_evaluate_single_criterion`.
+        """
+        return any(
+            isinstance(definition, dict) and definition.get("max_score") is not None
+            for definition in (self.custom_criteria or {}).values()
+        )
+
+    def _evaluate_multidim_single_call(
+        self,
+        context: str,
+        ground_truth: str,
+        prediction: str,
+        task_data: Optional[Dict[str, Any]] = None,
+        field_outputs: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Single LLM call producing all dimension scores + a total.
+
+        Active when :meth:`is_multidim_mode` returns True. Builds one
+        prompt from ``self.custom_prompt_template`` (supports both ``{var}``
+        and ``{{var}}`` placeholders), calls the judge once with a strict
+        JSON schema derived from ``custom_criteria``, and parses
+        ``{scores, total_score, overall_assessment}`` from the response.
+
+        Template variable binding (in order, later wins):
+
+        1. Built-ins: ``context``, ``ground_truth``, ``prediction``.
+        2. Every key in ``task_data`` (so ``{{fall}}`` resolves from
+           ``task.data["fall"]`` with no field-mapping ceremony).
+        3. Every key in ``field_outputs`` — the flattened model or
+           annotation output (so ``{{kurzantwort}}``/``{{begruendung}}``
+           resolve to the model's per-field outputs).
+        4. ``self.field_mappings`` — explicit overrides for the cases the
+           auto-bind doesn't cover.
+
+        No aliases (``{response}``/``{candidate}``/``{reference}``/``{input}``)
+        — Issue #107 tracks the per-criterion path's parallel cleanup.
+
+        Returns a dict::
+
+            {
+              "scores": {<criterion_key>: {"score": float, "max": float, "reason": str}, ...},
+              "total_score": float,    # 0..sum(max_score)
+              "total_max": float,      # sum of max_score across criteria
+              "overall_assessment": str,
+              "_call_metadata": {...},
+              "_raw_output": str,
+              "_judge_prompts_used": {...}
+            }
+
+        On failure returns a dict with ``error: True`` and provenance,
+        mirroring ``_evaluate_single_criterion``'s failure shape so the
+        persistence layer can still record a typed ``error_type``.
+        """
+        # Resolve the template. The custom_prompt_template is required for
+        # multi-dim mode — without a user-authored prompt we have no way
+        # to spell out the rubric. Fall back to SINGLE_EVALUATION_PROMPT
+        # would silently emit a single-score response that fails the
+        # multi-dim parser; better to fail loudly.
+        raw_template = self.custom_prompt_template
+        if not raw_template:
+            return {
+                "error": True,
+                "error_message": (
+                    "Multi-dim mode requires custom_prompt_template; none was provided. "
+                    "Author a prompt that asks the judge to score every dimension in one JSON."
+                ),
+                "_call_metadata": {"error_type": "config_error"},
+                "_raw_output": "",
+            }
+        prompt_template = _preprocess_jinja_placeholders(raw_template)
+
+        # Built-ins first. No aliases — Issue #107.
+        template_vars: Dict[str, str] = {
+            "context": context or "No additional context provided.",
+            "ground_truth": ground_truth or "",
+            "prediction": prediction or "",
+        }
+        # Auto-bind task.data keys. Strings pass through; non-strings get
+        # JSON-encoded so structured task fields (e.g. a list of choices)
+        # render predictably.
+        for key, value in (task_data or {}).items():
+            if not isinstance(key, str) or not key.isidentifier():
+                continue  # str.format only accepts valid identifier keys
+            if value is None:
+                continue
+            template_vars[key] = (
+                value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+            )
+        # Auto-bind per-field model/annotation outputs. Later means higher
+        # precedence: if the same key appears in task.data and in the
+        # model output (rare; usually field names don't collide), the
+        # model output wins because that's the value being graded.
+        for key, value in (field_outputs or {}).items():
+            if not isinstance(key, str) or not key.isidentifier():
+                continue
+            if value is None:
+                continue
+            template_vars[key] = (
+                value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+            )
+        # Explicit field_mappings override anything auto-bound above.
+        if self.field_mappings:
+            template_vars = self._apply_field_mappings(task_data or {}, template_vars)
+
+        try:
+            prompt = prompt_template.format(**template_vars)
+        except KeyError as e:
+            logger.warning(f"Unknown template variable {e}, falling back to partial substitution")
+            prompt = prompt_template
+            for key, value in template_vars.items():
+                prompt = prompt.replace("{" + key + "}", str(value))
+
+        json_schema = _build_rubric_json_schema(self.custom_criteria)
+        # Sum of max_scores; used to clamp total_score and to give callers
+        # a 0..1 normalisation reference.
+        total_max = sum(
+            float(d.get("max_score") or 0)
+            for d in (self.custom_criteria or {}).values()
+        )
+
+        provenance = {
+            "system_prompt": "You are an expert evaluator. Respond only with valid JSON.",
+            "evaluation_prompt": prompt,
+            "judge_model": self.judge_model,
+            "temperature": self.temperature,
+            "custom_criteria": self.custom_criteria,
+            "field_mappings": self.field_mappings,
+            "mode": "multidim_single_call",
+        }
+
+        last_failure: Optional[Dict[str, Any]] = None
+
+        for attempt in range(self.max_retries):
+            try:
+                extra_kwargs: Dict[str, Any] = {"seed": self.seed}
+                if self.thinking_budget:
+                    extra_kwargs["thinking_budget"] = self.thinking_budget
+                if self.reasoning_effort:
+                    extra_kwargs["reasoning_effort"] = self.reasoning_effort
+
+                # generate_structured is the cross-provider wrapper Falllösung
+                # uses (falloesung_tasks.py:284) — providers that natively
+                # support strict JSON schema (OpenAI, Anthropic, Google,
+                # Cohere, Mistral, Grok, DeepInfra) consume it; others fall
+                # back to prompt-based JSON via the same call. Using
+                # `generate(response_format=...)` directly here would have
+                # blown up on Anthropic / Google judges with an unknown kwarg.
+                response = self.ai_service.generate_structured(
+                    prompt=prompt,
+                    system_prompt=provenance["system_prompt"],
+                    model_name=self.judge_model,
+                    json_schema=json_schema,
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature,
+                    **extra_kwargs,
+                )
+
+                if not response.get("success"):
+                    last_failure = {
+                        "error": True,
+                        "error_message": response.get("error"),
+                        "_call_metadata": _extract_call_metadata(response),
+                        "_raw_output": response.get("content", ""),
+                        "_judge_prompts_used": provenance,
+                    }
+                    break
+
+                content = response.get("content", "")
+                parsed = _parse_multidim_response(content)
+
+                if parsed and isinstance(parsed.get("scores"), dict):
+                    scores_in = parsed["scores"]
+                    clamped: Dict[str, Dict[str, Any]] = {}
+                    total = 0.0
+                    for key, definition in (self.custom_criteria or {}).items():
+                        max_score = definition.get("max_score")
+                        if max_score is None:
+                            continue
+                        raw = scores_in.get(key) or {}
+                        if isinstance(raw, (int, float)):
+                            raw = {"score": float(raw), "reason": ""}
+                        try:
+                            score = float(raw.get("score", 0))
+                        except (TypeError, ValueError):
+                            score = 0.0
+                        score = max(0.0, min(float(max_score), score))
+                        clamped[key] = {
+                            "score": score,
+                            "max": float(max_score),
+                            "reason": str(raw.get("reason", "") or ""),
+                        }
+                        total += score
+                    # Trust the model's total_score when present and within
+                    # tolerance of our sum; otherwise use the summed value.
+                    model_total = parsed.get("total_score")
+                    if isinstance(model_total, (int, float)) and abs(float(model_total) - total) <= 0.5:
+                        total = float(model_total)
+
+                    return {
+                        "scores": clamped,
+                        "total_score": float(total),
+                        "total_max": float(total_max),
+                        "overall_assessment": str(parsed.get("overall_assessment", "") or ""),
+                        "_call_metadata": _extract_call_metadata(response),
+                        "_raw_output": content,
+                        "_judge_prompts_used": provenance,
+                    }
+
+                last_failure = {
+                    "error": True,
+                    "error_message": "judge response missing parseable scores dict",
+                    "_call_metadata": {
+                        **_extract_call_metadata(response),
+                        "error_type": "parse_error",
+                    },
+                    "_raw_output": content,
+                    "_judge_prompts_used": provenance,
+                }
+
+            except Exception as e:
+                logger.warning(f"Multi-dim attempt {attempt + 1} failed: {e}")
+                try:
+                    from ai_services.base_service import classify_error_type
+                    error_type = classify_error_type(e)
+                except Exception:
+                    error_type = "unknown"
+                last_failure = {
+                    "error": True,
+                    "error_message": str(e),
+                    "_call_metadata": {"error_type": error_type},
+                    "_raw_output": "",
+                    "_judge_prompts_used": provenance,
+                }
+                if attempt < self.max_retries - 1:
+                    time.sleep(1 * (attempt + 1))
+
+        return last_failure
 
     def _format_value(self, value: Any) -> str:
         """Format a value for inclusion in prompts (type-aware if answer_type set)."""

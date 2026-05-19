@@ -726,13 +726,17 @@ async def generation_progress_websocket(
         if hasattr(redis_client, 'pubsub'):
             import redis.asyncio as redis_async
 
-            # Create async Redis client for pub/sub
-            async_redis = redis_async.Redis(
-                host=redis_client.connection_pool.connection_kwargs.get('host', 'localhost'),
-                port=redis_client.connection_pool.connection_kwargs.get('port', 6379),
-                db=redis_client.connection_pool.connection_kwargs.get('db', 0),
-                decode_responses=True,
-            )
+            # Forward every connection arg the sync client used (host, port,
+            # db, password, ssl, etc.) so the async pubsub client AUTHs the
+            # same way. Prior shape dropped the password — subscribes
+            # appeared to succeed but the server never actually registered
+            # the subscription, so PUBLISH returned 0 subscribers and no
+            # update ever reached the WS client. See the matching fix in
+            # routers/evaluations/ws.py (commit b6529dc).
+            kwargs = dict(redis_client.connection_pool.connection_kwargs)
+            kwargs.pop("connection_class", None)
+            kwargs["decode_responses"] = True
+            async_redis = redis_async.Redis(**kwargs)
             pubsub = async_redis.pubsub()
             await pubsub.subscribe(channel_name)
 

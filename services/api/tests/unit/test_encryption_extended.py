@@ -9,11 +9,11 @@ from unittest.mock import patch
 
 class TestEncryptionService:
     def test_import(self):
-        from services.encryption_service import EncryptionService
+        from encryption_service import EncryptionService
         assert EncryptionService is not None
 
     def test_encrypt_string(self):
-        from services.encryption_service import EncryptionService
+        from encryption_service import EncryptionService
         svc = EncryptionService()
         # If encryption is configured, encrypt/decrypt should work
         try:
@@ -25,7 +25,7 @@ class TestEncryptionService:
             pass  # May fail if no encryption key is configured
 
     def test_decrypt_invalid(self):
-        from services.encryption_service import EncryptionService
+        from encryption_service import EncryptionService
         svc = EncryptionService()
         try:
             result = svc.decrypt("not_valid_encrypted_data")
@@ -35,7 +35,7 @@ class TestEncryptionService:
             pass  # Expected for invalid data
 
     def test_encrypt_empty_string(self):
-        from services.encryption_service import EncryptionService
+        from encryption_service import EncryptionService
         svc = EncryptionService()
         try:
             encrypted = svc.encrypt("")
@@ -44,7 +44,7 @@ class TestEncryptionService:
             pass
 
     def test_encrypt_none(self):
-        from services.encryption_service import EncryptionService
+        from encryption_service import EncryptionService
         svc = EncryptionService()
         try:
             result = svc.encrypt(None)
@@ -53,7 +53,7 @@ class TestEncryptionService:
             pass  # Expected
 
     def test_roundtrip(self):
-        from services.encryption_service import EncryptionService
+        from encryption_service import EncryptionService
         svc = EncryptionService()
         original = "test_api_key_sk-12345"
         try:

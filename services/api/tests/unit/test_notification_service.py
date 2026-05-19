@@ -668,5 +668,46 @@ class TestWebhookNotifications:
         assert not hasattr(NotificationService, "register_webhook")
 
 
+class TestNotificationTypeDriftCheck:
+    """Tests for check_notification_type_enum_drift — guards against
+    silently-failing notifications when a NotificationType is added in
+    code but no ALTER TYPE ... ADD VALUE migration runs."""
+
+    def test_no_drift_returns_empty(self, mock_db):
+        from services.email.notification_service import check_notification_type_enum_drift
+
+        # DB returns every value present in the Python enum → no drift.
+        all_python_values = [(m.value,) for m in NotificationType]
+        mock_db.execute.return_value.fetchall.return_value = all_python_values
+
+        result = check_notification_type_enum_drift(mock_db)
+        assert result == []
+
+    def test_drift_returns_sorted_missing_values(self, mock_db, caplog):
+        import logging
+
+        from services.email.notification_service import check_notification_type_enum_drift
+
+        # Pretend Postgres has NO values at all — everything is missing.
+        mock_db.execute.return_value.fetchall.return_value = []
+
+        with caplog.at_level(logging.ERROR, logger="services.email.notification_service"):
+            result = check_notification_type_enum_drift(mock_db)
+
+        assert result == sorted([m.value for m in NotificationType])
+        # The error message must be loud and actionable.
+        assert "NotificationType drift" in caplog.text
+        assert "ALTER TYPE" in caplog.text
+
+    def test_db_error_does_not_crash_startup(self, mock_db):
+        """If pg_enum introspection fails for any reason (permissions,
+        weird PG variant), the check must not break startup — return []
+        and log a warning so the lifespan continues."""
+        from services.email.notification_service import check_notification_type_enum_drift
+
+        mock_db.execute.side_effect = Exception("can't read pg_enum")
+        assert check_notification_type_enum_drift(mock_db) == []
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

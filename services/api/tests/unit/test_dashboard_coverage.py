@@ -82,21 +82,24 @@ class TestDashboardStats:
         client = TestClient(app)
         user = _make_user(is_superadmin=True)
         mock_db = _mock_db()
-
-        result_row = Mock()
-        result_row.project_count = 10
-        result_row.task_count = 200
-        result_row.annotation_count = 100
-        result_row.projects_with_generations = 5
-        result_row.projects_with_evaluations = 3
-        mock_db.execute.return_value.fetchone.return_value = result_row
+        # New code path: dashboard reads via `read_dashboard_sum`. The
+        # superadmin branch also fires a `SELECT COUNT(*) FROM projects`
+        # scalar to backstop the precomputed project_count.
+        mock_db.execute.return_value.scalar.return_value = 10
 
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             with patch("routers.dashboard.cache") as mock_cache, \
-                 patch("routers.dashboard.get_accessible_project_ids", return_value=None):
+                 patch("routers.dashboard.get_accessible_project_ids", return_value=None), \
+                 patch("routers.dashboard.read_dashboard_sum") as mock_sums, \
+                 patch("routers.dashboard._live_evaluations_count", return_value=3):
                 mock_cache.get.return_value = None
+                mock_sums.return_value = {
+                    "project_count": 10, "total_tasks": 200, "labeled_tasks": 100,
+                    "annotations_count": 100, "generations_count": 5,
+                    "response_generations_count": 8, "evaluation_pairs_count": 3,
+                }
                 resp = client.get("/api/dashboard/stats")
                 assert resp.status_code == 200
                 assert resp.json()["project_count"] == 10
@@ -108,20 +111,19 @@ class TestDashboardStats:
         user = _make_user(is_superadmin=False)
         mock_db = _mock_db()
 
-        result_row = Mock()
-        result_row.project_count = 3
-        result_row.task_count = 50
-        result_row.annotation_count = 20
-        result_row.projects_with_generations = 2
-        result_row.projects_with_evaluations = 1
-        mock_db.execute.return_value.fetchone.return_value = result_row
-
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
             with patch("routers.dashboard.cache") as mock_cache, \
-                 patch("routers.dashboard.get_accessible_project_ids", return_value=["p-1", "p-2"]):
+                 patch("routers.dashboard.get_accessible_project_ids", return_value=["p-1", "p-2"]), \
+                 patch("routers.dashboard.read_dashboard_sum") as mock_sums, \
+                 patch("routers.dashboard._live_evaluations_count", return_value=1):
                 mock_cache.get.return_value = None
+                mock_sums.return_value = {
+                    "project_count": 3, "total_tasks": 50, "labeled_tasks": 30,
+                    "annotations_count": 20, "generations_count": 2,
+                    "response_generations_count": 3, "evaluation_pairs_count": 1,
+                }
                 resp = client.get(
                     "/api/dashboard/stats",
                     headers={"X-Organization-Context": "org-1"},

@@ -236,7 +236,7 @@ class TestEnhancedApiKeyValidation:
             mock_post_cm = Mock()
             mock_post_cm.__aenter__ = AsyncMock(return_value=mock_response)
             mock_post_cm.__aexit__ = AsyncMock(return_value=None)
-            mock_session.post.return_value = mock_post_cm
+            mock_session.get.return_value = mock_post_cm
 
             mock_session_cm = Mock()
             mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
@@ -263,7 +263,7 @@ class TestEnhancedApiKeyValidation:
             mock_post_cm = Mock()
             mock_post_cm.__aenter__ = AsyncMock(return_value=mock_response)
             mock_post_cm.__aexit__ = AsyncMock(return_value=None)
-            mock_session.post.return_value = mock_post_cm
+            mock_session.get.return_value = mock_post_cm
 
             mock_session_cm = Mock()
             mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
@@ -287,7 +287,7 @@ class TestEnhancedApiKeyValidation:
             mock_post_cm = Mock()
             mock_post_cm.__aenter__ = AsyncMock(return_value=mock_response)
             mock_post_cm.__aexit__ = AsyncMock(return_value=None)
-            mock_session.post.return_value = mock_post_cm
+            mock_session.get.return_value = mock_post_cm
 
             mock_session_cm = Mock()
             mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)

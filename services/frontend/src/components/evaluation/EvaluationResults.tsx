@@ -20,6 +20,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { TaskDataViewModal } from '@/components/tasks/TaskDataViewModal'
 import { canStartGeneration } from '@/utils/permissions'
 import { apiClient } from '@/lib/api/client'
+import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
 import { projectsAPI } from '@/lib/api/projects'
 import { Task as LabelStudioTask } from '@/types/labelStudio'
 import { Task } from '@/lib/api/types'
@@ -736,13 +737,13 @@ export function EvaluationResults({
           if (closed) return
           // 4401 / 4403 are application-defined close codes the backend
           // emits when the WS handshake fails auth (no/invalid token) or
-          // access (no project membership). Reconnecting cannot fix these
-          // and a stale browser tab would otherwise hammer the server
-          // forever with bad tokens. Drop straight to polling — the HTTP
-          // request will return 401 and the global auth interceptor will
-          // bounce the user to login if the session is genuinely expired.
+          // access (no project membership). Reconnecting cannot fix these.
+          // Fire the standard "session expired" UX: red toast + redirect to
+          // /login (full reload, same flow used for HTTP 401). Bail out of
+          // the WS connect/poll bookkeeping — the page is about to unmount.
           if (ev.code === 4401 || ev.code === 4403) {
-            startPollingFallback()
+            closed = true
+            redirectToLoginAsExpired()
             return
           }
           // Exponential backoff up to 5 attempts, then drop to polling.

@@ -1643,3 +1643,108 @@ class AgreementMetricType(str, Enum):
             self.INTRACLASS_CORRELATION,
         }
         return self in multi_annotator_metrics
+
+
+class LLMLeaderboardScore(Base):
+    """Precomputed per-(model, scope, period, metric) leaderboard rows.
+
+    Populated by the Celery task `recompute_aggregates`. Read by
+    /api/leaderboards/llm-models{,/{id},/compare}. Replaces the
+    materialise-everything-into-Python pattern that OOMed prod 2026-05-19.
+
+    `metric='average'` carries the cross-metric mean score that the default
+    ranking sorts on. Per-specific-metric rows let the picker show the per-
+    metric column without re-aggregating.
+    """
+
+    __tablename__ = "llm_leaderboard_scores"
+    __table_args__ = (
+        UniqueConstraint(
+            "model_id",
+            "project_scope_key",
+            "period",
+            "metric",
+            name="uq_lls_scope",
+        ),
+        Index(
+            "ix_lls_lookup",
+            "project_scope_key",
+            "period",
+            "metric",
+            "score",
+        ),
+    )
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    model_id = Column(String, nullable=False)
+    # 'all' | 'public' | <project_id>. Unusual filter combinations
+    # (multi-project, evaluation_type filter) fall back to live aggregation.
+    project_scope_key = Column(String, nullable=False)
+    period = Column(String, nullable=False)  # 'overall'|'monthly'|'weekly'
+    metric = Column(String, nullable=False)
+    score = Column(Float, nullable=True)
+    ci_lower = Column(Float, nullable=True)
+    ci_upper = Column(Float, nullable=True)
+    samples_evaluated = Column(Integer, nullable=False, server_default=text("0"))
+    evaluation_count = Column(Integer, nullable=False, server_default=text("0"))
+    generation_count = Column(Integer, nullable=False, server_default=text("0"))
+    last_evaluated_at = Column(DateTime(timezone=True), nullable=True)
+    computed_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    def __repr__(self):
+        return (
+            f"<LLMLeaderboardScore(model={self.model_id}, scope={self.project_scope_key}, "
+            f"period={self.period}, metric={self.metric}, score={self.score})>"
+        )
+
+
+class ProjectSummary(Base):
+    """Precomputed per-(project, period) counters that feed the dashboard
+    and per-project tiles. Populated by `recompute_aggregates`.
+
+    `evaluation_pairs_count` is the de-noised count of (subject, real-metric)
+    pairs scored in completed evaluation runs — the same definition as
+    routers.projects.helpers._scored_pairs_query but computed once.
+
+    `available_models` is the JSONB list of distinct generation model_ids
+    for this project, so the model picker doesn't have to DISTINCT-scan
+    generations on every request.
+    """
+
+    __tablename__ = "project_summaries"
+    __table_args__ = (
+        UniqueConstraint("project_id", "period", name="uq_ps_scope"),
+        Index("ix_ps_lookup", "project_id", "period"),
+    )
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(
+        String,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    period = Column(String, nullable=False)  # 'overall'|'monthly'|'weekly'
+    total_tasks = Column(Integer, nullable=False, server_default=text("0"))
+    labeled_tasks = Column(Integer, nullable=False, server_default=text("0"))
+    annotations_count = Column(Integer, nullable=False, server_default=text("0"))
+    generations_count = Column(Integer, nullable=False, server_default=text("0"))
+    response_generations_count = Column(
+        Integer, nullable=False, server_default=text("0")
+    )
+    evaluation_pairs_count = Column(
+        Integer, nullable=False, server_default=text("0")
+    )
+    available_models = Column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb")
+    )
+    computed_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    def __repr__(self):
+        return (
+            f"<ProjectSummary(project={self.project_id}, period={self.period}, "
+            f"tasks={self.total_tasks}, eval_pairs={self.evaluation_pairs_count})>"
+        )

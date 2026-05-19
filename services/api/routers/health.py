@@ -8,10 +8,11 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from auth_module import User, require_superadmin, require_user
-from database import get_db
+from database import get_async_db, get_db
 
 logger = logging.getLogger(__name__)
 
@@ -31,18 +32,32 @@ async def health_check():
 
 
 @router.get("/health")
-async def health():
+async def health(db: AsyncSession = Depends(get_async_db)):
     """Health check endpoint for Docker healthcheck and Kubernetes probes.
 
-    Checks Redis connectivity. Returns 503 if Redis is unreachable so
-    Kubernetes removes the pod from the load balancer.
+    Required deps (return 503 → K8s evicts the pod):
+      - Redis: pre-existing — API can't serve cached endpoints or WS
+        pub/sub without it.
+      - Postgres: API can't serve anything without it. Newly added.
+
+    Soft deps (mark `degraded` but still 200):
+      - Celery workers: API can still serve sync requests; only async
+        tasks queue up. K8s shouldn't evict for this — operators
+        should alert on the body field.
+
+    Pre-existing /health only checked Redis: if all workers were down
+    or the DB was unreachable, /health still returned 200 and K8s kept
+    the pod in rotation.
     """
     health_status = {
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "redis": "unknown",
+        "database": "unknown",
+        "celery_workers": "unknown",
     }
 
+    # Redis check (required)
     try:
         from services.redis_cache import cache
 
@@ -51,13 +66,56 @@ async def health():
             health_status["redis"] = "connected"
         else:
             health_status["redis"] = "unavailable"
-            health_status["status"] = "degraded"
+            health_status["status"] = "unhealthy"
             return JSONResponse(status_code=503, content=health_status)
     except Exception as e:
         logger.warning(f"Health check: Redis ping failed: {e}")
-        health_status["redis"] = f"error"
-        health_status["status"] = "degraded"
+        health_status["redis"] = "error"
+        health_status["status"] = "unhealthy"
         return JSONResponse(status_code=503, content=health_status)
+
+    # Database check (required). Tight timeout via the async engine's
+    # server_settings statement_timeout (15s); SELECT 1 finishes in
+    # single-digit ms when DB is healthy.
+    try:
+        await db.execute(text("SELECT 1"))
+        health_status["database"] = "connected"
+    except Exception as e:
+        logger.warning(f"Health check: DB ping failed: {e}")
+        health_status["database"] = "error"
+        health_status["status"] = "unhealthy"
+        return JSONResponse(status_code=503, content=health_status)
+
+    # Celery worker check (soft — degraded but 200). Inspect.ping()
+    # broadcasts to all workers; we accept any pong as "workers reachable".
+    # Wrap in a hard timeout so a broker hiccup can't slow /health to a
+    # crawl. Pre-existing behavior: total silence; now at least the
+    # body reflects the state so operators can alert on it.
+    try:
+        import asyncio
+
+        from celery_client import get_celery_app
+
+        def _ping_workers():
+            return get_celery_app().control.inspect(timeout=2.0).ping()
+
+        # Run the sync celery inspect in a thread so it can't block the
+        # event loop, with a 3s ceiling.
+        pong = await asyncio.wait_for(
+            asyncio.to_thread(_ping_workers), timeout=3.0
+        )
+        if pong:
+            health_status["celery_workers"] = f"reachable ({len(pong)} node(s))"
+        else:
+            health_status["celery_workers"] = "no_workers_responding"
+            health_status["status"] = "degraded"
+    except asyncio.TimeoutError:
+        health_status["celery_workers"] = "timeout"
+        health_status["status"] = "degraded"
+    except Exception as e:
+        logger.warning(f"Health check: Celery inspect failed: {e}")
+        health_status["celery_workers"] = "error"
+        health_status["status"] = "degraded"
 
     return health_status
 
@@ -77,16 +135,42 @@ async def cors_auth_test(request: Request, current_user: User = Depends(require_
 
 
 @router.get("/health/schema")
-async def health_check_schema(db: Session = Depends(get_db)):
-    """Validate database schema health"""
+async def health_check_schema(db: AsyncSession = Depends(get_async_db)):
+    """Validate database schema health.
+
+    This is the Phase 0 worked example for the asyncpg + AsyncSession
+    migration (see benger-platform/CLAUDE.md "Database — sync vs async"
+    and the prod-stability cleanup plan). The endpoint runs two leaf
+    queries with no service-layer plumbing, so it's the minimal end-to-end
+    proof that the async engine + dependency wiring works.
+
+    Additionally verifies that the Postgres-side `statement_timeout` set
+    via asyncpg's `server_settings` actually propagates — if it doesn't,
+    we'd lose the runaway-query guard for all future async handlers.
+    """
     try:
-        # Test critical table access with key columns that caused issues
-        db.execute(text("SELECT id, username, encrypted_openai_api_key FROM users LIMIT 1"))
-        db.execute(text("SELECT id, name FROM tasks LIMIT 1"))
+        # Smoke the schema. The pre-async version queried `tasks.name` which
+        # doesn't exist (`tasks` has `id, project_id, data, ...` — no `name`
+        # column), so the endpoint silently returned status:error before the
+        # async conversion too. Use real columns so the smoke check is
+        # actually useful.
+        await db.execute(
+            text("SELECT id, username, encrypted_openai_api_key FROM users LIMIT 1")
+        )
+        await db.execute(text("SELECT id, project_id FROM tasks LIMIT 1"))
+
+        # Confirm server_settings made it across the asyncpg connection.
+        st_row = await db.execute(text("SELECT current_setting('statement_timeout')"))
+        statement_timeout = st_row.scalar()
+        app_row = await db.execute(text("SELECT current_setting('application_name')"))
+        application_name = app_row.scalar()
 
         return {
             "status": "healthy",
             "schema": "validated",
+            "engine": "async",
+            "statement_timeout": statement_timeout,
+            "application_name": application_name,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as e:

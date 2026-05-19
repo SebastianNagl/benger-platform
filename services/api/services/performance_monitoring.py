@@ -213,14 +213,22 @@ class DatabasePerformanceValidator:
         return report
 
 
-# SQLAlchemy event listener for automatic slow query logging
-@event.listens_for(Engine, "before_cursor_execute")
-def receive_before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+# SQLAlchemy event listener for automatic slow query logging.
+#
+# Engine-level events (before/after_cursor_execute) fire on the SYNC engine.
+# The async engine's wrapper exposes the underlying sync interface as
+# `async_engine.sync_engine` — attaching the same listener there gives us
+# the same slow-query visibility on async paths once the asyncpg
+# migration starts converting handlers (database.async_engine, Phase 0+).
+def _receive_before_cursor_execute(
+    conn, cursor, statement, parameters, context, executemany
+):
     context._query_start_time = time.time()
 
 
-@event.listens_for(Engine, "after_cursor_execute")
-def receive_after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+def _receive_after_cursor_execute(
+    conn, cursor, statement, parameters, context, executemany
+):
     total = time.time() - context._query_start_time
 
     # Log slow queries (>100ms)
@@ -228,6 +236,16 @@ def receive_after_cursor_execute(conn, cursor, statement, parameters, context, e
         logger.warning(f"Slow query: {total*1000:.2f}ms - {statement[:100]}...")
     elif total > 0.05:  # Log moderately slow queries for monitoring
         logger.info(f"Query: {total*1000:.2f}ms - {statement[:50]}...")
+
+
+# Attach to the SQLAlchemy Engine base class. The listener fires for
+# every engine instance — the legacy sync engine in database.py AND the
+# AsyncEngine's `sync_engine` wrapper (which is what asyncpg-backed
+# queries actually execute through). One attach point covers both lanes;
+# attaching separately to `async_engine.sync_engine` would double-fire
+# (verified live 2026-05-19).
+event.listen(Engine, "before_cursor_execute", _receive_before_cursor_execute)
+event.listen(Engine, "after_cursor_execute", _receive_after_cursor_execute)
 
 
 if __name__ == "__main__":

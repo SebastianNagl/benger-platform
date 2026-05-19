@@ -1363,6 +1363,25 @@ models:
       provenance:
         source: https://huggingface.co/Qwen/Qwen3.6-35B-A3B#best-practices
         retrieved: '2026-05-07'
+  - id: Qwen/Qwen3.6-27B
+    name: Qwen 3.6 27B
+    description: 27B dense, 262K context, agentic coding flagship (Apache 2.0)
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, coding]
+    is_active: true
+    input_cost_per_million: 0.32
+    output_cost_per_million: 3.2
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 0.7
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://huggingface.co/Qwen/Qwen3.6-27B#best-practices
+        retrieved: '2026-05-08'
   - id: Qwen/Qwen3-235B-A22B-Instruct-2507
     name: Qwen3-235B Instruct
     description: Instruction-following variant (non-thinking, very cheap)
@@ -2003,11 +2022,11 @@ models:
         retrieved: '2026-05-07'
   - id: magistral-small-latest
     name: Magistral Small
-    description: Magistral Small 1.2 — efficient reasoning model
+    description: Magistral Small 1.2 — efficient reasoning model (retired by Mistral 2026-05; see docs.mistral.ai/getting-started/models/models_overview)
     provider: Mistral
     model_type: chat
     capabilities: [reasoning, text-generation]
-    is_active: true
+    is_active: false
     input_cost_per_million: 0.5
     output_cost_per_million: 1.0
     default_config:

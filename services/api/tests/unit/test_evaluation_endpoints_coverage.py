@@ -71,16 +71,27 @@ class TestGetEvaluationStatus:
 class TestStreamEvaluationStatus:
     @pytest.mark.asyncio
     async def test_access_denied(self):
+        """stream_evaluation_status dropped its `db: Session` parameter in
+        commit 7c61a79 (prod-stability WS-session-leak fix) — the handler
+        now opens its own per-iteration session inside the generator,
+        rather than holding the request-scoped session for the lifetime
+        of the SSE stream. The test signature was never updated, so the
+        kwarg got passed through and TypeError'd at call time.
+        """
         from routers.evaluations.status import stream_evaluation_status
-        db = Mock()
-        evaluation = Mock(project_id="proj-1")
-        db.query.return_value.filter.return_value.first.return_value = evaluation
         user = Mock(id="user-1")
         request = Mock()
         request.state.organization_context = None
-        with patch("routers.evaluations.status.check_project_accessible", return_value=False):
+        # Patch the per-iteration `next(get_db())` so the handler sees
+        # the same evaluation row it used to fetch via the dep-injected
+        # db parameter.
+        evaluation = Mock(project_id="proj-1")
+        mock_db = Mock()
+        mock_db.query.return_value.filter.return_value.first.return_value = evaluation
+        with patch("routers.evaluations.status.get_db", return_value=iter([mock_db])), \
+             patch("routers.evaluations.status.check_project_accessible", return_value=False):
             with pytest.raises(HTTPException) as exc_info:
-                await stream_evaluation_status(evaluation_id="eval-1", request=request, current_user=user, db=db)
+                await stream_evaluation_status(evaluation_id="eval-1", request=request, current_user=user)
             assert exc_info.value.status_code == 403
 
 

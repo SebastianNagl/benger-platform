@@ -76,6 +76,81 @@ class TestInvitationEmailTask:
                     "inv-2", "fail@example.com", "Jane", "Org", "http://example.com/invite", "member"
                 )
 
+    def test_permanent_4xx_returns_failed_without_raising(self):
+        """Regression: a SendGrid 400/401/403 used to burn 3 full retries
+        because autoretry_for=(Exception,) swept up the RuntimeError
+        raised for every non-success status. Now 4xx (except 429) is
+        treated as permanent — return failed_permanent and let the task
+        complete so the rate-limited (30/m) emails queue keeps moving."""
+        mock_client = MagicMock()
+        mock_client.send_message.return_value = {
+            "status": "error",
+            "status_code": 400,
+            "error": "SendGrid API error: 400",
+            "details": "malformed recipient",
+        }
+        mock_class = MagicMock(return_value=mock_client)
+
+        with patch('sendgrid_client.SendGridClient', mock_class):
+            result = send_invitation_email_task(
+                "inv-4xx", "bad@", "Jane", "Org", "http://example.com/invite", "member"
+            )
+
+        assert result["status"] == "failed_permanent"
+        assert result["status_code"] == 400
+        # Only ONE send attempt — no retry.
+        assert mock_client.send_message.call_count == 1
+
+    def test_429_rate_limit_still_retries(self):
+        """429 means SendGrid is throttling us — we MUST retry with the
+        countdown=60 backoff. Don't classify 429 as permanent."""
+        mock_client = MagicMock()
+        mock_client.send_message.return_value = {
+            "status": "error",
+            "status_code": 429,
+            "error": "SendGrid API error: 429",
+        }
+        mock_class = MagicMock(return_value=mock_client)
+
+        with patch('sendgrid_client.SendGridClient', mock_class):
+            with pytest.raises(RuntimeError, match="SendGrid error"):
+                send_invitation_email_task(
+                    "inv-429", "x@example.com", "Jane", "Org", "http://example.com/invite", "member"
+                )
+
+    def test_5xx_still_retries(self):
+        """Server errors are transient — they MUST keep retrying."""
+        mock_client = MagicMock()
+        mock_client.send_message.return_value = {
+            "status": "error",
+            "status_code": 503,
+            "error": "SendGrid API error: 503",
+        }
+        mock_class = MagicMock(return_value=mock_client)
+
+        with patch('sendgrid_client.SendGridClient', mock_class):
+            with pytest.raises(RuntimeError, match="SendGrid error"):
+                send_invitation_email_task(
+                    "inv-5xx", "x@example.com", "Jane", "Org", "http://example.com/invite", "member"
+                )
+
+    def test_network_failure_still_retries(self):
+        """Network/transport errors arrive with status_code=None and
+        should remain retryable (so autoretry_for picks them up)."""
+        mock_client = MagicMock()
+        mock_client.send_message.return_value = {
+            "status": "error",
+            "status_code": None,
+            "error": "Connection refused",
+        }
+        mock_class = MagicMock(return_value=mock_client)
+
+        with patch('sendgrid_client.SendGridClient', mock_class):
+            with pytest.raises(RuntimeError, match="SendGrid error"):
+                send_invitation_email_task(
+                    "inv-net", "x@example.com", "Jane", "Org", "http://example.com/invite", "member"
+                )
+
     def test_send_invitation_email_logs_correctly(self):
         """Test that invitation email task logs correctly"""
         invitation_id = "test-inv-789"

@@ -19,6 +19,32 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AdminUsersPage from '../page'
 
+// Mock the shared Select component so it renders as a native <select>
+// instead of the HeadlessUI Listbox + portal-mounted popup. The real
+// component is correct but jsdom + portal mounting + userEvent click on
+// Listbox.Option doesn't reliably fire onValueChange, so unit tests
+// drive it via native semantics. Matches the pattern used in
+// notifications/__tests__/page.coverage.test.tsx and
+// evaluation/__tests__/PDFReportGenerator.test.tsx.
+jest.mock('@/components/shared/Select', () => ({
+  Select: ({ value, onValueChange, disabled, children }: any) => (
+    <select
+      role="combobox"
+      value={value ?? ''}
+      onChange={(e) => onValueChange(e.target.value)}
+      disabled={disabled}
+    >
+      {children}
+    </select>
+  ),
+  SelectTrigger: () => null,
+  SelectValue: () => null,
+  SelectContent: ({ children }: any) => <>{children}</>,
+  SelectItem: ({ value, children }: any) => (
+    <option value={value}>{children}</option>
+  ),
+}))
+
 // Mock modules
 jest.mock('@/contexts/AuthContext')
 jest.mock('@/contexts/FeatureFlagContext', () => ({
@@ -686,21 +712,23 @@ describe('AdminUsersPage', () => {
         expect(screen.getByText('Test User 1')).toBeInTheDocument()
       })
 
+      // With the Select mock above rendering native <select>/<option>,
+      // userEvent.selectOptions works again. Find the dropdown sitting
+      // in Test User 1's row and pick the "Superadmin" option.
       const dropdowns = screen.getAllByRole('combobox')
       const userDropdown = dropdowns.find((dropdown) =>
         dropdown.closest('tr')?.textContent?.includes('Test User 1')
       )
+      expect(userDropdown).toBeDefined()
 
-      if (userDropdown) {
-        await user.selectOptions(userDropdown, 'superadmin')
+      await user.selectOptions(userDropdown!, 'superadmin')
 
-        await waitFor(() => {
-          expect(mockApi.updateUserSuperadminStatus).toHaveBeenCalledWith(
-            'user-1',
-            true
-          )
-        })
-      }
+      await waitFor(() => {
+        expect(mockApi.updateUserSuperadminStatus).toHaveBeenCalledWith(
+          'user-1',
+          true
+        )
+      })
     })
 
     it('should handle superadmin status update error', async () => {

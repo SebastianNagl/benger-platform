@@ -220,15 +220,26 @@ def calculate_project_stats(
     # "how many of my answers have been evaluated on how many metrics"; the old
     # job-count masked partial coverage (a 1-job run scoring 314 of 500
     # subjects looked identical to a fully-scored run).
-    pairs = (
-        _scored_pairs_query(db)
-        .filter(EvaluationRun.project_id == project_id)
-        .distinct()
-        .all()
-    )
-    response.evaluation_count = sum(
-        1 for _pid, sub_id, mk in pairs if _metric_key_is_real(mk)
-    )
+    #
+    # Reads from the precomputed `project_summaries.evaluation_pairs_count`
+    # (refreshed by the `recompute_aggregates` Celery task every 12h). Falls
+    # back to the original live computation when no precomputed row exists —
+    # brand-new projects shouldn't render zero before the next refresh.
+    from services.aggregate_summaries import read_project_summary
+
+    summary = read_project_summary(db, project_id, period="overall")
+    if summary is not None:
+        response.evaluation_count = int(summary.evaluation_pairs_count or 0)
+    else:
+        pairs = (
+            _scored_pairs_query(db)
+            .filter(EvaluationRun.project_id == project_id)
+            .distinct()
+            .all()
+        )
+        response.evaluation_count = sum(
+            1 for _pid, sub_id, mk in pairs if _metric_key_is_real(mk)
+        )
     response.evaluations_completed_count = response.evaluation_count
 
     # Mirror to the legacy aliases so frontends reading either name see the
@@ -287,55 +298,58 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
         .group_by(Annotation.project_id)
     )
 
-    # Query 3: Scored (subject, metric) pairs per project. Same definition as
-    # the single-project path — see calculate_project_stats for the rationale.
-    # Pulls DISTINCT (project_id, subject_id, metric_key) tuples and counts in
-    # Python so we can strip noise keys (_raw, _details, etc.) consistently
-    # with routers/evaluations/metadata.py.
-    evaluation_pairs_query = (
-        _scored_pairs_query(db)
-        .filter(EvaluationRun.project_id.in_(project_ids))
-        .distinct()
-    )
-
-    # Execute queries
+    # Execute task/annotation queries (pure SQL, cheap).
     task_stats = task_stats_query.all()
     annotation_stats = annotation_stats_query.all()
-    evaluation_pairs = evaluation_pairs_query.all()
+
+    # Evaluation pairs: read from the precomputed `project_summaries` table.
+    # Falls back to the original Python-side aggregation for any project that
+    # doesn't have a precomputed row yet (brand-new projects waiting for the
+    # next `recompute_aggregates` cycle).
+    from models import ProjectSummary
+    from sqlalchemy import select as sa_select
+
+    summary_rows = db.execute(
+        sa_select(ProjectSummary.project_id, ProjectSummary.evaluation_pairs_count)
+        .where(
+            ProjectSummary.project_id.in_(project_ids),
+            ProjectSummary.period == "overall",
+        )
+    ).all()
+    eval_count_by_project = {pid: int(cnt or 0) for pid, cnt in summary_rows}
+    missing_summary_ids = [pid for pid in project_ids if pid not in eval_count_by_project]
+    if missing_summary_ids:
+        live_pairs = (
+            _scored_pairs_query(db)
+            .filter(EvaluationRun.project_id.in_(missing_summary_ids))
+            .distinct()
+            .all()
+        )
+        for pid, _sub_id, metric_key in live_pairs:
+            if not _metric_key_is_real(metric_key):
+                continue
+            eval_count_by_project[pid] = eval_count_by_project.get(pid, 0) + 1
+        # Ensure every project_id in missing has at least a 0 entry.
+        for pid in missing_summary_ids:
+            eval_count_by_project.setdefault(pid, 0)
 
     # Build stats lookup dictionary
     stats_map = {}
-
-    # Initialize all projects with zero stats
     for project_id in project_ids:
         stats_map[project_id] = {
             'task_count': 0,
             'completed_tasks_count': 0,
             'annotation_count': 0,
-            'evaluation_count': 0,
-            'evaluations_completed_count': 0,
+            'evaluation_count': eval_count_by_project.get(project_id, 0),
+            'evaluations_completed_count': eval_count_by_project.get(project_id, 0),
         }
 
-    # Populate task stats
     for stat in task_stats:
         stats_map[stat.project_id]['task_count'] = stat.task_count or 0
         stats_map[stat.project_id]['completed_tasks_count'] = stat.completed_tasks_count or 0
 
-    # Populate annotation stats
     for stat in annotation_stats:
         stats_map[stat.project_id]['annotation_count'] = stat.annotation_count or 0
-
-    # Populate evaluation stats — count scored (subject, metric) pairs per
-    # project after filtering noise keys.
-    for project_id, _sub_id, metric_key in evaluation_pairs:
-        if not _metric_key_is_real(metric_key):
-            continue
-        if project_id in stats_map:
-            stats_map[project_id]['evaluation_count'] += 1
-    for project_id in project_ids:
-        stats_map[project_id]['evaluations_completed_count'] = stats_map[project_id][
-            'evaluation_count'
-        ]
 
     return stats_map
 

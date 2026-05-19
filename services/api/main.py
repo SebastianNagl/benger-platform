@@ -239,6 +239,23 @@ async def lifespan(app: FastAPI):
         finally:
             db.close()
 
+    # Surface NotificationType enum drift loudly at startup. A new Python
+    # enum value without the matching `ALTER TYPE notificationtype ADD VALUE`
+    # migration causes notifications of that type to silently fail at insert
+    # — `create_notification` returns [] and the calling endpoint reports
+    # 200. The startup check logs CRITICAL with the list of missing values
+    # so the gap is visible before a user hits it.
+    if database_available and not settings.testing:
+        db = SessionLocal()
+        try:
+            from services.email.notification_service import check_notification_type_enum_drift
+
+            check_notification_type_enum_drift(db)
+        except Exception as e:
+            logger.warning(f"NotificationType drift check skipped: {e}")
+        finally:
+            db.close()
+
     # Mark init as done so subsequent hot-reloads skip heavy initialization
     if not settings.testing and not is_reload:
         try:

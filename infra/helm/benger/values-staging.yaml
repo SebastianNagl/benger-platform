@@ -35,6 +35,11 @@ api:
         secretKeyRef:
           name: benger-api-secrets
           key: secret_key
+    - name: JWT_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: secret_key
     - name: ENCRYPTION_KEY
       valueFrom:
         secretKeyRef:
@@ -102,6 +107,11 @@ workers:
           name: benger-redis-credentials
           key: uri
     - name: SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: secret_key
+    - name: JWT_SECRET_KEY
       valueFrom:
         secretKeyRef:
           name: benger-api-secrets

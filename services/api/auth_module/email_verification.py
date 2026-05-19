@@ -17,11 +17,17 @@ from email_service import EmailService
 from localization import LanguageDetector
 from models import User
 
+from .config import ALGORITHM as JWT_ALGORITHM
+from .config import SECRET_KEY as JWT_SECRET
+
 logger = logging.getLogger(__name__)
 
 # Configuration
-JWT_SECRET = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")
-JWT_ALGORITHM = "HS256"
+# JWT_SECRET / JWT_ALGORITHM resolve via auth_module.config so this module
+# never silently falls back to a hardcoded literal in production. Previous
+# code did `os.getenv("JWT_SECRET_KEY", "your-secret-key-here")`; in prod
+# helm sets only SECRET_KEY (not JWT_SECRET_KEY), so verification tokens
+# were being signed with the literal string fallback.
 VERIFICATION_TOKEN_EXPIRE_HOURS = 48
 RATE_LIMIT_MINUTES = 5  # Minimum time between verification email sends
 

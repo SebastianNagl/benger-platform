@@ -10,9 +10,25 @@ from alembic import context
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
+# /shared is where models.py, project_models.py, and report_models.py
+# now live (consolidated 2026-05-19, commits f481c79 + a4c8a8c).
+# Alembic doesn't share sys.path with the API's runtime, so we have to
+# add it here. Falls back to the relative `services/shared/` path for
+# host-local alembic runs where /shared isn't a real Docker mount.
+_shared_dir = (
+    "/shared"
+    if os.path.exists("/shared")
+    else os.path.normpath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "shared")
+    )
+)
+if _shared_dir not in sys.path:
+    sys.path.insert(0, _shared_dir)
+
 # Import all models to ensure they're registered with Base.metadata
 import models  # noqa: E402, F401
 import project_models  # noqa: E402, F401
+import report_models  # noqa: E402, F401  — ProjectReport on Base; without this `alembic check` would propose `remove_table('project_reports')` because the metadata snapshot was incomplete.
 from database import DATABASE_URL, Base  # noqa: E402
 
 # this is the Alembic Config object, which provides

@@ -87,11 +87,14 @@ def test_list_projects_query_count(client, test_db, auth_headers, test_users):
         # 3. Task stats batch query
         # 4. Annotation stats batch query
         # 5-6. Possible additional queries for organizations/memberships
+        # 7. project_summaries batch lookup for evaluation/generation
+        #    counts (added 2026-05-19 with the aggregate_summaries refactor)
         #
-        # Should be <= 10 queries (not 1 + 10*3 = 31 queries)
-        assert counter.count <= 10, (
+        # Should be <= 12 queries (not 1 + 10*3 = 31 queries). The point
+        # is "no N+1," not a tight equality check.
+        assert counter.count <= 12, (
             f"Too many queries: {counter.count}. "
-            f"Expected <= 10, got {counter.count}. "
+            f"Expected <= 12, got {counter.count}. "
             f"This indicates N+1 query problem."
         )
 

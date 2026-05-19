@@ -12,6 +12,9 @@ from auth_module.models import User as AuthUser
 from database import get_db
 from project_models import Annotation, Project, Task, TaskAssignment
 from project_schemas import AnnotationCreate, AnnotationResponse
+from utils.assignment_helpers import (
+    mark_assignment_completed as _mark_assignment_completed,
+)
 from routers.projects.helpers import (
     check_project_accessible,
     check_task_assigned_to_user,
@@ -145,26 +148,21 @@ async def create_annotation(
     from extensions import on_annotation_created
     on_annotation_created(db, task_id, current_user.id, db_annotation.id, task.project_id)
 
-    # Mark task assignment as completed in manual/auto mode
+    # Mark task assignment as completed in manual/auto mode. Delegates to the
+    # shared helper so the same status-flip semantics apply across annotation
+    # and korrektur surfaces.
     if (
         project
         and project.assignment_mode in ["manual", "auto"]
         and not db_annotation.was_cancelled
         and db_annotation.result
     ):
-        assignment = (
-            db.query(TaskAssignment)
-            .filter(
-                TaskAssignment.task_id == task_id,
-                TaskAssignment.user_id == current_user.id,
-                TaskAssignment.status.in_(["assigned", "in_progress"]),
-            )
-            .first()
+        # Module-level import done once at startup — issue #30 PR 1 noted that
+        # function-local imports of `utils.*` fail at request time because the
+        # uvicorn worker's cwd doesn't keep /app on sys.path.
+        _mark_assignment_completed(
+            db, task_id=task_id, user_id=current_user.id,
         )
-        if assignment:
-            assignment.status = "completed"
-            assignment.completed_at = datetime.now(timezone.utc)
-            db.commit()
 
     # Update report annotations section after annotation creation (Issue #770)
     try:

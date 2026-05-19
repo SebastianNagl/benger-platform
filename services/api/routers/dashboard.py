@@ -5,18 +5,20 @@ Dashboard and analytics endpoints.
 import logging
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from auth_module import User, require_user
 from database import get_db
-from models import EvaluationRun
+from models import EvaluationRun, Generation
+from project_models import Annotation, Task
 from redis_cache import RedisCache
 from routers.projects.helpers import (
     _metric_key_is_real,
     _scored_pairs_query,
     get_accessible_project_ids,
 )
+from services.aggregate_summaries import read_dashboard_sum
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +26,60 @@ logger = logging.getLogger(__name__)
 cache = RedisCache()
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
+
+
+def _live_evaluations_count(db: Session, accessible_ids):
+    """Fallback path when project_summaries hasn't been populated yet.
+
+    Mirrors the original code at services/api/routers/dashboard.py — pulls
+    (subject, metric) pairs and applies the noise filter in Python. Kept
+    for new-project safety so brand-new projects show accurate stats before
+    the next `recompute_aggregates` cycle.
+    """
+    pairs_q = _scored_pairs_query(db).distinct()
+    if accessible_ids is not None:
+        pairs_q = pairs_q.filter(EvaluationRun.project_id.in_(accessible_ids))
+    return sum(1 for _pid, _sub, mk in pairs_q.all() if _metric_key_is_real(mk))
+
+
+def _live_dashboard_counts(db: Session, accessible_ids):
+    """Belt-and-braces live counts for tasks / annotations / generations
+    when project_summaries hasn't been populated yet. Mirrors the per-
+    project predicates in services.aggregate_summaries._compute_project_summary
+    so the fallback values match what the beat task would write —
+    critically, generations counts only Generation rows with
+    parse_status="success", not raw ResponseGeneration rows.
+
+    Brand-new projects (created since the last recompute_aggregates cycle)
+    have no project_summaries rows, so reads through read_dashboard_sum
+    return 0 across the board. Without this fallback the dashboard would
+    show flat-zero stats for hours until the 12h cron — confusing to users
+    and a regression vs. the original live-counting implementation.
+    """
+    task_q = select(func.count(Task.id))
+    ann_q = select(func.count(Annotation.id)).where(
+        Annotation.was_cancelled == False,  # noqa: E712
+        func.jsonb_array_length(Annotation.result) > 0,
+    )
+    # Generation count predicate must match aggregate_summaries:
+    # `select count(Generation.id) join Task where parse_status = 'success'`.
+    # An earlier version of this fallback used a plain ResponseGeneration
+    # count, which over-reported by including pending/failed parses.
+    gen_q = (
+        select(func.count(Generation.id))
+        .join(Task, Generation.task_id == Task.id)
+        .where(Generation.parse_status == "success")
+    )
+    if accessible_ids is not None:
+        task_q = task_q.where(Task.project_id.in_(accessible_ids))
+        ann_q = ann_q.where(Annotation.project_id.in_(accessible_ids))
+        gen_q = gen_q.where(Task.project_id.in_(accessible_ids))
+
+    return {
+        "total_tasks": int(db.execute(task_q).scalar() or 0),
+        "annotations_count": int(db.execute(ann_q).scalar() or 0),
+        "generations_count": int(db.execute(gen_q).scalar() or 0),
+    }
 
 
 @router.get("/stats")
@@ -38,15 +94,20 @@ async def get_dashboard_stats(
     - task_count: Total tasks (issues) across all accessible projects
     - projects_with_generations: Projects that have LLM generated answers
     - projects_with_evaluations: Projects that have completed evaluations
+
+    Reads from the precomputed `project_summaries` table (refreshed by the
+    `recompute_aggregates` Celery beat task every 12h). Brand-new projects
+    that haven't been picked up by a refresh yet fall back to a live count
+    so the dashboard never shows stale-zero. The existing 5-min Redis TTL
+    smooths repeated requests in both cases.
     """
     org_context = request.headers.get("X-Organization-Context")
 
-    # Create cache key based on user ID and org context. The `v2` suffix
-    # invalidates the old "count of task_evaluations rows" answer when this
-    # deploy lands — see _scored_pairs_query for the new semantics.
-    cache_key = f"dashboard_stats:v2:{current_user.id}:{org_context or 'private'}"
+    # `v3` bumps invalidate the old in-Python-aggregation cache values when
+    # this deploy lands — see services.aggregate_summaries.read_dashboard_sum
+    # for the new read shape.
+    cache_key = f"dashboard_stats:v3:{current_user.id}:{org_context or 'private'}"
 
-    # Try to get from cache first
     cached_stats = cache.get(cache_key)
     if cached_stats:
         logger.debug(f"Dashboard stats cache hit for user {current_user.id}")
@@ -56,7 +117,6 @@ async def get_dashboard_stats(
         accessible_ids = get_accessible_project_ids(db, current_user, org_context)
 
         if accessible_ids is not None and not accessible_ids:
-            # No accessible projects - return zeros
             stats = {
                 "project_count": 0,
                 "task_count": 0,
@@ -67,62 +127,57 @@ async def get_dashboard_stats(
             cache.set(cache_key, stats, ttl=300)
             return stats
 
-        if accessible_ids is None:
-            # Superadmin: see all projects
-            stats_query = text(
-                """
-                SELECT
-                    (SELECT COUNT(*) FROM projects) as project_count,
-                    (SELECT COUNT(*) FROM tasks) as task_count,
-                    (SELECT COUNT(*) FROM annotations WHERE jsonb_array_length(result) > 0 AND was_cancelled = false) as annotation_count,
-                    (SELECT COUNT(*) FROM generations) as projects_with_generations
-            """
-            )
-            result = db.execute(stats_query).fetchone()
-        else:
-            # Scoped to accessible project IDs
-            placeholders = ", ".join([f":pid_{i}" for i in range(len(accessible_ids))])
-            stats_query_str = f"""
-                WITH accessible_projects AS (
-                    SELECT p.id FROM projects p WHERE p.id IN ({placeholders})
-                )
-                SELECT
-                    (SELECT COUNT(*) FROM accessible_projects) as project_count,
-                    (SELECT COUNT(*) FROM tasks t
-                     INNER JOIN accessible_projects ap ON t.project_id = ap.id) as task_count,
-                    (SELECT COUNT(*) FROM annotations a
-                     INNER JOIN tasks t ON a.task_id = t.id
-                     INNER JOIN accessible_projects ap ON t.project_id = ap.id
-                     WHERE jsonb_array_length(a.result) > 0 AND a.was_cancelled = false) as annotation_count,
-                    (SELECT COUNT(*) FROM generations g
-                     INNER JOIN tasks t ON g.task_id = t.id
-                     INNER JOIN accessible_projects ap ON t.project_id = ap.id) as projects_with_generations
-            """
-            bind_params = {f"pid_{i}": pid for i, pid in enumerate(accessible_ids)}
-            stats_query = text(stats_query_str).bindparams(**bind_params)
-            result = db.execute(stats_query).fetchone()
+        # All counters come from the precomputed project_summaries table.
+        sums = read_dashboard_sum(db, accessible_ids, period="overall")
 
-        # Evaluations: distinct (subject, metric) pairs that have at least one
-        # scored row in a completed run. Same definition as the project page
-        # tile — see helpers._scored_pairs_query.
-        scored_pairs_q = _scored_pairs_query(db).distinct()
-        if accessible_ids is not None:
-            scored_pairs_q = scored_pairs_q.filter(
-                EvaluationRun.project_id.in_(accessible_ids)
-            )
-        evaluations_count = sum(
-            1 for _pid, sub_id, mk in scored_pairs_q.all() if _metric_key_is_real(mk)
-        )
+        # `project_count` from project_summaries reflects rows that have been
+        # precomputed at least once. For brand-new projects we'd undercount
+        # until the next recompute cycle — fall back to a direct count when
+        # the precomputed row count looks suspiciously low.
+        project_count = sums["project_count"]
+        if accessible_ids is None:
+            true_total = db.execute(text("SELECT COUNT(*) FROM projects")).scalar() or 0
+            if project_count < true_total:
+                project_count = int(true_total)
+        else:
+            true_total = len(accessible_ids)
+            if project_count < true_total:
+                project_count = int(true_total)
+
+        evaluations_count = sums["evaluation_pairs_count"]
+        if evaluations_count == 0 and (
+            accessible_ids is None or len(accessible_ids) > 0
+        ):
+            # Belt-and-braces: brand-new projects with no project_summaries
+            # rows yet shouldn't render a flat zero if there ARE evaluations.
+            evaluations_count = _live_evaluations_count(db, accessible_ids)
+
+        task_count = int(sums["total_tasks"])
+        annotation_count = int(sums["annotations_count"])
+        generations_count = int(sums["generations_count"])
+
+        # Same belt-and-braces for the other three counters: if any one of
+        # them is 0 against a non-empty accessible_ids set, the corresponding
+        # project_summaries rows haven't been populated yet for that scope.
+        # Fall back to a live count to match what recompute_aggregates would
+        # eventually write.
+        if (
+            (accessible_ids is None or len(accessible_ids) > 0)
+            and (task_count == 0 or annotation_count == 0 or generations_count == 0)
+        ):
+            live = _live_dashboard_counts(db, accessible_ids)
+            task_count = max(task_count, live["total_tasks"])
+            annotation_count = max(annotation_count, live["annotations_count"])
+            generations_count = max(generations_count, live["generations_count"])
 
         stats = {
-            "project_count": result.project_count if result else 0,
-            "task_count": result.task_count if result else 0,
-            "annotation_count": result.annotation_count if result else 0,
-            "projects_with_generations": result.projects_with_generations if result else 0,
+            "project_count": project_count,
+            "task_count": task_count,
+            "annotation_count": annotation_count,
+            "projects_with_generations": generations_count,
             "projects_with_evaluations": evaluations_count,
         }
 
-        # Cache the results for 5 minutes (dashboard stats don't change frequently)
         cache.set(cache_key, stats, ttl=300)
         logger.debug(f"Dashboard stats cached for user {current_user.id}")
 
@@ -130,7 +185,6 @@ async def get_dashboard_stats(
 
     except Exception as e:
         logger.error(f"Error getting dashboard stats: {str(e)}")
-        # Return default values on error
         return {
             "project_count": 0,
             "task_count": 0,

@@ -28,6 +28,49 @@ from models import (
 
 logger = logging.getLogger(__name__)
 
+
+def check_notification_type_enum_drift(db: Session) -> List[str]:
+    """Compare the Python NotificationType enum against the Postgres
+    `notificationtype` enum labels and return any values that exist in
+    the Python enum but not in Postgres.
+
+    A drift here would have silently broken notifications for that type
+    — `create_notification` catches `invalid input value for enum`,
+    logs, rolls back, and returns []. The caller endpoint returns 200
+    and the user never sees that the notification was dropped. Run this
+    on startup and log a CRITICAL for any missing value so the gap is
+    visible in logs before a real user hits it.
+    """
+    try:
+        rows = db.execute(
+            sa.text(
+                "SELECT enumlabel FROM pg_enum "
+                "JOIN pg_type ON pg_enum.enumtypid = pg_type.oid "
+                "WHERE pg_type.typname = 'notificationtype'"
+            )
+        ).fetchall()
+        db_values = {r[0] for r in rows}
+    except Exception as e:
+        logger.warning(
+            f"Could not introspect notificationtype enum (skipping drift check): {e}"
+        )
+        return []
+
+    python_values = {m.value for m in NotificationType}
+    missing_in_db = sorted(python_values - db_values)
+    if missing_in_db:
+        logger.error(
+            "🚨 NotificationType drift: %d value(s) exist in code but not in the "
+            "Postgres `notificationtype` enum: %s. Notifications of these types "
+            "will silently fail until an `ALTER TYPE notificationtype ADD VALUE` "
+            "migration runs. See e.g. alembic/versions/034_add_korrektur_assigned_"
+            "notification_type.py for the pattern.",
+            len(missing_in_db),
+            missing_in_db,
+        )
+    return missing_in_db
+
+
 # Import email service (with fallback if not available)
 try:
     from email_service import send_notification_email

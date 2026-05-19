@@ -36,11 +36,23 @@ class EmailService:
 
     def _init_template_environment(self) -> Environment:
         """Initialize Jinja2 template environment for email templates"""
-        template_dir = Path(__file__).parent / "templates" / "email"
+        # Templates live in services/shared (mounted at /shared in both
+        # Docker images) so the API and the workers render from the same
+        # source. Previously this worker resolved to an empty local
+        # templates/email directory and every notification email dispatched
+        # from Celery failed silently at template lookup.
+        template_dir = Path(
+            os.environ.get("EMAIL_TEMPLATE_DIR", "/shared/email_templates/email")
+        )
 
         if not template_dir.exists():
             logger.warning(f"Template directory not found: {template_dir}")
-            template_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                template_dir.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                logger.warning(
+                    f"Cannot create template directory (read-only filesystem?): {template_dir}"
+                )
 
         env = Environment(
             loader=FileSystemLoader(str(template_dir)),
@@ -123,26 +135,45 @@ class EmailService:
             return False
 
 
+        # notification.type can be a NotificationType enum OR a plain
+        # string (the worker's send_notification_batch_task hydrates an
+        # unattached Notification with `type=notif_dict["type"]` where
+        # the dict value is a string from the JSON payload — SQLAlchemy
+        # doesn't auto-coerce until commit, and we never add this
+        # instance to the session). Normalize once here.
+        if hasattr(notification.type, "value"):
+            type_value = notification.type.value
+        elif isinstance(notification.type, str):
+            type_value = notification.type
+        else:
+            type_value = "general"
+
         # Build template context
         template_context = {
             "notification": notification,
-            "notification_type": notification.type.value if notification.type else "general",
+            "notification_type": type_value,
             "user_email": user_email,
             **(context or {}),
         }
 
-        # Select template based on notification type
+        # Select template based on notification type. Pre-consolidation
+        # this referenced TASK_CREATED / TASK_COMPLETED — those names
+        # never existed on the canonical (API-side) NotificationType
+        # enum, so any NotificationType.TASK_CREATED lookup raised
+        # AttributeError. With /shared/models.py canonical the enum
+        # values are TASK_ASSIGNED + ANNOTATION_COMPLETED. Key the map
+        # by string value (`.value`) rather than enum object so a plain
+        # string `notification.type` (see above) also resolves.
         template_map = {
-            NotificationType.TASK_CREATED: "task_assigned.html",
-            NotificationType.TASK_COMPLETED: "task_completed.html",
-            NotificationType.ANNOTATION_COMPLETED: "annotation_completed.html",
-            NotificationType.ORGANIZATION_INVITATION_SENT: "organization_invite.html",
-            NotificationType.DATA_UPLOAD_COMPLETED: "data_import_success.html",
-            NotificationType.EVALUATION_COMPLETED: "evaluation_completed.html",
-            NotificationType.LLM_GENERATION_COMPLETED: "llm_generation_completed.html",
+            NotificationType.TASK_ASSIGNED.value: "task_assigned.html",
+            NotificationType.ANNOTATION_COMPLETED.value: "annotation_completed.html",
+            NotificationType.ORGANIZATION_INVITATION_SENT.value: "organization_invite.html",
+            NotificationType.DATA_UPLOAD_COMPLETED.value: "data_import_success.html",
+            NotificationType.EVALUATION_COMPLETED.value: "evaluation_completed.html",
+            NotificationType.LLM_GENERATION_COMPLETED.value: "llm_generation_completed.html",
         }
 
-        template_name = template_map.get(notification.type, "default_notification.html")
+        template_name = template_map.get(type_value, "default_notification.html")
 
         try:
             # Render template

@@ -15,7 +15,10 @@ from datetime import datetime
 from response_parser import ResponseParser
 
 from database import SessionLocal
-from models import LLMResponse as DBLLMResponse
+# Same table as `generations`. Worker used to have its own LLMResponse
+# class; with /shared/models.py canonical, `Generation` is the single
+# definition.
+from models import Generation as DBLLMResponse
 from models import ResponseGeneration as DBResponseGeneration
 from project_models import Project
 

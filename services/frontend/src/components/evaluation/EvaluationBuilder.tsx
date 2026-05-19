@@ -57,6 +57,8 @@ import {
 } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FieldMappingEditor } from './FieldMappingEditor'
+import { PromptTemplateEditor } from './PromptTemplateEditor'
+import { DimensionsEditor } from './DimensionsEditor'
 
 interface EvaluationBuilderProps {
   projectId: string
@@ -1270,37 +1272,101 @@ export function EvaluationBuilder({
                   }
                 />
 
-                {/* Score Scale Selection */}
-                <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                    {t('evaluationBuilder.parameters.scoreScale')}
-                  </label>
-                  <Select
-                    value={
-                      (newEvaluation.metric_parameters.score_scale as string) || '1-5'
-                    }
-                    onValueChange={(v) =>
-                      setNewEvaluation((prev) => ({
-                        ...prev,
-                        metric_parameters: {
-                          ...prev.metric_parameters,
-                          score_scale: v,
-                        },
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select score scale..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1-5">1-5 {t('evaluationBuilder.parameters.scoreScaleNormalized')}</SelectItem>
-                      <SelectItem value="0-1">0-1 {t('evaluationBuilder.parameters.scoreScaleDirect')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {t('evaluationBuilder.parameters.scoreScaleDescription')}
-                  </p>
-                </div>
+                {/* Dimensions Editor — drives multi-dim single-call mode when
+                    any dimension has max_score. Renders above the score-scale
+                    selector because score_scale is meaningless once max_score
+                    weights are in play. */}
+                <DimensionsEditor
+                  value={
+                    (newEvaluation.metric_parameters.custom_criteria as
+                      | Record<string, CustomCriteriaDefinition>
+                      | undefined) || {}
+                  }
+                  onChange={(dims) =>
+                    setNewEvaluation((prev) => ({
+                      ...prev,
+                      metric_parameters: {
+                        ...prev.metric_parameters,
+                        custom_criteria: Object.keys(dims).length > 0 ? dims : undefined,
+                      },
+                    }))
+                  }
+                />
+
+                {/* Prompt Template Editor — multi-line authoring with click-to-
+                    insert variable pills. The backend accepts both {var} and
+                    {{var}} placeholders (Jinja-style is pre-processed to
+                    Python format() syntax). */}
+                <PromptTemplateEditor
+                  value={
+                    (newEvaluation.metric_parameters.custom_prompt_template as string) || ''
+                  }
+                  onChange={(template) =>
+                    setNewEvaluation((prev) => ({
+                      ...prev,
+                      metric_parameters: {
+                        ...prev.metric_parameters,
+                        custom_prompt_template: template || undefined,
+                      },
+                    }))
+                  }
+                  knownVariables={[
+                    'context',
+                    'ground_truth',
+                    'prediction',
+                    ...Object.keys(
+                      (newEvaluation.metric_parameters.field_mappings as
+                        | Record<string, string>
+                        | undefined) || {}
+                    ),
+                  ]}
+                  dimensionKeys={Object.keys(
+                    (newEvaluation.metric_parameters.custom_criteria as
+                      | Record<string, CustomCriteriaDefinition>
+                      | undefined) || {}
+                  )}
+                />
+
+                {/* Score Scale Selection — only meaningful in legacy per-
+                    criterion mode. Hidden when any dimension carries a
+                    max_score, since multi-dim mode encodes its own scale
+                    per dimension. */}
+                {!Object.values(
+                  (newEvaluation.metric_parameters.custom_criteria as
+                    | Record<string, CustomCriteriaDefinition>
+                    | undefined) || {}
+                ).some((d) => typeof d?.max_score === 'number') && (
+                  <div>
+                    <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {t('evaluationBuilder.parameters.scoreScale')}
+                    </label>
+                    <Select
+                      value={
+                        (newEvaluation.metric_parameters.score_scale as string) || '1-5'
+                      }
+                      onValueChange={(v) =>
+                        setNewEvaluation((prev) => ({
+                          ...prev,
+                          metric_parameters: {
+                            ...prev.metric_parameters,
+                            score_scale: v,
+                          },
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select score scale..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1-5">1-5 {t('evaluationBuilder.parameters.scoreScaleNormalized')}</SelectItem>
+                        <SelectItem value="0-1">0-1 {t('evaluationBuilder.parameters.scoreScaleDirect')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {t('evaluationBuilder.parameters.scoreScaleDescription')}
+                    </p>
+                  </div>
+                )}
 
                 {/* Field Mapping Editor - primary for Custom */}
                 <FieldMappingEditor
@@ -1613,6 +1679,7 @@ export function EvaluationBuilder({
               if (ExtendedEditor) {
                 return (
                   <ExtendedEditor
+                    metric={newEvaluation.metric}
                     parameters={newEvaluation.metric_parameters}
                     onChange={(patch) =>
                       setNewEvaluation((prev) => ({
@@ -1620,6 +1687,10 @@ export function EvaluationBuilder({
                         metric_parameters: { ...prev.metric_parameters, ...patch },
                       }))
                     }
+                    siblingConfigs={evaluations.map((e) => ({
+                      metric: e.metric,
+                      metric_parameters: e.metric_parameters as Record<string, unknown> | undefined,
+                    }))}
                   />
                 )
               }
