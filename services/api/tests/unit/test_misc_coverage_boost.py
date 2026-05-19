@@ -186,63 +186,84 @@ class TestAnthropicValidationBranches:
 
     @pytest.mark.asyncio
     async def test_anthropic_success_format(self):
-        """Lines 308-309: valid key format."""
+        """Successful /v1/models call returns success tuple."""
         service = self._make_service()
-        valid, msg, err = await service._validate_anthropic_key("sk-ant-test123")
-        assert valid is True
-        assert "successful" in msg.lower()
+        with patch(
+            "asyncio.wait_for",
+            AsyncMock(return_value=(True, "Connection to Anthropic successful", "success")),
+        ):
+            valid, msg, err = await service._validate_anthropic_key("sk-ant-test123")
+            assert valid is True
+            assert "successful" in msg.lower()
 
     @pytest.mark.asyncio
     async def test_anthropic_invalid_format(self):
-        """Lines 310-311: invalid key format."""
+        """Prefix fast-fail returns invalid_format without a network call."""
         service = self._make_service()
         valid, msg, err = await service._validate_anthropic_key("invalid-key")
         assert valid is False
         assert "invalid" in msg.lower()
+        assert err == "invalid_format"
 
     @pytest.mark.asyncio
     async def test_anthropic_auth_error(self):
-        """Lines 300-303: AuthenticationError exception."""
+        """AuthenticationError raised inside wait_for is mapped to err=auth."""
         service = self._make_service()
 
         class AuthenticationError(Exception):
             pass
 
         with patch("asyncio.wait_for", side_effect=AuthenticationError("bad key")):
-            valid, msg, err = await service._validate_anthropic_key("key")
+            valid, msg, err = await service._validate_anthropic_key("sk-ant-bogus")
             assert valid is False
             assert err == "auth"
 
     @pytest.mark.asyncio
     async def test_anthropic_generic_error(self):
-        """Line 304: generic exception."""
+        """Non-auth exception inside wait_for is mapped to err=connection_error."""
         service = self._make_service()
         with patch("asyncio.wait_for", side_effect=ConnectionError("fail")):
-            valid, msg, err = await service._validate_anthropic_key("key")
+            valid, msg, err = await service._validate_anthropic_key("sk-ant-bogus")
             assert valid is False
             assert err == "connection_error"
 
 
 class TestGoogleValidation:
-    """Cover lines 316-319."""
+    """Cover Google validator branches via mocked aiohttp /v1/models call."""
 
     def _make_service(self):
         from services.user_api_key_service import UserApiKeyService
 
         return UserApiKeyService(Mock())
 
+    def _aiohttp_mock(self, status):
+        mock_response = Mock()
+        mock_response.status = status
+        get_cm = Mock()
+        get_cm.__aenter__ = AsyncMock(return_value=mock_response)
+        get_cm.__aexit__ = AsyncMock(return_value=None)
+        session = Mock()
+        session.get.return_value = get_cm
+        session_cm = Mock()
+        session_cm.__aenter__ = AsyncMock(return_value=session)
+        session_cm.__aexit__ = AsyncMock(return_value=None)
+        return session_cm
+
     @pytest.mark.asyncio
     async def test_google_valid(self):
         service = self._make_service()
-        valid, msg, err = await service._validate_google_key("AIzaSomething")
-        assert valid is True
+        with patch("aiohttp.ClientSession", return_value=self._aiohttp_mock(200)):
+            valid, msg, err = await service._validate_google_key("AIzaSomething")
+            assert valid is True
+            assert err == "success"
 
     @pytest.mark.asyncio
     async def test_google_invalid(self):
         service = self._make_service()
-        valid, msg, err = await service._validate_google_key("invalid-key")
-        assert valid is False
-        assert err == "auth"
+        with patch("aiohttp.ClientSession", return_value=self._aiohttp_mock(400)):
+            valid, msg, err = await service._validate_google_key("invalid-key")
+            assert valid is False
+            assert err == "auth"
 
 
 class TestCreateUserApiKeyServiceFactory:
