@@ -59,10 +59,19 @@ class TestEncryptionServiceInitialization:
         assert service.encryption_key is not None
         assert service.fernet is not None
 
-    def test_initialization_with_default_secret(self):
-        """Test service initialization with default secret"""
-        # Clear environment variables
+    def test_initialization_without_any_key_raises(self):
+        """Regression: previously the service silently fell back to the
+        literal "default-secret-key", which would have made every stored
+        user API key decryptable from repo content. The consolidated
+        impl now refuses to start instead."""
         with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(RuntimeError, match="refuses to start"):
+                EncryptionService()
+
+    def test_initialization_with_test_mode_sentinel(self):
+        """Conftest sets BENGER_TEST_MODE so unit tests that need a
+        service instance without any key vars can still construct one."""
+        with patch.dict(os.environ, {"BENGER_TEST_MODE": "1"}, clear=True):
             service = EncryptionService()
             assert service.encryption_key is not None
             assert service.fernet is not None
