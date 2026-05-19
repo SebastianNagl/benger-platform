@@ -942,38 +942,7 @@ class HumanEvaluationMapping(Base):
 
 # Note: IgnoredEnterpriseProject class removed in migration 411540fa6c40 (legacy enterprise feature)
 
-
-class ProjectReport(Base):
-    """
-    Project report model for publishing evaluation results.
-
-    Reports are automatically created when projects are created and progressively
-    populated as the project advances (data import, annotation, generation, evaluation).
-    """
-
-    __tablename__ = "project_reports"
-
-    id = Column(String, primary_key=True, index=True)
-    project_id = Column(
-        String,
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=True,
-        index=True,
-    )
-
-    # Report content (editable sections)
-    content = Column(JSONB, nullable=False)
-
-    # Publication status
-    is_published = Column(Boolean, default=False, nullable=False, index=True)
-    published_at = Column(DateTime(timezone=True), nullable=True)
-    published_by = Column(String, ForeignKey("users.id"), nullable=True)
-
-    # Audit fields
-    created_by = Column(String, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    def __repr__(self):
-        return f"<ProjectReport(id={self.id}, project_id={self.project_id}, is_published={self.is_published})>"
+# Note: ProjectReport moved to services/shared/report_models.py so the API and
+# workers share a single Table definition. The previous parallel copy here
+# conflicted with the API's report_models.py when both registered the same
+# project_reports table on the shared Base metadata.

@@ -241,6 +241,16 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
+# Add /shared to sys.path early so top-level imports like `report_models`
+# resolve before the ai_services block below. Mirrors api/main.py:29-33.
+_shared_dir = (
+    "/shared"
+    if os.path.exists("/shared")
+    else os.path.join(os.path.dirname(os.path.dirname(current_dir)), "shared")
+)
+if _shared_dir not in sys.path:
+    sys.path.insert(0, _shared_dir)
+
 # Import database and models at top level to avoid import issues in worker processes
 try:
     from database import SessionLocal
@@ -248,7 +258,7 @@ try:
     # Prompt import removed in Issue #759 - use generation_structure instead
     from models import LLMModel as DBLLMModel
     from models import LLMResponse as DBLLMResponse  # Individual LLM responses
-    from models import ProjectReport as DBProjectReport  # For report updates
+    from report_models import ProjectReport as DBProjectReport  # /shared — single source of truth
     from models import ResponseGeneration as DBResponseGeneration
 
     # DBTask removed - old task system cleanup
@@ -5564,10 +5574,12 @@ def finalize_evaluation_run(
         db.commit()
 
         # Report section update — lifted from ex-`tasks.py:3956-3958`.
+        # report_service lives in /shared so both API and workers import it
+        # via top-level name. The previous code hacked services/api/ onto
+        # sys.path from the worker container at runtime, but the worker
+        # image has no api/ sibling, so the import always failed and the
+        # report's evaluation section silently never auto-refreshed.
         try:
-            api_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'api')
-            if api_dir not in sys.path:
-                sys.path.insert(0, api_dir)
             from report_service import update_report_evaluation_section
 
             update_report_evaluation_section(db, evaluation.project_id)

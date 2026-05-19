@@ -3,6 +3,7 @@ Notification service for Celery workers
 Includes NotificationService class for creating database notifications
 """
 
+import json
 import logging
 import uuid
 from typing import Dict, List, Optional
@@ -60,8 +61,6 @@ class NotificationService:
         Returns:
             List of created notification objects
         """
-        import json
-
         from sqlalchemy import text
 
         # Convert to lowercase string value for database storage
@@ -113,5 +112,34 @@ class NotificationService:
             logger.error(f"Failed to commit notifications: {e}")
             db.rollback()
             return []
+
+        # Dispatch email sends to the emails-queue worker so users with
+        # email notifications enabled actually get an email. Previously this
+        # function only committed the in-app row and returned — the bell
+        # lit up but no email was sent. Mirrors the API-side dispatch in
+        # services/api/services/email/notification_service.py:179-187.
+        try:
+            from celery import current_app
+
+            notification_data = [
+                {
+                    "id": n["id"],
+                    "user_id": n["user_id"],
+                    "type": notification_type_str,
+                    "title": title,
+                    "message": message,
+                    "data": data or {},
+                }
+                for n in notifications
+            ]
+            current_app.send_task(
+                "emails.send_notification_batch",
+                args=[notification_data],
+                queue="emails",
+            )
+        except Exception as e:
+            # Never let an email-dispatch failure surface to the caller;
+            # the in-app notification already committed above.
+            logger.warning(f"Failed to enqueue notification emails: {e}")
 
         return notifications

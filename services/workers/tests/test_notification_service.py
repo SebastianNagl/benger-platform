@@ -208,3 +208,63 @@ class TestCreateNotification:
         )
         assert result == []
         db.execute.assert_not_called()
+
+    def test_dispatches_email_batch_after_commit(self):
+        """Regression: the worker-side NotificationService used to commit
+        the in-app row and then return — silently skipping the email send.
+        Users with email_enabled=True saw the bell light up but never got
+        an email for any worker-triggered notification (evaluation
+        completed/failed, llm generation completed). Mirrors the API-side
+        dispatch added 2026-05-18.
+        """
+        db = self._make_mock_db()
+        with patch("celery.current_app") as mock_app:
+            NotificationService.create_notification(
+                db=db,
+                user_ids=["u1", "u2"],
+                notification_type="evaluation_completed",
+                title="Done",
+                message="x",
+                data={"project_id": "p1"},
+            )
+        mock_app.send_task.assert_called_once()
+        args, kwargs = mock_app.send_task.call_args
+        assert args[0] == "emails.send_notification_batch"
+        assert kwargs["queue"] == "emails"
+        # Each recipient gets a payload entry
+        payload = kwargs["args"][0]
+        assert len(payload) == 2
+        assert {p["user_id"] for p in payload} == {"u1", "u2"}
+        assert payload[0]["type"] == "evaluation_completed"
+        assert payload[0]["title"] == "Done"
+
+    def test_email_dispatch_failure_does_not_break_notification(self):
+        """A failing send_task must not roll back the in-app commit."""
+        db = self._make_mock_db()
+        with patch("celery.current_app") as mock_app:
+            mock_app.send_task.side_effect = Exception("Redis down")
+            result = NotificationService.create_notification(
+                db=db,
+                user_ids=["u1"],
+                notification_type="info",
+                title="T",
+                message="M",
+            )
+        # The commit still happened and the function returned the recipients
+        assert len(result) == 1
+        db.rollback.assert_not_called()
+
+    def test_no_email_dispatch_when_commit_failed(self):
+        """If the in-app commit raises, we must not enqueue an email for
+        a notification the user can't see — return [] without dispatch."""
+        db = self._make_mock_db(commit_side_effect=Exception("DB down"))
+        with patch("celery.current_app") as mock_app:
+            result = NotificationService.create_notification(
+                db=db,
+                user_ids=["u1"],
+                notification_type="info",
+                title="T",
+                message="M",
+            )
+        assert result == []
+        mock_app.send_task.assert_not_called()
