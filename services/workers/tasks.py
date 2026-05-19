@@ -285,8 +285,19 @@ try:
         from notification_service import NotificationService, notify_task_completed
 
         HAS_NOTIFICATION_SERVICE = True
-    except ImportError:
-        # Mock notification service for testing
+    except ImportError as _notif_imp_err:
+        # Log loudly (not silently) so a real import bug in prod shows
+        # up in worker logs instead of silently returning empty
+        # notification lists — which is what hid the worker
+        # NotificationService email-dispatch gap until 2026-05-19.
+        logger.error(
+            "❌ notification_service not importable — worker will accept "
+            "create_notification calls but return [] and emit no events. "
+            "Reason: %s",
+            _notif_imp_err,
+            exc_info=True,
+        )
+
         def notify_task_completed(*args, **kwargs):
             return {"status": "mock", "notification_sent": False}
 
@@ -320,7 +331,25 @@ try:
     HAS_DATABASE = True
     logger.info("✅ Database and models imported successfully")
 except ImportError as e:
-    logger.error(f"❌ Failed to import database/models: {e}")
+    # In any non-test environment a worker without SessionLocal can't do
+    # its job — every task body would hit a Mock that returns None / []
+    # and pretend success. Log CRITICAL with stack so the gap is obvious;
+    # also refuse to start in production/staging where the only correct
+    # response is "fix it and redeploy", not "limp along returning mocks".
+    if os.getenv("ENVIRONMENT", "").lower() in ("production", "staging"):
+        logger.critical(
+            "❌ Failed to import database/models in production — refusing to start. %s",
+            e,
+            exc_info=True,
+        )
+        raise
+    logger.critical(
+        "❌ Failed to import database/models — falling back to in-memory mocks. "
+        "Every task will return success-shaped data without touching the DB. "
+        "Reason: %s",
+        e,
+        exc_info=True,
+    )
 
     # Mock classes for testing
     class SessionLocal:
@@ -385,7 +414,23 @@ try:
     HAS_AI_SERVICES = True
     logger.info("✅ AI services imported successfully from shared module")
 except ImportError as e:
-    logger.error(f"❌ Failed to import AI services: {e}")
+    # AI services are required for generation/evaluation tasks. Mirror the
+    # SessionLocal fail-fast pattern above so a real import bug in prod
+    # doesn't silently degrade every model call to a mock "response".
+    if os.getenv("ENVIRONMENT", "").lower() in ("production", "staging"):
+        logger.critical(
+            "❌ Failed to import AI services in production — refusing to start. %s",
+            e,
+            exc_info=True,
+        )
+        raise
+    logger.critical(
+        "❌ Failed to import AI services — generation/evaluation tasks will "
+        "return mock 'Mock <provider> response' strings without ever calling "
+        "the model. Reason: %s",
+        e,
+        exc_info=True,
+    )
 
     # Mock classes for testing
     class OpenAIService:
