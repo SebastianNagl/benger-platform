@@ -227,7 +227,8 @@ class TestDashboardRouter:
         try:
             with patch("routers.dashboard.cache") as mock_cache, \
                  patch("routers.dashboard.read_dashboard_sum") as mock_sums, \
-                 patch("routers.dashboard._live_evaluations_count") as mock_live_eval:
+                 patch("routers.dashboard._live_evaluations_count") as mock_live_eval, \
+                 patch("routers.dashboard._live_dashboard_counts") as mock_live_dash:
                 mock_cache.get.return_value = None
                 mock_sums.return_value = {
                     "project_count": 5,
@@ -239,6 +240,15 @@ class TestDashboardRouter:
                     "evaluation_pairs_count": 0,
                 }
                 mock_live_eval.return_value = 0
+                # `_live_dashboard_counts` is the brand-new-project fallback
+                # for task / annotation / generation counts. With everything
+                # else mocked to 0 it fires; the edge-case-no-generations
+                # scenario also wants those to stay 0.
+                mock_live_dash.return_value = {
+                    "total_tasks": 0,
+                    "annotations_count": 0,
+                    "generations_count": 0,
+                }
 
                 response = client.get("/api/dashboard/stats")
 
