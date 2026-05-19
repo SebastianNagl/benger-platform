@@ -54,23 +54,58 @@ class TestAPIIntegration:
 
     @pytest.mark.integration
     def test_health_endpoints_integration(self, client):
-        """Test health endpoints work without authentication"""
-        # Test root endpoint
-        response = client.get("/")
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert "message" in data
-        assert "Willkommen bei der BenGER API" in data["message"]
+        """Test health endpoints work without authentication.
 
-        # Test health endpoints
-        health_endpoints = ["/healthz", "/health"]
-        for endpoint in health_endpoints:
-            response = client.get(endpoint)
+        /health now depends on get_async_db (DB ping) + a Celery
+        inspect-ping; this integration test doesn't provide either,
+        so we override the async DB dep and patch celery_client to
+        mirror the explicit-mock pattern in test_health_router.py.
+        Without these overrides /health returns 503 because the
+        async-DB dep yields a real engine the test client never
+        rolled back, and the test DB connection trips an
+        "Event loop is closed" inside asyncpg's terminate path.
+        """
+        from unittest.mock import AsyncMock, Mock, patch
+
+        from database import get_async_db
+        from main import app
+
+        async def override_async_db():
+            mock_db = AsyncMock()
+            mock_db.execute = AsyncMock(return_value=Mock())
+            yield mock_db
+
+        app.dependency_overrides[get_async_db] = override_async_db
+
+        try:
+            # Test root endpoint
+            response = client.get("/")
             assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert "message" in data
+            assert "Willkommen bei der BenGER API" in data["message"]
 
+            # /healthz needs no deps.
+            response = client.get("/healthz")
+            assert response.status_code == status.HTTP_200_OK
             data = response.json()
             assert data.get("status") == "healthy"
             assert "timestamp" in data
+
+            # /health pings Redis + DB (required, 503 on failure) + Celery
+            # workers (soft, 200 + "degraded" if missing). Mock the workers
+            # so a passing-but-no-workers config doesn't flip the status.
+            with patch("celery_client.get_celery_app") as mock_get_app:
+                mock_get_app.return_value.control.inspect.return_value.ping.return_value = {
+                    "celery@w": {"ok": "pong"}
+                }
+                response = client.get("/health")
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data.get("status") == "healthy"
+            assert "timestamp" in data
+        finally:
+            app.dependency_overrides.clear()
 
     @pytest.mark.integration
     def test_schema_health_integration(self, client):

@@ -10,6 +10,7 @@ import { ApiClient, Organization, User } from '@/lib/api'
 import { devAuthHelper } from '@/lib/auth/devAuthHelper'
 import { OrganizationManager } from '@/lib/auth/organizationManager'
 import { sessionManager } from '@/lib/auth/sessionManager'
+import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
 import { authRedirect } from '@/utils/authRedirect'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useRouter } from 'next/navigation'
@@ -87,6 +88,13 @@ jest.mock('@/utils/authRedirect', () => ({
     '/about/imprint',
     '/about/data-protection',
   ],
+}))
+
+// Auth-failure redirect now goes through redirectToLoginAsExpired (HTTP
+// 401 parity with WebSocket 4401/4403 close UX — gives the user a "session
+// expired" toast on /login instead of a silent navigation).
+jest.mock('@/lib/auth/sessionExpired', () => ({
+  redirectToLoginAsExpired: jest.fn(),
 }))
 
 jest.mock('@/lib/utils/subdomain', () => ({
@@ -1003,7 +1011,10 @@ describe('AuthContext', () => {
 
       await waitFor(() => {
         expect(result.current.user).toBeNull()
-        expect(authRedirect.toLogin).toHaveBeenCalled()
+        // Auth-failure path now goes through redirectToLoginAsExpired so
+        // the user gets a "session expired" toast on /login (parity with
+        // WebSocket close 4401/4403 handling).
+        expect(redirectToLoginAsExpired).toHaveBeenCalled()
       })
     })
 
@@ -1024,7 +1035,7 @@ describe('AuthContext', () => {
         expect(result.current.user).toEqual(mockUser)
       })
 
-      ;(authRedirect.toLogin as jest.Mock).mockClear()
+      ;(redirectToLoginAsExpired as jest.Mock).mockClear()
 
       const authFailureHandler = (
         mockApiClient.setAuthFailureHandler as jest.Mock
@@ -1037,7 +1048,7 @@ describe('AuthContext', () => {
 
       await waitFor(() => {
         expect(result.current.user).toBeNull()
-        expect(authRedirect.toLogin).not.toHaveBeenCalled()
+        expect(redirectToLoginAsExpired).not.toHaveBeenCalled()
       })
     })
 
@@ -1068,7 +1079,7 @@ describe('AuthContext', () => {
 
       // User should not be cleared
       expect(result.current.user).toEqual(mockUser)
-      expect(authRedirect.toLogin).not.toHaveBeenCalled()
+      expect(redirectToLoginAsExpired).not.toHaveBeenCalled()
     })
   })
 
@@ -1906,7 +1917,7 @@ describe('AuthContext', () => {
 
       // User should remain authenticated
       expect(result.current.user).toEqual(mockUser)
-      expect(authRedirect.toLogin).not.toHaveBeenCalled()
+      expect(redirectToLoginAsExpired).not.toHaveBeenCalled()
     })
   })
 

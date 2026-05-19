@@ -56,13 +56,81 @@ class TestHealthRouter:
         assert "timestamp" in data
 
     def test_health_endpoint(self, client):
-        """Test Docker health check at /health"""
-        response = client.get("/health")
+        """Test Docker health check at /health — happy path with all deps up."""
+        from database import get_async_db
+        from main import app
 
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert data["status"] == "healthy"
-        assert "timestamp" in data
+        async def override_async_db():
+            mock_db = AsyncMock()
+            mock_db.execute = AsyncMock(return_value=Mock())
+            yield mock_db
+
+        app.dependency_overrides[get_async_db] = override_async_db
+
+        try:
+            with patch("celery_client.get_celery_app") as mock_get_app:
+                mock_get_app.return_value.control.inspect.return_value.ping.return_value = {
+                    "celery@worker1": {"ok": "pong"},
+                }
+                response = client.get("/health")
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["status"] == "healthy"
+            assert data["redis"] == "connected"
+            assert data["database"] == "connected"
+            assert "reachable" in data["celery_workers"]
+            assert "timestamp" in data
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_health_endpoint_503_on_db_failure(self, client):
+        """If Postgres is down, /health must return 503 so K8s evicts.
+        Previously /health only checked Redis — DB outage went unnoticed."""
+        from database import get_async_db
+        from main import app
+
+        async def override_async_db():
+            mock_db = AsyncMock()
+            mock_db.execute = AsyncMock(side_effect=Exception("DB unreachable"))
+            yield mock_db
+
+        app.dependency_overrides[get_async_db] = override_async_db
+
+        try:
+            response = client.get("/health")
+            assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+            data = response.json()
+            assert data["status"] == "unhealthy"
+            assert data["database"] == "error"
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_health_endpoint_degraded_on_no_workers(self, client):
+        """Celery being unreachable → 200 + 'degraded' (not 503). The API
+        can still serve sync requests; only async tasks queue up. Operators
+        alert on the body field rather than K8s evicting the pod."""
+        from database import get_async_db
+        from main import app
+
+        async def override_async_db():
+            mock_db = AsyncMock()
+            mock_db.execute = AsyncMock(return_value=Mock())
+            yield mock_db
+
+        app.dependency_overrides[get_async_db] = override_async_db
+
+        try:
+            with patch("celery_client.get_celery_app") as mock_get_app:
+                mock_get_app.return_value.control.inspect.return_value.ping.return_value = None
+                response = client.get("/health")
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["status"] == "degraded"
+            assert data["celery_workers"] == "no_workers_responding"
+        finally:
+            app.dependency_overrides.clear()
 
     def test_cors_auth_test_endpoint(self, client, mock_superadmin_user):
         """Test CORS and auth test endpoint at /health/cors-auth"""
@@ -96,16 +164,31 @@ class TestHealthRouter:
         assert response.status_code in [401, 403]
 
     def test_schema_health_check_success(self, client):
-        """Test schema health check at /health/schema with healthy database"""
-        from database import get_db
+        """Test schema health check at /health/schema with healthy database.
+
+        /health/schema was converted to async (Phase 0); the dep is
+        get_async_db now, not get_db. The previous override silently
+        no-op'd and the test reached for the real async engine via the
+        test client, which intermittently trips
+        "Event loop is closed" on asyncpg's terminate path and flips
+        status to "error". Same fix as the companion
+        test_schema_health_check_database_error.
+        """
+        from database import get_async_db
         from main import app
 
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            mock_db.execute.return_value = Mock()
-            return mock_db
+        async def override_async_db():
+            mock_db = AsyncMock()
+            row_with_scalar = Mock()
+            row_with_scalar.scalar = Mock(return_value="15000")
+            row_app_name = Mock()
+            row_app_name.scalar = Mock(return_value="benger-api-async")
+            mock_db.execute = AsyncMock(
+                side_effect=[Mock(), Mock(), row_with_scalar, row_app_name]
+            )
+            yield mock_db
 
-        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_async_db] = override_async_db
 
         try:
             response = client.get("/health/schema")
@@ -119,16 +202,22 @@ class TestHealthRouter:
             app.dependency_overrides.clear()
 
     def test_schema_health_check_database_error(self, client):
-        """Test schema health check with database error"""
-        from database import get_db
+        """Test schema health check with database error.
+
+        /health/schema was converted to async in the Phase 0 async-DB
+        foundation PR (2026-05-19); the dependency is get_async_db now,
+        not get_db. The pre-existing test override of get_db silently
+        did nothing — the real test DB ran the queries and returned 200.
+        """
+        from database import get_async_db
         from main import app
 
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            mock_db.execute.side_effect = Exception("Database connection failed")
-            return mock_db
+        async def override_async_db():
+            mock_db = AsyncMock()
+            mock_db.execute = AsyncMock(side_effect=Exception("Database connection failed"))
+            yield mock_db
 
-        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_async_db] = override_async_db
 
         try:
             response = client.get("/health/schema")
@@ -414,8 +503,17 @@ class TestHealthRouterIntegration:
         return TestClient(app)
 
     def test_basic_health_endpoints_always_available(self, client):
-        """Test basic health endpoints are always available without dependencies"""
-        endpoints = ["/", "/healthz", "/health"]
+        """Test basic health endpoints are always available without dependencies.
+
+        /health was hoisted out of this loop after it gained an async-DB
+        dependency (Phase 0 migration). The connection-pool-vs-event-loop
+        interaction in pytest-asyncio means a hot-from-an-earlier-test
+        async pool occasionally hits "Event loop is closed" on
+        do_terminate, returning 503 to the next test. The dep-free
+        endpoints below have no such risk; /health is covered by the
+        explicit-override tests above (test_health_endpoint and friends).
+        """
+        endpoints = ["/", "/healthz"]
 
         for endpoint in endpoints:
             response = client.get(endpoint)

@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from auth_module.dependencies import get_current_user
 from database import get_db
 from models import EvaluationRun, TaskEvaluation, Generation, LLMModel, User
-from project_models import Annotation
+from project_models import Annotation, Project
 from routers.projects.helpers import check_project_accessible, get_org_context_from_request
 
 # Statistical imports for confidence intervals
@@ -40,6 +40,28 @@ def _filter_accessible_project_ids(
     if user.is_superadmin:
         return project_ids
     return [pid for pid in project_ids if check_project_accessible(db, user, pid, org_context)]
+
+
+def _apply_default_visibility_filter(query, project_ids):
+    """Issue #30 PR 5: when a leaderboard endpoint is called without an
+    explicit `project_ids` list, default to PUBLIC projects only.
+
+    Background: the unfiltered default was implicitly "every completed
+    EvaluationRun the database has," regardless of project visibility. That
+    silently mixed scores from private evaluation projects (e.g. ZJS Fälle —
+    34k+ BLEU-only task_evaluations) into the global per-model averages,
+    skewing rankings.
+
+    Caller contract: query must already join (or be ready to join)
+    `EvaluationRun.project_id == Project.id`. We add the join only when
+    `project_ids` is empty so callers that supplied an explicit list don't
+    pay an extra join.
+    """
+    if project_ids:
+        return query.filter(EvaluationRun.project_id.in_(project_ids))
+    return query.join(
+        Project, EvaluationRun.project_id == Project.id,
+    ).filter(Project.is_public.is_(True))
 
 
 def detect_provider_from_model_id(model_id: str) -> str:
@@ -175,6 +197,9 @@ class LLMLeaderboardResponse(BaseModel):
     filters: Dict[str, Any]
     # Indicate if CI calculations are available
     confidence_intervals_available: bool = STATS_AVAILABLE
+    # Staleness hint — when the precomputed snapshot we read was built.
+    # None for live-aggregation responses (no precomputed snapshot used).
+    computed_at: Optional[str] = None
 
 
 @router.get("/statistics")
@@ -239,8 +264,54 @@ async def get_leaderboard_statistics(
 
 
 # ============================================================================
-# LLM MODEL LEADERBOARD ENDPOINTS
+# LLM MODEL LEADERBOARD ENDPOINTS — read from precomputed `llm_leaderboard_scores`
+# table (refreshed every 12h by the Celery task `recompute_aggregates`).
+# Live SQL fallback handles non-precomputed filter combinations. See
+# services/api/services/aggregate_summaries.py for the aggregation logic.
 # ============================================================================
+
+
+def _project_scope_key_for_request(
+    project_ids: Optional[List[str]], current_user
+) -> Optional[str]:
+    """Map a request to a precomputed scope key, or return None for live.
+
+    Returns:
+      - single-project id when exactly one project is in the filter
+      - 'all' for superadmin with no filter
+      - 'public' for visitors/contributors with no filter (default visibility)
+      - None when no precomputed scope matches (multi-project explicit filter)
+    """
+    if project_ids and len(project_ids) == 1:
+        return project_ids[0]
+    if project_ids:
+        return None  # multi-project filter → live fallback
+    return "all" if getattr(current_user, "is_superadmin", False) else "public"
+
+
+def _evaluation_types_in_scope(
+    db: Session, project_ids: Optional[List[str]], scope_key: Optional[str]
+) -> List[str]:
+    """Distinct evaluation_type_ids surfaced for the UI filter chip list.
+
+    Cheap: scans EvaluationRun (a few hundred rows in prod), not task_evaluations.
+    """
+    stmt = db.query(EvaluationRun.evaluation_type_ids).filter(
+        EvaluationRun.status == "completed"
+    )
+    if project_ids:
+        stmt = stmt.filter(EvaluationRun.project_id.in_(project_ids))
+    elif scope_key == "public":
+        stmt = stmt.join(Project, EvaluationRun.project_id == Project.id).filter(
+            Project.is_public.is_(True)
+        )
+    seen: set = set()
+    for (type_ids,) in stmt.all():
+        if isinstance(type_ids, list):
+            for t in type_ids:
+                if t:
+                    seen.add(t)
+    return sorted(seen)
 
 
 @router.get("/llm-models", response_model=LLMLeaderboardResponse)
@@ -273,6 +344,12 @@ async def get_llm_leaderboard(
     Returns a ranked list of LLM models with their evaluation metrics,
     ordered by the specified metric.
 
+    Reads from the precomputed `llm_leaderboard_scores` table for the
+    standard filter combinations (no project filter, single-project, or
+    public). Falls back to a live (but bounded) SQL aggregation for the
+    rare unusual filter combinations (multi-project explicit, evaluation
+    type filter, sum aggregation).
+
     **Ranking Metrics**:
     - average: Average of all available metrics
     - accuracy, f1, precision, recall: Classification metrics
@@ -284,265 +361,148 @@ async def get_llm_leaderboard(
     - project_ids: Filter to specific projects (default: all projects)
     - period: Time period (overall, monthly, weekly)
     - metric: Metric to rank by (default: average)
-    - limit: Maximum number of results (default: 50, max: 100)
+    - limit: Maximum number of results (default: 50, max: 200)
 
     **Returns**:
     - leaderboard: List of ranked models with metrics
     - total_models: Total number of models evaluated
     - available_metrics: List of metrics with data
+    - computed_at: ISO timestamp of the precomputed snapshot
+                   (null for live-aggregation responses)
     """
-    # Filter project_ids to only include accessible ones
+    from services.aggregate_summaries import (
+        live_aggregate_leaderboard,
+        read_llm_leaderboard,
+    )
+
     org_context = get_org_context_from_request(request)
     project_ids = _filter_accessible_project_ids(db, current_user, project_ids, org_context)
 
-    # Build base query for evaluations
-    query = db.query(EvaluationRun).filter(EvaluationRun.status == "completed")
+    scope_key = _project_scope_key_for_request(project_ids, current_user)
 
-    # Apply project filter
-    if project_ids:
-        query = query.filter(EvaluationRun.project_id.in_(project_ids))
+    # Precomputed scores cover the common case (no per-request evaluation_type
+    # filter, average aggregation). Anything outside falls through to live SQL
+    # — still bounded by yield_per streaming inside the helper.
+    use_precomputed = (
+        scope_key is not None
+        and not evaluation_types
+        and aggregation == "average"
+    )
 
-    # Apply time period filter
-    now = datetime.utcnow()
-    if period == "monthly":
-        cutoff = now - timedelta(days=30)
-        query = query.filter(EvaluationRun.created_at >= cutoff)
-    elif period == "weekly":
-        cutoff = now - timedelta(days=7)
-        query = query.filter(EvaluationRun.created_at >= cutoff)
-
-    # Apply evaluation type filter
-    # evaluation_type_ids is a JSON array, filter evaluations containing any of the specified types
-    if evaluation_types:
-        from sqlalchemy import or_, text
-
-        # Use PostgreSQL JSON containment operator for each type
-        type_filters = []
-        for eval_type in evaluation_types:
-            type_filters.append(
-                text("evaluation_type_ids::jsonb @> :type").bindparams(type=f'["{eval_type}"]')
-            )
-        if type_filters:
-            query = query.filter(or_(*type_filters))
-
-    # Collect all evaluation types for the response
-    all_evaluation_types_seen = set()
-
-    # Get all evaluations
-    evaluations = query.all()
-
-    # Collect evaluation types from all evaluations
-    for eval in evaluations:
-        if eval.evaluation_type_ids:
-            for eval_type in eval.evaluation_type_ids:
-                all_evaluation_types_seen.add(eval_type)
-
-    # Get evaluation IDs for filtering sample results
-    eval_ids = [e.id for e in evaluations]
-
-    # Aggregate by model directly from sample results
-    # This handles multi-model evaluations where one evaluation contains results for many models
-    model_data: Dict[str, Dict[str, Any]] = {}
-    all_metrics_seen = set()
-
-    if eval_ids:
-        # Track unique evaluations per model for counting
-        model_evaluations: Dict[str, set] = {}
-        # Track distinct generations per model so we can surface a "Generations"
-        # column that matches the human-leaderboard `annotation_count` shape:
-        # one entity per model output, regardless of how many metrics scored it.
-        model_generations: Dict[str, set] = {}
-
-        # Query sample results grouped by model_id; per-model metrics from all
-        # evaluations. Pulling Generation.id so we can dedupe by generation.
-        sample_results_query = (
-            db.query(
-                Generation.model_id,
-                Generation.id.label("generation_id"),
-                TaskEvaluation.metrics,
-                TaskEvaluation.evaluation_id,
-                EvaluationRun.completed_at,
-            )
-            .join(Generation, TaskEvaluation.generation_id == Generation.id)
-            .join(EvaluationRun, TaskEvaluation.evaluation_id == EvaluationRun.id)
-            .filter(TaskEvaluation.evaluation_id.in_(eval_ids))
-            .filter(TaskEvaluation.generation_id.isnot(None))
-            .all()
+    computed_at: Optional[datetime] = None
+    entries: List[Dict[str, Any]]
+    if use_precomputed:
+        entries, total_models, available_metrics, computed_at = read_llm_leaderboard(
+            db, scope_key, period, metric, limit, offset
         )
-
-        for model_id, generation_id, metrics, eval_id, completed_at in sample_results_query:
-            if model_id not in model_data:
-                model_data[model_id] = {
-                    "evaluation_count": 0,
-                    "samples_evaluated": 0,
-                    "generation_count": 0,
-                    "metrics_raw": {},
-                    "last_evaluated": None,
-                }
-                model_evaluations[model_id] = set()
-                model_generations[model_id] = set()
-
-            # Track unique evaluations for this model
-            model_evaluations[model_id].add(eval_id)
-            # Track unique generations for this model (one per distinct
-            # Generation.id; n metrics × m generations would otherwise inflate
-            # the count to n*m).
-            model_generations[model_id].add(generation_id)
-
-            # Count samples
-            model_data[model_id]["samples_evaluated"] += 1
-
-            # Update last evaluated
-            if completed_at:
-                last = model_data[model_id]["last_evaluated"]
-                if last is None or completed_at > datetime.fromisoformat(last):
-                    model_data[model_id]["last_evaluated"] = completed_at.isoformat()
-
-            # Aggregate metrics from sample results.
-            # When evaluation_types filter is applied, only aggregate metrics that match
-            # the filtered types (otherwise unrelated metrics like raw_score get mixed in).
-            # Use the shared coercion shim so the unified
-            # `{value, method, details, error}` dict shape (Falllösung,
-            # korrektur_*) and the legacy bare-float / Korrektur-legacy
-            # `{score, total_score, dimensions, ...}` shapes both yield a
-            # number — otherwise the leaderboard silently drops these
-            # metrics (the `isinstance(value, (int, float))` guard returns
-            # False for dicts).
-            if metrics:
-                from routers.evaluations.results import _coerce_metric_value
-                for metric_name, value in metrics.items():
-                    coerced = _coerce_metric_value(value)
-                    if coerced is None:
-                        continue
-                    # Skip metrics that don't match the filter when filtering by type
-                    if evaluation_types and metric_name not in evaluation_types:
-                        continue
-                    all_metrics_seen.add(metric_name)
-                    if metric_name not in model_data[model_id]["metrics_raw"]:
-                        model_data[model_id]["metrics_raw"][metric_name] = []
-                    model_data[model_id]["metrics_raw"][metric_name].append(coerced)
-
-        # Set evaluation counts from unique evaluation IDs
-        for model_id, eval_set in model_evaluations.items():
-            model_data[model_id]["evaluation_count"] = len(eval_set)
-        # Set generation counts from the deduped generation_id sets
-        for model_id, gen_set in model_generations.items():
-            model_data[model_id]["generation_count"] = len(gen_set)
-
-    # Calculate average metrics and confidence intervals per model
-    for model_id, data in model_data.items():
-        averaged_metrics = {}
-        all_score_values = []  # Collect all values for overall CI
-
-        for metric_name, values in data["metrics_raw"].items():
-            if values:
-                if aggregation == "sum":
-                    agg = sum(values)
-                else:
-                    agg = sum(values) / len(values)
-                averaged_metrics[metric_name] = round(agg, 4)
-                all_score_values.extend(values)
-
-        data["metrics"] = averaged_metrics
-
-        # Calculate CI for average score across all metrics (skip for sum mode)
-        if aggregation == "average" and all_score_values:
-            ci_lower, ci_upper, _ = calculate_confidence_interval(all_score_values)
-            data["ci_lower"] = ci_lower
-            data["ci_upper"] = ci_upper
-        else:
-            data["ci_lower"] = None
-            data["ci_upper"] = None
-
-    # Get model metadata
-    model_info = {}
-    if model_data:
-        models = db.query(LLMModel).filter(LLMModel.id.in_(model_data.keys())).all()
-        for m in models:
-            model_info[m.id] = {"name": m.name, "provider": m.provider}
-
-    # Calculate ranking score for each model
-    for model_id, data in model_data.items():
-        if data["metrics"]:
-            if metric == "average":
-                valid_values = [v for v in data["metrics"].values() if v is not None]
-                if valid_values:
-                    if aggregation == "sum":
-                        data["average_score"] = round(sum(valid_values), 4)
-                    else:
-                        data["average_score"] = round(sum(valid_values) / len(valid_values), 4)
-                else:
-                    data["average_score"] = None
-            elif metric in data["metrics"]:
-                data["average_score"] = data["metrics"][metric]
-            else:
-                data["average_score"] = None
-        else:
-            data["average_score"] = None
-
-    # Optionally include all active models (even those without evaluations)
-    if include_all_models:
-        all_active_models = db.query(LLMModel).filter(LLMModel.is_active == True).all()
-        for model in all_active_models:
-            if model.id not in model_data:
-                model_data[model.id] = {
-                    "evaluation_count": 0,
-                    "samples_evaluated": 0,
-                    "generation_count": 0,
-                    "metrics_raw": {},
+    else:
+        rows = live_aggregate_leaderboard(db, project_ids, period, evaluation_types)
+        by_model: Dict[str, Dict[str, Any]] = {}
+        for r in rows:
+            entry = by_model.setdefault(
+                r["model_id"],
+                {
+                    "model_id": r["model_id"],
                     "metrics": {},
-                    "average_score": None,
-                    "last_evaluated": None,
+                    "score": None,
                     "ci_lower": None,
                     "ci_upper": None,
-                }
-            # Add to model_info for name/provider lookup
-            if model.id not in model_info:
-                model_info[model.id] = {"name": model.name, "provider": model.provider}
+                    "samples_evaluated": r["samples_evaluated"],
+                    "evaluation_count": r["evaluation_count"],
+                    "generation_count": r["generation_count"],
+                    "last_evaluated_at": r["last_evaluated_at"],
+                },
+            )
+            score = r["score"]
+            if r["metric"] == "average":
+                entry["metrics"]["average"] = score
+            else:
+                entry["metrics"][r["metric"]] = score
+            if r["metric"] == metric:
+                entry["score"] = score
+                entry["ci_lower"] = r["ci_lower"]
+                entry["ci_upper"] = r["ci_upper"]
 
-    # Sort: models with scores first (by score desc), then models without scores (by name)
-    def sort_key(item):
-        model_id, data = item
-        score = data["average_score"]
-        name = model_info.get(model_id, {}).get("name", model_id)
-        # Return tuple: (has_score, negative_score_for_desc, name_for_alpha)
-        if score is not None:
-            return (0, -score, name.lower())  # 0 = has score, comes first
-        else:
-            return (1, 0, name.lower())  # 1 = no score, comes after
+        sorted_entries = sorted(
+            by_model.values(),
+            key=lambda e: (e["score"] is None, -(e["score"] or 0), e["model_id"]),
+        )
+        total_models = len(sorted_entries)
+        entries = sorted_entries[offset : offset + limit]
+        available_metrics = sorted(
+            {r["metric"] for r in rows if r["metric"] != "average"}
+        )
 
-    sorted_models = sorted(model_data.items(), key=sort_key)
+    # Look up model metadata (small bounded query — at most `limit` models).
+    model_ids_in_page = [e["model_id"] for e in entries]
+    model_info: Dict[str, Dict[str, str]] = {}
+    if model_ids_in_page:
+        for m in db.query(LLMModel).filter(LLMModel.id.in_(model_ids_in_page)).all():
+            model_info[m.id] = {"name": m.name, "provider": m.provider}
 
-    # Build leaderboard
-    leaderboard = []
-    for rank, (model_id, data) in enumerate(sorted_models[offset:offset + limit], start=offset + 1):
-        # Use database model info if available, otherwise detect provider from model_id
-        if model_id in model_info:
-            info = model_info[model_id]
-        else:
-            info = {"name": model_id, "provider": detect_provider_from_model_id(model_id)}
+    available_evaluation_types = _evaluation_types_in_scope(db, project_ids, scope_key)
+
+    leaderboard: List[LLMLeaderboardEntry] = []
+    for rank, entry in enumerate(entries, start=offset + 1):
+        info = model_info.get(
+            entry["model_id"],
+            {
+                "name": entry["model_id"],
+                "provider": detect_provider_from_model_id(entry["model_id"]),
+            },
+        )
+        last_at = entry.get("last_evaluated_at")
+        # Drop the synthetic 'average' key from the per-metric dict the frontend
+        # iterates over — it's surfaced separately as `average_score`.
+        metrics_for_display = {
+            k: v for k, v in entry.get("metrics", {}).items() if k != "average"
+        }
         leaderboard.append(
             LLMLeaderboardEntry(
                 rank=rank,
-                model_id=model_id,
+                model_id=entry["model_id"],
                 model_name=info["name"],
                 provider=info["provider"],
-                evaluation_count=data["evaluation_count"],
-                samples_evaluated=data["samples_evaluated"],
-                generation_count=data.get("generation_count", 0),
-                metrics=data["metrics"],
-                average_score=data["average_score"],
-                ci_lower=data.get("ci_lower"),
-                ci_upper=data.get("ci_upper"),
-                last_evaluated=data["last_evaluated"],
+                evaluation_count=entry.get("evaluation_count", 0),
+                samples_evaluated=entry.get("samples_evaluated", 0),
+                generation_count=entry.get("generation_count", 0),
+                metrics=metrics_for_display,
+                average_score=entry.get("score"),
+                ci_lower=entry.get("ci_lower"),
+                ci_upper=entry.get("ci_upper"),
+                last_evaluated=last_at.isoformat() if last_at else None,
             )
         )
 
+    # Include zero-row entries for active models that aren't in the page.
+    if include_all_models:
+        seen = {e.model_id for e in leaderboard}
+        for m in db.query(LLMModel).filter(LLMModel.is_active == True).all():  # noqa: E712
+            if m.id in seen:
+                continue
+            leaderboard.append(
+                LLMLeaderboardEntry(
+                    rank=len(leaderboard) + 1,
+                    model_id=m.id,
+                    model_name=m.name,
+                    provider=m.provider,
+                    evaluation_count=0,
+                    samples_evaluated=0,
+                    generation_count=0,
+                    metrics={},
+                    average_score=None,
+                    ci_lower=None,
+                    ci_upper=None,
+                    last_evaluated=None,
+                )
+            )
+            total_models += 1
+
     return LLMLeaderboardResponse(
         leaderboard=leaderboard,
-        total_models=len(model_data),
-        available_metrics=sorted(list(all_metrics_seen)),
-        available_evaluation_types=sorted(list(all_evaluation_types_seen)),
+        total_models=total_models,
+        available_metrics=available_metrics,
+        available_evaluation_types=available_evaluation_types,
         filters={
             "project_ids": project_ids or [],
             "period": period,
@@ -554,6 +514,7 @@ async def get_llm_leaderboard(
             "offset": offset,
         },
         confidence_intervals_available=STATS_AVAILABLE,
+        computed_at=computed_at.isoformat() if computed_at else None,
     )
 
 
@@ -567,97 +528,97 @@ async def get_llm_model_details(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Get detailed evaluation history for a specific LLM model.
+    Get aggregated evaluation metrics for a specific LLM model.
+
+    Reads from the precomputed `llm_leaderboard_scores` table where
+    possible, falling back to live aggregation for multi-project filters.
 
     **Returns**:
     - model_info: Model metadata (name, provider)
-    - evaluations: List of evaluation results
-    - aggregate_metrics: Average metrics across all evaluations
+    - aggregate_metrics: Per-metric {mean, ci_lower, ci_upper, count}
     - evaluation_count: Total number of evaluations
+    - samples_evaluated: Sum of TaskEvaluation rows
+    - generation_count: Distinct generations
+    - last_evaluated: ISO of the most recent EvaluationRun completion
+    - computed_at: When the precomputed snapshot was built (null for live)
     """
-    # Filter project_ids to only include accessible ones
+    from services.aggregate_summaries import (
+        live_aggregate_leaderboard,
+        read_llm_model_aggregate,
+    )
+
     org_context = get_org_context_from_request(request)
     project_ids = _filter_accessible_project_ids(db, current_user, project_ids, org_context)
 
-    # Get model info (with provider detection fallback)
     model = db.query(LLMModel).filter(LLMModel.id == model_id).first()
     model_info = (
         {"id": model.id, "name": model.name, "provider": model.provider}
         if model
-        else {"id": model_id, "name": model_id, "provider": detect_provider_from_model_id(model_id)}
+        else {
+            "id": model_id,
+            "name": model_id,
+            "provider": detect_provider_from_model_id(model_id),
+        }
     )
 
-    # Build query
-    query = db.query(EvaluationRun).filter(
-        EvaluationRun.model_id == model_id, EvaluationRun.status == "completed"
-    )
+    scope_key = _project_scope_key_for_request(project_ids, current_user)
 
-    if project_ids:
-        query = query.filter(EvaluationRun.project_id.in_(project_ids))
-
-    now = datetime.utcnow()
-    if period == "monthly":
-        query = query.filter(EvaluationRun.created_at >= now - timedelta(days=30))
-    elif period == "weekly":
-        query = query.filter(EvaluationRun.created_at >= now - timedelta(days=7))
-
-    evaluations = query.order_by(EvaluationRun.created_at.desc()).all()
-
-    # Aggregate metrics
-    metric_values: Dict[str, List[float]] = {}
-    metric_null_counts: Dict[str, int] = {}  # Phase 6.5: filtered-out audit
-    eval_list = []
-
-    for eval in evaluations:
-        eval_list.append(
-            {
-                "id": eval.id,
-                "project_id": eval.project_id,
-                "metrics": eval.metrics,
-                "samples_evaluated": eval.samples_evaluated,
-                "created_at": eval.created_at.isoformat() if eval.created_at else None,
-                "completed_at": eval.completed_at.isoformat() if eval.completed_at else None,
-            }
-        )
-
-        if eval.metrics:
-            from routers.evaluations.results import _coerce_metric_value
-
-            for metric_name, value in eval.metrics.items():
-                # Phase 2: accept legacy bare-float OR new {value, details}
-                # shape. Coercion returns None for non-numeric / metadata
-                # entries; those get skipped same as before.
-                coerced = _coerce_metric_value(value)
-                if coerced is None:
-                    # Phase 6.5: track null/non-numeric values that get
-                    # excluded from the aggregation so consumers can
-                    # see the size of the silently-filtered set.
-                    metric_null_counts[metric_name] = (
-                        metric_null_counts.get(metric_name, 0) + 1
-                    )
-                    continue
-                metric_values.setdefault(metric_name, []).append(coerced)
-
-    # Calculate averages
-    aggregate_metrics = {}
-    for metric_name, values in metric_values.items():
-        if values:
-            aggregate_metrics[metric_name] = {
-                "mean": round(sum(values) / len(values), 4),
-                "min": round(min(values), 4),
-                "max": round(max(values), 4),
-                "count": len(values),
-                # Phase 6.5: how many values were filtered out at
-                # aggregation time. Mean is over `count` values; the
-                # remaining `null_count` got dropped silently before.
-                "null_count": metric_null_counts.get(metric_name, 0),
-            }
+    if scope_key is not None:
+        aggregate = read_llm_model_aggregate(db, model_id, scope_key, period)
+    else:
+        rows = [
+            r
+            for r in live_aggregate_leaderboard(db, project_ids, period, None)
+            if r["model_id"] == model_id
+        ]
+        aggregate = {
+            "metrics": {},
+            "evaluation_count": 0,
+            "samples_evaluated": 0,
+            "generation_count": 0,
+            "last_evaluated_at": None,
+            "computed_at": None,
+        }
+        for r in rows:
+            if r["metric"] != "average":
+                aggregate["metrics"][r["metric"]] = {
+                    "mean": r["score"],
+                    "ci_lower": r["ci_lower"],
+                    "ci_upper": r["ci_upper"],
+                    "count": r["samples_evaluated"],
+                }
+            aggregate["evaluation_count"] = max(
+                aggregate["evaluation_count"], r["evaluation_count"]
+            )
+            aggregate["samples_evaluated"] = max(
+                aggregate["samples_evaluated"], r["samples_evaluated"]
+            )
+            aggregate["generation_count"] = max(
+                aggregate["generation_count"], r["generation_count"]
+            )
+            last = r["last_evaluated_at"]
+            if last and (
+                aggregate["last_evaluated_at"] is None
+                or last > aggregate["last_evaluated_at"]
+            ):
+                aggregate["last_evaluated_at"] = last
 
     return {
         "model_info": model_info,
-        "evaluations": eval_list,
-        "aggregate_metrics": aggregate_metrics,
-        "evaluation_count": len(evaluations),
+        "aggregate_metrics": aggregate["metrics"],
+        "evaluation_count": aggregate["evaluation_count"],
+        "samples_evaluated": aggregate["samples_evaluated"],
+        "generation_count": aggregate["generation_count"],
+        "last_evaluated": (
+            aggregate["last_evaluated_at"].isoformat()
+            if aggregate.get("last_evaluated_at")
+            else None
+        ),
+        "computed_at": (
+            aggregate["computed_at"].isoformat()
+            if aggregate.get("computed_at")
+            else None
+        ),
         "filters": {"project_ids": project_ids or [], "period": period},
     }
 
@@ -674,6 +635,11 @@ async def compare_llm_models(
     """
     Compare evaluation metrics across multiple LLM models.
 
+    Reads precomputed per-(model, metric) means from `llm_leaderboard_scores`.
+    Significance tests require raw per-task distributions which the precomputed
+    table doesn't carry — they're disabled here. Frontend already handles
+    `significance_available=False`.
+
     **Parameters**:
     - model_ids: List of 2-5 model IDs to compare
 
@@ -685,112 +651,81 @@ async def compare_llm_models(
     if len(model_ids) < 2 or len(model_ids) > 5:
         return {"error": "Please provide 2-5 model IDs for comparison"}
 
-    # Filter project_ids to only include accessible ones
+    from models import LLMLeaderboardScore
+    from services.aggregate_summaries import live_aggregate_leaderboard
+
     org_context = get_org_context_from_request(request)
     project_ids = _filter_accessible_project_ids(db, current_user, project_ids, org_context)
 
-    # Get model info
     models_db = db.query(LLMModel).filter(LLMModel.id.in_(model_ids)).all()
     model_info = {m.id: {"name": m.name, "provider": m.provider} for m in models_db}
 
-    # Get evaluations for all models
-    query = db.query(EvaluationRun).filter(
-        EvaluationRun.model_id.in_(model_ids), EvaluationRun.status == "completed"
+    scope_key = _project_scope_key_for_request(project_ids, current_user)
+
+    model_averages: Dict[str, Dict[str, float]] = {m_id: {} for m_id in model_ids}
+    all_metrics: set = set()
+
+    if scope_key is not None:
+        rows = (
+            db.query(LLMLeaderboardScore)
+            .filter(
+                LLMLeaderboardScore.project_scope_key == scope_key,
+                LLMLeaderboardScore.period == period,
+                LLMLeaderboardScore.model_id.in_(model_ids),
+                LLMLeaderboardScore.metric != "average",
+            )
+            .all()
+        )
+        for r in rows:
+            if r.score is None:
+                continue
+            model_averages[r.model_id][r.metric] = round(r.score, 4)
+            all_metrics.add(r.metric)
+    else:
+        live_rows = live_aggregate_leaderboard(db, project_ids, period, None)
+        for r in live_rows:
+            if r["model_id"] not in model_ids or r["metric"] == "average":
+                continue
+            score = r["score"]
+            if score is None:
+                continue
+            model_averages[r["model_id"]][r["metric"]] = round(score, 4)
+            all_metrics.add(r["metric"])
+
+    common_metrics = sorted(
+        m
+        for m in all_metrics
+        if all(m in model_averages.get(mid, {}) for mid in model_ids)
     )
 
-    if project_ids:
-        query = query.filter(EvaluationRun.project_id.in_(project_ids))
-
-    now = datetime.utcnow()
-    if period == "monthly":
-        query = query.filter(EvaluationRun.created_at >= now - timedelta(days=30))
-    elif period == "weekly":
-        query = query.filter(EvaluationRun.created_at >= now - timedelta(days=7))
-
-    evaluations = query.all()
-
-    # Aggregate by model
-    model_metrics: Dict[str, Dict[str, List[float]]] = {m_id: {} for m_id in model_ids}
-
-    from routers.evaluations.results import _coerce_metric_value
-
-    for eval in evaluations:
-        if eval.metrics:
-            for metric_name, value in eval.metrics.items():
-                # Phase 2: legacy bare-float OR {value, details} dict.
-                coerced = _coerce_metric_value(value)
-                if coerced is None:
-                    continue
-                model_metrics[eval.model_id].setdefault(metric_name, []).append(coerced)
-
-    # Calculate averages
-    model_averages = {}
-    all_metrics = set()
-
-    for model_id, metrics in model_metrics.items():
-        model_averages[model_id] = {}
-        for metric_name, values in metrics.items():
-            if values:
-                all_metrics.add(metric_name)
-                model_averages[model_id][metric_name] = round(sum(values) / len(values), 4)
-
-    # Find common metrics (present in all models)
-    common_metrics = list(all_metrics)
-    for model_id in model_ids:
-        common_metrics = [m for m in common_metrics if m in model_averages.get(model_id, {})]
-
-    # Build comparison table
-    comparison = {}
-    for metric in sorted(all_metrics):
-        comparison[metric] = {}
+    comparison: Dict[str, Dict[str, Any]] = {}
+    for m in sorted(all_metrics):
+        comparison[m] = {}
         values = []
-        for model_id in model_ids:
-            val = model_averages.get(model_id, {}).get(metric)
-            comparison[metric][model_id] = val
+        for mid in model_ids:
+            val = model_averages.get(mid, {}).get(m)
+            comparison[m][mid] = val
             if val is not None:
-                values.append((model_id, val))
-
-        # Determine winner (highest value for most metrics, assuming higher is better)
+                values.append((mid, val))
         if values:
             winner = max(values, key=lambda x: x[1])
-            comparison[metric]["_winner"] = winner[0]
-
-    # Calculate pairwise significance for each metric (between top model and others)
-    significance_tests = {}
-    for metric in common_metrics:
-        significance_tests[metric] = {}
-
-        # Get all values for this metric per model
-        metric_values_per_model = {}
-        for model_id in model_ids:
-            if metric in model_metrics.get(model_id, {}):
-                metric_values_per_model[model_id] = model_metrics[model_id][metric]
-
-        # Calculate pairwise significance
-        for i, model_a in enumerate(model_ids):
-            for model_b in model_ids[i + 1 :]:
-                values_a = metric_values_per_model.get(model_a, [])
-                values_b = metric_values_per_model.get(model_b, [])
-
-                sig_result = calculate_significance(values_a, values_b)
-                pair_key = f"{model_a}_vs_{model_b}"
-                significance_tests[metric][pair_key] = sig_result
+            comparison[m]["_winner"] = winner[0]
 
     return {
         "models": {
-            model_id: {
+            mid: {
                 "info": model_info.get(
-                    model_id,
-                    {"name": model_id, "provider": detect_provider_from_model_id(model_id)},
+                    mid,
+                    {"name": mid, "provider": detect_provider_from_model_id(mid)},
                 ),
-                "metrics": model_averages.get(model_id, {}),
+                "metrics": model_averages.get(mid, {}),
             }
-            for model_id in model_ids
+            for mid in model_ids
         },
         "common_metrics": common_metrics,
         "all_metrics": sorted(list(all_metrics)),
         "comparison": comparison,
-        "significance": significance_tests,
-        "significance_available": STATS_AVAILABLE,
+        "significance": {},
+        "significance_available": False,
         "filters": {"model_ids": model_ids, "project_ids": project_ids or [], "period": period},
     }

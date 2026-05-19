@@ -58,7 +58,7 @@ def email_service(mock_sendgrid_client):
 def notification():
     """Create a sample notification"""
     notif = Mock(spec=Notification)
-    notif.type = NotificationType.TASK_CREATED
+    notif.type = NotificationType.TASK_ASSIGNED
     notif.id = "notif_123"
     notif.message = "A new task has been created"
     return notif
@@ -165,6 +165,30 @@ class TestTemplateEnvironment:
 
             # Check for format_date filter
             assert "format_date" in env.filters
+
+    def test_canonical_template_dir_has_expected_templates(self, tmp_path):
+        """Regression: the worker resolves its template dir to
+        /shared/email_templates/email so it shares a canonical source with
+        the API. Previously the worker pointed at its own empty templates/
+        directory and every Celery-dispatched notification email failed
+        silently at template lookup. Point the env-var override at a tmp
+        dir populated with the three canonical templates and confirm the
+        Jinja2 env can load each one — guards against future drift in the
+        path-resolution code.
+        """
+        from pathlib import Path as _Path
+
+        # Mirror the canonical filenames we ship in services/shared/email_templates/email
+        for name in ("default_notification.html", "task_assigned.html", "korrektur_assigned.html"):
+            (tmp_path / name).write_text("Subject: x\n<html></html>")
+
+        with patch.dict(os.environ, {"EMAIL_TEMPLATE_DIR": str(tmp_path)}), \
+             patch("email_service.SendGridClient"):
+            service = EmailService()
+            env = service._init_template_environment()
+            for name in ("default_notification.html", "task_assigned.html", "korrektur_assigned.html"):
+                tpl = env.get_template(name)
+                assert tpl is not None, f"template {name} not loadable from canonical dir"
 
 
 class TestTemplateRendering:
@@ -379,7 +403,7 @@ class TestSendDigestEmail:
         notifications = []
         for i in range(5):
             notif = Mock(spec=Notification)
-            notif.type = NotificationType.TASK_CREATED
+            notif.type = NotificationType.TASK_ASSIGNED
             notif.id = f"notif_{i}"
             notifications.append(notif)
 
@@ -642,7 +666,7 @@ class TestEdgeCases:
         email_service.mail_client.send_message.return_value = {"status": "success"}
 
         notification_types = [
-            NotificationType.TASK_CREATED,
+            NotificationType.TASK_ASSIGNED,
             NotificationType.ANNOTATION_COMPLETED,
             NotificationType.ORGANIZATION_INVITATION_SENT,
             NotificationType.DATA_UPLOAD_COMPLETED,

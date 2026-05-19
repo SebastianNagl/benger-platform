@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -7,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import redis
 from celery import Celery
 from dotenv import load_dotenv
+from sqlalchemy.exc import DBAPIError, OperationalError
 
 # Import response parser for LLM response parsing
 from response_parser import ResponseParser
@@ -152,6 +154,68 @@ def _llm_judge_columns_from_result(result: Optional[dict]) -> dict:
     }
 
 
+def _build_multidim_judge_row_metrics(
+    multidim: Optional[dict],
+    metric: str,
+    error_msg: Optional[str],
+) -> tuple[dict, Optional[float]]:
+    """Build the canonical ``TaskEvaluation.metrics`` dict for a multi-dim LLM judge row.
+
+    Mirrors the shape produced by the immediate-eval path in
+    ``_evaluate_llm_judge_single`` so bulk-eval and immediate-eval rows
+    are queryable with the same JSON path. Returns ``(metrics_dict, normalized_value)``
+    where ``normalized_value`` is in ``[0, 1]`` (total_score / total_max)
+    or ``None`` on error / missing scores.
+
+    For error cases the metrics blob still carries the metric key with
+    ``value=None`` and the ``error`` message, so downstream consumers
+    (``_row_has_score`` / ``_row_is_terminal_error``) treat it as a
+    terminal failure instead of an unscored row.
+    """
+    if not multidim or multidim.get("error") or "scores" not in multidim:
+        return (
+            {
+                metric: {
+                    "value": None,
+                    "method": metric,
+                    "details": {
+                        "raw_output": (multidim or {}).get("_raw_output", ""),
+                        "call_metadata": (multidim or {}).get("_call_metadata", {}),
+                    },
+                    "error": (
+                        error_msg
+                        or (multidim or {}).get("error_message")
+                        or "multi-dim LLM judge produced no scores"
+                    ),
+                },
+            },
+            None,
+        )
+
+    total = float(multidim.get("total_score") or 0.0)
+    total_max = float(multidim.get("total_max") or 0.0)
+    normalized = total / total_max if total_max > 0 else 0.0
+    return (
+        {
+            metric: {
+                "value": float(normalized),
+                "method": metric,
+                "details": {
+                    "scores": multidim["scores"],
+                    "total_score": total,
+                    "total_max": total_max,
+                    "overall_assessment": multidim.get("overall_assessment", ""),
+                    "call_metadata": multidim.get("_call_metadata", {}),
+                    "raw_output": multidim.get("_raw_output", ""),
+                },
+                "error": None,
+            },
+            "raw_score": float(normalized),
+        },
+        float(normalized),
+    )
+
+
 def _row_has_score(metrics: dict | None) -> bool:
     """A TaskEvaluation row counts as 'already evaluated' if any non-error
     metric carries a numeric value — either as a bare float (legacy shape)
@@ -240,14 +304,37 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
+# Add /shared to sys.path early so top-level imports like `report_models`
+# resolve before the ai_services block below. Mirrors api/main.py:29-33.
+_shared_dir = (
+    "/shared"
+    if os.path.exists("/shared")
+    else os.path.join(os.path.dirname(os.path.dirname(current_dir)), "shared")
+)
+if _shared_dir not in sys.path:
+    sys.path.insert(0, _shared_dir)
+
 # Import database and models at top level to avoid import issues in worker processes
 try:
     from database import SessionLocal
 
     # Prompt import removed in Issue #759 - use generation_structure instead
     from models import LLMModel as DBLLMModel
-    from models import LLMResponse as DBLLMResponse  # Individual LLM responses
-    from models import ProjectReport as DBProjectReport  # For report updates
+    # Same table as `generations` — formerly the worker had a separate
+    # LLMResponse class definition mapping to the same __tablename__, but
+    # with /shared/models.py canonical, the API's `Generation` class is
+    # the single definition. The DBLLMResponse alias is preserved so
+    # callsites below don't have to change.
+    from models import Generation as DBLLMResponse
+    # Eagerly register project_models on the Base metadata BEFORE importing
+    # report_models, so SQLAlchemy can resolve the `relationship("Project")`
+    # back-reference declared on ProjectReport. Without this, the first
+    # `db.query(DBProjectReport)` call (line ~1888 in generate_llm_responses)
+    # raises InvalidRequestError: "expression 'Project' failed to locate a
+    # name" because the worker's lazy project_models imports inside other
+    # task bodies hadn't run yet.
+    import project_models  # noqa: F401 — side-effect import
+    from report_models import ProjectReport as DBProjectReport  # /shared — single source of truth
     from models import ResponseGeneration as DBResponseGeneration
 
     # DBTask removed - old task system cleanup
@@ -265,8 +352,19 @@ try:
         from notification_service import NotificationService, notify_task_completed
 
         HAS_NOTIFICATION_SERVICE = True
-    except ImportError:
-        # Mock notification service for testing
+    except ImportError as _notif_imp_err:
+        # Log loudly (not silently) so a real import bug in prod shows
+        # up in worker logs instead of silently returning empty
+        # notification lists — which is what hid the worker
+        # NotificationService email-dispatch gap until 2026-05-19.
+        logger.error(
+            "❌ notification_service not importable — worker will accept "
+            "create_notification calls but return [] and emit no events. "
+            "Reason: %s",
+            _notif_imp_err,
+            exc_info=True,
+        )
+
         def notify_task_completed(*args, **kwargs):
             return {"status": "mock", "notification_sent": False}
 
@@ -287,20 +385,6 @@ try:
 
     # Native annotation system in use
 
-    # Import digest service
-    try:
-        from digest_service import DigestService
-    except ImportError:
-        # Mock DigestService for testing
-        class DigestService:
-            @staticmethod
-            async def process_all_digests(db):
-                return {"total_users": 0, "digests_sent": 0, "errors": 0}
-
-            @staticmethod
-            async def process_digest_for_user(db, user):
-                return True
-
     # Import GenerationStructureParser for safe field interpolation (Issue #507, #519)
     try:
         from generation_structure_parser import GenerationStructureParser
@@ -314,7 +398,25 @@ try:
     HAS_DATABASE = True
     logger.info("✅ Database and models imported successfully")
 except ImportError as e:
-    logger.error(f"❌ Failed to import database/models: {e}")
+    # In any non-test environment a worker without SessionLocal can't do
+    # its job — every task body would hit a Mock that returns None / []
+    # and pretend success. Log CRITICAL with stack so the gap is obvious;
+    # also refuse to start in production/staging where the only correct
+    # response is "fix it and redeploy", not "limp along returning mocks".
+    if os.getenv("ENVIRONMENT", "").lower() in ("production", "staging"):
+        logger.critical(
+            "❌ Failed to import database/models in production — refusing to start. %s",
+            e,
+            exc_info=True,
+        )
+        raise
+    logger.critical(
+        "❌ Failed to import database/models — falling back to in-memory mocks. "
+        "Every task will return success-shaped data without touching the DB. "
+        "Reason: %s",
+        e,
+        exc_info=True,
+    )
 
     # Mock classes for testing
     class SessionLocal:
@@ -379,7 +481,23 @@ try:
     HAS_AI_SERVICES = True
     logger.info("✅ AI services imported successfully from shared module")
 except ImportError as e:
-    logger.error(f"❌ Failed to import AI services: {e}")
+    # AI services are required for generation/evaluation tasks. Mirror the
+    # SessionLocal fail-fast pattern above so a real import bug in prod
+    # doesn't silently degrade every model call to a mock "response".
+    if os.getenv("ENVIRONMENT", "").lower() in ("production", "staging"):
+        logger.critical(
+            "❌ Failed to import AI services in production — refusing to start. %s",
+            e,
+            exc_info=True,
+        )
+        raise
+    logger.critical(
+        "❌ Failed to import AI services — generation/evaluation tasks will "
+        "return mock 'Mock <provider> response' strings without ever calling "
+        "the model. Reason: %s",
+        e,
+        exc_info=True,
+    )
 
     # Mock classes for testing
     class OpenAIService:
@@ -460,11 +578,21 @@ app = Celery("tasks")
 # Celery Beat Schedule for periodic tasks
 from celery.schedules import crontab
 
+# Beat schedule. `process-daily-digests` was removed with the email-digest
+# feature (User-model columns commented out in models.py).
+#
+# `recompute-aggregates`: refresh the precomputed leaderboard + project
+# summary tables every 12h. The API endpoints read these tables instead of
+# scanning task_evaluations on every request (OOMed prod 2026-05-19).
+# Migration 051 introduced the tables; see services/api/services/
+# aggregate_summaries.py for the SQL.
 app.conf.beat_schedule = {
-    # Process daily digests
-    "process-daily-digests": {
-        "task": "digest.process_all_digests",
-        "schedule": crontab(hour=8, minute=0),  # Daily at 8:00 AM
+    "recompute-aggregates": {
+        "task": "tasks.recompute_aggregates",
+        "schedule": crontab(minute=0, hour="*/12"),
+        "args": (),
+        "kwargs": {},
+        "options": {"queue": "default"},
     },
 }
 
@@ -473,7 +601,6 @@ app.conf.timezone = "UTC"
 # Task routing configuration for different queues
 app.conf.task_routes = {
     'emails.*': {'queue': 'emails'},
-    'digest.*': {'queue': 'emails'},
     'tasks.*': {'queue': 'default'},
 }
 
@@ -481,7 +608,6 @@ app.conf.task_routes = {
 app.conf.task_annotations = {
     'emails.send_invitation': {'rate_limit': '30/m'},  # 30 invitations per minute
     'emails.send_bulk_invitations': {'rate_limit': '5/m'},  # 5 bulk operations per minute
-    'digest.process_all_digests': {'rate_limit': '10/h'},  # 10 digest runs per hour
 }
 
 # Build Redis URLs - prefer REDIS_URI for production compatibility
@@ -506,6 +632,57 @@ else:
 
 app.conf.broker_url = os.getenv("CELERY_BROKER_URL", broker_url)
 app.conf.result_backend = os.getenv("CELERY_RESULT_BACKEND", result_backend)
+
+
+# ---- Progress pub/sub (workers → API WebSocket clients) ---------------------
+#
+# Per-cell evaluation and per-row generation commits broadcast on a
+# project-scoped Redis channel. The API-side WS handlers
+# (routers/evaluations/ws.py, routers/generation.py) subscribe to that
+# channel and forward each message as a `tick` to the connected browser,
+# which then re-fetches the cell/row view. This replaces the prior
+# 2-second `count(*)` polling loop on the API side and gives the user
+# near-instant cell-by-cell feedback.
+#
+# Failure is best-effort: a Redis hiccup must never fail the underlying
+# DB commit. The publisher uses a lazy, process-local client built from
+# the Celery broker URL (already resolved above).
+_progress_redis_client: Optional["redis.Redis"] = None
+
+
+def _get_progress_redis():
+    """Return a lazily-built Redis client for progress publishing.
+
+    Reuses the Celery broker URL so worker pods need no additional config
+    or secret. Returns `None` if redis is unavailable for any reason —
+    callers must tolerate this and proceed (the commit path is more
+    important than the broadcast).
+    """
+    global _progress_redis_client
+    if _progress_redis_client is not None:
+        return _progress_redis_client
+    try:
+        _progress_redis_client = redis.Redis.from_url(
+            app.conf.broker_url,
+            socket_timeout=2,
+            socket_connect_timeout=2,
+            decode_responses=True,
+        )
+        return _progress_redis_client
+    except Exception as e:
+        logger.warning(f"progress redis client init failed: {e}")
+        return None
+
+
+def _publish_progress(channel: str, payload: Dict[str, Any]) -> None:
+    """Publish a progress event on `channel`. No-op on any error."""
+    client = _get_progress_redis()
+    if client is None:
+        return
+    try:
+        client.publish(channel, json.dumps(payload))
+    except Exception as e:
+        logger.warning(f"progress publish to {channel} failed: {e}")
 
 
 def _extract_field_value_from_annotation(annotation_results: List[Dict], field_name: str) -> Any:
@@ -597,16 +774,33 @@ def auto_submit_expired_timer(session_id: str) -> Dict[str, Any]:
 
     db = SessionLocal()
     try:
-        from project_models import Annotation, AnnotationTimerSession, Project, Task
+        from project_models import Annotation, TimerSession, Project, Task
 
-        session = db.query(AnnotationTimerSession).filter(
-            AnnotationTimerSession.id == session_id
+        session = db.query(TimerSession).filter(
+            TimerSession.id == session_id
         ).first()
 
         if not session:
             return {"status": "skipped", "reason": "session not found"}
         if session.completed_at:
             return {"status": "skipped", "reason": "already completed"}
+
+        # Issue #30 PR 3: korrektur timer sessions (target_type in
+        # ('annotation', 'generation')) expire WITHOUT auto-creating a grade.
+        # Korrektur is qualitative — auto-submitting a half-filled rubric as
+        # the final score would corrupt the IRR analysis. Expiry just stops
+        # the client countdown; the grader can still finish + submit via the
+        # normal endpoint, or skip. Strict-mode blocking of post-expiry
+        # submission can be added later if a project ever needs it.
+        if session.target_type and session.target_type != "task":
+            from datetime import datetime, timezone
+            session.completed_at = datetime.now(timezone.utc)
+            session.auto_submitted = True
+            db.commit()
+            return {
+                "status": "expired_korrektur",
+                "reason": "korrektur sessions don't auto-grade",
+            }
 
         # Check if user already has an annotation for this task (client beat us)
         existing = db.query(Annotation).filter(
@@ -1705,6 +1899,30 @@ def generate_llm_responses(
                         # Commit after each response to avoid losing work
                         db.commit()
 
+                        # Broadcast on the same throttle as the counter update
+                        # — every 10 rows or at end. The API-side WS handler
+                        # forwards this to GenerationTaskList / GenerationProgress
+                        # which then re-fetches the row list. The handler used
+                        # to poll for the same thing every 2 s; pub/sub lets us
+                        # drop that polling load entirely.
+                        if (
+                            responses_generated % 10 == 0
+                            or responses_generated == total_expected
+                        ):
+                            _publish_progress(
+                                f"generation:progress:{project_id}",
+                                {
+                                    "type": "progress",
+                                    "generation_id": generation.id,
+                                    "model_id": model_id,
+                                    "responses_generated": responses_generated,
+                                    "total_expected": total_expected,
+                                    "status": "running"
+                                    if responses_generated < total_expected
+                                    else "completed",
+                                },
+                            )
+
                     except Exception as e:
                         _last_error = str(e)
                         logger.error(
@@ -1954,97 +2172,14 @@ def generate_llm_responses(
         }
 
 
-@app.task(bind=True, name="digest.process_all_digests")
-async def process_all_digests_task(self) -> Dict[str, Any]:
-    """
-    Celery task to process email digests for all users
-
-    This task is designed to be run on a schedule (e.g., daily) to send
-    digest emails to users who have enabled digest notifications.
-
-    Returns:
-        Dictionary with processing statistics
-    """
-    logger.info("🔄 Starting digest processing task")
-
-    if not HAS_DATABASE:
-        logger.error("❌ Database not available for digest processing")
-        return {"status": "error", "message": "Database not available"}
-
-    db = SessionLocal()
-
-    try:
-        # Process all digests using the digest service
-        stats = await DigestService.process_all_digests(db)
-
-        logger.info(
-            f"✅ Digest processing completed: "
-            f"{stats['digests_sent']}/{stats['total_users']} digests sent"
-        )
-
-        return {
-            "status": "success",
-            "message": f"Processed digests for {stats['total_users']} users",
-            "stats": stats,
-        }
-
-    except Exception as e:
-        logger.error(f"❌ Error processing digests: {str(e)}")
-        return {"status": "error", "message": f"Digest processing failed: {str(e)}"}
-
-    finally:
-        db.close()
-
-
-@app.task(bind=True, name="digest.send_test_digest")
-async def send_test_digest_task(self, user_id: str) -> Dict[str, Any]:
-    """
-    Celery task to send a test digest to a specific user
-
-    Args:
-        user_id: ID of the user to send test digest to
-
-    Returns:
-        Dictionary with result status
-    """
-    logger.info(f"🔄 Sending test digest to user {user_id}")
-
-    if not HAS_DATABASE:
-        logger.error("❌ Database not available for test digest")
-        return {"status": "error", "message": "Database not available"}
-
-    db = SessionLocal()
-
-    try:
-        # Get user
-        from models import User
-
-        user = db.query(User).filter(User.id == user_id).first()
-
-        if not user:
-            return {"status": "error", "message": f"User {user_id} not found"}
-
-        # Process digest for this user
-        success = await DigestService.process_digest_for_user(db, user)
-
-        if success:
-            logger.info(f"✅ Test digest sent successfully to {user.email}")
-            return {"status": "success", "message": f"Test digest sent to {user.email}"}
-        else:
-            logger.warning(
-                f"⚠️ Test digest not sent to {user.email} (no notifications or digest disabled)"
-            )
-            return {
-                "status": "skipped",
-                "message": f"No digest sent to {user.email} (no new notifications or digest disabled)",
-            }
-
-    except Exception as e:
-        logger.error(f"❌ Error sending test digest to user {user_id}: {str(e)}")
-        return {"status": "error", "message": f"Test digest failed: {str(e)}"}
-
-    finally:
-        db.close()
+# digest.process_all_digests and digest.send_test_digest tasks were
+# removed here — the underlying email-digest feature was deleted at the
+# User model level (see models.py around line 223), so both tasks could
+# only ever AttributeError at runtime. The matching beat schedule entry,
+# the digest_service.py module, and the celery-beat scheduler container
+# in docker-compose are all gone too. Reviving needs the User columns
+# (enable_email_digest, digest_frequency, digest_time, digest_days,
+# last_digest_sent) plus a digest.html email template (also missing).
 
 
 # Email tasks for invitation system
@@ -2123,11 +2258,35 @@ def send_invitation_email_task(
                 "organization": organization_name,
                 "message_id": result.get("message_id", "unknown"),
             }
-        else:
-            error_msg = result.get("error", "Unknown SendGrid error")
-            logger.error(f"Failed to send invitation email to {to_email}: {error_msg}")
-            raise RuntimeError(f"SendGrid error: {error_msg}")
 
+        # Differentiate retryable vs permanent SendGrid failures. Without
+        # this every 400 (malformed recipient), 401 (bad API key), 403
+        # (suspended account), etc. burned three full 60s-spaced retries
+        # via autoretry_for=(Exception,) + max_retries=3, occupying the
+        # rate-limited (30/m) emails queue. 429 stays retryable — that's
+        # SendGrid asking us to back off.
+        status_code = result.get("status_code")
+        error_msg = result.get("error", "Unknown SendGrid error")
+        if status_code is not None and 400 <= status_code < 500 and status_code != 429:
+            logger.error(
+                f"Permanent SendGrid {status_code} for {to_email}; not retrying: {error_msg}"
+            )
+            return {
+                "status": "failed_permanent",
+                "invitation_id": invitation_id,
+                "recipient": to_email,
+                "status_code": status_code,
+                "error": error_msg,
+            }
+
+        logger.error(
+            f"Retryable SendGrid failure for {to_email} (status_code={status_code}): {error_msg}"
+        )
+        raise RuntimeError(f"SendGrid error: {error_msg}")
+
+    except RuntimeError:
+        # Already classified as retryable above — let autoretry_for see it.
+        raise
     except Exception as e:
         logger.error(f"Error sending invitation email to {to_email}: {str(e)}")
         raise
@@ -2186,7 +2345,7 @@ def send_bulk_invitations_task(invitations_data: List[Dict]) -> Dict[str, Any]:
 
 @app.task(
     name="emails.send_notification_batch",
-    autoretry_for=(Exception,),
+    autoretry_for=(OperationalError, DBAPIError),
     retry_kwargs={"max_retries": 3, "countdown": 60},
 )
 def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any]:
@@ -2199,9 +2358,13 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
     catastrophic under fan-out (notify_project_created → every org member +
     every superadmin); see 2026-05-18 postmortem.
 
-    Owns its own DB session. Failures per-recipient are logged and swallowed
-    so one bad email doesn't tank the whole batch; the task-level retry is
-    reserved for total failures (e.g. SessionLocal unreachable).
+    Owns its own DB session. Per-recipient SendGrid failures (4xx/5xx) are
+    swallowed and counted as `failed` so one bad address doesn't tank the
+    whole batch. Task-level retry is narrowed to transient DB errors
+    (OperationalError / DBAPIError) — previously `autoretry_for=(Exception,)`
+    would burn 3 retries × 60s on any non-DB outer failure
+    (ImportError, SendGrid client init crash, …) that no amount of
+    retrying would ever fix.
     """
     if not notification_data:
         return {"sent": 0, "failed": 0, "skipped": 0}
@@ -3826,6 +3989,92 @@ def _evaluate_llm_judge_single(
     if not llm_judge.ai_service:
         raise RuntimeError(f"No AI service available for LLM judge ({provider})")
 
+    # Multi-dim single-call mode: when custom_criteria carries max_score on
+    # any dimension, the user's prompt is expected to score every dimension
+    # in one LLM call (Grundprinzipien-style 4-dim rubric). Skip the
+    # per-criterion fan-out and persist per-dim scores under
+    # metrics[<metric>].details.scores.
+    if llm_judge.is_multidim_mode():
+        from project_models import Task as ProjectTask, Annotation
+        from annotation_utils import extract_all_field_values
+        task_row = db.query(ProjectTask).filter(ProjectTask.id == task_id).first()
+        task_data = (task_row.data if task_row else {}) or {}
+
+        # Flatten the model/annotation output so the prompt can reference
+        # individual fields by name (e.g. {{kurzantwort}}, {{begruendung}})
+        # without forcing the user to write field_mappings for every one.
+        # Branches by whichever target the eval is grading.
+        field_outputs: Dict[str, Any] = {}
+        if annotation_id:
+            ann_row = db.query(Annotation).filter(Annotation.id == annotation_id).first()
+            if ann_row and ann_row.result:
+                field_outputs = extract_all_field_values(ann_row.result)
+        # Generation case: parsed_annotation lives on the generation row
+        # already in label-studio shape, so the same flattener works.
+        gen_id_from_meta = (metric_params or {}).get("generation_id")
+        if not field_outputs and gen_id_from_meta:
+            gen_row = db.query(DBLLMResponse).filter(DBLLMResponse.id == gen_id_from_meta).first()
+            parsed = getattr(gen_row, "parsed_annotation", None) if gen_row else None
+            if parsed:
+                field_outputs = extract_all_field_values(parsed)
+
+        multidim = llm_judge._evaluate_multidim_single_call(
+            context="",
+            ground_truth=reference,
+            prediction=prediction,
+            task_data=task_data,
+            field_outputs=field_outputs,
+        )
+        if multidim is None or multidim.get("error") or "scores" not in multidim:
+            err_msg = (
+                (multidim or {}).get("error_message") or "multi-dim LLM judge produced no scores"
+            )
+            raise RuntimeError(err_msg)
+
+        total = float(multidim.get("total_score") or 0.0)
+        total_max = float(multidim.get("total_max") or 0.0)
+        normalized = total / total_max if total_max > 0 else 0.0
+        eval_record = TaskEvaluation(
+            id=record_id,
+            evaluation_id=immediate_eval_id,
+            judge_run_id=judge_run_id,
+            task_id=task_id,
+            annotation_id=annotation_id,
+            generation_id=None,
+            field_name=field_name,
+            answer_type="text",
+            ground_truth=reference,
+            prediction=prediction,
+            metrics={
+                metric_type: {
+                    "value": float(normalized),
+                    "method": metric_type,
+                    "details": {
+                        "scores": multidim["scores"],
+                        "total_score": total,
+                        "total_max": total_max,
+                        "overall_assessment": multidim.get("overall_assessment", ""),
+                        "call_metadata": multidim.get("_call_metadata", {}),
+                        "raw_output": multidim.get("_raw_output", ""),
+                    },
+                    "error": None,
+                },
+                "raw_score": float(normalized),
+            },
+            judge_prompts_used=multidim.get("_judge_prompts_used"),
+            passed=float(normalized) >= 0.5,
+        )
+        db.add(eval_record)
+        db.commit()
+        return {
+            "status": "completed",
+            "record_id": record_id,
+            "metric": metric_type,
+            "score": float(normalized),
+            "total_score": total,
+            "total_max": total_max,
+        }
+
     # Derive the per-criterion key from the metric name. `llm_judge_helpfulness`
     # → criterion `helpfulness`. `llm_judge_classic` / `llm_judge_custom`
     # don't carry a single criterion in the name; fall back to the first
@@ -4599,6 +4848,11 @@ def evaluate_generation_cell(
                                     })
                                     continue
 
+                                multidim_mode = (
+                                    metric != "llm_judge_falloesung"
+                                    and getattr(jr_evaluator, "is_multidim_mode", lambda: False)()
+                                )
+
                                 if metric == "llm_judge_falloesung":
                                     try:
                                         from benger_extended.workers import (
@@ -4626,6 +4880,26 @@ def evaluate_generation_cell(
                                         thinking_budget=getattr(jr_evaluator, "thinking_budget", None),
                                         reasoning_effort=getattr(jr_evaluator, "reasoning_effort", None),
                                     )
+                                elif multidim_mode:
+                                    # Flatten the model's per-field output
+                                    # (parsed_annotation is in label-studio
+                                    # shape) so the user's prompt can
+                                    # reference {{kurzantwort}} /
+                                    # {{begruendung}} directly without
+                                    # field_mappings.
+                                    from annotation_utils import extract_all_field_values
+                                    gen_field_outputs = (
+                                        extract_all_field_values(gen.parsed_annotation)
+                                        if getattr(gen, "parsed_annotation", None)
+                                        else {}
+                                    )
+                                    result = jr_evaluator._evaluate_multidim_single_call(
+                                        context=context,
+                                        ground_truth=eval_ground_truth,
+                                        prediction=str(prediction) if prediction else "",
+                                        task_data=task.data,
+                                        field_outputs=gen_field_outputs,
+                                    )
                                 else:
                                     result = jr_evaluator._evaluate_single_criterion(
                                         context=context,
@@ -4640,6 +4914,34 @@ def evaluate_generation_cell(
                                     if result
                                     else None
                                 )
+
+                                if multidim_mode:
+                                    error_msg = (
+                                        result.get("error_message")
+                                        if result and result.get("error")
+                                        else None
+                                    )
+                                    metrics_dict, normalized = _build_multidim_judge_row_metrics(
+                                        result, metric, error_msg,
+                                    )
+                                    per_judge_results.append({
+                                        "id": str(_gen_uuid.uuid4()),
+                                        "evaluation_id": evaluation_id,
+                                        "judge_run_id": jr_id,
+                                        "task_id": task.id,
+                                        "generation_id": gen.id,
+                                        "field_name": field_key,
+                                        "answer_type": "text",
+                                        "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                        "prediction": str(prediction)[:1000] if prediction else "",
+                                        "metrics": metrics_dict,
+                                        "passed": (normalized or 0.0) >= 0.5,
+                                        "error_message": error_msg,
+                                        "judge_prompts_used": judge_prompts,
+                                        **_llm_judge_columns_from_result(result),
+                                    })
+                                    continue
+
                                 raw_score = result.get("score") if result is not None else None
                                 error_msg = None
                                 if raw_score is not None:
@@ -4782,6 +5084,21 @@ def evaluate_generation_cell(
             samples_failed=n_failed,
         )
         db.commit()
+        # Tell the API WS handler this cell landed so it can push a
+        # `tick` to connected EvaluationResults clients. The handler
+        # subscribes to `evaluation:progress:{project_id}` and re-fetches
+        # the task-model view on each tick.
+        if n_inserted > 0:
+            _publish_progress(
+                f"evaluation:progress:{project_id}",
+                {
+                    "type": "cell_complete",
+                    "evaluation_id": evaluation_id,
+                    "task_id": task_id,
+                    "generation_id": generation_id,
+                    "samples_added": n_inserted,
+                },
+            )
         return {
             "status": "ok",
             "evaluation_id": evaluation_id,
@@ -5061,6 +5378,11 @@ def evaluate_annotation_cell(
                                         })
                                         continue
 
+                                    multidim_mode = (
+                                        metric != "llm_judge_falloesung"
+                                        and getattr(jr_evaluator, "is_multidim_mode", lambda: False)()
+                                    )
+
                                     if metric == "llm_judge_falloesung":
                                         try:
                                             from benger_extended.workers import (
@@ -5088,6 +5410,25 @@ def evaluate_annotation_cell(
                                             thinking_budget=getattr(jr_evaluator, "thinking_budget", None),
                                             reasoning_effort=getattr(jr_evaluator, "reasoning_effort", None),
                                         )
+                                    elif multidim_mode:
+                                        # Same as the gen-cell side: flatten
+                                        # the human annotator's per-field
+                                        # outputs so the user's prompt can
+                                        # reference {{kurzantwort}} /
+                                        # {{begruendung}} directly.
+                                        from annotation_utils import extract_all_field_values
+                                        ann_field_outputs = (
+                                            extract_all_field_values(annotation.result)
+                                            if getattr(annotation, "result", None)
+                                            else {}
+                                        )
+                                        result = jr_evaluator._evaluate_multidim_single_call(
+                                            context=context,
+                                            ground_truth=eval_ground_truth,
+                                            prediction=str(prediction) if prediction else "",
+                                            task_data=task.data,
+                                            field_outputs=ann_field_outputs,
+                                        )
                                     else:
                                         result = jr_evaluator._evaluate_single_criterion(
                                             context=context,
@@ -5102,6 +5443,35 @@ def evaluate_annotation_cell(
                                         if result
                                         else None
                                     )
+
+                                    if multidim_mode:
+                                        error_msg = (
+                                            result.get("error_message")
+                                            if result and result.get("error")
+                                            else None
+                                        )
+                                        metrics_dict, normalized = _build_multidim_judge_row_metrics(
+                                            result, metric, error_msg,
+                                        )
+                                        per_judge_results.append({
+                                            "id": str(_ann_uuid.uuid4()),
+                                            "evaluation_id": evaluation_id,
+                                            "judge_run_id": jr_id,
+                                            "task_id": task.id,
+                                            "generation_id": None,
+                                            "annotation_id": annotation.id,
+                                            "field_name": field_key,
+                                            "answer_type": "text",
+                                            "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                            "prediction": str(prediction)[:1000] if prediction else "",
+                                            "metrics": metrics_dict,
+                                            "passed": (normalized or 0.0) >= 0.5,
+                                            "error_message": error_msg,
+                                            "judge_prompts_used": judge_prompts,
+                                            **_llm_judge_columns_from_result(result),
+                                        })
+                                        continue
+
                                     raw_score = result.get("score") if result is not None else None
                                     error_msg = None
                                     if raw_score is not None:
@@ -5239,6 +5609,18 @@ def evaluate_annotation_cell(
             samples_failed=n_failed,
         )
         db.commit()
+        # Same as the gen cell — broadcast so the API WS pushes a tick.
+        if n_inserted > 0:
+            _publish_progress(
+                f"evaluation:progress:{project_id}",
+                {
+                    "type": "cell_complete",
+                    "evaluation_id": evaluation_id,
+                    "task_id": task_id,
+                    "annotation_id": annotation_id,
+                    "samples_added": n_inserted,
+                },
+            )
         return {
             "status": "ok",
             "evaluation_id": evaluation_id,
@@ -5443,11 +5825,27 @@ def finalize_evaluation_run(
         flag_modified(evaluation, "eval_metadata")
         db.commit()
 
-        # Report section update — lifted from ex-`tasks.py:3956-3958`.
+        # Event-driven refresh of the precomputed aggregates so the
+        # leaderboard + dashboard reflect this new evaluation without
+        # waiting for the 12h beat. Fire-and-forget — coalesced via
+        # Redis lock in the recompute task itself, so a burst of finalizers
+        # collapses to a single execution. Failure to enqueue must not
+        # block the finalizer; just log it.
         try:
-            api_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'api')
-            if api_dir not in sys.path:
-                sys.path.insert(0, api_dir)
+            app.send_task("tasks.recompute_aggregates", queue="default")
+        except Exception as _enqueue_exc:
+            logger.warning(
+                "recompute_aggregates enqueue after finalize failed: %s",
+                _enqueue_exc,
+            )
+
+        # Report section update — lifted from ex-`tasks.py:3956-3958`.
+        # report_service lives in /shared so both API and workers import it
+        # via top-level name. The previous code hacked services/api/ onto
+        # sys.path from the worker container at runtime, but the worker
+        # image has no api/ sibling, so the import always failed and the
+        # report's evaluation section silently never auto-refreshed.
+        try:
             from report_service import update_report_evaluation_section
 
             update_report_evaluation_section(db, evaluation.project_id)
@@ -5524,3 +5922,81 @@ def finalize_evaluation_run(
         return {"status": "error", "evaluation_id": evaluation_id, "error": str(e)}
     finally:
         db.close()
+
+
+@app.task(name="tasks.recompute_aggregates", bind=True)
+def recompute_aggregates(self):
+    """Refresh the precomputed leaderboard + project-summary tables.
+
+    Runs every 12h via beat (see `app.conf.beat_schedule` above) and can be
+    triggered ad-hoc. Coalesces concurrent runs with a Redis lock so a burst
+    of triggers collapses to a single execution.
+
+    The heavy SQL lives in `services/api/services/aggregate_summaries.py`;
+    this is the Celery entry point. Total wall time on prod-scale data
+    (333 evaluation_runs / 60k task_evaluations) should be well under a
+    minute in the worker pod.
+    """
+    # Ensure services/api/services is reachable. The worker already adds
+    # the api dir to sys.path (see line ~347); this import just lazy-resolves
+    # so a circular-import in the API surface area can't crash worker boot.
+    from datetime import datetime as _dt
+
+    from services.aggregate_summaries import (
+        recompute_llm_leaderboard_scores,
+        recompute_project_summaries,
+    )
+
+    lock_key = "lock:recompute_aggregates"
+    lock_ttl_seconds = 600  # 10 min — generous ceiling on a normal run
+
+    try:
+        rc = redis.from_url(broker_url)
+    except Exception as exc:
+        logger.warning(
+            "recompute_aggregates: redis unavailable for coalescing lock (%s); "
+            "proceeding without dedup",
+            exc,
+        )
+        rc = None
+
+    have_lock = False
+    if rc is not None:
+        # SET NX EX -- only this caller proceeds if no other run is in flight.
+        have_lock = bool(rc.set(lock_key, "1", nx=True, ex=lock_ttl_seconds))
+        if not have_lock:
+            logger.info("recompute_aggregates: another run holds the lock; skipping")
+            return {"status": "skipped", "reason": "another_run_in_progress"}
+
+    db = SessionLocal()
+    try:
+        started = _dt.now()
+        ps_upserts = recompute_project_summaries(db)
+        lls_upserts = recompute_llm_leaderboard_scores(db)
+        elapsed = (_dt.now() - started).total_seconds()
+        logger.info(
+            "recompute_aggregates: project_summaries=%d llm_leaderboard_scores=%d elapsed=%.1fs",
+            ps_upserts,
+            lls_upserts,
+            elapsed,
+        )
+        return {
+            "status": "success",
+            "project_summaries_upserted": ps_upserts,
+            "llm_leaderboard_scores_upserted": lls_upserts,
+            "elapsed_seconds": elapsed,
+        }
+    except Exception as exc:
+        logger.error("recompute_aggregates failed: %s", exc, exc_info=True)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return {"status": "error", "error": str(exc)}
+    finally:
+        db.close()
+        if rc is not None and have_lock:
+            try:
+                rc.delete(lock_key)
+            except Exception:
+                pass

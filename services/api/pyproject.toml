@@ -21,6 +21,10 @@ dependencies = [
     "redis==5.3.1",
     "sqlalchemy==2.0.49",
     "psycopg2-binary==2.9.12",
+    # asyncpg is the asyncio Postgres driver for the new async engine
+    # (database.async_engine). 0.30.x verified against PG 18.3 on prod
+    # (Bitnami/Broadcom Photon rebuild) via 2026-05-18 pre-flight.
+    "asyncpg==0.30.0",
     "alembic==1.18.4",
     "email-validator==2.3.0",
     # starlette version is managed by fastapi

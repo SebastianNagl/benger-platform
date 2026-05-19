@@ -186,63 +186,84 @@ class TestAnthropicValidationBranches:
 
     @pytest.mark.asyncio
     async def test_anthropic_success_format(self):
-        """Lines 308-309: valid key format."""
+        """Successful /v1/models call returns success tuple."""
         service = self._make_service()
-        valid, msg, err = await service._validate_anthropic_key("sk-ant-test123")
-        assert valid is True
-        assert "successful" in msg.lower()
+        with patch(
+            "asyncio.wait_for",
+            AsyncMock(return_value=(True, "Connection to Anthropic successful", "success")),
+        ):
+            valid, msg, err = await service._validate_anthropic_key("sk-ant-test123")
+            assert valid is True
+            assert "successful" in msg.lower()
 
     @pytest.mark.asyncio
     async def test_anthropic_invalid_format(self):
-        """Lines 310-311: invalid key format."""
+        """Prefix fast-fail returns invalid_format without a network call."""
         service = self._make_service()
         valid, msg, err = await service._validate_anthropic_key("invalid-key")
         assert valid is False
         assert "invalid" in msg.lower()
+        assert err == "invalid_format"
 
     @pytest.mark.asyncio
     async def test_anthropic_auth_error(self):
-        """Lines 300-303: AuthenticationError exception."""
+        """AuthenticationError raised inside wait_for is mapped to err=auth."""
         service = self._make_service()
 
         class AuthenticationError(Exception):
             pass
 
         with patch("asyncio.wait_for", side_effect=AuthenticationError("bad key")):
-            valid, msg, err = await service._validate_anthropic_key("key")
+            valid, msg, err = await service._validate_anthropic_key("sk-ant-bogus")
             assert valid is False
             assert err == "auth"
 
     @pytest.mark.asyncio
     async def test_anthropic_generic_error(self):
-        """Line 304: generic exception."""
+        """Non-auth exception inside wait_for is mapped to err=connection_error."""
         service = self._make_service()
         with patch("asyncio.wait_for", side_effect=ConnectionError("fail")):
-            valid, msg, err = await service._validate_anthropic_key("key")
+            valid, msg, err = await service._validate_anthropic_key("sk-ant-bogus")
             assert valid is False
             assert err == "connection_error"
 
 
 class TestGoogleValidation:
-    """Cover lines 316-319."""
+    """Cover Google validator branches via mocked aiohttp /v1/models call."""
 
     def _make_service(self):
         from services.user_api_key_service import UserApiKeyService
 
         return UserApiKeyService(Mock())
 
+    def _aiohttp_mock(self, status):
+        mock_response = Mock()
+        mock_response.status = status
+        get_cm = Mock()
+        get_cm.__aenter__ = AsyncMock(return_value=mock_response)
+        get_cm.__aexit__ = AsyncMock(return_value=None)
+        session = Mock()
+        session.get.return_value = get_cm
+        session_cm = Mock()
+        session_cm.__aenter__ = AsyncMock(return_value=session)
+        session_cm.__aexit__ = AsyncMock(return_value=None)
+        return session_cm
+
     @pytest.mark.asyncio
     async def test_google_valid(self):
         service = self._make_service()
-        valid, msg, err = await service._validate_google_key("AIzaSomething")
-        assert valid is True
+        with patch("aiohttp.ClientSession", return_value=self._aiohttp_mock(200)):
+            valid, msg, err = await service._validate_google_key("AIzaSomething")
+            assert valid is True
+            assert err == "success"
 
     @pytest.mark.asyncio
     async def test_google_invalid(self):
         service = self._make_service()
-        valid, msg, err = await service._validate_google_key("invalid-key")
-        assert valid is False
-        assert err == "auth"
+        with patch("aiohttp.ClientSession", return_value=self._aiohttp_mock(400)):
+            valid, msg, err = await service._validate_google_key("invalid-key")
+            assert valid is False
+            assert err == "auth"
 
 
 class TestCreateUserApiKeyServiceFactory:
@@ -986,14 +1007,14 @@ class TestResolvePerModelMetrics:
     """Cover lines 53-73: _resolve_per_model_metrics."""
 
     def test_empty_evaluation_ids(self):
-        from services.evaluation.report_service import _resolve_per_model_metrics
+        from report_service import _resolve_per_model_metrics
 
         db = Mock()
         result = _resolve_per_model_metrics(db, [])
         assert result == {}
 
     def test_no_results(self):
-        from services.evaluation.report_service import _resolve_per_model_metrics
+        from report_service import _resolve_per_model_metrics
 
         db = Mock()
         q = MagicMock()
@@ -1006,7 +1027,7 @@ class TestResolvePerModelMetrics:
         assert result == {}
 
     def test_with_valid_results(self):
-        from services.evaluation.report_service import _resolve_per_model_metrics
+        from report_service import _resolve_per_model_metrics
 
         db = Mock()
         q = MagicMock()
@@ -1031,7 +1052,7 @@ class TestResolvePerModelMetrics:
         assert abs(result["gpt-4"]["f1"] - 0.85) < 0.01  # Average of 0.9 and 0.8
 
     def test_skips_unknown_model_id(self):
-        from services.evaluation.report_service import _resolve_per_model_metrics
+        from report_service import _resolve_per_model_metrics
 
         db = Mock()
         q = MagicMock()
@@ -1055,7 +1076,7 @@ class TestResolvePerModelMetrics:
 
     def test_resolves_annotator_synthetic_ids(self):
         """Pass 2: annotation-based TaskEvaluation rows yield 'annotator:<display>'."""
-        from services.evaluation.report_service import _resolve_per_model_metrics
+        from report_service import _resolve_per_model_metrics
 
         db = Mock()
         q = MagicMock()
@@ -1081,7 +1102,7 @@ class TestUpdateMetadata:
     """Cover lines 364-366: _update_metadata."""
 
     def test_adds_section_to_completed(self):
-        from services.evaluation.report_service import _update_metadata
+        from report_service import _update_metadata
 
         report = Mock()
         report.content = {
@@ -1091,13 +1112,13 @@ class TestUpdateMetadata:
             }
         }
 
-        with patch("services.evaluation.report_service.flag_modified"):
+        with patch("report_service.flag_modified"):
             _update_metadata(report, "data")
             assert "data" in report.content["metadata"]["sections_completed"]
             assert report.content["metadata"]["last_auto_update"] != "old"
 
     def test_does_not_duplicate_section(self):
-        from services.evaluation.report_service import _update_metadata
+        from report_service import _update_metadata
 
         report = Mock()
         report.content = {
@@ -1107,7 +1128,7 @@ class TestUpdateMetadata:
             }
         }
 
-        with patch("services.evaluation.report_service.flag_modified"):
+        with patch("report_service.flag_modified"):
             _update_metadata(report, "data")
             assert report.content["metadata"]["sections_completed"].count("data") == 1
 
@@ -1116,7 +1137,7 @@ class TestGenerateUuid:
     """Cover line 25."""
 
     def test_generates_valid_uuid(self):
-        from services.evaluation.report_service import generate_uuid
+        from report_service import generate_uuid
         import uuid
 
         result = generate_uuid()

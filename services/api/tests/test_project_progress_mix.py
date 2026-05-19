@@ -9,7 +9,13 @@ import uuid
 
 import pytest
 
-from models import EvaluationRun, ResponseGeneration
+from models import (
+    EvaluationJudgeRun,
+    EvaluationRun,
+    Generation,
+    ResponseGeneration,
+    TaskEvaluation,
+)
 from project_models import Project, Task
 from project_schemas import ProjectResponse
 from routers.projects.helpers import calculate_project_stats
@@ -92,23 +98,84 @@ def _add_response_generations(test_db, project, *, status_counts):
                 )
             )
             idx += 1
+    # Test session runs with autoflush=False; flush so later helpers can
+    # query the rows back before commit.
+    test_db.flush()
 
 
 def _add_evaluation_runs(test_db, project, *, status_counts):
-    """Attach EvaluationRun rows on the project."""
+    """Attach EvaluationRun rows on the project.
+
+    The `evaluation_count` stat is derived from DISTINCT (subject, metric)
+    pairs in `task_evaluations` (commit cb490be). To make a completed
+    EvaluationRun visibly "count", also attach a TaskEvaluation with a
+    real-metric key and at least one subject (annotation_id or generation_id).
+    """
+    task = test_db.query(Task).filter(Task.project_id == project.id).first()
+    rg = (
+        test_db.query(ResponseGeneration)
+        .filter(ResponseGeneration.task_id == task.id)
+        .first()
+        if task is not None
+        else None
+    )
+    # Need a Generation row so TaskEvaluation.generation_id resolves to a
+    # valid subject — _scored_pairs_query coalesces annotation_id with it.
+    gen = None
+    if rg is not None:
+        gen = Generation(
+            id=str(uuid.uuid4()),
+            generation_id=rg.id,
+            task_id=task.id,
+            model_id="gpt-4",
+            run_index=0,
+            response_content="x",
+            case_data="{}",
+            status="completed",
+            parse_status="success",
+        )
+        test_db.add(gen)
+        test_db.flush()
+
     for status, count in status_counts.items():
         for _ in range(count):
-            test_db.add(
-                EvaluationRun(
-                    id=str(uuid.uuid4()),
-                    project_id=project.id,
-                    model_id="gpt-4",
-                    evaluation_type_ids=["accuracy"],
-                    metrics={},
-                    status=status,
-                    created_by="test",
-                )
+            er = EvaluationRun(
+                id=str(uuid.uuid4()),
+                project_id=project.id,
+                model_id="gpt-4",
+                evaluation_type_ids=["accuracy"],
+                metrics={},
+                status=status,
+                created_by="test",
             )
+            test_db.add(er)
+            test_db.flush()
+            if status == "completed" and gen is not None:
+                jr = EvaluationJudgeRun(
+                    id=str(uuid.uuid4()),
+                    evaluation_id=er.id,
+                    judge_model_id=None,
+                    run_index=0,
+                    status="completed",
+                )
+                test_db.add(jr)
+                test_db.flush()
+                test_db.add(
+                    TaskEvaluation(
+                        id=str(uuid.uuid4()),
+                        evaluation_id=er.id,
+                        judge_run_id=jr.id,
+                        task_id=task.id,
+                        generation_id=gen.id,
+                        field_name="accuracy:pred:gt",
+                        answer_type="text",
+                        ground_truth="x",
+                        prediction="x",
+                        metrics={"accuracy": 1.0},
+                        passed=True,
+                    )
+                )
+                test_db.flush()
 
 
 def _stats(test_db, project):

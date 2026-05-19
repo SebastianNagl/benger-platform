@@ -69,7 +69,11 @@ class TestDashboardRouter:
         return project
 
     def test_get_dashboard_stats_as_superadmin(self, client, mock_superadmin_user):
-        """Test getting dashboard stats as superadmin at /api/dashboard/stats with new metrics"""
+        """Test getting dashboard stats as superadmin at /api/dashboard/stats with new metrics.
+
+        The endpoint now reads from the precomputed `project_summaries` table
+        via `read_dashboard_sum`; mock that helper rather than raw SQL.
+        """
         from database import get_db
         from main import app
         from routers.dashboard import require_user
@@ -79,25 +83,31 @@ class TestDashboardRouter:
 
         def override_get_db():
             mock_db = Mock(spec=Session)
-            # Mock database query result with new metrics
-            mock_result = Mock()
-            mock_result.project_count = 10
-            mock_result.task_count = 50
-            mock_result.annotation_count = 150
-            mock_result.projects_with_generations = 8
-            mock_result.projects_with_evaluations = 5
-            mock_db.execute.return_value.fetchone.return_value = mock_result
+            # The dashboard fall-back queries `SELECT COUNT(*) FROM projects`
+            # via db.execute(text(...)).scalar() to make sure brand-new
+            # projects show up before the next recompute cycle. Make that
+            # return a value consistent with the precomputed project_count.
+            mock_db.execute.return_value.scalar.return_value = 10
             return mock_db
 
         app.dependency_overrides[require_user] = override_require_user
         app.dependency_overrides[get_db] = override_get_db
 
         try:
-            response = client.get("/api/dashboard/stats")
+            with patch("routers.dashboard.read_dashboard_sum") as mock_sums:
+                mock_sums.return_value = {
+                    "project_count": 10,
+                    "total_tasks": 50,
+                    "labeled_tasks": 30,
+                    "annotations_count": 150,
+                    "generations_count": 8,
+                    "response_generations_count": 12,
+                    "evaluation_pairs_count": 5,
+                }
+                response = client.get("/api/dashboard/stats")
 
             assert response.status_code == status.HTTP_200_OK
             data = response.json()
-            # Test new dashboard metrics
             assert "project_count" in data
             assert "task_count" in data
             assert "annotation_count" in data
@@ -112,7 +122,7 @@ class TestDashboardRouter:
             app.dependency_overrides.clear()
 
     def test_get_dashboard_stats_as_regular_user(self, client, mock_regular_user):
-        """Test getting dashboard stats as regular user with organization filtering and new metrics"""
+        """Test getting dashboard stats as regular user with organization filtering and new metrics."""
         from database import get_db
         from main import app
         from routers.dashboard import require_user
@@ -122,35 +132,28 @@ class TestDashboardRouter:
 
         def override_get_db():
             mock_db = Mock(spec=Session)
-            # Mock database query result with access control applied
-            mock_result = Mock()
-            mock_result.project_count = 5  # Regular user sees fewer projects
-            mock_result.task_count = 25  # Fewer tasks than superadmin
-            mock_result.annotation_count = 75  # Fewer annotations
-            mock_result.projects_with_generations = 3  # Fewer with generations
-            mock_result.projects_with_evaluations = 2  # Fewer with evaluations
-            mock_db.execute.return_value.fetchone.return_value = mock_result
             return mock_db
 
         app.dependency_overrides[require_user] = override_require_user
         app.dependency_overrides[get_db] = override_get_db
 
         try:
-            # Mock get_accessible_project_ids to return a list of project IDs
-            # (avoids needing to mock the full db.query chain for project filtering)
-            with patch("routers.dashboard.get_accessible_project_ids") as mock_get_ids:
+            with patch("routers.dashboard.get_accessible_project_ids") as mock_get_ids, \
+                 patch("routers.dashboard.read_dashboard_sum") as mock_sums:
                 mock_get_ids.return_value = ["proj-1", "proj-2", "proj-3", "proj-4", "proj-5"]
-
+                mock_sums.return_value = {
+                    "project_count": 5,
+                    "total_tasks": 25,
+                    "labeled_tasks": 12,
+                    "annotations_count": 75,
+                    "generations_count": 3,
+                    "response_generations_count": 4,
+                    "evaluation_pairs_count": 2,
+                }
                 response = client.get("/api/dashboard/stats")
 
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
-                # Test organization filtering is applied (fewer results than superadmin)
-                assert "project_count" in data
-                assert "task_count" in data
-                assert "annotation_count" in data
-                assert "projects_with_generations" in data
-                assert "projects_with_evaluations" in data
                 assert data["project_count"] == 5
                 assert data["task_count"] == 25
                 assert data["annotation_count"] == 75
@@ -210,23 +213,42 @@ class TestDashboardRouter:
 
         def override_get_db():
             mock_db = Mock(spec=Session)
-            # Mock result where projects exist but none have generations or evaluations
-            mock_result = Mock()
-            mock_result.project_count = 5
-            mock_result.task_count = 20
-            mock_result.annotation_count = 0  # No annotations yet
-            mock_result.projects_with_generations = 0  # No projects with generations
-            mock_result.projects_with_evaluations = 0  # No projects with evaluations
-            mock_db.execute.return_value.fetchone.return_value = mock_result
+            # _live_evaluations_count fallback runs when evaluation_pairs_count
+            # is 0 — give it an empty pairs query result so the fallback
+            # also returns 0.
+            mock_db.query.return_value.distinct.return_value.filter.return_value.all.return_value = []
+            mock_db.query.return_value.distinct.return_value.all.return_value = []
+            mock_db.execute.return_value.scalar.return_value = 5
             return mock_db
 
         app.dependency_overrides[require_user] = override_require_user
         app.dependency_overrides[get_db] = override_get_db
 
         try:
-            # Mock the cache to return None (no cached value)
-            with patch("routers.dashboard.cache") as mock_cache:
+            with patch("routers.dashboard.cache") as mock_cache, \
+                 patch("routers.dashboard.read_dashboard_sum") as mock_sums, \
+                 patch("routers.dashboard._live_evaluations_count") as mock_live_eval, \
+                 patch("routers.dashboard._live_dashboard_counts") as mock_live_dash:
                 mock_cache.get.return_value = None
+                mock_sums.return_value = {
+                    "project_count": 5,
+                    "total_tasks": 20,
+                    "labeled_tasks": 0,
+                    "annotations_count": 0,
+                    "generations_count": 0,
+                    "response_generations_count": 0,
+                    "evaluation_pairs_count": 0,
+                }
+                mock_live_eval.return_value = 0
+                # `_live_dashboard_counts` is the brand-new-project fallback
+                # for task / annotation / generation counts. With everything
+                # else mocked to 0 it fires; the edge-case-no-generations
+                # scenario also wants those to stay 0.
+                mock_live_dash.return_value = {
+                    "total_tasks": 0,
+                    "annotations_count": 0,
+                    "generations_count": 0,
+                }
 
                 response = client.get("/api/dashboard/stats")
 

@@ -557,16 +557,23 @@ class TaskAssignment(Base):
         return f"<TaskAssignment(task_id={self.task_id}, user_id={self.user_id}, status={self.status})>"
 
 
-class AnnotationTimerSession(Base):
-    """
-    Server-side timer tracking for annotation sessions (Issue #1205).
+class TimerSession(Base):
+    """Server-side timer tracking — annotation sessions (issue #1205) and
+    korrektur sessions (issue #30 PR 3).
 
-    Decoupled from TaskAssignment to support open-mode projects
-    where no assignment records exist. Each record represents
-    one user starting to work on one task.
+    Decoupled from TaskAssignment to support open-mode projects where no
+    assignment records exist. Each record represents one user starting to
+    work on one (task, target) — for annotation `target_type='task'` and
+    `target_id=NULL`; for korrektur `target_type` in {'annotation',
+    'generation'} and `target_id` points at the row being graded.
+
+    Renamed from `annotation_timer_sessions` in migration 050. The legacy
+    `AnnotationTimerSession` symbol is preserved as an alias below so the
+    extended worker and any external imports keep working through the
+    transition.
     """
 
-    __tablename__ = "annotation_timer_sessions"
+    __tablename__ = "timer_sessions"
 
     id = Column(String, primary_key=True, index=True)
     task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -582,6 +589,12 @@ class AnnotationTimerSession(Base):
         nullable=False,
         index=True,
     )
+
+    # Polymorphic target (issue #30 PR 3).
+    # 'task' for annotation flows (target_id NULL); 'annotation' or
+    # 'generation' for korrektur flows (target_id points at the row).
+    target_type = Column(String, nullable=False, server_default="task")
+    target_id = Column(String, nullable=True)
 
     # Timer tracking
     started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -601,9 +614,16 @@ class AnnotationTimerSession(Base):
     user = relationship("User", foreign_keys=[user_id])
 
     __table_args__ = (
-        sa.UniqueConstraint("task_id", "user_id", name="unique_timer_session"),
+        # Wider uniqueness — see migration 050. The COALESCE-on-target_id
+        # expression-index is created in SQL (not declared here) so a NULL
+        # target_id still de-dups against the literal 'task' rows.
         sa.Index("ix_timer_session_project_user", "project_id", "user_id"),
     )
+
+
+# Back-compat alias — existing imports of `AnnotationTimerSession` keep
+# working without churn. New code should import `TimerSession` directly.
+AnnotationTimerSession = TimerSession
 
 
 class TaskDraft(Base):

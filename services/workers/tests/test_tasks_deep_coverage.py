@@ -9,7 +9,6 @@ Targets uncovered lines across:
 - _extract_field_value_from_annotation / _extract_field_value_from_parsed_annotation
 - run_single_sample_evaluation (multiple metric types)
 - _evaluate_llm_judge_single
-- process_all_digests_task / send_test_digest_task
 - _get_provider_from_model
 """
 
@@ -1079,6 +1078,16 @@ class TestEvaluateLLMJudgeSingle:
         mock_judge.ai_service = MagicMock()
         mock_judge.score_scale = "0-1"
         mock_judge.criteria = ["correctness"]
+        # llm_judge_evaluator commit 74b5665 added a multi-dim single-call
+        # branch in _evaluate_llm_judge_single that runs when
+        # judge.is_multidim_mode() is truthy. MagicMock() makes every
+        # method truthy by default — without this override the production
+        # code routes into the multi-dim path, calls
+        # _evaluate_multidim_single_call (also a MagicMock that returns a
+        # truthy mock with a "scores" attribute lookup that misses), and
+        # raises RuntimeError. Pin to False so we exercise the per-criterion
+        # path this test was written for.
+        mock_judge.is_multidim_mode.return_value = False
         mock_judge._evaluate_single_criterion.return_value = {
             "score": 0.75,
             "justification": "ok",
@@ -1189,149 +1198,11 @@ class TestResponseFormatContentKey:
         assert result["responses_generated"] == 1
 
 
-# ===========================================================================
-# Digest tasks
-# ===========================================================================
-
-
-def _run_async(coro):
-    """Run an async coroutine in a fresh event loop."""
-    import asyncio
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(coro)
-    finally:
-        loop.close()
-
-
-class TestProcessAllDigestsTask:
-    @patch("tasks.HAS_DATABASE", False)
-    def test_no_database(self):
-        result = _run_async(tasks_module.process_all_digests_task.run())
-        assert result["status"] == "error"
-        assert "Database not available" in result["message"]
-
-    @patch("tasks.HAS_DATABASE", True)
-    @patch("tasks.SessionLocal")
-    def test_success(self, mock_session_cls):
-        db = _mock_db()
-        mock_session_cls.return_value = db
-
-        mock_digest = MagicMock()
-
-        async def mock_process(db_session):
-            return {"total_users": 5, "digests_sent": 3, "errors": 0}
-
-        mock_digest.process_all_digests = mock_process
-
-        with patch.object(tasks_module, "DigestService", mock_digest):
-            result = _run_async(tasks_module.process_all_digests_task.run())
-
-        assert result["status"] == "success"
-        assert result["stats"]["digests_sent"] == 3
-        db.close.assert_called_once()
-
-    @patch("tasks.HAS_DATABASE", True)
-    @patch("tasks.SessionLocal")
-    def test_exception(self, mock_session_cls):
-        db = _mock_db()
-        mock_session_cls.return_value = db
-
-        mock_digest = MagicMock()
-
-        async def mock_process(db_session):
-            raise Exception("Digest error")
-
-        mock_digest.process_all_digests = mock_process
-
-        with patch.object(tasks_module, "DigestService", mock_digest):
-            result = _run_async(tasks_module.process_all_digests_task.run())
-
-        assert result["status"] == "error"
-        assert "Digest error" in result["message"]
-
-
-class TestSendTestDigestTask:
-    @patch("tasks.HAS_DATABASE", False)
-    def test_no_database(self):
-        result = _run_async(tasks_module.send_test_digest_task.run("user-1"))
-        assert result["status"] == "error"
-
-    @patch("tasks.HAS_DATABASE", True)
-    @patch("tasks.SessionLocal")
-    def test_user_not_found(self, mock_session_cls):
-        db = _mock_db()
-        mock_session_cls.return_value = db
-        db.query.return_value.filter.return_value.first.return_value = None
-
-        result = _run_async(tasks_module.send_test_digest_task.run("missing-user"))
-        assert result["status"] == "error"
-        assert "not found" in result["message"]
-
-    @patch("tasks.HAS_DATABASE", True)
-    @patch("tasks.SessionLocal")
-    def test_digest_sent(self, mock_session_cls):
-        db = _mock_db()
-        mock_session_cls.return_value = db
-
-        user = MagicMock()
-        user.email = "test@example.com"
-        db.query.return_value.filter.return_value.first.return_value = user
-
-        async def mock_process(db_session, user_obj):
-            return True
-
-        mock_digest = MagicMock()
-        mock_digest.process_digest_for_user = mock_process
-
-        with patch.object(tasks_module, "DigestService", mock_digest):
-            result = _run_async(tasks_module.send_test_digest_task.run("user-1"))
-
-        assert result["status"] == "success"
-        assert "test@example.com" in result["message"]
-
-    @patch("tasks.HAS_DATABASE", True)
-    @patch("tasks.SessionLocal")
-    def test_digest_skipped(self, mock_session_cls):
-        db = _mock_db()
-        mock_session_cls.return_value = db
-
-        user = MagicMock()
-        user.email = "test@example.com"
-        db.query.return_value.filter.return_value.first.return_value = user
-
-        async def mock_process(db_session, user_obj):
-            return False
-
-        mock_digest = MagicMock()
-        mock_digest.process_digest_for_user = mock_process
-
-        with patch.object(tasks_module, "DigestService", mock_digest):
-            result = _run_async(tasks_module.send_test_digest_task.run("user-1"))
-
-        assert result["status"] == "skipped"
-
-    @patch("tasks.HAS_DATABASE", True)
-    @patch("tasks.SessionLocal")
-    def test_digest_exception(self, mock_session_cls):
-        db = _mock_db()
-        mock_session_cls.return_value = db
-
-        user = MagicMock()
-        user.email = "test@example.com"
-        db.query.return_value.filter.return_value.first.return_value = user
-
-        async def mock_process(db_session, user_obj):
-            raise Exception("SMTP error")
-
-        mock_digest = MagicMock()
-        mock_digest.process_digest_for_user = mock_process
-
-        with patch.object(tasks_module, "DigestService", mock_digest):
-            result = _run_async(tasks_module.send_test_digest_task.run("user-1"))
-
-        assert result["status"] == "error"
-        assert "SMTP error" in result["message"]
+# Digest task tests removed: process_all_digests_task and
+# send_test_digest_task were deleted because the email-digest feature
+# was removed at the User model level (no enable_email_digest column).
+# See workers/tasks.py around the deleted beat_schedule entry for the
+# fuller story.
 
 
 # ===========================================================================

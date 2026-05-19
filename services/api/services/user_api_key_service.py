@@ -289,160 +289,123 @@ class UserApiKeyService:
                 return False, f"OpenAI API error: {response.status_code}", "api_error"
 
     async def _validate_anthropic_key(self, api_key: str) -> Tuple[bool, str, Optional[str]]:
-        """Validate Anthropic API key"""
+        """Validate Anthropic API key via GET /v1/models."""
+        if not api_key.startswith("sk-ant-"):
+            return False, "Invalid Anthropic API key format", "invalid_format"
         try:
-            # Use asyncio.wait_for for testability as expected by existing tests
             import asyncio
 
-            result = await asyncio.wait_for(self._check_anthropic_format(api_key), timeout=10.0)
+            result = await asyncio.wait_for(self._make_anthropic_request(api_key), timeout=10.0)
             return result
+        except asyncio.TimeoutError:
+            return False, "Anthropic validation timeout", "timeout"
         except Exception as e:
-            # Handle Anthropic specific exceptions
             error_name = type(e).__name__
             if "AuthenticationError" in error_name:
                 return False, "Invalid API key - please check your Anthropic key", "auth"
             return False, f"Anthropic validation failed: {str(e)}", "connection_error"
 
-    async def _check_anthropic_format(self, api_key: str) -> Tuple[bool, str, Optional[str]]:
-        """Check Anthropic API key format - separated for easier testing"""
-        if api_key.startswith("sk-ant-"):
-            return True, "Connection to Anthropic successful", "success"
-        else:
-            return False, "Invalid Anthropic API key format", "invalid_format"
+    async def _make_anthropic_request(self, api_key: str) -> Tuple[bool, str, Optional[str]]:
+        """Make request to Anthropic API - separated for easier testing"""
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.anthropic.com/v1/models",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                },
+                timeout=10.0,
+            )
+            if response.status_code == 200:
+                return True, "Connection to Anthropic successful", "success"
+            elif response.status_code == 401:
+                return False, "Invalid API key - please check your Anthropic key", "auth"
+            elif response.status_code == 429:
+                return True, "Anthropic API key valid - rate limit reached", "quota"
+            else:
+                return False, f"Anthropic API error: {response.status_code}", "api_error"
 
     async def _validate_google_key(self, api_key: str) -> Tuple[bool, str, Optional[str]]:
-        """Validate Google API key"""
-        # Google AI API key format validation
-        if api_key.startswith("AIza"):
-            return True, "Connection to Google successful", "success"
-        else:
+        """Validate Google AI API key via GET /v1/models."""
+        if not api_key:
             return False, "Invalid Google API key format", "auth"
-
-    async def _validate_deepinfra_key(self, api_key: str) -> Tuple[bool, str, Optional[str]]:
-        """Validate DeepInfra API key"""
         try:
             import aiohttp
 
             async with aiohttp.ClientSession() as session:
-                # Make a test request to DeepInfra OpenAI-compatible API
-                async with session.post(
-                    "https://api.deepinfra.com/v1/openai/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": "meta-llama/Meta-Llama-3.1-8B-Instruct",
-                        "messages": [{"role": "user", "content": "test"}],
-                        "max_tokens": 1,
-                    },
+                async with session.get(
+                    f"https://generativelanguage.googleapis.com/v1/models?key={api_key}",
+                    timeout=aiohttp.ClientTimeout(total=10),
                 ) as response:
                     if response.status == 200:
-                        return True, "Connection to DeepInfra successful", "success"
-                    elif response.status == 401:
-                        return False, "Invalid DeepInfra API key", "auth"
+                        return True, "Connection to Google successful", "success"
+                    elif response.status in (400, 401, 403):
+                        return False, "Invalid Google API key", "auth"
                     elif response.status == 429:
-                        return True, "DeepInfra API key valid - rate limit reached", "quota"
+                        return True, "Google API key valid - rate limit reached", "quota"
                     else:
-                        return False, f"DeepInfra API error: {response.status}", "api_error"
+                        return False, f"Google API error: {response.status}", "api_error"
+        except Exception as e:
+            return False, f"Google validation failed: {str(e)}", "network"
+
+    async def _validate_deepinfra_key(self, api_key: str) -> Tuple[bool, str, Optional[str]]:
+        """Validate DeepInfra API key via GET /v1/openai/models."""
+        return await self._validate_via_models_get(
+            "DeepInfra",
+            "https://api.deepinfra.com/v1/openai/models",
+            {"Authorization": f"Bearer {api_key}"},
+        )
+
+    async def _validate_grok_key(self, api_key: str) -> Tuple[bool, str, Optional[str]]:
+        """Validate xAI Grok API key via GET /v1/models (OpenAI-compatible)."""
+        return await self._validate_via_models_get(
+            "xAI (Grok)",
+            "https://api.x.ai/v1/models",
+            {"Authorization": f"Bearer {api_key}"},
+        )
+
+    async def _validate_mistral_key(self, api_key: str) -> Tuple[bool, str, Optional[str]]:
+        """Validate Mistral AI API key via GET /v1/models."""
+        return await self._validate_via_models_get(
+            "Mistral AI",
+            "https://api.mistral.ai/v1/models",
+            {"Authorization": f"Bearer {api_key}"},
+        )
+
+    async def _validate_cohere_key(self, api_key: str) -> Tuple[bool, str, Optional[str]]:
+        """Validate Cohere API key via GET /v1/models."""
+        return await self._validate_via_models_get(
+            "Cohere",
+            "https://api.cohere.com/v1/models",
+            {"Authorization": f"Bearer {api_key}"},
+        )
+
+    async def _validate_via_models_get(
+        self, provider_label: str, url: str, headers: Dict[str, str]
+    ) -> Tuple[bool, str, Optional[str]]:
+        """Shared GET /models auth check for OpenAI-compatible providers."""
+        try:
+            import aiohttp
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    url,
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as response:
+                    if response.status == 200:
+                        return True, f"Connection to {provider_label} successful", "success"
+                    elif response.status in (401, 403):
+                        return False, f"Invalid {provider_label} API key", "auth"
+                    elif response.status == 429:
+                        return True, f"{provider_label} API key valid - rate limit reached", "quota"
+                    else:
+                        return False, f"{provider_label} API error: {response.status}", "api_error"
         except Exception as e:
             error_name = type(e).__name__
             if "AuthenticationError" in error_name:
-                return False, "Invalid API key - please check your DeepInfra key", "auth"
-            return False, f"DeepInfra validation failed: {str(e)}", "network"
-
-    async def _validate_grok_key(self, api_key: str) -> Tuple[bool, str, Optional[str]]:
-        """Validate xAI Grok API key"""
-        try:
-            import aiohttp
-
-            async with aiohttp.ClientSession() as session:
-                # Test with xAI API (OpenAI-compatible)
-                async with session.post(
-                    "https://api.x.ai/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": "grok-3-beta",
-                        "messages": [{"role": "user", "content": "test"}],
-                        "max_tokens": 1,
-                    },
-                    timeout=aiohttp.ClientTimeout(total=30),
-                ) as response:
-                    if response.status == 200:
-                        return True, "Connection to xAI (Grok) successful", "success"
-                    elif response.status == 401:
-                        return False, "Invalid Grok API key", "auth"
-                    elif response.status == 429:
-                        return True, "Grok API key valid - rate limit reached", "quota"
-                    else:
-                        return False, f"Grok API error: {response.status}", "api_error"
-        except Exception as e:
-            return False, f"Grok validation failed: {str(e)}", "network"
-
-    async def _validate_mistral_key(self, api_key: str) -> Tuple[bool, str, Optional[str]]:
-        """Validate Mistral AI API key"""
-        try:
-            import aiohttp
-
-            async with aiohttp.ClientSession() as session:
-                # Test with Mistral AI API
-                async with session.post(
-                    "https://api.mistral.ai/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": "mistral-small-latest",
-                        "messages": [{"role": "user", "content": "test"}],
-                        "max_tokens": 1,
-                    },
-                    timeout=aiohttp.ClientTimeout(total=30),
-                ) as response:
-                    if response.status == 200:
-                        return True, "Connection to Mistral AI successful", "success"
-                    elif response.status == 401:
-                        return False, "Invalid Mistral API key", "auth"
-                    elif response.status == 429:
-                        return True, "Mistral API key valid - rate limit reached", "quota"
-                    else:
-                        return False, f"Mistral API error: {response.status}", "api_error"
-        except Exception as e:
-            return False, f"Mistral validation failed: {str(e)}", "network"
-
-    async def _validate_cohere_key(self, api_key: str) -> Tuple[bool, str, Optional[str]]:
-        """Validate Cohere API key"""
-        try:
-            import aiohttp
-
-            async with aiohttp.ClientSession() as session:
-                # Test with Cohere API v2
-                async with session.post(
-                    "https://api.cohere.com/v2/chat",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": "command-r-08-2024",
-                        "messages": [{"role": "user", "content": "test"}],
-                        "max_tokens": 1,
-                    },
-                    timeout=aiohttp.ClientTimeout(total=30),
-                ) as response:
-                    if response.status == 200:
-                        return True, "Connection to Cohere successful", "success"
-                    elif response.status == 401:
-                        return False, "Invalid Cohere API key", "auth"
-                    elif response.status == 429:
-                        return True, "Cohere API key valid - rate limit reached", "quota"
-                    else:
-                        return False, f"Cohere API error: {response.status}", "api_error"
-        except Exception as e:
-            return False, f"Cohere validation failed: {str(e)}", "network"
+                return False, f"Invalid API key - please check your {provider_label} key", "auth"
+            return False, f"{provider_label} validation failed: {str(e)}", "network"
 
 
 def create_user_api_key_service(encryption_service) -> UserApiKeyService:

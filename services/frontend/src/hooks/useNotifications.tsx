@@ -21,6 +21,9 @@ export interface NotificationPreferences {
   [key: string]: boolean
 }
 
+// Mirrors the cap used by the three project-progress WS clients.
+const MAX_RECONNECT_ATTEMPTS = 5
+
 export function useNotifications() {
   const { apiClient, user } = useAuth()
   const { t } = useI18n()
@@ -254,6 +257,18 @@ export function useNotifications() {
         if (eventSourceRef.current?.readyState === 2) {
           eventSourceRef.current.close()
           eventSourceRef.current = null
+
+          // Cap reconnect attempts. The three project-progress WS clients
+          // (EvaluationResults, GenerationTaskList, GenerationProgress)
+          // cap at 5; this SSE used to retry forever — once the user's
+          // session expired the browser hammered /api/notifications/stream
+          // every ~5 s indefinitely with no auth cookie.
+          if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+            console.warn(
+              `Notification SSE: giving up after ${MAX_RECONNECT_ATTEMPTS} reconnect attempts`
+            )
+            return
+          }
 
           // Reconnect after brief delay
           if (user && apiClient && !reconnectTimeoutRef.current) {

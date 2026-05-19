@@ -17,14 +17,36 @@ class TestAPIHealth:
     """Comprehensive health check tests for all API endpoints"""
 
     def test_unauthenticated_health_endpoints(self, client: TestClient):
-        """Test health endpoints that don't require authentication"""
-        # Test main health endpoint
-        response = client.get("/health")
-        assert response.status_code == status.HTTP_200_OK
+        """Test health endpoints that don't require authentication.
 
-        # Test alternative health endpoint (may not exist)
-        response = client.get("/api/health")
-        assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]
+        /health now depends on a working DB session + Celery worker
+        ping; both need mocks in the bare-test-client environment
+        (see test_health_router.py for the canonical override pattern).
+        """
+        from unittest.mock import AsyncMock, Mock, patch
+
+        from database import get_async_db
+        from main import app
+
+        async def override_async_db():
+            mock_db = AsyncMock()
+            mock_db.execute = AsyncMock(return_value=Mock())
+            yield mock_db
+
+        app.dependency_overrides[get_async_db] = override_async_db
+        try:
+            with patch("celery_client.get_celery_app") as mock_get_app:
+                mock_get_app.return_value.control.inspect.return_value.ping.return_value = {
+                    "celery@w": {"ok": "pong"}
+                }
+                response = client.get("/health")
+            assert response.status_code == status.HTTP_200_OK
+
+            # Test alternative health endpoint (may not exist)
+            response = client.get("/api/health")
+            assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]
+        finally:
+            app.dependency_overrides.clear()
 
     def test_authentication_endpoints(self, client: TestClient, test_users):
         """Test authentication endpoints"""
@@ -203,7 +225,10 @@ class TestAPIHealth:
     @pytest.mark.parametrize(
         "endpoint,method,expected_status",
         [
-            ("/health", "GET", [200]),
+            # /health intentionally removed from this list — it now needs
+            # DB + Celery dep mocks (see test_unauthenticated_health_endpoints
+            # above). Without mocks the bare TestClient hits a real async
+            # engine that returns 503 on the SELECT 1 probe.
             ("/api/health", "GET", [200, 404]),
             ("/docs", "GET", [200, 404]),
             ("/redoc", "GET", [200, 404]),

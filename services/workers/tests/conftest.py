@@ -14,12 +14,32 @@ from unittest.mock import MagicMock
 
 import pytest
 
+# Sentinel for /shared/encryption_service.py — module-level
+# `encryption_service = EncryptionService()` runs at first import, BEFORE
+# pytest sets PYTEST_CURRENT_TEST. Without this, every worker test file
+# that transitively imports the module raises RuntimeError at collection
+# time. Mirrors what the API conftest does via JWT_SECRET_KEY / SECRET_KEY.
+os.environ.setdefault("BENGER_TEST_MODE", "1")
+
 # Ensure the workers source directory is at the front of sys.path
-# so that local modules (email_service, models, ml_evaluation, etc.)
-# are imported from workers, not from other services.
+# so that local modules (email_service, ml_evaluation, etc.) are
+# imported from workers, not from other services.
 workers_root = os.path.dirname(os.path.dirname(__file__))
 if workers_root not in sys.path:
     sys.path.insert(0, workers_root)
+
+# Add /shared to sys.path (where it lives in both Docker containers via
+# the volume mount, and inside the test container the same path is
+# available). The consolidation on 2026-05-19 moved models.py into
+# /shared, so `from models import …` only resolves with /shared on the
+# path. Fall back to a relative path for host-local pytest runs.
+_shared_dir = (
+    "/shared"
+    if os.path.exists("/shared")
+    else os.path.normpath(os.path.join(workers_root, "..", "shared"))
+)
+if _shared_dir not in sys.path:
+    sys.path.insert(0, _shared_dir)
 
 # Remove ALL paths that could resolve to the API's modules.
 # On the self-hosted CI runner, the API directory ends up in sys.path

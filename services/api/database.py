@@ -4,12 +4,17 @@ Database configuration and session management
 
 import logging
 import os
-from typing import Dict, Generator, List
+from typing import AsyncGenerator, Dict, Generator, List
 
 logger = logging.getLogger(__name__)
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -60,6 +65,64 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base: DeclarativeMeta = declarative_base()
 
 
+# ---- Async engine (Phase 0 of the asyncpg migration) -----------------------
+#
+# Lives alongside the sync engine; every existing handler continues to use
+# get_db() + SessionLocal unchanged. Future handlers opt into async DB by
+# taking `db: AsyncSession = Depends(get_async_db)` and calling `await
+# db.execute(select(...))`. See benger-platform/CLAUDE.md for the rule.
+#
+# Critical config differences from the sync engine:
+#   * URL scheme switches to `postgresql+asyncpg://` — asyncpg, not psycopg2.
+#   * `connect_args` uses `server_settings={...}` instead of the psycopg2
+#     `-c options` string (asyncpg's API for the same Postgres-side config).
+#   * `application_name` is "benger-api-async" so pg_stat_activity can
+#     distinguish sync vs async traffic at a glance — essential for the
+#     migration's canary gating.
+#   * Pool is intentionally smaller during migration (5/10 per process)
+#     because Postgres `max_connections=200` in prod and the sync engine
+#     already consumes most of that budget at peak. Once Phase 4 shifts
+#     traffic to async, rebalance.
+ASYNC_DATABASE_URL: str | None = None
+async_engine = None
+AsyncSessionLocal = None
+
+if DATABASE_URL and DATABASE_URL.startswith("postgresql"):
+    # psycopg2 → asyncpg URL rewrite. `postgresql+asyncpg://` vs
+    # `postgresql://`.
+    ASYNC_DATABASE_URL = DATABASE_URL.replace(
+        "postgresql://", "postgresql+asyncpg://", 1
+    )
+
+    async_connect_args = {
+        "server_settings": {
+            "statement_timeout": "15000",
+            "idle_in_transaction_session_timeout": "30000",
+            "application_name": "benger-api-async",
+        },
+    }
+
+    async_pool_config = {
+        "pool_size": 10 if is_e2e_test else 5,
+        "max_overflow": 20 if is_e2e_test else 10,
+        "pool_pre_ping": True,
+        "pool_recycle": 3600,
+        "pool_timeout": 5,
+    }
+
+    async_engine = create_async_engine(
+        ASYNC_DATABASE_URL,
+        connect_args=async_connect_args,
+        **async_pool_config,
+    )
+
+    AsyncSessionLocal = async_sessionmaker(
+        bind=async_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+
 def get_db() -> Generator[Session, None, None]:
     """Dependency to get database session"""
     db = SessionLocal()
@@ -67,6 +130,26 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+    """Async equivalent of get_db. Opt in via:
+
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from database import get_async_db
+
+        @router.get(...)
+        async def my_handler(db: AsyncSession = Depends(get_async_db)):
+            result = await db.execute(select(Model).where(...))
+            obj = result.scalar_one_or_none()
+    """
+    if AsyncSessionLocal is None:
+        raise RuntimeError(
+            "Async DB engine not initialized — DATABASE_URL is missing or "
+            "not a postgresql URL. Sync get_db() still works in that case."
+        )
+    async with AsyncSessionLocal() as session:
+        yield session
 
 
 def init_db() -> None:
