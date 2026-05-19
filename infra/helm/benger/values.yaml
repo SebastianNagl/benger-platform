@@ -75,6 +75,17 @@ api:
         secretKeyRef:
           name: benger-api-secrets
           key: secret_key
+    # Same value, second name. auth_module.config reads either; docker
+    # compose sets JWT_SECRET_KEY and helm historically only set
+    # SECRET_KEY, so any module that read JWT_SECRET_KEY directly (e.g.
+    # email_verification.py before 2026-05-19) silently fell back to a
+    # hardcoded literal in prod. Mount under both names so the next
+    # such helper can't slip back into the same gap.
+    - name: JWT_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: secret_key
     # Pinning the encryption key explicitly decouples it from SECRET_KEY
     # rotations. EncryptionService used to derive the Fernet key from
     # SECRET_KEY via PBKDF2 with a fixed salt — any change to SECRET_KEY
@@ -185,6 +196,11 @@ workers:
           name: benger-redis-credentials
           key: uri
     - name: SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-api-secrets
+          key: secret_key
+    - name: JWT_SECRET_KEY
       valueFrom:
         secretKeyRef:
           name: benger-api-secrets
