@@ -238,30 +238,14 @@ def _receive_after_cursor_execute(
         logger.info(f"Query: {total*1000:.2f}ms - {statement[:50]}...")
 
 
-# Attach to the sync Engine (covers every sync session created from the
-# legacy `engine` in database.py) AND to the async engine's sync_engine
-# (covers every async session). Both lanes route through the same
-# slow-query log line — no observability gap during the migration.
+# Attach to the SQLAlchemy Engine base class. The listener fires for
+# every engine instance — the legacy sync engine in database.py AND the
+# AsyncEngine's `sync_engine` wrapper (which is what asyncpg-backed
+# queries actually execute through). One attach point covers both lanes;
+# attaching separately to `async_engine.sync_engine` would double-fire
+# (verified live 2026-05-19).
 event.listen(Engine, "before_cursor_execute", _receive_before_cursor_execute)
 event.listen(Engine, "after_cursor_execute", _receive_after_cursor_execute)
-
-try:
-    from database import async_engine as _async_engine  # type: ignore[attr-defined]
-    if _async_engine is not None:
-        event.listen(
-            _async_engine.sync_engine,
-            "before_cursor_execute",
-            _receive_before_cursor_execute,
-        )
-        event.listen(
-            _async_engine.sync_engine,
-            "after_cursor_execute",
-            _receive_after_cursor_execute,
-        )
-except ImportError:
-    # database.async_engine may be None in environments where DATABASE_URL
-    # isn't a postgresql URL (some unit-test contexts). Sync listener stays.
-    pass
 
 
 if __name__ == "__main__":
