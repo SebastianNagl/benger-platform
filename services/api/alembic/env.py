@@ -28,6 +28,7 @@ if _shared_dir not in sys.path:
 # Import all models to ensure they're registered with Base.metadata
 import models  # noqa: E402, F401
 import project_models  # noqa: E402, F401
+import report_models  # noqa: E402, F401  — ProjectReport on Base; without this `alembic check` would propose `remove_table('project_reports')` because the metadata snapshot was incomplete.
 from database import DATABASE_URL, Base  # noqa: E402
 
 # this is the Alembic Config object, which provides
