@@ -31,7 +31,7 @@ aiohttp==3.13.5
 jinja2>=3.1.0
 boto3>=1.35.0
 botocore>=1.35.0
-requests>=2.32.0
+requests>=2.34.2
 pyopenssl>=23.3.0
 jsonschema==4.26.0
 # Scientific computing for statistics
