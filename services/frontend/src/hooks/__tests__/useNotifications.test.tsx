@@ -326,6 +326,77 @@ describe('useNotifications', () => {
         expect(mockApiClient.createNotificationStream).toHaveBeenCalledTimes(3)
       })
     })
+
+    it('should stop reconnecting after the 5-attempt cap', async () => {
+      // Regression: previously this SSE retried forever. Once the user's
+      // session expired the browser hammered /api/notifications/stream
+      // every ~5 s indefinitely with no auth cookie. The three project
+      // WS clients (EvaluationResults, GenerationTaskList,
+      // GenerationProgress) cap at 5; mirror that here.
+      //
+      // Use a variant of MockEventSource that does NOT auto-fire onopen
+      // — otherwise the open handler runs on every reconnect, resets
+      // reconnectAttemptsRef to 0, and the cap never accumulates.
+      class NoOpenMockEventSource extends MockEventSource {
+        constructor(url: string, options?: { withCredentials?: boolean }) {
+          super(url, options)
+          // Block the auto-open scheduled in the parent constructor by
+          // making onopen unassignable from the hook's perspective.
+          // The microtask scheduled by super() reads `this.onopen` —
+          // we keep it as null forever so it short-circuits.
+          Object.defineProperty(this, 'onopen', {
+            get: () => null,
+            set: () => {
+              /* swallow assignment from the hook */
+            },
+            configurable: true,
+          })
+        }
+      }
+
+      mockApiClient.createNotificationStream.mockImplementation(
+        () => new NoOpenMockEventSource('/api/notifications/stream')
+      )
+
+      renderHook(() => useNotifications(), { wrapper })
+
+      await waitFor(() => {
+        expect(mockApiClient.createNotificationStream).toHaveBeenCalledTimes(1)
+      })
+
+      // 5 consecutive error→reconnect cycles. After the 5th failure
+      // the hook must NOT schedule a 6th createNotificationStream call.
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        const es = mockApiClient.createNotificationStream.mock.results[
+          attempt - 1
+        ].value as MockEventSource
+
+        act(() => {
+          es.simulateError()
+        })
+
+        await act(async () => {
+          jest.advanceTimersByTime(6000) // > 5s cap on backoff
+          await Promise.resolve()
+        })
+      }
+
+      // initial(1) + 5 retries = 6 calls.
+      expect(mockApiClient.createNotificationStream).toHaveBeenCalledTimes(6)
+
+      // The 6th error hits the cap and must NOT trigger a 7th call.
+      const lastEs = mockApiClient.createNotificationStream.mock.results[5]
+        .value as MockEventSource
+      act(() => {
+        lastEs.simulateError()
+      })
+      await act(async () => {
+        jest.advanceTimersByTime(10000)
+        await Promise.resolve()
+      })
+
+      expect(mockApiClient.createNotificationStream).toHaveBeenCalledTimes(6)
+    })
   })
 
   describe('Cleanup', () => {
