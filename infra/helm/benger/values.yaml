@@ -46,10 +46,10 @@ api:
   resources:
     limits:
       cpu: 1000m
-      memory: 1536Mi
+      memory: 3Gi
     requests:
       cpu: 200m
-      memory: 768Mi
+      memory: 1Gi
   autoscaling:
     enabled: false
     minReplicas: 1
