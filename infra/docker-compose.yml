@@ -305,76 +305,6 @@ services:
         reservations:
           memory: 2G
 
-  # Celery Beat Scheduler
-  scheduler:
-    build:
-      context: ../services/workers
-      dockerfile: Dockerfile
-      args:
-        BUILDKIT_INLINE_CACHE: 0
-    hostname: scheduler
-    restart: unless-stopped
-    working_dir: /tmp
-    command: sh -c "export PYTHONPATH=/app:$PYTHONPATH && celery -A tasks beat --loglevel=info"
-    env_file:
-      - ../services/workers/.env
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      worker:
-        condition: service_healthy
-    environment:
-      # Database
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      POSTGRES_DB: ${POSTGRES_DB:-benger}
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
-      DATABASE_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-benger}
-      
-      # Redis
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      REDIS_URI: redis://:${REDIS_PASSWORD:-}@redis:6379/0
-      
-      # Scheduler settings
-      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
-      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/0
-      INTERNAL_API_URL: http://api:8000
-
-      # JWT (needed for API key encryption/decryption)
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-super-secret-key-change-in-production}
-
-      # API Keys
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
-      DEEPINFRA_API_KEY: ${DEEPINFRAAI_API_KEY:-}
-
-      # E2E Test Mode - enables mock LLM responses for testing
-      E2E_TEST_MODE: ${E2E_TEST_MODE:-false}
-    volumes:
-      - ../services/workers:/app:ro  # Read-only for security
-      - scheduler-data:/tmp  # Writable volume for celerybeat schedule file
-    networks:
-      - benger-network
-    healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -q 'celery.*beat'"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
-
-
   # Frontend Application (Production Build)
   frontend:
     build:
@@ -448,6 +378,4 @@ volumes:
   postgres-data:
     driver: local
   redis-data:
-    driver: local
-  scheduler-data:
     driver: local 

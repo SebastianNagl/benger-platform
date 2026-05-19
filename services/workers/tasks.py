@@ -298,20 +298,6 @@ try:
 
     # Native annotation system in use
 
-    # Import digest service
-    try:
-        from digest_service import DigestService
-    except ImportError:
-        # Mock DigestService for testing
-        class DigestService:
-            @staticmethod
-            async def process_all_digests(db):
-                return {"total_users": 0, "digests_sent": 0, "errors": 0}
-
-            @staticmethod
-            async def process_digest_for_user(db, user):
-                return True
-
     # Import GenerationStructureParser for safe field interpolation (Issue #507, #519)
     try:
         from generation_structure_parser import GenerationStructureParser
@@ -471,20 +457,23 @@ app = Celery("tasks")
 # Celery Beat Schedule for periodic tasks
 from celery.schedules import crontab
 
-app.conf.beat_schedule = {
-    # Process daily digests
-    "process-daily-digests": {
-        "task": "digest.process_all_digests",
-        "schedule": crontab(hour=8, minute=0),  # Daily at 8:00 AM
-    },
-}
+# Beat schedule intentionally empty. The previous `process-daily-digests`
+# cron pointed at `digest.process_all_digests`, but the email-digest
+# feature was deliberately removed at the User-model level (the columns
+# `enable_email_digest`, `digest_frequency`, `digest_time`, `digest_days`,
+# `last_digest_sent` are all commented out in models.py with a "removed"
+# note). The task body queried `User.enable_email_digest == True` and
+# raised AttributeError at runtime — caught and counted as 1 error per
+# day in prod. The cron + the two digest tasks below are deleted; the
+# digest_service module is kept under /shared in case the feature is
+# resurrected, but it can't run without restoring the User columns.
+app.conf.beat_schedule = {}
 
 app.conf.timezone = "UTC"
 
 # Task routing configuration for different queues
 app.conf.task_routes = {
     'emails.*': {'queue': 'emails'},
-    'digest.*': {'queue': 'emails'},
     'tasks.*': {'queue': 'default'},
 }
 
@@ -492,7 +481,6 @@ app.conf.task_routes = {
 app.conf.task_annotations = {
     'emails.send_invitation': {'rate_limit': '30/m'},  # 30 invitations per minute
     'emails.send_bulk_invitations': {'rate_limit': '5/m'},  # 5 bulk operations per minute
-    'digest.process_all_digests': {'rate_limit': '10/h'},  # 10 digest runs per hour
 }
 
 # Build Redis URLs - prefer REDIS_URI for production compatibility
@@ -2057,97 +2045,14 @@ def generate_llm_responses(
         }
 
 
-@app.task(bind=True, name="digest.process_all_digests")
-async def process_all_digests_task(self) -> Dict[str, Any]:
-    """
-    Celery task to process email digests for all users
-
-    This task is designed to be run on a schedule (e.g., daily) to send
-    digest emails to users who have enabled digest notifications.
-
-    Returns:
-        Dictionary with processing statistics
-    """
-    logger.info("🔄 Starting digest processing task")
-
-    if not HAS_DATABASE:
-        logger.error("❌ Database not available for digest processing")
-        return {"status": "error", "message": "Database not available"}
-
-    db = SessionLocal()
-
-    try:
-        # Process all digests using the digest service
-        stats = await DigestService.process_all_digests(db)
-
-        logger.info(
-            f"✅ Digest processing completed: "
-            f"{stats['digests_sent']}/{stats['total_users']} digests sent"
-        )
-
-        return {
-            "status": "success",
-            "message": f"Processed digests for {stats['total_users']} users",
-            "stats": stats,
-        }
-
-    except Exception as e:
-        logger.error(f"❌ Error processing digests: {str(e)}")
-        return {"status": "error", "message": f"Digest processing failed: {str(e)}"}
-
-    finally:
-        db.close()
-
-
-@app.task(bind=True, name="digest.send_test_digest")
-async def send_test_digest_task(self, user_id: str) -> Dict[str, Any]:
-    """
-    Celery task to send a test digest to a specific user
-
-    Args:
-        user_id: ID of the user to send test digest to
-
-    Returns:
-        Dictionary with result status
-    """
-    logger.info(f"🔄 Sending test digest to user {user_id}")
-
-    if not HAS_DATABASE:
-        logger.error("❌ Database not available for test digest")
-        return {"status": "error", "message": "Database not available"}
-
-    db = SessionLocal()
-
-    try:
-        # Get user
-        from models import User
-
-        user = db.query(User).filter(User.id == user_id).first()
-
-        if not user:
-            return {"status": "error", "message": f"User {user_id} not found"}
-
-        # Process digest for this user
-        success = await DigestService.process_digest_for_user(db, user)
-
-        if success:
-            logger.info(f"✅ Test digest sent successfully to {user.email}")
-            return {"status": "success", "message": f"Test digest sent to {user.email}"}
-        else:
-            logger.warning(
-                f"⚠️ Test digest not sent to {user.email} (no notifications or digest disabled)"
-            )
-            return {
-                "status": "skipped",
-                "message": f"No digest sent to {user.email} (no new notifications or digest disabled)",
-            }
-
-    except Exception as e:
-        logger.error(f"❌ Error sending test digest to user {user_id}: {str(e)}")
-        return {"status": "error", "message": f"Test digest failed: {str(e)}"}
-
-    finally:
-        db.close()
+# digest.process_all_digests and digest.send_test_digest tasks were
+# removed here — the underlying email-digest feature was deleted at the
+# User model level (see models.py around line 223), so both tasks could
+# only ever AttributeError at runtime. The matching beat schedule entry
+# is gone too. digest_service.py lives at services/shared/ in case the
+# feature is resurrected, but reviving needs the User columns
+# (enable_email_digest, digest_frequency, digest_time, digest_days,
+# last_digest_sent) plus a digest.html email template (also missing).
 
 
 # Email tasks for invitation system
