@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import redis
 from celery import Celery
 from dotenv import load_dotenv
+from sqlalchemy.exc import DBAPIError, OperationalError
 
 # Import response parser for LLM response parsing
 from response_parser import ResponseParser
@@ -2224,7 +2225,7 @@ def send_bulk_invitations_task(invitations_data: List[Dict]) -> Dict[str, Any]:
 
 @app.task(
     name="emails.send_notification_batch",
-    autoretry_for=(Exception,),
+    autoretry_for=(OperationalError, DBAPIError),
     retry_kwargs={"max_retries": 3, "countdown": 60},
 )
 def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any]:
@@ -2237,9 +2238,13 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
     catastrophic under fan-out (notify_project_created → every org member +
     every superadmin); see 2026-05-18 postmortem.
 
-    Owns its own DB session. Failures per-recipient are logged and swallowed
-    so one bad email doesn't tank the whole batch; the task-level retry is
-    reserved for total failures (e.g. SessionLocal unreachable).
+    Owns its own DB session. Per-recipient SendGrid failures (4xx/5xx) are
+    swallowed and counted as `failed` so one bad address doesn't tank the
+    whole batch. Task-level retry is narrowed to transient DB errors
+    (OperationalError / DBAPIError) — previously `autoretry_for=(Exception,)`
+    would burn 3 retries × 60s on any non-DB outer failure
+    (ImportError, SendGrid client init crash, …) that no amount of
+    retrying would ever fix.
     """
     if not notification_data:
         return {"sent": 0, "failed": 0, "skipped": 0}
