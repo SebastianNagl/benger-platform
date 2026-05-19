@@ -154,6 +154,68 @@ def _llm_judge_columns_from_result(result: Optional[dict]) -> dict:
     }
 
 
+def _build_multidim_judge_row_metrics(
+    multidim: Optional[dict],
+    metric: str,
+    error_msg: Optional[str],
+) -> tuple[dict, Optional[float]]:
+    """Build the canonical ``TaskEvaluation.metrics`` dict for a multi-dim LLM judge row.
+
+    Mirrors the shape produced by the immediate-eval path in
+    ``_evaluate_llm_judge_single`` so bulk-eval and immediate-eval rows
+    are queryable with the same JSON path. Returns ``(metrics_dict, normalized_value)``
+    where ``normalized_value`` is in ``[0, 1]`` (total_score / total_max)
+    or ``None`` on error / missing scores.
+
+    For error cases the metrics blob still carries the metric key with
+    ``value=None`` and the ``error`` message, so downstream consumers
+    (``_row_has_score`` / ``_row_is_terminal_error``) treat it as a
+    terminal failure instead of an unscored row.
+    """
+    if not multidim or multidim.get("error") or "scores" not in multidim:
+        return (
+            {
+                metric: {
+                    "value": None,
+                    "method": metric,
+                    "details": {
+                        "raw_output": (multidim or {}).get("_raw_output", ""),
+                        "call_metadata": (multidim or {}).get("_call_metadata", {}),
+                    },
+                    "error": (
+                        error_msg
+                        or (multidim or {}).get("error_message")
+                        or "multi-dim LLM judge produced no scores"
+                    ),
+                },
+            },
+            None,
+        )
+
+    total = float(multidim.get("total_score") or 0.0)
+    total_max = float(multidim.get("total_max") or 0.0)
+    normalized = total / total_max if total_max > 0 else 0.0
+    return (
+        {
+            metric: {
+                "value": float(normalized),
+                "method": metric,
+                "details": {
+                    "scores": multidim["scores"],
+                    "total_score": total,
+                    "total_max": total_max,
+                    "overall_assessment": multidim.get("overall_assessment", ""),
+                    "call_metadata": multidim.get("_call_metadata", {}),
+                    "raw_output": multidim.get("_raw_output", ""),
+                },
+                "error": None,
+            },
+            "raw_score": float(normalized),
+        },
+        float(normalized),
+    )
+
+
 def _row_has_score(metrics: dict | None) -> bool:
     """A TaskEvaluation row counts as 'already evaluated' if any non-error
     metric carries a numeric value — either as a bare float (legacy shape)
@@ -3919,6 +3981,92 @@ def _evaluate_llm_judge_single(
     if not llm_judge.ai_service:
         raise RuntimeError(f"No AI service available for LLM judge ({provider})")
 
+    # Multi-dim single-call mode: when custom_criteria carries max_score on
+    # any dimension, the user's prompt is expected to score every dimension
+    # in one LLM call (Grundprinzipien-style 4-dim rubric). Skip the
+    # per-criterion fan-out and persist per-dim scores under
+    # metrics[<metric>].details.scores.
+    if llm_judge.is_multidim_mode():
+        from project_models import Task as ProjectTask, Annotation
+        from annotation_utils import extract_all_field_values
+        task_row = db.query(ProjectTask).filter(ProjectTask.id == task_id).first()
+        task_data = (task_row.data if task_row else {}) or {}
+
+        # Flatten the model/annotation output so the prompt can reference
+        # individual fields by name (e.g. {{kurzantwort}}, {{begruendung}})
+        # without forcing the user to write field_mappings for every one.
+        # Branches by whichever target the eval is grading.
+        field_outputs: Dict[str, Any] = {}
+        if annotation_id:
+            ann_row = db.query(Annotation).filter(Annotation.id == annotation_id).first()
+            if ann_row and ann_row.result:
+                field_outputs = extract_all_field_values(ann_row.result)
+        # Generation case: parsed_annotation lives on the generation row
+        # already in label-studio shape, so the same flattener works.
+        gen_id_from_meta = (metric_params or {}).get("generation_id")
+        if not field_outputs and gen_id_from_meta:
+            gen_row = db.query(DBLLMResponse).filter(DBLLMResponse.id == gen_id_from_meta).first()
+            parsed = getattr(gen_row, "parsed_annotation", None) if gen_row else None
+            if parsed:
+                field_outputs = extract_all_field_values(parsed)
+
+        multidim = llm_judge._evaluate_multidim_single_call(
+            context="",
+            ground_truth=reference,
+            prediction=prediction,
+            task_data=task_data,
+            field_outputs=field_outputs,
+        )
+        if multidim is None or multidim.get("error") or "scores" not in multidim:
+            err_msg = (
+                (multidim or {}).get("error_message") or "multi-dim LLM judge produced no scores"
+            )
+            raise RuntimeError(err_msg)
+
+        total = float(multidim.get("total_score") or 0.0)
+        total_max = float(multidim.get("total_max") or 0.0)
+        normalized = total / total_max if total_max > 0 else 0.0
+        eval_record = TaskEvaluation(
+            id=record_id,
+            evaluation_id=immediate_eval_id,
+            judge_run_id=judge_run_id,
+            task_id=task_id,
+            annotation_id=annotation_id,
+            generation_id=None,
+            field_name=field_name,
+            answer_type="text",
+            ground_truth=reference,
+            prediction=prediction,
+            metrics={
+                metric_type: {
+                    "value": float(normalized),
+                    "method": metric_type,
+                    "details": {
+                        "scores": multidim["scores"],
+                        "total_score": total,
+                        "total_max": total_max,
+                        "overall_assessment": multidim.get("overall_assessment", ""),
+                        "call_metadata": multidim.get("_call_metadata", {}),
+                        "raw_output": multidim.get("_raw_output", ""),
+                    },
+                    "error": None,
+                },
+                "raw_score": float(normalized),
+            },
+            judge_prompts_used=multidim.get("_judge_prompts_used"),
+            passed=float(normalized) >= 0.5,
+        )
+        db.add(eval_record)
+        db.commit()
+        return {
+            "status": "completed",
+            "record_id": record_id,
+            "metric": metric_type,
+            "score": float(normalized),
+            "total_score": total,
+            "total_max": total_max,
+        }
+
     # Derive the per-criterion key from the metric name. `llm_judge_helpfulness`
     # → criterion `helpfulness`. `llm_judge_classic` / `llm_judge_custom`
     # don't carry a single criterion in the name; fall back to the first
@@ -4692,6 +4840,11 @@ def evaluate_generation_cell(
                                     })
                                     continue
 
+                                multidim_mode = (
+                                    metric != "llm_judge_falloesung"
+                                    and getattr(jr_evaluator, "is_multidim_mode", lambda: False)()
+                                )
+
                                 if metric == "llm_judge_falloesung":
                                     try:
                                         from benger_extended.workers import (
@@ -4719,6 +4872,26 @@ def evaluate_generation_cell(
                                         thinking_budget=getattr(jr_evaluator, "thinking_budget", None),
                                         reasoning_effort=getattr(jr_evaluator, "reasoning_effort", None),
                                     )
+                                elif multidim_mode:
+                                    # Flatten the model's per-field output
+                                    # (parsed_annotation is in label-studio
+                                    # shape) so the user's prompt can
+                                    # reference {{kurzantwort}} /
+                                    # {{begruendung}} directly without
+                                    # field_mappings.
+                                    from annotation_utils import extract_all_field_values
+                                    gen_field_outputs = (
+                                        extract_all_field_values(gen.parsed_annotation)
+                                        if getattr(gen, "parsed_annotation", None)
+                                        else {}
+                                    )
+                                    result = jr_evaluator._evaluate_multidim_single_call(
+                                        context=context,
+                                        ground_truth=eval_ground_truth,
+                                        prediction=str(prediction) if prediction else "",
+                                        task_data=task.data,
+                                        field_outputs=gen_field_outputs,
+                                    )
                                 else:
                                     result = jr_evaluator._evaluate_single_criterion(
                                         context=context,
@@ -4733,6 +4906,34 @@ def evaluate_generation_cell(
                                     if result
                                     else None
                                 )
+
+                                if multidim_mode:
+                                    error_msg = (
+                                        result.get("error_message")
+                                        if result and result.get("error")
+                                        else None
+                                    )
+                                    metrics_dict, normalized = _build_multidim_judge_row_metrics(
+                                        result, metric, error_msg,
+                                    )
+                                    per_judge_results.append({
+                                        "id": str(_gen_uuid.uuid4()),
+                                        "evaluation_id": evaluation_id,
+                                        "judge_run_id": jr_id,
+                                        "task_id": task.id,
+                                        "generation_id": gen.id,
+                                        "field_name": field_key,
+                                        "answer_type": "text",
+                                        "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                        "prediction": str(prediction)[:1000] if prediction else "",
+                                        "metrics": metrics_dict,
+                                        "passed": (normalized or 0.0) >= 0.5,
+                                        "error_message": error_msg,
+                                        "judge_prompts_used": judge_prompts,
+                                        **_llm_judge_columns_from_result(result),
+                                    })
+                                    continue
+
                                 raw_score = result.get("score") if result is not None else None
                                 error_msg = None
                                 if raw_score is not None:
@@ -5169,6 +5370,11 @@ def evaluate_annotation_cell(
                                         })
                                         continue
 
+                                    multidim_mode = (
+                                        metric != "llm_judge_falloesung"
+                                        and getattr(jr_evaluator, "is_multidim_mode", lambda: False)()
+                                    )
+
                                     if metric == "llm_judge_falloesung":
                                         try:
                                             from benger_extended.workers import (
@@ -5196,6 +5402,25 @@ def evaluate_annotation_cell(
                                             thinking_budget=getattr(jr_evaluator, "thinking_budget", None),
                                             reasoning_effort=getattr(jr_evaluator, "reasoning_effort", None),
                                         )
+                                    elif multidim_mode:
+                                        # Same as the gen-cell side: flatten
+                                        # the human annotator's per-field
+                                        # outputs so the user's prompt can
+                                        # reference {{kurzantwort}} /
+                                        # {{begruendung}} directly.
+                                        from annotation_utils import extract_all_field_values
+                                        ann_field_outputs = (
+                                            extract_all_field_values(annotation.result)
+                                            if getattr(annotation, "result", None)
+                                            else {}
+                                        )
+                                        result = jr_evaluator._evaluate_multidim_single_call(
+                                            context=context,
+                                            ground_truth=eval_ground_truth,
+                                            prediction=str(prediction) if prediction else "",
+                                            task_data=task.data,
+                                            field_outputs=ann_field_outputs,
+                                        )
                                     else:
                                         result = jr_evaluator._evaluate_single_criterion(
                                             context=context,
@@ -5210,6 +5435,35 @@ def evaluate_annotation_cell(
                                         if result
                                         else None
                                     )
+
+                                    if multidim_mode:
+                                        error_msg = (
+                                            result.get("error_message")
+                                            if result and result.get("error")
+                                            else None
+                                        )
+                                        metrics_dict, normalized = _build_multidim_judge_row_metrics(
+                                            result, metric, error_msg,
+                                        )
+                                        per_judge_results.append({
+                                            "id": str(_ann_uuid.uuid4()),
+                                            "evaluation_id": evaluation_id,
+                                            "judge_run_id": jr_id,
+                                            "task_id": task.id,
+                                            "generation_id": None,
+                                            "annotation_id": annotation.id,
+                                            "field_name": field_key,
+                                            "answer_type": "text",
+                                            "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                            "prediction": str(prediction)[:1000] if prediction else "",
+                                            "metrics": metrics_dict,
+                                            "passed": (normalized or 0.0) >= 0.5,
+                                            "error_message": error_msg,
+                                            "judge_prompts_used": judge_prompts,
+                                            **_llm_judge_columns_from_result(result),
+                                        })
+                                        continue
+
                                     raw_score = result.get("score") if result is not None else None
                                     error_msg = None
                                     if raw_score is not None:

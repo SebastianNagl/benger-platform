@@ -60,8 +60,15 @@ export interface CustomCriteriaDefinition {
   name: string
   /** Description of what this criterion evaluates */
   description: string
-  /** Scoring rubric (1-5 scale) explaining each score level */
+  /** Scoring rubric explaining each score level */
   rubric: string
+  /**
+   * Maximum points for this criterion. Presence flips the judge into
+   * single-call multi-dimension mode: one LLM call returns all dimensions
+   * with per-dim 0..max_score scores and a 0..sum(max_score) total. Absence
+   * keeps the legacy per-criterion fan-out with the global score_scale.
+   */
+  max_score?: number
 }
 
 /**
