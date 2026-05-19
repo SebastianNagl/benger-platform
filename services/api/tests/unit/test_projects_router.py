@@ -133,6 +133,14 @@ class TestProjectsRouter:
         project.enable_evaluation = True
         # Generation Statistiken tile
         project.generation_count = 0
+        # Evaluation counters surfaced via ProjectResponse (added with the
+        # aggregate_summaries refactor, commit 1c5ca93). Without these the
+        # Pydantic validator sees Mock objects and rejects with int_type
+        # errors — the calculate_project_stats patch in each test sets
+        # these to live values, but the initial from_orm validation runs
+        # FIRST on the raw mock_project.
+        project.evaluation_count = 0
+        project.evaluations_completed_count = 0
         # Extended feature flags
         project.annotation_time_limit_enabled = False
         project.annotation_time_limit_seconds = None
@@ -606,6 +614,10 @@ class TestProjectsRouter:
             created_project.enable_evaluation = True
             # Generation Statistiken tile
             created_project.generation_count = 0
+            # Evaluation counters surfaced via ProjectResponse (added with
+            # the aggregate_summaries refactor, commit 1c5ca93).
+            created_project.evaluation_count = 0
+            created_project.evaluations_completed_count = 0
             # Extended feature flags
             created_project.annotation_time_limit_enabled = False
             created_project.annotation_time_limit_seconds = None
