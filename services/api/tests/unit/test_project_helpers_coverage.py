@@ -26,11 +26,27 @@ from routers.projects.helpers import (
 # ============= calculate_project_stats =============
 
 
+def _annotation_only_project_mock():
+    """Project mock with only annotation stage enabled so the helper
+    only fires task/annotation/completed-task queries and the scored-pairs
+    fallback — generation/evaluation stages contribute (0, 0) to progress."""
+    project = MagicMock()
+    project.enable_annotation = True
+    project.enable_generation = False
+    project.enable_evaluation = False
+    project.generation_config = None
+    project.evaluation_config = None
+    return project
+
+
 class TestCalculateProjectStats:
     """Tests for calculate_project_stats."""
 
     def test_with_tasks_and_annotations(self):
         db = Mock()
+        # read_project_summary's db.execute(...).scalar_one_or_none() → None
+        # forces the live fallback path that this Mock chain mirrors.
+        db.execute.return_value.scalar_one_or_none.return_value = None
         response = Mock()
 
         # Setup mock chains
@@ -46,9 +62,14 @@ class TestCalculateProjectStats:
         completed_query.filter.return_value = completed_query
         completed_query.count.return_value = 7
 
-        db.query.side_effect = [task_query, ann_query, completed_query]
+        scored_pairs_query = MagicMock()
+        scored_pairs_query.select_from.return_value.join.return_value.filter.return_value.filter.return_value.distinct.return_value.all.return_value = []
 
-        calculate_project_stats(db, "proj-1", response)
+        db.query.side_effect = [task_query, ann_query, completed_query, scored_pairs_query]
+
+        calculate_project_stats(
+            db, "proj-1", response, project=_annotation_only_project_mock()
+        )
 
         assert response.task_count == 10
         assert response.annotation_count == 5
@@ -57,6 +78,7 @@ class TestCalculateProjectStats:
 
     def test_zero_tasks(self):
         db = Mock()
+        db.execute.return_value.scalar_one_or_none.return_value = None
         response = Mock()
 
         task_query = MagicMock()
@@ -71,15 +93,21 @@ class TestCalculateProjectStats:
         completed_query.filter.return_value = completed_query
         completed_query.count.return_value = 0
 
-        db.query.side_effect = [task_query, ann_query, completed_query]
+        scored_pairs_query = MagicMock()
+        scored_pairs_query.select_from.return_value.join.return_value.filter.return_value.filter.return_value.distinct.return_value.all.return_value = []
 
-        calculate_project_stats(db, "proj-1", response)
+        db.query.side_effect = [task_query, ann_query, completed_query, scored_pairs_query]
+
+        calculate_project_stats(
+            db, "proj-1", response, project=_annotation_only_project_mock()
+        )
 
         assert response.task_count == 0
         assert response.progress_percentage == 0.0
 
     def test_progress_capped_at_100(self):
         db = Mock()
+        db.execute.return_value.scalar_one_or_none.return_value = None
         response = Mock()
 
         task_query = MagicMock()
@@ -94,9 +122,14 @@ class TestCalculateProjectStats:
         completed_query.filter.return_value = completed_query
         completed_query.count.return_value = 6  # More than total tasks
 
-        db.query.side_effect = [task_query, ann_query, completed_query]
+        scored_pairs_query = MagicMock()
+        scored_pairs_query.select_from.return_value.join.return_value.filter.return_value.filter.return_value.distinct.return_value.all.return_value = []
 
-        calculate_project_stats(db, "proj-1", response)
+        db.query.side_effect = [task_query, ann_query, completed_query, scored_pairs_query]
+
+        calculate_project_stats(
+            db, "proj-1", response, project=_annotation_only_project_mock()
+        )
 
         assert response.progress_percentage == 100.0
 
@@ -114,6 +147,9 @@ class TestCalculateProjectStatsBatch:
 
     def test_single_project(self):
         db = Mock()
+        # `read_project_summary` batch read returns no precomputed rows;
+        # batch path then needs the scored-pairs fallback for the project.
+        db.execute.return_value.all.return_value = []
 
         task_stat = Mock(project_id="proj-1", task_count=10, completed_tasks_count=7)
         ann_stat = Mock(project_id="proj-1", annotation_count=5)
@@ -128,7 +164,10 @@ class TestCalculateProjectStatsBatch:
         ann_query.group_by.return_value = ann_query
         ann_query.all.return_value = [ann_stat]
 
-        db.query.side_effect = [task_query, ann_query]
+        scored_pairs_query = MagicMock()
+        scored_pairs_query.select_from.return_value.join.return_value.filter.return_value.filter.return_value.distinct.return_value.all.return_value = []
+
+        db.query.side_effect = [task_query, ann_query, scored_pairs_query]
 
         result = calculate_project_stats_batch(db, ["proj-1"])
 
@@ -138,6 +177,7 @@ class TestCalculateProjectStatsBatch:
 
     def test_project_with_no_stats(self):
         db = Mock()
+        db.execute.return_value.all.return_value = []
 
         task_query = MagicMock()
         task_query.filter.return_value = task_query
@@ -149,7 +189,10 @@ class TestCalculateProjectStatsBatch:
         ann_query.group_by.return_value = ann_query
         ann_query.all.return_value = []
 
-        db.query.side_effect = [task_query, ann_query]
+        scored_pairs_query = MagicMock()
+        scored_pairs_query.select_from.return_value.join.return_value.filter.return_value.filter.return_value.distinct.return_value.all.return_value = []
+
+        db.query.side_effect = [task_query, ann_query, scored_pairs_query]
 
         result = calculate_project_stats_batch(db, ["proj-x"])
 
@@ -159,6 +202,7 @@ class TestCalculateProjectStatsBatch:
 
     def test_none_values_default_to_zero(self):
         db = Mock()
+        db.execute.return_value.all.return_value = []
 
         task_stat = Mock(project_id="proj-1", task_count=None, completed_tasks_count=None)
         ann_stat = Mock(project_id="proj-1", annotation_count=None)
@@ -173,7 +217,10 @@ class TestCalculateProjectStatsBatch:
         ann_query.group_by.return_value = ann_query
         ann_query.all.return_value = [ann_stat]
 
-        db.query.side_effect = [task_query, ann_query]
+        scored_pairs_query = MagicMock()
+        scored_pairs_query.select_from.return_value.join.return_value.filter.return_value.filter.return_value.distinct.return_value.all.return_value = []
+
+        db.query.side_effect = [task_query, ann_query, scored_pairs_query]
 
         result = calculate_project_stats_batch(db, ["proj-1"])
 

@@ -120,21 +120,23 @@ class TestDashboardStats:
             return mock_superadmin
 
         mock_db = Mock(spec=Session)
-        mock_result = Mock()
-        mock_result.project_count = 10
-        mock_result.task_count = 100
-        mock_result.annotation_count = 200
-        mock_result.projects_with_generations = 5
-        mock_result.projects_with_evaluations = 3
-        mock_db.execute.return_value = Mock(fetchone=Mock(return_value=mock_result))
+        # Superadmin branch's SELECT COUNT(*) FROM projects scalar backstop.
+        mock_db.execute.return_value.scalar.return_value = 10
 
         def override_get_db():
             return mock_db
 
         with patch("routers.dashboard.cache") as mock_cache, \
-             patch("routers.dashboard.get_accessible_project_ids") as mock_ids:
+             patch("routers.dashboard.get_accessible_project_ids") as mock_ids, \
+             patch("routers.dashboard.read_dashboard_sum") as mock_sums, \
+             patch("routers.dashboard._live_evaluations_count", return_value=3):
             mock_cache.get.return_value = None
             mock_ids.return_value = None  # None = superadmin
+            mock_sums.return_value = {
+                "project_count": 10, "total_tasks": 100, "labeled_tasks": 50,
+                "annotations_count": 200, "generations_count": 5,
+                "response_generations_count": 6, "evaluation_pairs_count": 3,
+            }
 
             app.dependency_overrides[require_user] = override_require_user
             app.dependency_overrides[get_db] = override_get_db
@@ -155,21 +157,21 @@ class TestDashboardStats:
             return mock_user
 
         mock_db = Mock(spec=Session)
-        mock_result = Mock()
-        mock_result.project_count = 3
-        mock_result.task_count = 15
-        mock_result.annotation_count = 30
-        mock_result.projects_with_generations = 1
-        mock_result.projects_with_evaluations = 0
-        mock_db.execute.return_value = Mock(fetchone=Mock(return_value=mock_result))
 
         def override_get_db():
             return mock_db
 
         with patch("routers.dashboard.cache") as mock_cache, \
-             patch("routers.dashboard.get_accessible_project_ids") as mock_ids:
+             patch("routers.dashboard.get_accessible_project_ids") as mock_ids, \
+             patch("routers.dashboard.read_dashboard_sum") as mock_sums, \
+             patch("routers.dashboard._live_evaluations_count", return_value=0):
             mock_cache.get.return_value = None
             mock_ids.return_value = ["proj-1", "proj-2", "proj-3"]
+            mock_sums.return_value = {
+                "project_count": 3, "total_tasks": 15, "labeled_tasks": 7,
+                "annotations_count": 30, "generations_count": 1,
+                "response_generations_count": 1, "evaluation_pairs_count": 0,
+            }
 
             app.dependency_overrides[require_user] = override_require_user
             app.dependency_overrides[get_db] = override_get_db

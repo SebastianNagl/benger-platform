@@ -56,18 +56,35 @@ def test_helper_falls_back_to_is_public_when_no_project_ids():
     assert "if project_ids:" in body
 
 
-def test_all_evaluation_endpoints_use_the_helper():
-    """The four `_filter_accessible_project_ids` callsites that query
-    EvaluationRun must all go through the helper — otherwise one endpoint
-    leaks private projects while siblings hide them. The annotation-stats
-    endpoint at line ~219 is intentionally NOT in this set (Annotation
-    table, separate decision)."""
+def test_default_scope_falls_back_to_public_for_non_superadmin():
+    """After the precomputed-summary refactor (migration 051), visibility
+    is enforced at the scope-key level rather than via .filter() calls on
+    EvaluationRun. The contract is the same: a non-superadmin user with
+    no `project_ids` filter must read from the 'public' scope (which the
+    worker precomputes from `Project.is_public=True` only), NOT from 'all'.
+
+    Closes the same regression as PR 5 (ZJS Fälle bleeding into the
+    global per-model averages).
+    """
     src = _src()
-    # Count callsites that use the helper
-    callsite_count = src.count("_apply_default_visibility_filter(query, project_ids)")
-    assert callsite_count >= 3, (
-        f"Expected ≥3 helper callsites on EvaluationRun queries, found "
-        f"{callsite_count} — likely an endpoint was missed"
+    m = re.search(
+        # Multi-line signature with return-type annotation: capture from
+        # `def _project_scope_key_for_request(` through the next top-level
+        # `def`/`class`/decorator.
+        r"def _project_scope_key_for_request\(.*?\).*?:.+?(?=\ndef |\nclass |\n@)",
+        src,
+        re.DOTALL,
+    )
+    assert m, "_project_scope_key_for_request helper missing — refactor reverted?"
+    body = m.group(0)
+    # Default branch (no project_ids) must select 'public' unless superadmin.
+    assert "is_superadmin" in body, (
+        "Scope selector must branch on is_superadmin so non-superadmins land "
+        "on the 'public' scope by default"
+    )
+    assert "'public'" in body or '"public"' in body, (
+        "Default scope key for non-superadmin without project_ids must be "
+        "'public' — otherwise private projects leak into the leaderboard"
     )
 
 

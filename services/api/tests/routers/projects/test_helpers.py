@@ -15,6 +15,10 @@ def test_calculate_project_stats_batch_with_projects():
     """Test batch stats calculation returns correct structure."""
     # Mock database session
     db = Mock()
+    # The batch path first reads precomputed `project_summaries` rows via
+    # db.execute(...).all(). Returning [] forces the live-Python fallback
+    # that this test was designed to exercise.
+    db.execute.return_value.all.return_value = []
 
     # Mock query results
     task_stats = [
@@ -87,6 +91,9 @@ def test_calculate_project_stats_batch_empty_list():
 def test_calculate_project_stats_batch_missing_annotations():
     """Test batch stats when some projects have no annotations."""
     db = Mock()
+    # See note in batch_with_projects above — empty precomputed summary
+    # forces the live-fallback path.
+    db.execute.return_value.all.return_value = []
 
     # Only p1 has task stats, only p2 has annotation stats
     task_stats = [Mock(project_id='p1', task_count=10, completed_tasks_count=5)]
@@ -151,6 +158,10 @@ def _empty_scored_pairs_query_mock():
 def test_calculate_project_stats():
     """Test single project stats calculation."""
     db = Mock()
+    # `read_project_summary` does db.execute(...).scalar_one_or_none() —
+    # None means "no precomputed row" → falls through to the live
+    # _scored_pairs_query path this test sets up.
+    db.execute.return_value.scalar_one_or_none.return_value = None
     response = Mock()
 
     # Setup task count query
@@ -190,6 +201,8 @@ def test_calculate_project_stats():
 def test_calculate_project_stats_zero_tasks():
     """Test stats calculation when project has no tasks."""
     db = Mock()
+    # Force `read_project_summary` to return None → live fallback path.
+    db.execute.return_value.scalar_one_or_none.return_value = None
     response = Mock()
 
     # task / annotation / completed_tasks all return 0; scored-pairs returns []
