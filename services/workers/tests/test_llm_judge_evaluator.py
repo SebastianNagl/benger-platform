@@ -24,6 +24,10 @@ from ml_evaluation.llm_judge_evaluator import (
     PAIRWISE_COMPARISON_PROMPT,
     SINGLE_EVALUATION_PROMPT,
     LLMJudgeEvaluator,
+    _build_rubric_json_schema,
+    _half_point_enum,
+    _parse_multidim_response,
+    _preprocess_jinja_placeholders,
 )
 
 
@@ -817,3 +821,352 @@ class TestLLMJudgeThinkingParameters:
 
         call_kwargs = mock_ai_service.generate.call_args.kwargs
         assert call_kwargs.get("temperature") == 0.3
+
+
+# =============================================================================
+# Multi-dim single-call mode (Grundprinzipien-style rubrics)
+# =============================================================================
+
+
+GRUNDPRINZIPIEN_CRITERIA = {
+    "result_correctness": {"name": "Ergebnisrichtigkeit", "description": "", "rubric": "", "max_score": 40},
+    "legal_knowledge":    {"name": "Rechtskenntnis & Normbezug", "description": "", "rubric": "", "max_score": 25},
+    "subsumption":        {"name": "Subsumtion & Fallbezug", "description": "", "rubric": "", "max_score": 25},
+    "clarity":            {"name": "Klarheit & Präzision", "description": "", "rubric": "", "max_score": 10},
+}
+
+
+class TestJinjaPreprocessor:
+    def test_double_braces_converted(self):
+        assert _preprocess_jinja_placeholders("Fall {{fall}} Antwort {{answer}}") == "Fall {fall} Antwort {answer}"
+
+    def test_single_braces_preserved(self):
+        assert _preprocess_jinja_placeholders("Score {score}") == "Score {score}"
+
+    def test_mixed_syntax(self):
+        assert _preprocess_jinja_placeholders("{{fall}} - {context}") == "{fall} - {context}"
+
+    def test_non_identifier_in_braces_left_alone(self):
+        # Anything that's not a word-char identifier inside {{...}} should not be substituted
+        assert _preprocess_jinja_placeholders("{{ not-an-id }}") == "{{ not-an-id }}"
+
+
+class TestRubricJsonSchema:
+    def test_skips_criteria_without_max_score(self):
+        criteria = {"weighted": {"max_score": 10}, "unweighted": {"name": "x"}}
+        schema = _build_rubric_json_schema(criteria)
+        assert "weighted" in schema["properties"]["scores"]["properties"]
+        assert "unweighted" not in schema["properties"]["scores"]["properties"]
+
+    def test_each_dimension_has_const_max_and_score_enum(self):
+        schema = _build_rubric_json_schema(GRUNDPRINZIPIEN_CRITERIA)
+        rc = schema["properties"]["scores"]["properties"]["result_correctness"]
+        assert rc["properties"]["max"]["const"] == 40
+        # Half-point enum 0..40 inclusive => 81 values
+        assert len(rc["properties"]["score"]["enum"]) == 81
+        assert rc["properties"]["score"]["enum"][0] == 0
+        assert rc["properties"]["score"]["enum"][-1] == 40
+        assert rc["properties"]["score"]["enum"][1] == 0.5
+
+    def test_top_level_requires_scores_total_assessment(self):
+        schema = _build_rubric_json_schema(GRUNDPRINZIPIEN_CRITERIA)
+        assert set(schema["required"]) == {"scores", "total_score", "overall_assessment"}
+        assert schema["additionalProperties"] is False
+
+    def test_all_dimensions_listed_in_required(self):
+        schema = _build_rubric_json_schema(GRUNDPRINZIPIEN_CRITERIA)
+        assert set(schema["properties"]["scores"]["required"]) == set(GRUNDPRINZIPIEN_CRITERIA.keys())
+
+    def test_half_point_enum_boundary(self):
+        assert _half_point_enum(0) == [0]
+        assert _half_point_enum(2) == [0, 0.5, 1.0, 1.5, 2.0]
+
+
+class TestMultidimResponseParser:
+    def test_direct_json(self):
+        content = '{"scores": {"a": {"score": 5, "max": 10, "reason": "ok"}}, "total_score": 5, "overall_assessment": "x"}'
+        parsed = _parse_multidim_response(content)
+        assert parsed is not None
+        assert parsed["scores"]["a"]["score"] == 5
+
+    def test_markdown_fenced_json(self):
+        content = "Some preface\n```json\n{\"scores\": {\"a\": {\"score\": 3}}, \"total_score\": 3, \"overall_assessment\": \"...\"}\n```\nTrailing"
+        parsed = _parse_multidim_response(content)
+        assert parsed is not None
+        assert parsed["scores"]["a"]["score"] == 3
+
+    def test_brace_matched_anywhere(self):
+        content = 'Noise text {"scores": {"a": {"score": 1, "max": 5, "reason": ""}}, "total_score": 1, "overall_assessment": "z"} more noise'
+        parsed = _parse_multidim_response(content)
+        assert parsed is not None
+        assert parsed["total_score"] == 1
+
+    def test_picks_largest_with_scores_key(self):
+        # A short {} without "scores" should NOT win over a longer one that has it.
+        content = '{"unrelated": 1} {"scores": {"a": {"score": 7}}, "total_score": 7, "overall_assessment": "p"}'
+        parsed = _parse_multidim_response(content)
+        assert parsed is not None
+        assert parsed["scores"]["a"]["score"] == 7
+
+    def test_unparseable_returns_none(self):
+        assert _parse_multidim_response("absolutely no json here") is None
+
+    def test_none_input_safe(self):
+        assert _parse_multidim_response("") is None
+
+
+class TestIsMultidimMode:
+    def test_no_custom_criteria_returns_false(self):
+        ev = LLMJudgeEvaluator(ai_service=MagicMock(), judge_model="gpt-4o")
+        assert ev.is_multidim_mode() is False
+
+    def test_custom_criteria_without_max_score_returns_false(self):
+        ev = LLMJudgeEvaluator(
+            ai_service=MagicMock(),
+            judge_model="gpt-4o",
+            custom_criteria={"a": {"name": "A", "description": "d", "rubric": "r"}},
+        )
+        assert ev.is_multidim_mode() is False
+
+    def test_any_max_score_flips_to_true(self):
+        ev = LLMJudgeEvaluator(
+            ai_service=MagicMock(),
+            judge_model="gpt-4o",
+            custom_criteria=GRUNDPRINZIPIEN_CRITERIA,
+        )
+        assert ev.is_multidim_mode() is True
+
+
+_FOUR_DIM_ZEROES = (
+    '{"scores": {'
+    '"result_correctness": {"score": 0, "max": 40, "reason": ""},'
+    '"legal_knowledge":    {"score": 0, "max": 25, "reason": ""},'
+    '"subsumption":        {"score": 0, "max": 25, "reason": ""},'
+    '"clarity":            {"score": 0, "max": 10, "reason": ""}'
+    '}, "total_score": 0, "overall_assessment": ""}'
+)
+
+
+class TestEvaluateMultidimSingleCall:
+    def _evaluator(self, custom_prompt_template=None, field_mappings=None):
+        return LLMJudgeEvaluator(
+            ai_service=MagicMock(),
+            judge_model="gpt-4o",
+            custom_criteria=GRUNDPRINZIPIEN_CRITERIA,
+            custom_prompt_template=custom_prompt_template or "Fall: {{fall}}\nAntwort: {{answer}}",
+            field_mappings=field_mappings or {},
+        )
+
+    def test_happy_path_returns_all_dimensions_clamped(self):
+        ev = self._evaluator()
+        ev.ai_service.generate_structured.return_value = {
+            "success": True,
+            "content": (
+                '{"scores": {'
+                '"result_correctness": {"score": 38, "max": 40, "reason": "ok"},'
+                '"legal_knowledge":    {"score": 20, "max": 25, "reason": ""},'
+                '"subsumption":        {"score": 22, "max": 25, "reason": ""},'
+                '"clarity":            {"score":  9, "max": 10, "reason": ""}'
+                '}, "total_score": 89, "overall_assessment": "solid"}'
+            ),
+            "usage": {},
+            "metadata": {"finish_reason": "stop"},
+        }
+
+        result = ev._evaluate_multidim_single_call(
+            context="",
+            ground_truth="ref",
+            prediction="pred",
+            task_data={"fall": "Sachverhalt", "answer": "Ja, weil ..."},
+        )
+
+        assert result is not None
+        assert not result.get("error")
+        assert set(result["scores"].keys()) == set(GRUNDPRINZIPIEN_CRITERIA.keys())
+        assert result["scores"]["result_correctness"]["score"] == 38
+        assert result["total_score"] == 89
+        assert result["total_max"] == 100
+        # The judge_prompts_used snapshot is attached for reproducibility
+        assert result["_judge_prompts_used"]["mode"] == "multidim_single_call"
+        assert "custom_criteria" in result["_judge_prompts_used"]
+
+    def test_scores_are_clamped_to_max(self):
+        ev = self._evaluator()
+        ev.ai_service.generate_structured.return_value = {
+            "success": True,
+            "content": (
+                '{"scores": {'
+                '"result_correctness": {"score": 999, "max": 40, "reason": ""},'
+                '"legal_knowledge":    {"score":  -5, "max": 25, "reason": ""},'
+                '"subsumption":        {"score":   0, "max": 25, "reason": ""},'
+                '"clarity":            {"score":   0, "max": 10, "reason": ""}'
+                '}, "total_score": 40, "overall_assessment": ""}'
+            ),
+            "usage": {},
+            "metadata": {},
+        }
+
+        result = ev._evaluate_multidim_single_call(
+            context="", ground_truth="", prediction="", task_data={"fall": "x", "answer": "y"},
+        )
+        assert result["scores"]["result_correctness"]["score"] == 40  # clamped from 999
+        assert result["scores"]["legal_knowledge"]["score"] == 0       # clamped from -5
+
+    def test_task_data_keys_auto_bound_without_field_mappings(self):
+        """A user prompt referencing {{fall}} should resolve from task.data
+        directly — no field_mappings ceremony required."""
+        ev = self._evaluator(
+            custom_prompt_template="Fall: {{fall}} / Frage: {{task}}",
+            field_mappings={},
+        )
+        ev.ai_service.generate_structured.return_value = {
+            "success": True, "content": _FOUR_DIM_ZEROES, "usage": {}, "metadata": {},
+        }
+        ev._evaluate_multidim_single_call(
+            context="", ground_truth="", prediction="",
+            task_data={"fall": "Sachverhalt-Text", "task": "Liegt X vor?"},
+        )
+        sent = ev.ai_service.generate_structured.call_args.kwargs["prompt"]
+        assert sent == "Fall: Sachverhalt-Text / Frage: Liegt X vor?"
+
+    def test_field_outputs_keys_auto_bound_without_field_mappings(self):
+        """Per-field model outputs (kurzantwort, begruendung) should resolve
+        from `field_outputs` without requiring field_mappings — that's the
+        Grundprinzipien use case."""
+        ev = self._evaluator(
+            custom_prompt_template="Decision: {{kurzantwort}}\n\nReasoning: {{begruendung}}",
+            field_mappings={},
+        )
+        ev.ai_service.generate_structured.return_value = {
+            "success": True, "content": _FOUR_DIM_ZEROES, "usage": {}, "metadata": {},
+        }
+        ev._evaluate_multidim_single_call(
+            context="", ground_truth="", prediction="",
+            task_data={},
+            field_outputs={"kurzantwort": "Ja", "begruendung": "weil §211 ..."},
+        )
+        sent = ev.ai_service.generate_structured.call_args.kwargs["prompt"]
+        assert sent == "Decision: Ja\n\nReasoning: weil §211 ..."
+
+    def test_field_outputs_override_task_data_on_key_collision(self):
+        ev = self._evaluator(
+            custom_prompt_template="x={{shared}}",
+            field_mappings={},
+        )
+        ev.ai_service.generate_structured.return_value = {
+            "success": True, "content": _FOUR_DIM_ZEROES, "usage": {}, "metadata": {},
+        }
+        ev._evaluate_multidim_single_call(
+            context="", ground_truth="", prediction="",
+            task_data={"shared": "FROM_TASK"},
+            field_outputs={"shared": "FROM_OUTPUT"},
+        )
+        sent = ev.ai_service.generate_structured.call_args.kwargs["prompt"]
+        # field_outputs is the value being graded; it wins on collision.
+        assert sent == "x=FROM_OUTPUT"
+
+    def test_field_mappings_override_auto_bind(self):
+        """Field mappings are the explicit escape hatch — they win over
+        auto-binding so a user can rebind a placeholder to a nested path."""
+        ev = self._evaluator(
+            custom_prompt_template="x={{fall}}",
+            field_mappings={"fall": "$nested.deep"},
+        )
+        ev.ai_service.generate_structured.return_value = {
+            "success": True, "content": _FOUR_DIM_ZEROES, "usage": {}, "metadata": {},
+        }
+        ev._evaluate_multidim_single_call(
+            context="", ground_truth="", prediction="",
+            task_data={"fall": "ignored", "nested": {"deep": "REMAPPED"}},
+        )
+        sent = ev.ai_service.generate_structured.call_args.kwargs["prompt"]
+        assert sent == "x=REMAPPED"
+
+    def test_no_aliases_for_reference_response_candidate(self):
+        """Issue #107: the alias names {response}/{candidate}/{reference}
+        should NOT resolve — only the canonical ground_truth/prediction.
+        The fallback partial-substitution path leaves them literal."""
+        ev = self._evaluator(
+            custom_prompt_template="ref={response} pred={prediction}",
+            field_mappings={},
+        )
+        ev.ai_service.generate_structured.return_value = {
+            "success": True, "content": _FOUR_DIM_ZEROES, "usage": {}, "metadata": {},
+        }
+        ev._evaluate_multidim_single_call(
+            context="", ground_truth="GT", prediction="PRED", task_data={},
+        )
+        sent = ev.ai_service.generate_structured.call_args.kwargs["prompt"]
+        # {prediction} substitutes; {response} is unresolved and falls back
+        # to literal-passthrough via the partial-substitution path.
+        assert "PRED" in sent
+        assert "{response}" in sent
+
+    def test_missing_custom_prompt_template_fails_loud(self):
+        ev = LLMJudgeEvaluator(
+            ai_service=MagicMock(),
+            judge_model="gpt-4o",
+            custom_criteria=GRUNDPRINZIPIEN_CRITERIA,
+            custom_prompt_template=None,
+        )
+        # Override the answer_type-derived fallback to None to reach the
+        # multi-dim path's own check (otherwise the constructor would
+        # populate a default template).
+        ev.custom_prompt_template = None
+        result = ev._evaluate_multidim_single_call(context="", ground_truth="", prediction="", task_data={})
+        assert result["error"] is True
+        assert "custom_prompt_template" in result["error_message"]
+
+    def test_parse_failure_returns_error_with_provenance(self):
+        ev = self._evaluator()
+        ev.max_retries = 1  # don't sleep through retries
+        ev.ai_service.generate_structured.return_value = {
+            "success": True,
+            "content": "not json at all",
+            "usage": {},
+            "metadata": {},
+        }
+        result = ev._evaluate_multidim_single_call(
+            context="", ground_truth="", prediction="",
+            task_data={"fall": "x", "answer": "y"},
+        )
+        assert result["error"] is True
+        assert result["_call_metadata"]["error_type"] == "parse_error"
+        assert result["_raw_output"] == "not json at all"
+
+    def test_provider_failure_short_circuits(self):
+        ev = self._evaluator()
+        ev.ai_service.generate_structured.return_value = {
+            "success": False,
+            "error": "rate_limited",
+            "content": "",
+            "usage": {},
+            "metadata": {"error_type": "rate_limit"},
+        }
+        result = ev._evaluate_multidim_single_call(
+            context="", ground_truth="", prediction="",
+            task_data={"fall": "x", "answer": "y"},
+        )
+        assert result["error"] is True
+        # Provider-side failures shouldn't trigger our retries (provider already retried).
+        assert ev.ai_service.generate_structured.call_count == 1
+
+    def test_json_schema_passed_to_generate_structured(self):
+        """We use generate_structured(json_schema=...) — the provider-aware
+        wrapper Falllösung relies on — instead of generate(response_format=...)
+        which would have blown up on Anthropic / Google judges."""
+        ev = self._evaluator()
+        ev.ai_service.generate_structured.return_value = {
+            "success": True, "content": _FOUR_DIM_ZEROES, "usage": {}, "metadata": {},
+        }
+        ev._evaluate_multidim_single_call(
+            context="", ground_truth="", prediction="",
+            task_data={"fall": "x", "answer": "y"},
+        )
+        # generate (the legacy single-criterion path) must NOT be called.
+        assert not ev.ai_service.generate.called
+        kwargs = ev.ai_service.generate_structured.call_args.kwargs
+        schema = kwargs.get("json_schema")
+        assert schema is not None
+        assert schema["additionalProperties"] is False
+        assert "result_correctness" in schema["properties"]["scores"]["properties"]
