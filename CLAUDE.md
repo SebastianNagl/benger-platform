@@ -78,3 +78,21 @@ The async engine's connections show `application_name='benger-api-async'` in `pg
 - `async_test_client: AsyncClient` — wires `Depends(get_async_db)` to `async_test_db`
 
 Use the async fixtures when testing async handlers. Example: `services/api/tests/integration/test_async_db_foundation.py`.
+
+## Health checks — what `/health` covers and what it doesn't
+
+`/health` (`services/api/routers/health.py`) is the K8s liveness probe and Docker healthcheck. It checks the deps the API itself needs to function:
+
+| Dep | Mode | On failure | Why |
+|---|---|---|---|
+| Redis | required | 503 (K8s evicts) | WS pub/sub, rate limiter, session cache |
+| Postgres | required | 503 (K8s evicts) | every request reads / writes |
+| Celery workers | soft | 200, `status="degraded"` | API still serves sync; async tasks just queue |
+
+**Not in `/health`:** third-party providers (SendGrid, OpenAI, Anthropic, etc.).
+
+The reasoning: those are dependencies of *features* (notification email, model generation) rather than the app process itself, and pinging them on every K8s liveness probe (every 30 s × N replicas) would burn third-party quota — SendGrid's free tier is 100/day; two replicas at 30 s would consume the day's budget in 25 minutes. Treat third-party uptime as **operational monitoring**, not application liveness:
+
+- `/health/email` exists as a superadmin-only diagnostic — run on demand when investigating a delivery issue.
+- For continuous monitoring, point an external uptime tool (Grafana Synthetic, Better Uptime, the SendGrid status dashboard, etc.) at the provider directly. The result lives outside the API process so a provider outage doesn't change our pod's eviction state.
+- If you ever do add a third-party check to `/health`, cache its result in Redis with a multi-minute TTL so K8s probes don't proxy through to the third party.
