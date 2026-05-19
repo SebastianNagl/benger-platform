@@ -5,6 +5,7 @@ User API Key Management Service
 import logging
 from typing import Dict, List, Optional, Tuple
 
+import httpx
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -277,68 +278,41 @@ class UserApiKeyService:
                 return False, f"Validation failed: {str(e)}", "unknown"
 
     async def _validate_anthropic_key(self, api_key: str) -> Tuple[bool, str, str]:
-        """Validate Anthropic API key"""
+        """Validate Anthropic API key via GET /v1/models."""
+        if not api_key.startswith("sk-ant-"):
+            return False, "Invalid Anthropic API key format", "invalid_format"
         try:
             import asyncio
 
-            import anthropic
-
-            client = anthropic.Anthropic(api_key=api_key, timeout=30.0)
-
-            # Test with a minimal request - just validate the API key works
-            try:
-                # Run the synchronous call in a thread pool with timeout
-                await asyncio.wait_for(
-                    asyncio.get_event_loop().run_in_executor(
-                        None,
-                        lambda: client.messages.create(
-                            model="claude-3-haiku-20240307",
-                            max_tokens=1,
-                            messages=[{"role": "user", "content": "test"}],
-                        ),
-                    ),
-                    timeout=30.0,
-                )
-                return True, "Connection to Anthropic successful", "success"
-            except anthropic.AuthenticationError:
-                logger.warning("Anthropic API key authentication failed")
-                return False, "Invalid API key - please check your Anthropic key", "auth"
-            except anthropic.RateLimitError:
-                logger.info("Anthropic API key valid but rate limited")
-                return True, "API key valid (rate limit reached)", "quota"
-            except anthropic.PermissionDeniedError:
-                logger.warning("Anthropic API key permission denied")
-                return False, "API key lacks required permissions", "auth"
-            except asyncio.TimeoutError:
-                logger.warning("Anthropic API key validation timeout")
-                return False, "Connection timeout - please check your network", "timeout"
-            except Exception as inner_e:
-                error_str = str(inner_e).lower()
-                if (
-                    "authentication" in error_str
-                    or "invalid" in error_str
-                    or "unauthorized" in error_str
-                ):
-                    return False, "Invalid API key - authentication failed", "auth"
-                elif "timeout" in error_str or "timed out" in error_str:
-                    return False, "Connection timeout - please check your network", "timeout"
-                elif "network" in error_str or "connection" in error_str:
-                    return False, "Network error - please check your connection", "network"
-                elif "rate limit" in error_str or "quota" in error_str:
-                    return True, "API key valid (rate limit reached)", "quota"
-                else:
-                    # For other errors, consider the key valid if it's not clearly auth-related
-                    logger.info(f"Anthropic key validation succeeded despite error: {inner_e}")
-                    return True, f"API key valid (service issue: {str(inner_e)})", "quota"
+            result = await asyncio.wait_for(self._make_anthropic_request(api_key), timeout=10.0)
+            return result
+        except asyncio.TimeoutError:
+            return False, "Anthropic validation timeout", "timeout"
         except Exception as e:
-            logger.warning(f"Anthropic API key validation failed: {e}")
-            error_str = str(e).lower()
-            if "timeout" in error_str:
-                return False, "Connection timeout - please check your network", "timeout"
-            elif "network" in error_str or "connection" in error_str:
-                return False, "Network error - please check your connection", "network"
+            error_name = type(e).__name__
+            if "AuthenticationError" in error_name:
+                return False, "Invalid API key - please check your Anthropic key", "auth"
+            return False, f"Anthropic validation failed: {str(e)}", "connection_error"
+
+    async def _make_anthropic_request(self, api_key: str) -> Tuple[bool, str, str]:
+        """Hit Anthropic's /v1/models endpoint to verify auth."""
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.anthropic.com/v1/models",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                },
+                timeout=10.0,
+            )
+            if response.status_code == 200:
+                return True, "Connection to Anthropic successful", "success"
+            elif response.status_code == 401:
+                return False, "Invalid API key - please check your Anthropic key", "auth"
+            elif response.status_code == 429:
+                return True, "Anthropic API key valid - rate limit reached", "quota"
             else:
-                return False, f"Validation failed: {str(e)}", "unknown"
+                return False, f"Anthropic API error: {response.status_code}", "api_error"
 
     async def _validate_google_key(self, api_key: str) -> Tuple[bool, str, str]:
         """Validate Google API key via Gemini REST API"""
@@ -365,189 +339,63 @@ class UserApiKeyService:
             return False, f"Validation failed: {str(e)}", "unknown"
 
     async def _validate_deepinfra_key(self, api_key: str) -> Tuple[bool, str, str]:
-        """Validate DeepInfra API key"""
-        try:
-            import asyncio
-
-            import aiohttp
-
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            }
-
-            # DeepInfra doesn't have a /models endpoint, so we test with a minimal chat completion
-            payload = {
-                "model": "meta-llama/Meta-Llama-3.1-8B-Instruct",
-                "messages": [{"role": "user", "content": "test"}],
-                "max_tokens": 1,
-                "temperature": 0.0,
-            }
-
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(
-                        "https://api.deepinfra.com/v1/openai/chat/completions",
-                        headers=headers,
-                        json=payload,
-                        timeout=aiohttp.ClientTimeout(total=30),
-                    ) as response:
-                        if response.status == 200:
-                            return True, "Connection to DeepInfra successful", "success"
-                        elif response.status == 401:
-                            # 401 means invalid API key
-                            return (
-                                False,
-                                "Invalid API key - please check your DeepInfra key",
-                                "auth",
-                            )
-                        elif response.status == 429:
-                            # Rate limit
-                            return True, "API key valid (rate limit reached)", "quota"
-                        elif response.status == 402:
-                            # Payment required / quota exceeded
-                            return True, "API key valid (quota exceeded)", "quota"
-                        else:
-                            # Other errors - check response content
-                            error_text = await response.text()
-                            error_lower = error_text.lower()
-                            if (
-                                "authentication" in error_lower
-                                or "invalid" in error_lower
-                                or "unauthorized" in error_lower
-                            ):
-                                return False, "Invalid API key - authentication failed", "auth"
-                            elif "quota" in error_lower or "limit" in error_lower:
-                                return True, "API key valid (quota/limit reached)", "quota"
-                            else:
-                                # For other errors, consider the key valid but service has issues
-                                logger.info(
-                                    f"DeepInfra key validation succeeded despite status {response.status}"
-                                )
-                                return (
-                                    True,
-                                    f"API key valid (service issue: HTTP {response.status})",
-                                    "quota",
-                                )
-            except aiohttp.ClientError as e:
-                error_str = str(e).lower()
-                if "timeout" in error_str:
-                    return False, "Connection timeout - please check your network", "timeout"
-                else:
-                    return False, "Network error - please check your connection", "network"
-            except asyncio.TimeoutError:
-                return False, "Connection timeout - please check your network", "timeout"
-        except Exception as e:
-            logger.warning(f"DeepInfra API key validation failed: {e}")
-            error_str = str(e).lower()
-            if "timeout" in error_str:
-                return False, "Connection timeout - please check your network", "timeout"
-            elif "network" in error_str or "connection" in error_str:
-                return False, "Network error - please check your connection", "network"
-            else:
-                return False, f"Validation failed: {str(e)}", "unknown"
+        """Validate DeepInfra API key via GET /v1/openai/models."""
+        return await self._validate_via_models_get(
+            "DeepInfra",
+            "https://api.deepinfra.com/v1/openai/models",
+            {"Authorization": f"Bearer {api_key}"},
+        )
 
     async def _validate_grok_key(self, api_key: str) -> Tuple[bool, str, str]:
-        """Validate xAI Grok API key"""
-        try:
-            import asyncio
-            import aiohttp
-
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    "https://api.x.ai/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": "grok-3",
-                        "messages": [{"role": "user", "content": "test"}],
-                        "max_tokens": 1,
-                    },
-                    timeout=aiohttp.ClientTimeout(total=30),
-                ) as response:
-                    if response.status == 200:
-                        return True, "Connection to xAI (Grok) successful", "success"
-                    elif response.status == 401:
-                        return False, "Invalid API key - please check your Grok key", "auth"
-                    elif response.status == 429:
-                        return True, "API key valid (rate limit reached)", "quota"
-                    else:
-                        return False, f"Grok API error: {response.status}", "unknown"
-        except asyncio.TimeoutError:
-            return False, "Connection timeout - please check your network", "timeout"
-        except Exception as e:
-            logger.warning(f"Grok API key validation failed: {e}")
-            return False, f"Validation failed: {str(e)}", "unknown"
+        """Validate xAI Grok API key via GET /v1/models (OpenAI-compatible)."""
+        return await self._validate_via_models_get(
+            "xAI (Grok)",
+            "https://api.x.ai/v1/models",
+            {"Authorization": f"Bearer {api_key}"},
+        )
 
     async def _validate_mistral_key(self, api_key: str) -> Tuple[bool, str, str]:
-        """Validate Mistral AI API key"""
-        try:
-            import asyncio
-            import aiohttp
-
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    "https://api.mistral.ai/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": "mistral-small-latest",
-                        "messages": [{"role": "user", "content": "test"}],
-                        "max_tokens": 1,
-                    },
-                    timeout=aiohttp.ClientTimeout(total=30),
-                ) as response:
-                    if response.status == 200:
-                        return True, "Connection to Mistral AI successful", "success"
-                    elif response.status == 401:
-                        return False, "Invalid API key - please check your Mistral key", "auth"
-                    elif response.status == 429:
-                        return True, "API key valid (rate limit reached)", "quota"
-                    else:
-                        return False, f"Mistral API error: {response.status}", "unknown"
-        except asyncio.TimeoutError:
-            return False, "Connection timeout - please check your network", "timeout"
-        except Exception as e:
-            logger.warning(f"Mistral API key validation failed: {e}")
-            return False, f"Validation failed: {str(e)}", "unknown"
+        """Validate Mistral AI API key via GET /v1/models."""
+        return await self._validate_via_models_get(
+            "Mistral AI",
+            "https://api.mistral.ai/v1/models",
+            {"Authorization": f"Bearer {api_key}"},
+        )
 
     async def _validate_cohere_key(self, api_key: str) -> Tuple[bool, str, str]:
-        """Validate Cohere API key"""
+        """Validate Cohere API key via GET /v1/models."""
+        return await self._validate_via_models_get(
+            "Cohere",
+            "https://api.cohere.com/v1/models",
+            {"Authorization": f"Bearer {api_key}"},
+        )
+
+    async def _validate_via_models_get(
+        self, provider_label: str, url: str, headers: Dict[str, str]
+    ) -> Tuple[bool, str, str]:
+        """Shared GET /models auth check for OpenAI-compatible providers."""
         try:
-            import asyncio
             import aiohttp
 
             async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    "https://api.cohere.com/v2/chat",
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": "command-r-08-2024",
-                        "messages": [{"role": "user", "content": "test"}],
-                        "max_tokens": 1,
-                    },
-                    timeout=aiohttp.ClientTimeout(total=30),
+                async with session.get(
+                    url,
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=10),
                 ) as response:
                     if response.status == 200:
-                        return True, "Connection to Cohere successful", "success"
-                    elif response.status == 401:
-                        return False, "Invalid API key - please check your Cohere key", "auth"
+                        return True, f"Connection to {provider_label} successful", "success"
+                    elif response.status in (401, 403):
+                        return False, f"Invalid {provider_label} API key", "auth"
                     elif response.status == 429:
-                        return True, "API key valid (rate limit reached)", "quota"
+                        return True, f"{provider_label} API key valid - rate limit reached", "quota"
                     else:
-                        return False, f"Cohere API error: {response.status}", "unknown"
-        except asyncio.TimeoutError:
-            return False, "Connection timeout - please check your network", "timeout"
+                        return False, f"{provider_label} API error: {response.status}", "api_error"
         except Exception as e:
-            logger.warning(f"Cohere API key validation failed: {e}")
-            return False, f"Validation failed: {str(e)}", "unknown"
+            error_name = type(e).__name__
+            if "AuthenticationError" in error_name:
+                return False, f"Invalid API key - please check your {provider_label} key", "auth"
+            return False, f"{provider_label} validation failed: {str(e)}", "network"
 
 
 def create_user_api_key_service(encryption_service) -> UserApiKeyService:

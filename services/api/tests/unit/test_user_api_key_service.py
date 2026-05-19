@@ -598,7 +598,7 @@ class TestUserApiKeyService:
                     body={"error": {"message": "Invalid API key"}},
                 )
 
-                is_valid, message, error_type = await service._validate_anthropic_key("invalid-key")
+                is_valid, message, error_type = await service._validate_anthropic_key("sk-ant-invalid")
                 assert is_valid is False
                 assert message == "Invalid API key - please check your Anthropic key"
                 assert error_type == "auth"
@@ -661,7 +661,7 @@ class TestUserApiKeyService:
             mock_post_cm = Mock()
             mock_post_cm.__aenter__ = AsyncMock(return_value=mock_response)
             mock_post_cm.__aexit__ = AsyncMock(return_value=None)
-            mock_session.post.return_value = mock_post_cm
+            mock_session.get.return_value = mock_post_cm
 
             mock_session_cm = Mock()
             mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
@@ -689,7 +689,7 @@ class TestUserApiKeyService:
             mock_post_cm = Mock()
             mock_post_cm.__aenter__ = AsyncMock(return_value=mock_response)
             mock_post_cm.__aexit__ = AsyncMock(return_value=None)
-            mock_session.post.return_value = mock_post_cm
+            mock_session.get.return_value = mock_post_cm
 
             mock_session_cm = Mock()
             mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
@@ -715,7 +715,7 @@ class TestUserApiKeyService:
             mock_post_cm = Mock()
             mock_post_cm.__aenter__ = AsyncMock(return_value=mock_response)
             mock_post_cm.__aexit__ = AsyncMock(return_value=None)
-            mock_session.post.return_value = mock_post_cm
+            mock_session.get.return_value = mock_post_cm
 
             mock_session_cm = Mock()
             mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
