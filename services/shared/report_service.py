@@ -484,6 +484,77 @@ def get_report_statistics(db: Session, project_id: str) -> Dict:
     }
 
 
+def get_report_statistics_batch(
+    db: Session, project_ids: List[str]
+) -> Dict[str, Dict[str, int]]:
+    """Per-project statistics for a list of project ids in 4 grouped queries.
+
+    Replaces the per-project 4-query fan-out used by `list_published_reports`
+    (4 × N round-trips for the list view → 4 round-trips total).
+    """
+    if not project_ids:
+        return {}
+
+    zeros = {
+        "task_count": 0,
+        "annotation_count": 0,
+        "participant_count": 0,
+        "model_count": 0,
+    }
+    out: Dict[str, Dict[str, int]] = {pid: dict(zeros) for pid in project_ids}
+
+    task_rows = (
+        db.query(Task.project_id, func.count(Task.id))
+        .filter(Task.project_id.in_(project_ids))
+        .group_by(Task.project_id)
+        .all()
+    )
+    for pid, c in task_rows:
+        out[pid]["task_count"] = int(c or 0)
+
+    ann_rows = (
+        db.query(Annotation.project_id, func.count(Annotation.id))
+        .filter(
+            Annotation.project_id.in_(project_ids),
+            Annotation.was_cancelled == False,
+        )
+        .group_by(Annotation.project_id)
+        .all()
+    )
+    for pid, c in ann_rows:
+        out[pid]["annotation_count"] = int(c or 0)
+
+    participant_rows = (
+        db.query(
+            Annotation.project_id,
+            func.count(func.distinct(Annotation.completed_by)),
+        )
+        .filter(
+            Annotation.project_id.in_(project_ids),
+            Annotation.was_cancelled == False,
+        )
+        .group_by(Annotation.project_id)
+        .all()
+    )
+    for pid, c in participant_rows:
+        out[pid]["participant_count"] = int(c or 0)
+
+    model_rows = (
+        db.query(
+            ResponseGeneration.project_id,
+            func.count(func.distinct(Generation.model_id)),
+        )
+        .join(Generation, Generation.generation_id == ResponseGeneration.id)
+        .filter(ResponseGeneration.project_id.in_(project_ids))
+        .group_by(ResponseGeneration.project_id)
+        .all()
+    )
+    for pid, c in model_rows:
+        out[pid]["model_count"] = int(c or 0)
+
+    return out
+
+
 def get_report_participants(db: Session, project_id: str) -> List[Dict]:
     """
     Get unique annotators with contribution statistics

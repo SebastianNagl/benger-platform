@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
@@ -690,7 +690,19 @@ class AddUserToOrganization(BaseModel):
 
 @router.get("/manage/users", response_model=List[UserResponse])
 async def list_all_users(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    search: Optional[str] = Query(
+        None,
+        description=(
+            "Optional ILIKE filter against username / email / name. Pushed "
+            "to SQL so the admin tab doesn't have to load every user just "
+            "to filter in JS."
+        ),
+    ),
+    limit: int = Query(
+        500, ge=1, le=5_000, description="Safety cap on the response size."
+    ),
 ):
     """List users visible to the current user.
 
@@ -702,9 +714,11 @@ async def list_all_users(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
         )
 
-    if current_user.is_superadmin:
-        users = db.query(User).filter(User.is_active == True).all()
-    else:
+    from sqlalchemy import or_ as sa_or
+
+    query = db.query(User).filter(User.is_active == True)
+
+    if not current_user.is_superadmin:
         # Get user's organization IDs from the Pydantic User model
         user_org_ids = [org['id'] for org in (current_user.organizations or [])]
 
@@ -721,8 +735,20 @@ async def list_all_users(
             .distinct()
             .subquery()
         )
-        users = db.query(User).filter(User.id.in_(member_user_ids), User.is_active == True).all()
+        query = query.filter(User.id.in_(member_user_ids))
 
+    if search:
+        escaped = search.replace("%", r"\%").replace("_", r"\_")
+        like = f"%{escaped}%"
+        query = query.filter(
+            sa_or(
+                User.username.ilike(like),
+                User.email.ilike(like),
+                User.name.ilike(like),
+            )
+        )
+
+    users = query.order_by(User.created_at.desc()).limit(limit).all()
     return [UserResponse(**user.__dict__) for user in users]
 
 

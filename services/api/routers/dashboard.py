@@ -18,7 +18,7 @@ from routers.projects.helpers import (
     _scored_pairs_query,
     get_accessible_project_ids,
 )
-from services.aggregate_summaries import read_dashboard_sum
+from aggregate_summaries import read_dashboard_sum
 
 logger = logging.getLogger(__name__)
 
