@@ -396,8 +396,11 @@ class NotificationService:
         channel: str,
     ) -> bool:
         """Check whether a specific channel ('in_app' or 'email') is enabled
-        for the given notification type. Defaults to True when no preference
-        is recorded — same as before.
+        for the given notification type.
+
+        Default when no preference row exists: in-app on, email off. Email
+        is opt-in — users explicitly turn it on per type via the settings
+        page. Existing rows still win regardless of channel.
         """
         if isinstance(notification_type, NotificationType):
             type_value = notification_type.value
@@ -417,7 +420,7 @@ class NotificationService:
             .first()
         )
         if preference is None:
-            return True
+            return channel == "in_app"
         if channel == "in_app":
             return bool(preference.in_app_enabled)
         if channel == "email":
@@ -538,9 +541,10 @@ class NotificationService:
             .filter(UserNotificationPreference.user_id == user_id)
             .all()
         )
-        # Default every known type to fully on
+        # Defaults: in-app on, email off. Email is opt-in per type;
+        # users turn it on explicitly from the settings page.
         pref_map: Dict[str, Dict[str, bool]] = {
-            nt.value: {"enabled": True, "in_app": True, "email": True}
+            nt.value: {"enabled": True, "in_app": True, "email": False}
             for nt in NotificationType
         }
         for pref in preferences:

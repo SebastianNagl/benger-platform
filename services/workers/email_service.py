@@ -12,7 +12,8 @@ from typing import Any, Dict, List, Optional
 
 from jinja2 import Environment, FileSystemLoader
 
-from models import Notification, NotificationType
+from email_templates.template_map import template_for
+from models import Notification
 from sendgrid_client import SendGridClient
 
 logger = logging.getLogger(__name__)
@@ -136,19 +137,16 @@ class EmailService:
 
 
         # notification.type can be a NotificationType enum OR a plain
-        # string (the worker's send_notification_batch_task hydrates an
-        # unattached Notification with `type=notif_dict["type"]` where
-        # the dict value is a string from the JSON payload — SQLAlchemy
-        # doesn't auto-coerce until commit, and we never add this
-        # instance to the session). Normalize once here.
-        if hasattr(notification.type, "value"):
-            type_value = notification.type.value
-        elif isinstance(notification.type, str):
-            type_value = notification.type
-        else:
-            type_value = "general"
+        # string (send_notification_batch_task hydrates an unattached
+        # Notification with `type=notif_dict["type"]` from the JSON
+        # payload; SQLAlchemy doesn't coerce until commit and we never
+        # add this instance to the session). template_for() handles both.
+        type_value = (
+            notification.type.value
+            if hasattr(notification.type, "value")
+            else (notification.type if isinstance(notification.type, str) else "general")
+        )
 
-        # Build template context
         template_context = {
             "notification": notification,
             "notification_type": type_value,
@@ -156,24 +154,7 @@ class EmailService:
             **(context or {}),
         }
 
-        # Select template based on notification type. Pre-consolidation
-        # this referenced TASK_CREATED / TASK_COMPLETED — those names
-        # never existed on the canonical (API-side) NotificationType
-        # enum, so any NotificationType.TASK_CREATED lookup raised
-        # AttributeError. With /shared/models.py canonical the enum
-        # values are TASK_ASSIGNED + ANNOTATION_COMPLETED. Key the map
-        # by string value (`.value`) rather than enum object so a plain
-        # string `notification.type` (see above) also resolves.
-        template_map = {
-            NotificationType.TASK_ASSIGNED.value: "task_assigned.html",
-            NotificationType.ANNOTATION_COMPLETED.value: "annotation_completed.html",
-            NotificationType.ORGANIZATION_INVITATION_SENT.value: "organization_invite.html",
-            NotificationType.DATA_UPLOAD_COMPLETED.value: "data_import_success.html",
-            NotificationType.EVALUATION_COMPLETED.value: "evaluation_completed.html",
-            NotificationType.LLM_GENERATION_COMPLETED.value: "llm_generation_completed.html",
-        }
-
-        template_name = template_map.get(type_value, "default_notification.html")
+        template_name = template_for(notification.type)
 
         try:
             # Render template

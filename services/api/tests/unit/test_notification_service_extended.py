@@ -221,11 +221,11 @@ class TestGetUserPreferences:
         db = MagicMock()
         db.query.return_value.filter.return_value.all.return_value = []
         result = NotificationService.get_user_preferences(db, "user-1")
-        # Returns defaults for all notification types: per-channel shape, all on
+        # Defaults: in-app on, email off (email is opt-in per type)
         assert isinstance(result, dict)
         assert len(result) > 0
         assert all(
-            v == {"enabled": True, "in_app": True, "email": True}
+            v == {"enabled": True, "in_app": True, "email": False}
             for v in result.values()
         )
 
