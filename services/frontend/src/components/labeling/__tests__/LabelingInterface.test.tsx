@@ -1597,7 +1597,14 @@ describe('LabelingInterface', () => {
       render(<LabelingInterface projectId="project-1" />)
 
       await waitFor(() => {
-        expect(projectsAPI.getTaskAnnotations).toHaveBeenCalledWith('task-1')
+        // Phase 5 added `latest_only=true` so the labeling page doesn't
+        // pull every revision from every annotator on every task switch.
+        expect(projectsAPI.getTaskAnnotations).toHaveBeenCalledWith(
+          'task-1',
+          false,
+          undefined,
+          true
+        )
       })
     })
 

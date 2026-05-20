@@ -48,6 +48,15 @@ jest.mock('@/lib/api/projects', () => ({
     bulkArchiveTasks: jest.fn(),
     getMembers: jest.fn(),
     removeTaskAssignment: jest.fn(),
+    // Server-side pagination (Phase 6.4): AnnotationTab fetches one
+    // page at a time via getTasksPage; the new ids_only endpoint backs
+    // the "select all matching" affordance.
+    getTasksPage: jest.fn(() =>
+      Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, pages: 0 })
+    ),
+    getTaskIds: jest.fn(() =>
+      Promise.resolve({ ids: [], total: 0, truncated: false })
+    ),
   },
 }))
 
@@ -383,6 +392,94 @@ describe('AnnotationTab', () => {
     mockStartProgress = jest.fn()
     mockUpdateProgress = jest.fn()
     mockCompleteProgress = jest.fn()
+
+    // Phase 6.4 redirected AnnotationTab's data load from the store's
+    // `fetchProjectTasks` to `projectsAPI.getTasksPage` (server-side
+    // pagination). Bridge the existing per-test fixtures so tests that
+    // call `mockFetchProjectTasks.mockResolvedValue([...])` still drive
+    // the page render, and assertions against the legacy mock keep
+    // working — we just route the call through it from the new API
+    // surface.
+    const { projectsAPI: mockedProjectsAPI } = require('@/lib/api/projects')
+    mockedProjectsAPI.getTasksPage.mockImplementation(
+      async (projectId: string, options?: any) => {
+        // Use the underlying implementation (bypasses the mock's
+        // call-recording) so the "mockFetchProjectTasks was called"
+        // accounting and the state-commit happen in the same
+        // microtask chain. Without this, the bridge's `await
+        // mockFetchProjectTasks` adds an extra hop and the test's
+        // `await waitFor(() => expect(mock).toHaveBeenCalled())`
+        // returns before the component's `setTasks` runs — the
+        // table renders empty and `screen.getByRole('checkbox')`
+        // throws.
+        const impl = mockFetchProjectTasks.getMockImplementation()
+        let items: any[] = impl ? await (impl as any)(projectId) : []
+        // Mirror the real server filters so tests that drive UI filters
+        // (search, status) see the same shape as prod.
+        if (Array.isArray(items) && options?.search) {
+          const q = String(options.search).toLowerCase()
+          items = items.filter((t: any) =>
+            JSON.stringify(t.data || {}).toLowerCase().includes(q) ||
+            String(t.id).toLowerCase().includes(q)
+          )
+        }
+        if (Array.isArray(items) && options?.onlyLabeled === true) {
+          items = items.filter((t: any) => !!t.is_labeled)
+        }
+        if (Array.isArray(items) && options?.onlyUnlabeled === true) {
+          items = items.filter((t: any) => !t.is_labeled)
+        }
+        // The real endpoint sorts SQL-side now (Phase 6.4). Apply the
+        // same shape here so tests that pick "the first row after
+        // sortBy desc" still match a specific task id regardless of
+        // whether sort happens server-side or client-side.
+        if (Array.isArray(items) && options?.sortBy) {
+          const sortColMap: Record<string, string> = {
+            id: 'id',
+            created: 'created_at',
+            completed: 'is_labeled',
+            annotations: 'total_annotations',
+            generations: 'total_generations',
+          }
+          const col = sortColMap[options.sortBy as string]
+          if (col) {
+            const dir = options?.sortOrder === 'desc' ? -1 : 1
+            items = [...items].sort((a: any, b: any) => {
+              const av = a[col]
+              const bv = b[col]
+              if (av == null && bv == null) return 0
+              if (av == null) return 1
+              if (bv == null) return -1
+              if (av < bv) return -1 * dir
+              if (av > bv) return 1 * dir
+              return 0
+            })
+          }
+        }
+        // Record the call NOW (after items are resolved + sorted) so
+        // `await waitFor(() => expect(mockFetchProjectTasks).toHaveBeenCalled())`
+        // returning implies the component's `setTasks(page.items)` will
+        // commit in the same microtask flush.
+        mockFetchProjectTasks(projectId)
+        return {
+          items,
+          total: Array.isArray(items) ? items.length : 0,
+          page: 1,
+          page_size: 50,
+          pages: Array.isArray(items) && items.length > 0 ? 1 : 0,
+        }
+      }
+    )
+    mockedProjectsAPI.getTaskIds.mockImplementation(async (projectId: string) => {
+      const impl = mockFetchProjectTasks.getMockImplementation()
+      const items: any[] = impl ? await (impl as any)(projectId) : []
+      mockFetchProjectTasks(projectId)
+      return {
+        ids: Array.isArray(items) ? items.map((t: any) => t.id) : [],
+        total: Array.isArray(items) ? items.length : 0,
+        truncated: false,
+      }
+    })
 
     // Configure useAuth mock
     mockUseAuth.mockReturnValue({
@@ -1102,11 +1199,14 @@ describe('AnnotationTab', () => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
       })
 
+      // Phase 6.4: the pagination footer now shows current-page count +
+      // "Page X of Y" instead of computing project-wide submitted /
+      // generation totals client-side. Computing those numbers required
+      // every task to be loaded into memory; the server doesn't return
+      // them on a page payload. The visible statistic remains
+      // `tasksCount` (showing N of M).
       expect(
         screen.getByText(/annotationTab\.display\.tasksCount/i)
-      ).toBeInTheDocument()
-      expect(
-        screen.getByText(/annotationTab\.display\.submittedAnnotations/i)
       ).toBeInTheDocument()
     })
   })

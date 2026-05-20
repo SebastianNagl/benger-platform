@@ -89,11 +89,28 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
     }
   }, [projectId, fetchProjectTasks, debouncedSearch])
 
-  // Apply remaining filters (server already filtered by search). Status,
-  // sort, and accuracy/confidence lookups depend on JSON-shape evaluations
-  // the API doesn't expose as query params yet.
+  // Apply remaining filters. Search is server-side via the loadTasks
+  // effect above; we still narrow client-side as a safety net so the
+  // rendered list stays in sync with the input even when the API
+  // returns the same payload regardless of the search arg (e.g. tests
+  // with a static mock, or transient stale renders during debounce).
   useEffect(() => {
     let filtered = [...tasks]
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      filtered = filtered.filter((task) => {
+        const taskData = JSON.stringify((task as any).data).toLowerCase()
+        const evalData = (task as any).llm_evaluations
+          ? JSON.stringify((task as any).llm_evaluations).toLowerCase()
+          : ''
+        return (
+          taskData.includes(q) ||
+          evalData.includes(q) ||
+          String(task.id).toLowerCase().includes(q)
+        )
+      })
+    }
 
     // Status filter
     if (filterStatus !== 'all') {
@@ -158,7 +175,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
     })
 
     setFilteredTasks(filtered)
-  }, [tasks, filterStatus, sortBy, sortOrder])
+  }, [tasks, searchQuery, filterStatus, sortBy, sortOrder])
 
   // Get evaluation score from task
   const getEvaluationScore = (
