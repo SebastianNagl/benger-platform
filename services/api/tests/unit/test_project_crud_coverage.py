@@ -380,6 +380,31 @@ class TestProjectHelpersCoverage:
             get_accessible_project_ids(mock_db, user, "org-999")
         assert exc_info.value.status_code == 403
 
+    def test_get_accessible_project_ids_superadmin_foreign_org_no_403(self):
+        # Regression: a superadmin switching to an org they don't formally
+        # belong to must NOT get "You are not a member of this organization".
+        # They get scoped to that org's projects (+ public), not a 403.
+        from routers.projects.helpers import get_accessible_project_ids
+        user = Mock()
+        user.is_superadmin = True
+        user.id = "super-1"
+        mock_db = MagicMock()
+
+        public_query = MagicMock()
+        public_query.filter.return_value = public_query
+        public_query.all.return_value = []
+
+        proj_query = MagicMock()
+        proj_query.filter.return_value = proj_query
+        proj_query.all.return_value = [Mock(project_id="proj-in-org")]
+
+        # Two query calls: public_ids, then org project IDs. The membership
+        # lookup is skipped entirely for superadmins.
+        mock_db.query.side_effect = [public_query, proj_query]
+
+        result = get_accessible_project_ids(mock_db, user, "org-not-mine")
+        assert result == ["proj-in-org"]
+
     def test_check_project_accessible_superadmin(self):
         from routers.projects.helpers import check_project_accessible
         user = Mock()
