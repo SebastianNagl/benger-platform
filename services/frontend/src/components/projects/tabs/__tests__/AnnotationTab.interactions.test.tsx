@@ -48,6 +48,12 @@ jest.mock('@/lib/api/projects', () => ({
     bulkArchiveTasks: jest.fn(),
     getMembers: jest.fn(),
     removeTaskAssignment: jest.fn(),
+    getTasksPage: jest.fn(() =>
+      Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, pages: 0 })
+    ),
+    getTaskIds: jest.fn(() =>
+      Promise.resolve({ ids: [], total: 0, truncated: false })
+    ),
   },
 }))
 
@@ -294,6 +300,74 @@ function setupMocks() {
   mockUpdateProgress = jest.fn()
   mockCompleteProgress = jest.fn()
   mockUpdatePreference = jest.fn()
+
+  // Bridge legacy fetchProjectTasks fixtures into the new server-side
+  // pagination surface so existing `mockFetchProjectTasks.mockResolvedValue([...])`
+  // patterns still drive the page render (Phase 6.4).
+  const { projectsAPI: mockedProjectsAPI } = require('@/lib/api/projects')
+  mockedProjectsAPI.getTasksPage.mockImplementation(
+    async (projectId: string, options?: any) => {
+      const impl = mockFetchProjectTasks.getMockImplementation()
+      let items: any[] = impl ? await (impl as any)(projectId) : []
+      // Apply the server-side filters the real endpoint would honour so
+      // tests that drive the UI through search / status filters see the
+      // same shape they'd see in prod.
+      if (Array.isArray(items) && options?.search) {
+        const q = String(options.search).toLowerCase()
+        items = items.filter((t: any) =>
+          JSON.stringify(t.data || {}).toLowerCase().includes(q) ||
+          String(t.id).toLowerCase().includes(q)
+        )
+      }
+      if (Array.isArray(items) && options?.onlyLabeled === true) {
+        items = items.filter((t: any) => !!t.is_labeled)
+      }
+      if (Array.isArray(items) && options?.onlyUnlabeled === true) {
+        items = items.filter((t: any) => !t.is_labeled)
+      }
+      if (Array.isArray(items) && options?.sortBy) {
+        const sortColMap: Record<string, string> = {
+          id: 'id',
+          created: 'created_at',
+          completed: 'is_labeled',
+          annotations: 'total_annotations',
+          generations: 'total_generations',
+        }
+        const col = sortColMap[options.sortBy as string]
+        if (col) {
+          const dir = options?.sortOrder === 'desc' ? -1 : 1
+          items = [...items].sort((a: any, b: any) => {
+            const av = a[col]
+            const bv = b[col]
+            if (av == null && bv == null) return 0
+            if (av == null) return 1
+            if (bv == null) return -1
+            if (av < bv) return -1 * dir
+            if (av > bv) return 1 * dir
+            return 0
+          })
+        }
+      }
+      mockFetchProjectTasks(projectId)
+      return {
+        items,
+        total: Array.isArray(items) ? items.length : 0,
+        page: 1,
+        page_size: 50,
+        pages: Array.isArray(items) && items.length > 0 ? 1 : 0,
+      }
+    }
+  )
+  mockedProjectsAPI.getTaskIds.mockImplementation(async (projectId: string) => {
+    const impl = mockFetchProjectTasks.getMockImplementation()
+    const items: any[] = impl ? await (impl as any)(projectId) : []
+    mockFetchProjectTasks(projectId)
+    return {
+      ids: Array.isArray(items) ? items.map((t: any) => t.id) : [],
+      total: Array.isArray(items) ? items.length : 0,
+      truncated: false,
+    }
+  })
 
   mockUseAuth.mockReturnValue({
     user: { id: 'user-1', email: 'test@example.com', username: 'testuser', is_superadmin: true, role: 'ADMIN', is_active: true, name: 'Test User' },

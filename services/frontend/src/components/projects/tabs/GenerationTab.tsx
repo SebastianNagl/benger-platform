@@ -87,21 +87,37 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
     }
   }, [projectId, fetchProjectTasks, debouncedSearch])
 
-  // The search filter is applied server-side in the loadTasks effect; the
-  // only remaining client-side pass is the model filter (LLM-response shape
-  // is JSON the API doesn't surface as a query param).
+  // Search runs server-side via the loadTasks effect above. We still apply
+  // it client-side here as a safety net: when the API returns the same
+  // payload regardless of the search arg (e.g. tests with a static mock,
+  // or when the user types faster than debounce settles and we momentarily
+  // render against stale results), the client-side narrow keeps the
+  // rendered list consistent with the input. The model filter remains
+  // client-side because the API doesn't expose JSON-shape filters.
   useEffect(() => {
-    if (filterModel === 'all') {
-      setFilteredTasks(tasks)
-      return
+    let filtered = tasks
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      filtered = filtered.filter((task) => {
+        const taskData = JSON.stringify((task as any).data).toLowerCase()
+        const llmData = (task as any).llm_responses
+          ? JSON.stringify((task as any).llm_responses).toLowerCase()
+          : ''
+        return (
+          taskData.includes(q) ||
+          llmData.includes(q) ||
+          String(task.id).toLowerCase().includes(q)
+        )
+      })
     }
-    setFilteredTasks(
-      tasks.filter((task) => {
+    if (filterModel !== 'all') {
+      filtered = filtered.filter((task) => {
         if (!task.llm_responses) return false
         return Object.keys(task.llm_responses).includes(filterModel)
       })
-    )
-  }, [tasks, filterModel])
+    }
+    setFilteredTasks(filtered)
+  }, [tasks, searchQuery, filterModel])
 
   // Get unique models from all tasks
   const getUniqueModels = (): string[] => {
