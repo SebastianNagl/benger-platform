@@ -541,19 +541,23 @@ def get_accessible_project_ids(
                 result.append(pid)
         return result
 
-    # Org mode: verify membership then get org projects
-    user_with_memberships = get_user_with_memberships(db, str(user.id))
-    user_org_ids = []
-    if user_with_memberships and user_with_memberships.organization_memberships:
-        user_org_ids = [
-            m.organization_id for m in user_with_memberships.organization_memberships if m.is_active
-        ]
+    # Org mode: verify membership then get org projects. Superadmins skip the
+    # membership check — they can view any org's projects even without being a
+    # formal member — but still get scoped to that org's project set (rather
+    # than every project in the system) unless include_all_private=True.
+    if not user.is_superadmin:
+        user_with_memberships = get_user_with_memberships(db, str(user.id))
+        user_org_ids = []
+        if user_with_memberships and user_with_memberships.organization_memberships:
+            user_org_ids = [
+                m.organization_id for m in user_with_memberships.organization_memberships if m.is_active
+            ]
 
-    if org_context not in user_org_ids:
-        raise HTTPException(
-            status_code=403,
-            detail="You are not a member of this organization",
-        )
+        if org_context not in user_org_ids:
+            raise HTTPException(
+                status_code=403,
+                detail="You are not a member of this organization",
+            )
 
     rows = (
         db.query(ProjectOrganization.project_id)
