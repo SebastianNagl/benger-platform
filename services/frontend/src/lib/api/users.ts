@@ -8,17 +8,25 @@ import { User } from './types'
 
 export class UsersClient extends BaseApiClient {
   /**
-   * Get all users (admin only)
+   * Get all users (admin only). Pass `search` to push the filter to the
+   * server — the response is bounded by `limit` either way (defaults to
+   * 500 to keep the payload sane on large deployments).
    */
-  async getAllUsers(): Promise<User[]> {
-    return this.request('/organizations/manage/users')
+  async getAllUsers(options?: { search?: string; limit?: number }): Promise<User[]> {
+    const params = new URLSearchParams()
+    if (options?.search) params.append('search', options.search)
+    if (options?.limit) params.append('limit', String(options.limit))
+    const qs = params.toString()
+    return this.request(
+      `/organizations/manage/users${qs ? '?' + qs : ''}`
+    )
   }
 
   /**
    * Alias for getAllUsers for backward compatibility
    */
-  async getUsers(): Promise<User[]> {
-    return this.getAllUsers()
+  async getUsers(options?: { search?: string; limit?: number }): Promise<User[]> {
+    return this.getAllUsers(options)
   }
 
   /**

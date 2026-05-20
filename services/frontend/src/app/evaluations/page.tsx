@@ -144,12 +144,39 @@ export default function EvaluationDashboard() {
   const { user, isLoading: authLoading } = useAuth()
   const { isPrivateMode } = typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
 
+  // Parse URL filters synchronously on first render. Without this, the page
+  // briefly renders with defaults, then `fetchProjectData` populates the
+  // model/metric lists, then a separate effect re-applies the URL — which the
+  // user perceived as three sequential loading states. Initial-state hoist
+  // collapses the chain to one parallel pair (fetchProjectData +
+  // fetchComparisonData fire together once selectedProject is resolved).
+  const initialUrlFilters = useMemo(() => {
+    const models = searchParams?.get('models')?.split(',').filter(Boolean)
+    const metrics = searchParams?.get('metrics')?.split(',').filter(Boolean)
+    const chart = searchParams?.get('chartType') as ChartType | null
+    const validCharts: ChartType[] = ['data', 'bar', 'radar', 'box', 'heatmap', 'table']
+    const aggregation = searchParams?.get('aggregation')?.split(',').filter(Boolean) as AggregationLevel[] | undefined
+    const stats = searchParams?.get('stats')?.split(',').filter(Boolean) as StatisticalMethod[] | undefined
+    return {
+      models: models && models.length > 0 ? models : null,
+      metrics: metrics && metrics.length > 0 ? metrics : null,
+      chartType: chart && validCharts.includes(chart) ? chart : null,
+      aggregation: aggregation && aggregation.length > 0 ? aggregation : null,
+      stats: stats && stats.length > 0 ? stats : null,
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally parse the URL once on mount; navigation replaces the page.
+  }, [])
+
   // Filter state - all in one compact bar
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false)
-  const [selectedModels, setSelectedModels] = useState<string[]>([])
-  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([])
+  const [selectedModels, setSelectedModels] = useState<string[]>(
+    initialUrlFilters.models ?? []
+  )
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(
+    initialUrlFilters.metrics ?? []
+  )
   const [availableMetrics, setAvailableMetrics] = useState<string[]>([])
   const [selectedEvalTypes, setSelectedEvalTypes] = useState<EvalType[]>([
     'automated',
@@ -159,12 +186,14 @@ export default function EvaluationDashboard() {
   const [modelsDropdownOpen, setModelsDropdownOpen] = useState(false)
   const [aggregationLevels, setAggregationLevels] = useState<
     AggregationLevel[]
-  >(['model'])
+  >(initialUrlFilters.aggregation ?? ['model'])
   const [statisticalMethods, setStatisticalMethods] = useState<
     StatisticalMethod[]
-  >([])
+  >(initialUrlFilters.stats ?? [])
 
-  const [chartType, setChartType] = useState<ChartType>('data')
+  const [chartType, setChartType] = useState<ChartType>(
+    initialUrlFilters.chartType ?? 'data'
+  )
   const [showEvaluationModal, setShowEvaluationModal] = useState(false)
 
   // Project evaluation config - source of truth for available eval types and metrics
@@ -271,12 +300,12 @@ export default function EvaluationDashboard() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Track if we've applied URL filters (to avoid re-applying on data refresh)
-  const urlFiltersApplied = useRef(false)
   // Skip URL sync until initial hydration is complete (prevents flicker)
   const isHydrated = useRef(false)
 
-  // Load project from URL on mount, or fall back to last selected project from localStorage
+  // Load project from URL on mount, or fall back to last selected project from localStorage.
+  // The non-project URL params (chartType, aggregation, stats, models, metrics) are
+  // already captured in initial state via `initialUrlFilters` above — no async re-apply.
   useEffect(() => {
     const projectId = searchParams?.get('projectId') || localStorage.getItem('evaluations_lastProjectId')
     if (projectId && projects.length > 0 && !selectedProject) {
@@ -285,72 +314,13 @@ export default function EvaluationDashboard() {
         setSelectedProject(project)
       }
     }
-
-    // Load non-data-dependent filters from URL immediately
-    const urlChartType = searchParams?.get('chartType') as ChartType
-    if (urlChartType && ['data', 'bar', 'radar', 'box', 'heatmap', 'table'].includes(urlChartType)) {
-      setChartType(urlChartType)
-    }
-
-    const urlAggregation = searchParams?.get('aggregation')
-    if (urlAggregation) {
-      const levels = urlAggregation.split(',').filter(Boolean) as AggregationLevel[]
-      if (levels.length > 0) {
-        setAggregationLevels(levels)
-      }
-    }
-
-    const urlStats = searchParams?.get('stats')
-    if (urlStats) {
-      const methods = urlStats.split(',').filter(Boolean) as StatisticalMethod[]
-      if (methods.length > 0) {
-        setStatisticalMethods(methods)
-      }
-    }
   }, [searchParams, projects, selectedProject])
-
-  // Apply URL filters for models/metrics AFTER data is loaded
-  useEffect(() => {
-    if (urlFiltersApplied.current) return
-    if (evaluatedModels.length === 0 && availableMetrics.length === 0) return
-
-    const urlModels = searchParams?.get('models')
-    const urlMetrics = searchParams?.get('metrics')
-
-    // Only mark as applied if we actually have URL params to apply
-    // Otherwise, the defaults from fetchProjectData will be used
-    if (urlModels || urlMetrics) {
-      urlFiltersApplied.current = true
-
-      if (urlModels && evaluatedModels.length > 0) {
-        const modelIds = urlModels.split(',').filter(Boolean)
-        // Only set models that exist in evaluatedModels
-        const validModels = modelIds.filter(id =>
-          evaluatedModels.some(m => m.model_id === id)
-        )
-        if (validModels.length > 0) {
-          setSelectedModels(validModels)
-        }
-      }
-
-      if (urlMetrics && availableMetrics.length > 0) {
-        const metricIds = urlMetrics.split(',').filter(Boolean)
-        // Only set metrics that exist in availableMetrics
-        const validMetrics = metricIds.filter(id => availableMetrics.includes(id))
-        if (validMetrics.length > 0) {
-          setSelectedMetrics(validMetrics)
-        }
-      }
-    }
-  }, [searchParams, evaluatedModels, availableMetrics])
 
   // Fetch data when project changes (instant reactive loading)
   useEffect(() => {
     if (selectedProject) {
       // Persist last selected project for next visit
       localStorage.setItem('evaluations_lastProjectId', selectedProject.id.toString())
-      // Reset URL filters applied flag when project changes
-      urlFiltersApplied.current = false
       fetchProjectData(selectedProject.id.toString())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchProjectData is stable, only re-run when selectedProject changes
@@ -520,12 +490,14 @@ export default function EvaluationDashboard() {
         const sortedMetrics = metricsStatus.map(m => m.id)
 
         setAvailableMetrics(sortedMetrics)
-        // Check if URL has metrics param - if so, don't override
-        const urlMetrics = searchParams?.get('metrics')
-        if (!urlMetrics) {
-          // Select all metrics by default
-          setSelectedMetrics(sortedMetrics)
-        }
+        // Keep any URL-provided (initial-state) selection, pruned to metrics
+        // that actually exist in the project config. Fall back to "all
+        // available" when nothing valid remains.
+        setSelectedMetrics(prev => {
+          if (prev.length === 0) return sortedMetrics
+          const valid = prev.filter(m => sortedMetrics.includes(m))
+          return valid.length > 0 ? valid : sortedMetrics
+        })
         setMetricsWithStatus(metricsStatus)
       }
 
@@ -544,9 +516,14 @@ export default function EvaluationDashboard() {
       if (modelsResult.status === 'fulfilled') {
         const modelsResponse = modelsResult.value || []
         setEvaluatedModels(modelsResponse)
-        const urlModels = searchParams?.get('models')
-        if (!urlModels && modelsResponse.length > 0) {
-          setSelectedModels(modelsResponse.map((m: any) => m.model_id))
+        if (modelsResponse.length > 0) {
+          const allIds = modelsResponse.map((m: any) => m.model_id)
+          setSelectedModels(prev => {
+            if (prev.length === 0) return allIds
+            const validIds = new Set<string>(allIds)
+            const valid = prev.filter(m => validIds.has(m))
+            return valid.length > 0 ? valid : allIds
+          })
         }
       } else {
         setEvaluatedModels([])

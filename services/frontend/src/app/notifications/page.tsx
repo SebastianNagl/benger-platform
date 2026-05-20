@@ -33,6 +33,7 @@ import { de } from 'date-fns/locale'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 const notificationIcons = {
   task_created: InformationCircleIcon,
@@ -95,6 +96,10 @@ function NotificationsPageContent() {
     'all' | 'today' | 'week' | 'month'
   >('all')
   const [searchTerm, setSearchTerm] = useState('')
+  // The client-side filter cascade (status + type + date + search) ran on
+  // every keystroke even though the visible dataset stays small. Lag the
+  // search term 300 ms so the filter only runs once per typing pause.
+  const debouncedSearchTerm = useDebouncedValue(searchTerm, 300)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [markingAsRead, setMarkingAsRead] = useState<string | null>(null)
@@ -125,8 +130,8 @@ function NotificationsPageContent() {
         if (created < startOfMonth) return false
       }
     }
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase()
+    if (debouncedSearchTerm.trim()) {
+      const term = debouncedSearchTerm.toLowerCase()
       return (
         (n.title?.toLowerCase().includes(term) ?? false) ||
         (n.message?.toLowerCase().includes(term) ?? false) ||

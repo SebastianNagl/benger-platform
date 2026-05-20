@@ -13,6 +13,7 @@ import {
 } from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useProjects } from '@/hooks/useProjects'
 import {
   AvailableMetric,
@@ -123,6 +124,10 @@ export function LLMLeaderboardTable() {
     string[]
   >([])
   const [searchQuery, setSearchQuery] = useState('')
+  // Lag the search term so the filter doesn't recompute on every keystroke.
+  // Note: search is still applied client-side to the currently-loaded page;
+  // a server-side `?search=` would broaden matches across pages (see Phase 4).
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 250)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
@@ -191,19 +196,19 @@ export function LLMLeaderboardTable() {
   }
 
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    if (!debouncedSearchQuery.trim()) {
       setFilteredLeaderboard(leaderboard)
       return
     }
 
-    const query = searchQuery.toLowerCase()
+    const query = debouncedSearchQuery.toLowerCase()
     const filtered = leaderboard.filter(
       (entry) =>
         entry.model_name.toLowerCase().includes(query) ||
         entry.provider.toLowerCase().includes(query)
     )
     setFilteredLeaderboard(filtered)
-  }, [searchQuery, leaderboard])
+  }, [debouncedSearchQuery, leaderboard])
 
   const getMedalIcon = (rank: number) => {
     switch (rank) {

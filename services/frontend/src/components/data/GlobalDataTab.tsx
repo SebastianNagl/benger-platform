@@ -30,6 +30,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 interface GlobalTask extends Task {
   project: {
@@ -62,6 +63,10 @@ export function GlobalDataTab() {
   const [tasks, setTasks] = useState<GlobalTask[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  // 8 of the dependencies below are filter state. Without debouncing the
+  // search input, every keystroke fired a full `/data/` request with
+  // pagination + sort + filters re-applied. Debouncing collapses bursts.
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
   const [showSearch, setShowSearch] = useState(false)
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
   const [viewModalTask, setViewModalTask] = useState<GlobalTask | null>(null)
@@ -114,8 +119,8 @@ export function GlobalDataTab() {
         sort_order: sortOrder,
       })
 
-      if (searchQuery) {
-        params.append('search', searchQuery)
+      if (debouncedSearch) {
+        params.append('search', debouncedSearch)
       }
 
       if (statusFilter !== 'all') {
@@ -148,7 +153,7 @@ export function GlobalDataTab() {
     pageSize,
     sortBy,
     sortOrder,
-    searchQuery,
+    debouncedSearch,
     statusFilter,
     projectFilter,
     assignedFilter,

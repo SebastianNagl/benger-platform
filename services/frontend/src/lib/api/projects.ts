@@ -153,6 +153,11 @@ export const projectsAPI = {
       onlyLabeled?: boolean
       onlyUnlabeled?: boolean
       excludeMyAnnotations?: boolean
+      search?: string
+      dateFrom?: string
+      dateTo?: string
+      sortBy?: 'id' | 'created' | 'completed' | 'annotations' | 'generations'
+      sortOrder?: 'asc' | 'desc'
     }
   ): Promise<Task[]> => {
     const params = new URLSearchParams({
@@ -168,6 +173,21 @@ export const projectsAPI = {
     }
     if (options?.excludeMyAnnotations) {
       params.append('exclude_my_annotations', 'true')
+    }
+    if (options?.search) {
+      params.append('search', options.search)
+    }
+    if (options?.dateFrom) {
+      params.append('date_from', options.dateFrom)
+    }
+    if (options?.dateTo) {
+      params.append('date_to', options.dateTo)
+    }
+    if (options?.sortBy) {
+      params.append('sort_by', options.sortBy)
+    }
+    if (options?.sortOrder) {
+      params.append('sort_order', options.sortOrder)
     }
 
     const response = await apiClient.get(
@@ -185,6 +205,125 @@ export const projectsAPI = {
     }
 
     return []
+  },
+
+  /**
+   * Paginated variant that returns the full envelope (items + total + pages).
+   * Use this when the UI drives pagination from the backend `total` (e.g.
+   * AnnotationTab) instead of loading every page upfront.
+   */
+  getTasksPage: async (
+    projectId: string,
+    options?: {
+      page?: number
+      pageSize?: number
+      onlyLabeled?: boolean
+      onlyUnlabeled?: boolean
+      excludeMyAnnotations?: boolean
+      search?: string
+      dateFrom?: string
+      dateTo?: string
+      sortBy?: 'id' | 'created' | 'completed' | 'annotations' | 'generations'
+      sortOrder?: 'asc' | 'desc'
+    }
+  ): Promise<{
+    items: Task[]
+    total: number
+    page: number
+    page_size: number
+    pages: number
+  }> => {
+    const params = new URLSearchParams({
+      page: (options?.page || 1).toString(),
+      page_size: (options?.pageSize || 50).toString(),
+    })
+
+    if (options?.onlyLabeled !== undefined) {
+      params.append('only_labeled', options.onlyLabeled.toString())
+    }
+    if (options?.onlyUnlabeled !== undefined) {
+      params.append('only_unlabeled', options.onlyUnlabeled.toString())
+    }
+    if (options?.excludeMyAnnotations) {
+      params.append('exclude_my_annotations', 'true')
+    }
+    if (options?.search) params.append('search', options.search)
+    if (options?.dateFrom) params.append('date_from', options.dateFrom)
+    if (options?.dateTo) params.append('date_to', options.dateTo)
+    if (options?.sortBy) params.append('sort_by', options.sortBy)
+    if (options?.sortOrder) params.append('sort_order', options.sortOrder)
+
+    const response = await apiClient.get(
+      `/projects/${projectId}/tasks?${params.toString()}`
+    )
+
+    if (response && typeof response === 'object' && 'items' in response) {
+      return {
+        items: response.items || [],
+        total: response.total ?? 0,
+        page: response.page ?? options?.page ?? 1,
+        page_size: response.page_size ?? options?.pageSize ?? 50,
+        pages: response.pages ?? 0,
+      }
+    }
+    // Backwards-compatible degenerate response — treat array as one page.
+    if (Array.isArray(response)) {
+      return {
+        items: response,
+        total: response.length,
+        page: options?.page ?? 1,
+        page_size: options?.pageSize ?? 50,
+        pages: 1,
+      }
+    }
+    return { items: [], total: 0, page: 1, page_size: options?.pageSize ?? 50, pages: 0 }
+  },
+
+  /**
+   * Return every task id that matches the given filters — no pagination,
+   * no enrichment. The data tab's "select all matching" affordance uses
+   * this so bulk delete/export/assign can operate on the full filtered
+   * set rather than just the current 50-row page.
+   */
+  getTaskIds: async (
+    projectId: string,
+    options?: {
+      onlyLabeled?: boolean
+      onlyUnlabeled?: boolean
+      excludeMyAnnotations?: boolean
+      search?: string
+      dateFrom?: string
+      dateTo?: string
+      idsLimit?: number
+    }
+  ): Promise<{ ids: string[]; total: number; truncated: boolean }> => {
+    const params = new URLSearchParams({
+      ids_only: 'true',
+      page: '1',
+      page_size: '1',
+    })
+    if (options?.onlyLabeled !== undefined) {
+      params.append('only_labeled', options.onlyLabeled.toString())
+    }
+    if (options?.onlyUnlabeled !== undefined) {
+      params.append('only_unlabeled', options.onlyUnlabeled.toString())
+    }
+    if (options?.excludeMyAnnotations) {
+      params.append('exclude_my_annotations', 'true')
+    }
+    if (options?.search) params.append('search', options.search)
+    if (options?.dateFrom) params.append('date_from', options.dateFrom)
+    if (options?.dateTo) params.append('date_to', options.dateTo)
+    if (options?.idsLimit) params.append('ids_limit', String(options.idsLimit))
+
+    const response = await apiClient.get(
+      `/projects/${projectId}/tasks?${params.toString()}`
+    )
+    return {
+      ids: response?.ids ?? [],
+      total: response?.total ?? 0,
+      truncated: !!response?.truncated,
+    }
   },
 
   /**
