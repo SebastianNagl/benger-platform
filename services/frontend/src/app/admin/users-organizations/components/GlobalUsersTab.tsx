@@ -15,6 +15,7 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 type VerificationFilter = 'all' | 'verified' | 'unverified'
 type SuperadminFilter = 'all' | 'superadmin' | 'regular'
@@ -122,9 +123,16 @@ export function GlobalUsersTab() {
     userWithOrganizations
   )
 
+  // Push the search to the server so we don't reload every user just to
+  // filter in JS. Verification + superadmin + sort stay client-side
+  // because they operate on the already-loaded set and don't add round-trips.
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
+
   const fetchUsers = useCallback(async () => {
     try {
-      const data = await api.getAllUsers()
+      const data = await api.getAllUsers({
+        search: debouncedSearch || undefined,
+      })
       setUsers(data)
     } catch (error) {
       const errorMessage =
@@ -133,7 +141,7 @@ export function GlobalUsersTab() {
     } finally {
       setLoading(false)
     }
-  }, [t])
+  }, [t, debouncedSearch])
 
   useEffect(() => {
     if (canManageUsers) {

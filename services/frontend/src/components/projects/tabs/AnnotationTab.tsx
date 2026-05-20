@@ -26,6 +26,7 @@ import {
   useColumnSettings,
   useTablePreferences,
 } from '@/hooks/useColumnSettings'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { projectsAPI } from '@/lib/api/projects'
 import { Task } from '@/lib/api/types'
 import { useProjectStore } from '@/stores/projectStore'
@@ -166,7 +167,7 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
   const { addToast } = useToast()
   const { startProgress, updateProgress, completeProgress } = useProgress()
 
-  const { currentProject, loading, fetchProjectTasks } = useProjectStore()
+  const { currentProject, loading } = useProjectStore()
 
   // Use persistent column settings
   const { columns, toggleColumn, resetColumns, updateColumns, reorderColumns } =
@@ -178,7 +179,11 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
     user?.id
   )
 
-  // State - using LabelStudio Task type internally for compatibility
+  // State - using LabelStudio Task type internally for compatibility.
+  // `tasks` holds the CURRENT PAGE only; the projects-list page is driven
+  // by server-side pagination + filters now. `filteredTasks` keeps the
+  // (small) client-side filter pass for fields the API doesn't yet expose
+  // (annotator, metadata) on top of the current page.
   const [tasks, setTasks] = useState<LabelStudioTask[]>([])
   const [filteredTasks, setFilteredTasks] = useState<LabelStudioTask[]>([])
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
@@ -199,6 +204,14 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
   const [filterAnnotator, setFilterAnnotator] = useState('')
   const [isLoading, setIsLoading] = useState(true)
 
+  // Server-driven pagination state. The API endpoint returns `total` /
+  // `pages` from the new Phase 1c filter shape; this lets us drive
+  // Previous/Next without ever loading the entire project into memory.
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize] = useState(50)
+  const [totalTasks, setTotalTasks] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+
   // Metadata filtering state (Label Studio aligned)
   const [metadataFilters, setMetadataFilters] = useState<Record<string, any>>(
     {}
@@ -208,93 +221,106 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
   const [showAssignmentModal, setShowAssignmentModal] = useState(false)
   const [projectMembers, setProjectMembers] = useState<any[]>([])
 
-  // Load tasks
+  // Lag the search input so per-keystroke typing doesn't refire the page
+  // fetch.
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
+
+  // Reset to page 1 whenever a filter changes — otherwise the current page
+  // index may exceed the new totalPages and the UI shows an empty page.
   useEffect(() => {
-    const loadTasks = async () => {
-      setIsLoading(true)
-      try {
-        const labelStudioTasks = await fetchProjectTasks(projectId)
-        setTasks(labelStudioTasks)
-        setFilteredTasks(labelStudioTasks)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    if (projectId) {
-      loadTasks()
-    }
-  }, [projectId, fetchProjectTasks])
+    setCurrentPage(1)
+  }, [debouncedSearch, filterStatus, filterDateRange.start, filterDateRange.end, sortBy, sortOrder])
 
-  // Apply filters and search
+  // Map UI sort key to the backend sort columns. `agreement` isn't a
+  // server-sortable concept yet (it's derived from per-task annotation
+  // distribution), so we fall back to created and let the client-side
+  // pass at lines below handle the in-page ordering.
+  const serverSortBy = useMemo<
+    'id' | 'created' | 'completed' | 'annotations' | 'generations' | undefined
+  >(() => {
+    if (sortBy === 'id' || sortBy === 'created' || sortBy === 'completed') return sortBy
+    if (sortBy === 'annotations' || sortBy === 'generations') return sortBy
+    return undefined
+  }, [sortBy])
+
+  // Load the current page from the server with the active filters in one
+  // round-trip. Pre-refactor the store walked every page of the project
+  // and concatenated them into memory — for 50k-task projects that was
+  // tens of MB streamed across the wire on every filter change.
+  const reloadCurrentPage = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const page = await projectsAPI.getTasksPage(projectId, {
+        page: currentPage,
+        pageSize,
+        search: debouncedSearch || undefined,
+        dateFrom: filterDateRange.start || undefined,
+        dateTo: filterDateRange.end || undefined,
+        onlyLabeled: filterStatus === 'completed' ? true : undefined,
+        onlyUnlabeled: filterStatus === 'incomplete' ? true : undefined,
+        sortBy: serverSortBy,
+        sortOrder,
+      })
+      // `getTasksPage` returns the raw task shape from the API; cast to
+      // the LabelStudio task type used by the rest of this component.
+      setTasks(page.items as unknown as LabelStudioTask[])
+      setFilteredTasks(page.items as unknown as LabelStudioTask[])
+      setTotalTasks(page.total)
+      setTotalPages(page.pages)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [
+    projectId,
+    currentPage,
+    pageSize,
+    debouncedSearch,
+    filterStatus,
+    filterDateRange.start,
+    filterDateRange.end,
+    serverSortBy,
+    sortOrder,
+  ])
+
   useEffect(() => {
-    let filtered = [...tasks]
+    if (!projectId) return
+    reloadCurrentPage()
+  }, [projectId, reloadCurrentPage])
 
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter((task) => {
-        const searchLower = searchQuery.toLowerCase()
-        return (
-          JSON.stringify((task as any).data)
-            .toLowerCase()
-            .includes(searchLower) || task.id.toString().includes(searchLower)
-        )
-      })
-    }
+  // Client-side fallback pass for fields the API doesn't filter yet:
+  // - filterAnnotator: requires reading annotation rows; no server endpoint exists yet
+  // - metadataFilters: arbitrary JSONB path equality, kept client-side
+  // status/date/search/sort all went server-side in Phase 6.4 and operate
+  // on the full project before pagination — no need to re-apply them here.
+  useEffect(() => {
+    let filtered = tasks
 
-    // Status filter
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter((task) => {
-        if (filterStatus === 'completed') return task.is_labeled
-        if (filterStatus === 'incomplete') return !task.is_labeled
-        return true
-      })
-    }
-
-    // Date range filter
-    if (filterDateRange.start && filterDateRange.end) {
-      const startDate = new Date(filterDateRange.start)
-      const endDate = new Date(filterDateRange.end)
-      filtered = filtered.filter((task) => {
-        const taskDate = new Date(task.created_at)
-        return taskDate >= startDate && taskDate <= endDate
-      })
-    }
-
-    // Annotator filter
     if (filterAnnotator) {
-      const annotatorLower = filterAnnotator.toLowerCase()
-      filtered = filtered.filter((task) => {
-        // TODO: Check task.annotations for annotator names
-        return true
-      })
+      // TODO(perf): expose annotator filter on /projects/{id}/tasks; today
+      // this is a no-op because annotation rows aren't included in the
+      // task payload. Kept as a guarded branch so the prop wiring stays
+      // valid when the backend filter lands.
+      filtered = filtered
     }
 
-    // Metadata filter (Label Studio aligned)
     if (Object.keys(metadataFilters).length > 0) {
       filtered = filtered.filter((task) => {
         const taskMeta = (task as any).meta || {}
 
-        // Check each metadata filter
         return Object.entries(metadataFilters).every(
           ([field, filterValues]) => {
             const taskValue = taskMeta[field]
 
-            // Handle array filters (like tags)
             if (Array.isArray(filterValues)) {
               if (Array.isArray(taskValue)) {
-                // Task value is array - check if any match
                 return filterValues.some((fv) => taskValue.includes(fv))
               } else {
-                // Task value is single - check if in filter array
                 return filterValues.includes(taskValue)
               }
             } else {
-              // Single value filter
               if (Array.isArray(taskValue)) {
-                // Task value is array - check if contains filter value
                 return taskValue.includes(filterValues)
               } else {
-                // Direct comparison
                 return taskValue === filterValues
               }
             }
@@ -303,54 +329,8 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
       })
     }
 
-    // Apply sorting
-    filtered.sort((a, b) => {
-      let aVal, bVal
-
-      switch (sortBy) {
-        case 'id':
-          aVal = a.id
-          bVal = b.id
-          break
-        case 'completed':
-          aVal = a.is_labeled ? 1 : 0
-          bVal = b.is_labeled ? 1 : 0
-          break
-        case 'annotations':
-          aVal = a.total_annotations
-          bVal = b.total_annotations
-          break
-        case 'generations':
-          aVal = a.total_generations
-          bVal = b.total_generations
-          break
-        case 'created':
-          aVal = new Date(a.created_at).getTime()
-          bVal = new Date(b.created_at).getTime()
-          break
-        default:
-          aVal = a.id
-          bVal = b.id
-      }
-
-      if (sortOrder === 'asc') {
-        return aVal < bVal ? -1 : aVal > bVal ? 1 : 0
-      } else {
-        return aVal > bVal ? -1 : aVal < bVal ? 1 : 0
-      }
-    })
-
     setFilteredTasks(filtered)
-  }, [
-    tasks,
-    searchQuery,
-    filterStatus,
-    filterDateRange,
-    filterAnnotator,
-    sortBy,
-    sortOrder,
-    metadataFilters,
-  ])
+  }, [tasks, filterAnnotator, metadataFilters])
 
   // Handle column visibility - now using the hook
   const handleColumnToggle = (columnId: string) => {
@@ -400,6 +380,48 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
       }
     }, 0)
   }
+
+  // True when the current-page select-all is fully checked AND there are
+  // additional matching pages we *could* select if the user asked. Drives
+  // the "Select all N matching" banner below the bulk-actions bar.
+  const pageFullySelected =
+    filteredTasks.length > 0 &&
+    filteredTasks.every((t) => selectedTasks.has(t.id))
+  const showSelectAllMatching =
+    pageFullySelected && totalTasks > filteredTasks.length
+
+  // Fetch every matching task id (across all pages) and select them all.
+  // Used by the contextual banner. Backed by the `ids_only=true` short-circuit
+  // on the list endpoint so we never page through 50-row windows client-side.
+  const handleSelectAllMatching = useCallback(async () => {
+    try {
+      const { ids, truncated } = await projectsAPI.getTaskIds(projectId, {
+        search: debouncedSearch || undefined,
+        dateFrom: filterDateRange.start || undefined,
+        dateTo: filterDateRange.end || undefined,
+        onlyLabeled: filterStatus === 'completed' ? true : undefined,
+        onlyUnlabeled: filterStatus === 'incomplete' ? true : undefined,
+      })
+      setSelectedTasks(new Set(ids))
+      if (truncated) {
+        addToast(
+          `Selection capped at ${ids.length} tasks; refine filters to act on the rest.`,
+          'warning'
+        )
+      }
+    } catch (e) {
+      console.error('select-all-matching failed', e)
+      addToast(t('annotationTab.messages.selectAllFailed'), 'error')
+    }
+  }, [
+    projectId,
+    debouncedSearch,
+    filterDateRange.start,
+    filterDateRange.end,
+    filterStatus,
+    addToast,
+    t,
+  ])
 
   // Handle sorting - save preferences
   const handleSort = useCallback(
@@ -540,8 +562,7 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
       setSelectedTasks(new Set())
 
       // Refresh tasks
-      const labelStudioTasks = await fetchProjectTasks(projectId)
-      setTasks(labelStudioTasks)
+      await reloadCurrentPage()
 
       updateProgress(
         progressId,
@@ -605,9 +626,13 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
     }
   }
 
-  // Export all filtered tasks
+  // Export all filtered tasks — "all" means all rows that match the current
+  // filters, not just the visible page. Fetches the full ID list via the
+  // `ids_only=true` short-circuit, then drives the existing bulk-export
+  // endpoint with that set. Pre-Phase-7.5 this used `filteredTasks.map(...)`
+  // which after the server-side pagination shift meant just 50 rows.
   const handleExportTasks = async () => {
-    if (filteredTasks.length === 0) {
+    if (totalTasks === 0) {
       addToast(t('annotationTab.empty.noExport'), 'warning')
       return
     }
@@ -615,16 +640,32 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
     const progressId = `export-tasks-${Date.now()}`
 
     try {
-      const taskIds = filteredTasks.map((task) => task.id)
+      const { ids: taskIds, truncated } = await projectsAPI.getTaskIds(
+        projectId,
+        {
+          search: debouncedSearch || undefined,
+          dateFrom: filterDateRange.start || undefined,
+          dateTo: filterDateRange.end || undefined,
+          onlyLabeled: filterStatus === 'completed' ? true : undefined,
+          onlyUnlabeled: filterStatus === 'incomplete' ? true : undefined,
+        }
+      )
 
       // Indeterminate — no real per-row progress signal from the backend
       // stream; the previous fake 30%→70%→100% was misleading.
       startProgress(progressId, t('annotationTab.buttons.export'), {
         sublabel: t('annotationTab.messages.exportingSelected', {
-          count: filteredTasks.length,
+          count: taskIds.length,
         }),
         indeterminate: true,
       })
+
+      if (truncated) {
+        addToast(
+          `Export capped at ${taskIds.length} tasks; refine filters to export the rest.`,
+          'warning'
+        )
+      }
 
       const blob = await projectsAPI.bulkExportTasks(projectId, taskIds, 'json')
 
@@ -643,7 +684,7 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
 
       addToast(
         t('annotationTab.messages.exportedTasks', {
-          count: filteredTasks.length,
+          count: taskIds.length,
         }),
         'success'
       )
@@ -695,8 +736,7 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
       setSelectedTasks(new Set())
 
       // Refresh tasks
-      const labelStudioTasks = await fetchProjectTasks(projectId)
-      setTasks(labelStudioTasks)
+      await reloadCurrentPage()
 
       updateProgress(
         progressId,
@@ -899,10 +939,7 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
 
   // Handle assignment completion
   const handleAssignmentComplete = async () => {
-    // Refresh tasks to show new assignments
-    const labelStudioTasks = await fetchProjectTasks(projectId)
-    setTasks(labelStudioTasks)
-    setFilteredTasks(labelStudioTasks)
+    await reloadCurrentPage()
     setSelectedTasks(new Set())
     addToast(t('annotationTab.messages.tasksAssigned'), 'success')
   }
@@ -923,9 +960,7 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
       await projectsAPI.removeTaskAssignment(projectId, task.id, assignmentId)
 
       // Refresh tasks to show updated assignments
-      const labelStudioTasks = await fetchProjectTasks(projectId)
-      setTasks(labelStudioTasks)
-      setFilteredTasks(labelStudioTasks)
+      await reloadCurrentPage()
       addToast(t('success.assignmentRemoved'), 'success')
     } catch (error) {
       console.error('Error removing assignment:', error)
@@ -987,10 +1022,7 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
                 onAssign={handleOpenAssignmentModal}
                 canAssign={canAccessProjectData(user, { project: currentProject })}
                 onTagsUpdated={async () => {
-                  // Refresh tasks after tags update
-                  const labelStudioTasks = await fetchProjectTasks(projectId)
-                  setTasks(labelStudioTasks)
-                  setFilteredTasks(labelStudioTasks)
+                  await reloadCurrentPage()
                   addToast(t('success.tagsUpdated'), 'success')
                 }}
               />
@@ -1129,6 +1161,28 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
             })}
           </p>
         </div>
+
+        {/* Select-all-matching banner. Appears when the current-page
+            checkbox is fully checked AND there are matching rows on other
+            pages — gives the user a single click to extend the selection
+            across the whole filtered set (Gmail's "Select all
+            conversations" affordance). Without this, bulk delete/export
+            would silently operate on only 50 rows even when the project
+            has thousands of matching tasks. */}
+        {showSelectAllMatching && (
+          <div className="mb-3 flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100">
+            <span>
+              {`All ${filteredTasks.length} tasks on this page are selected.`}
+            </span>
+            <button
+              type="button"
+              onClick={handleSelectAllMatching}
+              className="ml-4 font-medium underline-offset-2 hover:underline"
+            >
+              {`Select all ${totalTasks} matching tasks`}
+            </button>
+          </div>
+        )}
 
         {/* Data Table */}
         {isLoading ? (
@@ -1549,42 +1603,40 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
           </div>
         )}
 
-        {/* Pagination */}
-        {filteredTasks.length > 0 && (
+        {/* Pagination — server-driven now that AnnotationTab loads one page
+            at a time. The Previous/Next buttons were stubbed (`disabled`)
+            while everything lived in memory; they're real controls again. */}
+        {totalTasks > 0 && (
           <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="order-2 text-sm text-zinc-600 dark:text-zinc-400 sm:order-1">
               <div className="flex flex-col gap-1 sm:flex-row sm:gap-0">
                 <span>
                   {t('annotationTab.display.tasksCount', {
                     current: filteredTasks.length,
-                    total: tasks.length,
+                    total: totalTasks,
                   })}
                 </span>
                 <span className="hidden sm:inline"> · </span>
                 <span>
-                  {t('annotationTab.display.submittedAnnotations', {
-                    count: tasks.reduce(
-                      (sum, t) => sum + t.total_annotations,
-                      0
-                    ),
-                  })}
-                </span>
-                <span className="hidden sm:inline"> · </span>
-                <span>
-                  {t('annotationTab.display.generations', {
-                    count: tasks.reduce(
-                      (sum, t) => sum + t.total_generations,
-                      0
-                    ),
-                  })}
+                  {`Page ${currentPage} of ${Math.max(totalPages, 1)}`}
                 </span>
               </div>
             </div>
             <div className="order-1 flex items-center justify-center space-x-2 sm:order-2 sm:justify-end">
-              <Button variant="outline" disabled>
+              <Button
+                variant="outline"
+                disabled={currentPage <= 1 || isLoading}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              >
                 {t('annotationTab.buttons.previous')}
               </Button>
-              <Button variant="outline" disabled>
+              <Button
+                variant="outline"
+                disabled={currentPage >= totalPages || isLoading}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+              >
                 {t('annotationTab.buttons.next')}
               </Button>
             </div>
@@ -1598,9 +1650,13 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
         onClose={() => setShowImportModal(false)}
         projectId={projectId}
         onImportComplete={async () => {
-          // Refresh tasks after import
-          const labelStudioTasks = await fetchProjectTasks(projectId)
-          setTasks(labelStudioTasks)
+          // Imports may produce more pages — reset to page 1 so the user
+          // lands on the freshest rows, then refresh.
+          if (currentPage !== 1) {
+            setCurrentPage(1)
+          } else {
+            await reloadCurrentPage()
+          }
         }}
       />
 

@@ -20,6 +20,7 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { GenerationControlModal } from './GenerationControlModal'
 import { GenerationResultModal } from './GenerationResultModal'
 
@@ -144,15 +145,23 @@ export function GenerationTaskList({
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttemptsRef = useRef(0)
   const fetchDataRef = useRef<() => void>(() => {})
+  // Coalesce bursts of progress messages so a 5-cell parallel generation
+  // doesn't fire 5 list refetches in a 200ms window.
+  const wsRefetchTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Lag the search input by 300ms so per-keystroke typing doesn't fan out
+  // 750-query fetches against the backend. statusFilter is a discrete
+  // dropdown so it doesn't need debouncing.
+  const debouncedSearch = useDebouncedValue(search, 300)
 
   // Use refs for filter params so fetchData has a stable identity
   const pageRef = useRef(page)
   const pageSizeRef = useRef(pageSize)
-  const searchRef = useRef(search)
+  const searchRef = useRef(debouncedSearch)
   const statusFilterRef = useRef(statusFilter)
   pageRef.current = page
   pageSizeRef.current = pageSize
-  searchRef.current = search
+  searchRef.current = debouncedSearch
   statusFilterRef.current = statusFilter
 
   const fetchProjectData = useCallback(async () => {
@@ -204,10 +213,11 @@ export function GenerationTaskList({
     }
   }, [projectId])
 
-  // Fetch on mount, projectId change, and filter changes
+  // Fetch on mount, projectId change, and filter changes. We depend on
+  // `debouncedSearch` (not `search`) so per-keystroke typing coalesces.
   useEffect(() => {
     fetchData()
-  }, [fetchData, page, pageSize, search, statusFilter])
+  }, [fetchData, page, pageSize, debouncedSearch, statusFilter])
 
   // Fetch project data when projectId changes
   useEffect(() => {
@@ -251,8 +261,15 @@ export function GenerationTaskList({
             // Handle generation status updates - refresh on any non-connection message
             // Backend sends: 'connection' (initial), 'progress' (updates), or forwarded Redis messages
             if (data.type !== 'connection') {
-              // Refresh data when we get an update (use ref to avoid stale closure)
-              fetchDataRef.current()
+              // Debounce so a burst of progress messages collapses into one
+              // refetch instead of stampeding the list endpoint.
+              if (wsRefetchTimerRef.current) {
+                clearTimeout(wsRefetchTimerRef.current)
+              }
+              wsRefetchTimerRef.current = setTimeout(() => {
+                wsRefetchTimerRef.current = null
+                fetchDataRef.current()
+              }, 400)
             }
           } catch (error) {
             console.error('Failed to parse WebSocket message:', error)
@@ -299,6 +316,10 @@ export function GenerationTaskList({
       mounted = false
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
+      }
+      if (wsRefetchTimerRef.current) {
+        clearTimeout(wsRefetchTimerRef.current)
+        wsRefetchTimerRef.current = null
       }
       if (wsRef.current) {
         wsRef.current.close()

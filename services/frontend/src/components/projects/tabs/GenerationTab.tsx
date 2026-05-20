@@ -30,6 +30,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 interface GenerationTabProps {
   projectId: string
@@ -55,12 +56,22 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
   const [expandedTasks, setExpandedTasks] = useState<ExpandedTasks>({})
   const [filterModel, setFilterModel] = useState<string>('all')
 
+  // Debounce the search input so per-keystroke typing doesn't refire the
+  // whole-project task fetch.
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
+
   // Load tasks with LLM responses
   useEffect(() => {
     const loadTasks = async () => {
       setIsLoading(true)
       try {
-        const labelStudioTasks = await fetchProjectTasks(projectId)
+        // Push the search filter to the server so we stream back only
+        // matching tasks rather than every task in the project to filter in
+        // JS. The "has LLM responses" filter still applies client-side
+        // because it's a JSON-shape check the API doesn't expose.
+        const labelStudioTasks = await fetchProjectTasks(projectId, false, {
+          search: debouncedSearch || undefined,
+        })
         // Filter to only show tasks with LLM responses or generations
         const tasksWithGenerations = labelStudioTasks.filter(
           (task) => (task as any).llm_responses || task.total_generations > 0
@@ -74,39 +85,23 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
     if (projectId) {
       loadTasks()
     }
-  }, [projectId, fetchProjectTasks])
+  }, [projectId, fetchProjectTasks, debouncedSearch])
 
-  // Apply filters and search
+  // The search filter is applied server-side in the loadTasks effect; the
+  // only remaining client-side pass is the model filter (LLM-response shape
+  // is JSON the API doesn't surface as a query param).
   useEffect(() => {
-    let filtered = [...tasks]
-
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter((task) => {
-        const searchLower = searchQuery.toLowerCase()
-        const taskData = JSON.stringify((task as any).data).toLowerCase()
-        const llmData = task.llm_responses
-          ? JSON.stringify(task.llm_responses).toLowerCase()
-          : ''
-        return (
-          taskData.includes(searchLower) ||
-          llmData.includes(searchLower) ||
-          task.id.toString().includes(searchLower)
-        )
-      })
+    if (filterModel === 'all') {
+      setFilteredTasks(tasks)
+      return
     }
-
-    // Model filter
-    if (filterModel !== 'all') {
-      filtered = filtered.filter((task) => {
+    setFilteredTasks(
+      tasks.filter((task) => {
         if (!task.llm_responses) return false
-        const models = Object.keys(task.llm_responses)
-        return models.includes(filterModel)
+        return Object.keys(task.llm_responses).includes(filterModel)
       })
-    }
-
-    setFilteredTasks(filtered)
-  }, [tasks, searchQuery, filterModel])
+    )
+  }, [tasks, filterModel])
 
   // Get unique models from all tasks
   const getUniqueModels = (): string[] => {

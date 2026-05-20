@@ -4,7 +4,8 @@ import { HeroPattern } from '@/components/shared'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 
 interface LLMModel {
   id: string
@@ -41,15 +42,38 @@ interface ProviderCapability {
 
 export default function ModelsPage() {
   const { t } = useI18n()
-  const [models, setModels] = useState<LLMModel[]>([])
-  const [providerCapabilities, setProviderCapabilities] = useState<
-    Record<string, ProviderCapability>
-  >({})
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [providerFilter, setProviderFilter] = useState('all')
   const [selectedModel, setSelectedModel] = useState<LLMModel | null>(null)
+
+  // The public model catalog and provider-capabilities map are effectively
+  // static within a page-load — the seed only changes on deploy. A 30-minute
+  // staleTime means navigating off /models and back doesn't re-fetch them.
+  const modelsQuery = useQuery({
+    queryKey: ['llm-public-models'],
+    queryFn: async () => {
+      const res = await fetch('/api/llm_models/public/models')
+      if (!res.ok) throw new Error(t('models.fetchFailed'))
+      return (await res.json()) as LLMModel[]
+    },
+    staleTime: 30 * 60_000,
+  })
+
+  const capabilitiesQuery = useQuery({
+    queryKey: ['llm-public-provider-capabilities'],
+    queryFn: async () => {
+      const res = await fetch('/api/llm_models/public/provider-capabilities')
+      if (!res.ok) return {}
+      return (await res.json()) as Record<string, ProviderCapability>
+    },
+    staleTime: 30 * 60_000,
+  })
+
+  const models = modelsQuery.data ?? []
+  const providerCapabilities = capabilitiesQuery.data ?? {}
+  const loading = modelsQuery.isLoading
+  const error =
+    modelsQuery.error instanceof Error ? modelsQuery.error.message : null
 
   // Build model settings JSON for modal
   const getModelSettings = (model: LLMModel) => {
@@ -84,35 +108,6 @@ export default function ModelsPage() {
           : null,
     }
   }
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [modelsRes, capabilitiesRes] = await Promise.all([
-          fetch('/api/llm_models/public/models'),
-          fetch('/api/llm_models/public/provider-capabilities'),
-        ])
-
-        if (!modelsRes.ok) {
-          throw new Error(t('models.fetchFailed'))
-        }
-
-        const modelsData = await modelsRes.json()
-        setModels(modelsData)
-
-        if (capabilitiesRes.ok) {
-          const capData = await capabilitiesRes.json()
-          setProviderCapabilities(capData)
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : t('models.unknownError'))
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [])
 
   // Get unique providers for filter
   const providers = [...new Set(models.map((m) => m.provider))].sort()

@@ -99,10 +99,6 @@ export function ProjectListTable({
   const { isPrivateMode } = typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
   const userCanCreateProjects = canCreateProjects(user, { isPrivateMode })
 
-  useEffect(() => {
-    fetchProjects(undefined, undefined, showArchivedOnly, includeAllPrivate)
-  }, [fetchProjects, showArchivedOnly, includeAllPrivate])
-
   // Clear selections when page changes
   useEffect(() => {
     setSelectedProjects(new Set())
@@ -117,10 +113,14 @@ export function ProjectListTable({
     return () => clearTimeout(delayDebounceFn)
   }, [localSearchQuery, setSearchQuery])
 
-  // Fetch projects when search query changes in the store
+  // Single fetch effect — collapses what used to be two effects that both
+  // fired on mount (one for archive/private toggles, one for search). The
+  // duplicate caused a back-to-back pair of `/api/projects` requests every
+  // time the page loaded; one effect with the union of deps does the same
+  // job without the second round-trip.
   useEffect(() => {
     fetchProjects(undefined, undefined, showArchivedOnly, includeAllPrivate)
-  }, [searchQuery, fetchProjects, showArchivedOnly, includeAllPrivate])
+  }, [fetchProjects, searchQuery, showArchivedOnly, includeAllPrivate])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
