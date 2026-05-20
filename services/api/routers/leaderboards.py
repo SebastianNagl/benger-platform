@@ -370,7 +370,7 @@ async def get_llm_leaderboard(
     - computed_at: ISO timestamp of the precomputed snapshot
                    (null for live-aggregation responses)
     """
-    from services.aggregate_summaries import (
+    from aggregate_summaries import (
         live_aggregate_leaderboard,
         read_llm_leaderboard,
     )
@@ -542,7 +542,7 @@ async def get_llm_model_details(
     - last_evaluated: ISO of the most recent EvaluationRun completion
     - computed_at: When the precomputed snapshot was built (null for live)
     """
-    from services.aggregate_summaries import (
+    from aggregate_summaries import (
         live_aggregate_leaderboard,
         read_llm_model_aggregate,
     )
@@ -652,7 +652,7 @@ async def compare_llm_models(
         return {"error": "Please provide 2-5 model IDs for comparison"}
 
     from models import LLMLeaderboardScore
-    from services.aggregate_summaries import live_aggregate_leaderboard
+    from aggregate_summaries import live_aggregate_leaderboard
 
     org_context = get_org_context_from_request(request)
     project_ids = _filter_accessible_project_ids(db, current_user, project_ids, org_context)

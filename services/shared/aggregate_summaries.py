@@ -7,15 +7,24 @@ This module owns the SQL behind two summary tables introduced in migration
 * `project_summaries`      — feeds /api/dashboard/stats and per-project tiles
 
 The recompute_* functions are called by the Celery task
-`recompute_aggregates` (12h beat). They scan task_evaluations once per refresh
-cycle in the worker (12 GiB pod) and UPSERT into the summary tables. The
-read_* helpers turn API requests into single indexed lookups so the API pod
-never has to materialise the heavy data into Python.
+`recompute_aggregates` (hourly beat — tightened from 12h on 2026-05-20).
+They scan task_evaluations once per refresh cycle in the worker (12 GiB
+pod) and UPSERT into the summary tables. The read_* helpers turn API
+requests into single indexed lookups so the API pod never has to
+materialise the heavy data into Python.
 
 For unusual filter combinations that no precomputed scope covers (e.g.
 multi-project explicit project_ids list, or evaluation_type filter), use
 `live_*` helpers — they run the same SQL the worker uses but with a tighter
 filter and bounded row count, so they stay safe in the API hot path.
+
+Lives in `/shared` so both the API and the worker can import it as a
+top-level module. The previous location (`services/api/services/`) was
+unreachable from the worker image and `recompute_aggregates` silently
+failed with `ModuleNotFoundError("No module named 'services'")` on every
+beat — the projects-list / dashboard tiles read an empty
+`project_summaries` table and fell back to the live query path forever.
+Moved 2026-05-20.
 """
 
 from __future__ import annotations
@@ -46,10 +55,10 @@ logger = logging.getLogger(__name__)
 PERIODS: Tuple[str, ...] = ("overall", "monthly", "weekly")
 SCOPES: Tuple[str, ...] = ("all", "public")
 
-# Re-export the noise filter so callers don't have to import from the
-# helpers module just to know what counts. Single source of truth lives in
-# routers.projects.helpers; we delegate but isolate the import here.
-from routers.projects.helpers import _metric_key_is_real  # noqa: E402
+# Single source of truth for the noise filter lives in /shared so this
+# module is importable by both the API and the worker. Routers re-export
+# the name for backwards compatibility with existing call sites.
+from metric_filters import _metric_key_is_real  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #
@@ -181,6 +190,21 @@ def _compute_project_summary(
         rg_stmt = rg_stmt.where(ResponseGeneration.created_at >= cutoff)
     response_generations_count = db.execute(rg_stmt).scalar() or 0
 
+    # Status='completed' subset — feeds the projects-list progress bar in
+    # `apply_generation_stats`. Kept separate from the total so callers that
+    # care about activity (any state) still have an accurate denominator.
+    rg_completed_stmt = select(func.count(ResponseGeneration.id)).where(
+        ResponseGeneration.project_id == project_id,
+        ResponseGeneration.status == "completed",
+    )
+    if cutoff is not None:
+        rg_completed_stmt = rg_completed_stmt.where(
+            ResponseGeneration.created_at >= cutoff
+        )
+    completed_response_generations_count = (
+        db.execute(rg_completed_stmt).scalar() or 0
+    )
+
     evaluation_pairs_count = _count_eval_pairs(db, project_id, cutoff)
 
     # available_models is config-ish — not subject to a period filter.
@@ -208,6 +232,9 @@ def _compute_project_summary(
         "annotations_count": int(annotations_count),
         "generations_count": int(generations_count),
         "response_generations_count": int(response_generations_count),
+        "completed_response_generations_count": int(
+            completed_response_generations_count
+        ),
         "evaluation_pairs_count": int(evaluation_pairs_count),
         "available_models": available_models,
         "computed_at": computed_at,
@@ -479,6 +506,7 @@ def read_dashboard_sum(
         "annotations_count": 0,
         "generations_count": 0,
         "response_generations_count": 0,
+        "completed_response_generations_count": 0,
         "evaluation_pairs_count": 0,
     }
     if accessible_project_ids == []:
@@ -497,6 +525,9 @@ def read_dashboard_sum(
         func.coalesce(func.sum(ProjectSummary.response_generations_count), 0).label(
             "response_generations_count"
         ),
+        func.coalesce(
+            func.sum(ProjectSummary.completed_response_generations_count), 0
+        ).label("completed_response_generations_count"),
         func.coalesce(func.sum(ProjectSummary.evaluation_pairs_count), 0).label(
             "evaluation_pairs_count"
         ),
@@ -511,6 +542,9 @@ def read_dashboard_sum(
         "annotations_count": int(row.annotations_count or 0),
         "generations_count": int(row.generations_count or 0),
         "response_generations_count": int(row.response_generations_count or 0),
+        "completed_response_generations_count": int(
+            row.completed_response_generations_count or 0
+        ),
         "evaluation_pairs_count": int(row.evaluation_pairs_count or 0),
     }
 

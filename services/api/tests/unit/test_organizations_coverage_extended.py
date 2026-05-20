@@ -575,6 +575,9 @@ class TestListAllUsers:
     async def test_superadmin_all_users(self):
         from routers.organizations import list_all_users
 
+        # Updated 2026-05-20: handler now appends `.order_by(...).limit(...)`
+        # to the query so it can apply an optional `?search=` filter SQL-side
+        # without losing backward compat. Mock the full chain.
         db = Mock()
         user = Mock(is_superadmin=True)
 
@@ -585,9 +588,18 @@ class TestListAllUsers:
             "name": "User 1", "is_superadmin": False, "is_active": True,
             "created_at": datetime(2025, 1, 1), "updated_at": None,
         }
-        db.query.return_value.filter.return_value.all.return_value = [u1]
+        mock_q = Mock()
+        mock_q.filter.return_value = mock_q
+        mock_q.order_by.return_value = mock_q
+        mock_q.limit.return_value = mock_q
+        mock_q.all.return_value = [u1]
+        db.query.return_value = mock_q
 
-        result = await list_all_users(current_user=user, db=db)
+        # Pass `search=None` + `limit=500` explicitly because direct-function
+        # tests don't get FastAPI's `Query(...)` defaults unwrapped.
+        result = await list_all_users(
+            current_user=user, db=db, search=None, limit=500
+        )
         assert len(result) == 1
 
     @pytest.mark.asyncio

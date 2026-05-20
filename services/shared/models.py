@@ -1737,6 +1737,12 @@ class ProjectSummary(Base):
     response_generations_count = Column(
         Integer, nullable=False, server_default=text("0")
     )
+    # Status='completed' subset of response_generations_count. Added 2026-05-20
+    # so the projects-list progress mix can read it without re-running the
+    # live aggregation on every list render.
+    completed_response_generations_count = Column(
+        Integer, nullable=False, server_default=text("0")
+    )
     evaluation_pairs_count = Column(
         Integer, nullable=False, server_default=text("0")
     )

@@ -372,9 +372,17 @@ class TestGetTaskGenerationStatusEndpoint:
 
     @pytest.mark.asyncio
     @patch("routers.generation_task_list.get_project_with_permissions")
-    @patch("routers.generation_task_list.get_single_task_generation_status")
-    async def test_status_filter_excludes_non_matching(self, mock_gen_status, mock_perms):
-        from routers.generation_task_list import get_task_generation_status, TaskGenerationStatus
+    async def test_status_filter_excludes_non_matching(self, mock_perms):
+        """`status_filter='not_generated'` should drop tasks whose cells have a
+        status set. The branch that handles `not_generated` still filters in
+        Python (after the bulk fetch) because "missing somewhere" can't be
+        expressed cleanly in SQL. The previous version of this test asserted
+        the same behavior for `status_filter='completed'`, but that filter
+        now runs as a SQL subquery — the mock here can't simulate it, so we
+        exercise the surviving Python-side branch instead."""
+        from routers.generation_task_list import (
+            get_task_generation_status,
+        )
 
         db = _mock_db()
         project = Mock()
@@ -391,17 +399,35 @@ class TestGetTaskGenerationStatusEndpoint:
         task.meta = None
         task.created_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
 
+        # A completed-row stub so `_bulk_latest_generations` reports the task
+        # as having a status of "completed" — i.e. NOT in the "not_generated"
+        # bucket, so the Python filter should drop it.
+        gen_row = Mock()
+        gen_row.task_id = "task-1"
+        gen_row.model_id = "gpt-4"
+        gen_row.structure_key = None
+        gen_row.status = "completed"
+        gen_row.id = "gen-1"
+        gen_row.result = {"text": "ok"}
+        gen_row.completed_at = datetime(2025, 6, 2, tzinfo=timezone.utc)
+        gen_row.created_at = datetime(2025, 6, 2, tzinfo=timezone.utc)
+        gen_row.error_message = None
+        gen_row.runs_requested = 1
+        gen_row.runs_completed = 1
+        gen_row.runs_failed = 0
+
         mock_q = MagicMock()
         mock_q.filter.return_value = mock_q
         mock_q.offset.return_value = mock_q
         mock_q.limit.return_value = mock_q
+        mock_q.distinct.return_value = mock_q
+        mock_q.order_by.return_value = mock_q
         mock_q.count.return_value = 1
-        mock_q.all.return_value = [task]
+        # The two .all() consumers in this branch:
+        # 1) the initial Task fetch returns [task]
+        # 2) `_bulk_latest_generations` returns [gen_row]
+        mock_q.all.side_effect = [[task], [gen_row]]
         db.query.return_value = mock_q
-
-        mock_gen_status.return_value = TaskGenerationStatus(
-            task_id="task-1", model_id="gpt-4", structure_key=None, status=None
-        )
 
         result = await get_task_generation_status(
             project_id="proj-1",
@@ -409,7 +435,7 @@ class TestGetTaskGenerationStatusEndpoint:
             page=1,
             page_size=50,
             search=None,
-            status_filter="completed",
+            status_filter="not_generated",
             current_user=_make_user(is_superadmin=True),
             db=db,
         )

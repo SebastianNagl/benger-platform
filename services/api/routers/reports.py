@@ -28,6 +28,7 @@ from report_service import (
     get_report_models,
     get_report_participants,
     get_report_statistics,
+    get_report_statistics_batch,
 )
 
 logger = logging.getLogger(__name__)
@@ -493,22 +494,30 @@ async def list_published_reports(
 
     reports = query.order_by(ProjectReport.published_at.desc()).all()
 
-    # Build response
-    result = []
-    for report in reports:
-        # Get statistics
-        stats = get_report_statistics(db, report.project_id)
+    # Batch-fetch statistics + org memberships for all reports in 5 queries
+    # total (4 grouped stats + 1 joined orgs) instead of 5 × N round-trips.
+    report_project_ids = [r.project_id for r in reports]
+    stats_map = get_report_statistics_batch(db, report_project_ids)
 
-        # Get organizations
-        orgs = (
+    orgs_by_project: Dict[str, list] = {pid: [] for pid in report_project_ids}
+    if report_project_ids:
+        org_rows = (
             db.query(ProjectOrganization)
             .options(joinedload(ProjectOrganization.organization))
-            .filter(ProjectOrganization.project_id == report.project_id)
+            .filter(ProjectOrganization.project_id.in_(report_project_ids))
             .all()
         )
+        for po in org_rows:
+            orgs_by_project.setdefault(po.project_id, []).append(
+                {"id": po.organization.id, "name": po.organization.name}
+            )
 
-        organizations = [{"id": po.organization.id, "name": po.organization.name} for po in orgs]
-
+    result = []
+    for report in reports:
+        stats = stats_map.get(
+            report.project_id,
+            {"task_count": 0, "annotation_count": 0, "participant_count": 0, "model_count": 0},
+        )
         result.append(
             PublishedReportListItem(
                 id=report.id,
@@ -518,7 +527,7 @@ async def list_published_reports(
                 task_count=stats["task_count"],
                 annotation_count=stats["annotation_count"],
                 model_count=stats["model_count"],
-                organizations=organizations,
+                organizations=orgs_by_project.get(report.project_id, []),
             )
         )
 

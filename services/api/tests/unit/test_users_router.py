@@ -72,23 +72,30 @@ class TestUsersRouter:
         def override_get_db():
             return Mock(spec=Session)
 
-        with patch("routers.users.get_all_users") as mock_get_users:
-            mock_get_users.return_value = mock_users_list
+        # The handler now runs the query inline (so it can apply optional
+        # `?search=` filtering server-side); mock the DB chain directly.
+        mock_db = Mock(spec=Session)
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = mock_users_list
+        mock_db.query.return_value = mock_query
 
-            # Override dependencies
-            app.dependency_overrides[require_superadmin] = override_require_superadmin
-            app.dependency_overrides[get_db] = override_get_db
+        # Override dependencies
+        app.dependency_overrides[require_superadmin] = override_require_superadmin
+        app.dependency_overrides[get_db] = lambda: mock_db
 
-            try:
-                response = client.get("/api/users")
+        try:
+            response = client.get("/api/users")
 
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert isinstance(data, list)
-                assert len(data) == 2
-            finally:
-                # Clean up overrides
-                app.dependency_overrides.clear()
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert isinstance(data, list)
+            assert len(data) == 2
+        finally:
+            # Clean up overrides
+            app.dependency_overrides.clear()
 
     def test_get_all_users_forbidden_as_regular_user(self, client, mock_regular_user):
         """Test that getting all users is forbidden for regular users"""

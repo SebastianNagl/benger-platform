@@ -610,8 +610,50 @@ async def get_parse_metrics(
         if model_id:
             query = query.filter(DBLLMResponse.model_id == model_id)
 
-        # Count by parse status
-        total = query.count()
+        # All five counts in one aggregation pass — previously ran as five
+        # separate `query.filter(...).count()` calls, each a full scan of
+        # the filtered set. `SUM(CASE WHEN ...)` collapses them to one row.
+        from sqlalchemy import case as sa_case, func as sa_func
+
+        agg_row = query.with_entities(
+            sa_func.count(DBLLMResponse.id).label("total"),
+            sa_func.coalesce(
+                sa_func.sum(
+                    sa_case((DBLLMResponse.parse_status == "success", 1), else_=0)
+                ),
+                0,
+            ).label("success"),
+            sa_func.coalesce(
+                sa_func.sum(
+                    sa_case((DBLLMResponse.parse_status == "failed", 1), else_=0)
+                ),
+                0,
+            ).label("failed"),
+            sa_func.coalesce(
+                sa_func.sum(
+                    sa_case(
+                        (DBLLMResponse.parse_status == "validation_error", 1),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("validation_error"),
+            sa_func.coalesce(
+                sa_func.sum(
+                    sa_case(
+                        (DBLLMResponse.status == "parse_failed_max_retries", 1),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("max_retries"),
+        ).one()
+
+        total = int(agg_row.total or 0)
+        success = int(agg_row.success or 0)
+        failed = int(agg_row.failed or 0)
+        validation_error = int(agg_row.validation_error or 0)
+        max_retries = int(agg_row.max_retries or 0)
 
         if total == 0:
             return {
@@ -625,37 +667,39 @@ async def get_parse_metrics(
                 "common_parse_errors": [],
             }
 
-        success = query.filter(DBLLMResponse.parse_status == "success").count()
-        failed = query.filter(DBLLMResponse.parse_status == "failed").count()
-        validation_error = query.filter(DBLLMResponse.parse_status == "validation_error").count()
-
-        # Count generations that hit max retries
-        # Status would be "parse_failed_max_retries" if that status exists
-        max_retries = query.filter(DBLLMResponse.status == "parse_failed_max_retries").count()
-
-        # Calculate average retries for successful parses
-        successful_gens = query.filter(DBLLMResponse.parse_status == "success").all()
+        # Average retries for successful parses — fetch only the column we
+        # need, not the full row (parse_metadata can be a heavy JSON blob).
         avg_retries = 0
-        if successful_gens:
-            total_retries = sum(
-                gen.parse_metadata.get("retry_count", 1) if gen.parse_metadata else 1
-                for gen in successful_gens
+        if success:
+            metadata_rows = (
+                query.filter(DBLLMResponse.parse_status == "success")
+                .with_entities(DBLLMResponse.parse_metadata)
+                .all()
             )
-            avg_retries = total_retries / len(successful_gens)
+            total_retries = sum(
+                (md or {}).get("retry_count", 1) for (md,) in metadata_rows
+            )
+            avg_retries = total_retries / len(metadata_rows) if metadata_rows else 0
 
-        # Get common parse errors
-        failed_gens = query.filter(
-            DBLLMResponse.parse_status.in_(["failed", "validation_error"])
-        ).all()
-        error_counts = {}
-        for gen in failed_gens:
-            error = gen.parse_error or "Unknown error"
-            error_counts[error] = error_counts.get(error, 0) + 1
-
-        common_errors = [
-            {"error": error, "count": count}
-            for error, count in sorted(error_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-        ]
+        # Common parse errors — group in SQL instead of streaming every
+        # failed row to Python. ORDER BY DESC + LIMIT keeps the top-5 in
+        # the database.
+        error_rows = (
+            query.filter(
+                DBLLMResponse.parse_status.in_(["failed", "validation_error"])
+            )
+            .with_entities(
+                sa_func.coalesce(DBLLMResponse.parse_error, "Unknown error").label(
+                    "error"
+                ),
+                sa_func.count(DBLLMResponse.id).label("count"),
+            )
+            .group_by("error")
+            .order_by(sa_func.count(DBLLMResponse.id).desc())
+            .limit(5)
+            .all()
+        )
+        common_errors = [{"error": e, "count": int(c)} for e, c in error_rows]
 
         return {
             "total_generations": total,

@@ -3,9 +3,10 @@ User management endpoints.
 """
 
 import logging
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from auth_module import (
@@ -26,10 +27,46 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 
 @router.get("", response_model=List[User])
 async def get_all_users_endpoint(
-    current_user: User = Depends(require_superadmin), db: Session = Depends(get_db)
+    current_user: User = Depends(require_superadmin),
+    db: Session = Depends(get_db),
+    search: Optional[str] = Query(
+        None,
+        description=(
+            "Optional ILIKE filter against username / email / name. "
+            "When set, the admin UI's user table avoids the full-table "
+            "load just to filter in JS."
+        ),
+    ),
+    limit: int = Query(
+        500, ge=1, le=5_000, description="Safety cap on the response size."
+    ),
 ):
-    """Get all users (admin only)"""
-    return get_all_users(db)
+    """Get all users (admin only).
+
+    Optional `search` narrows the result on the server side; without it the
+    handler preserves its historical "return everything" behaviour (bounded
+    by `limit` to keep a stray superadmin click from streaming an unbounded
+    table). The admin tab debounces the search input so per-keystroke
+    typing doesn't fan out queries.
+    """
+    if not search:
+        return db.query(DBUser).order_by(DBUser.created_at.desc()).limit(limit).all()
+
+    escaped = search.replace("%", r"\%").replace("_", r"\_")
+    like = f"%{escaped}%"
+    return (
+        db.query(DBUser)
+        .filter(
+            or_(
+                DBUser.username.ilike(like),
+                DBUser.email.ilike(like),
+                DBUser.name.ilike(like),
+            )
+        )
+        .order_by(DBUser.created_at.desc())
+        .limit(limit)
+        .all()
+    )
 
 
 @router.patch("/{user_id}/role", response_model=User)

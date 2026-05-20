@@ -780,17 +780,35 @@ class TestParseMetrics:
             app.dependency_overrides.clear()
 
     def test_empty_results(self):
+        """parse-metrics returns the all-zero shape when no rows match.
+
+        Implementation note: the endpoint now runs a single
+        `query.with_entities(...).one()` aggregation instead of five
+        sequential `.count()` calls. The mock chain reflects that shape;
+        if the aggregation ever returns nothing-equivalent the handler
+        early-returns the zero payload.
+        """
         client = TestClient(app)
         user = _make_user(is_superadmin=True)
 
         from database import get_db
         from auth_module import require_user
 
+        # Shape the aggregation row exactly as the handler expects.
+        agg_row = Mock()
+        agg_row.total = 0
+        agg_row.success = 0
+        agg_row.failed = 0
+        agg_row.validation_error = 0
+        agg_row.max_retries = 0
+
         mock_db = Mock(spec=Session)
         mock_q = Mock()
         mock_q.filter.return_value = mock_q
         mock_q.join.return_value = mock_q
         mock_q.count.return_value = 0
+        mock_q.with_entities.return_value = mock_q
+        mock_q.one.return_value = agg_row
         mock_db.query.return_value = mock_q
 
         app.dependency_overrides[require_user] = lambda: user
