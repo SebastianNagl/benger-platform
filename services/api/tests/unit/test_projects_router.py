@@ -401,8 +401,11 @@ class TestProjectsRouter:
             finally:
                 app.dependency_overrides.clear()
 
-    def test_list_projects_superadmin_sees_all(self, client, mock_superadmin_user):
-        """Test that superadmin can see all projects regardless of visibility"""
+    def test_list_projects_superadmin_default_narrow(self, client, mock_superadmin_user):
+        """Smoke test: /api/projects/ as a superadmin without the
+        include_all_private flag must still return 200 (with the narrowed
+        list). Real visibility behavior is covered end-to-end in
+        tests/integration/test_projects_superadmin_visibility.py."""
         from auth_module import require_user
         from database import get_db
         from main import app

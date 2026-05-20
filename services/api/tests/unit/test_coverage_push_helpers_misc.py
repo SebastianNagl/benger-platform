@@ -222,9 +222,16 @@ class TestProjectHelpers:
 
         _setup_helper_project(test_db, test_users)
 
-        # Superadmin gets None (no filter needed)
-        ids = get_accessible_project_ids(test_db, test_users[0])
+        # Superadmin only gets the unfiltered (None) short-circuit when they
+        # explicitly opt in via include_all_private=True. Without the flag they
+        # are scoped the same way a regular user would be.
+        ids = get_accessible_project_ids(
+            test_db, test_users[0], include_all_private=True
+        )
         assert ids is None
+
+        scoped_ids = get_accessible_project_ids(test_db, test_users[0])
+        assert isinstance(scoped_ids, list)
 
     def test_get_accessible_project_ids_private(self, test_db, test_users):
         from routers.projects.helpers import get_accessible_project_ids

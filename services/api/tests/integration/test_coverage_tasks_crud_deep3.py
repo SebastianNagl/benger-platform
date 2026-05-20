@@ -671,8 +671,10 @@ class TestAssignments:
 class TestHelpers:
     def test_get_accessible_project_ids_superadmin(self, test_db, test_users, test_org):
         from routers.projects.helpers import get_accessible_project_ids
-        # Superadmin returns None (no filter)
-        result = get_accessible_project_ids(test_db, test_users[0], test_org.id)
+        # Superadmin returns None only with the include_all_private opt-in.
+        result = get_accessible_project_ids(
+            test_db, test_users[0], test_org.id, include_all_private=True
+        )
         assert result is None
 
     def test_get_accessible_project_ids_private(self, test_db, test_users, test_org):

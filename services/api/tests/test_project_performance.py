@@ -77,7 +77,14 @@ def test_list_projects_query_count(client, test_db, auth_headers, test_users):
     try:
         # Make request to list projects with admin headers
         admin_headers = auth_headers["admin"]
-        response = client.get("/api/projects?page=1&page_size=100", headers=admin_headers)
+        # Pass include_all_private=true so the superadmin sees the test
+        # projects regardless of their is_private/is_public flags. The default
+        # superadmin path now mirrors a regular user (own private + public +
+        # org-scoped); this test wants the broad "see everything" surface.
+        response = client.get(
+            "/api/projects?page=1&page_size=100&include_all_private=true",
+            headers=admin_headers,
+        )
         assert response.status_code == 200
 
         # Verify query count
@@ -141,9 +148,12 @@ def test_list_projects_with_zero_stats(client, test_db, auth_headers, test_users
     test_db.add(project)
     test_db.commit()
 
-    # Fetch project list
+    # Fetch project list (broad view — see all projects regardless of visibility)
     admin_headers = auth_headers["admin"]
-    response = client.get("/api/projects?page=1&page_size=100", headers=admin_headers)
+    response = client.get(
+        "/api/projects?page=1&page_size=100&include_all_private=true",
+        headers=admin_headers,
+    )
     assert response.status_code == 200
 
     data = response.json()
@@ -187,9 +197,12 @@ def test_list_projects_progress_calculation(client, test_db, auth_headers, test_
 
     test_db.commit()
 
-    # Fetch project list
+    # Fetch project list (broad view — see all projects regardless of visibility)
     admin_headers = auth_headers["admin"]
-    response = client.get("/api/projects?page=1&page_size=100", headers=admin_headers)
+    response = client.get(
+        "/api/projects?page=1&page_size=100&include_all_private=true",
+        headers=admin_headers,
+    )
     assert response.status_code == 200
 
     data = response.json()

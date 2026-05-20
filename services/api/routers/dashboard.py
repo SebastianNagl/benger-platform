@@ -114,7 +114,12 @@ async def get_dashboard_stats(
         return cached_stats
 
     try:
-        accessible_ids = get_accessible_project_ids(db, current_user, org_context)
+        # Dashboard is a global aggregate view; preserve the legacy "superadmin
+        # sees everything" semantics here. The narrowing default introduced for
+        # /api/projects only applies to the projects browser.
+        accessible_ids = get_accessible_project_ids(
+            db, current_user, org_context, include_all_private=True
+        )
 
         if accessible_ids is not None and not accessible_ids:
             stats = {

@@ -288,6 +288,7 @@ describe('ProjectListTable Search Functionality', () => {
       expect(mockFetchProjects).toHaveBeenCalledWith(
         undefined,
         undefined,
+        false,
         false
       )
 
@@ -306,6 +307,7 @@ describe('ProjectListTable Search Functionality', () => {
       expect(mockFetchProjects).toHaveBeenCalledWith(
         undefined,
         undefined,
+        false,
         false
       )
 
@@ -430,13 +432,19 @@ describe('ProjectListTable Search Functionality', () => {
       expect(mockFetchProjects).toHaveBeenCalledWith(
         undefined,
         undefined,
+        false,
         false
       )
     })
 
     it('should trigger fetchProjects with archived flag when showing archived', () => {
       render(<ProjectListTable showArchivedOnly={true} />)
-      expect(mockFetchProjects).toHaveBeenCalledWith(undefined, undefined, true)
+      expect(mockFetchProjects).toHaveBeenCalledWith(
+        undefined,
+        undefined,
+        true,
+        false
+      )
     })
   })
 

@@ -326,13 +326,30 @@ class TestProjectHelpersCoverage:
         assert response.generation_config_ready is True
         assert response.generation_models_count == 2
 
-    def test_get_accessible_project_ids_superadmin(self):
+    def test_get_accessible_project_ids_superadmin_with_opt_in(self):
         from routers.projects.helpers import get_accessible_project_ids
         user = Mock()
         user.is_superadmin = True
         mock_db = MagicMock()
-        result = get_accessible_project_ids(mock_db, user, None)
+        # Only the explicit opt-in returns the "see everything" None sentinel.
+        result = get_accessible_project_ids(
+            mock_db, user, None, include_all_private=True
+        )
         assert result is None
+
+    def test_get_accessible_project_ids_superadmin_default_is_narrowed(self):
+        from routers.projects.helpers import get_accessible_project_ids
+        user = Mock()
+        user.is_superadmin = True
+        user.id = "super-1"
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.all.return_value = [
+            Mock(id="own-1"),
+        ]
+        # Default behavior must NOT short-circuit; it should return a list
+        # scoped like a regular user (own private + public).
+        result = get_accessible_project_ids(mock_db, user, None)
+        assert isinstance(result, list)
 
     def test_get_accessible_project_ids_private(self):
         from routers.projects.helpers import get_accessible_project_ids
