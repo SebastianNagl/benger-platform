@@ -13,8 +13,8 @@ from datetime import datetime, timezone
 import pytest
 
 from auth_module import create_access_token
-from models import User
-from project_models import Project
+from models import Organization, User
+from project_models import Project, ProjectOrganization
 from user_service import get_password_hash
 
 
@@ -132,4 +132,45 @@ class TestSuperadminVisibilityDefault:
         # Regular user sees only public (they own no private projects here).
         assert project_set["public"].id in ids
         assert project_set["a_private"].id not in ids
+        assert project_set["b_private"].id not in ids
+
+    def test_default_view_is_org_agnostic(
+        self, client, test_db, superadmin_a, project_set
+    ):
+        """A superadmin sees projects from every org regardless of the
+        X-Organization-Context header — even orgs they aren't a member of."""
+        # Org A's project, scoped via ProjectOrganization. Superadmin A is NOT
+        # a member of org-foreign.
+        org = Organization(
+            id=f"org-foreign-{uuid.uuid4().hex[:8]}",
+            name="Foreign Org",
+            display_name="Foreign Org",
+            slug=f"foreign-{uuid.uuid4().hex[:8]}",
+        )
+        test_db.add(org)
+        test_db.flush()
+        org_proj = _make_project(
+            test_db, creator_id=superadmin_a.id, is_private=False, is_public=False,
+            title="Foreign org project",
+        )
+        test_db.add(
+            ProjectOrganization(
+                id=_uid(),
+                project_id=org_proj.id,
+                organization_id=org.id,
+                assigned_by=superadmin_a.id,
+            )
+        )
+        test_db.commit()
+
+        # Send a private-mode header — superadmin should still see the
+        # org-scoped project from an org they don't belong to.
+        response = client.get(
+            "/api/projects/",
+            headers={**_auth(superadmin_a), "X-Organization-Context": "private"},
+        )
+        assert response.status_code == 200
+        ids = {item["id"] for item in response.json()["items"]}
+        assert org_proj.id in ids
+        # And other users' private projects still hidden by default.
         assert project_set["b_private"].id not in ids
