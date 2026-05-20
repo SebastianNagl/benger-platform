@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import Depends, HTTPException, Request
-from sqlalchemy import case, cast, func
+from sqlalchemy import case, cast, func, or_
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session, joinedload
 
@@ -502,19 +502,43 @@ def get_accessible_project_ids(
         org_context: Value of X-Organization-Context header.
                      "private" or None = user's private projects only
                      org_id string = projects in that org
+                     Ignored for superadmins — they always get an org-agnostic
+                     view of every project across every org.
         include_all_private: Superadmin-only opt-in. When True, the helper
                      returns None (no filter) so the caller sees every project
-                     in the system. When False (default) a superadmin is
-                     scoped the same way a regular user would be — own private
-                     + public + org-scoped — so the projects browser doesn't
-                     leak other users' private projects.
+                     in the system, including other users' private projects.
+                     When False (default) a superadmin sees every org's projects
+                     + public projects + their own private, but other users'
+                     private projects stay hidden.
 
     Returns:
         List of accessible project IDs, or None for superadmins with
         include_all_private=True (no filter needed).
     """
-    if user.is_superadmin and include_all_private:
-        return None
+    if user.is_superadmin:
+        if include_all_private:
+            return None
+        # Default superadmin view: every project across every org, plus public
+        # and own private. Other users' private projects stay hidden until the
+        # toggle is flipped. Org context is intentionally ignored — a
+        # superadmin's projects browser is org-agnostic.
+        rows = (
+            db.query(Project.id)
+            .filter(
+                or_(
+                    Project.is_private == False,
+                    Project.created_by == str(user.id),
+                )
+            )
+            .all()
+        )
+        seen = set()
+        result = []
+        for r in rows:
+            if r.id not in seen:
+                seen.add(r.id)
+                result.append(r.id)
+        return result
 
     public_ids = [
         r.id for r in db.query(Project.id).filter(Project.is_public == True).all()
@@ -541,23 +565,20 @@ def get_accessible_project_ids(
                 result.append(pid)
         return result
 
-    # Org mode: verify membership then get org projects. Superadmins skip the
-    # membership check — they can view any org's projects even without being a
-    # formal member — but still get scoped to that org's project set (rather
-    # than every project in the system) unless include_all_private=True.
-    if not user.is_superadmin:
-        user_with_memberships = get_user_with_memberships(db, str(user.id))
-        user_org_ids = []
-        if user_with_memberships and user_with_memberships.organization_memberships:
-            user_org_ids = [
-                m.organization_id for m in user_with_memberships.organization_memberships if m.is_active
-            ]
+    # Org mode: verify membership then get org projects. Superadmins are
+    # already handled above and never reach this branch.
+    user_with_memberships = get_user_with_memberships(db, str(user.id))
+    user_org_ids = []
+    if user_with_memberships and user_with_memberships.organization_memberships:
+        user_org_ids = [
+            m.organization_id for m in user_with_memberships.organization_memberships if m.is_active
+        ]
 
-        if org_context not in user_org_ids:
-            raise HTTPException(
-                status_code=403,
-                detail="You are not a member of this organization",
-            )
+    if org_context not in user_org_ids:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not a member of this organization",
+        )
 
     rows = (
         db.query(ProjectOrganization.project_id)
