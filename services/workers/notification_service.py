@@ -152,8 +152,10 @@ class NotificationService:
         channel: str,
     ) -> bool:
         """Check whether a specific channel ('in_app' or 'email') is
-        enabled for the given notification type. Defaults to True when
-        no preference row is recorded — matches API-side semantics in
+        enabled for the given notification type.
+
+        Default when no preference row exists: in-app on, email off —
+        email is opt-in. Matches API-side semantics in
         services/api/services/email/notification_service.py:_user_wants_channel.
 
         Worker's tasks.py (in the send_notification_batch task) calls
@@ -183,12 +185,12 @@ class NotificationService:
             ).first()
         except Exception as e:
             logger.warning(
-                f"_user_wants_channel: pref lookup failed ({e}); defaulting to True"
+                f"_user_wants_channel: pref lookup failed ({e}); defaulting to in_app only"
             )
-            return True
+            return channel == "in_app"
 
         if row is None:
-            return True
+            return channel == "in_app"
         if channel == "in_app":
             return bool(row[0])
         if channel == "email":

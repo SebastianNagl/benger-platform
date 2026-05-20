@@ -198,12 +198,15 @@ class TestCheckUserCanEditProject:
 class TestGetAccessibleProjectIds:
     """Tests for get_accessible_project_ids."""
 
-    def test_superadmin_returns_none(self):
+    def test_superadmin_returns_none_when_include_all_private(self):
         from routers.projects.helpers import get_accessible_project_ids
 
         db = Mock()
         user = Mock(is_superadmin=True)
-        result = get_accessible_project_ids(db, user, "org-1")
+        # The unfiltered None sentinel is now an opt-in.
+        result = get_accessible_project_ids(
+            db, user, "org-1", include_all_private=True
+        )
         assert result is None
 
     def test_private_context_returns_user_private_projects(self):

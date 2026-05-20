@@ -1205,7 +1205,12 @@ describe('ProjectListTable', () => {
     it('should fetch archived projects on mount', () => {
       render(<ProjectListTable showArchivedOnly={true} />)
 
-      expect(mockFetchProjects).toHaveBeenCalledWith(undefined, undefined, true)
+      expect(mockFetchProjects).toHaveBeenCalledWith(
+        undefined,
+        undefined,
+        true,
+        false
+      )
     })
 
     it('should render archived view header', () => {
@@ -2011,6 +2016,7 @@ describe('ProjectListTable', () => {
       expect(mockFetchProjects).toHaveBeenCalledWith(
         undefined,
         undefined,
+        false,
         false
       )
     })
@@ -2018,7 +2024,12 @@ describe('ProjectListTable', () => {
     it('should fetch archived projects when showArchivedOnly is true', () => {
       render(<ProjectListTable showArchivedOnly={true} />)
 
-      expect(mockFetchProjects).toHaveBeenCalledWith(undefined, undefined, true)
+      expect(mockFetchProjects).toHaveBeenCalledWith(
+        undefined,
+        undefined,
+        true,
+        false
+      )
     })
 
     it('should refetch projects when search query changes', () => {

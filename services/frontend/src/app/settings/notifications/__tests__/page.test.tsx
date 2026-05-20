@@ -754,7 +754,7 @@ describe('NotificationSettingsPage', () => {
       })
     })
 
-    it('converts new format to legacy format when saving', async () => {
+    it('sends per-channel preferences object when saving', async () => {
       const user = userEvent.setup()
       render(<NotificationSettingsPage />)
 
@@ -772,9 +772,9 @@ describe('NotificationSettingsPage', () => {
       await waitFor(() => {
         expect(api.updateNotificationPreferences).toHaveBeenCalledWith(
           expect.objectContaining({
-            project_created: true,
-            project_updated: true,
-            project_shared: false,
+            project_created: { enabled: true, in_app: true, email: false },
+            project_updated: { enabled: true, in_app: true, email: true },
+            project_shared: { enabled: false, in_app: false, email: false },
           })
         )
       })

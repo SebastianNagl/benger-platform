@@ -8,6 +8,7 @@ import { Button } from '@/components/shared/Button'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import { Pagination } from '@/components/shared/Pagination'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import { ToggleSwitch } from '@/components/shared/ToggleSwitch'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -67,6 +68,31 @@ export function ProjectListTable({
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(
     new Set()
   )
+  // Superadmin-only opt-in to broaden the response to include every other
+  // user's private projects. Default OFF (narrow view) — the toggle restores
+  // the legacy "see everything" surface. Persisted in localStorage so a
+  // superadmin's preference survives refresh.
+  const includeAllPrivateStorageKey = 'projects-include-all-private'
+  const [includeAllPrivate, setIncludeAllPrivate] = useState<boolean>(false)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const stored = window.localStorage.getItem(includeAllPrivateStorageKey)
+      if (stored === 'true') setIncludeAllPrivate(true)
+    } catch {
+      // localStorage may be unavailable (Safari private mode, quota); fall
+      // back to the default narrow view.
+    }
+  }, [])
+  const persistIncludeAllPrivate = (next: boolean) => {
+    setIncludeAllPrivate(next)
+    if (typeof window === 'undefined') return
+    try {
+      window.localStorage.setItem(includeAllPrivateStorageKey, next ? 'true' : 'false')
+    } catch {
+      // ignore persistence failures
+    }
+  }
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Check if user has permissions to create/modify projects
@@ -74,8 +100,8 @@ export function ProjectListTable({
   const userCanCreateProjects = canCreateProjects(user, { isPrivateMode })
 
   useEffect(() => {
-    fetchProjects(undefined, undefined, showArchivedOnly)
-  }, [fetchProjects, showArchivedOnly])
+    fetchProjects(undefined, undefined, showArchivedOnly, includeAllPrivate)
+  }, [fetchProjects, showArchivedOnly, includeAllPrivate])
 
   // Clear selections when page changes
   useEffect(() => {
@@ -93,8 +119,8 @@ export function ProjectListTable({
 
   // Fetch projects when search query changes in the store
   useEffect(() => {
-    fetchProjects(undefined, undefined, showArchivedOnly)
-  }, [searchQuery, fetchProjects, showArchivedOnly])
+    fetchProjects(undefined, undefined, showArchivedOnly, includeAllPrivate)
+  }, [searchQuery, fetchProjects, showArchivedOnly, includeAllPrivate])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -528,12 +554,14 @@ export function ProjectListTable({
           hasActiveFilters={
             sortField !== 'created_at' ||
             sortOrder !== 'desc' ||
-            localSearchQuery.trim() !== ''
+            localSearchQuery.trim() !== '' ||
+            includeAllPrivate
           }
           onClearFilters={() => {
             setSortField('created_at')
             setSortOrder('desc')
             setLocalSearchQuery('')
+            persistIncludeAllPrivate(false)
           }}
           clearLabel={t('common.filters.clearAll')}
           rightExtras={
@@ -581,6 +609,14 @@ export function ProjectListTable({
               </SelectContent>
             </Select>
           </FilterToolbar.Field>
+          {user?.is_superadmin && (
+            <FilterToolbar.Field label={t('projects.list.showAllPrivate')}>
+              <ToggleSwitch
+                enabled={includeAllPrivate}
+                onChange={persistIncludeAllPrivate}
+              />
+            </FilterToolbar.Field>
+          )}
         </FilterToolbar>
 
         {/* Bulk Actions */}

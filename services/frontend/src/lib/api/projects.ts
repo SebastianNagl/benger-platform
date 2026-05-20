@@ -28,7 +28,8 @@ export const projectsAPI = {
     page = 1,
     pageSize = 100,
     search?: string,
-    isArchived?: boolean
+    isArchived?: boolean,
+    includeAllPrivate?: boolean
   ): Promise<PaginatedResponse<Project>> => {
     const params = new URLSearchParams({
       page: page.toString(),
@@ -44,6 +45,12 @@ export const projectsAPI = {
       params.append('is_archived', 'true')
     } else if (isArchived === false) {
       params.append('is_archived', 'false')
+    }
+
+    // Superadmin-only: broaden the response to include other users' private
+    // projects. Backend ignores the flag for non-superadmins.
+    if (includeAllPrivate === true) {
+      params.append('include_all_private', 'true')
     }
 
     // Add cache-busting parameter to ensure fresh data after deletions

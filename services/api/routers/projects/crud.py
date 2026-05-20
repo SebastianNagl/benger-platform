@@ -88,6 +88,15 @@ async def list_projects(
     page_size: int = Query(100, ge=1, le=500),  # Default 100 like Label Studio
     search: Optional[str] = None,
     is_archived: Optional[bool] = None,
+    include_all_private: bool = Query(
+        False,
+        description=(
+            "Superadmin-only: include other users' private projects in the "
+            "response. Defaults to False so a superadmin's projects browser "
+            "behaves like a regular user's (own private + public + org-scoped). "
+            "Ignored for non-superadmins."
+        ),
+    ),
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -97,7 +106,9 @@ async def list_projects(
     The X-Organization-Context header determines which projects are shown:
     - "private" or absent: Show only private projects created by the user
     - org ID: Show only projects assigned to that organization
-    - Superadmins always see all projects regardless of context
+
+    Superadmins are scoped the same way by default; pass
+    include_all_private=true to surface every project in the system.
     """
 
     try:
@@ -105,7 +116,9 @@ async def list_projects(
         org_context = request.headers.get("X-Organization-Context")
 
         # Use shared helper for consistent org-context filtering
-        accessible_ids = get_accessible_project_ids(db, current_user, org_context)
+        accessible_ids = get_accessible_project_ids(
+            db, current_user, org_context, include_all_private=include_all_private
+        )
 
         query = db.query(Project)
         if accessible_ids is not None:
