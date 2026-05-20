@@ -575,7 +575,8 @@
       "sortTitle": "Title",
       "sortCreated": "Created date",
       "sortTaskCount": "Task count",
-      "sortProgress": "Progress"
+      "sortProgress": "Progress",
+      "showAllPrivate": "Show all private projects"
     },
     "columns": {
       "label": "Columns",

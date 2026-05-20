@@ -349,10 +349,17 @@ class TestCalculateGenerationStats:
 class TestGetAccessibleProjectIds:
     """Tests for get_accessible_project_ids."""
 
-    def test_superadmin_returns_none(self):
+    def test_superadmin_returns_none_when_include_all_private(self):
+        # The "no filter" sentinel is now opt-in: superadmin must pass
+        # include_all_private=True to get full visibility back.
         db = Mock()
         user = Mock(is_superadmin=True)
-        result = get_accessible_project_ids(db, user, org_context="org-1")
+
+        # When the flag is set the helper short-circuits before any query,
+        # so we don't need to mock `db.query` for this path.
+        result = get_accessible_project_ids(
+            db, user, org_context="org-1", include_all_private=True
+        )
         assert result is None
 
     def test_private_context(self):

@@ -40,7 +40,8 @@ interface ProjectStore {
   fetchProjects: (
     page?: number,
     pageSize?: number,
-    isArchived?: boolean
+    isArchived?: boolean,
+    includeAllPrivate?: boolean
   ) => Promise<void>
   fetchProject: (projectId: string) => Promise<void>
   createProject: (data: {
@@ -119,7 +120,8 @@ export const useProjectStore = create<ProjectStore>()(
       fetchProjects: async (
         page?: number,
         pageSize?: number,
-        isArchived?: boolean
+        isArchived?: boolean,
+        includeAllPrivate?: boolean
       ) => {
         const currentPageToUse = page ?? get().currentPage
         const pageSizeToUse = pageSize ?? get().pageSize
@@ -131,7 +133,8 @@ export const useProjectStore = create<ProjectStore>()(
             currentPageToUse,
             pageSizeToUse,
             search,
-            isArchived
+            isArchived,
+            includeAllPrivate
           )
 
           // Ensure response has the expected structure

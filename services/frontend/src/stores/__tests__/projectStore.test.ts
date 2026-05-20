@@ -179,7 +179,13 @@ describe('ProjectStore', () => {
         await useProjectStore.getState().fetchProjects(2, 50)
       })
 
-      expect(mockProjectsAPI.list).toHaveBeenCalledWith(2, 50, '', undefined)
+      expect(mockProjectsAPI.list).toHaveBeenCalledWith(
+        2,
+        50,
+        '',
+        undefined,
+        undefined,
+      )
       const state = useProjectStore.getState()
       expect(state.currentPage).toBe(2)
       expect(state.pageSize).toBe(50)
@@ -206,7 +212,8 @@ describe('ProjectStore', () => {
         1,
         30,
         'test search',
-        undefined
+        undefined,
+        undefined,
       )
     })
 
@@ -223,7 +230,13 @@ describe('ProjectStore', () => {
         await useProjectStore.getState().fetchProjects(1, 30, true)
       })
 
-      expect(mockProjectsAPI.list).toHaveBeenCalledWith(1, 30, '', true)
+      expect(mockProjectsAPI.list).toHaveBeenCalledWith(
+        1,
+        30,
+        '',
+        true,
+        undefined,
+      )
     })
 
     it('should handle undefined response gracefully', async () => {
@@ -1258,7 +1271,13 @@ describe('ProjectStore', () => {
 
         const state = useProjectStore.getState()
         expect(state.currentPage).toBe(2)
-        expect(mockProjectsAPI.list).toHaveBeenCalledWith(2, 30, '', undefined)
+        expect(mockProjectsAPI.list).toHaveBeenCalledWith(
+          2,
+          30,
+          '',
+          undefined,
+          undefined,
+        )
       })
     })
 
@@ -1283,7 +1302,13 @@ describe('ProjectStore', () => {
         const state = useProjectStore.getState()
         expect(state.pageSize).toBe(50)
         expect(state.currentPage).toBe(1)
-        expect(mockProjectsAPI.list).toHaveBeenCalledWith(1, 50, '', undefined)
+        expect(mockProjectsAPI.list).toHaveBeenCalledWith(
+          1,
+          50,
+          '',
+          undefined,
+          undefined,
+        )
       })
     })
 
