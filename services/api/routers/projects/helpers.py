@@ -492,6 +492,7 @@ def get_accessible_project_ids(
     db: Session,
     user,
     org_context: Optional[str] = None,
+    include_all_private: bool = False,
 ) -> Optional[List[str]]:
     """Get project IDs accessible to a user based on organization context.
 
@@ -501,11 +502,18 @@ def get_accessible_project_ids(
         org_context: Value of X-Organization-Context header.
                      "private" or None = user's private projects only
                      org_id string = projects in that org
+        include_all_private: Superadmin-only opt-in. When True, the helper
+                     returns None (no filter) so the caller sees every project
+                     in the system. When False (default) a superadmin is
+                     scoped the same way a regular user would be — own private
+                     + public + org-scoped — so the projects browser doesn't
+                     leak other users' private projects.
 
     Returns:
-        List of accessible project IDs, or None for superadmins (no filter needed).
+        List of accessible project IDs, or None for superadmins with
+        include_all_private=True (no filter needed).
     """
-    if user.is_superadmin:
+    if user.is_superadmin and include_all_private:
         return None
 
     public_ids = [

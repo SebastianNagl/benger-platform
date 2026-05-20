@@ -373,12 +373,8 @@ function NotificationSettingsContent() {
       setError(null)
       setSuccess(null)
 
-      // Convert new format back to legacy format for API compatibility
-      const legacyPreferences = Object.fromEntries(
-        Object.entries(preferences).map(([key, value]) => [key, value.enabled])
-      )
-
-      await api.updateNotificationPreferences(legacyPreferences)
+      await api.updateNotificationPreferences(preferences)
+      await loadPreferences()
       setSuccess(t('settings.notifications.ui.preferencesSaved'))
 
       // Clear success message after 3 seconds

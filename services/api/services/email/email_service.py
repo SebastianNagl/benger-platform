@@ -12,7 +12,8 @@ from typing import Any, Dict, List, Optional
 
 from jinja2 import Environment, FileSystemLoader
 
-from models import Notification, NotificationType
+from email_templates.template_map import template_for
+from models import Notification
 from sendgrid_client import SendGridClient
 
 logger = logging.getLogger(__name__)
@@ -168,7 +169,6 @@ class EmailService:
             return False
 
 
-        # Build template context
         template_context = {
             "notification": notification,
             "notification_type": notification.type.value if notification.type else "general",
@@ -176,19 +176,7 @@ class EmailService:
             **(context or {}),
         }
 
-        # Select template based on notification type
-        template_map = {
-            NotificationType.TASK_ASSIGNED: "task_assigned.html",
-            NotificationType.ANNOTATION_COMPLETED: "annotation_completed.html",
-            NotificationType.PROJECT_UPDATED: "project_updated.html",
-            NotificationType.PROJECT_SHARED: "project_shared.html",
-            NotificationType.ORGANIZATION_INVITATION_SENT: "organization_invite.html",
-            NotificationType.DATA_IMPORT_SUCCESS: "data_import_success.html",
-            NotificationType.EVALUATION_COMPLETED: "evaluation_completed.html",
-            NotificationType.KORREKTUR_ASSIGNED: "korrektur_assigned.html",
-        }
-
-        template_name = template_map.get(notification.type, "default_notification.html")
+        template_name = template_for(notification.type)
 
         try:
             # Render template

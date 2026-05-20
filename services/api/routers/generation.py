@@ -586,7 +586,11 @@ async def get_parse_metrics(
         else:
             # Scope by org context when no specific project_id provided
             org_context = request.headers.get("X-Organization-Context", "private")
-            accessible_ids = get_accessible_project_ids(db, current_user, org_context)
+            # Cross-project metrics view; preserve legacy "superadmin sees
+            # everything" semantics. Narrowing only applies to /api/projects.
+            accessible_ids = get_accessible_project_ids(
+                db, current_user, org_context, include_all_private=True
+            )
             if accessible_ids is not None:
                 if not accessible_ids:
                     return {

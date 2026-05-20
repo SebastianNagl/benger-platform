@@ -575,7 +575,8 @@
       "sortTitle": "Titel",
       "sortCreated": "Erstellungsdatum",
       "sortTaskCount": "Aufgabenanzahl",
-      "sortProgress": "Fortschritt"
+      "sortProgress": "Fortschritt",
+      "showAllPrivate": "Alle privaten Projekte anzeigen"
     },
     "columns": {
       "label": "Spalten",

@@ -1229,7 +1229,7 @@ class UserNotificationPreference(Base):
     id = Column(String, primary_key=True, index=True)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     notification_type = Column(String, nullable=False)
-    email_enabled = Column(Boolean, nullable=False, default=True)
+    email_enabled = Column(Boolean, nullable=False, default=False)
     in_app_enabled = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -1245,7 +1245,11 @@ class UserNotificationPreference(Base):
     )
 
     def __repr__(self):
-        return f"<UserNotificationPreference(user_id={self.user_id}, type={self.notification_type}, enabled={self.enabled})>"
+        return (
+            f"<UserNotificationPreference(user_id={self.user_id}, "
+            f"type={self.notification_type}, "
+            f"in_app={self.in_app_enabled}, email={self.email_enabled})>"
+        )
 
 
 class SyncStatus(str, Enum):

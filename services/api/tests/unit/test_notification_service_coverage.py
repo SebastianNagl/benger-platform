@@ -481,8 +481,8 @@ class TestUserWantsEmailNotification:
         )
         assert result is False
 
-    def test_no_preference_returns_true(self, mock_db, user_id):
-        """Returns True when no preference exists (opt-out — channels default on)."""
+    def test_no_preference_returns_false(self, mock_db, user_id):
+        """Returns False when no preference exists — email is opt-in by default."""
         from notification_service import NotificationService
 
         mock_db.query.return_value.filter.return_value.first.return_value = None
@@ -490,7 +490,7 @@ class TestUserWantsEmailNotification:
         result = NotificationService._user_wants_email_notification(
             mock_db, user_id, NotificationType.PROJECT_CREATED
         )
-        assert result is True
+        assert result is False
 
 
 # ─────────────────────────────────────────────
@@ -707,11 +707,11 @@ class TestGetUserPreferences:
             "in_app": False,
             "email": False,
         }
-        # Other types default to fully on
+        # Other types default to in-app on, email off (email is opt-in)
         assert result[NotificationType.MEMBER_JOINED.value] == {
             "enabled": True,
             "in_app": True,
-            "email": True,
+            "email": False,
         }
 
 
