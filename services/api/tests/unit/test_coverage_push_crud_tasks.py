@@ -769,6 +769,7 @@ class TestSerializers:
             created_at = datetime(2024, 1, 1)
             evaluation_id = "er1"
             judge_prompts_used = None
+            judge_run_id = "jr-1"
 
         class FakeER:
             model_id = "gpt-4o"
@@ -776,11 +777,12 @@ class TestSerializers:
         result = serialize_task_evaluation(
             FakeTE(), mode="data",
             eval_run=FakeER(),
-            judge_model_lookup={("er1", "config1"): "gpt-4o-judge"},
+            judge_model_lookup={"jr-1": "gpt-4o-judge"},
         )
         assert result["evaluated_model"] == "gpt-4o"
         assert result["judge_model"] == "gpt-4o-judge"
         assert result["evaluation_run_id"] == "er1"
+        assert result["judge_run_id"] == "jr-1"
 
     def test_serialize_task_evaluation_full_mode(self):
         from routers.projects.serializers import serialize_task_evaluation
@@ -802,6 +804,7 @@ class TestSerializers:
             task_id = "t1"
             generation_id = "g1"
             judge_prompts_used = None
+            judge_run_id = None
 
         result = serialize_task_evaluation(FakeTE(), mode="full")
         assert result["evaluation_id"] == "er1"
@@ -852,32 +855,27 @@ class TestSerializers:
         assert result["project_id"] == "p1"
         assert result["task_id"] == "t1"
 
-    def test_build_judge_model_lookup_new_format(self):
+    def test_build_judge_model_lookup_returns_judge_run_id_map(self):
         from routers.projects.serializers import build_judge_model_lookup
+        from unittest.mock import Mock as _M
 
         class FakeER:
             id = "er1"
-            eval_metadata = {
-                "judge_models": {"config1": "gpt-4o-judge", "config2": "claude-3-judge"},
-            }
+            eval_metadata = {}  # ignored now: lookup reads from evaluation_judge_runs
 
-        result = build_judge_model_lookup([FakeER()])
-        assert result[("er1", "config1")] == "gpt-4o-judge"
-        assert result[("er1", "config2")] == "claude-3-judge"
+        ejr1 = _M(id="jr-1", evaluation_id="er1", judge_model_id="gpt-4o-judge")
+        ejr2 = _M(id="jr-2", evaluation_id="er1", judge_model_id="claude-3-judge")
+        db = _M()
+        db.query.return_value.filter.return_value.all.return_value = [ejr1, ejr2]
+        result = build_judge_model_lookup([FakeER()], db)
+        assert result == {"jr-1": "gpt-4o-judge", "jr-2": "claude-3-judge"}
 
-    def test_build_judge_model_lookup_old_format(self):
+    def test_build_judge_model_lookup_empty(self):
         from routers.projects.serializers import build_judge_model_lookup
+        from unittest.mock import Mock as _M
 
-        class FakeER:
-            id = "er1"
-            eval_metadata = {
-                "evaluation_configs": [
-                    {"id": "config1", "metric_parameters": {"judge_model": "gpt-4o-old"}},
-                ],
-            }
-
-        result = build_judge_model_lookup([FakeER()])
-        assert result[("er1", "config1")] == "gpt-4o-old"
+        # Empty runs short-circuits, no DB call needed
+        assert build_judge_model_lookup([], _M()) == {}
 
     def test_build_evaluation_indexes(self):
         from routers.projects.serializers import build_evaluation_indexes

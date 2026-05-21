@@ -1058,7 +1058,7 @@ def bulk_export_tasks(
             EvaluationRun.project_id == project_id
         ).all()
         eval_run_by_id = {er.id: er for er in eval_runs}
-        judge_model_lookup = build_judge_model_lookup(eval_runs)
+        judge_model_lookup = build_judge_model_lookup(eval_runs, db)
 
         header = {
             "project_id": project_id,
@@ -1128,7 +1128,7 @@ def bulk_export_tasks(
             EvaluationRun.project_id == project_id
         ).all()
         eval_run_by_id = {er.id: er for er in eval_runs}
-        judge_model_lookup = build_judge_model_lookup(eval_runs)
+        judge_model_lookup = build_judge_model_lookup(eval_runs, db)
 
         task_q = db.query(Task).filter(
             Task.id.in_(task_ids), Task.project_id == project_id

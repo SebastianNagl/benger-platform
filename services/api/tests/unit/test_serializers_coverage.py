@@ -151,6 +151,7 @@ class TestSerializeTaskEvaluation:
             "task_id": "t1", "generation_id": "g1",
             # Round-trip judge-prompt provenance.
             "judge_prompts_used": None,
+            "judge_run_id": None,
         }
         defaults.update(overrides)
         return SimpleNamespace(**defaults)
@@ -171,15 +172,15 @@ class TestSerializeTaskEvaluation:
 
     def test_data_mode_with_judge_model_lookup(self):
         from routers.projects.serializers import serialize_task_evaluation
-        te = self._mock_te(field_name="cfg1:answer")
-        lookup = {("ev1", "cfg1"): "claude-3"}
+        te = self._mock_te(judge_run_id="jr-1")
+        lookup = {"jr-1": "claude-3"}
         d = serialize_task_evaluation(te, mode="data", judge_model_lookup=lookup)
         assert d["judge_model"] == "claude-3"
 
-    def test_data_mode_field_without_colon(self):
+    def test_data_mode_no_judge_run_id(self):
         from routers.projects.serializers import serialize_task_evaluation
-        te = self._mock_te(field_name="answer")
-        d = serialize_task_evaluation(te, mode="data")
+        te = self._mock_te(judge_run_id=None)
+        d = serialize_task_evaluation(te, mode="data", judge_model_lookup={"jr-1": "claude-3"})
         assert d["judge_model"] is None
 
     def test_full_mode(self):

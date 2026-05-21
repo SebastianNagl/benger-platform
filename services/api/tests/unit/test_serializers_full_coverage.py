@@ -192,13 +192,16 @@ class TestSerializeTaskEvaluation:
         te.confidence_score = 0.95
         te.error_message = None
         te.processing_time_ms = 100
+        te.judge_prompts_used = None
+        te.judge_run_id = "jr-1"
         te.created_at = _dt()
         te.evaluation_id = "er1"
 
         eval_run = Mock()
         eval_run.model_id = "gpt-4o"
 
-        lookup = {("er1", "cfg1"): "gpt-4o-judge"}
+        # New lookup shape: {judge_run_id: judge_model_id}
+        lookup = {"jr-1": "gpt-4o-judge"}
 
         result = serialize_task_evaluation(
             te, mode="data", eval_run=eval_run, judge_model_lookup=lookup
@@ -206,13 +209,14 @@ class TestSerializeTaskEvaluation:
         assert result["evaluated_model"] == "gpt-4o"
         assert result["judge_model"] == "gpt-4o-judge"
         assert result["evaluation_run_id"] == "er1"
+        assert result["judge_run_id"] == "jr-1"
 
-    def test_data_mode_no_config_id(self):
+    def test_data_mode_no_judge_run_id(self):
         from routers.projects.serializers import serialize_task_evaluation
         te = Mock()
         te.id = "te1"
         te.annotation_id = "a1"
-        te.field_name = "simple_field"  # No colon -> no config_id
+        te.field_name = "simple_field"
         te.answer_type = "text"
         te.ground_truth = "a"
         te.prediction = "b"
@@ -221,10 +225,13 @@ class TestSerializeTaskEvaluation:
         te.confidence_score = None
         te.error_message = None
         te.processing_time_ms = 50
+        te.judge_prompts_used = None
+        te.judge_run_id = None
         te.created_at = None
         te.evaluation_id = "er1"
 
-        result = serialize_task_evaluation(te, mode="data")
+        # Even with a populated lookup, te.judge_run_id is None -> judge_model is None
+        result = serialize_task_evaluation(te, mode="data", judge_model_lookup={"jr-1": "x"})
         assert result["judge_model"] is None
 
     def test_full_mode(self):

@@ -151,22 +151,23 @@ def serialize_task_evaluation(
         "error_message": te.error_message,
         "processing_time_ms": te.processing_time_ms,
         "judge_prompts_used": te.judge_prompts_used,
+        # judge_run_id is the per-row link to EvaluationJudgeRun; needed so
+        # multi-judge configs (where one EvaluationRun spawns N EvaluationJudgeRuns,
+        # one per judge model) remain distinguishable in the export.
+        "judge_run_id": te.judge_run_id,
         "created_at": _isoformat(te.created_at),
     }
     if mode == "data":
-        config_id = (
-            te.field_name.split("|")[0]
-            if te.field_name and "|" in te.field_name
-            else te.field_name.split(":")[0]  # Backward compat
-            if te.field_name and ":" in te.field_name
-            else None
-        )
         d.update({
             "evaluation_run_id": te.evaluation_id,
             "evaluated_model": eval_run.model_id if eval_run else None,
+            # Look up per-row by judge_run_id. The lookup dict is now
+            # {judge_run_id: judge_model_id}, sourced from evaluation_judge_runs
+            # directly (see build_judge_model_lookup below). Previous impl keyed
+            # on (evaluation_id, config_id) and collapsed multi-judge configs.
             "judge_model": (
-                judge_model_lookup.get((te.evaluation_id, config_id))
-                if judge_model_lookup and config_id
+                judge_model_lookup.get(te.judge_run_id)
+                if judge_model_lookup and te.judge_run_id
                 else None
             ),
         })
@@ -208,26 +209,31 @@ def serialize_evaluation_run(er, *, mode: str = "data") -> dict:
     return d
 
 
-def build_judge_model_lookup(evaluation_runs) -> Dict[Tuple[str, str], str]:
-    """Build lookup: (evaluation_run_id, config_id) -> judge_model.
+def build_judge_model_lookup(evaluation_runs, db) -> Dict[str, str]:
+    """Build lookup: judge_run_id -> judge_model_id.
 
-    Checks both new format (eval_metadata.judge_models) and old format
-    (evaluation_configs[].metric_parameters.judge_model).
+    Canonical source is the `evaluation_judge_runs` table (each row carries the
+    judge model that produced a given set of TaskEvaluation rows). Previous
+    implementation keyed on (evaluation_run_id, config_id) and read
+    `eval_metadata.judge_models` or `metric_parameters.judge_model` (singular),
+    which silently collapsed multi-judge configs to a single value — any project
+    using `metric_parameters.judges` (plural list, the canonical multi-judge
+    shape) saw every exported row as `judge_model=None`. Reading directly from
+    evaluation_judge_runs guarantees per-row resolution for legacy single-judge,
+    same-model k-pass, and multi-judge configs alike.
+
+    Non-LLM-judge metrics (bleu/rouge/etc.) have EvaluationJudgeRun rows with
+    `judge_model_id=None` per migration 042/043 backfill, which round-trips to
+    the caller as `judge_model=None` — correct degradation.
     """
-    lookup: Dict[Tuple[str, str], str] = {}
-    for er in evaluation_runs:
-        meta = er.eval_metadata or {}
-        # New format: top-level judge_models dict (set by worker on completion)
-        if "judge_models" in meta:
-            for config_id, model in meta["judge_models"].items():
-                lookup[(er.id, config_id)] = model
-        # Old format: dig into evaluation_configs
-        for cfg in meta.get("evaluation_configs", []):
-            cid = cfg.get("id", "")
-            jm = (cfg.get("metric_parameters") or {}).get("judge_model")
-            if jm and (er.id, cid) not in lookup:
-                lookup[(er.id, cid)] = jm
-    return lookup
+    from models import EvaluationJudgeRun  # local import to avoid cycles
+    eval_ids = [er.id for er in evaluation_runs]
+    if not eval_ids:
+        return {}
+    rows = db.query(EvaluationJudgeRun).filter(
+        EvaluationJudgeRun.evaluation_id.in_(eval_ids)
+    ).all()
+    return {ejr.id: ejr.judge_model_id for ejr in rows}
 
 
 def build_evaluation_indexes(
