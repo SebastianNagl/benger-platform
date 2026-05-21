@@ -41,10 +41,15 @@ export default function DashboardPage() {
   // dashboard → projects → dashboard serves the second visit from memory
   // instead of refetching both endpoints. The projects fetch still hydrates
   // the Zustand store via the existing fetchProjects side-effect so
-  // downstream consumers stay in sync.
+  // downstream consumers stay in sync — and the queryFn returns `true`
+  // (not the implicit `undefined` Zustand actions return) because React
+  // Query v5 throws when a queryFn resolves to undefined.
   const projectsQuery = useQuery({
     queryKey: ['dashboard', 'projects', 1, 100],
-    queryFn: () => fetchProjects(1, 100),
+    queryFn: async () => {
+      await fetchProjects(1, 100)
+      return true
+    },
   })
 
   const statsQuery = useQuery({
