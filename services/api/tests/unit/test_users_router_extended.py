@@ -50,20 +50,28 @@ class TestUsersRouterExtended:
         app.dependency_overrides[get_db] = override
 
     def test_get_all_users(self, client, mock_superadmin):
-        """Test listing all users."""
+        """Test listing all users.
+
+        The handler runs the query inline now so it can apply optional
+        `?search=` filtering server-side; mock the DB chain directly.
+        """
         self._override_superadmin(mock_superadmin)
 
-        user_list = [mock_superadmin]
-        with patch("routers.users.get_all_users") as mock_get:
-            mock_get.return_value = user_list
-            self._override_db(Mock(spec=Session))
-            try:
-                response = client.get("/api/users")
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert len(data) == 1
-            finally:
-                app.dependency_overrides.clear()
+        mock_db = Mock(spec=Session)
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.limit.return_value = mock_query
+        mock_query.all.return_value = [mock_superadmin]
+        mock_db.query.return_value = mock_query
+        self._override_db(mock_db)
+        try:
+            response = client.get("/api/users")
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert len(data) == 1
+        finally:
+            app.dependency_overrides.clear()
 
     def test_update_user_role_success(self, client, mock_superadmin):
         """Test updating user role."""

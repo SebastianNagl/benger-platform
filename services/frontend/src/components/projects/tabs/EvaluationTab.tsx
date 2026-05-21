@@ -25,6 +25,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 interface EvaluationTabProps {
   projectId: string
@@ -58,12 +59,18 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
     'all' | 'evaluated' | 'pending'
   >('all')
 
+  // Debounce search so per-keystroke typing doesn't refire the
+  // whole-project task fetch.
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
+
   // Load tasks with evaluation data
   useEffect(() => {
     const loadTasks = async () => {
       setIsLoading(true)
       try {
-        const labelStudioTasks = await fetchProjectTasks(projectId)
+        const labelStudioTasks = await fetchProjectTasks(projectId, false, {
+          search: debouncedSearch || undefined,
+        })
         // Filter to only show tasks with evaluation data or that need evaluation
         const tasksForEvaluation = labelStudioTasks.filter(
           (task) =>
@@ -80,24 +87,27 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
     if (projectId) {
       loadTasks()
     }
-  }, [projectId, fetchProjectTasks])
+  }, [projectId, fetchProjectTasks, debouncedSearch])
 
-  // Apply filters and search
+  // Apply remaining filters. Search is server-side via the loadTasks
+  // effect above; we still narrow client-side as a safety net so the
+  // rendered list stays in sync with the input even when the API
+  // returns the same payload regardless of the search arg (e.g. tests
+  // with a static mock, or transient stale renders during debounce).
   useEffect(() => {
     let filtered = [...tasks]
 
-    // Search filter
     if (searchQuery) {
+      const q = searchQuery.toLowerCase()
       filtered = filtered.filter((task) => {
-        const searchLower = searchQuery.toLowerCase()
         const taskData = JSON.stringify((task as any).data).toLowerCase()
         const evalData = (task as any).llm_evaluations
           ? JSON.stringify((task as any).llm_evaluations).toLowerCase()
           : ''
         return (
-          taskData.includes(searchLower) ||
-          evalData.includes(searchLower) ||
-          task.id.toString().includes(searchLower)
+          taskData.includes(q) ||
+          evalData.includes(q) ||
+          String(task.id).toLowerCase().includes(q)
         )
       })
     }

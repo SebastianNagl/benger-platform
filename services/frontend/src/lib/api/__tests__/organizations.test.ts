@@ -194,8 +194,12 @@ jest.mock('../base', () => ({
         return { message: 'Invitation cancelled successfully' }
       }
 
-      // Get all users
-      if (endpoint === '/organizations/manage/users' && method === 'GET') {
+      // Get all users (also matches the new `?search=&limit=` variants)
+      if (
+        endpoint.startsWith('/organizations/manage/users') &&
+        !endpoint.match(/\/user-\d+/) &&
+        method === 'GET'
+      ) {
         return [
           {
             id: 'user-1',
@@ -553,6 +557,36 @@ describe('OrganizationsClient', () => {
         is_active: true,
         created_at: '2024-01-01T00:00:00Z',
       })
+    })
+
+    it('should pass through search + limit to the request URL', async () => {
+      const getSpy = jest.spyOn(client as any, 'get')
+      await client.getAllUsers({ search: 'alice', limit: 50 })
+      const url = (getSpy.mock.calls[0]?.[0] as string) ?? ''
+      expect(url).toContain('search=alice')
+      expect(url).toContain('limit=50')
+    })
+
+    it('should omit the query string when no options are provided', async () => {
+      const getSpy = jest.spyOn(client as any, 'get')
+      await client.getAllUsers()
+      expect(getSpy).toHaveBeenCalledWith('/organizations/manage/users')
+    })
+
+    it('should accept just search without limit', async () => {
+      const getSpy = jest.spyOn(client as any, 'get')
+      await client.getAllUsers({ search: 'bob' })
+      expect(getSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/^\/organizations\/manage\/users\?search=bob$/)
+      )
+    })
+
+    it('should accept just limit without search', async () => {
+      const getSpy = jest.spyOn(client as any, 'get')
+      await client.getAllUsers({ limit: 100 })
+      expect(getSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/^\/organizations\/manage\/users\?limit=100$/)
+      )
     })
   })
 

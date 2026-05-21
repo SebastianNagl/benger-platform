@@ -3,8 +3,21 @@
  * Tests the display of warning message for users without organization assignment
  */
 
-import { render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render as rtlRender, screen, waitFor } from '@testing-library/react'
 import React from 'react'
+
+// Phase 3 wrapped the app in a global QueryClientProvider; the dashboard
+// page now uses `useQuery`, so tests must provide a client.
+const render: typeof rtlRender = (ui, options) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  })
+  return rtlRender(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+    options
+  )
+}
 
 // Mock ApiClient before any imports that might use it
 jest.mock('@/lib/api', () => ({

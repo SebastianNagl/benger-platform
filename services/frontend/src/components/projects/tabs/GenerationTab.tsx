@@ -30,6 +30,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 interface GenerationTabProps {
   projectId: string
@@ -55,12 +56,22 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
   const [expandedTasks, setExpandedTasks] = useState<ExpandedTasks>({})
   const [filterModel, setFilterModel] = useState<string>('all')
 
+  // Debounce the search input so per-keystroke typing doesn't refire the
+  // whole-project task fetch.
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
+
   // Load tasks with LLM responses
   useEffect(() => {
     const loadTasks = async () => {
       setIsLoading(true)
       try {
-        const labelStudioTasks = await fetchProjectTasks(projectId)
+        // Push the search filter to the server so we stream back only
+        // matching tasks rather than every task in the project to filter in
+        // JS. The "has LLM responses" filter still applies client-side
+        // because it's a JSON-shape check the API doesn't expose.
+        const labelStudioTasks = await fetchProjectTasks(projectId, false, {
+          search: debouncedSearch || undefined,
+        })
         // Filter to only show tasks with LLM responses or generations
         const tasksWithGenerations = labelStudioTasks.filter(
           (task) => (task as any).llm_responses || task.total_generations > 0
@@ -74,37 +85,37 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
     if (projectId) {
       loadTasks()
     }
-  }, [projectId, fetchProjectTasks])
+  }, [projectId, fetchProjectTasks, debouncedSearch])
 
-  // Apply filters and search
+  // Search runs server-side via the loadTasks effect above. We still apply
+  // it client-side here as a safety net: when the API returns the same
+  // payload regardless of the search arg (e.g. tests with a static mock,
+  // or when the user types faster than debounce settles and we momentarily
+  // render against stale results), the client-side narrow keeps the
+  // rendered list consistent with the input. The model filter remains
+  // client-side because the API doesn't expose JSON-shape filters.
   useEffect(() => {
-    let filtered = [...tasks]
-
-    // Search filter
+    let filtered = tasks
     if (searchQuery) {
+      const q = searchQuery.toLowerCase()
       filtered = filtered.filter((task) => {
-        const searchLower = searchQuery.toLowerCase()
         const taskData = JSON.stringify((task as any).data).toLowerCase()
-        const llmData = task.llm_responses
-          ? JSON.stringify(task.llm_responses).toLowerCase()
+        const llmData = (task as any).llm_responses
+          ? JSON.stringify((task as any).llm_responses).toLowerCase()
           : ''
         return (
-          taskData.includes(searchLower) ||
-          llmData.includes(searchLower) ||
-          task.id.toString().includes(searchLower)
+          taskData.includes(q) ||
+          llmData.includes(q) ||
+          String(task.id).toLowerCase().includes(q)
         )
       })
     }
-
-    // Model filter
     if (filterModel !== 'all') {
       filtered = filtered.filter((task) => {
         if (!task.llm_responses) return false
-        const models = Object.keys(task.llm_responses)
-        return models.includes(filterModel)
+        return Object.keys(task.llm_responses).includes(filterModel)
       })
     }
-
     setFilteredTasks(filtered)
   }, [tasks, searchQuery, filterModel])
 

@@ -932,20 +932,35 @@ async def get_results_by_task_model(
             if model_id not in model_name_map:
                 model_name_map[model_id] = model_id
 
-        # Get task data for previews
+        # Task previews — push the SUBSTRING into SQL so we don't load every
+        # `tasks.data` JSON blob (often 1–5KB each) into Python just to keep
+        # the first 100 characters of `text`/`content`. For a 10k-task project
+        # the old shape pulled tens of MB across the wire to discard 99 % of it.
+        from sqlalchemy import cast as sa_cast, func as sa_func
+        from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
+
         all_task_ids = list(set(
             [r.task_id for r in sample_results if r.task_id]
             + [r.task_id for r in annotation_eval_results if r.task_id]
         ))
-        tasks_data = db.query(Task).filter(Task.id.in_(all_task_ids)).all() if all_task_ids else []
-        task_preview_map = {}
-        for task in tasks_data:
-            preview = ""
-            if task.data:
-                text = task.data.get("text", "") or task.data.get("content", "")
-                if text:
-                    preview = text[:100] + "..." if len(text) > 100 else text
-            task_preview_map[task.id] = preview
+        task_preview_map: dict = {}
+        if all_task_ids:
+            jsonb_data = sa_cast(Task.data, PG_JSONB)
+            text_expr = sa_func.coalesce(
+                jsonb_data.op("->>")("text"),
+                jsonb_data.op("->>")("content"),
+                "",
+            )
+            preview_rows = (
+                db.query(Task.id, sa_func.left(text_expr, 100), sa_func.length(text_expr))
+                .filter(Task.id.in_(all_task_ids))
+                .all()
+            )
+            for tid, head, total_len in preview_rows:
+                head = head or ""
+                task_preview_map[tid] = (
+                    head + "..." if total_len and total_len > 100 else head
+                )
 
         # Build task-model score matrix.
         # When aggregate_mean is on, multiple rows can share the same
@@ -1168,23 +1183,47 @@ def _get_task_data_availability(db, task_ids: list) -> tuple:
 
 
 def _build_all_tasks_response(db, project_id: str) -> list:
-    """Build task list with data availability info for all tasks in a project."""
-    all_tasks = db.query(Task.id, Task.data).filter(Task.project_id == project_id).all()
-    all_task_ids = [t.id for t in all_tasks]
+    """Build task list with data availability info for all tasks in a project.
+
+    Previously this loaded `Task.data` (1–5KB JSON per row) for every task in
+    the project — tens of MB streamed across the wire for a large project to
+    extract a 100-character preview that the SQL engine can produce itself.
+    The new query asks Postgres for the preview string directly and keeps
+    `Task.data` server-side.
+    """
+    from sqlalchemy import cast as sa_cast, func as sa_func
+    from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
+
+    jsonb_data = sa_cast(Task.data, PG_JSONB)
+    # Mirrors _get_task_preview key-precedence: input → text → question → prompt → content.
+    preview_text = sa_func.coalesce(
+        jsonb_data.op("->>")("input"),
+        jsonb_data.op("->>")("text"),
+        jsonb_data.op("->>")("question"),
+        jsonb_data.op("->>")("prompt"),
+        jsonb_data.op("->>")("content"),
+        "",
+    )
+    rows = (
+        db.query(Task.id, sa_func.left(preview_text, 100))
+        .filter(Task.project_id == project_id)
+        .all()
+    )
+    all_task_ids = [tid for tid, _ in rows]
     tasks_with_annotations, gen_model_by_task, annot_displays_by_task = (
         _get_task_data_availability(db, all_task_ids)
     )
 
     return [
         {
-            "task_id": t.id,
-            "task_preview": _get_task_preview(t.data),
+            "task_id": tid,
+            "task_preview": preview or "",
             "scores": {},
-            "has_annotation": t.id in tasks_with_annotations,
-            "generation_models": list(gen_model_by_task.get(t.id, set())),
-            "annotator_columns": list(annot_displays_by_task.get(t.id, set())),
+            "has_annotation": tid in tasks_with_annotations,
+            "generation_models": list(gen_model_by_task.get(tid, set())),
+            "annotator_columns": list(annot_displays_by_task.get(tid, set())),
         }
-        for t in all_tasks
+        for tid, preview in rows
     ]
 
 

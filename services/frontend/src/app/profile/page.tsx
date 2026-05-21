@@ -352,22 +352,25 @@ export default function ProfilePage() {
         ki_experience_scores: profileData.ki_experience_scores,
       })
 
-      // Fetch mandatory profile status (Issue #1206)
-      try {
-        const status = await apiClient.getMandatoryProfileStatus()
-        setMandatoryStatus(status)
-      } catch {
-        // Silently ignore - endpoint may not be available yet
+      // Fetch the secondary calls in parallel — `mandatory_profile_status` is
+      // independent of `profile_history`, and only the superadmin branch needs
+      // history at all. Running them serially used to add two extra round-trips
+      // to every profile page load.
+      const [statusResult, historyResult] = await Promise.allSettled([
+        apiClient.getMandatoryProfileStatus(),
+        profileData.is_superadmin
+          ? apiClient.getProfileHistory()
+          : Promise.resolve(null),
+      ])
+      if (statusResult.status === 'fulfilled') {
+        setMandatoryStatus(statusResult.value)
       }
-
-      // For superadmins, also load profile history
-      if (profileData.is_superadmin) {
-        try {
-          const history = await apiClient.getProfileHistory()
-          setProfileHistory(history)
-        } catch {
-          // Silently ignore - endpoint may not be available yet
-        }
+      if (
+        profileData.is_superadmin &&
+        historyResult.status === 'fulfilled' &&
+        historyResult.value !== null
+      ) {
+        setProfileHistory(historyResult.value)
       }
     } catch (error) {
       console.error('Failed to load profile:', error)

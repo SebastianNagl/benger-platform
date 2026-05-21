@@ -164,18 +164,25 @@ async def create_annotation(
             db, task_id=task_id, user_id=current_user.id,
         )
 
-    # Update report annotations section after annotation creation (Issue #770)
+    # Report annotation section refresh (Issue #770) — dispatch to Celery so
+    # the request thread doesn't pay for a COUNT + GROUP BY across every
+    # annotation in the project on every save. The worker reads from the
+    # same `annotations` table, so eventual consistency is exactly what the
+    # report view expects.
     try:
         import logging
 
-        from report_service import update_report_annotations_section
+        from celery_client import get_celery_app
 
         logger = logging.getLogger(__name__)
-        update_report_annotations_section(db, task.project_id)
-        logger.info(f"✅ Updated report annotations section for project {task.project_id}")
+        get_celery_app().send_task(
+            "tasks.update_report_annotations_async",
+            args=[task.project_id],
+            queue="default",
+        )
     except Exception as e:
         logger = logging.getLogger(__name__)
-        logger.error(f"Failed to update report annotations section: {e}")
+        logger.warning(f"Failed to enqueue report annotations update: {e}")
         # Don't fail the annotation creation
 
     return db_annotation
@@ -327,15 +334,20 @@ async def update_annotation(
     db.commit()
     db.refresh(db_annotation)
 
-    # Update report annotations section (silent failure to not block annotation update)
+    # Report annotation section refresh — same Celery dispatch as the create
+    # path. Update routes through the same hot edit loop, so we keep the
+    # aggregation off the request thread here too.
     try:
         import logging
 
-        from report_service import update_report_annotations_section
+        from celery_client import get_celery_app
 
         logger = logging.getLogger(__name__)
-        update_report_annotations_section(db, db_annotation.project_id)
-        logger.info(f"Updated report annotations section for project {db_annotation.project_id}")
+        get_celery_app().send_task(
+            "tasks.update_report_annotations_async",
+            args=[db_annotation.project_id],
+            queue="default",
+        )
     except Exception as e:
         import logging
 

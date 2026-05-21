@@ -29,7 +29,7 @@ from models import (
     User,
 )
 from project_models import Annotation, Project, Task
-from services.aggregate_summaries import (
+from aggregate_summaries import (
     live_aggregate_leaderboard,
     read_dashboard_sum,
     read_llm_leaderboard,

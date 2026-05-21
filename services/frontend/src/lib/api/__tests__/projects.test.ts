@@ -295,6 +295,31 @@ describe('projectsAPI', () => {
       )
     })
 
+    it('should pass excludeMyAnnotations to the API', async () => {
+      ;(apiClient.get as jest.Mock).mockResolvedValue({ items: [] })
+      await projectsAPI.getTasks('proj-1', { excludeMyAnnotations: true })
+      expect(apiClient.get).toHaveBeenCalledWith(
+        expect.stringMatching(/exclude_my_annotations=true/)
+      )
+    })
+
+    it('should pass search / date / sort options when set', async () => {
+      ;(apiClient.get as jest.Mock).mockResolvedValue({ items: [] })
+      await projectsAPI.getTasks('proj-1', {
+        search: 'hello',
+        dateFrom: '2025-01-01',
+        dateTo: '2025-12-31',
+        sortBy: 'created',
+        sortOrder: 'desc',
+      })
+      const url = (apiClient.get as jest.Mock).mock.calls[0][0] as string
+      expect(url).toMatch(/search=hello/)
+      expect(url).toMatch(/date_from=2025-01-01/)
+      expect(url).toMatch(/date_to=2025-12-31/)
+      expect(url).toMatch(/sort_by=created/)
+      expect(url).toMatch(/sort_order=desc/)
+    })
+
     it('should handle array response format', async () => {
       const mockResponse = [{ id: 'task-1', data: { text: 'Task 1' } } as Task]
 
@@ -311,6 +336,139 @@ describe('projectsAPI', () => {
       const result = await projectsAPI.getTasks('proj-1')
 
       expect(result).toEqual([])
+    })
+  })
+
+  describe('getTasksPage', () => {
+    it('should return the full pagination envelope on default options', async () => {
+      const mockResponse = {
+        items: [{ id: 't1' } as Task],
+        total: 1,
+        page: 1,
+        page_size: 50,
+        pages: 1,
+      }
+      ;(apiClient.get as jest.Mock).mockResolvedValue(mockResponse)
+
+      const result = await projectsAPI.getTasksPage('proj-1')
+
+      expect(apiClient.get).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /^\/projects\/proj-1\/tasks\?page=1&page_size=50$/
+        )
+      )
+      expect(result).toEqual(mockResponse)
+    })
+
+    it('should forward all filter options to the API', async () => {
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        items: [], total: 0, page: 2, page_size: 25, pages: 0,
+      })
+      await projectsAPI.getTasksPage('proj-1', {
+        page: 2,
+        pageSize: 25,
+        onlyLabeled: true,
+        onlyUnlabeled: false,
+        excludeMyAnnotations: true,
+        search: 'hello',
+        dateFrom: '2025-01-01',
+        dateTo: '2025-12-31',
+        sortBy: 'annotations',
+        sortOrder: 'asc',
+      })
+      const url = (apiClient.get as jest.Mock).mock.calls[0][0] as string
+      expect(url).toMatch(/page=2&page_size=25/)
+      expect(url).toMatch(/only_labeled=true/)
+      expect(url).toMatch(/only_unlabeled=false/)
+      expect(url).toMatch(/exclude_my_annotations=true/)
+      expect(url).toMatch(/search=hello/)
+      expect(url).toMatch(/date_from=2025-01-01/)
+      expect(url).toMatch(/date_to=2025-12-31/)
+      expect(url).toMatch(/sort_by=annotations/)
+      expect(url).toMatch(/sort_order=asc/)
+    })
+
+    it('should fall back to defaults when the response shape is an array', async () => {
+      const mockResponse = [{ id: 't1' } as Task]
+      ;(apiClient.get as jest.Mock).mockResolvedValue(mockResponse)
+      const result = await projectsAPI.getTasksPage('proj-1', { pageSize: 100 })
+      expect(result).toEqual({
+        items: mockResponse,
+        total: 1,
+        page: 1,
+        page_size: 100,
+        pages: 1,
+      })
+    })
+
+    it('should return zeros on a null response', async () => {
+      ;(apiClient.get as jest.Mock).mockResolvedValue(null)
+      const result = await projectsAPI.getTasksPage('proj-1', { pageSize: 75 })
+      expect(result).toEqual({
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 75,
+        pages: 0,
+      })
+    })
+
+    it('should fill missing envelope fields with caller defaults', async () => {
+      // Backend that returns just { items: [...] } without total/page/pages.
+      ;(apiClient.get as jest.Mock).mockResolvedValue({ items: [{ id: 't1' } as Task] })
+      const result = await projectsAPI.getTasksPage('proj-1', { page: 3 })
+      expect(result.items).toHaveLength(1)
+      expect(result.page).toBe(3)
+      expect(result.pages).toBe(0)
+    })
+  })
+
+  describe('getTaskIds', () => {
+    it('should hit /tasks?ids_only=true and return the ID envelope', async () => {
+      const mockResponse = { ids: ['t1', 't2'], total: 2, truncated: false }
+      ;(apiClient.get as jest.Mock).mockResolvedValue(mockResponse)
+      const result = await projectsAPI.getTaskIds('proj-1')
+      const url = (apiClient.get as jest.Mock).mock.calls[0][0] as string
+      expect(url).toMatch(/ids_only=true/)
+      expect(result).toEqual(mockResponse)
+    })
+
+    it('should forward every filter option', async () => {
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        ids: [], total: 0, truncated: false,
+      })
+      await projectsAPI.getTaskIds('proj-1', {
+        onlyLabeled: true,
+        onlyUnlabeled: false,
+        excludeMyAnnotations: true,
+        search: 'foo',
+        dateFrom: '2025-01-01',
+        dateTo: '2025-12-31',
+        idsLimit: 1000,
+      })
+      const url = (apiClient.get as jest.Mock).mock.calls[0][0] as string
+      expect(url).toMatch(/only_labeled=true/)
+      expect(url).toMatch(/only_unlabeled=false/)
+      expect(url).toMatch(/exclude_my_annotations=true/)
+      expect(url).toMatch(/search=foo/)
+      expect(url).toMatch(/date_from=2025-01-01/)
+      expect(url).toMatch(/date_to=2025-12-31/)
+      expect(url).toMatch(/ids_limit=1000/)
+    })
+
+    it('should default to empty + total=0 when API returns falsy', async () => {
+      ;(apiClient.get as jest.Mock).mockResolvedValue(null)
+      const result = await projectsAPI.getTaskIds('proj-1')
+      expect(result).toEqual({ ids: [], total: 0, truncated: false })
+    })
+
+    it('should preserve truncated=true on a capped response', async () => {
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        ids: ['t1'], total: 50000, truncated: true,
+      })
+      const result = await projectsAPI.getTaskIds('proj-1')
+      expect(result.truncated).toBe(true)
+      expect(result.total).toBe(50000)
     })
   })
 

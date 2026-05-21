@@ -190,7 +190,7 @@ describe('EvaluationTab', () => {
       render(<EvaluationTab projectId="test-project-id" />)
 
       await waitFor(() => {
-        expect(mockFetchProjectTasks).toHaveBeenCalledWith('test-project-id')
+        expect(mockFetchProjectTasks).toHaveBeenCalledWith('test-project-id', false, expect.objectContaining({}))
         expect(screen.getByText('Test task data')).toBeInTheDocument()
       })
     })
@@ -457,7 +457,7 @@ describe('EvaluationTab', () => {
 
       // Wait for initial load to complete
       await waitFor(() => {
-        expect(mockFetchProjectTasks).toHaveBeenCalledWith('test-project-id')
+        expect(mockFetchProjectTasks).toHaveBeenCalledWith('test-project-id', false, expect.objectContaining({}))
       })
 
       // Clear mocks to track new calls
@@ -472,6 +472,8 @@ describe('EvaluationTab', () => {
 
       await waitFor(() => {
         expect(mockStartProgress).toHaveBeenCalled()
+        // Refresh handler calls fetchProjectTasks(projectId) without the
+        // search options (it's an "ignore filters and fetch all" path).
         expect(mockFetchProjectTasks).toHaveBeenCalledWith('test-project-id')
         expect(mockCompleteProgress).toHaveBeenCalledWith(
           expect.any(String),

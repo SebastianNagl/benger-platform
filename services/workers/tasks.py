@@ -582,14 +582,23 @@ from celery.schedules import crontab
 # feature (User-model columns commented out in models.py).
 #
 # `recompute-aggregates`: refresh the precomputed leaderboard + project
-# summary tables every 12h. The API endpoints read these tables instead of
-# scanning task_evaluations on every request (OOMed prod 2026-05-19).
-# Migration 051 introduced the tables; see services/api/services/
-# aggregate_summaries.py for the SQL.
+# summary tables. The API endpoints read these tables instead of scanning
+# task_evaluations on every request (OOMed prod 2026-05-19). Migration 051
+# introduced the tables; see services/api/services/aggregate_summaries.py
+# for the SQL.
+#
+# Tightened from 12h → 1h on 2026-05-20 after Phase 6.2 routed the projects
+# list endpoint through `project_summaries` for both annotation_count and
+# completed_response_generations_count. With the 12h cadence the projects
+# tile could show counts that lagged real activity by half a day; 1h is
+# still cheap (recompute runs in ~seconds on prod-scale data, coalesced
+# via a Redis lock so triggers from `recompute_aggregates_after_finalize`
+# don't pile up) and feels like "soon" to a user who just completed an
+# annotation round.
 app.conf.beat_schedule = {
     "recompute-aggregates": {
         "task": "tasks.recompute_aggregates",
-        "schedule": crontab(minute=0, hour="*/12"),
+        "schedule": crontab(minute=0, hour="*"),
         "args": (),
         "kwargs": {},
         "options": {"queue": "default"},
@@ -5937,12 +5946,14 @@ def recompute_aggregates(self):
     (333 evaluation_runs / 60k task_evaluations) should be well under a
     minute in the worker pod.
     """
-    # Ensure services/api/services is reachable. The worker already adds
-    # the api dir to sys.path (see line ~347); this import just lazy-resolves
-    # so a circular-import in the API surface area can't crash worker boot.
+    # aggregate_summaries lives in /shared (moved 2026-05-20 — see module
+    # docstring). Worker has /shared on sys.path via the early bootstrap
+    # block in this file; before the move this import resolved to a
+    # nonexistent `services/` package and the task silently ModuleNotFound'd
+    # on every beat, leaving project_summaries empty in every environment.
     from datetime import datetime as _dt
 
-    from services.aggregate_summaries import (
+    from aggregate_summaries import (
         recompute_llm_leaderboard_scores,
         recompute_project_summaries,
     )
@@ -6000,3 +6011,84 @@ def recompute_aggregates(self):
                 rc.delete(lock_key)
             except Exception:
                 pass
+
+
+@app.task(name="tasks.update_report_annotations_async", bind=True)
+def update_report_annotations_async(self, project_id: str):
+    """Refresh a project's report annotation section off the request thread.
+
+    The API dispatches this on every POST /annotations. Without coalescing,
+    a 20-annotator burst yields 20 identical-shape COUNT + GROUP BY recomputes
+    — wasteful and queue-saturating. We use the leader/follower pattern:
+
+    * Leader: SETNX a per-project Redis lock; if we get it, run the compute.
+    * Follower: if we can't get the lock, set a `pending` flag and return.
+    * Tail check: the leader inspects the `pending` flag on its way out;
+      if set, re-enqueue itself once so the most recent submit is reflected.
+
+    Result: at most one in-flight recompute per project, with a guaranteed
+    final run that observes the latest submitted state. Bounded queue
+    pressure regardless of submit rate.
+    """
+    from report_service import update_report_annotations_section
+
+    lock_key = f"lock:report_annotations:{project_id}"
+    pending_key = f"pending:report_annotations:{project_id}"
+    lock_ttl_seconds = 60  # generous ceiling on a single-project recompute
+
+    try:
+        rc = redis.from_url(app.conf.broker_url)
+    except Exception as exc:
+        logger.warning(
+            "update_report_annotations_async: redis unavailable (%s); "
+            "proceeding without coalescing",
+            exc,
+        )
+        rc = None
+
+    have_lock = False
+    if rc is not None:
+        have_lock = bool(rc.set(lock_key, "1", nx=True, ex=lock_ttl_seconds))
+        if not have_lock:
+            # Another task holds the lock for this project. Record that a
+            # newer event arrived so the holder re-runs on its way out.
+            try:
+                rc.set(pending_key, "1", ex=lock_ttl_seconds * 2)
+            except Exception:
+                pass
+            return {"status": "skipped", "project_id": project_id}
+
+    db = SessionLocal()
+    try:
+        update_report_annotations_section(db, project_id)
+        result: dict = {"status": "ok", "project_id": project_id}
+    except Exception as exc:
+        logger.error("update_report_annotations_async failed: %s", exc)
+        result = {"status": "error", "project_id": project_id, "error": str(exc)}
+    finally:
+        db.close()
+
+    if rc is not None and have_lock:
+        try:
+            # Tail check: did a follower mark this project dirty while we ran?
+            # If so, fire one more pass so the latest submit is reflected.
+            had_pending = bool(rc.delete(pending_key))
+        except Exception:
+            had_pending = False
+        try:
+            rc.delete(lock_key)
+        except Exception:
+            pass
+        if had_pending:
+            try:
+                app.send_task(
+                    "tasks.update_report_annotations_async",
+                    args=[project_id],
+                    queue="default",
+                )
+            except Exception as exc:
+                logger.warning(
+                    "update_report_annotations_async: re-enqueue failed: %s", exc
+                )
+
+    return result
