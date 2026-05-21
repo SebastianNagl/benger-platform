@@ -36,6 +36,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 interface MyTask extends Task {
   assignment?: TaskAssignment
@@ -72,17 +73,17 @@ export default function MyTasksPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [totalTasks, setTotalTasks] = useState(0)
 
+  // Debounce search so per-keystroke typing doesn't burst /my-tasks.
+  const debouncedSearch = useDebouncedValue(searchQuery, 300)
+
   // Reset to first page when filters change
   useEffect(() => {
     setPage(1)
-  }, [statusFilter])
+  }, [statusFilter, debouncedSearch])
 
-  const filteredTasks = tasks.filter((task) => {
-    const q = searchQuery.trim().toLowerCase()
-    if (!q) return true
-    const haystack = `${task.inner_id ?? ''} ${task.id ?? ''} ${(task.data?.title as string) ?? ''}`
-    return haystack.toLowerCase().includes(q)
-  })
+  // Search is applied server-side via `?search=` now — the page renders
+  // exactly what the API returned without a second client-side filter pass.
+  const filteredTasks = tasks
 
   // Load project if not already loaded
   useEffect(() => {
@@ -94,10 +95,14 @@ export default function MyTasksPage() {
   const loadMyTasks = useCallback(async () => {
     try {
       setLoading(true)
+      const params = new URLSearchParams({
+        page: page.toString(),
+        page_size: '20',
+      })
+      if (statusFilter !== 'all') params.set('status', statusFilter)
+      if (debouncedSearch) params.set('search', debouncedSearch)
       const response = await fetch(
-        `/api/projects/${projectId}/my-tasks?page=${page}&page_size=20${
-          statusFilter !== 'all' ? `&status=${statusFilter}` : ''
-        }`,
+        `/api/projects/${projectId}/my-tasks?${params.toString()}`,
         {
           credentials: 'include',
         }
@@ -117,7 +122,7 @@ export default function MyTasksPage() {
     } finally {
       setLoading(false)
     }
-  }, [projectId, statusFilter, page, addToast])
+  }, [projectId, statusFilter, page, addToast, debouncedSearch, t])
 
   // Load assigned tasks
   useEffect(() => {

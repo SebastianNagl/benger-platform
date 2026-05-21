@@ -411,7 +411,7 @@ describe('GenerationTab', () => {
 
       await waitFor(() => {
         expect(mockStore.fetchProjectTasks).toHaveBeenCalledTimes(1)
-        expect(mockStore.fetchProjectTasks).toHaveBeenCalledWith('project-1')
+        expect(mockStore.fetchProjectTasks).toHaveBeenCalledWith('project-1', false, expect.objectContaining({}))
       })
     })
 
@@ -1045,7 +1045,7 @@ describe('GenerationTab', () => {
       const { rerender } = render(<GenerationTab projectId="project-1" />)
 
       await waitFor(() => {
-        expect(mockStore.fetchProjectTasks).toHaveBeenCalledWith('project-1')
+        expect(mockStore.fetchProjectTasks).toHaveBeenCalledWith('project-1', false, expect.objectContaining({}))
       })
 
       mockStore.fetchProjectTasks.mockClear()
@@ -1053,7 +1053,7 @@ describe('GenerationTab', () => {
       rerender(<GenerationTab projectId="project-2" />)
 
       await waitFor(() => {
-        expect(mockStore.fetchProjectTasks).toHaveBeenCalledWith('project-2')
+        expect(mockStore.fetchProjectTasks).toHaveBeenCalledWith('project-2', false, expect.objectContaining({}))
       })
     })
   })
@@ -1312,6 +1312,7 @@ describe('GenerationTab', () => {
         await user.click(refreshButton)
 
         await waitFor(() => {
+          // Refresh handler calls fetchProjectTasks(projectId) without options.
           expect(mockStore.fetchProjectTasks).toHaveBeenCalledWith('project-1')
           expect(mockProgress.startProgress).toHaveBeenCalled()
           expect(mockProgress.completeProgress).toHaveBeenCalled()

@@ -10,8 +10,12 @@ jest.mock('../base', () => ({
     protected async request<T>(url: string, options?: RequestInit): Promise<T> {
       const method = options?.method || 'GET'
 
-      // Get all users
-      if (url === '/organizations/manage/users' && method === 'GET') {
+      // Get all users (also matches the new `?search=&limit=` variants)
+      if (
+        url.startsWith('/organizations/manage/users') &&
+        !url.match(/\/(user-\d+|user-1)/) &&
+        method === 'GET'
+      ) {
         return [
           {
             id: 'user-1',
@@ -138,6 +142,37 @@ describe('UsersClient', () => {
       const mockRequest = jest.spyOn(client as any, 'request')
       await client.getAllUsers()
 
+      expect(mockRequest).toHaveBeenCalledWith('/organizations/manage/users')
+    })
+
+    it('should append the search query param when provided', async () => {
+      const mockRequest = jest.spyOn(client as any, 'request')
+      await client.getAllUsers({ search: 'alice' })
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.stringMatching(/^\/organizations\/manage\/users\?search=alice$/)
+      )
+    })
+
+    it('should append the limit param when provided', async () => {
+      const mockRequest = jest.spyOn(client as any, 'request')
+      await client.getAllUsers({ limit: 200 })
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.stringMatching(/^\/organizations\/manage\/users\?limit=200$/)
+      )
+    })
+
+    it('should combine search and limit in the same query string', async () => {
+      const mockRequest = jest.spyOn(client as any, 'request')
+      await client.getAllUsers({ search: 'admin', limit: 25 })
+      const url = (mockRequest.mock.calls[0]?.[0] as string) ?? ''
+      expect(url).toContain('search=admin')
+      expect(url).toContain('limit=25')
+    })
+
+    it('should skip the query string entirely when no options are passed', async () => {
+      const mockRequest = jest.spyOn(client as any, 'request')
+      await client.getAllUsers({})
+      // Note: no '?' suffix when no params are set.
       expect(mockRequest).toHaveBeenCalledWith('/organizations/manage/users')
     })
   })

@@ -3,7 +3,7 @@
 import random
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
@@ -311,10 +311,19 @@ async def assign_tasks(
                 user_assignments[assignment.user_id] = []
             user_assignments[assignment.user_id].append(assignment)
 
+        # The `user = db.query(User)...` lookup was unused in the notification
+        # body and the project's org lookup was being queried twice per
+        # iteration — fetch both up front so the fan-out is bounded.
+        project_org_row = (
+            db.query(ProjectOrganization.organization_id)
+            .filter(ProjectOrganization.project_id == project_id)
+            .first()
+        )
+        organization_id_for_notif = project_org_row[0] if project_org_row else None
+
         # Send notification to each user
         for user_id, user_tasks in user_assignments.items():
             task_count = len(user_tasks)
-            user = db.query(User).filter(User.id == user_id).first()
 
             title = f"New Task Assignment"
             if task_count == 1:
@@ -344,16 +353,7 @@ async def assign_tasks(
                     "priority": priority,
                     "due_date": due_date.isoformat() if due_date else None,
                 },
-                # Get first organization for backward compatibility
-                organization_id=(
-                    db.query(ProjectOrganization.organization_id)
-                    .filter(ProjectOrganization.project_id == project_id)
-                    .first()[0]
-                    if db.query(ProjectOrganization)
-                    .filter(ProjectOrganization.project_id == project_id)
-                    .first()
-                    else None
-                ),
+                organization_id=organization_id_for_notif,
             )
 
     return {
@@ -399,10 +399,16 @@ async def list_task_assignments(
 
     assignments = db.query(TaskAssignment).filter(TaskAssignment.task_id == task_id).all()
 
-    # Enrich with user info
+    # Bulk-fetch assignees in one query instead of per-row.
+    user_ids = {a.user_id for a in assignments if a.user_id}
+    users_by_id: Dict[str, User] = {}
+    if user_ids:
+        for row in db.query(User).filter(User.id.in_(user_ids)).all():
+            users_by_id[row.id] = row
+
     result = []
     for assignment in assignments:
-        user = db.query(User).filter(User.id == assignment.user_id).first()
+        user = users_by_id.get(assignment.user_id)
         result.append(
             {
                 "id": assignment.id,
@@ -513,6 +519,9 @@ async def get_my_tasks(
     page: int = Query(1, ge=1),
     page_size: int = Query(30, ge=1, le=100),
     status: Optional[str] = Query(None, pattern="^(assigned|in_progress|completed|skipped)$"),
+    search: Optional[str] = Query(
+        None, description="ILIKE match against the task's JSON data or task id."
+    ),
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -536,6 +545,17 @@ async def get_my_tasks(
     if status:
         query = query.filter(TaskAssignment.status == status)
 
+    if search:
+        from sqlalchemy import String as SAString, func as sa_func, or_ as sa_or
+        escaped = search.replace('%', r'\%').replace('_', r'\_')
+        like = f"%{escaped}%"
+        query = query.filter(
+            sa_or(
+                sa_func.cast(Task.data, SAString).ilike(like),
+                sa_func.cast(Task.id, SAString).ilike(like),
+            )
+        )
+
     # Order by priority and due date
     query = query.order_by(
         TaskAssignment.priority.desc(), TaskAssignment.due_date.asc().nullsfirst()
@@ -553,17 +573,24 @@ async def get_my_tasks(
         db, project_id, current_user.id, task_ids
     )
 
+    # Bulk-fetch this user's TaskAssignments for the page. Replaces the
+    # per-task SELECT that previously fired N+1 times.
+    assignments_by_task: Dict[str, TaskAssignment] = {}
+    if task_ids:
+        for assn in (
+            db.query(TaskAssignment)
+            .filter(
+                TaskAssignment.task_id.in_(task_ids),
+                TaskAssignment.user_id == current_user.id,
+            )
+            .all()
+        ):
+            assignments_by_task[assn.task_id] = assn
+
     # Enrich with assignment info
     result = []
     for task in tasks:
-        assignment = (
-            db.query(TaskAssignment)
-            .filter(
-                TaskAssignment.task_id == task.id,
-                TaskAssignment.user_id == current_user.id,
-            )
-            .first()
-        )
+        assignment = assignments_by_task.get(task.id)
 
         task_data = {
             "id": task.id,

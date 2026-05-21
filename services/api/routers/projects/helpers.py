@@ -41,17 +41,16 @@ from project_models import (
 from project_schemas import ProjectResponse
 
 
-# Metric-key noise stripped out of the "scored (subject, metric) pairs" tally.
-# Mirrors the dropdown filter in routers/evaluations/metadata.py so the tile and
-# the metric list agree on what counts as a "real" metric.
-_METRIC_NOISE_SUFFIXES = ("_details", "_raw", "_passed", "_grade_points", "_response")
-_METRIC_EXCLUDED_KEYS = {"raw_score", "error"}
-
-
-def _metric_key_is_real(key: Optional[str]) -> bool:
-    if not key or key in _METRIC_EXCLUDED_KEYS:
-        return False
-    return not key.endswith(_METRIC_NOISE_SUFFIXES)
+# Re-export the noise filter from /shared. Single source of truth lives in
+# metric_filters so the API, the worker, and the aggregate-summaries
+# refresh job agree on what counts as a "real" metric — historically the
+# worker couldn't import this module at all, so the live and precomputed
+# paths could silently disagree. See services/shared/metric_filters.py.
+from metric_filters import (  # noqa: F401 — re-exported for legacy callers
+    _METRIC_EXCLUDED_KEYS,
+    _METRIC_NOISE_SUFFIXES,
+    _metric_key_is_real,
+)
 
 
 def _scored_pairs_query(db: Session):
@@ -222,10 +221,10 @@ def calculate_project_stats(
     # subjects looked identical to a fully-scored run).
     #
     # Reads from the precomputed `project_summaries.evaluation_pairs_count`
-    # (refreshed by the `recompute_aggregates` Celery task every 12h). Falls
+    # (refreshed by the `recompute_aggregates` Celery task hourly). Falls
     # back to the original live computation when no precomputed row exists —
     # brand-new projects shouldn't render zero before the next refresh.
-    from services.aggregate_summaries import read_project_summary
+    from aggregate_summaries import read_project_summary
 
     summary = read_project_summary(db, project_id, period="overall")
     if summary is not None:
@@ -252,73 +251,98 @@ def calculate_project_stats(
 
 
 def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[str, Dict[str, int]]:
-    """Calculate project statistics for multiple projects using optimized queries.
+    """Calculate project statistics for multiple projects.
 
-    Replaces N+1 query pattern with grouped aggregation queries.
+    Reads from the precomputed `project_summaries` table (period='overall',
+    refreshed by the `recompute_aggregates` Celery task) so the common case
+    is one indexed lookup keyed by `project_id IN (...)`. For brand-new
+    projects that don't have a summary row yet (created between beat runs),
+    falls back to live aggregation queries scoped to *only* those missing
+    ids — the established 99% of the list pays nothing.
 
-    Args:
-        db: Database session
-        project_ids: List of project IDs to fetch stats for
-
-    Returns:
-        Dict mapping project_id to stats dict with keys:
-        - task_count
-        - completed_tasks_count
-        - annotation_count
-        - evaluation_count
-        - evaluations_completed_count
+    Returns: Dict mapping project_id to stats dict with keys
+    `task_count`, `completed_tasks_count`, `annotation_count`,
+    `evaluation_count`, `evaluations_completed_count`.
     """
     from project_models import Annotation
+    from models import ProjectSummary
+    from sqlalchemy import select as sa_select
 
     if not project_ids:
         return {}
 
-    # Query 1: Task and completed task stats using aggregation
-    task_stats_query = (
-        db.query(
-            Task.project_id,
-            func.count(Task.id).label('task_count'),
-            func.sum(case((Task.is_labeled == True, 1), else_=0)).label('completed_tasks_count'),
-        )
-        .filter(Task.project_id.in_(project_ids))
-        .group_by(Task.project_id)
-    )
-
-    # Query 2: Annotation stats using aggregation
-    # Only count completed annotations (non-cancelled, with actual results - not draft-only)
-    annotation_stats_query = (
-        db.query(Annotation.project_id, func.count(Annotation.id).label('annotation_count'))
-        .filter(
-            Annotation.project_id.in_(project_ids),
-            Annotation.was_cancelled == False,
-            # Exclude draft-only annotations (empty result but has draft)
-            Annotation.result != None,
-            func.jsonb_array_length(Annotation.result) > 0,
-        )
-        .group_by(Annotation.project_id)
-    )
-
-    # Execute task/annotation queries (pure SQL, cheap).
-    task_stats = task_stats_query.all()
-    annotation_stats = annotation_stats_query.all()
-
-    # Evaluation pairs: read from the precomputed `project_summaries` table.
-    # Falls back to the original Python-side aggregation for any project that
-    # doesn't have a precomputed row yet (brand-new projects waiting for the
-    # next `recompute_aggregates` cycle).
-    from models import ProjectSummary
-    from sqlalchemy import select as sa_select
-
+    # Read all four counters from the precomputed table in one indexed query.
     summary_rows = db.execute(
-        sa_select(ProjectSummary.project_id, ProjectSummary.evaluation_pairs_count)
-        .where(
+        sa_select(
+            ProjectSummary.project_id,
+            ProjectSummary.total_tasks,
+            ProjectSummary.labeled_tasks,
+            ProjectSummary.annotations_count,
+            ProjectSummary.evaluation_pairs_count,
+        ).where(
             ProjectSummary.project_id.in_(project_ids),
             ProjectSummary.period == "overall",
         )
     ).all()
-    eval_count_by_project = {pid: int(cnt or 0) for pid, cnt in summary_rows}
-    missing_summary_ids = [pid for pid in project_ids if pid not in eval_count_by_project]
+
+    stats_map: Dict[str, Dict[str, int]] = {}
+    for pid, total, labeled, ann, eval_pairs in summary_rows:
+        stats_map[pid] = {
+            'task_count': int(total or 0),
+            'completed_tasks_count': int(labeled or 0),
+            'annotation_count': int(ann or 0),
+            'evaluation_count': int(eval_pairs or 0),
+            'evaluations_completed_count': int(eval_pairs or 0),
+        }
+
+    missing_summary_ids = [pid for pid in project_ids if pid not in stats_map]
     if missing_summary_ids:
+        for pid in missing_summary_ids:
+            stats_map[pid] = {
+                'task_count': 0,
+                'completed_tasks_count': 0,
+                'annotation_count': 0,
+                'evaluation_count': 0,
+                'evaluations_completed_count': 0,
+            }
+
+        task_stats = (
+            db.query(
+                Task.project_id,
+                func.count(Task.id).label('task_count'),
+                func.sum(case((Task.is_labeled == True, 1), else_=0)).label(
+                    'completed_tasks_count'
+                ),
+            )
+            .filter(Task.project_id.in_(missing_summary_ids))
+            .group_by(Task.project_id)
+            .all()
+        )
+        for stat in task_stats:
+            stats_map[stat.project_id]['task_count'] = stat.task_count or 0
+            stats_map[stat.project_id]['completed_tasks_count'] = (
+                stat.completed_tasks_count or 0
+            )
+
+        # Match the worker's filter (services/aggregate_summaries._compute_project_summary)
+        # so freshly-created projects display the same number both before and
+        # after the next recompute_aggregates cycle.
+        annotation_stats = (
+            db.query(
+                Annotation.project_id, func.count(Annotation.id).label('annotation_count')
+            )
+            .filter(
+                Annotation.project_id.in_(missing_summary_ids),
+                Annotation.was_cancelled == False,
+                Annotation.result != None,
+                func.jsonb_array_length(Annotation.result) > 0,
+            )
+            .group_by(Annotation.project_id)
+            .all()
+        )
+        for stat in annotation_stats:
+            stats_map[stat.project_id]['annotation_count'] = stat.annotation_count or 0
+
         live_pairs = (
             _scored_pairs_query(db)
             .filter(EvaluationRun.project_id.in_(missing_summary_ids))
@@ -328,28 +352,8 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
         for pid, _sub_id, metric_key in live_pairs:
             if not _metric_key_is_real(metric_key):
                 continue
-            eval_count_by_project[pid] = eval_count_by_project.get(pid, 0) + 1
-        # Ensure every project_id in missing has at least a 0 entry.
-        for pid in missing_summary_ids:
-            eval_count_by_project.setdefault(pid, 0)
-
-    # Build stats lookup dictionary
-    stats_map = {}
-    for project_id in project_ids:
-        stats_map[project_id] = {
-            'task_count': 0,
-            'completed_tasks_count': 0,
-            'annotation_count': 0,
-            'evaluation_count': eval_count_by_project.get(project_id, 0),
-            'evaluations_completed_count': eval_count_by_project.get(project_id, 0),
-        }
-
-    for stat in task_stats:
-        stats_map[stat.project_id]['task_count'] = stat.task_count or 0
-        stats_map[stat.project_id]['completed_tasks_count'] = stat.completed_tasks_count or 0
-
-    for stat in annotation_stats:
-        stats_map[stat.project_id]['annotation_count'] = stat.annotation_count or 0
+            stats_map[pid]['evaluation_count'] += 1
+            stats_map[pid]['evaluations_completed_count'] += 1
 
     return stats_map
 
@@ -412,41 +416,74 @@ def calculate_generation_stats(db: Session, project: Project, response: ProjectR
 def calculate_generation_stats_batch(
     db: Session, projects: List[Project]
 ) -> Dict[str, Dict[str, int]]:
-    """Batch generation stats for many projects in 2 queries instead of 3*N.
+    """Batch generation stats for many projects.
+
+    Reads from `project_summaries` (period='overall') for every project that
+    has a summary row; falls back to the original two grouped queries only
+    for projects the worker hasn't summarized yet. After Phase 6.2 the
+    summary table carries both the total Generation count and the
+    status='completed' ResponseGeneration count, so the dashboard pays
+    nothing on the established 99 % of projects.
 
     Returns: project_id -> {generation_count, completed_generations}.
-    Caller still computes config_ready / prompts_ready / models_count / completed
-    in-process from each Project's generation_config (no DB hit).
+    Caller still computes config_ready / prompts_ready / models_count /
+    completed in-process from each Project's generation_config (no DB hit).
     """
+    from models import ProjectSummary
+    from sqlalchemy import select as sa_select
+
     if not projects:
         return {}
 
     project_ids = [p.id for p in projects]
 
-    # Query 1: total Generation rows per project
+    out: Dict[str, Dict[str, int]] = {}
+
+    # Step 1: read from the precomputed summary in one indexed query.
+    summary_rows = db.execute(
+        sa_select(
+            ProjectSummary.project_id,
+            ProjectSummary.generations_count,
+            ProjectSummary.completed_response_generations_count,
+        ).where(
+            ProjectSummary.project_id.in_(project_ids),
+            ProjectSummary.period == "overall",
+        )
+    ).all()
+    for pid, gen_c, completed_c in summary_rows:
+        out[pid] = {
+            "generation_count": int(gen_c or 0),
+            "completed_generations": int(completed_c or 0),
+        }
+
+    # Step 2: live fallback only for projects without a summary row yet.
+    missing_summary_ids = [pid for pid in project_ids if pid not in out]
+    for pid in missing_summary_ids:
+        out[pid] = {"generation_count": 0, "completed_generations": 0}
+    if not missing_summary_ids:
+        return out
+
+    # Query 1: total Generation rows per missing project
     gen_counts = (
         db.query(Task.project_id, func.count(Generation.id).label("c"))
         .join(Generation, Generation.task_id == Task.id)
-        .filter(Task.project_id.in_(project_ids))
+        .filter(Task.project_id.in_(missing_summary_ids))
         .group_by(Task.project_id)
         .all()
     )
 
-    # Query 2: completed ResponseGeneration rows per project
+    # Query 2: completed ResponseGeneration rows per missing project
     completed_counts = (
         db.query(Task.project_id, func.count(ResponseGeneration.id).label("c"))
         .join(ResponseGeneration, ResponseGeneration.task_id == Task.id)
         .filter(
-            Task.project_id.in_(project_ids),
+            Task.project_id.in_(missing_summary_ids),
             ResponseGeneration.status == "completed",
         )
         .group_by(Task.project_id)
         .all()
     )
 
-    out: Dict[str, Dict[str, int]] = {
-        pid: {"generation_count": 0, "completed_generations": 0} for pid in project_ids
-    }
     for row in gen_counts:
         out[row.project_id]["generation_count"] = row.c or 0
     for row in completed_counts:

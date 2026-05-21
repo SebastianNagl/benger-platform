@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from auth_module import User, require_user
@@ -299,8 +300,16 @@ async def notification_stream(request: Request, current_user: User = Depends(req
             # Send initial connection confirmation
             yield f"data: {json.dumps({'type': 'connected', 'message': 'Notification stream connected'})}\n\n"
 
-            # Track last notification timestamp to avoid duplicates
-            last_check = None
+            # Cursor-based delivery: track the highest `created_at + id` we've
+            # already pushed and only ask the DB for rows strictly newer than
+            # that. The previous implementation pulled the full unread set
+            # every 2 s and discarded duplicates in Python — on a user with
+            # 500+ unread it kept doing a full scan-and-discard loop while
+            # the SSE connection stayed open.
+            from models import Notification
+
+            cursor_dt = None
+            cursor_id: Optional[str] = None
 
             # Add counter to prevent infinite loops
             loop_count = 0
@@ -313,43 +322,75 @@ async def notification_stream(request: Request, current_user: User = Depends(req
                     break
 
                 try:
-                    # Create a new database session for each query to avoid holding connections
                     db_session = None
+                    new_notifications = []
                     try:
                         db_session = next(get_db())
-                        # Get recent unread notifications
-                        notifications = NotificationService.get_user_notifications(
-                            db=db_session,
-                            user_id=current_user.id,
-                            limit=10,
-                            offset=0,
-                            unread_only=True,
-                        )
-                    finally:
-                        # Always close the database session
-                        if db_session:
-                            db_session.close()
-
-                    # Filter new notifications if we have a timestamp
-                    new_notifications = []
-                    if last_check:
-                        new_notifications = [n for n in notifications if n.created_at > last_check]
-                    else:
-                        # First check - send actual unread count
-                        db_session = None
-                        try:
-                            db_session = next(get_db())
+                        if cursor_dt is None:
+                            # First iteration — send the current unread count
+                            # so the badge syncs without us touching the
+                            # unread list. Set the cursor to "now" via the
+                            # newest existing notification so subsequent
+                            # polls only fetch genuinely new rows.
                             actual_unread_count = NotificationService.get_unread_count(
                                 db=db_session, user_id=current_user.id
                             )
-                            count_data = {
-                                "type": "unread_count",
-                                "count": actual_unread_count,
-                            }
-                            yield f"data: {json.dumps(count_data)}\n\n"
-                        finally:
-                            if db_session:
-                                db_session.close()
+                            yield (
+                                "data: "
+                                + json.dumps(
+                                    {
+                                        "type": "unread_count",
+                                        "count": actual_unread_count,
+                                    }
+                                )
+                                + "\n\n"
+                            )
+                            newest = (
+                                db_session.query(Notification)
+                                .filter(Notification.user_id == current_user.id)
+                                .order_by(
+                                    Notification.created_at.desc(),
+                                    Notification.id.desc(),
+                                )
+                                .first()
+                            )
+                            if newest is not None:
+                                cursor_dt = newest.created_at
+                                cursor_id = newest.id
+                            else:
+                                # No rows yet — set cursor to "infinitely old"
+                                # so the first real arrival passes the > test.
+                                from datetime import datetime, timezone
+
+                                cursor_dt = datetime(1970, 1, 1, tzinfo=timezone.utc)
+                                cursor_id = ""
+                        else:
+                            # Subsequent iterations — strict tuple comparison
+                            # (created_at, id) > (cursor_dt, cursor_id). The
+                            # tie-break on id keeps us correct when two rows
+                            # land in the same millisecond.
+                            new_notifications = (
+                                db_session.query(Notification)
+                                .filter(
+                                    Notification.user_id == current_user.id,
+                                    or_(
+                                        Notification.created_at > cursor_dt,
+                                        and_(
+                                            Notification.created_at == cursor_dt,
+                                            Notification.id > cursor_id,
+                                        ),
+                                    ),
+                                )
+                                .order_by(
+                                    Notification.created_at.asc(),
+                                    Notification.id.asc(),
+                                )
+                                .limit(50)
+                                .all()
+                            )
+                    finally:
+                        if db_session:
+                            db_session.close()
 
                     # Send new notifications
                     for notification in new_notifications:
@@ -361,16 +402,14 @@ async def notification_stream(request: Request, current_user: User = Depends(req
                                 "title": notification.title,
                                 "message": notification.message,
                                 "data": notification.data,
-                                "is_read": False,
+                                "is_read": notification.is_read,
                                 "created_at": notification.created_at.isoformat(),
                                 "organization_id": notification.organization_id,
                             },
                         }
                         yield f"data: {json.dumps(notification_data)}\n\n"
-
-                    # Update last check timestamp
-                    if notifications:
-                        last_check = max(n.created_at for n in notifications)
+                        cursor_dt = notification.created_at
+                        cursor_id = notification.id
 
                 except Exception as e:
                     logger.error(f"Error in notification stream for user {current_user.id}: {e}")

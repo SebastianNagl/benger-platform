@@ -55,7 +55,17 @@ interface ProjectStore {
   deleteProject: (projectId: string) => Promise<void>
 
   // Task actions
-  fetchProjectTasks: (projectId: string, excludeMyAnnotations?: boolean) => Promise<Task[]>
+  fetchProjectTasks: (
+    projectId: string,
+    excludeMyAnnotations?: boolean,
+    options?: {
+      search?: string
+      dateFrom?: string
+      dateTo?: string
+      sortBy?: 'id' | 'created' | 'completed' | 'annotations' | 'generations'
+      sortOrder?: 'asc' | 'desc'
+    }
+  ) => Promise<Task[]>
   getNextTask: (projectId: string) => Promise<Task | null>
   setTaskByIndex: (index: number) => void
   advanceToNextTask: () => void
@@ -283,10 +293,24 @@ export const useProjectStore = create<ProjectStore>()(
       },
 
       // Task actions
-      fetchProjectTasks: async (projectId: string, excludeMyAnnotations?: boolean) => {
+      fetchProjectTasks: async (
+        projectId: string,
+        excludeMyAnnotations?: boolean,
+        options?: {
+          search?: string
+          dateFrom?: string
+          dateTo?: string
+          sortBy?: 'id' | 'created' | 'completed' | 'annotations' | 'generations'
+          sortOrder?: 'asc' | 'desc'
+        }
+      ) => {
         set({ loading: true, error: null })
         try {
-          // Fetch all tasks by using pagination if necessary
+          // Fetch all tasks by using pagination if necessary. When the caller
+          // passes `search`/date/sort options, those propagate to every page
+          // request — the backend filters in SQL, so a search for a single
+          // matching row stops the loop after one round-trip instead of
+          // streaming the whole project to the client and filtering in JS.
           let allTasks: Task[] = []
           let page = 1
           const pageSize = 100 // Maximum API limit
@@ -296,6 +320,11 @@ export const useProjectStore = create<ProjectStore>()(
               page,
               pageSize,
               excludeMyAnnotations,
+              search: options?.search,
+              dateFrom: options?.dateFrom,
+              dateTo: options?.dateTo,
+              sortBy: options?.sortBy,
+              sortOrder: options?.sortOrder,
             })
             allTasks.push(...tasks)
 

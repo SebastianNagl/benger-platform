@@ -2,9 +2,23 @@
  * @jest-environment jsdom
  */
 
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, fireEvent, render as rtlRender, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import React from 'react'
 import ModelsPage from '../page'
+
+// Phase 4 migrated this page to `useQuery` (30-min staleTime on the public
+// model catalog endpoints), so tests must provide a QueryClientProvider.
+const render: typeof rtlRender = (ui, options) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  })
+  return rtlRender(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+    options
+  )
+}
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({

@@ -7,6 +7,7 @@ import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useProjectStore } from '@/stores/projectStore'
+import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -18,20 +19,12 @@ const formatStatCount = (n: number): string =>
 
 export default function DashboardPage() {
   const { t } = useI18n()
-  const { projects, fetchProjects, loading } = useProjectStore()
+  const { projects, fetchProjects } = useProjectStore()
   const { user, organizations } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const errorParam = searchParams?.get('error') ?? null
-  const [dashboardStats, setDashboardStats] = useState({
-    project_count: 0,
-    task_count: 0,
-    annotation_count: 0,
-    projects_with_generations: 0,
-    projects_with_evaluations: 0,
-  })
-  const [statsLoading, setStatsLoading] = useState(true)
 
   // All authenticated users can access projects (including private projects)
   const canAccessProjects = !!user
@@ -44,26 +37,47 @@ export default function DashboardPage() {
     }
   }, [errorParam, router])
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        // Load projects for recent projects display
-        await fetchProjects(1, 100)
+  // React Query caches these for 60 s (the global default), so navigating
+  // dashboard → projects → dashboard serves the second visit from memory
+  // instead of refetching both endpoints. The projects fetch still hydrates
+  // the Zustand store via the existing fetchProjects side-effect so
+  // downstream consumers stay in sync.
+  const projectsQuery = useQuery({
+    queryKey: ['dashboard', 'projects', 1, 100],
+    queryFn: () => fetchProjects(1, 100),
+  })
 
-        // Load dashboard statistics from API
-        const { default: api } = await import('@/lib/api')
-        const stats = await api.getDashboardStats()
-        setDashboardStats(stats)
-        setStatsLoading(false)
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : t('dashboard.loadFailed')
-        )
-        setStatsLoading(false)
-      }
+  const statsQuery = useQuery({
+    queryKey: ['dashboard', 'stats'],
+    queryFn: async () => {
+      const { default: api } = await import('@/lib/api')
+      return api.getDashboardStats() as Promise<{
+        project_count: number
+        task_count: number
+        annotation_count: number
+        projects_with_generations: number
+        projects_with_evaluations: number
+      }>
+    },
+  })
+
+  const dashboardStats = statsQuery.data ?? {
+    project_count: 0,
+    task_count: 0,
+    annotation_count: 0,
+    projects_with_generations: 0,
+    projects_with_evaluations: 0,
+  }
+
+  useEffect(() => {
+    if (projectsQuery.error || statsQuery.error) {
+      const err = projectsQuery.error || statsQuery.error
+      setError(err instanceof Error ? err.message : t('dashboard.loadFailed'))
     }
-    loadData()
-  }, [fetchProjects])
+  }, [projectsQuery.error, statsQuery.error, t])
+
+  const loading = projectsQuery.isLoading
+  const statsLoading = statsQuery.isLoading
 
   const recentProjects =
     projects

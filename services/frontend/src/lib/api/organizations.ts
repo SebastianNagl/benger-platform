@@ -150,10 +150,16 @@ export class OrganizationsClient extends BaseApiClient {
   }
 
   /**
-   * List all users (superadmin only)
+   * List all users (superadmin only). Pass `search` to push the filter to
+   * the server so the admin tab doesn't have to load every user just to
+   * filter in JS; the response is bounded by `limit` either way.
    */
-  async getAllUsers(): Promise<User[]> {
-    return this.get('/organizations/manage/users')
+  async getAllUsers(options?: { search?: string; limit?: number }): Promise<User[]> {
+    const params = new URLSearchParams()
+    if (options?.search) params.append('search', options.search)
+    if (options?.limit) params.append('limit', String(options.limit))
+    const qs = params.toString()
+    return this.get(`/organizations/manage/users${qs ? '?' + qs : ''}`)
   }
 
   /**

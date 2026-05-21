@@ -137,8 +137,16 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       }
 
       try {
+        // The labeling interface only ever reads the current user's latest
+        // annotation. Pass `latestOnly` so the backend deduplicates server-side
+        // instead of returning every revision/annotator for a task — that
+        // could be 50+ rows on collaborative projects, loaded every 2-3 s as
+        // the annotator moves between tasks.
         const existingAnnotations = await projectsAPI.getTaskAnnotations(
-          currentTask.id.toString()
+          currentTask.id.toString(),
+          false,
+          undefined,
+          true,
         )
 
         if (existingAnnotations && existingAnnotations.length > 0) {

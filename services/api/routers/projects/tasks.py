@@ -44,6 +44,39 @@ async def list_project_tasks(
     only_unlabeled: Optional[bool] = None,
     only_assigned: Optional[bool] = None,  # Filter for assigned tasks
     exclude_my_annotations: Optional[bool] = None,  # Exclude tasks current user has annotated
+    search: Optional[str] = Query(
+        None,
+        description="ILIKE match against the task's JSON data or task id.",
+    ),
+    date_from: Optional[str] = Query(
+        None, description="ISO date; lower bound on Task.created_at."
+    ),
+    date_to: Optional[str] = Query(
+        None, description="ISO date; upper bound on Task.created_at."
+    ),
+    sort_by: Optional[str] = Query(
+        None,
+        description=(
+            "id | created | completed | annotations | generations. Overrides the "
+            "project's randomize_task_order when set."
+        ),
+    ),
+    sort_order: str = Query("asc", pattern="^(asc|desc)$"),
+    ids_only: bool = Query(
+        False,
+        description=(
+            "When true, skip pagination + assignment enrichment and return "
+            "only the matching task IDs. Used by the data tab's "
+            "'select all matching' affordance so bulk operations can act on "
+            "the full filtered set without paging through 50-row windows."
+        ),
+    ),
+    ids_limit: int = Query(
+        10_000,
+        ge=1,
+        le=100_000,
+        description="Safety cap on the ids_only response.",
+    ),
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -142,17 +175,67 @@ async def list_project_tasks(
         )
         query = query.filter(Task.id.notin_(any_skips))
 
-    # Apply ordering: deterministic per-user random or sequential.
-    # In both branches we add `Task.id` as a tie-breaker so OFFSET-based
-    # pagination is total-stable. Without it, batch-imported rows that
-    # share an exact `created_at` (every row in a single import burst gets
-    # the same now()) can appear in different positions across page
-    # boundaries, producing duplicates in one page and missing rows in
-    # another — which surfaced as "the first table row appears empty"
-    # after a 562-task import (inner_id=1 was reachable via /tasks/{id}
-    # but the paginated /tasks list silently returned a stale duplicate
-    # in its slot).
-    if project.randomize_task_order:
+    # Server-side search across the task's JSON payload + id. Mirrors the
+    # client-side filter that AnnotationTab used to apply after loading every
+    # task into memory.
+    if search:
+        escaped = search.replace('%', r'\%').replace('_', r'\_')
+        like = f"%{escaped}%"
+        query = query.filter(
+            or_(
+                func.cast(Task.data, String).ilike(like),
+                func.cast(Task.id, String).ilike(like),
+            )
+        )
+
+    # created_at range; tolerate either YYYY-MM-DD or full ISO.
+    def _parse_date(raw: Optional[str]):
+        if not raw:
+            return None
+        try:
+            return datetime.fromisoformat(raw)
+        except ValueError:
+            return None
+
+    start_dt = _parse_date(date_from)
+    end_dt = _parse_date(date_to)
+    if start_dt is not None:
+        query = query.filter(Task.created_at >= start_dt)
+    if end_dt is not None:
+        query = query.filter(Task.created_at <= end_dt)
+
+    # Apply ordering. An explicit `sort_by` from the client takes precedence
+    # over the project's randomize_task_order — list views need deterministic
+    # ordering for pagination, the labeling cycle is the consumer that wants
+    # randomization. Tie-break on Task.id so OFFSET pagination stays
+    # total-stable when many rows share a sort key (see migration 044 thread:
+    # batch-imported rows share an exact created_at).
+    direction = (lambda c: c.desc() if sort_order == "desc" else c.asc())
+
+    if sort_by in {"id", "created", "completed", "annotations", "generations"}:
+        sort_columns = {
+            "id": Task.id,
+            "created": Task.created_at,
+            "completed": Task.is_labeled,
+            "annotations": Task.total_annotations,
+            "generations": None,  # handled below — needs a join
+        }
+        if sort_by == "generations":
+            # LEFT JOIN aggregate so tasks without generations still appear.
+            gen_count_subq = (
+                db.query(
+                    Generation.task_id.label("task_id"),
+                    func.count(Generation.id).label("c"),
+                )
+                .group_by(Generation.task_id)
+                .subquery()
+            )
+            query = query.outerjoin(
+                gen_count_subq, gen_count_subq.c.task_id == Task.id
+            ).order_by(direction(func.coalesce(gen_count_subq.c.c, 0)), Task.id)
+        else:
+            query = query.order_by(direction(sort_columns[sort_by]), Task.id)
+    elif project.randomize_task_order:
         # hashtext (not md5) — md5() is unavailable on FIPS-restricted Postgres builds.
         query = query.order_by(
             func.hashtext(func.concat(Task.id, current_user.id)),
@@ -164,12 +247,26 @@ async def list_project_tasks(
     # Get total count before pagination
     total = query.count()
 
+    # `ids_only` short-circuit — used by the data tab's "select all matching"
+    # bulk-operation flow. Skip the pagination, generation-counts, and
+    # assignment-enrichment work below and just return the filtered IDs.
+    # `ids_limit` caps the response so a 100k-task project can't blow up
+    # the client.
+    if ids_only:
+        id_rows = query.with_entities(Task.id).limit(ids_limit).all()
+        return {
+            "ids": [tid for (tid,) in id_rows],
+            "total": total,
+            "truncated": total > ids_limit,
+        }
+
     # Pagination
     tasks = query.offset((page - 1) * page_size).limit(page_size).all()
 
-    # Get generation counts per task (calculated, not stored)
     task_ids = [task.id for task in tasks]
-    generation_counts = {}
+
+    # Per-task generation counts in one grouped query.
+    generation_counts: Dict[str, int] = {}
     if task_ids:
         gen_counts = (
             db.query(Generation.task_id, func.count(Generation.id))
@@ -179,15 +276,30 @@ async def list_project_tasks(
         )
         generation_counts = {task_id: count for task_id, count in gen_counts}
 
+    # Bulk-fetch all assignments for the page + the users they reference. Two
+    # IN queries replace the previous per-task and per-assignment lookups
+    # (which scaled as page_size + page_size × ~5 assignees per task).
+    assignments_by_task: Dict[str, List[TaskAssignment]] = {tid: [] for tid in task_ids}
+    users_by_id: Dict[str, User] = {}
+    if task_ids:
+        page_assignments = (
+            db.query(TaskAssignment).filter(TaskAssignment.task_id.in_(task_ids)).all()
+        )
+        for assn in page_assignments:
+            assignments_by_task.setdefault(assn.task_id, []).append(assn)
+        user_ids = {a.user_id for a in page_assignments if a.user_id}
+        if user_ids:
+            user_rows = db.query(User).filter(User.id.in_(user_ids)).all()
+            users_by_id = {u.id: u for u in user_rows}
+
     # Enrich tasks with assignment information
     result = []
     for task in tasks:
-        # Return full metadata (Label Studio aligned)
         task_dict = {
             "id": task.id,
-            "inner_id": task.inner_id,  # Required field for task identification within project
+            "inner_id": task.inner_id,
             "data": task.data,
-            "meta": task.meta,  # Full metadata, not just tags
+            "meta": task.meta,
             "created_at": task.created_at,
             "updated_at": task.updated_at,
             "is_labeled": task.is_labeled,
@@ -202,28 +314,22 @@ async def list_project_tasks(
             "tags": task.meta.get("tags", []) if task.meta else [],
         }
 
-        # Get assignments for this task (only if they exist)
-        try:
-            assignments = db.query(TaskAssignment).filter(TaskAssignment.task_id == task.id).all()
-
-            for assignment in assignments:
-                assigned_user = db.query(User).filter(User.id == assignment.user_id).first()
-                if assigned_user:
-                    assignment_data = {
-                        "id": assignment.id,
-                        "user_id": assignment.user_id,
-                        "user_name": assigned_user.name,
-                        "user_email": assigned_user.email,
-                        "status": assignment.status,
-                        "priority": getattr(assignment, "priority", 0),
-                        "due_date": getattr(assignment, "due_date", None),
-                        "assigned_at": assignment.assigned_at,
-                    }
-                    task_dict["assignments"].append(assignment_data)
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"Could not fetch assignments for task {task.id}: {e}")
-            task_dict["assignments"] = []
+        for assignment in assignments_by_task.get(task.id, []):
+            assigned_user = users_by_id.get(assignment.user_id)
+            if assigned_user is None:
+                continue
+            task_dict["assignments"].append(
+                {
+                    "id": assignment.id,
+                    "user_id": assignment.user_id,
+                    "user_name": assigned_user.name,
+                    "user_email": assigned_user.email,
+                    "status": assignment.status,
+                    "priority": getattr(assignment, "priority", 0),
+                    "due_date": getattr(assignment, "due_date", None),
+                    "assigned_at": assignment.assigned_at,
+                }
+            )
 
         result.append(task_dict)
 

@@ -182,10 +182,108 @@ def get_project_with_permissions(
     return project
 
 
+def _status_from_row(
+    row: DBResponseGeneration,
+    *,
+    task_id: str,
+    model_id: str,
+    structure_key: Optional[str],
+) -> TaskGenerationStatus:
+    """Materialize a TaskGenerationStatus from a ResponseGeneration row.
+
+    The cell coordinates are passed explicitly rather than read off the row
+    so the returned status carries the *requested* cell label even when
+    the row matched on the NULL-structure_key legacy fallback.
+    """
+    result_preview = None
+    if row.status == "completed" and row.result:
+        result_str = (
+            json.dumps(row.result)
+            if isinstance(row.result, dict)
+            else str(row.result)
+        )
+        result_preview = result_str[:100] + "..." if len(result_str) > 100 else result_str
+
+    return TaskGenerationStatus(
+        task_id=task_id,
+        model_id=model_id,
+        structure_key=structure_key,
+        status=row.status,
+        generation_id=row.id,
+        generated_at=row.completed_at or row.created_at,
+        error_message=row.error_message if row.status == "failed" else None,
+        result_preview=result_preview,
+        runs_requested=getattr(row, "runs_requested", None),
+        runs_completed=getattr(row, "runs_completed", None),
+        runs_failed=getattr(row, "runs_failed", None),
+    )
+
+
+def _bulk_latest_generations(
+    db: Session,
+    project_id: str,
+    task_ids: List[str],
+    model_ids: List[str],
+) -> Dict[tuple, DBResponseGeneration]:
+    """Latest ResponseGeneration row per (task_id, model_id, structure_key) for
+    the given page of tasks. Returns {(task_id, model_id, structure_key): row}.
+
+    Backed by the composite index added in migration 052
+    (`ix_response_generations_cell`). One round-trip replaces the per-cell
+    SELECT loop in `get_task_generation_status`.
+    """
+    if not task_ids or not model_ids:
+        return {}
+
+    rows = (
+        db.query(DBResponseGeneration)
+        .filter(
+            DBResponseGeneration.project_id == project_id,
+            DBResponseGeneration.task_id.in_(task_ids),
+            DBResponseGeneration.model_id.in_(model_ids),
+        )
+        .distinct(
+            DBResponseGeneration.task_id,
+            DBResponseGeneration.model_id,
+            DBResponseGeneration.structure_key,
+        )
+        .order_by(
+            DBResponseGeneration.task_id,
+            DBResponseGeneration.model_id,
+            DBResponseGeneration.structure_key,
+            DBResponseGeneration.created_at.desc(),
+        )
+        .all()
+    )
+    return {(r.task_id, r.model_id, r.structure_key): r for r in rows}
+
+
+def _resolve_cell(
+    bulk: Dict[tuple, DBResponseGeneration],
+    task_id: str,
+    model_id: str,
+    structure_key: Optional[str],
+) -> Optional[DBResponseGeneration]:
+    """Look up the latest row for a (task, model, structure) cell, falling
+    back to a legacy NULL-structure row when the exact key is missing.
+
+    Mirrors the case-ordering in the old per-cell query: prefer the exact
+    match, accept the NULL row as a last resort.
+    """
+    exact = bulk.get((task_id, model_id, structure_key))
+    if exact is not None:
+        return exact
+    if structure_key is not None:
+        return bulk.get((task_id, model_id, None))
+    return None
+
+
 def get_single_task_generation_status(
     task_id: str, model_id: str, structure_key: Optional[str], db: Session
 ) -> TaskGenerationStatus:
-    """Get generation status for a specific task-model-structure combination"""
+    """Per-cell helper kept for compatibility with code paths that only need
+    one status (e.g. tests, ad-hoc lookups). The list endpoint uses
+    `_bulk_latest_generations` to avoid the per-cell SELECT."""
 
     # Query for the most recent generation for this task-model-structure combination
     base_filter = db.query(DBResponseGeneration).filter(
@@ -211,29 +309,11 @@ def get_single_task_generation_status(
         return TaskGenerationStatus(
             task_id=task_id, model_id=model_id, structure_key=structure_key, status=None
         )
-
-    # Get preview of result if completed
-    result_preview = None
-    if generation.status == "completed" and generation.result:
-        result_str = (
-            json.dumps(generation.result)
-            if isinstance(generation.result, dict)
-            else str(generation.result)
-        )
-        result_preview = result_str[:100] + "..." if len(result_str) > 100 else result_str
-
-    return TaskGenerationStatus(
+    return _status_from_row(
+        generation,
         task_id=task_id,
         model_id=model_id,
         structure_key=structure_key,
-        status=generation.status,
-        generation_id=generation.id,
-        generated_at=generation.completed_at or generation.created_at,
-        error_message=generation.error_message if generation.status == "failed" else None,
-        result_preview=result_preview,
-        runs_requested=getattr(generation, "runs_requested", None),
-        runs_completed=getattr(generation, "runs_completed", None),
-        runs_failed=getattr(generation, "runs_failed", None),
     )
 
 
@@ -301,48 +381,91 @@ async def get_task_generation_status(
         escaped_search = search.replace('%', r'\%').replace('_', r'\_')
         query = query.filter(func.cast(Task.data, String).ilike(f"%{escaped_search}%"))
 
-    # When status_filter is set, we must check generation status per task before
-    # paginating (status lives outside the tasks table). Load all matching tasks
-    # first, filter, then paginate in Python.
-    if status_filter:
+    if status_filter and status_filter != "not_generated":
+        # Narrow the task set to ids that have at least one cell whose *latest*
+        # row matches `status_filter`. Done as a CTE-like subquery so the outer
+        # task scan keeps its pagination shape — no need to load every matching
+        # task into memory like the legacy code did.
+        latest_subq = (
+            db.query(
+                DBResponseGeneration.task_id.label("task_id"),
+                DBResponseGeneration.status.label("status"),
+            )
+            .filter(
+                DBResponseGeneration.project_id == project_id,
+                DBResponseGeneration.model_id.in_(model_ids),
+            )
+            .distinct(
+                DBResponseGeneration.task_id,
+                DBResponseGeneration.model_id,
+                DBResponseGeneration.structure_key,
+            )
+            .order_by(
+                DBResponseGeneration.task_id,
+                DBResponseGeneration.model_id,
+                DBResponseGeneration.structure_key,
+                DBResponseGeneration.created_at.desc(),
+            )
+            .subquery()
+        )
+        matching_ids_subq = (
+            db.query(latest_subq.c.task_id)
+            .filter(latest_subq.c.status == status_filter)
+            .distinct()
+        )
+        query = query.filter(Task.id.in_(matching_ids_subq))
+        total = query.count()
+        offset = (page - 1) * page_size
+        tasks = query.offset(offset).limit(page_size).all()
+    elif status_filter == "not_generated":
+        # "Missing somewhere" can't be expressed cleanly in SQL (we need to
+        # enumerate (task, model, structure) absences). Load all candidate
+        # tasks once, bulk-fetch their latest rows, filter, paginate. Single
+        # bulk query instead of per-cell SELECTs.
         tasks = query.all()
     else:
         total = query.count()
         offset = (page - 1) * page_size
         tasks = query.offset(offset).limit(page_size).all()
 
-    # Build response with generation status for each task
+    # Bulk-fetch latest ResponseGeneration rows for the resolved task page in
+    # one round-trip — replaces the per-cell loop that fired
+    # `rows × models × structures` SELECTs.
+    page_task_ids = [t.id for t in tasks]
+    bulk = _bulk_latest_generations(db, project_id, page_task_ids, model_ids)
+
     task_responses = []
     for task in tasks:
-        # Get generation status for each model-structure combination
         generation_status = {}
         for model_id in model_ids:
             model_statuses = []
             for structure_key in structure_keys:
-                task_status = get_single_task_generation_status(
-                    task.id, model_id, structure_key, db
-                )
-                model_statuses.append(task_status.model_dump() if task_status else None)
+                row = _resolve_cell(bulk, task.id, model_id, structure_key)
+                if row is None:
+                    status_obj = TaskGenerationStatus(
+                        task_id=task.id,
+                        model_id=model_id,
+                        structure_key=structure_key,
+                        status=None,
+                    )
+                else:
+                    status_obj = _status_from_row(
+                        row,
+                        task_id=task.id,
+                        model_id=model_id,
+                        structure_key=structure_key,
+                    )
+                model_statuses.append(status_obj.model_dump())
             generation_status[model_id] = model_statuses
 
-        # Apply status filter if provided
-        if status_filter:
-            if status_filter == "not_generated":
-                has_matching_status = any(
-                    any(
-                        not status_obj or status_obj.get('status') is None
-                        for status_obj in statuses_list
-                    )
-                    for statuses_list in generation_status.values()
+        if status_filter == "not_generated":
+            has_matching_status = any(
+                any(
+                    not status_obj or status_obj.get('status') is None
+                    for status_obj in statuses_list
                 )
-            else:
-                has_matching_status = any(
-                    any(
-                        status_obj and status_obj.get('status') == status_filter
-                        for status_obj in statuses_list
-                    )
-                    for statuses_list in generation_status.values()
-                )
+                for statuses_list in generation_status.values()
+            )
             if not has_matching_status:
                 continue
 
@@ -356,8 +479,7 @@ async def get_task_generation_status(
             )
         )
 
-    # When status_filter is active, paginate the filtered results in Python
-    if status_filter:
+    if status_filter == "not_generated":
         total = len(task_responses)
         offset = (page - 1) * page_size
         task_responses = task_responses[offset : offset + page_size]
