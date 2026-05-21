@@ -100,6 +100,7 @@ def _mock_task_evaluation(**overrides):
     te.processing_time_ms = 150
     te.judge_run_id = None
     te.judge_prompts_used = None
+    te.created_by = "user-grader-1"
     te.created_at = datetime(2026, 1, 4)
     for k, v in overrides.items():
         setattr(te, k, v)
@@ -217,6 +218,7 @@ class TestSerializeTaskEvaluation:
         assert result["judge_model"] == "gpt-4o-judge"
         assert result["annotation_id"] == "ann-1"
         assert result["judge_run_id"] == "jr-1"
+        assert result["created_by"] == "user-grader-1"
         # Data mode should NOT have raw FK fields
         assert "evaluation_id" not in result
         assert "task_id" not in result
