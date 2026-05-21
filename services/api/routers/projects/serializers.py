@@ -155,6 +155,11 @@ def serialize_task_evaluation(
         # multi-judge configs (where one EvaluationRun spawns N EvaluationJudgeRuns,
         # one per judge model) remain distinguishable in the export.
         "judge_run_id": te.judge_run_id,
+        # Grader user_id. Populated on rows written by a human (korrektur
+        # grades, manual rubric edits) and on LLM-judge rows (the dispatcher).
+        # Downstream analysis joins this to users.id when grader identity is
+        # needed — IRR, creator-vs-blind, judge-vs-human comparisons.
+        "created_by": te.created_by,
         "created_at": _isoformat(te.created_at),
     }
     if mode == "data":
