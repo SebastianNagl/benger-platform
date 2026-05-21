@@ -242,9 +242,18 @@ class AnthropicService(BaseAIService):
         **kwargs
     ) -> Dict[str, Any]:
         """
-        Generate a structured JSON response using Anthropic's tool_use.
+        Generate a structured JSON response by instructing the model to emit
+        JSON in its text response, mirroring the OpenAI/Google paths.
 
-        Uses tool_use with forced tool_choice for guaranteed structured output.
+        Previously this used Anthropic's tool_use API with forced tool_choice
+        and input_schema=json_schema. That path silently broke on deeply nested
+        schemas with large outputs: Sonnet 4.6 returned nested object fields as
+        JSON-stringified blobs truncated at ~10kB, and Opus 4.7 hit the same
+        bug at ~2% rate on long judge prompts. Switching to text-mode JSON
+        (system prompt injects the schema as instruction, caller parses the
+        text content) avoids the tool_use serialiser's quirks. The Falllösung
+        3-stage parser already handles raw JSON, markdown-fenced JSON, and
+        brace-matched-JSON-with-preamble.
 
         Args:
             prompt: User prompt
@@ -255,7 +264,7 @@ class AnthropicService(BaseAIService):
             temperature: Response creativity (0.0-1.0)
 
         Returns:
-            Dict with response data. The 'content' field will be a JSON string.
+            Dict with response data. The 'content' field is a JSON text string.
         """
         import json
 
@@ -280,7 +289,7 @@ class AnthropicService(BaseAIService):
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                     "response_time_ms": 150,
-                    "finish_reason": "tool_use",
+                    "finish_reason": "end_turn",
                     "truncated": False,
                     "refusal": False,
                     "error_type": None,
@@ -298,33 +307,32 @@ class AnthropicService(BaseAIService):
         try:
             start_time = datetime.now()
 
-            # Define the tool with input_schema from json_schema
-            tools = [{
-                "name": "annotation_response",
-                "description": "Provide structured annotation response matching the project schema",
-                "input_schema": json_schema
-            }]
+            # Inject the JSON schema as an instruction onto the system prompt,
+            # mirroring google_service.py:_build_json_prompt. Bilingual hint
+            # because the Falllösung judge prompt is in German; the parser is
+            # robust to either-language preamble that the model might emit.
+            schema_text = json.dumps(json_schema, ensure_ascii=False, indent=2)
+            enhanced_system = (
+                system_prompt
+                + "\n\nRespond with ONLY valid JSON (no markdown fences, no "
+                  "preamble or trailing text) matching this schema. "
+                  "Antworte ausschließlich mit validem JSON nach diesem Schema:\n"
+                + schema_text
+            )
 
-            # Make Anthropic API call with forced tool use
             response = self.client.messages.create(
                 model=model_name,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                system=system_prompt,
+                system=enhanced_system,
                 messages=[{"role": "user", "content": prompt}],
-                tools=tools,
-                tool_choice={"type": "tool", "name": "annotation_response"}
             )
 
             end_time = datetime.now()
             response_time_ms = int((end_time - start_time).total_seconds() * 1000)
 
-            # Extract tool use input as the structured response
-            content = ""
-            for block in response.content:
-                if block.type == "tool_use" and block.name == "annotation_response":
-                    content = json.dumps(block.input, ensure_ascii=False)
-                    break
+            # Extract response text (same shape as generate() at line 180)
+            content = response.content[0].text if response.content else ""
 
             input_tokens = response.usage.input_tokens if hasattr(response, "usage") else 0
             output_tokens = response.usage.output_tokens if hasattr(response, "usage") else 0
