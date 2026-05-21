@@ -449,19 +449,23 @@ class TestSerializerFunctions:
         te.confidence_score = 0.9
         te.error_message = None
         te.processing_time_ms = 150
+        te.judge_prompts_used = None
+        te.judge_run_id = "jr-1"
         te.created_at = datetime(2025, 1, 1)
         te.evaluation_id = "eval-1"
 
         eval_run = Mock()
         eval_run.model_id = "gpt-4o"
 
-        lookup = {("eval-1", "config1"): "claude-sonnet-4"}
+        # New lookup shape: {judge_run_id: judge_model_id}
+        lookup = {"jr-1": "claude-sonnet-4"}
 
         result = serialize_task_evaluation(
             te, mode="data", eval_run=eval_run, judge_model_lookup=lookup
         )
         assert result["evaluated_model"] == "gpt-4o"
         assert result["judge_model"] == "claude-sonnet-4"
+        assert result["judge_run_id"] == "jr-1"
 
     def test_serialize_task_evaluation_full_mode(self):
         from routers.projects.serializers import serialize_task_evaluation
@@ -533,98 +537,66 @@ class TestSerializerFunctions:
 
 
 class TestBuildJudgeModelLookup:
-    """Tests for build_judge_model_lookup."""
+    """Tests for build_judge_model_lookup. The function now reads
+    evaluation_judge_runs directly so multi-judge configs remain
+    distinguishable per row."""
 
-    def test_new_format_judge_models(self):
+    def _make_db(self, ejr_rows):
+        db = Mock()
+        db.query.return_value.filter.return_value.all.return_value = ejr_rows
+        return db
+
+    def _make_ejr(self, id_, evaluation_id, judge_model_id):
+        ejr = Mock()
+        ejr.id = id_
+        ejr.evaluation_id = evaluation_id
+        ejr.judge_model_id = judge_model_id
+        return ejr
+
+    def test_returns_judge_run_id_to_judge_model(self):
         from routers.projects.serializers import build_judge_model_lookup
 
         er = Mock()
         er.id = "er-1"
-        er.eval_metadata = {
-            "judge_models": {"config1": "claude-sonnet-4", "config2": "gpt-4o"},
-            "evaluation_configs": [],
-        }
-        result = build_judge_model_lookup([er])
-        assert result[("er-1", "config1")] == "claude-sonnet-4"
-        assert result[("er-1", "config2")] == "gpt-4o"
+        ejrs = [
+            self._make_ejr("jr-1", "er-1", "claude-sonnet-4"),
+            self._make_ejr("jr-2", "er-1", "gpt-4o"),
+        ]
+        result = build_judge_model_lookup([er], self._make_db(ejrs))
+        assert result == {"jr-1": "claude-sonnet-4", "jr-2": "gpt-4o"}
 
-    def test_old_format_evaluation_configs(self):
+    def test_non_judge_metric_judge_model_is_none(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = Mock()
-        er.id = "er-1"
-        er.eval_metadata = {
-            "evaluation_configs": [
-                {"id": "cfg1", "metric_parameters": {"judge_model": "gpt-4o"}},
-            ],
-        }
-        result = build_judge_model_lookup([er])
-        assert result[("er-1", "cfg1")] == "gpt-4o"
+        er = Mock(); er.id = "er-1"
+        ejrs = [self._make_ejr("jr-1", "er-1", None)]
+        result = build_judge_model_lookup([er], self._make_db(ejrs))
+        assert result == {"jr-1": None}
 
-    def test_new_format_takes_precedence(self):
+    def test_empty_runs_short_circuits(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = Mock()
-        er.id = "er-1"
-        er.eval_metadata = {
-            "judge_models": {"cfg1": "claude-sonnet-4"},
-            "evaluation_configs": [
-                {"id": "cfg1", "metric_parameters": {"judge_model": "gpt-4o"}},
-            ],
-        }
-        result = build_judge_model_lookup([er])
-        assert result[("er-1", "cfg1")] == "claude-sonnet-4"
+        # When evaluation_runs is empty, no DB call should happen
+        assert build_judge_model_lookup([], Mock()) == {}
 
-    def test_empty_metadata(self):
+    def test_no_judge_run_rows(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = Mock()
-        er.id = "er-1"
-        er.eval_metadata = {}
-        result = build_judge_model_lookup([er])
-        assert result == {}
-
-    def test_none_metadata(self):
-        from routers.projects.serializers import build_judge_model_lookup
-
-        er = Mock()
-        er.id = "er-1"
-        er.eval_metadata = None
-        result = build_judge_model_lookup([er])
-        assert result == {}
-
-    def test_no_metric_parameters(self):
-        from routers.projects.serializers import build_judge_model_lookup
-
-        er = Mock()
-        er.id = "er-1"
-        er.eval_metadata = {
-            "evaluation_configs": [
-                {"id": "cfg1"},
-            ],
-        }
-        result = build_judge_model_lookup([er])
+        er = Mock(); er.id = "er-1"
+        result = build_judge_model_lookup([er], self._make_db([]))
         assert result == {}
 
     def test_multiple_evaluation_runs(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er1 = Mock()
-        er1.id = "er-1"
-        er1.eval_metadata = {
-            "judge_models": {"cfg1": "model-a"},
-            "evaluation_configs": [],
-        }
-        er2 = Mock()
-        er2.id = "er-2"
-        er2.eval_metadata = {
-            "evaluation_configs": [
-                {"id": "cfg2", "metric_parameters": {"judge_model": "model-b"}},
-            ],
-        }
-        result = build_judge_model_lookup([er1, er2])
-        assert result[("er-1", "cfg1")] == "model-a"
-        assert result[("er-2", "cfg2")] == "model-b"
+        er1 = Mock(); er1.id = "er-1"
+        er2 = Mock(); er2.id = "er-2"
+        ejrs = [
+            self._make_ejr("jr-a", "er-1", "model-a"),
+            self._make_ejr("jr-b", "er-2", "model-b"),
+        ]
+        result = build_judge_model_lookup([er1, er2], self._make_db(ejrs))
+        assert result == {"jr-a": "model-a", "jr-b": "model-b"}
 
 
 class TestBuildEvaluationIndexes:

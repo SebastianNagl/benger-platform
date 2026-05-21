@@ -774,23 +774,33 @@ class TestBulkExportTasks:
         session.add(eval_run)
         session.flush()
 
-        # Migration 043 made TaskEvaluation.judge_run_id NOT NULL; use the
-        # catch-all judge-run shape that orphan backfill uses.
-        judge_run = EvaluationJudgeRun(
+        # build_judge_model_lookup now reads judge_model_id directly from
+        # evaluation_judge_runs (per-row resolution for multi-judge configs).
+        # Set up two EJRs: one carrying the judge model (for the gen_eval row)
+        # and one with None (for the task_eval row, simulating a non-LLM-judge
+        # metric attached at task level).
+        judge_run_with_model = EvaluationJudgeRun(
             id=str(uuid.uuid4()),
             evaluation_id=eval_run.id,
-            judge_model_id=None,
+            judge_model_id="claude-sonnet-4-20250514",
             run_index=0,
             status="completed",
         )
-        session.add(judge_run)
+        judge_run_no_model = EvaluationJudgeRun(
+            id=str(uuid.uuid4()),
+            evaluation_id=eval_run.id,
+            judge_model_id=None,
+            run_index=1,
+            status="completed",
+        )
+        session.add_all([judge_run_with_model, judge_run_no_model])
         session.flush()
 
         # Create evaluation linked to a generation (uses config_id:pred:ref field_name format)
         gen_eval = TaskEvaluation(
             id=str(uuid.uuid4()),
             evaluation_id=eval_run.id,
-            judge_run_id=judge_run.id,
+            judge_run_id=judge_run_with_model.id,
             task_id=target_task.id,
             generation_id=target_gen.id,
             field_name=f"{config_id}:__all_model__:answer",
@@ -802,11 +812,12 @@ class TestBulkExportTasks:
         )
         session.add(gen_eval)
 
-        # Create task-level evaluation (no generation_id, no config_id in field_name)
+        # Task-level evaluation (no generation_id); points to the no-model EJR
+        # so judge_model resolves to None — same semantic as the original test.
         task_eval = TaskEvaluation(
             id=str(uuid.uuid4()),
             evaluation_id=eval_run.id,
-            judge_run_id=judge_run.id,
+            judge_run_id=judge_run_no_model.id,
             task_id=target_task.id,
             generation_id=None,
             field_name="summary",
@@ -851,4 +862,4 @@ class TestBulkExportTasks:
         assert task_level_eval["field_name"] == "summary"
         assert task_level_eval["evaluation_run_id"] == eval_run.id
         assert task_level_eval["evaluated_model"] == "gpt-4"
-        assert task_level_eval["judge_model"] is None  # No config_id in field_name
+        assert task_level_eval["judge_model"] is None  # judge_run points to non-judge EJR

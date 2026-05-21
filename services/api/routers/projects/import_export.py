@@ -786,7 +786,7 @@ async def export_project(
     )
 
     eval_run_by_id = {er.id: er for er in evaluation_runs}
-    judge_model_lookup = build_judge_model_lookup(evaluation_runs)
+    judge_model_lookup = build_judge_model_lookup(evaluation_runs, db)
     te_by_task, te_by_generation = build_evaluation_indexes(task_evaluations)
 
     # Build export data

@@ -98,6 +98,8 @@ def _mock_task_evaluation(**overrides):
     te.confidence_score = 0.95
     te.error_message = None
     te.processing_time_ms = 150
+    te.judge_run_id = None
+    te.judge_prompts_used = None
     te.created_at = datetime(2026, 1, 4)
     for k, v in overrides.items():
         setattr(te, k, v)
@@ -204,9 +206,9 @@ class TestSerializeGeneration:
 
 class TestSerializeTaskEvaluation:
     def test_data_mode_with_denormalized_fields(self):
-        te = _mock_task_evaluation()
+        te = _mock_task_evaluation(judge_run_id="jr-1")
         er = _mock_evaluation_run()
-        lookup = {("er-1", "cfg1"): "gpt-4o-judge"}
+        lookup = {"jr-1": "gpt-4o-judge"}
         result = serialize_task_evaluation(
             te, mode="data", eval_run=er, judge_model_lookup=lookup,
         )
@@ -214,14 +216,17 @@ class TestSerializeTaskEvaluation:
         assert result["evaluated_model"] == "gpt-4o"
         assert result["judge_model"] == "gpt-4o-judge"
         assert result["annotation_id"] == "ann-1"
+        assert result["judge_run_id"] == "jr-1"
         # Data mode should NOT have raw FK fields
         assert "evaluation_id" not in result
         assert "task_id" not in result
         assert "generation_id" not in result
 
-    def test_data_mode_no_config_id_in_field_name(self):
-        te = _mock_task_evaluation(field_name="simple_field")
-        result = serialize_task_evaluation(te, mode="data")
+    def test_data_mode_no_judge_run_id(self):
+        # When te has no judge_run_id (e.g. legacy row before migration 043),
+        # judge_model resolves to None even with a populated lookup.
+        te = _mock_task_evaluation(judge_run_id=None)
+        result = serialize_task_evaluation(te, mode="data", judge_model_lookup={"jr-1": "gpt-4o-judge"})
         assert result["judge_model"] is None
 
     def test_full_mode_includes_fk_fields(self):
@@ -253,39 +258,55 @@ class TestSerializeEvaluationRun:
 
 
 class TestBuildJudgeModelLookup:
-    def test_new_format(self):
-        er = _mock_evaluation_run(
-            eval_metadata={"judge_models": {"cfg1": "gpt-4o", "cfg2": "claude-3"}}
-        )
-        lookup = build_judge_model_lookup([er])
-        assert lookup[("er-1", "cfg1")] == "gpt-4o"
-        assert lookup[("er-1", "cfg2")] == "claude-3"
+    """build_judge_model_lookup now queries evaluation_judge_runs directly.
+    Returns {judge_run_id: judge_model_id} so multi-judge configs (where one
+    EvaluationRun spawns N EvaluationJudgeRuns, one per judge model) remain
+    distinguishable per row in the export."""
 
-    def test_old_format(self):
-        er = _mock_evaluation_run(eval_metadata={
-            "evaluation_configs": [
-                {"id": "cfg1", "metric_parameters": {"judge_model": "gpt-4o"}}
-            ]
-        })
-        lookup = build_judge_model_lookup([er])
-        assert lookup[("er-1", "cfg1")] == "gpt-4o"
+    def _make_db(self, ejr_rows):
+        """Build a mock db whose query(...).filter(...).all() returns ejr_rows."""
+        db = Mock()
+        all_chain = Mock()
+        all_chain.all.return_value = ejr_rows
+        filter_chain = Mock()
+        filter_chain.filter.return_value = all_chain
+        db.query.return_value = filter_chain
+        return db
 
-    def test_new_format_takes_precedence(self):
-        er = _mock_evaluation_run(eval_metadata={
-            "judge_models": {"cfg1": "new-model"},
-            "evaluation_configs": [
-                {"id": "cfg1", "metric_parameters": {"judge_model": "old-model"}}
-            ]
-        })
-        lookup = build_judge_model_lookup([er])
-        assert lookup[("er-1", "cfg1")] == "new-model"
+    def _make_ejr(self, id_, evaluation_id, judge_model_id):
+        ejr = Mock()
+        ejr.id = id_
+        ejr.evaluation_id = evaluation_id
+        ejr.judge_model_id = judge_model_id
+        return ejr
+
+    def test_returns_judge_run_id_to_model_id_mapping(self):
+        er = _mock_evaluation_run()
+        ejrs = [
+            self._make_ejr("jr-1", "er-1", "gpt-5-mini"),
+            self._make_ejr("jr-2", "er-1", "claude-opus-4-7"),
+            self._make_ejr("jr-3", "er-1", "gemini-3.1-pro-preview"),
+        ]
+        db = self._make_db(ejrs)
+        lookup = build_judge_model_lookup([er], db)
+        assert lookup == {"jr-1": "gpt-5-mini", "jr-2": "claude-opus-4-7", "jr-3": "gemini-3.1-pro-preview"}
+
+    def test_non_judge_metric_judge_model_is_none(self):
+        # bleu/rouge/etc. have EvaluationJudgeRun rows with judge_model_id=None
+        # per migration 042/043 backfill. Lookup preserves the None.
+        er = _mock_evaluation_run()
+        ejrs = [self._make_ejr("jr-1", "er-1", None)]
+        lookup = build_judge_model_lookup([er], self._make_db(ejrs))
+        assert lookup == {"jr-1": None}
 
     def test_empty_runs(self):
-        assert build_judge_model_lookup([]) == {}
+        db = self._make_db([])
+        assert build_judge_model_lookup([], db) == {}
 
-    def test_no_metadata(self):
-        er = _mock_evaluation_run(eval_metadata=None)
-        assert build_judge_model_lookup([er]) == {}
+    def test_no_judge_run_rows(self):
+        er = _mock_evaluation_run()
+        db = self._make_db([])  # query returns no rows
+        assert build_judge_model_lookup([er], db) == {}
 
 
 class TestBuildEvaluationIndexes:
