@@ -278,15 +278,22 @@ def _project_scope_key_for_request(
 
     Returns:
       - single-project id when exactly one project is in the filter
-      - 'all' for superadmin with no filter
-      - 'public' for visitors/contributors with no filter (default visibility)
+      - 'all' for any authenticated user with no filter — logged-in users see
+        aggregate leaderboard scores across every project (the leaderboard is
+        aggregate-only, never row-level data, so private-project rankings are
+        the legitimate signal we want them to act on)
+      - 'public' for anonymous visitors with no filter — the public web
+        leaderboard stays scoped to is_public=True projects so private
+        project rankings don't leak to the open internet
       - None when no precomputed scope matches (multi-project explicit filter)
     """
     if project_ids and len(project_ids) == 1:
         return project_ids[0]
     if project_ids:
         return None  # multi-project filter → live fallback
-    return "all" if getattr(current_user, "is_superadmin", False) else "public"
+    if current_user is not None:
+        return "all"
+    return "public"
 
 
 def _evaluation_types_in_scope(
