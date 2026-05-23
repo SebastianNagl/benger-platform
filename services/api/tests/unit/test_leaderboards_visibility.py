@@ -56,15 +56,21 @@ def test_helper_falls_back_to_is_public_when_no_project_ids():
     assert "if project_ids:" in body
 
 
-def test_default_scope_falls_back_to_public_for_non_superadmin():
-    """After the precomputed-summary refactor (migration 051), visibility
-    is enforced at the scope-key level rather than via .filter() calls on
-    EvaluationRun. The contract is the same: a non-superadmin user with
-    no `project_ids` filter must read from the 'public' scope (which the
-    worker precomputes from `Project.is_public=True` only), NOT from 'all'.
+def test_default_scope_splits_by_authentication():
+    """Visibility contract for the precomputed leaderboard:
 
-    Closes the same regression as PR 5 (ZJS Fälle bleeding into the
-    global per-model averages).
+    * **Anonymous visitors** (no auth cookie / no token) → 'public' scope.
+      Private project rankings must NOT leak to the open internet via
+      the unauthenticated /leaderboards endpoint.
+    * **Any authenticated user** (superadmin or not) → 'all' scope. Logged-in
+      users see aggregate scores from every project. Aggregates are not
+      row-level data; the private-project signal is the whole point of
+      the leaderboard for evaluators.
+
+    Replaces the older non-superadmin → 'public' rule. The original
+    motivation (ZJS Fälle on a 34k-row BLEU project skewing the global
+    average) is preserved for anonymous visitors; the change only opens
+    the inside view to authenticated users.
     """
     src = _src()
     m = re.search(
@@ -77,14 +83,19 @@ def test_default_scope_falls_back_to_public_for_non_superadmin():
     )
     assert m, "_project_scope_key_for_request helper missing — refactor reverted?"
     body = m.group(0)
-    # Default branch (no project_ids) must select 'public' unless superadmin.
-    assert "is_superadmin" in body, (
-        "Scope selector must branch on is_superadmin so non-superadmins land "
-        "on the 'public' scope by default"
+    # Authenticated branch must exist and return 'all'.
+    assert "current_user is not None" in body, (
+        "Scope selector must branch on whether the user is authenticated "
+        "(current_user is not None) so logged-in users land on 'all'"
     )
+    assert "'all'" in body or '"all"' in body, (
+        "Authenticated default must be 'all' — otherwise SebaN-style users "
+        "can't see private-project leaderboard data"
+    )
+    # Anonymous fallback must still be 'public'.
     assert "'public'" in body or '"public"' in body, (
-        "Default scope key for non-superadmin without project_ids must be "
-        "'public' — otherwise private projects leak into the leaderboard"
+        "Anonymous fallback must be 'public' — otherwise private project "
+        "rankings leak to the open internet via /leaderboards"
     )
 
 
