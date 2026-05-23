@@ -364,6 +364,14 @@ def _aggregate_leaderboard_rows(
     )
 
     # jsonb_each returns a record type; using text() for clarity.
+    #
+    # The UNION ALL branch synthesises a `llm_judge_falloesung_grade_points`
+    # triple per row from `metrics.llm_judge_falloesung.details.grade_points`.
+    # The worker stores grade points inside `details` (next to raw_score), so
+    # jsonb_each above only ever sees the parent `llm_judge_falloesung`
+    # (0–1 normalised score). The frontend leaderboard defaults to the
+    # grade_points metric — without this lift the column is always n/a even
+    # though the per-row value exists.
     raw_sql = text(
         """
         SELECT
@@ -378,6 +386,23 @@ def _aggregate_leaderboard_rows(
           AND te.generation_id IS NOT NULL
           AND te.metrics IS NOT NULL
           AND jsonb_typeof(te.metrics::jsonb) = 'object'
+
+        UNION ALL
+
+        SELECT
+            g.model_id,
+            'llm_judge_falloesung_grade_points' AS metric_key,
+            te.metrics::jsonb->'llm_judge_falloesung'->'details'->'grade_points' AS metric_val
+        FROM task_evaluations te
+        JOIN generations g ON g.id = te.generation_id
+        JOIN evaluation_runs er ON er.id = te.evaluation_id
+        WHERE te.evaluation_id = ANY(:run_ids)
+          AND te.generation_id IS NOT NULL
+          AND te.metrics IS NOT NULL
+          AND jsonb_typeof(te.metrics::jsonb) = 'object'
+          AND te.metrics::jsonb ? 'llm_judge_falloesung'
+          AND te.metrics::jsonb->'llm_judge_falloesung'->'details' ? 'grade_points'
+          AND jsonb_typeof(te.metrics::jsonb->'llm_judge_falloesung'->'details'->'grade_points') = 'number'
         """
     ).bindparams(run_ids=run_ids)
 

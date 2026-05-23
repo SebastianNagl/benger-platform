@@ -403,3 +403,231 @@ class TestReadLLMModelAggregate:
         )
         assert agg["metrics"] == {}
         assert agg["evaluation_count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Falllösung grade-points lift
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def seeded_falloesung(test_db: Session):
+    """Two task_evaluations carrying the canonical Falllösung metric shape:
+    `metrics.llm_judge_falloesung = {value, details: {raw_score, grade_points}}`.
+
+    Grade points live INSIDE `details`, not as a sibling top-level key. The
+    aggregator must lift them out via the dedicated UNION ALL branch so the
+    leaderboard's default column (`llm_judge_falloesung_grade_points`) has
+    rows to render.
+    """
+    user = User(
+        id=str(uuid.uuid4()),
+        username=f"fal_{uuid.uuid4().hex[:6]}",
+        email=f"fal_{uuid.uuid4().hex[:6]}@example.com",
+        name="Falloesung Test User",
+        hashed_password="x",
+        is_active=True,
+        is_superadmin=False,
+        email_verified=True,
+    )
+    test_db.add(user)
+
+    project = Project(
+        id=str(uuid.uuid4()),
+        title="Falloesung lift test",
+        description="for test_aggregate_summaries",
+        created_by=user.id,
+        label_config="<View/>",
+        is_public=True,
+        public_role="ANNOTATOR",
+    )
+    test_db.add(project)
+    test_db.flush()
+
+    task = Task(
+        id=str(uuid.uuid4()),
+        project_id=project.id,
+        data={"text": "fal task"},
+        inner_id=1,
+        is_labeled=True,
+    )
+    test_db.add(task)
+    test_db.flush()
+
+    rg = ResponseGeneration(
+        id=str(uuid.uuid4()),
+        project_id=project.id,
+        task_id=task.id,
+        model_id="gpt-4o",
+        status="completed",
+        created_by=user.id,
+    )
+    test_db.add(rg)
+    test_db.flush()
+
+    gen_high = Generation(
+        id=str(uuid.uuid4()),
+        generation_id=rg.id,
+        task_id=task.id,
+        model_id="gpt-4o",
+        run_index=0,
+        response_content="answer A",
+        case_data=json.dumps({}),
+        status="completed",
+        parse_status="success",
+    )
+    gen_low = Generation(
+        id=str(uuid.uuid4()),
+        generation_id=rg.id,
+        task_id=task.id,
+        model_id="gpt-4o",
+        run_index=1,
+        response_content="answer B",
+        case_data=json.dumps({}),
+        status="completed",
+        parse_status="success",
+    )
+    test_db.add_all([gen_high, gen_low])
+    test_db.flush()
+
+    er = EvaluationRun(
+        id=str(uuid.uuid4()),
+        project_id=project.id,
+        model_id="gpt-4o",
+        evaluation_type_ids=["llm_judge_falloesung"],
+        metrics={},
+        eval_metadata={},
+        status="completed",
+        samples_evaluated=2,
+        created_by=user.id,
+        created_at=datetime.now(timezone.utc),
+        completed_at=datetime.now(timezone.utc),
+    )
+    test_db.add(er)
+    test_db.flush()
+
+    jr = EvaluationJudgeRun(
+        id=str(uuid.uuid4()),
+        evaluation_id=er.id,
+        judge_model_id=None,
+        run_index=0,
+        status="completed",
+    )
+    test_db.add(jr)
+    test_db.flush()
+
+    # Raw_score 80 → grade_points 14 (per FALLOESUNG_GRADE_TABLE).
+    # Raw_score 40 → grade_points 4.
+    # Mean grade_points = 9.0.
+    te_high = TaskEvaluation(
+        id=str(uuid.uuid4()),
+        evaluation_id=er.id,
+        judge_run_id=jr.id,
+        task_id=task.id,
+        generation_id=gen_high.id,
+        field_name="llm_judge_falloesung",
+        answer_type="text",
+        ground_truth=None,
+        prediction=None,
+        metrics={
+            "llm_judge_falloesung": {
+                "value": 0.8,
+                "method": "llm_judge_falloesung",
+                "details": {
+                    "raw_score": 80.0,
+                    "grade_points": 14,
+                    "passed": True,
+                },
+                "error": None,
+            }
+        },
+        passed=True,
+    )
+    te_low = TaskEvaluation(
+        id=str(uuid.uuid4()),
+        evaluation_id=er.id,
+        judge_run_id=jr.id,
+        task_id=task.id,
+        generation_id=gen_low.id,
+        field_name="llm_judge_falloesung",
+        answer_type="text",
+        ground_truth=None,
+        prediction=None,
+        metrics={
+            "llm_judge_falloesung": {
+                "value": 0.4,
+                "method": "llm_judge_falloesung",
+                "details": {
+                    "raw_score": 40.0,
+                    "grade_points": 4,
+                    "passed": False,
+                },
+                "error": None,
+            }
+        },
+        passed=False,
+    )
+    # A third row missing grade_points — must NOT emit the synthetic metric.
+    te_missing = TaskEvaluation(
+        id=str(uuid.uuid4()),
+        evaluation_id=er.id,
+        judge_run_id=jr.id,
+        task_id=task.id,
+        generation_id=gen_high.id,
+        field_name="llm_judge_falloesung",
+        answer_type="text",
+        ground_truth=None,
+        prediction=None,
+        metrics={
+            "llm_judge_falloesung": {
+                "value": None,
+                "details": {"error": "parse failed"},
+                "error": "parse failed",
+            }
+        },
+        passed=False,
+    )
+    test_db.add_all([te_high, te_low, te_missing])
+    test_db.commit()
+
+    return {"project": project, "evaluation_run": er}
+
+
+class TestFalloesungGradePointsLift:
+    def test_synthetic_metric_emitted_per_row(self, test_db, seeded_falloesung):
+        rows = live_aggregate_leaderboard(
+            test_db,
+            project_ids=[seeded_falloesung["project"].id],
+            period="overall",
+            evaluation_types=None,
+        )
+        metric_keys = {(r["model_id"], r["metric"]) for r in rows}
+        assert ("gpt-4o", "llm_judge_falloesung") in metric_keys
+        assert ("gpt-4o", "llm_judge_falloesung_grade_points") in metric_keys
+
+    def test_synthetic_metric_score_is_mean_of_per_row_grade_points(
+        self, test_db, seeded_falloesung
+    ):
+        rows = live_aggregate_leaderboard(
+            test_db,
+            project_ids=[seeded_falloesung["project"].id],
+            period="overall",
+            evaluation_types=None,
+        )
+        gp_row = next(
+            r for r in rows
+            if r["model_id"] == "gpt-4o"
+            and r["metric"] == "llm_judge_falloesung_grade_points"
+        )
+        # Mean of grade_points 14 and 4 (the parse-failed row contributes nothing).
+        assert gp_row["score"] == pytest.approx(9.0, abs=1e-3)
+
+    def test_precomputed_path_includes_grade_points(self, test_db, seeded_falloesung):
+        recompute_llm_leaderboard_scores(test_db)
+        gp_rows = test_db.query(LLMLeaderboardScore).filter(
+            LLMLeaderboardScore.model_id == "gpt-4o",
+            LLMLeaderboardScore.metric == "llm_judge_falloesung_grade_points",
+        ).all()
+        # At least one row per (scope, period) combo that the recompute writes.
+        assert gp_rows
+        # The grade_points scale is 0..18, so the mean is well above 1.
+        assert all(r.score is not None and r.score > 1 for r in gp_rows)
