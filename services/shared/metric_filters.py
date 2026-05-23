@@ -22,11 +22,21 @@ _METRIC_NOISE_SUFFIXES: Tuple[str, ...] = (
 )
 _METRIC_EXCLUDED_KEYS = frozenset({"raw_score", "error"})
 
+# Sub-metric names that look like noise (end in a suffix above) but are
+# registered as displayable standalone metrics in the frontend metric
+# registry. Without this override the aggregator + tile counters would drop
+# them on the floor and the leaderboard column shows n/a for everyone even
+# though the per-row value exists (see aggregate_summaries.py — the
+# UNION ALL that lifts grade_points out of `details`).
+_METRIC_REGISTERED_OVERRIDES = frozenset({"llm_judge_falloesung_grade_points"})
+
 
 def metric_key_is_real(key: Optional[str]) -> bool:
     """True for keys that should count toward the scored-pairs tally."""
     if not key or key in _METRIC_EXCLUDED_KEYS:
         return False
+    if key in _METRIC_REGISTERED_OVERRIDES:
+        return True
     return not key.endswith(_METRIC_NOISE_SUFFIXES)
 
 
