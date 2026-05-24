@@ -389,7 +389,7 @@ def _aggregate_leaderboard_rows(
           AND te.generation_id IS NOT NULL
           AND te.metrics IS NOT NULL
           AND jsonb_typeof(te.metrics::jsonb) = 'object'
-          AND (:eval_types::text[] IS NULL OR kv.key = ANY(:eval_types))
+          AND (CAST(:eval_types AS text[]) IS NULL OR kv.key = ANY(:eval_types))
 
         UNION ALL
 
@@ -407,7 +407,7 @@ def _aggregate_leaderboard_rows(
           AND te.metrics::jsonb ? 'llm_judge_falloesung'
           AND te.metrics::jsonb->'llm_judge_falloesung'->'details' ? 'grade_points'
           AND jsonb_typeof(te.metrics::jsonb->'llm_judge_falloesung'->'details'->'grade_points') = 'number'
-          AND (:eval_types::text[] IS NULL OR 'llm_judge_falloesung_grade_points' = ANY(:eval_types))
+          AND (CAST(:eval_types AS text[]) IS NULL OR 'llm_judge_falloesung_grade_points' = ANY(:eval_types))
         """
     ).bindparams(run_ids=run_ids, eval_types=eval_types_bind)
 
