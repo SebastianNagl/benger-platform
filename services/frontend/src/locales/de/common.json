@@ -1918,6 +1918,8 @@
       "selectMetric": "Metrik auswählen",
       "includeAllModels": "Katalogabdeckung",
       "includeAllModelsLabel": "Alle Modelle anzeigen (auch ohne Daten)",
+      "minSamples": "Statistische Relevanz",
+      "minSamplesLabel": "Mindestens {gens} Generierungen und {samples} Evaluierungen",
       "projectsCount": "{count} Projekte",
       "evalTypesCount": "{count} Evaluierungstypen",
       "allEvalTypes": "Alle Evaluierungstypen",

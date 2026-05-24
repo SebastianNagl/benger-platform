@@ -127,6 +127,12 @@ export function LLMLeaderboardTable() {
   // leaderboard with 67 n/a rows on prod (16 with data, 83 total). Opt in
   // via the filter panel when you want to see catalog-vs-evaluated coverage.
   const [includeAllModels, setIncludeAllModels] = useState(false)
+  // Default on — drops low-sample models from the ranking so the leaderboard
+  // doesn't surface noisy single-digit-gen models alongside well-evaluated
+  // ones. Threshold values match the API defaults; opting out sends 0.
+  const [minSamplesEnabled, setMinSamplesEnabled] = useState(true)
+  const MIN_GENERATIONS_THRESHOLD = 50
+  const MIN_SAMPLES_THRESHOLD = 50
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
@@ -158,6 +164,8 @@ export function LLMLeaderboardTable() {
           include_all_models: includeAllModels,
           aggregation,
           search: trimmedSearch ? trimmedSearch : undefined,
+          min_generation_count: minSamplesEnabled ? MIN_GENERATIONS_THRESHOLD : 0,
+          min_samples_evaluated: minSamplesEnabled ? MIN_SAMPLES_THRESHOLD : 0,
         })
 
       setLeaderboard(response.leaderboard)
@@ -181,6 +189,7 @@ export function LLMLeaderboardTable() {
     pageSize,
     debouncedSearchQuery,
     includeAllModels,
+    minSamplesEnabled,
     t,
   ])
 
@@ -195,6 +204,7 @@ export function LLMLeaderboardTable() {
     selectedEvaluationTypes,
     debouncedSearchQuery,
     includeAllModels,
+    minSamplesEnabled,
   ])
 
   useEffect(() => {
@@ -466,7 +476,8 @@ export function LLMLeaderboardTable() {
           selectedProjectIds.length > 0 ||
           selectedEvaluationTypes.length > 0 ||
           searchQuery.trim() !== '' ||
-          includeAllModels
+          includeAllModels ||
+          !minSamplesEnabled
         }
         onClearFilters={() => {
           setPeriod('overall')
@@ -475,6 +486,7 @@ export function LLMLeaderboardTable() {
           setSelectedEvaluationTypes([])
           setSearchQuery('')
           setIncludeAllModels(false)
+          setMinSamplesEnabled(true)
         }}
         clearLabel={t('common.filters.clearAll')}
         leftExtras={projectsMenu}
@@ -539,6 +551,23 @@ export function LLMLeaderboardTable() {
               className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
             />
             <span>{t('leaderboards.llm.includeAllModelsLabel')}</span>
+          </label>
+        </FilterToolbar.Field>
+
+        <FilterToolbar.Field label={t('leaderboards.llm.minSamples')}>
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+            <input
+              type="checkbox"
+              checked={minSamplesEnabled}
+              onChange={(e) => setMinSamplesEnabled(e.target.checked)}
+              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            <span>
+              {t('leaderboards.llm.minSamplesLabel', {
+                gens: MIN_GENERATIONS_THRESHOLD,
+                samples: MIN_SAMPLES_THRESHOLD,
+              })}
+            </span>
           </label>
         </FilterToolbar.Field>
       </FilterToolbar>

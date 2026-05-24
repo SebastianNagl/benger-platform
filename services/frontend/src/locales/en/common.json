@@ -1936,6 +1936,8 @@
       "selectMetric": "Select Metric",
       "includeAllModels": "Catalog coverage",
       "includeAllModelsLabel": "Show all models (incl. without data)",
+      "minSamples": "Statistical relevance",
+      "minSamplesLabel": "Require at least {gens} generations and {samples} evaluations",
       "projectsCount": "{count} Projects",
       "evalTypesCount": "{count} Eval Types",
       "allEvalTypes": "All Eval Types",

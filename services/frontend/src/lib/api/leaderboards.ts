@@ -245,6 +245,8 @@ export class LeaderboardsClient extends BaseApiClient {
     evaluation_types?: string[]
     include_all_models?: boolean
     search?: string
+    min_generation_count?: number
+    min_samples_evaluated?: number
     limit?: number
     offset?: number
   }): Promise<LLMLeaderboardResponse> {
@@ -278,6 +280,14 @@ export class LeaderboardsClient extends BaseApiClient {
 
     if (params?.search) {
       queryParams.append('search', params.search)
+    }
+
+    if (params?.min_generation_count !== undefined) {
+      queryParams.append('min_generation_count', params.min_generation_count.toString())
+    }
+
+    if (params?.min_samples_evaluated !== undefined) {
+      queryParams.append('min_samples_evaluated', params.min_samples_evaluated.toString())
     }
 
     if (params?.limit) {
