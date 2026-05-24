@@ -335,33 +335,36 @@ def _aggregate_leaderboard_rows(
     scope: str,
     period: str,
     computed_at: datetime,
+    *,
+    aggregation: str = "average",
+    evaluation_types: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Build the per-(model, metric) rows for one (scope, period).
 
     Streams (model_id, metric_key, metric_val_json) triples from
-    task_evaluations and buckets them in Python, then computes mean + CI
-    per bucket. 60k input rows → ~3 MB Python memory; runs once per cycle
-    in the worker.
+    task_evaluations and buckets them in Python, then computes the
+    requested aggregate per bucket. 60k input rows → ~3 MB Python memory;
+    runs once per cycle in the worker.
+
+    Args:
+      aggregation: `'average'` (mean + 95% CI) or `'sum'` (total, no CI).
+        Sum mode is only honoured when the caller has gated the metric
+        to one that's summable (handled at the API + UI layer); the
+        aggregator itself is dumb here.
+      evaluation_types: when set, only metric keys present in this list are
+        emitted. Filters per-row in SQL so a TaskEvaluation that carries
+        `{bleu, rouge}` only contributes `bleu` when the caller asks for
+        `['bleu']`. Replaces the older run-level
+        `EvaluationRun.evaluation_type_ids.contains([...])` filter that
+        misleadingly pooled every metric of a matching run.
     """
     if not run_ids:
         return []
 
-    # Per-(model, metric) raw values for mean + CI.
-    metrics_jsonb = cast(TaskEvaluation.metrics, JSONB)
-    pairs_stmt = (
-        select(
-            Generation.model_id.label("model_id"),
-            func.jsonb_each(metrics_jsonb).label("kv"),
-        )
-        .join(Generation, TaskEvaluation.generation_id == Generation.id)
-        .join(EvaluationRun, TaskEvaluation.evaluation_id == EvaluationRun.id)
-        .where(
-            TaskEvaluation.evaluation_id.in_(run_ids),
-            TaskEvaluation.generation_id.isnot(None),
-            TaskEvaluation.metrics.isnot(None),
-            func.jsonb_typeof(metrics_jsonb) == "object",
-        )
-    )
+    # When evaluation_types is empty/None, the `... = ANY(:eval_types) OR
+    # :eval_types IS NULL` shape collapses to a no-op via the IS NULL branch.
+    # Postgres typed cast on the bind param so the comparison stays type-safe.
+    eval_types_bind = evaluation_types or None
 
     # jsonb_each returns a record type; using text() for clarity.
     #
@@ -386,6 +389,7 @@ def _aggregate_leaderboard_rows(
           AND te.generation_id IS NOT NULL
           AND te.metrics IS NOT NULL
           AND jsonb_typeof(te.metrics::jsonb) = 'object'
+          AND (:eval_types::text[] IS NULL OR kv.key = ANY(:eval_types))
 
         UNION ALL
 
@@ -403,8 +407,9 @@ def _aggregate_leaderboard_rows(
           AND te.metrics::jsonb ? 'llm_judge_falloesung'
           AND te.metrics::jsonb->'llm_judge_falloesung'->'details' ? 'grade_points'
           AND jsonb_typeof(te.metrics::jsonb->'llm_judge_falloesung'->'details'->'grade_points') = 'number'
+          AND (:eval_types::text[] IS NULL OR 'llm_judge_falloesung_grade_points' = ANY(:eval_types))
         """
-    ).bindparams(run_ids=run_ids)
+    ).bindparams(run_ids=run_ids, eval_types=eval_types_bind)
 
     # (model_id, metric_key) -> list[float]
     buckets: Dict[Tuple[str, str], List[float]] = defaultdict(list)
@@ -446,41 +451,29 @@ def _aggregate_leaderboard_rows(
     }
 
     rows: List[Dict[str, Any]] = []
-    # Per-metric rows.
+    # Per-metric rows. The previously-emitted cross-metric 'average' row was
+    # dimensionally meaningless (it pooled values from 0–1, 0–18, and 0–100
+    # metrics into one arithmetic mean, displayed as percentages — see
+    # PR #116 for the rationale) and has been removed. The frontend metric
+    # picker no longer offers 'average' as a sort option.
     for (model_id, metric_key), values in buckets.items():
         meta = per_model_meta.get(model_id, {})
-        ci_lower, ci_upper = _confidence_interval(values)
+        if aggregation == "sum":
+            # Sum mode: total of per-row values across the bucket. CI doesn't
+            # apply to a count/total, so set both bounds to None and let the
+            # frontend hide the CI for this row.
+            score = round(sum(values), 4) if values else None
+            ci_lower, ci_upper = None, None
+        else:
+            score = round(sum(values) / len(values), 4) if values else None
+            ci_lower, ci_upper = _confidence_interval(values)
         rows.append(
             {
                 "model_id": model_id,
                 "project_scope_key": scope,
                 "period": period,
                 "metric": metric_key,
-                "score": round(sum(values) / len(values), 4) if values else None,
-                "ci_lower": ci_lower,
-                "ci_upper": ci_upper,
-                "samples_evaluated": meta.get("samples_evaluated", 0),
-                "evaluation_count": meta.get("evaluation_count", 0),
-                "generation_count": meta.get("generation_count", 0),
-                "last_evaluated_at": meta.get("last_evaluated_at"),
-                "computed_at": computed_at,
-            }
-        )
-
-    # Per-model 'average' row — the cross-metric mean used for default ranking.
-    by_model: Dict[str, List[float]] = defaultdict(list)
-    for (model_id, _metric_key), values in buckets.items():
-        by_model[model_id].extend(values)
-    for model_id, values in by_model.items():
-        meta = per_model_meta.get(model_id, {})
-        ci_lower, ci_upper = _confidence_interval(values)
-        rows.append(
-            {
-                "model_id": model_id,
-                "project_scope_key": scope,
-                "period": period,
-                "metric": "average",
-                "score": round(sum(values) / len(values), 4) if values else None,
+                "score": score,
                 "ci_lower": ci_lower,
                 "ci_upper": ci_upper,
                 "samples_evaluated": meta.get("samples_evaluated", 0),
@@ -743,6 +736,8 @@ def live_aggregate_leaderboard(
     project_ids: Optional[List[str]],
     period: str,
     evaluation_types: Optional[List[str]] = None,
+    *,
+    aggregation: str = "average",
 ) -> List[Dict[str, Any]]:
     """Live (uncached) aggregation for filter combos with no precomputed scope.
 
@@ -754,6 +749,13 @@ def live_aggregate_leaderboard(
 
     `project_ids=None` means "all projects" (no visibility filter applied
     here; callers must apply visibility themselves before calling).
+
+    The `evaluation_types` filter is applied at two layers: first
+    narrows `run_ids` to runs that declared at least one of the requested
+    types (cheap optimisation, OR semantics), then `_aggregate_leaderboard_rows`
+    drops per-row metrics whose key isn't in the list (correctness — a run
+    declaring `[bleu]` may still produce `{bleu, rouge_l, ...}` per
+    TaskEvaluation; we now emit only `bleu`).
     """
     stmt = select(EvaluationRun.id).where(EvaluationRun.status == "completed")
     if project_ids:
@@ -780,7 +782,15 @@ def live_aggregate_leaderboard(
     if not run_ids:
         return []
     now = datetime.now(timezone.utc)
-    return _aggregate_leaderboard_rows(db, run_ids, scope="live", period=period, computed_at=now)
+    return _aggregate_leaderboard_rows(
+        db,
+        run_ids,
+        scope="live",
+        period=period,
+        computed_at=now,
+        aggregation=aggregation,
+        evaluation_types=evaluation_types,
+    )
 
 
 def scope_key_for_project_ids(project_ids: Optional[List[str]]) -> Optional[str]:

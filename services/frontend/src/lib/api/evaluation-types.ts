@@ -257,6 +257,19 @@ export interface MetricCategory {
 }
 
 /**
+ * Per-metric display scale, used by leaderboard formatters so a 0–18
+ * Notenpunkte score doesn't render as "1400%". A registry-driven scale
+ * also lets new metrics opt into a sensible display without touching the
+ * leaderboard component.
+ *
+ * - `'0-1'`: raw fraction, displayed as a percentage (×100)
+ * - `'0-100'`: already on a percent scale, displayed as-is
+ * - `'0-18'`: German Notenpunkte, displayed as "X / 18 NP"
+ * - `'raw'`: unitless, displayed with `toFixed(2)` (no % suffix)
+ */
+export type MetricDisplayScale = '0-1' | '0-100' | '0-18' | 'raw'
+
+/**
  * Available metric with metadata
  */
 export interface AvailableMetric {
@@ -272,6 +285,16 @@ export interface AvailableMetric {
    * (e.g. Falllösung's Notenpunkte score_scale and 4096 max_tokens) without
    * the platform wizard hardcoding metric names. */
   default_parameters?: Record<string, any>
+  /** How this metric should be rendered in leaderboards / score tables.
+   * Defaults to `'0-1'` (the historical assumption) when omitted. */
+  display_scale?: MetricDisplayScale
+  /** Whether `sum(values)` across many evaluations is semantically
+   * meaningful for this metric. False for ratios (bleu, rouge, accuracy);
+   * true for additive scores (Notenpunkte, # correct). The leaderboard's
+   * Sum-aggregation toggle disables itself when the selected metric isn't
+   * summable so users can't request a meaningless rollup. Defaults to
+   * `false` when omitted — the conservative choice. */
+  summable?: boolean
 }
 
 /**
@@ -661,6 +684,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Lexical Metrics',
     status: 'stable',
     supports_parameters: true,
+    display_scale: '0-1',
+    summable: false,
     parameter_schema: {
       max_order: {
         type: 'number',
@@ -684,6 +709,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Lexical Metrics',
     status: 'stable',
     supports_parameters: true,
+    display_scale: '0-1',
+    summable: false,
     parameter_schema: {
       variant: {
         type: 'select',
@@ -705,6 +732,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Lexical Metrics',
     status: 'stable',
     supports_parameters: true,
+    display_scale: '0-1',
+    summable: false,
     parameter_schema: {
       alpha: {
         type: 'number',
@@ -739,6 +768,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Lexical Metrics',
     status: 'stable',
     supports_parameters: true,
+    display_scale: '0-1',
+    summable: false,
     parameter_schema: {
       char_order: {
         type: 'number',
@@ -771,6 +802,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Lexical Metrics',
     status: 'stable',
     supports_parameters: false,
+    display_scale: '0-1',
+    summable: true, // sum = # of exact matches across N evals
   },
 
   // Semantic Metrics
@@ -781,6 +814,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Semantic Metrics',
     status: 'stable',
     supports_parameters: false,
+    display_scale: '0-1',
+    summable: false,
   },
   moverscore: {
     name: 'moverscore',
@@ -789,6 +824,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Semantic Metrics',
     status: 'stable',
     supports_parameters: false,
+    display_scale: '0-1',
+    summable: false,
   },
   semantic_similarity: {
     name: 'semantic_similarity',
@@ -797,6 +834,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Semantic Metrics',
     status: 'stable',
     supports_parameters: false,
+    display_scale: '0-1',
+    summable: false,
   },
 
   // Factuality Metrics
@@ -814,6 +853,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
         default: 'summac',
       },
     },
+    display_scale: '0-1',
+    summable: false,
   },
   qags: {
     name: 'qags',
@@ -822,6 +863,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Factuality Metrics',
     status: 'stable',
     supports_parameters: false,
+    display_scale: '0-1',
+    summable: false,
   },
   coherence: {
     name: 'coherence',
@@ -830,6 +873,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Factuality Metrics',
     status: 'stable',
     supports_parameters: false,
+    display_scale: '0-1',
+    summable: false,
   },
 
   // Classification Metrics
@@ -840,6 +885,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Classification Metrics',
     status: 'stable',
     supports_parameters: false,
+    display_scale: '0-1',
+    summable: true, // sum = # correct
   },
   precision: {
     name: 'precision',
@@ -848,6 +895,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Classification Metrics',
     status: 'stable',
     supports_parameters: false,
+    display_scale: '0-1',
+    summable: false,
   },
   recall: {
     name: 'recall',
@@ -856,6 +905,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Classification Metrics',
     status: 'stable',
     supports_parameters: false,
+    display_scale: '0-1',
+    summable: false,
   },
   f1: {
     name: 'f1',
@@ -864,6 +915,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'Classification Metrics',
     status: 'stable',
     supports_parameters: false,
+    display_scale: '0-1',
+    summable: false,
   },
 
   // LLM-as-Judge - Two consolidated options
@@ -874,6 +927,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'LLM-as-Judge',
     status: 'stable',
     supports_parameters: true,
+    display_scale: '0-1',
+    summable: false,
   },
   llm_judge_custom: {
     name: 'llm_judge_custom',
@@ -882,6 +937,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     category: 'LLM-as-Judge',
     status: 'stable',
     supports_parameters: true,
+    display_scale: '0-1',
+    summable: false,
   },
 }
 
@@ -951,6 +1008,28 @@ export function registerMetricGroup(group: MetricCategory) {
  */
 export function getMetricDefinitions(): Record<string, AvailableMetric> {
   return { ...METRIC_DEFINITIONS, ..._extendedMetrics }
+}
+
+/**
+ * Display scale for a metric key. Defaults to `'0-1'` when the metric is
+ * unregistered (the historical assumption baked into older formatter code).
+ * Used by the leaderboard's score + CI formatters so a metric on a 0–18
+ * Notenpunkte scale doesn't render as "1400%".
+ */
+export function getMetricScale(key: string): MetricDisplayScale {
+  const def = getMetricDefinitions()[key]
+  return def?.display_scale ?? '0-1'
+}
+
+/**
+ * Whether `sum(values)` is meaningful for this metric. Defaults to false —
+ * the conservative choice for unknown keys, mirroring `getMetricScale`.
+ * Used by the leaderboard's Sum-aggregation toggle to disable itself when
+ * the selected metric isn't summable.
+ */
+export function getMetricSummable(key: string): boolean {
+  const def = getMetricDefinitions()[key]
+  return def?.summable ?? false
 }
 
 /**
