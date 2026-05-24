@@ -343,8 +343,11 @@ class TestLLMLeaderboardScores:
         # At least one row per (model, metric) combination present.
         model_metric_pairs = {(r["model_id"], r["metric"]) for r in rows}
         assert ("gpt-4o", "accuracy") in model_metric_pairs
-        # The synthetic 'average' aggregate row is also emitted.
-        assert any(r["metric"] == "average" for r in rows)
+        # PR #116: the synthetic cross-metric 'average' row is no longer
+        # emitted — pooling values from incompatible scales (0–1, 0–18,
+        # 0–100) into one mean produced dimensionally meaningless numbers
+        # that rendered as "1400%". The metric picker no longer offers it.
+        assert not any(r["metric"] == "average" for r in rows)
 
 
 # ---------------------------------------------------------------------------
@@ -631,3 +634,95 @@ class TestFalloesungGradePointsLift:
         assert gp_rows
         # The grade_points scale is 0..18, so the mean is well above 1.
         assert all(r.score is not None and r.score > 1 for r in gp_rows)
+
+
+# ---------------------------------------------------------------------------
+# Sum aggregation + per-row evaluation_types filter (PR #116)
+# ---------------------------------------------------------------------------
+
+class TestSumAggregation:
+    def test_sum_returns_total_not_mean(self, test_db, seeded_falloesung):
+        rows = live_aggregate_leaderboard(
+            test_db,
+            project_ids=[seeded_falloesung["project"].id],
+            period="overall",
+            evaluation_types=None,
+            aggregation="sum",
+        )
+        gp_row = next(
+            r for r in rows
+            if r["model_id"] == "gpt-4o"
+            and r["metric"] == "llm_judge_falloesung_grade_points"
+        )
+        # Seed has two non-error grade_points values: 14 + 4 = 18 total.
+        assert gp_row["score"] == pytest.approx(18.0, abs=1e-3)
+        # CI doesn't apply to a sum; the aggregator clears the bounds so
+        # the frontend can hide the CI for the row.
+        assert gp_row["ci_lower"] is None
+        assert gp_row["ci_upper"] is None
+
+    def test_average_default_unchanged(self, test_db, seeded_falloesung):
+        # Sanity: not passing `aggregation` defaults to 'average' and
+        # produces the same mean as the existing test fixture asserts.
+        rows = live_aggregate_leaderboard(
+            test_db,
+            project_ids=[seeded_falloesung["project"].id],
+            period="overall",
+            evaluation_types=None,
+        )
+        gp_row = next(
+            r for r in rows
+            if r["model_id"] == "gpt-4o"
+            and r["metric"] == "llm_judge_falloesung_grade_points"
+        )
+        assert gp_row["score"] == pytest.approx(9.0, abs=1e-3)
+        # CI is populated under mean aggregation.
+        assert gp_row["ci_lower"] is not None
+        assert gp_row["ci_upper"] is not None
+
+
+class TestEvaluationTypesPerRowFilter:
+    def test_eval_types_filters_metric_keys_per_row(self, test_db, seeded):
+        # The 'seeded' fixture writes both 'accuracy' and 'accuracy_details'
+        # (noise, already filtered) into each TaskEvaluation's metrics dict.
+        # Asking for evaluation_types=['accuracy'] should yield rows whose
+        # metric key is exactly 'accuracy', not some other metric from the
+        # same run that happens to be present in the JSON.
+        rows = live_aggregate_leaderboard(
+            test_db,
+            project_ids=[seeded["project"].id],
+            period="overall",
+            evaluation_types=["accuracy"],
+        )
+        metric_keys = {r["metric"] for r in rows}
+        assert metric_keys == {"accuracy"}, (
+            f"expected only 'accuracy' rows, got {metric_keys}"
+        )
+
+    def test_eval_types_with_unknown_returns_no_rows(self, test_db, seeded):
+        rows = live_aggregate_leaderboard(
+            test_db,
+            project_ids=[seeded["project"].id],
+            period="overall",
+            evaluation_types=["this_metric_does_not_exist"],
+        )
+        # The run-level pre-filter already excludes runs that didn't declare
+        # this type, so live aggregation returns nothing. The per-row filter
+        # adds defence in depth for runs whose declaration drifted from
+        # actual produced metrics.
+        assert rows == []
+
+    def test_eval_types_none_returns_all_metric_keys(self, test_db, seeded):
+        # Without an eval_types filter the aggregator emits every metric
+        # key produced by the runs (the old behaviour).
+        rows = live_aggregate_leaderboard(
+            test_db,
+            project_ids=[seeded["project"].id],
+            period="overall",
+            evaluation_types=None,
+        )
+        metric_keys = {r["metric"] for r in rows}
+        # At minimum 'accuracy' must be in there; the noise key
+        # 'accuracy_details' must NOT be (it's filtered by metric_filters).
+        assert "accuracy" in metric_keys
+        assert "accuracy_details" not in metric_keys

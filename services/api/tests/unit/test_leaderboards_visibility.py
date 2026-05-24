@@ -99,6 +99,97 @@ def test_default_scope_splits_by_authentication():
     )
 
 
+def test_strict_filter_rejects_unknown_project_ids():
+    """PR #116: when the leaderboard endpoint is called with
+    `project_ids=<unknown-or-inaccessible>` and the filter strips every
+    id, we MUST raise HTTP 400 instead of silently re-defaulting to the
+    no-filter scope. The silent fallback hid project_id typos and let the
+    caller think they were looking at a scoped leaderboard.
+
+    `_filter_accessible_project_ids(strict=True)` is the path the
+    leaderboard list endpoint opts into.
+    """
+    src = _src()
+    m = re.search(
+        r"def _filter_accessible_project_ids\([^)]*\)[^:]*:.+?(?=\ndef |\nclass )",
+        src,
+        re.DOTALL,
+    )
+    assert m, "_filter_accessible_project_ids helper missing — refactor reverted?"
+    body = m.group(0)
+    assert "strict" in body, "helper must accept a strict kwarg so callers can opt in"
+    assert "HTTPException" in body, (
+        "strict mode must raise HTTPException(400), not silently re-default"
+    )
+
+    # The list endpoint must call with strict=True so unknown project_ids
+    # produce a 400 there. Other endpoints (single-model, compare) keep
+    # the lenient default for backward compatibility.
+    list_endpoint_call = re.search(
+        r"async def get_llm_leaderboard\b.+?_filter_accessible_project_ids\([^)]*\)",
+        src,
+        re.DOTALL,
+    )
+    assert list_endpoint_call, "get_llm_leaderboard endpoint missing or no project_ids call"
+    assert "strict=True" in list_endpoint_call.group(0), (
+        "get_llm_leaderboard must call _filter_accessible_project_ids(strict=True) "
+        "so unknown project_ids surface as 400 rather than a silently-broader leaderboard"
+    )
+
+
+def test_llm_leaderboard_trust_scope_intersect_helper_exists_and_is_wired():
+    """PR #116 temp tweak: the LLM leaderboard is scoped to an
+    allowlisted set of organisation IDs (currently TUM only) so untrusted
+    eval data from other orgs doesn't surface on the public ranking.
+
+    Contract:
+      - `_intersect_with_allowlisted_org_projects` helper exists
+      - `_LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS` constant defines the gate
+      - `get_llm_leaderboard` calls the helper before scope-key mapping
+    """
+    src = _src()
+    assert "_LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS" in src, (
+        "trust-scope constant missing — the LLM leaderboard would surface "
+        "untrusted org data"
+    )
+    assert "def _intersect_with_allowlisted_org_projects(" in src, (
+        "trust-scope helper missing"
+    )
+    # The list endpoint must call the helper. Capture the function body and
+    # assert the call appears (order matters: after accessibility check).
+    list_fn = re.search(
+        r"async def get_llm_leaderboard\b.+?(?=\nasync def |\ndef |\nclass )",
+        src,
+        re.DOTALL,
+    )
+    assert list_fn, "get_llm_leaderboard endpoint missing"
+    body = list_fn.group(0)
+    assert "_intersect_with_allowlisted_org_projects" in body, (
+        "get_llm_leaderboard must call _intersect_with_allowlisted_org_projects "
+        "so non-allowlisted projects are excluded from rankings"
+    )
+
+
+def test_llm_leaderboard_min_samples_threshold_params_exist():
+    """PR #116 default-on min-samples toggle: the list endpoint must
+    accept `min_generation_count` and `min_samples_evaluated` query
+    params with sensible defaults so noisy low-sample models don't
+    pollute the ranking by default.
+    """
+    src = _src()
+    assert "min_generation_count" in src, (
+        "min_generation_count param missing — threshold filter not wired"
+    )
+    assert "min_samples_evaluated" in src, (
+        "min_samples_evaluated param missing — threshold filter not wired"
+    )
+    # The frontend toggle defaults ON and sends 50/50; the API defaults
+    # match so raw curl gets the same view. Drop these constants and the
+    # filter when lifting the gate.
+    assert "_LLM_LEADERBOARD_DEFAULT_MIN_GENERATIONS" in src
+    assert "_LLM_LEADERBOARD_DEFAULT_MIN_SAMPLES" in src
+
+
 def test_helper_only_joins_project_when_filter_is_needed():
     """When the caller already supplied project_ids, we should NOT add an
     extra Project join — saves a query plan node. The helper's true-branch
