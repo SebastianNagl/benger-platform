@@ -112,9 +112,19 @@ describe('LLMLeaderboardTable', () => {
     await waitFor(() => {
       expect(mockGetLLMLeaderboard).toHaveBeenCalled()
     })
-    // First call should include default params
+    // First call should include default params. include_all_models flipped
+    // from true to false in PR #116 — the old default padded the
+    // leaderboard with 67 zero-row catalog entries on prod (83 total, 16
+    // with data, 2 pages of "n/a" noise). Opt-in via the filter panel
+    // checkbox restores the catalog-coverage view.
+    //
+    // The min-samples toggle defaults ON so the leaderboard drops models
+    // with <50 generations or <50 evaluations from the ranking — opt out
+    // sends 0 for both.
     const firstCall = mockGetLLMLeaderboard.mock.calls[0][0]
     expect(firstCall.period).toBe('overall')
-    expect(firstCall.include_all_models).toBe(true)
+    expect(firstCall.include_all_models).toBe(false)
+    expect(firstCall.min_generation_count).toBe(50)
+    expect(firstCall.min_samples_evaluated).toBe(50)
   })
 })
