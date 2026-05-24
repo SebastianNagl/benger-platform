@@ -45,6 +45,16 @@ interface FilterToolbarProps {
   leftExtras?: ReactNode
   rightExtras?: ReactNode
   children?: ReactNode
+  /**
+   * Visual chrome around the toolbar. `'card'` (default) wraps the
+   * filter row in a bordered card with shadow — matches the list-page
+   * pattern. `'bare'` drops the border / background / padding so the
+   * toolbar sits flush with the surrounding layout — matches the
+   * Annotator + Co-Creation leaderboards' raw chip rows so the LLM
+   * leaderboard can align with them visually without rewriting either
+   * side.
+   */
+  variant?: 'card' | 'bare'
 }
 
 interface FilterFieldProps {
@@ -81,6 +91,7 @@ export function FilterToolbar({
   leftExtras,
   rightExtras,
   children,
+  variant = 'card',
 }: FilterToolbarProps) {
   const [showSearch, setShowSearch] = useState(defaultShowSearch)
   const [showFilters, setShowFilters] = useState(defaultShowFilters)
@@ -99,9 +110,17 @@ export function FilterToolbar({
   const searchVisible = !searchHidden && onSearchChange && showSearch
   const filterPanelVisible = hasFilterFields && showFilters
 
+  const isBare = variant === 'bare'
+
   return (
-    <div className="mb-6">
-      <div className="space-y-3 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+    <div className={isBare ? 'mb-4' : 'mb-6'}>
+      <div
+        className={clsx(
+          'space-y-3',
+          !isBare &&
+            'rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900'
+        )}
+      >
         <div className="flex flex-col space-y-3 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {!searchHidden && onSearchChange && (
