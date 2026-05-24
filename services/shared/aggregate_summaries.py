@@ -48,12 +48,22 @@ from models import (
     ResponseGeneration,
     TaskEvaluation,
 )
-from project_models import Annotation, Project, Task
+from project_models import Annotation, Project, ProjectOrganization, Task
 
 logger = logging.getLogger(__name__)
 
 PERIODS: Tuple[str, ...] = ("overall", "monthly", "weekly")
-SCOPES: Tuple[str, ...] = ("all", "public")
+# `tum` is a temporary trust-scope that mirrors the LLM leaderboard's
+# org allowlist. The aggregator precomputes it alongside `all` + `public`
+# so the leaderboard's default request (TUM-only, threshold-filtered) can
+# serve from `llm_leaderboard_scores` in <100ms instead of hitting the
+# live aggregation path on every page load. Remove this scope (and the
+# `_TUM_SCOPE_ORG_IDS` allowlist below) when the LLM leaderboard's trust
+# scope expands beyond TUM — keep both knobs in lockstep.
+SCOPES: Tuple[str, ...] = ("all", "public", "tum")
+_TUM_SCOPE_ORG_IDS: Tuple[str, ...] = (
+    "a22cbcfa-a5ab-4c7e-b93f-dd5585906a8b",  # TUM
+)
 
 # Single source of truth for the noise filter lives in /shared so this
 # module is importable by both the API and the worker. Routers re-export
@@ -323,6 +333,19 @@ def _eval_run_ids_for_scope(
         stmt = stmt.join(Project, EvaluationRun.project_id == Project.id).where(
             Project.is_public.is_(True)
         )
+    elif scope == "tum":
+        # Restrict to runs whose project is assigned to a TUM-scope org via
+        # the project_organizations junction table. Distinct() guards against
+        # the rare case of a project assigned to multiple allowlisted orgs
+        # producing duplicate run_ids.
+        stmt = (
+            stmt.join(
+                ProjectOrganization,
+                ProjectOrganization.project_id == EvaluationRun.project_id,
+            )
+            .where(ProjectOrganization.organization_id.in_(_TUM_SCOPE_ORG_IDS))
+            .distinct()
+        )
     # 'all' = every completed EvaluationRun
     if cutoff is not None:
         stmt = stmt.where(EvaluationRun.created_at >= cutoff)
@@ -585,6 +608,9 @@ def read_llm_leaderboard(
     sort_metric: str,
     limit: int,
     offset: int,
+    *,
+    min_generation_count: int = 0,
+    min_samples_evaluated: int = 0,
 ) -> Tuple[List[Dict[str, Any]], int, List[str], Optional[datetime]]:
     """Read precomputed leaderboard rows for a single (scope, period).
 
@@ -593,19 +619,50 @@ def read_llm_leaderboard(
     - total_models: COUNT(DISTINCT model_id) over the scope (before LIMIT)
     - available_metrics: sorted distinct metric keys (excluding 'average')
     - computed_at: max computed_at across the scope (UI staleness hint)
+
+    `min_generation_count` / `min_samples_evaluated` drop low-sample models
+    at SQL level so the precomputed path can honour the same thresholds the
+    live aggregator does — without it, the API would have to force live
+    aggregation whenever the user enabled the default UI threshold and pay
+    a multi-second round trip on every page load.
     """
+    # The threshold filters apply to every metric row of a qualifying model,
+    # not just the sort-metric row. Implement that by computing the set of
+    # qualifying model_ids once via an EXISTS subquery, then constraining
+    # the base SELECT to those models. We could alternatively scope per-row
+    # but that'd let a model surface its bleu score (above threshold) while
+    # hiding its grade_points score (below threshold) — confusing.
+    model_id_filter = None
+    if min_generation_count > 0 or min_samples_evaluated > 0:
+        qualifier = select(LLMLeaderboardScore.model_id).where(
+            LLMLeaderboardScore.project_scope_key == project_scope_key,
+            LLMLeaderboardScore.period == period,
+        )
+        if min_generation_count > 0:
+            qualifier = qualifier.where(
+                LLMLeaderboardScore.generation_count >= min_generation_count
+            )
+        if min_samples_evaluated > 0:
+            qualifier = qualifier.where(
+                LLMLeaderboardScore.samples_evaluated >= min_samples_evaluated
+            )
+        model_id_filter = LLMLeaderboardScore.model_id.in_(qualifier.distinct())
+
     # Step 1: top-N model_ids by `sort_metric` score.
     base = select(LLMLeaderboardScore).where(
         LLMLeaderboardScore.project_scope_key == project_scope_key,
         LLMLeaderboardScore.period == period,
     )
+    if model_id_filter is not None:
+        base = base.where(model_id_filter)
 
-    total_models = db.execute(
-        select(func.count(func.distinct(LLMLeaderboardScore.model_id))).where(
-            LLMLeaderboardScore.project_scope_key == project_scope_key,
-            LLMLeaderboardScore.period == period,
-        )
-    ).scalar() or 0
+    total_count_stmt = select(func.count(func.distinct(LLMLeaderboardScore.model_id))).where(
+        LLMLeaderboardScore.project_scope_key == project_scope_key,
+        LLMLeaderboardScore.period == period,
+    )
+    if model_id_filter is not None:
+        total_count_stmt = total_count_stmt.where(model_id_filter)
+    total_models = db.execute(total_count_stmt).scalar() or 0
 
     available_metrics = sorted(
         m
