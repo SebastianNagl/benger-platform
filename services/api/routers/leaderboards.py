@@ -465,30 +465,39 @@ async def get_llm_leaderboard(
     # the user gets a clear "no accessible project" 400 first if relevant,
     # then the "not in trust scope" 400 if all their accessible projects
     # are excluded.
+    caller_supplied_project_ids = bool(project_ids)
     project_ids = _intersect_with_allowlisted_org_projects(db, project_ids)
 
-    scope_key = _project_scope_key_for_request(project_ids, current_user)
+    if not caller_supplied_project_ids:
+        # Default request: caller wants "the leaderboard" with no project
+        # filter. We expanded project_ids to the full trust allowlist
+        # above; the aggregator pre-computes that as scope='tum' twice a
+        # day so we can serve from llm_leaderboard_scores in <100ms
+        # instead of paying the multi-second live-aggregation tax.
+        scope_key: Optional[str] = "tum"
+    else:
+        scope_key = _project_scope_key_for_request(project_ids, current_user)
 
     # Precomputed scores cover the common case (no per-request evaluation_type
-    # filter, average aggregation, no search, no min-sample thresholds).
-    # Anything outside falls through to live SQL — still bounded by
-    # yield_per streaming inside the helper. Thresholds + search force live
-    # because the precomputed read paginates at SQL level and we'd need the
-    # full set to filter post-aggregation honestly.
+    # filter, average aggregation, no search). Anything outside falls through
+    # to live SQL — still bounded by yield_per streaming inside the helper.
+    # Min-sample thresholds are now honoured by read_llm_leaderboard at SQL
+    # level so they no longer force live aggregation; the default
+    # threshold-on TUM request now hits the precomputed path.
     use_precomputed = (
         scope_key is not None
         and not evaluation_types
         and aggregation == "average"
         and not search
-        and min_generation_count <= 0
-        and min_samples_evaluated <= 0
     )
 
     computed_at: Optional[datetime] = None
     entries: List[Dict[str, Any]]
     if use_precomputed:
         entries, total_models, available_metrics, computed_at = read_llm_leaderboard(
-            db, scope_key, period, metric, limit, offset
+            db, scope_key, period, metric, limit, offset,
+            min_generation_count=min_generation_count,
+            min_samples_evaluated=min_samples_evaluated,
         )
     else:
         rows = live_aggregate_leaderboard(

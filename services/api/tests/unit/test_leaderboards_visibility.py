@@ -170,6 +170,34 @@ def test_llm_leaderboard_trust_scope_intersect_helper_exists_and_is_wired():
     )
 
 
+def test_llm_leaderboard_default_request_uses_tum_precomputed_scope():
+    """PR after #118: the leaderboard's hot-path default (no project_ids,
+    no eval_types filter, threshold ON, no search) must serve from the
+    'tum' precomputed scope rather than live-aggregating on every page
+    load — that was a 5+ second tax per request.
+
+    The endpoint detects "caller didn't supply project_ids" and skips
+    `_project_scope_key_for_request`'s multi-project-→-None mapping in
+    favour of `scope_key = "tum"` directly. Lock the wiring in so a
+    future refactor doesn't quietly bypass the precomputed read.
+    """
+    src = _src()
+    list_fn = re.search(
+        r"async def get_llm_leaderboard\b.+?(?=\nasync def |\ndef |\nclass )",
+        src,
+        re.DOTALL,
+    )
+    assert list_fn, "get_llm_leaderboard endpoint missing"
+    body = list_fn.group(0)
+    assert "caller_supplied_project_ids" in body, (
+        "endpoint must track whether the caller supplied project_ids "
+        "so the default request can pick scope='tum' over live aggregation"
+    )
+    assert '"tum"' in body or "'tum'" in body, (
+        "endpoint must map the no-filter default to scope='tum'"
+    )
+
+
 def test_llm_leaderboard_min_samples_threshold_params_exist():
     """PR #116 default-on min-samples toggle: the list endpoint must
     accept `min_generation_count` and `min_samples_evaluated` query

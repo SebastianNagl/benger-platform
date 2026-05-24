@@ -584,21 +584,28 @@ from celery.schedules import crontab
 # `recompute-aggregates`: refresh the precomputed leaderboard + project
 # summary tables. The API endpoints read these tables instead of scanning
 # task_evaluations on every request (OOMed prod 2026-05-19). Migration 051
-# introduced the tables; see services/api/services/aggregate_summaries.py
-# for the SQL.
+# introduced the tables; see services/shared/aggregate_summaries.py for
+# the SQL.
 #
-# Tightened from 12h → 1h on 2026-05-20 after Phase 6.2 routed the projects
-# list endpoint through `project_summaries` for both annotation_count and
-# completed_response_generations_count. With the 12h cadence the projects
-# tile could show counts that lagged real activity by half a day; 1h is
-# still cheap (recompute runs in ~seconds on prod-scale data, coalesced
-# via a Redis lock so triggers from `recompute_aggregates_after_finalize`
-# don't pile up) and feels like "soon" to a user who just completed an
-# annotation round.
+# Cadence history:
+# - 12h (initial): cheap, occasionally stale tiles after annotation rounds.
+# - 1h (2026-05-20): tightened after Phase 6.2 routed the projects list
+#   through project_summaries; users complained tiles lagged half a day.
+# - 2x/day at 10:00 + 22:00 UTC (= 12:00 + 00:00 CEST) (this PR): leaderboards
+#   are a research-grade scorecard, not a live tile — a noticeable user
+#   refresh window is the right contract. Hourly runs were also adding
+#   load without value once the leaderboards moved to TanStack-cached
+#   reads with 30s staleTime on the client. Note: during winter (CET) the
+#   runs effectively become 11:00 + 23:00 local; the leaderboards page
+#   shows a static hint that copy-locks the schedule to CEST.
+#
+# Event-driven recompute on EvaluationRun finalize was also removed in
+# the same change (search for `recompute_aggregates_after_finalize` — the
+# `app.send_task` call in the finalize handler is gone).
 app.conf.beat_schedule = {
     "recompute-aggregates": {
         "task": "tasks.recompute_aggregates",
-        "schedule": crontab(minute=0, hour="*"),
+        "schedule": crontab(minute=0, hour="10,22"),
         "args": (),
         "kwargs": {},
         "options": {"queue": "default"},
@@ -5834,19 +5841,12 @@ def finalize_evaluation_run(
         flag_modified(evaluation, "eval_metadata")
         db.commit()
 
-        # Event-driven refresh of the precomputed aggregates so the
-        # leaderboard + dashboard reflect this new evaluation without
-        # waiting for the 12h beat. Fire-and-forget — coalesced via
-        # Redis lock in the recompute task itself, so a burst of finalizers
-        # collapses to a single execution. Failure to enqueue must not
-        # block the finalizer; just log it.
-        try:
-            app.send_task("tasks.recompute_aggregates", queue="default")
-        except Exception as _enqueue_exc:
-            logger.warning(
-                "recompute_aggregates enqueue after finalize failed: %s",
-                _enqueue_exc,
-            )
+        # Event-driven recompute removed: leaderboards refresh on a fixed
+        # 12:00 + 00:00 CEST schedule (see app.conf.beat_schedule above).
+        # Users see a static "updated twice daily" hint on the page so the
+        # contract is explicit. Reintroduce a send_task here if a future
+        # surface needs sub-12h freshness — but coalesce via the Redis lock
+        # the recompute task already takes.
 
         # Report section update — lifted from ex-`tasks.py:3956-3958`.
         # report_service lives in /shared so both API and workers import it
