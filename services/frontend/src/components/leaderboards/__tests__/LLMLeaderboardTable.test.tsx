@@ -2,7 +2,23 @@
  * @jest-environment jsdom
  */
 import '@testing-library/jest-dom'
-import { render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render as rtlRender, screen, waitFor } from '@testing-library/react'
+import React from 'react'
+
+// PR after #117 wrapped the LLM leaderboard's data fetching in TanStack
+// Query. The app provides a QueryClient at the root, but the test renders
+// the component bare; we have to supply one ourselves. Each test gets a
+// fresh client with `retry: false` so failure tests don't hang.
+const render: typeof rtlRender = (ui, options) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: 0 } },
+  })
+  return rtlRender(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+    options
+  )
+}
 
 const mockGetLLMLeaderboard = jest.fn()
 

@@ -22,10 +22,7 @@ import {
   getMetricSummable,
   type MetricDisplayScale,
 } from '@/lib/api/evaluation-types'
-import type {
-  LLMLeaderboardEntry,
-  LLMLeaderboardResponse,
-} from '@/lib/api/leaderboards'
+import type { LLMLeaderboardEntry } from '@/lib/api/leaderboards'
 import { Menu } from '@headlessui/react'
 import { CheckIcon, ChevronDownIcon } from '@heroicons/react/20/solid'
 import {
@@ -33,7 +30,8 @@ import {
   FunnelIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
 
 type TimePeriod = 'overall' | 'monthly' | 'weekly'
 
@@ -102,12 +100,6 @@ export function LLMLeaderboardTable() {
   const { apiClient } = useAuth()
   const { t } = useI18n()
   const { projects, fetchProjects } = useProjects()
-  const [loading, setLoading] = useState(true)
-  const [leaderboard, setLeaderboard] = useState<LLMLeaderboardEntry[]>([])
-  const [availableMetrics, setAvailableMetrics] = useState<string[]>([])
-  const [availableEvaluationTypes, setAvailableEvaluationTypes] = useState<
-    string[]
-  >([])
   const [period, setPeriod] = useState<TimePeriod>('overall')
   // Default to Notenpunkte (Falllösung) so the LLM leaderboard opens on the
   // same scoring axis as the human + co-creation leaderboards. Models
@@ -126,6 +118,8 @@ export function LLMLeaderboardTable() {
   // Default off — including catalog models with zero evaluations padded the
   // leaderboard with 67 n/a rows on prod (16 with data, 83 total). Opt in
   // via the filter panel when you want to see catalog-vs-evaluated coverage.
+  // Mutually exclusive with the min-samples threshold below: padding rows
+  // have 0 gens / 0 samples so they never pass any positive threshold.
   const [includeAllModels, setIncludeAllModels] = useState(false)
   // Default on — drops low-sample models from the ranking so the leaderboard
   // doesn't surface noisy single-digit-gen models alongside well-evaluated
@@ -133,67 +127,80 @@ export function LLMLeaderboardTable() {
   const [minSamplesEnabled, setMinSamplesEnabled] = useState(true)
   const MIN_GENERATIONS_THRESHOLD = 50
   const MIN_SAMPLES_THRESHOLD = 50
-  const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
-  const [totalItems, setTotalItems] = useState(0)
 
   useEffect(() => {
     fetchProjects()
   }, [fetchProjects])
 
-  const loadLeaderboard = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
+  // Server state via TanStack Query: caches per (filter, page) tuple,
+  // dedupes overlapping mounts, keeps the previous page visible during
+  // refetches so filter tweaks feel snappy instead of blanking the table.
+  // Stale time of 30s matches the typical gap between recompute_aggregates
+  // beats (event-driven + hourly cron); shorter and we'd burn requests on
+  // every navigation, longer and a freshly-finalised eval wouldn't show up
+  // when the user opens the leaderboard right after triggering it.
+  const trimmedSearch = debouncedSearchQuery.trim()
+  const leaderboardQuery = useQuery({
+    queryKey: [
+      'leaderboards',
+      'llm',
+      {
+        period,
+        metric,
+        aggregation,
+        currentPage,
+        pageSize,
+        selectedProjectIds,
+        selectedEvaluationTypes,
+        search: trimmedSearch,
+        includeAllModels,
+        minSamplesEnabled,
+      },
+    ],
+    queryFn: () => {
       const offset = (currentPage - 1) * pageSize
-      const trimmedSearch = debouncedSearchQuery.trim()
-      const response: LLMLeaderboardResponse =
-        await apiClient.leaderboards.getLLMLeaderboard({
-          period,
-          metric,
-          limit: pageSize,
-          offset,
-          project_ids:
-            selectedProjectIds.length > 0 ? selectedProjectIds : undefined,
-          evaluation_types:
-            selectedEvaluationTypes.length > 0
-              ? selectedEvaluationTypes
-              : undefined,
-          include_all_models: includeAllModels,
-          aggregation,
-          search: trimmedSearch ? trimmedSearch : undefined,
-          min_generation_count: minSamplesEnabled ? MIN_GENERATIONS_THRESHOLD : 0,
-          min_samples_evaluated: minSamplesEnabled ? MIN_SAMPLES_THRESHOLD : 0,
-        })
+      return apiClient.leaderboards.getLLMLeaderboard({
+        period,
+        metric,
+        limit: pageSize,
+        offset,
+        project_ids:
+          selectedProjectIds.length > 0 ? selectedProjectIds : undefined,
+        evaluation_types:
+          selectedEvaluationTypes.length > 0
+            ? selectedEvaluationTypes
+            : undefined,
+        include_all_models: includeAllModels,
+        aggregation,
+        search: trimmedSearch ? trimmedSearch : undefined,
+        min_generation_count: minSamplesEnabled ? MIN_GENERATIONS_THRESHOLD : 0,
+        min_samples_evaluated: minSamplesEnabled ? MIN_SAMPLES_THRESHOLD : 0,
+      })
+    },
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  })
 
-      setLeaderboard(response.leaderboard)
-      setAvailableMetrics(response.available_metrics)
-      setAvailableEvaluationTypes(response.available_evaluation_types || [])
-      setTotalItems(response.total_models)
-    } catch (err: any) {
-      console.error('Failed to load LLM leaderboard:', err)
-      setError(err.message || t('leaderboards.llm.loadFailed'))
-    } finally {
-      setLoading(false)
-    }
-  }, [
-    period,
-    metric,
-    aggregation,
-    selectedProjectIds,
-    selectedEvaluationTypes,
-    apiClient.leaderboards,
-    currentPage,
-    pageSize,
-    debouncedSearchQuery,
-    includeAllModels,
-    minSamplesEnabled,
-    t,
-  ])
+  const leaderboard = leaderboardQuery.data?.leaderboard ?? []
+  const availableMetrics = leaderboardQuery.data?.available_metrics ?? []
+  const availableEvaluationTypes =
+    leaderboardQuery.data?.available_evaluation_types ?? []
+  const totalItems = leaderboardQuery.data?.total_models ?? 0
+  // `isPending` is only true on the very first fetch (no cache, no
+  // placeholder); subsequent filter-driven refetches keep the previous
+  // data visible so the table doesn't flash. `isFetching` would also flip
+  // for background refetches but we intentionally don't render a global
+  // spinner for those.
+  const loading = leaderboardQuery.isPending
+  const error = leaderboardQuery.error
+    ? (leaderboardQuery.error as Error).message || t('leaderboards.llm.loadFailed')
+    : null
 
-  // Reset to page 1 when filters change
+  // Reset to page 1 when filters change. We can't put this inside the
+  // query callback (pre-react-query the state-driven refetch handled it);
+  // an explicit effect keeps it decoupled and matches the existing pattern.
   useEffect(() => {
     setCurrentPage(1)
   }, [
@@ -206,10 +213,6 @@ export function LLMLeaderboardTable() {
     includeAllModels,
     minSamplesEnabled,
   ])
-
-  useEffect(() => {
-    loadLeaderboard()
-  }, [loadLeaderboard])
 
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize)
@@ -359,7 +362,7 @@ export function LLMLeaderboardTable() {
     return (
       <div className="py-12 text-center">
         <p className="text-red-500">{error}</p>
-        <Button onClick={loadLeaderboard} className="mt-4">
+        <Button onClick={() => leaderboardQuery.refetch()} className="mt-4">
           {t('leaderboards.retry')}
         </Button>
       </div>
@@ -465,6 +468,7 @@ export function LLMLeaderboardTable() {
   return (
     <div className="space-y-4">
       <FilterToolbar
+        variant="bare"
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         searchPlaceholder={t('leaderboards.llm.searchPlaceholder')}
@@ -543,12 +547,30 @@ export function LLMLeaderboardTable() {
         </FilterToolbar.Field>
 
         <FilterToolbar.Field label={t('leaderboards.llm.includeAllModels')}>
-          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+          {/* Catalog padding + the min-samples threshold are semantically
+              opposite: padding rows have 0 generations and 0 samples, so
+              the threshold would filter them all out the moment they're
+              added. Disable the checkbox while the threshold is on so the
+              user sees the dependency rather than toggling and getting
+              the same 12 rows back. */}
+          <label
+            className={
+              minSamplesEnabled
+                ? 'inline-flex cursor-not-allowed items-center gap-2 text-sm text-zinc-400 dark:text-zinc-500'
+                : 'inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300'
+            }
+            title={
+              minSamplesEnabled
+                ? t('leaderboards.llm.includeAllModelsDisabledHint')
+                : undefined
+            }
+          >
             <input
               type="checkbox"
-              checked={includeAllModels}
+              checked={includeAllModels && !minSamplesEnabled}
+              disabled={minSamplesEnabled}
               onChange={(e) => setIncludeAllModels(e.target.checked)}
-              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
             />
             <span>{t('leaderboards.llm.includeAllModelsLabel')}</span>
           </label>
