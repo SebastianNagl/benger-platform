@@ -16,8 +16,24 @@ from sqlalchemy.orm import Session
 from auth_module.dependencies import get_current_user
 from database import get_db
 from models import EvaluationRun, TaskEvaluation, Generation, LLMModel, User
-from project_models import Annotation, Project
+from project_models import Annotation, Project, ProjectOrganization
 from routers.projects.helpers import check_project_accessible, get_org_context_from_request
+
+# Temporary trust gate for the LLM leaderboard: only projects assigned to
+# one of these orgs contribute to ranking. Other orgs (TITAN, LTV,
+# Benchathon, …) have evaluation data the team doesn't yet treat as a
+# meaningful comparative signal. Remove this constant (and the call sites
+# below) when the gate lifts. The frontend has no opt-out — the scope
+# applies to every user, superadmin included.
+_LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS = (
+    "a22cbcfa-a5ab-4c7e-b93f-dd5585906a8b",  # TUM
+)
+
+# Default minimums for "meaningful sample" on the leaderboard. Frontend
+# toggle defaults ON and sends these values; opting out sends 0. Same
+# values used as API defaults so a raw curl gets the same view as the UI.
+_LLM_LEADERBOARD_DEFAULT_MIN_GENERATIONS = 50
+_LLM_LEADERBOARD_DEFAULT_MIN_SAMPLES = 50
 
 # Statistical imports for confidence intervals
 try:
@@ -29,6 +45,35 @@ except ImportError:
     STATS_AVAILABLE = False
 
 router = APIRouter(prefix="/api/leaderboards", tags=["leaderboards"])
+
+
+def _intersect_with_allowlisted_org_projects(
+    db: Session, project_ids: Optional[List[str]]
+) -> Optional[List[str]]:
+    """Restrict project_ids to those assigned to an allowlisted org.
+
+    Used by the LLM leaderboard endpoint as a temporary trust gate so
+    only TUM-owned projects contribute to rankings. When
+    `_LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS` is empty this is a no-op
+    (lifts the gate). When the caller didn't pass any project_ids, this
+    populates the filter with every allowlisted-org project; when they
+    did, we intersect and 400 if nothing remains.
+    """
+    if not _LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS:
+        return project_ids
+    allowed_q = db.query(ProjectOrganization.project_id).filter(
+        ProjectOrganization.organization_id.in_(_LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS)
+    )
+    allowed_set = {row[0] for row in allowed_q.all()}
+    if project_ids is None or not project_ids:
+        return sorted(allowed_set)
+    intersect = [pid for pid in project_ids if pid in allowed_set]
+    if not intersect:
+        raise HTTPException(
+            status_code=400,
+            detail="selected project(s) are not in the LLM leaderboard trust scope",
+        )
+    return intersect
 
 
 def _filter_accessible_project_ids(
@@ -362,6 +407,14 @@ async def get_llm_leaderboard(
     search: Optional[str] = Query(
         None, max_length=80, description="Case-insensitive substring match against model_id and model_name"
     ),
+    min_generation_count: int = Query(
+        _LLM_LEADERBOARD_DEFAULT_MIN_GENERATIONS, ge=0,
+        description="Drop models with fewer than N generations in scope (0 = no filter)",
+    ),
+    min_samples_evaluated: int = Query(
+        _LLM_LEADERBOARD_DEFAULT_MIN_SAMPLES, ge=0,
+        description="Drop models with fewer than N evaluated samples in scope (0 = no filter)",
+    ),
     limit: int = Query(50, le=200, description="Maximum results to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     db: Session = Depends(get_db),
@@ -408,19 +461,27 @@ async def get_llm_leaderboard(
     project_ids = _filter_accessible_project_ids(
         db, current_user, project_ids, org_context, strict=True,
     )
+    # Apply the leaderboard's trust gate AFTER accessibility filtering so
+    # the user gets a clear "no accessible project" 400 first if relevant,
+    # then the "not in trust scope" 400 if all their accessible projects
+    # are excluded.
+    project_ids = _intersect_with_allowlisted_org_projects(db, project_ids)
 
     scope_key = _project_scope_key_for_request(project_ids, current_user)
 
     # Precomputed scores cover the common case (no per-request evaluation_type
-    # filter, average aggregation, no search). Anything outside falls through
-    # to live SQL — still bounded by yield_per streaming inside the helper.
-    # Search forces live because precomputed read paginates at SQL level and
-    # we need the full set to filter by name.
+    # filter, average aggregation, no search, no min-sample thresholds).
+    # Anything outside falls through to live SQL — still bounded by
+    # yield_per streaming inside the helper. Thresholds + search force live
+    # because the precomputed read paginates at SQL level and we'd need the
+    # full set to filter post-aggregation honestly.
     use_precomputed = (
         scope_key is not None
         and not evaluation_types
         and aggregation == "average"
         and not search
+        and min_generation_count <= 0
+        and min_samples_evaluated <= 0
     )
 
     computed_at: Optional[datetime] = None
@@ -460,6 +521,16 @@ async def get_llm_leaderboard(
             key=lambda e: (e["score"] is None, -(e["score"] or 0), e["model_id"]),
         )
         available_metrics = sorted({r["metric"] for r in rows})
+        # Minimum-sample threshold: drop models whose aggregate counters
+        # are too small to support a meaningful ranking. The toggle is
+        # default-ON in the UI; raw API callers get the same defaults so
+        # noisy low-sample models don't pollute integrations either.
+        if min_generation_count > 0 or min_samples_evaluated > 0:
+            sorted_entries = [
+                e for e in sorted_entries
+                if e.get("generation_count", 0) >= min_generation_count
+                and e.get("samples_evaluated", 0) >= min_samples_evaluated
+            ]
         # Server-side search: filter by model name before paginating so the
         # frontend's pager total stays honest. Name lookup needs the LLMModel
         # table — bounded to the post-aggregation model set (≤ a few hundred).
@@ -559,6 +630,8 @@ async def get_llm_leaderboard(
             "evaluation_types": evaluation_types or [],
             "include_all_models": include_all_models,
             "search": search or "",
+            "min_generation_count": min_generation_count,
+            "min_samples_evaluated": min_samples_evaluated,
             "limit": limit,
             "offset": offset,
         },
