@@ -1885,6 +1885,7 @@
     "title": "Bestenlisten",
     "humanAnnotators": "Menschliche Annotatoren",
     "llms": "LLMs",
+    "refreshHint": "Aktualisiert täglich um 00:00 und 12:00 (MESZ)",
     "rankings": "Rangliste",
     "rank": "Rang",
     "annotator": "Annotator",

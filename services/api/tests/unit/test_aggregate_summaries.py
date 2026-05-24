@@ -23,6 +23,7 @@ from models import (
     Generation,
     LLMLeaderboardScore,
     LLMModel,
+    Organization,
     ProjectSummary,
     ResponseGeneration,
     TaskEvaluation,
@@ -726,3 +727,106 @@ class TestEvaluationTypesPerRowFilter:
         # 'accuracy_details' must NOT be (it's filtered by metric_filters).
         assert "accuracy" in metric_keys
         assert "accuracy_details" not in metric_keys
+
+
+# ---------------------------------------------------------------------------
+# Read-path threshold filter
+# ---------------------------------------------------------------------------
+
+class TestReadLLMLeaderboardThreshold:
+    def test_min_generation_count_drops_low_sample_models(self, test_db, seeded):
+        # The 'seeded' fixture wires gpt-4o with one task_evaluation
+        # (samples_evaluated=1, generation_count=1). With a threshold of
+        # 50 the model must drop out entirely.
+        recompute_llm_leaderboard_scores(test_db)
+        entries, total, _, _ = read_llm_leaderboard(
+            test_db,
+            project_scope_key="public",
+            period="overall",
+            sort_metric="accuracy",
+            limit=10,
+            offset=0,
+            min_generation_count=50,
+        )
+        assert total == 0
+        assert entries == []
+
+    def test_min_threshold_zero_is_no_op(self, test_db, seeded):
+        # Sanity: threshold=0 matches the pre-PR behaviour (every model
+        # surfaces). Guards against accidentally filtering on 0.
+        recompute_llm_leaderboard_scores(test_db)
+        _, total_no_filter, _, _ = read_llm_leaderboard(
+            test_db,
+            project_scope_key="public",
+            period="overall",
+            sort_metric="accuracy",
+            limit=10,
+            offset=0,
+        )
+        _, total_zero, _, _ = read_llm_leaderboard(
+            test_db,
+            project_scope_key="public",
+            period="overall",
+            sort_metric="accuracy",
+            limit=10,
+            offset=0,
+            min_generation_count=0,
+            min_samples_evaluated=0,
+        )
+        assert total_no_filter == total_zero
+
+
+# ---------------------------------------------------------------------------
+# TUM precomputed scope
+# ---------------------------------------------------------------------------
+
+class TestTumScope:
+    def test_recompute_emits_tum_scope_rows_when_project_assigned(
+        self, test_db, seeded
+    ):
+        # Assign the seeded public project to the TUM allowlist org so the
+        # 'tum' scope picks it up. Uses the actual allowlist constant so
+        # the test fails loudly if the org id changes.
+        from aggregate_summaries import _TUM_SCOPE_ORG_IDS
+        from project_models import ProjectOrganization
+
+        tum_org_id = _TUM_SCOPE_ORG_IDS[0]
+        # Seed the org if a fresh fixture is missing it.
+        if not test_db.get(Organization, tum_org_id):
+            test_db.add(
+                Organization(
+                    id=tum_org_id,
+                    name="TUM",
+                    display_name="TUM",
+                    slug="tum",
+                    is_active=True,
+                )
+            )
+        test_db.add(
+            ProjectOrganization(
+                id=str(uuid.uuid4()),
+                project_id=seeded["project"].id,
+                organization_id=tum_org_id,
+                assigned_by=seeded["user"].id,
+            )
+        )
+        test_db.commit()
+
+        recompute_llm_leaderboard_scores(test_db)
+        tum_rows = test_db.query(LLMLeaderboardScore).filter(
+            LLMLeaderboardScore.project_scope_key == "tum",
+        ).all()
+        assert tum_rows, "scope='tum' rows must be emitted for TUM-assigned projects"
+        # And the same model that surfaces under 'public' (seeded) shows
+        # up under 'tum' too — the scope just narrows the project set.
+        assert any(r.model_id == "gpt-4o" for r in tum_rows)
+
+    def test_non_tum_project_not_emitted_under_tum_scope(self, test_db, seeded):
+        # Without a project_organizations row pointing at TUM, the seeded
+        # project must NOT contribute to the 'tum' scope. Guards against
+        # a SQL bug where the JOIN degenerates into a cross product.
+        recompute_llm_leaderboard_scores(test_db)
+        tum_rows = test_db.query(LLMLeaderboardScore).filter(
+            LLMLeaderboardScore.project_scope_key == "tum",
+        ).all()
+        assert tum_rows == []

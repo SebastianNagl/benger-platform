@@ -51,7 +51,7 @@ function LeaderboardsContent() {
           {t('leaderboards.title') || 'Leaderboards'}
         </h1>
 
-        <div className="mb-6 border-b border-zinc-200 dark:border-zinc-700">
+        <div className="mb-6 flex items-end justify-between border-b border-zinc-200 dark:border-zinc-700">
           <nav className="-mb-px flex space-x-8">
             {AnnotatorLeaderboardTab && (
               <button onClick={() => setActiveTab('human')} className={tabClass('human')}>
@@ -67,6 +67,14 @@ function LeaderboardsContent() {
               {t('leaderboards.llms') || 'LLMs'}
             </button>
           </nav>
+          {/* Schedule hint: leaderboards refresh twice daily on the worker's
+              beat (10:00 + 22:00 UTC = 12:00 + 00:00 CEST). Static copy
+              keeps the contract visible without forcing the page to query
+              `computed_at` on every tab. */}
+          <span className="pb-3 text-xs text-zinc-500 dark:text-zinc-400">
+            {t('leaderboards.refreshHint') ||
+              'Updated daily at 00:00 and 12:00 (CEST)'}
+          </span>
         </div>
 
         {activeTab === 'human' && AnnotatorLeaderboardTab ? (
