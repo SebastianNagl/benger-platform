@@ -1934,6 +1934,8 @@
       "scoreCi": "Score (95% CI)",
       "score": "Score",
       "selectMetric": "Select Metric",
+      "includeAllModels": "Catalog coverage",
+      "includeAllModelsLabel": "Show all models (incl. without data)",
       "projectsCount": "{count} Projects",
       "evalTypesCount": "{count} Eval Types",
       "allEvalTypes": "All Eval Types",

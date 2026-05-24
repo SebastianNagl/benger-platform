@@ -99,6 +99,44 @@ def test_default_scope_splits_by_authentication():
     )
 
 
+def test_strict_filter_rejects_unknown_project_ids():
+    """PR #116: when the leaderboard endpoint is called with
+    `project_ids=<unknown-or-inaccessible>` and the filter strips every
+    id, we MUST raise HTTP 400 instead of silently re-defaulting to the
+    no-filter scope. The silent fallback hid project_id typos and let the
+    caller think they were looking at a scoped leaderboard.
+
+    `_filter_accessible_project_ids(strict=True)` is the path the
+    leaderboard list endpoint opts into.
+    """
+    src = _src()
+    m = re.search(
+        r"def _filter_accessible_project_ids\([^)]*\)[^:]*:.+?(?=\ndef |\nclass )",
+        src,
+        re.DOTALL,
+    )
+    assert m, "_filter_accessible_project_ids helper missing — refactor reverted?"
+    body = m.group(0)
+    assert "strict" in body, "helper must accept a strict kwarg so callers can opt in"
+    assert "HTTPException" in body, (
+        "strict mode must raise HTTPException(400), not silently re-default"
+    )
+
+    # The list endpoint must call with strict=True so unknown project_ids
+    # produce a 400 there. Other endpoints (single-model, compare) keep
+    # the lenient default for backward compatibility.
+    list_endpoint_call = re.search(
+        r"async def get_llm_leaderboard\b.+?_filter_accessible_project_ids\([^)]*\)",
+        src,
+        re.DOTALL,
+    )
+    assert list_endpoint_call, "get_llm_leaderboard endpoint missing or no project_ids call"
+    assert "strict=True" in list_endpoint_call.group(0), (
+        "get_llm_leaderboard must call _filter_accessible_project_ids(strict=True) "
+        "so unknown project_ids surface as 400 rather than a silently-broader leaderboard"
+    )
+
+
 def test_helper_only_joins_project_when_filter_is_needed():
     """When the caller already supplied project_ids, we should NOT add an
     extra Project join — saves a query plan node. The helper's true-branch

@@ -18,6 +18,9 @@ import { useProjects } from '@/hooks/useProjects'
 import {
   AvailableMetric,
   getMetricDefinitions,
+  getMetricScale,
+  getMetricSummable,
+  type MetricDisplayScale,
 } from '@/lib/api/evaluation-types'
 import type {
   LLMLeaderboardEntry,
@@ -48,21 +51,16 @@ const TIME_PERIOD_KEYS: { value: TimePeriod; key: string }[] = [
 // appear in the dropdown. Notenpunkte sits in this list because it's the
 // default ranking metric in prod (German legal grading) — mirrors the human
 // and co-creation leaderboards which also default to grade points.
+//
+// `average` used to live here as a cross-metric mean, but pooling values
+// from incompatible scales (0–1 bleu, 0–18 Notenpunkte, 0–100 korrektur)
+// produced dimensionally meaningless arithmetic means that the formatter
+// then rendered as "1400%". PR #116 removed the synthetic row from the
+// aggregator and the option from this list. Pick a concrete metric instead.
 const CORE_METRICS = [
   'llm_judge_falloesung_grade_points',
-  'average',
   'accuracy',
-  'f1_score',
-  'raw_score',
 ] as const
-
-// Metrics whose values are already on a 0-100 / absolute scale and must NOT
-// be re-multiplied to a percent. Mirrors `NATIVELY_PERCENT_METRICS` +
-// grade-points handling in the Annotator/Co-Creation leaderboard formatter.
-const NATIVELY_PERCENT_METRICS = new Set([
-  'llm_judge_falloesung',
-  'korrektur_falloesung',
-])
 
 function camelize(key: string): string {
   return key.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase())
@@ -106,9 +104,6 @@ export function LLMLeaderboardTable() {
   const { projects, fetchProjects } = useProjects()
   const [loading, setLoading] = useState(true)
   const [leaderboard, setLeaderboard] = useState<LLMLeaderboardEntry[]>([])
-  const [filteredLeaderboard, setFilteredLeaderboard] = useState<
-    LLMLeaderboardEntry[]
-  >([])
   const [availableMetrics, setAvailableMetrics] = useState<string[]>([])
   const [availableEvaluationTypes, setAvailableEvaluationTypes] = useState<
     string[]
@@ -124,10 +119,14 @@ export function LLMLeaderboardTable() {
     string[]
   >([])
   const [searchQuery, setSearchQuery] = useState('')
-  // Lag the search term so the filter doesn't recompute on every keystroke.
-  // Note: search is still applied client-side to the currently-loaded page;
-  // a server-side `?search=` would broaden matches across pages (see Phase 4).
+  // Server-side search: the debounced term is forwarded as `?search=` so
+  // pagination total reflects the filter across all pages (previously the
+  // search ran client-side over the loaded page only and pagination lied).
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 250)
+  // Default off — including catalog models with zero evaluations padded the
+  // leaderboard with 67 n/a rows on prod (16 with data, 83 total). Opt in
+  // via the filter panel when you want to see catalog-vs-evaluated coverage.
+  const [includeAllModels, setIncludeAllModels] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
@@ -143,6 +142,7 @@ export function LLMLeaderboardTable() {
       setError(null)
 
       const offset = (currentPage - 1) * pageSize
+      const trimmedSearch = debouncedSearchQuery.trim()
       const response: LLMLeaderboardResponse =
         await apiClient.leaderboards.getLLMLeaderboard({
           period,
@@ -155,12 +155,12 @@ export function LLMLeaderboardTable() {
             selectedEvaluationTypes.length > 0
               ? selectedEvaluationTypes
               : undefined,
-          include_all_models: true,
+          include_all_models: includeAllModels,
           aggregation,
+          search: trimmedSearch ? trimmedSearch : undefined,
         })
 
       setLeaderboard(response.leaderboard)
-      setFilteredLeaderboard(response.leaderboard)
       setAvailableMetrics(response.available_metrics)
       setAvailableEvaluationTypes(response.available_evaluation_types || [])
       setTotalItems(response.total_models)
@@ -179,12 +179,23 @@ export function LLMLeaderboardTable() {
     apiClient.leaderboards,
     currentPage,
     pageSize,
+    debouncedSearchQuery,
+    includeAllModels,
+    t,
   ])
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [period, metric, aggregation, selectedProjectIds, selectedEvaluationTypes])
+  }, [
+    period,
+    metric,
+    aggregation,
+    selectedProjectIds,
+    selectedEvaluationTypes,
+    debouncedSearchQuery,
+    includeAllModels,
+  ])
 
   useEffect(() => {
     loadLeaderboard()
@@ -194,21 +205,6 @@ export function LLMLeaderboardTable() {
     setPageSize(newSize)
     setCurrentPage(1)
   }
-
-  useEffect(() => {
-    if (!debouncedSearchQuery.trim()) {
-      setFilteredLeaderboard(leaderboard)
-      return
-    }
-
-    const query = debouncedSearchQuery.toLowerCase()
-    const filtered = leaderboard.filter(
-      (entry) =>
-        entry.model_name.toLowerCase().includes(query) ||
-        entry.provider.toLowerCase().includes(query)
-    )
-    setFilteredLeaderboard(filtered)
-  }, [debouncedSearchQuery, leaderboard])
 
   const getMedalIcon = (rank: number) => {
     switch (rank) {
@@ -237,27 +233,49 @@ export function LLMLeaderboardTable() {
     }
   }
 
+  // Scale-aware formatter. The metric registry is the single source of
+  // truth: a metric declared `display_scale: '0-1'` displays as a percent
+  // (×100), `'0-100'` displays as-is, `'0-18'` as Notenpunkte, `'raw'`
+  // unitless. Unknown keys default to `'0-1'` for backwards compatibility
+  // with the historical formatter behaviour. This unifies what used to be
+  // a hand-maintained `NATIVELY_PERCENT_METRICS` allowlist plus a
+  // `endsWith('grade_points')` special case.
+  const formatValueForScale = (value: number, scale: MetricDisplayScale, sum: boolean): string => {
+    if (scale === '0-18') {
+      return sum ? `${value.toFixed(1)} NP` : `${value.toFixed(1)} / 18 NP`
+    }
+    if (sum) {
+      // Sums of percentage-shaped metrics aren't dimensionally meaningful
+      // (sum of 100 bleu scores at 0.05 = 5, "5%" reads as 5/100 not 5
+      // bleu-units). Render as a raw number with no unit suffix and let
+      // the user infer.
+      return value.toFixed(2)
+    }
+    if (scale === '0-100') return `${value.toFixed(1)}%`
+    if (scale === '0-1') return `${(value * 100).toFixed(1)}%`
+    return value.toFixed(2) // raw
+  }
+
   const formatScore = (score: number | null) => {
     if (score === null || score === undefined) return 'n/a'
-    // Notenpunkte: same shape as the human/co-creation leaderboards.
-    if (metric.endsWith('grade_points')) {
-      return aggregation === 'sum'
-        ? `${score.toFixed(1)} NP`
-        : `${score.toFixed(1)} / 18 NP`
-    }
-    if (aggregation === 'sum') {
-      return score.toFixed(2)
-    }
-    if (NATIVELY_PERCENT_METRICS.has(metric)) {
-      return score.toFixed(1) + '%'
-    }
-    return (score * 100).toFixed(1) + '%'
+    return formatValueForScale(score, getMetricScale(metric), aggregation === 'sum')
   }
 
   const formatCI = (ci_lower: number | null, ci_upper: number | null) => {
     if (ci_lower === null || ci_upper === null) return null
-    return `${(ci_lower * 100).toFixed(1)}% - ${(ci_upper * 100).toFixed(1)}%`
+    const scale = getMetricScale(metric)
+    // CI on a sum is set to null by the aggregator, so we shouldn't get
+    // here in that case; defensive `sum=false` keeps the format consistent
+    // with the metric's natural scale if a caller does pass it.
+    const fmt = (v: number) => formatValueForScale(v, scale, false)
+    return `${fmt(ci_lower)} – ${fmt(ci_upper)}`
   }
+
+  // Sum aggregation is only meaningful for metrics whose registry entry
+  // declares `summable: true` (Notenpunkte, exact_match, accuracy as
+  // count-correct). For ratios like BLEU summing across N evaluations
+  // produces a dimensionally weird number; we gate the toggle.
+  const currentMetricSummable = getMetricSummable(metric)
 
   const toggleProject = (projectId: string) => {
     setSelectedProjectIds((prev) =>
@@ -267,11 +285,9 @@ export function LLMLeaderboardTable() {
     )
   }
 
-  // Get the score to display based on selected metric
+  // Get the score to display based on selected metric. The synthetic
+  // 'average' metric is gone (PR #116); read the per-metric value directly.
   const getDisplayScore = (entry: LLMLeaderboardEntry): number | null => {
-    if (metric === 'average') {
-      return entry.average_score
-    }
     return entry.metrics[metric] ?? null
   }
 
@@ -292,19 +308,31 @@ export function LLMLeaderboardTable() {
   }, [availableMetrics, t])
 
   // If the selected metric is no longer in the option list (e.g. the user
-  // switched filters and the data dropped it), fall back to 'average' to
-  // avoid an orphaned selection / blank dropdown label.
+  // switched filters and the data dropped it), fall back to the first
+  // available option. The historical fallback was 'average' but that
+  // metric was removed in PR #116; default to Notenpunkte (the leaderboard's
+  // landing metric) if it's still on offer, otherwise the first option.
   useEffect(() => {
+    if (metricOptions.length === 0) return
     if (!metricOptions.some((o) => o.value === metric)) {
-      setMetric('average')
+      const fallback =
+        metricOptions.find((o) => o.value === 'llm_judge_falloesung_grade_points') ??
+        metricOptions[0]
+      setMetric(fallback.value)
     }
   }, [metricOptions, metric])
 
-  // Get the column header label based on selected metric
-  const getScoreColumnLabel = () => {
-    if (metric === 'average') {
-      return t('leaderboards.llm.scoreCi')
+  // If the user has Sum selected and switches to a non-summable metric,
+  // snap back to Average so the displayed numbers don't become nonsense
+  // (the API would reject sum-on-non-summable; this prevents the round-trip).
+  useEffect(() => {
+    if (aggregation === 'sum' && !currentMetricSummable) {
+      setAggregation('average')
     }
+  }, [aggregation, currentMetricSummable])
+
+  // Get the column header label based on selected metric.
+  const getScoreColumnLabel = () => {
     const opt = metricOptions.find((m) => m.value === metric)
     return opt?.label ?? t('leaderboards.llm.score')
   }
@@ -437,7 +465,8 @@ export function LLMLeaderboardTable() {
           aggregation !== 'average' ||
           selectedProjectIds.length > 0 ||
           selectedEvaluationTypes.length > 0 ||
-          searchQuery.trim() !== ''
+          searchQuery.trim() !== '' ||
+          includeAllModels
         }
         onClearFilters={() => {
           setPeriod('overall')
@@ -445,6 +474,7 @@ export function LLMLeaderboardTable() {
           setSelectedProjectIds([])
           setSelectedEvaluationTypes([])
           setSearchQuery('')
+          setIncludeAllModels(false)
         }}
         clearLabel={t('common.filters.clearAll')}
         leftExtras={projectsMenu}
@@ -489,14 +519,32 @@ export function LLMLeaderboardTable() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="average">{t('leaderboards.aggregation.average')}</SelectItem>
-              <SelectItem value="sum">{t('leaderboards.aggregation.sum')}</SelectItem>
+              {/* Sum is only meaningful for summable metrics (Notenpunkte,
+                  exact_match, accuracy as count-correct). For ratios like
+                  BLEU/ROUGE summing across N evals is dimensionally weird;
+                  hide the option when the current metric isn't summable. */}
+              {currentMetricSummable && (
+                <SelectItem value="sum">{t('leaderboards.aggregation.sum')}</SelectItem>
+              )}
             </SelectContent>
           </Select>
+        </FilterToolbar.Field>
+
+        <FilterToolbar.Field label={t('leaderboards.llm.includeAllModels')}>
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+            <input
+              type="checkbox"
+              checked={includeAllModels}
+              onChange={(e) => setIncludeAllModels(e.target.checked)}
+              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            <span>{t('leaderboards.llm.includeAllModelsLabel')}</span>
+          </label>
         </FilterToolbar.Field>
       </FilterToolbar>
 
       {/* Leaderboard Table */}
-      {filteredLeaderboard.length === 0 ? (
+      {leaderboard.length === 0 ? (
         <div className="py-12 text-center">
           <ChartBarIcon className="mx-auto h-12 w-12 text-zinc-400" />
           <h3 className="mt-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -526,9 +574,16 @@ export function LLMLeaderboardTable() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-900">
-              {filteredLeaderboard.map((entry) => {
+              {leaderboard.map((entry) => {
                 const displayScore = getDisplayScore(entry)
                 const hasScore = displayScore !== null && displayScore !== undefined
+                // CI is meaningful for any per-metric mean; aggregator sets
+                // ci_lower/ci_upper=null in sum mode so we just check
+                // presence here instead of gating on metric/aggregation.
+                const ciText =
+                  aggregation === 'sum'
+                    ? null
+                    : formatCI(entry.ci_lower, entry.ci_upper)
                 return (
                   <tr
                     key={entry.model_id}
@@ -579,17 +634,14 @@ export function LLMLeaderboardTable() {
                       ) : (
                         <span className="text-zinc-400 dark:text-zinc-500">n/a</span>
                       )}
-                      {/* Only show CI for average score in average mode */}
-                      {metric === 'average' &&
-                        aggregation !== 'sum' &&
-                        formatCI(entry.ci_lower, entry.ci_upper) && (
-                          <div
-                            className="text-xs text-zinc-500"
-                            title={t('leaderboards.llm.confidenceInterval')}
-                          >
-                            [{formatCI(entry.ci_lower, entry.ci_upper)}]
-                          </div>
-                        )}
+                      {hasScore && ciText && (
+                        <div
+                          className="text-xs text-zinc-500"
+                          title={t('leaderboards.llm.confidenceInterval')}
+                        >
+                          [{ciText}]
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )

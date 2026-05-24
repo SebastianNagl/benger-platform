@@ -1916,6 +1916,8 @@
       "scoreCi": "Punktzahl (95% KI)",
       "score": "Punktzahl",
       "selectMetric": "Metrik auswählen",
+      "includeAllModels": "Katalogabdeckung",
+      "includeAllModelsLabel": "Alle Modelle anzeigen (auch ohne Daten)",
       "projectsCount": "{count} Projekte",
       "evalTypesCount": "{count} Evaluierungstypen",
       "allEvalTypes": "Alle Evaluierungstypen",

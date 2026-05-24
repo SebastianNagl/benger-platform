@@ -8,7 +8,7 @@ Supports filtering by project and time period.
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -32,14 +32,33 @@ router = APIRouter(prefix="/api/leaderboards", tags=["leaderboards"])
 
 
 def _filter_accessible_project_ids(
-    db: Session, user, project_ids: Optional[List[str]], org_context: Optional[str] = None
+    db: Session,
+    user,
+    project_ids: Optional[List[str]],
+    org_context: Optional[str] = None,
+    *,
+    strict: bool = False,
 ) -> Optional[List[str]]:
-    """Filter project_ids to only include those the user can access."""
+    """Filter project_ids to only include those the user can access.
+
+    When `strict=True` and the caller supplied a non-empty list but every
+    id was stripped (unknown, deleted, or not accessible), raise HTTP 400
+    instead of silently re-defaulting to the no-filter scope. The default
+    is `False` so existing callers keep their lenient behaviour; the
+    leaderboard list endpoint opts in to prevent silently-broadened
+    filters surfacing the full leaderboard when the user meant to scope.
+    """
     if not project_ids:
         return project_ids
     if user.is_superadmin:
         return project_ids
-    return [pid for pid in project_ids if check_project_accessible(db, user, pid, org_context)]
+    kept = [pid for pid in project_ids if check_project_accessible(db, user, pid, org_context)]
+    if strict and not kept:
+        raise HTTPException(
+            status_code=400,
+            detail="project_ids include no accessible project for this user",
+        )
+    return kept
 
 
 def _apply_default_visibility_filter(query, project_ids):
@@ -331,14 +350,17 @@ async def get_llm_leaderboard(
         "overall", regex="^(overall|monthly|weekly)$", description="Time period filter"
     ),
     metric: str = Query(
-        "average", description="Metric to rank by (average, accuracy, f1, bleu, etc.)"
+        "average", description="Metric to rank by (e.g. accuracy, f1, bleu, llm_judge_falloesung_grade_points)"
     ),
     evaluation_types: Optional[List[str]] = Query(
-        None, description="Filter by evaluation types (e.g., accuracy, f1, llm_judge)"
+        None, description="Filter rows to TaskEvaluations whose metrics include at least one of these keys"
     ),
     include_all_models: bool = Query(False, description="Include models with no evaluations"),
     aggregation: str = Query(
         "average", regex="^(average|sum)$", description="Aggregation mode: average or sum"
+    ),
+    search: Optional[str] = Query(
+        None, max_length=80, description="Case-insensitive substring match against model_id and model_name"
     ),
     limit: int = Query(50, le=200, description="Maximum results to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
@@ -383,17 +405,22 @@ async def get_llm_leaderboard(
     )
 
     org_context = get_org_context_from_request(request)
-    project_ids = _filter_accessible_project_ids(db, current_user, project_ids, org_context)
+    project_ids = _filter_accessible_project_ids(
+        db, current_user, project_ids, org_context, strict=True,
+    )
 
     scope_key = _project_scope_key_for_request(project_ids, current_user)
 
     # Precomputed scores cover the common case (no per-request evaluation_type
-    # filter, average aggregation). Anything outside falls through to live SQL
-    # — still bounded by yield_per streaming inside the helper.
+    # filter, average aggregation, no search). Anything outside falls through
+    # to live SQL — still bounded by yield_per streaming inside the helper.
+    # Search forces live because precomputed read paginates at SQL level and
+    # we need the full set to filter by name.
     use_precomputed = (
         scope_key is not None
         and not evaluation_types
         and aggregation == "average"
+        and not search
     )
 
     computed_at: Optional[datetime] = None
@@ -403,7 +430,9 @@ async def get_llm_leaderboard(
             db, scope_key, period, metric, limit, offset
         )
     else:
-        rows = live_aggregate_leaderboard(db, project_ids, period, evaluation_types)
+        rows = live_aggregate_leaderboard(
+            db, project_ids, period, evaluation_types, aggregation=aggregation,
+        )
         by_model: Dict[str, Dict[str, Any]] = {}
         for r in rows:
             entry = by_model.setdefault(
@@ -420,13 +449,9 @@ async def get_llm_leaderboard(
                     "last_evaluated_at": r["last_evaluated_at"],
                 },
             )
-            score = r["score"]
-            if r["metric"] == "average":
-                entry["metrics"]["average"] = score
-            else:
-                entry["metrics"][r["metric"]] = score
+            entry["metrics"][r["metric"]] = r["score"]
             if r["metric"] == metric:
-                entry["score"] = score
+                entry["score"] = r["score"]
                 entry["ci_lower"] = r["ci_lower"]
                 entry["ci_upper"] = r["ci_upper"]
 
@@ -434,11 +459,26 @@ async def get_llm_leaderboard(
             by_model.values(),
             key=lambda e: (e["score"] is None, -(e["score"] or 0), e["model_id"]),
         )
+        available_metrics = sorted({r["metric"] for r in rows})
+        # Server-side search: filter by model name before paginating so the
+        # frontend's pager total stays honest. Name lookup needs the LLMModel
+        # table — bounded to the post-aggregation model set (≤ a few hundred).
+        if search:
+            term = search.lower()
+            sorted_entries_model_ids = [e["model_id"] for e in sorted_entries]
+            search_model_info: Dict[str, str] = {}
+            if sorted_entries_model_ids:
+                for m in db.query(LLMModel).filter(
+                    LLMModel.id.in_(sorted_entries_model_ids)
+                ).all():
+                    search_model_info[m.id] = m.name
+            sorted_entries = [
+                e for e in sorted_entries
+                if term in e["model_id"].lower()
+                or term in search_model_info.get(e["model_id"], "").lower()
+            ]
         total_models = len(sorted_entries)
         entries = sorted_entries[offset : offset + limit]
-        available_metrics = sorted(
-            {r["metric"] for r in rows if r["metric"] != "average"}
-        )
 
     # Look up model metadata (small bounded query — at most `limit` models).
     model_ids_in_page = [e["model_id"] for e in entries]
@@ -459,11 +499,6 @@ async def get_llm_leaderboard(
             },
         )
         last_at = entry.get("last_evaluated_at")
-        # Drop the synthetic 'average' key from the per-metric dict the frontend
-        # iterates over — it's surfaced separately as `average_score`.
-        metrics_for_display = {
-            k: v for k, v in entry.get("metrics", {}).items() if k != "average"
-        }
         leaderboard.append(
             LLMLeaderboardEntry(
                 rank=rank,
@@ -473,7 +508,7 @@ async def get_llm_leaderboard(
                 evaluation_count=entry.get("evaluation_count", 0),
                 samples_evaluated=entry.get("samples_evaluated", 0),
                 generation_count=entry.get("generation_count", 0),
-                metrics=metrics_for_display,
+                metrics=entry.get("metrics", {}),
                 average_score=entry.get("score"),
                 ci_lower=entry.get("ci_lower"),
                 ci_upper=entry.get("ci_upper"),
@@ -482,11 +517,17 @@ async def get_llm_leaderboard(
         )
 
     # Include zero-row entries for active models that aren't in the page.
+    # Honours `search` so the catalog-padding doesn't undo the filter.
     if include_all_models:
         seen = {e.model_id for e in leaderboard}
-        for m in db.query(LLMModel).filter(LLMModel.is_active == True).all():  # noqa: E712
+        catalog_q = db.query(LLMModel).filter(LLMModel.is_active == True)  # noqa: E712
+        for m in catalog_q.all():
             if m.id in seen:
                 continue
+            if search:
+                term = search.lower()
+                if term not in m.id.lower() and term not in (m.name or "").lower():
+                    continue
             leaderboard.append(
                 LLMLeaderboardEntry(
                     rank=len(leaderboard) + 1,
@@ -517,6 +558,7 @@ async def get_llm_leaderboard(
             "aggregation": aggregation,
             "evaluation_types": evaluation_types or [],
             "include_all_models": include_all_models,
+            "search": search or "",
             "limit": limit,
             "offset": offset,
         },
