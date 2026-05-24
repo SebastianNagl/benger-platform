@@ -588,8 +588,14 @@ async def get_llm_leaderboard(
         )
 
     # Include zero-row entries for active models that aren't in the page.
-    # Honours `search` so the catalog-padding doesn't undo the filter.
-    if include_all_models:
+    # Honours `search` so the catalog-padding doesn't undo the filter, and
+    # honours the min-samples threshold so a user opting into "catalog
+    # coverage" while keeping the threshold ON doesn't suddenly see 71
+    # n/a rows (padding entries have 0 generations and 0 samples — they
+    # can only pass when both thresholds are 0). The frontend disables
+    # this toggle while the threshold is ON; this guard is defence in
+    # depth for raw API callers.
+    if include_all_models and min_generation_count <= 0 and min_samples_evaluated <= 0:
         seen = {e.model_id for e in leaderboard}
         catalog_q = db.query(LLMModel).filter(LLMModel.is_active == True)  # noqa: E712
         for m in catalog_q.all():

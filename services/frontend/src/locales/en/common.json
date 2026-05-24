@@ -1936,6 +1936,7 @@
       "selectMetric": "Select Metric",
       "includeAllModels": "Catalog coverage",
       "includeAllModelsLabel": "Show all models (incl. without data)",
+      "includeAllModelsDisabledHint": "Disable the statistical-relevance threshold to include catalog models without data",
       "minSamples": "Statistical relevance",
       "minSamplesLabel": "Require at least {gens} generations and {samples} evaluations",
       "projectsCount": "{count} Projects",

@@ -1918,6 +1918,7 @@
       "selectMetric": "Metrik auswählen",
       "includeAllModels": "Katalogabdeckung",
       "includeAllModelsLabel": "Alle Modelle anzeigen (auch ohne Daten)",
+      "includeAllModelsDisabledHint": "Deaktiviere die statistische Relevanzschwelle, um Katalogmodelle ohne Daten einzuschließen",
       "minSamples": "Statistische Relevanz",
       "minSamplesLabel": "Mindestens {gens} Generierungen und {samples} Evaluierungen",
       "projectsCount": "{count} Projekte",

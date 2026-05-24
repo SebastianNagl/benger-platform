@@ -5,7 +5,22 @@
  * Follows the exact pattern of LLMLeaderboardTable.branches.test.tsx which passes.
  */
 import '@testing-library/jest-dom'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, render as rtlRender, screen, waitFor } from '@testing-library/react'
+import React from 'react'
+
+// PR after #117 wrapped LLMLeaderboardTable's data fetching in TanStack
+// Query — bare renders need a QueryClient. Local helper avoids extra
+// dependencies on test-utils.
+const render: typeof rtlRender = (ui, options) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: 0 } },
+  })
+  return rtlRender(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+    options
+  )
+}
 
 const mockGetLLMLeaderboard = jest.fn()
 
