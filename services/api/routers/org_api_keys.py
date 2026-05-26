@@ -40,7 +40,7 @@ def _require_org_member(user: User, org_id: str, db: Session):
         .filter(
             OrganizationMembership.user_id == user.id,
             OrganizationMembership.organization_id == org_id,
-            OrganizationMembership.is_active is True,
+            OrganizationMembership.is_active == True,  # noqa: E712
         )
         .first()
     )
@@ -290,7 +290,7 @@ async def get_org_available_models(
         db, current_user.id, org_id
     )
 
-    models = db.query(DBLLMModel).filter(DBLLMModel.is_active is True).all()
+    models = db.query(DBLLMModel).filter(DBLLMModel.is_active == True).all()  # noqa: E712
 
     available_models = []
     for model in models:

@@ -79,7 +79,7 @@ def test_generation_model_has_run_index_column():
     cols = {c.name for c in Generation.__table__.columns}
     assert "run_index" in cols
     rid = Generation.__table__.columns["run_index"]
-    assert rid.nullable is False
+    assert rid.nullable == False  # noqa: E712
 
 
 def test_response_generation_has_runs_counters():
@@ -89,7 +89,7 @@ def test_response_generation_has_runs_counters():
     cols = {c.name for c in ResponseGeneration.__table__.columns}
     for name in ("runs_requested", "runs_completed", "runs_failed"):
         assert name in cols
-        assert ResponseGeneration.__table__.columns[name].nullable is False
+        assert ResponseGeneration.__table__.columns[name].nullable == False  # noqa: E712
 
 
 def test_evaluation_judge_run_table_exists_and_relates():
@@ -109,7 +109,7 @@ def test_evaluation_judge_run_table_exists_and_relates():
 
     # TaskEvaluation.judge_run_id is NOT NULL after migration 043
     jr_col = TaskEvaluation.__table__.columns["judge_run_id"]
-    assert jr_col.nullable is False
+    assert jr_col.nullable == False  # noqa: E712
 
 
 def test_task_evaluation_unique_index_on_generation_run_index():

@@ -170,13 +170,13 @@ def _compute_project_summary(
 
     labeled_tasks = db.execute(
         select(func.count(Task.id)).where(
-            Task.project_id == project_id, Task.is_labeled is True  # noqa: E712
+            Task.project_id == project_id, Task.is_labeled == True  # noqa: E712
         )
     ).scalar() or 0
 
     ann_stmt = select(func.count(Annotation.id)).where(
         Annotation.project_id == project_id,
-        Annotation.was_cancelled is False,  # noqa: E712
+        Annotation.was_cancelled == False,  # noqa: E712
         func.jsonb_array_length(Annotation.result) > 0,
     )
     if cutoff is not None:

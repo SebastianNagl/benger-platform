@@ -100,7 +100,7 @@ class TestEmailServiceInitialization:
                 service = EmailService()
                 service.mail_enabled = False
 
-                assert service.mail_enabled is False
+                assert service.mail_enabled == False
 
 
 class TestMailEnabledFlag:
@@ -111,7 +111,7 @@ class TestMailEnabledFlag:
         with patch("email_service.SendGridClient"):
             with patch.object(EmailService, "_init_template_environment", return_value=Mock()):
                 service = EmailService()
-                assert service.mail_enabled is True
+                assert service.mail_enabled == True
 
     def test_mail_can_be_disabled(self):
         """Test mail service can be disabled"""
@@ -119,7 +119,7 @@ class TestMailEnabledFlag:
             with patch.object(EmailService, "_init_template_environment", return_value=Mock()):
                 service = EmailService()
                 service.mail_enabled = False
-                assert service.mail_enabled is False
+                assert service.mail_enabled == False
 
     def test_mail_enabled_affects_sending(self):
         """Test that disabled mail prevents sending"""
@@ -155,7 +155,7 @@ class TestTemplateEnvironment:
                 env = service._init_template_environment()
 
                 assert isinstance(env, Environment)
-                assert env.autoescape is True
+                assert env.autoescape == True
 
     def test_template_environment_has_custom_filters(self):
         """Test that custom template filters are registered"""

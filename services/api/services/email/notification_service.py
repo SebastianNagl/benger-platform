@@ -360,7 +360,7 @@ class NotificationService:
     def _get_admin_recipients(db: Session) -> List[str]:
         """Get all system administrators"""
         logger.debug("    Looking up superadmins...")
-        admins = db.query(User).filter(User.is_superadmin is True).all()
+        admins = db.query(User).filter(User.is_superadmin == True).all()  # noqa: E712
         admin_ids = [admin.id for admin in admins]
         logger.debug(
             f"    Found {len(admin_ids)} superadmins: {admin_ids[:3]}..."
@@ -465,7 +465,7 @@ class NotificationService:
         query = db.query(Notification).filter(Notification.user_id == user_id)
 
         if unread_only:
-            query = query.filter(Notification.is_read is False)
+            query = query.filter(Notification.is_read == False)  # noqa: E712
 
         notifications = (
             query.order_by(desc(Notification.created_at)).offset(offset).limit(limit).all()
@@ -477,7 +477,7 @@ class NotificationService:
         """Get count of unread notifications for a user"""
         count = (
             db.query(Notification)
-            .filter(and_(Notification.user_id == user_id, Notification.is_read is False))
+            .filter(and_(Notification.user_id == user_id, Notification.is_read == False))  # noqa: E712
             .count()
         )
         return count
@@ -522,7 +522,7 @@ class NotificationService:
         """
         count = (
             db.query(Notification)
-            .filter(and_(Notification.user_id == user_id, Notification.is_read is False))
+            .filter(and_(Notification.user_id == user_id, Notification.is_read == False))  # noqa: E712
             .update({"is_read": True, "updated_at": datetime.utcnow()})
         )
         db.commit()
@@ -721,7 +721,7 @@ class NotificationService:
                 and_(
                     Notification.id.in_(notification_ids),
                     Notification.user_id == user_id,
-                    Notification.is_read is False,
+                    Notification.is_read == False,  # noqa: E712
                 )
             )
             .update(
@@ -840,7 +840,7 @@ class NotificationService:
                 and_(
                     Notification.user_id == user_id,
                     Notification.created_at >= cutoff_date,
-                    Notification.is_read is False,
+                    Notification.is_read == False,  # noqa: E712
                 )
             )
             .count()
@@ -1358,7 +1358,7 @@ def notify_system_maintenance(
 ):
     """Notify all active users about system maintenance"""
     # Get all active users
-    active_users = db.query(User).filter(User.is_active is True).all()
+    active_users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
     recipients = [user.id for user in active_users]
 
     data = {"maintenance_type": "scheduled", "notification_level": "important"}

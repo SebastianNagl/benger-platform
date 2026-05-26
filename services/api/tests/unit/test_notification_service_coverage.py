@@ -453,7 +453,7 @@ class TestUserWantsNotification:
 class TestUserWantsEmailNotification:
 
     def test_preference_exists_and_enabled(self, mock_db, user_id):
-        """Returns True when preference.email_enabled is True (line 613)."""
+        """Returns True when preference.email_enabled == True (line 613)."""
         from notification_service import NotificationService
 
         pref = Mock(email_enabled=True)
@@ -465,7 +465,7 @@ class TestUserWantsEmailNotification:
         assert result is True
 
     def test_preference_exists_and_disabled(self, mock_db, user_id):
-        """Returns False when preference.email_enabled is False (line 613)."""
+        """Returns False when preference.email_enabled == False (line 613)."""
         from notification_service import NotificationService
 
         pref = Mock(email_enabled=False)

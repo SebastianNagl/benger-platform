@@ -175,7 +175,7 @@ def _count_eval_subjects(
         ann_q = (
             db.query(Annotation)
             .join(Task, Annotation.task_id == Task.id)
-            .filter(Task.project_id == project_id, Annotation.was_cancelled is False)  # noqa: E712
+            .filter(Task.project_id == project_id, Annotation.was_cancelled == False)  # noqa: E712
         )
         if annotator_user_ids:
             ann_q = ann_q.filter(Annotation.completed_by.in_(annotator_user_ids))

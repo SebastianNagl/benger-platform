@@ -67,7 +67,7 @@ class TestIsMailEnabled:
             with patch("services.email.email_service.SendGridClient"):
                 svc = EmailService()
                 # Should default to enabled on error
-                assert svc.mail_enabled is True
+                assert svc.mail_enabled == True  # noqa: E712
 
 
 # ─────────────────────────────────────────────

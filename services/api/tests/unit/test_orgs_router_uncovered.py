@@ -288,7 +288,7 @@ class TestRemoveMemberSuccess:
             db=db,
         )
         assert result["message"] == "Member removed from organization successfully"
-        assert target_membership.is_active is False
+        assert target_membership.is_active == False  # noqa: E712
 
 
 # ---------------------------------------------------------------------------
@@ -391,8 +391,8 @@ class TestUpdateSuperadminStatusSuccess:
             current_user=admin,
             db=db,
         )
-        assert target_user.is_superadmin is True
-        assert result.is_superadmin is True
+        assert target_user.is_superadmin == True  # noqa: E712
+        assert result.is_superadmin == True  # noqa: E712
 
 
 # ---------------------------------------------------------------------------
@@ -572,7 +572,7 @@ class TestVerifyMemberEmailSuccess:
             db=db,
         )
         assert result["message"] == "Email verified successfully"
-        assert user_to_verify.email_verified is True
+        assert user_to_verify.email_verified == True  # noqa: E712
         assert user_to_verify.email_verification_method == "admin"
 
     @pytest.mark.asyncio
@@ -777,5 +777,5 @@ class TestBulkVerifySuccess:
             db=db,
         )
         assert result["summary"]["success"] == 1
-        assert user1.email_verified is True
+        assert user1.email_verified == True  # noqa: E712
         assert user1.email_verification_method == "admin"

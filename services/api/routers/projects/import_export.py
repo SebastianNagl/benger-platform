@@ -1181,7 +1181,7 @@ async def bulk_export_projects(
         task_count = db.query(Task).filter(Task.project_id == project.id).count()
         annotation_count = (
             db.query(Annotation)
-            .filter(Annotation.project_id == project.id, Annotation.was_cancelled is False)
+            .filter(Annotation.project_id == project.id, Annotation.was_cancelled == False)  # noqa: E712
             .count()
         )
 

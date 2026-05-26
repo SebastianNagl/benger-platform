@@ -732,4 +732,4 @@ class TestHelpers:
         test_db.commit()
         resp = ProjectResponse.from_orm(p)
         calculate_generation_stats(test_db, p, resp)
-        assert resp.generation_config_ready is False
+        assert resp.generation_config_ready == False  # noqa: E712

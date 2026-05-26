@@ -384,7 +384,7 @@ class TestDataExportImportRoundtrip:
         assert len(imported_anns) == 3
         for ann in imported_anns:
             assert ann.result is not None
-            assert ann.ground_truth is True
+            assert ann.ground_truth == True  # noqa: E712
 
         imported_qrs = (
             db_session.query(PostAnnotationResponse)
@@ -805,8 +805,8 @@ class TestRoundtripExtensions:
             .filter(Annotation.instruction_variant == "variant-A")
             .one()
         )
-        assert imported.auto_submitted is True
-        assert imported.ai_assisted is True
+        assert imported.auto_submitted == True  # noqa: E712
+        assert imported.ai_assisted == True  # noqa: E712
         assert imported.review_result == "approved"
         assert imported.review_comment == "Looks good"
 

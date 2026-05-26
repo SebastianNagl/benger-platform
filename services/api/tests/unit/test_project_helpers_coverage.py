@@ -236,10 +236,10 @@ class TestCalculateGenerationStats:
 
         calculate_generation_stats(db, project, response)
 
-        assert response.generation_config_ready is False
-        assert response.generation_prompts_ready is False
+        assert response.generation_config_ready == False  # noqa: E712
+        assert response.generation_prompts_ready == False  # noqa: E712
         assert response.generation_models_count == 0
-        assert response.generation_completed is False
+        assert response.generation_completed == False  # noqa: E712
 
     def test_with_prompt_structures(self):
         db = Mock()
@@ -254,8 +254,8 @@ class TestCalculateGenerationStats:
 
         calculate_generation_stats(db, project, response)
 
-        assert response.generation_config_ready is True
-        assert response.generation_prompts_ready is True
+        assert response.generation_config_ready == True  # noqa: E712
+        assert response.generation_prompts_ready == True  # noqa: E712
         assert response.generation_models_count == 2
 
     def test_generation_completed(self):
@@ -291,7 +291,7 @@ class TestCalculateGenerationStats:
 
         calculate_generation_stats(db, project, response)
 
-        assert response.generation_completed is True
+        assert response.generation_completed == True  # noqa: E712
 
     def test_generation_not_completed(self):
         db = Mock()
@@ -323,7 +323,7 @@ class TestCalculateGenerationStats:
 
         calculate_generation_stats(db, project, response)
 
-        assert response.generation_completed is False
+        assert response.generation_completed == False  # noqa: E712
 
     def test_no_models_configured(self):
         db = Mock()
@@ -336,7 +336,7 @@ class TestCalculateGenerationStats:
         calculate_generation_stats(db, project, response)
 
         assert response.generation_models_count == 0
-        assert response.generation_completed is False
+        assert response.generation_completed == False  # noqa: E712
 
 
 # ============= get_accessible_project_ids =============

@@ -100,7 +100,7 @@ class TestMarkNotificationRead:
             db=mock_db, notification_id="n1", user_id="user-1"
         )
         assert result is True
-        assert mock_notif.is_read is True
+        assert mock_notif.is_read == True  # noqa: E712
 
     def test_not_found(self):
         mock_db = Mock(spec=Session)

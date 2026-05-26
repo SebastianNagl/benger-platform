@@ -187,7 +187,7 @@ class TestRefreshTokenService:
                 result = rotate_refresh_token(test_db, "old_token")
 
                 assert result == ("new_token", new_mock_token)
-                assert mock_refresh_token.is_active is False
+                assert mock_refresh_token.is_active == False  # noqa: E712
                 test_db.commit.assert_called()
 
     def test_rotate_refresh_token_invalid_old_token(self, test_db):
@@ -222,7 +222,7 @@ class TestRefreshTokenService:
             result = revoke_refresh_token(test_db, "valid_token")
 
             assert result is True
-            assert mock_refresh_token.is_active is False
+            assert mock_refresh_token.is_active == False  # noqa: E712
             test_db.commit.assert_called_once()
 
     def test_revoke_refresh_token_not_found(self, test_db):
@@ -333,7 +333,7 @@ class TestRefreshTokenService:
         result = revoke_token_by_id(test_db, "token-123", "user-456")
 
         assert result is True
-        assert mock_refresh_token.is_active is False
+        assert mock_refresh_token.is_active == False  # noqa: E712
         test_db.commit.assert_called_once()
 
     def test_revoke_token_by_id_not_found(self, test_db):

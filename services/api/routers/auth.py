@@ -74,7 +74,7 @@ def get_user_primary_role(user: User, db: Session) -> Optional[str]:
     # Get active organization memberships for the user
     memberships = (
         db.query(OrganizationMembership)
-        .filter(OrganizationMembership.user_id == user.id, OrganizationMembership.is_active is True)
+        .filter(OrganizationMembership.user_id == user.id, OrganizationMembership.is_active == True)  # noqa: E712
         .all()
     )
 
@@ -452,7 +452,7 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
                 .filter(
                     Invitation.token == invitation_token,
                     Invitation.email == user_data.email,
-                    Invitation.accepted is False,
+                    Invitation.accepted == False,  # noqa: E712
                 )
                 .first()
             )
@@ -638,14 +638,14 @@ async def get_user_contexts(
 
     # Build organization contexts
     if current_user.is_superadmin:
-        organizations = db.query(Organization).filter(Organization.is_active is True).all()
+        organizations = db.query(Organization).filter(Organization.is_active == True).all()  # noqa: E712
 
         member_counts = dict(
             db.query(
                 OrganizationMembership.organization_id,
                 func.count(OrganizationMembership.id),
             )
-            .filter(OrganizationMembership.is_active is True)
+            .filter(OrganizationMembership.is_active == True)  # noqa: E712
             .group_by(OrganizationMembership.organization_id)
             .all()
         )
@@ -654,7 +654,7 @@ async def get_user_contexts(
             db.query(OrganizationMembership.organization_id, OrganizationMembership.role)
             .filter(
                 OrganizationMembership.user_id == current_user.id,
-                OrganizationMembership.is_active is True,
+                OrganizationMembership.is_active == True,  # noqa: E712
             )
             .all()
         )
@@ -678,8 +678,8 @@ async def get_user_contexts(
             .join(OrganizationMembership, Organization.id == OrganizationMembership.organization_id)
             .filter(
                 OrganizationMembership.user_id == current_user.id,
-                OrganizationMembership.is_active is True,
-                Organization.is_active is True,
+                OrganizationMembership.is_active == True,  # noqa: E712
+                Organization.is_active == True,  # noqa: E712
             )
             .all()
         )
@@ -694,7 +694,7 @@ async def get_user_contexts(
                 )
                 .filter(
                     OrganizationMembership.organization_id.in_(org_ids),
-                    OrganizationMembership.is_active is True,
+                    OrganizationMembership.is_active == True,  # noqa: E712
                 )
                 .group_by(OrganizationMembership.organization_id)
                 .all()
@@ -1215,7 +1215,7 @@ async def get_mandatory_profile_status(
             existing = db.query(Notification).filter(
                 Notification.user_id == str(current_user.id),
                 Notification.type == NotificationType.PROFILE_CONFIRMATION_DUE,
-                Notification.is_read is False,  # noqa: E712
+                Notification.is_read == False,  # noqa: E712
             ).first()
             if not existing:
                 import uuid as _uuid

@@ -130,11 +130,11 @@ async def list_all_tasks(
     # Apply status filter
     if status and status != 'all':
         if status == 'completed':
-            query = query.filter(Task.is_labeled is True)
+            query = query.filter(Task.is_labeled == True)  # noqa: E712
         elif status == 'incomplete':
-            query = query.filter(Task.is_labeled is False)
+            query = query.filter(Task.is_labeled == False)  # noqa: E712
         elif status == 'in_progress':
-            query = query.filter(and_(Task.assigned_to.isnot(None), Task.is_labeled is False))
+            query = query.filter(and_(Task.assigned_to.isnot(None), Task.is_labeled == False))  # noqa: E712
 
     # Apply assigned user filter
     if assigned_to:

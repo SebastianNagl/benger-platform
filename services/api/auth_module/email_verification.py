@@ -99,7 +99,7 @@ class EmailVerificationService:
             .join(Organization, Invitation.organization_id == Organization.id)
             .filter(
                 ((Invitation.email == user_email) | (Invitation.pending_user_id == user_id)),
-                Invitation.accepted is False,
+                Invitation.accepted == False,  # noqa: E712
                 Invitation.expires_at > datetime.now(timezone.utc),
             )
             .all()
@@ -113,7 +113,7 @@ class EmailVerificationService:
                     .filter(
                         OrganizationMembership.user_id == user_id,
                         OrganizationMembership.organization_id == invitation.organization_id,
-                        OrganizationMembership.is_active is True,
+                        OrganizationMembership.is_active == True,  # noqa: E712
                     )
                     .first()
                 )
@@ -755,19 +755,19 @@ class EmailVerificationService:
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         # Count unverified users
-        unverified_count = db.query(User).filter(User.email_verified is False).count()
+        unverified_count = db.query(User).filter(User.email_verified == False).count()  # noqa: E712
 
         # Count recently created unverified users
         recent_unverified = (
             db.query(User)
-            .filter(User.email_verified is False, User.created_at >= cutoff_date)
+            .filter(User.email_verified == False, User.created_at >= cutoff_date)  # noqa: E712
             .count()
         )
 
         # Count users with pending verification emails
         pending_verification = (
             db.query(User)
-            .filter(User.email_verification_token.isnot(None), User.email_verified is False)
+            .filter(User.email_verification_token.isnot(None), User.email_verified == False)  # noqa: E712
             .count()
         )
 
@@ -777,7 +777,7 @@ class EmailVerificationService:
             db.query(User)
             .filter(
                 User.email_verification_sent_at <= expired_cutoff,
-                User.email_verified is False,
+                User.email_verified == False,  # noqa: E712
                 User.email_verification_token.isnot(None),
             )
             .count()
@@ -832,7 +832,7 @@ class EmailVerificationService:
                 .filter(
                     User.email_verification_sent_at <= expiration_cutoff,
                     User.email_verification_token.isnot(None),
-                    User.email_verified is False,
+                    User.email_verified == False,  # noqa: E712
                 )
                 .all()
             )

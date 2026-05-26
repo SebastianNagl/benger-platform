@@ -348,7 +348,7 @@ class TestProfileUpdateHistoryTracking:
 
         # Check mandatory_profile_completed is now True
         test_db.refresh(incomplete_user)
-        assert incomplete_user.mandatory_profile_completed is True
+        assert incomplete_user.mandatory_profile_completed == True  # noqa: E712
 
     def test_profile_update_with_grades(self, client, complete_user):
         response = client.put(
@@ -405,7 +405,7 @@ class TestCreateUserWithProfile:
             ptt_a_scores=VALID_SCALES["ptt_a"],
             ki_experience_scores=VALID_SCALES["ki_exp"],
         )
-        assert user.mandatory_profile_completed is True
+        assert user.mandatory_profile_completed == True  # noqa: E712
         assert user.profile_confirmed_at is not None
         assert user.gender == "maennlich"
         assert user.age == 30
@@ -420,7 +420,7 @@ class TestCreateUserWithProfile:
             name="Basic User",
             password="securepassword123",
         )
-        assert user.mandatory_profile_completed is False
+        assert user.mandatory_profile_completed == False  # noqa: E712
         assert user.profile_confirmed_at is None
 
     def test_create_user_invalid_gender_rejected(self, test_db):
@@ -621,7 +621,7 @@ class TestUpdateUserProfileService:
             ki_experience_scores=VALID_SCALES["ki_exp"],
         )
         test_db.refresh(incomplete_user)
-        assert incomplete_user.mandatory_profile_completed is True
+        assert incomplete_user.mandatory_profile_completed == True  # noqa: E712
 
     def test_no_change_no_history(self, test_db, complete_user):
         from auth_module.user_service import update_user_profile

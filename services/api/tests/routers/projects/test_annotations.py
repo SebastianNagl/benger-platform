@@ -71,6 +71,6 @@ def test_list_annotations_filters_by_user():
     assert "all_users" in sig.parameters, (
         "list_task_annotations must have all_users parameter"
     )
-    assert sig.parameters["all_users"].default is False, (
+    assert sig.parameters["all_users"].default == False, (  # noqa: E712
         "all_users must default to False (user-scoped by default)"
     )

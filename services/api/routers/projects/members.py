@@ -38,7 +38,7 @@ async def list_project_members(
     direct_members = (
         db.query(ProjectMember)
         .options(joinedload(ProjectMember.user))
-        .filter(ProjectMember.project_id == project_id, ProjectMember.is_active is True)
+        .filter(ProjectMember.project_id == project_id, ProjectMember.is_active == True)  # noqa: E712
         .all()
     )
 
@@ -61,7 +61,7 @@ async def list_project_members(
             )
             .filter(
                 OrganizationMembership.organization_id.in_(project_org_ids),
-                OrganizationMembership.is_active is True,
+                OrganizationMembership.is_active == True,  # noqa: E712
             )
             .all()
         )
@@ -141,7 +141,7 @@ async def get_project_annotators(
         .join(Annotation, Annotation.completed_by == User.id)
         .filter(
             Annotation.project_id == project_id,
-            Annotation.was_cancelled is False,
+            Annotation.was_cancelled == False,  # noqa: E712
         )
         .group_by(User.id, User.name, User.pseudonym, User.use_pseudonym)
         .order_by(func.count(Annotation.id).desc())

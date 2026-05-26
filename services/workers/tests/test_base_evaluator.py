@@ -47,7 +47,7 @@ class TestEvaluationResult:
             samples_evaluated=100,
         )
 
-        assert result.success is True
+        assert result.success == True
         assert result.error is None
         assert result.metrics == {"accuracy": 0.85, "f1": 0.82}
         assert result.metadata == {"samples": 100}
@@ -59,7 +59,7 @@ class TestEvaluationResult:
             metrics={}, metadata={}, error="Evaluation failed", samples_evaluated=0
         )
 
-        assert result.success is False
+        assert result.success == False
         assert result.error == "Evaluation failed"
         assert result.metrics == {}
         assert result.samples_evaluated == 0
@@ -68,7 +68,7 @@ class TestEvaluationResult:
         """Test evaluation result with default values."""
         result = EvaluationResult(metrics={"accuracy": 0.9}, metadata={}, samples_evaluated=50)
 
-        assert result.success is True
+        assert result.success == True
         assert result.error is None
         assert result.metadata == {}
 
@@ -273,7 +273,7 @@ class TestBaseEvaluator:
 
         result = evaluator.evaluate("test-model", task_data, config)
 
-        assert result.success is True
+        assert result.success == True
         assert result.error is None
         assert result.samples_evaluated == 2
         assert "accuracy" in result.metrics
@@ -297,7 +297,7 @@ class TestBaseEvaluator:
 
         result = evaluator.evaluate("test-model", task_data, config)
 
-        assert result.success is False
+        assert result.success == False
         assert "Invalid model configuration" in result.error
         assert result.samples_evaluated == 0
 
@@ -320,7 +320,7 @@ class TestBaseEvaluator:
 
         result = evaluator.evaluate("test-model", task_data, config)
 
-        assert result.success is False
+        assert result.success == False
         assert "No valid data found" in result.error
         assert result.samples_evaluated == 0
 
@@ -350,7 +350,7 @@ class TestBaseEvaluatorEdgeCases:
 
         result = evaluator.evaluate("test-model", task_data, config)
 
-        assert result.success is True
+        assert result.success == True
         assert result.samples_evaluated == 1000
 
     def test_unsupported_metrics(self, evaluator):
@@ -370,7 +370,7 @@ class TestBaseEvaluatorEdgeCases:
         result = evaluator.evaluate("test-model", task_data, config)
 
         # Should still succeed but metric will be 0.0
-        assert result.success is True
+        assert result.success == True
         assert result.metrics["unsupported_metric"] == 0.0
 
     def test_mixed_data_types(self, evaluator):
@@ -393,7 +393,7 @@ class TestBaseEvaluatorEdgeCases:
         result = evaluator.evaluate("test-model", task_data, config)
 
         # Should handle type conversion to strings
-        assert result.success is True
+        assert result.success == True
         assert result.samples_evaluated == 2
 
     def test_unicode_and_special_characters(self, evaluator):
@@ -410,7 +410,7 @@ class TestBaseEvaluatorEdgeCases:
 
         result = evaluator.evaluate("test-model", task_data, config)
 
-        assert result.success is True
+        assert result.success == True
         assert result.samples_evaluated == 1
 
     def test_memory_efficiency(self, evaluator):
@@ -436,7 +436,7 @@ class TestBaseEvaluatorEdgeCases:
 
         # Should complete without memory errors
         result = evaluator.evaluate("test-model", task_data, config)
-        assert result.success is True
+        assert result.success == True
 
 
 if __name__ == "__main__":

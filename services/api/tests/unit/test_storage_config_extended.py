@@ -317,7 +317,7 @@ class TestStorageConfigModelFields:
         """StorageConfig defaults s3_use_ssl to True."""
         mod = storage_config_module
         field = mod.StorageConfig.model_fields["s3_use_ssl"]
-        assert field.default is True
+        assert field.default == True  # noqa: E712
 
     def test_cdn_config_default_provider_is_none(self, storage_config_module):
         """CDNConfig defaults cdn_provider to None."""
