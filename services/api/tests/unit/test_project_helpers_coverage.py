@@ -2,8 +2,7 @@
 Unit tests for routers/projects/helpers.py — covers all uncovered branches.
 """
 
-from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch, PropertyMock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -12,14 +11,11 @@ from routers.projects.helpers import (
     calculate_project_stats,
     calculate_project_stats_batch,
     calculate_generation_stats,
-    get_user_with_memberships,
     get_accessible_project_ids,
-    get_org_context_from_request,
     check_project_accessible,
     check_task_assigned_to_user,
     check_user_can_edit_project,
     get_project_organizations,
-    get_comprehensive_project_data,
 )
 
 

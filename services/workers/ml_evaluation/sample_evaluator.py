@@ -231,8 +231,8 @@ class SampleEvaluator:
         if generation_id is not None and annotation_id is None and parse_status != "success" and not allow_unparsed:
             error_msg = (
                 f"Cannot evaluate generation {generation_id} with parse_status='{parse_status}'. "
-                f"Only generations with parse_status='success' can be evaluated. "
-                f"Please ensure the generation response has been parsed before evaluation."
+                "Only generations with parse_status='success' can be evaluated. "
+                "Please ensure the generation response has been parsed before evaluation."
             )
             logger.error(error_msg)
             raise ValueError(error_msg)
@@ -1465,7 +1465,7 @@ class SampleEvaluator:
                     raise RuntimeError(f"FactCC scoring failed: {e}")
             else:
                 raise ValueError(
-                    f"Unknown FactCC method: {method}. " f"Must be 'summac' or 'factcc'"
+                    f"Unknown FactCC method: {method}. " "Must be 'summac' or 'factcc'"
                 )
 
         elif metric_name == "qags":

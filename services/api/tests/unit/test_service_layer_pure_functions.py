@@ -11,7 +11,6 @@ Targets:
 - routers/evaluations/results.py: _extract_primary_score
 """
 
-import os
 import pytest
 
 
@@ -351,7 +350,7 @@ class TestLocalStorageBackend:
     def test_creates_base_dir(self, tmp_path):
         new_dir = tmp_path / "new_storage"
         from services.storage.storage_service import LocalStorageBackend
-        backend = LocalStorageBackend(str(new_dir))
+        LocalStorageBackend(str(new_dir))
         assert new_dir.exists()
 
 
@@ -368,8 +367,10 @@ class TestCDNServiceCacheHeaders:
         class MockProvider(CDNProvider):
             async def purge_cache(self, paths):
                 return True
+
             def get_cdn_url(self, path):
                 return f"https://cdn.example.com/{path.lstrip('/')}"
+
             async def warm_cache(self, paths):
                 return True
 

@@ -21,7 +21,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List
 from unittest.mock import patch
 
-import pytest
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 

@@ -191,11 +191,11 @@ def calculate_project_stats(
     # Count annotations that aren't cancelled
     response.annotation_count = (
         db.query(Annotation)
-        .filter(Annotation.project_id == project_id, Annotation.was_cancelled == False)
+        .filter(Annotation.project_id == project_id, Annotation.was_cancelled is False)
         .count()
     )
     response.completed_tasks_count = (
-        db.query(Task).filter(Task.project_id == project_id, Task.is_labeled == True).count()
+        db.query(Task).filter(Task.project_id == project_id, Task.is_labeled is True).count()
     )
 
     # Generation completion (tasks × models) — mirrors the logic in
@@ -310,7 +310,7 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
             db.query(
                 Task.project_id,
                 func.count(Task.id).label('task_count'),
-                func.sum(case((Task.is_labeled == True, 1), else_=0)).label(
+                func.sum(case((Task.is_labeled is True, 1), else_=0)).label(
                     'completed_tasks_count'
                 ),
             )
@@ -333,8 +333,8 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
             )
             .filter(
                 Annotation.project_id.in_(missing_summary_ids),
-                Annotation.was_cancelled == False,
-                Annotation.result != None,
+                Annotation.was_cancelled is False,
+                Annotation.result is not None,
                 func.jsonb_array_length(Annotation.result) > 0,
             )
             .group_by(Annotation.project_id)
@@ -563,7 +563,7 @@ def get_accessible_project_ids(
             db.query(Project.id)
             .filter(
                 or_(
-                    Project.is_private == False,
+                    Project.is_private is False,
                     Project.created_by == str(user.id),
                 )
             )
@@ -578,14 +578,14 @@ def get_accessible_project_ids(
         return result
 
     public_ids = [
-        r.id for r in db.query(Project.id).filter(Project.is_public == True).all()
+        r.id for r in db.query(Project.id).filter(Project.is_public is True).all()
     ]
 
     if not org_context or org_context == "private":
         rows = (
             db.query(Project.id)
             .filter(
-                Project.is_private == True,
+                Project.is_private is True,
                 Project.created_by == str(user.id),
             )
             .all()

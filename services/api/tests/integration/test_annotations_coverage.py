@@ -6,10 +6,8 @@ Targets: routers/projects/annotations.py — create_annotation, list_annotations
 """
 
 import uuid
-from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from project_models import (
     Annotation,

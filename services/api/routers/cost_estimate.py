@@ -83,7 +83,7 @@ class CostEstimateRequest(BaseModel):
             if offending:
                 raise ValueError(
                     f"{', '.join(offending)} are eval-only and must not be set "
-                    f"when mode == 'generation'"
+                    "when mode == 'generation'"
                 )
         return self
 
@@ -175,7 +175,7 @@ def _count_eval_subjects(
         ann_q = (
             db.query(Annotation)
             .join(Task, Annotation.task_id == Task.id)
-            .filter(Task.project_id == project_id, Annotation.was_cancelled == False)  # noqa: E712
+            .filter(Task.project_id == project_id, Annotation.was_cancelled is False)  # noqa: E712
         )
         if annotator_user_ids:
             ann_q = ann_q.filter(Annotation.completed_by.in_(annotator_user_ids))
@@ -447,8 +447,7 @@ def _already_scored_subjects(
     plain pred_field maps to two field_name patterns, one for each
     subject kind.
     """
-    from project_models import Task
-    from models import TaskEvaluation, EvaluationRun
+    from models import TaskEvaluation
 
     if pred_field.startswith("human:") or pred_field == "__all_human__":
         # Annotation-side field. Match the prefixed form on the
@@ -482,7 +481,6 @@ def _scored_for(
     db: Session, project_id: str, *, metric_id: str, pred_field_norm: str,
     subject_col, kind: str,
 ) -> set:
-    from sqlalchemy import and_
     from models import TaskEvaluation, EvaluationRun
     rows = (
         db.query(subject_col)
@@ -757,7 +755,7 @@ def estimate_cost(
             )
 
         pricing = _resolve_pricing(db, model_id)
-        pricing_known = pricing is not None
+        pricing is not None
         if pricing is None:
             per_model_costs.append(PerModelCost(
                 model_id=model_id,
@@ -806,7 +804,7 @@ def estimate_cost(
         )
 
     mode_note = (
-        f" Counting only the cells that would actually fire under "
+        " Counting only the cells that would actually fire under "
         f"generation_mode='{request.generation_mode}'"
         if request.generation_mode == "missing"
         else " Counting every (task × structure) cell"

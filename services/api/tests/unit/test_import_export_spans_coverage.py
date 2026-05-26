@@ -3,8 +3,6 @@ Unit tests for routers/projects/import_export.py — targets span conversion fun
 and other pure functions at the top of the file (lines 28-125+).
 """
 
-import pytest
-
 
 class TestConvertToLabelStudioFormat:
     """Tests for convert_to_label_studio_format."""

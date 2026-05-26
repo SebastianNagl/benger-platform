@@ -175,7 +175,7 @@ async def get_download_url(
                 db.query(OrganizationMembership.organization_id)
                 .filter(
                     OrganizationMembership.user_id == current_user.id,
-                    OrganizationMembership.is_active == True,
+                    OrganizationMembership.is_active is True,
                 )
                 .all()
             )

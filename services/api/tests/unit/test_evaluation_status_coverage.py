@@ -6,7 +6,6 @@ Covers evaluation status, SSE streaming, evaluation types, and supported metrics
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 

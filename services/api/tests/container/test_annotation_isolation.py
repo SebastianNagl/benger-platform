@@ -112,7 +112,7 @@ class TestAnnotationIsolation:
             .filter(
                 Annotation.task_id == task.id,
                 Annotation.completed_by == user_a.id,
-                Annotation.result != None,
+                Annotation.result is not None,
                 cast(Annotation.result, String) != "[]",
             )
             .all()
@@ -128,7 +128,7 @@ class TestAnnotationIsolation:
             .filter(
                 Annotation.task_id == task.id,
                 Annotation.completed_by == user_b.id,
-                Annotation.result != None,
+                Annotation.result is not None,
                 cast(Annotation.result, String) != "[]",
             )
             .all()
@@ -153,7 +153,7 @@ class TestAnnotationIsolation:
             self.db.query(Annotation)
             .filter(
                 Annotation.task_id == task.id,
-                Annotation.result != None,
+                Annotation.result is not None,
                 cast(Annotation.result, String) != "[]",
             )
             .all()
@@ -179,7 +179,7 @@ class TestAnnotationIsolation:
             .filter(
                 Annotation.task_id == task.id,
                 Annotation.completed_by == user_c.id,
-                Annotation.result != None,
+                Annotation.result is not None,
                 cast(Annotation.result, String) != "[]",
             )
             .all()
@@ -190,7 +190,6 @@ class TestAnnotationIsolation:
     def test_endpoint_function_has_completed_by_filter(self):
         """Verify the actual endpoint code includes completed_by filtering."""
         import inspect
-        import textwrap
 
         from routers.projects.annotations import list_task_annotations
 

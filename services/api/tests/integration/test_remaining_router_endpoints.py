@@ -14,29 +14,24 @@ shared test_db fixture.
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List
+from typing import Dict
 from unittest.mock import patch, MagicMock
 
-import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from models import (
     FeatureFlag,
-    Generation as DBGeneration,
     Invitation,
     LLMModel,
     Notification,
     NotificationType,
     Organization,
-    OrganizationMembership,
     OrganizationRole,
     ResponseGeneration as DBResponseGeneration,
     User,
 )
 from project_models import (
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
 )
@@ -178,7 +173,7 @@ class TestGenerationStatusEndpoints:
     def test_stop_generation_permission_denied(self, client, test_db, test_users, test_org, auth_headers):
         """Non-owner, non-superadmin cannot stop another user's generation."""
         admin = test_users[0]
-        contributor = test_users[1]
+        test_users[1]
         data = _make_project(test_db, admin, test_org)
         gen = self._create_response_generation(
             test_db, data["project"], data["tasks"][0], admin, status_val="running"

@@ -2,11 +2,8 @@
 Extended unit tests for routers/projects/helpers.py covering business logic.
 """
 
-from datetime import datetime
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
-from fastapi import HTTPException
 
 from routers.projects.helpers import (
     calculate_project_stats_batch,

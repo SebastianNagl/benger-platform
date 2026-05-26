@@ -9,7 +9,6 @@ Rewritten to call handler functions directly (no TestClient) so that pytest-cov
 tracks the router code.
 """
 
-import math
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 

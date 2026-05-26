@@ -3,8 +3,6 @@ Unit tests for services/email/email_validation.py to increase coverage.
 Tests email validation edge cases.
 """
 
-import pytest
-
 
 class TestEmailValidation:
     def setup_method(self):

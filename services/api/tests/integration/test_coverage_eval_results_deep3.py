@@ -7,10 +7,8 @@ distribution, export, immediate evaluation, score extraction.
 
 import json
 import uuid
-from datetime import datetime
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
@@ -19,11 +17,9 @@ from models import (
     HumanEvaluationSession,
     LikertScaleEvaluation,
     LLMModel,
-    Organization,
     PreferenceRanking,
     ResponseGeneration,
     TaskEvaluation,
-    User,
 )
 from project_models import (
     Annotation,
@@ -357,7 +353,7 @@ class TestExportEvaluationResults:
         test_db.commit()
 
         resp = client.post(
-            f"/api/evaluations/export/nonexistent?format=json",
+            "/api/evaluations/export/nonexistent?format=json",
             headers=auth_headers["admin"],
         )
         # Superadmin bypasses access, so might get 200 with empty results

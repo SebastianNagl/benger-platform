@@ -137,7 +137,7 @@ class TestClearGenerationConfig:
         request = Mock()
         user = Mock()
 
-        result = clear_generation_config("p1", request, mock_db, user)
+        clear_generation_config("p1", request, mock_db, user)
         assert project.generation_config is None
 
     @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
@@ -167,6 +167,7 @@ class TestGetProjectGenerationStatus:
         project.id = "p1"
 
         call_count = [0]
+
         def query_side_effect(*args, **kwargs):
             call_count[0] += 1
             q = MagicMock()
@@ -202,6 +203,7 @@ class TestGetProjectGenerationStatus:
         gen.error_message = None
 
         call_count = [0]
+
         def query_side_effect(*args, **kwargs):
             call_count[0] += 1
             q = MagicMock()

@@ -11,11 +11,9 @@ Covers:
 - SENSITIVE_FIELDS coverage
 """
 
-import json
 import os
 import sys
 
-import pytest
 
 workers_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if workers_root not in sys.path:
@@ -226,8 +224,8 @@ class TestFilterTaskDataSensitive:
         self.parser = GenerationStructureParser()
 
     def test_sensitive_path_blocked(self):
-        task_data = {"annotations": {"ref": "secret"}, "question": "What?"}
-        mappings = {"ref": "annotations.ref", "q": "question"}
+        task_data = {"annotations": {"re": "secret"}, "question": "What?"}
+        mappings = {"re": "annotations.re", "q": "question"}
         filtered = self.parser.filter_task_data(task_data, mappings)
         assert "ref" not in filtered
         assert "q" in filtered

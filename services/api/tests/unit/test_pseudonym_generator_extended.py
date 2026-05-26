@@ -3,8 +3,6 @@ Unit tests for utils/pseudonym_generator.py to increase coverage.
 Tests edge cases in pseudonym generation.
 """
 
-import pytest
-
 
 class TestPseudonymGenerator:
     def test_import(self):

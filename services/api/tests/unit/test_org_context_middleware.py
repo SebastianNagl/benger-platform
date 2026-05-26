@@ -4,7 +4,7 @@ Tests for org context middleware.
 Targets: middleware/org_context.py lines 31-52, 56-81
 """
 
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import status

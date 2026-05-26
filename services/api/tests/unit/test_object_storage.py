@@ -205,7 +205,7 @@ class TestCDNIntegration:
         mock_s3_client.generate_presigned_url.return_value = expected_url
 
         result = storage_service.upload_file(
-            file_data=b"user content", filename="document.pdf", file_type="uploads"
+            file_data=b"user content", filename="document.pd", file_type="uploads"
         )
 
         # User uploads should not use CDN

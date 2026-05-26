@@ -863,7 +863,7 @@ def auto_submit_expired_timer(session_id: str) -> Dict[str, Any]:
                 from sqlalchemy import String, cast, func
                 non_cancelled = db.query(Annotation).filter(
                     Annotation.task_id == session.task_id,
-                    Annotation.was_cancelled == False,
+                    Annotation.was_cancelled is False,
                     Annotation.result.isnot(None),
                     func.length(cast(Annotation.result, String)) > 2,
                 ).count() + 1  # +1 for the annotation being created
@@ -1167,7 +1167,7 @@ def generate_llm_responses(
                     )
 
             if ai_service is None:
-                key_context = f"organization settings" if organization_id else "profile settings"
+                key_context = "organization settings" if organization_id else "profile settings"
                 raise Exception(
                     f"No {model.provider} API key configured. Please add your API key in {key_context} to use this model."
                 )
@@ -1830,7 +1830,7 @@ def generate_llm_responses(
                                 parse_error = f"Parser exception: {str(e)}"
                         else:
                             logger.info(
-                                f"ℹ️ Skipping parsing - no label_config configured for project"
+                                "ℹ️ Skipping parsing - no label_config configured for project"
                             )
 
                         # Determine final status based on parse result and retry count
@@ -2238,7 +2238,7 @@ def send_invitation_email_task(
         client = SendGridClient()
 
         subject = f"Invitation to join {organization_name} on BenGER"
-        html_body = f"""
+        html_body = """
         <html>
         <body style="font-family: Arial, sans-serif; padding: 20px;">
             <h2>You're invited to join {organization_name}</h2>
@@ -3151,7 +3151,7 @@ def run_evaluation(
                 task_id_list = [t.id for t in tasks]
                 ann_query = db.query(Annotation).filter(
                     Annotation.task_id.in_(task_id_list),
-                    Annotation.was_cancelled == False,  # noqa: E712
+                    Annotation.was_cancelled is False,  # noqa: E712
                 )
                 if annotator_user_ids:
                     ann_pre_count = ann_query.count()
@@ -3327,7 +3327,7 @@ def run_evaluation(
                 logger.info(
                     f"Eval {evaluation_id} reached terminal status "
                     f"'{evaluation.status}' during orchestrator setup; "
-                    f"skipping chord dispatch."
+                    "skipping chord dispatch."
                 )
                 return {
                     "status": "cancelled_before_dispatch",
@@ -3450,8 +3450,6 @@ def _immediate_eval_metadata():
 # Registered into this Celery app via
 # benger_extended.workers.register_tasks(app) at worker startup
 # (see worker bootstrap at the bottom of this file).
-
-
 
 
 # =============================================================================
@@ -3938,8 +3936,6 @@ def run_single_sample_evaluation(
 # benger-extended/benger_extended/workers/falloesung_tasks.evaluate_falloesung_single
 # and dispatched via the metric registry hook. See the
 # llm_judge_falloesung branch in run_single_sample_evaluation above.
-
-
 
 
 def _evaluate_llm_judge_single(
@@ -4693,7 +4689,7 @@ def evaluate_generation_cell(
         if uses_annotation_fields:
             ann = (
                 db.query(Annotation)
-                .filter(Annotation.task_id == task_id, Annotation.was_cancelled == False)  # noqa: E712
+                .filter(Annotation.task_id == task_id, Annotation.was_cancelled is False)  # noqa: E712
                 .first()
             )
             ground_truth_annotation = ann
@@ -4815,9 +4811,9 @@ def evaluate_generation_cell(
                                         "value": None,
                                         "method": metric,
                                         "error": (
-                                            f"LLM judge evaluator not initialized for config "
+                                            "LLM judge evaluator not initialized for config "
                                             f"{config_id} — likely missing API key for the "
-                                            f"triggering user/org. Run skipped this metric."
+                                            "triggering user/org. Run skipped this metric."
                                         ),
                                         "details": {},
                                     },
@@ -5355,7 +5351,7 @@ def evaluate_annotation_cell(
                                             "value": None,
                                             "method": metric,
                                             "error": (
-                                                f"LLM judge evaluator not initialized for config "
+                                                "LLM judge evaluator not initialized for config "
                                                 f"{config_id}"
                                             ),
                                             "details": {},

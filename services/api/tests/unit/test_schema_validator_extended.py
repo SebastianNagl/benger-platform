@@ -3,9 +3,7 @@ Extended unit tests for schema_validator.py — targeting validate_schema, valid
 generate_fix_commands column type inference, and main function.
 """
 
-from unittest.mock import MagicMock, patch, call
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 
 class TestValidateSchema:
@@ -19,6 +17,7 @@ class TestValidateSchema:
 
         schema = get_expected_schema()
         # Return all expected columns for each table
+
         def get_cols(table):
             if table in schema:
                 return [{"name": col} for col in schema[table]]

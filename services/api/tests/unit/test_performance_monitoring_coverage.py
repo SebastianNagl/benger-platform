@@ -5,9 +5,7 @@ DatabasePerformanceValidator.
 """
 
 import time
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 
 class TestQueryPerformanceMonitor:
@@ -146,7 +144,7 @@ class TestDatabasePerformanceValidator:
         validator = DatabasePerformanceValidator(mock_db)
         # This will handle exceptions internally
         try:
-            report = validator.generate_performance_report()
+            validator.generate_performance_report()
         except Exception:
             # If the method propagates, that's acceptable for coverage
             pass
@@ -180,7 +178,7 @@ class TestSlowQueryListener:
                 # Run a query slower than the 100 ms slow-query threshold.
                 # Sleep before executing rather than inside SQLite to keep
                 # the test deterministic across platforms.
-                t0 = time.time()
+                time.time()
                 conn.execute(text("SELECT 1"))
                 # Patch the listener's start-time so the after-handler
                 # sees a "slow" duration without actually sleeping 100ms+.
@@ -227,5 +225,5 @@ class TestSlowQueryListener:
         # double-registered (the bug we just fixed).
         assert len(slow_records) == 1, (
             f"slow-query listener fired {len(slow_records)} times for one query — "
-            f"regression of the double-fire bug fixed in b7eecbe"
+            "regression of the double-fire bug fixed in b7eecbe"
         )

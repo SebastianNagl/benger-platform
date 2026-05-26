@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from auth_module.dependencies import get_current_user
 from database import get_db
-from models import EvaluationRun, TaskEvaluation, Generation, LLMModel, User
+from models import EvaluationRun, LLMModel, User
 from project_models import Annotation, Project, ProjectOrganization
 from routers.projects.helpers import check_project_accessible, get_org_context_from_request
 
@@ -292,7 +292,7 @@ async def get_leaderboard_statistics(
         func.count(Annotation.id).label('total'),
         func.count(func.distinct(Annotation.completed_by)).label('unique_users'),
     ).filter(
-        Annotation.was_cancelled == False,  # noqa: E712
+        Annotation.was_cancelled is False,  # noqa: E712
         func.jsonb_array_length(Annotation.result) > 0,
     )
 
@@ -312,7 +312,7 @@ async def get_leaderboard_statistics(
 
     # Get total active users count (regardless of annotations)
     total_users = (
-        db.query(func.count(User.id)).filter(User.is_active == True).scalar() or 0
+        db.query(func.count(User.id)).filter(User.is_active is True).scalar() or 0
     )  # noqa: E712
 
     # Calculate average
@@ -606,7 +606,7 @@ async def get_llm_leaderboard(
     # depth for raw API callers.
     if include_all_models and min_generation_count <= 0 and min_samples_evaluated <= 0:
         seen = {e.model_id for e in leaderboard}
-        catalog_q = db.query(LLMModel).filter(LLMModel.is_active == True)  # noqa: E712
+        catalog_q = db.query(LLMModel).filter(LLMModel.is_active is True)  # noqa: E712
         for m in catalog_q.all():
             if m.id in seen:
                 continue

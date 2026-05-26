@@ -4,10 +4,7 @@ Unit tests for the authorization service.
 Targets: app/core/authorization.py — 38.46% coverage (71 uncovered lines)
 """
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+from unittest.mock import MagicMock, Mock
 
 
 class TestCanManageOrganization:

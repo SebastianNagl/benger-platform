@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from models import EvaluationRun, User
-from project_models import Project, ProjectOrganization
+from project_models import Project
 from services.evaluation.human_eval_runs import (
     HUMAN_GRADED_METRICS,
     get_or_create_human_eval_run,

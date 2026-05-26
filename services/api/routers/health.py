@@ -9,10 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 from auth_module import User, require_superadmin, require_user
-from database import get_async_db, get_db
+from database import get_async_db
 
 logger = logging.getLogger(__name__)
 

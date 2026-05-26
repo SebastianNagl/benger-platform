@@ -12,12 +12,12 @@ Rewritten to call handler functions directly (no TestClient) so that pytest-cov
 tracks the router code.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException
-from models import OrganizationMembership, OrganizationRole, User
+from models import OrganizationRole
 
 
 # ---------------------------------------------------------------------------

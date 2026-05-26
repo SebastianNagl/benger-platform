@@ -13,10 +13,8 @@ Targets specific branches in routers/organizations.py:
 import uuid
 from datetime import datetime
 
-import pytest
-from sqlalchemy.orm import Session
 
-from models import Organization, OrganizationMembership, User
+from models import Organization, OrganizationMembership
 
 
 def _make_org(db, name="Test Org", slug=None):

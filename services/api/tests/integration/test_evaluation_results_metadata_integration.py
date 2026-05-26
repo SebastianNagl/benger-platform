@@ -20,12 +20,9 @@ from models import (
     ResponseGeneration,
     Generation,
     TaskEvaluation,
-    LLMModel,
     User,
-    Organization,
-    OrganizationMembership,
 )
-from project_models import Annotation, Project, Task
+from project_models import Project, Task
 from user_service import get_password_hash
 
 # URL prefix: main router = /api/evaluations
@@ -216,7 +213,6 @@ def task_evaluations(test_db: Session, evaluation_run, test_tasks, test_generati
 
 @pytest.fixture
 def classification_evaluations(test_db: Session, evaluation_run, test_tasks, test_generations):
-    labels = ["positive", "negative", "neutral"]
     evals = []
     predictions = [
         ("positive", "positive"),
@@ -784,7 +780,7 @@ class TestEvaluationHistory:
         # response is now ``{series: [...]}``.
         resp = client.get(
             f"{META_PREFIX}/projects/{test_project.id}/evaluation-history"
-            f"?model_ids=gpt-4&metrics=accuracy",
+            "?model_ids=gpt-4&metrics=accuracy",
             headers=auth_header,
         )
         assert resp.status_code == 200
@@ -795,7 +791,7 @@ class TestEvaluationHistory:
     def test_evaluation_history_data_points(self, client, auth_header, test_project, evaluation_run):
         resp = client.get(
             f"{META_PREFIX}/projects/{test_project.id}/evaluation-history"
-            f"?model_ids=gpt-4&metrics=accuracy",
+            "?model_ids=gpt-4&metrics=accuracy",
             headers=auth_header,
         )
         assert resp.status_code == 200
@@ -838,7 +834,7 @@ class TestSignificanceTests:
     ):
         resp = client.get(
             f"{META_PREFIX}/significance/{test_project.id}"
-            f"?model_ids=gpt-4&metrics=accuracy",
+            "?model_ids=gpt-4&metrics=accuracy",
             headers=auth_header,
         )
         assert resp.status_code == 200

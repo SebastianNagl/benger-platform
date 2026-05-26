@@ -9,12 +9,10 @@ Covers:
 - generate_response / generate_llm_responses error paths
 """
 
-import json
 import os
 import sys
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
 
 # Ensure workers dir is importable
 workers_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

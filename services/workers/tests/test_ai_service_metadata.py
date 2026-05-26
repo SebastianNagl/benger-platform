@@ -10,7 +10,6 @@ audit trail, so the rules get explicit coverage.
 from __future__ import annotations
 
 import os
-import sys
 
 # Direct file-import of the helpers under test. Going through the
 # ``ai_services`` package would eagerly import every provider's SDK

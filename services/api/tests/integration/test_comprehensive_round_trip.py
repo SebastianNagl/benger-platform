@@ -424,7 +424,7 @@ class TestComprehensiveRoundTrip:
         # Verify human evaluation data
         first_human_config = export_data["human_evaluation_configs"][0]
         assert first_human_config["evaluator_count"] == 3
-        assert first_human_config["blinding_enabled"] == True
+        assert first_human_config["blinding_enabled"] is True
 
         # Verify preference rankings
         first_ranking = export_data["preference_rankings"][0]

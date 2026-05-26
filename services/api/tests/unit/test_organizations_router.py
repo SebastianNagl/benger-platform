@@ -2,10 +2,8 @@
 Unit tests for routers/organizations.py helper functions and slug validation.
 """
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
-import pytest
 
 from routers.organizations import can_manage_organization, can_create_organization
 
@@ -125,8 +123,6 @@ class TestOrganizationResponseLogic:
 
     def test_user_orgs_empty(self):
         """Non-superadmin with no org memberships."""
-        user_orgs_with_roles = []
-        member_count_dict = {}
         result = []
         assert result == []
 

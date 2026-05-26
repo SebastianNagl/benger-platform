@@ -475,6 +475,7 @@ class TestUpdateMemberRole:
         target_mem = Mock()  # Target membership found
 
         call_count = [0]
+
         def query_side_effect(*args):
             call_count[0] += 1
             q = MagicMock()
@@ -538,6 +539,7 @@ class TestRemoveMember:
         target_mem = Mock()
 
         call_count = [0]
+
         def query_side_effect(*args):
             call_count[0] += 1
             q = MagicMock()
@@ -699,6 +701,7 @@ class TestDeleteUser:
 
         # First execute returns user, second returns superadmin count
         call_count = [0]
+
         def execute_side_effect(*args, **kwargs):
             call_count[0] += 1
             mock_result = Mock()
@@ -742,6 +745,7 @@ class TestAddUserToOrganization:
         user = Mock(is_superadmin=True, id="admin-1")
 
         call_count = [0]
+
         def query_side_effect(*args):
             call_count[0] += 1
             q = MagicMock()
@@ -769,6 +773,7 @@ class TestAddUserToOrganization:
         org = Mock()
 
         call_count = [0]
+
         def query_side_effect(*args):
             call_count[0] += 1
             q = MagicMock()
@@ -800,6 +805,7 @@ class TestAddUserToOrganization:
         existing_mem = Mock()
 
         call_count = [0]
+
         def query_side_effect(*args):
             call_count[0] += 1
             q = MagicMock()

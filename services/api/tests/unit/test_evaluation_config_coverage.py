@@ -6,7 +6,6 @@ Covers evaluation config CRUD, detect answer types, field types, and helper func
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -202,7 +201,6 @@ class TestGetProjectEvaluationConfig:
             app.dependency_overrides.clear()
 
 
-
 # ---------------------------------------------------------------------------
 # Update Project Evaluation Config
 # ---------------------------------------------------------------------------
@@ -283,7 +281,6 @@ class TestUpdateProjectEvaluationConfig:
                 assert resp.status_code == 400
         finally:
             app.dependency_overrides.clear()
-
 
 
 # ---------------------------------------------------------------------------

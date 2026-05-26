@@ -14,7 +14,6 @@ in the dev-environment manual verification (documented in the plan).
 """
 
 import inspect
-from typing import Optional
 
 
 def test_generate_response_accepts_run_index():

@@ -3,8 +3,7 @@ Unit tests for services/analytics_service.py — covers all major methods.
 """
 
 import json
-from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -13,10 +12,8 @@ from services.analytics_service import (
     AnalyticsService,
     AnalyticsOverview,
     Benchmarks,
-    PerformanceTrend,
     ProjectInsights,
     QualityMetrics,
-    UserAnalytics,
 )
 
 

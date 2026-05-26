@@ -9,10 +9,8 @@ Targets specific branches in routers/projects/annotations.py:
 """
 
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 
-import pytest
-from sqlalchemy.orm import Session
 
 from models import Organization, OrganizationMembership
 from project_models import (
@@ -20,7 +18,6 @@ from project_models import (
     Project,
     ProjectOrganization,
     Task,
-    TaskAssignment,
 )
 
 

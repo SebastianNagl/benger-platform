@@ -19,25 +19,17 @@ Targets uncovered branches in:
 
 import json
 import uuid
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from datetime import datetime
 
-import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationRun,
-    EvaluationType,
-    Generation,
     Organization,
     OrganizationMembership,
-    ResponseGeneration,
-    TaskEvaluation,
 )
 from project_models import (
     Annotation,
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
 )
@@ -202,7 +194,7 @@ class TestProjectHelpers:
     def test_get_user_with_memberships(self, test_db, test_users):
         from routers.projects.helpers import get_user_with_memberships
 
-        data = _setup_helper_project(test_db, test_users)
+        _setup_helper_project(test_db, test_users)
 
         user = get_user_with_memberships(test_db, test_users[0].id)
         assert user is not None

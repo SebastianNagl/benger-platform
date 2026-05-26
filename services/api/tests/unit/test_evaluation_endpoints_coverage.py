@@ -3,8 +3,7 @@ Unit tests for routers/evaluations/ — status.py, validation.py, metadata.py, c
 Covers endpoint logic with mocked DB.
 """
 
-from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import HTTPException

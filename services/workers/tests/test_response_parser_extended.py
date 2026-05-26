@@ -12,7 +12,6 @@ Covers:
 import json
 import os
 import sys
-from unittest.mock import patch
 
 import pytest
 
@@ -24,7 +23,7 @@ workers_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if workers_root not in sys.path:
     sys.path.insert(0, workers_root)
 
-from response_parser import ParseResult, ResponseParser
+from response_parser import ResponseParser
 
 
 @pytest.fixture

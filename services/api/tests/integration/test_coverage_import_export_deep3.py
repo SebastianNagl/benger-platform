@@ -8,27 +8,15 @@ generation data, span annotations, different meta structures, CSV export.
 import io
 import json
 import uuid
-from datetime import datetime
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
-    EvaluationRun,
-    EvaluationRunMetric,
     Generation,
-    HumanEvaluationConfig,
-    HumanEvaluationSession,
-    LikertScaleEvaluation,
-    Organization,
-    PreferenceRanking,
     ResponseGeneration,
-    TaskEvaluation,
-    User,
 )
 from project_models import (
     Annotation,
-    PostAnnotationResponse,
     Project,
     ProjectMember,
     ProjectOrganization,
@@ -233,7 +221,7 @@ class TestExportVariedAnnotations:
     def test_export_with_different_meta_structures(self, client, test_db, test_users, auth_headers, test_org):
         p = _make_project(test_db, test_users[0], test_org)
         _make_task(test_db, p, test_users[0], inner_id=1, meta={"source": "web", "difficulty": "easy"})
-        _make_task(test_db, p, test_users[0], inner_id=2, meta={"source": "pdf", "pages": [1, 2, 3]})
+        _make_task(test_db, p, test_users[0], inner_id=2, meta={"source": "pd", "pages": [1, 2, 3]})
         _make_task(test_db, p, test_users[0], inner_id=3, meta=None)
         test_db.commit()
 
@@ -314,7 +302,7 @@ class TestComprehensiveExport:
     def test_comprehensive_export(self, client, test_db, test_users, auth_headers, test_org):
         p = _make_project(test_db, test_users[0], test_org)
         t = _make_task(test_db, p, test_users[0])
-        ann = _make_annotation(test_db, t, p, test_users[0])
+        _make_annotation(test_db, t, p, test_users[0])
         test_db.commit()
 
         resp = client.get(

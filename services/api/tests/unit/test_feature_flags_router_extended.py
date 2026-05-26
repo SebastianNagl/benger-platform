@@ -5,7 +5,7 @@ Targets: routers/feature_flags.py lines 37-39, 55-57, 61-63, 76-88, 110-117, 142
 """
 
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import status

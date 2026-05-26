@@ -160,7 +160,6 @@ class TestHelperFunctions:
         assert result.error_message == "API rate limit exceeded"
         assert result.result_preview is None
 
-
     def test_get_single_task_generation_status_with_structure_key(self, mock_db):
         """Test status lookup with explicit structure_key finds matching generation."""
         mock_generation = MagicMock()

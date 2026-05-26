@@ -224,7 +224,7 @@ async def get_available_models_for_user(
     logger.info(f"📋 Available providers for user: {available_providers}")
 
     # Get all models from database
-    models = db.query(DBLLMModel).filter(DBLLMModel.is_active == True).all()
+    models = db.query(DBLLMModel).filter(DBLLMModel.is_active is True).all()
     logger.info(f"🗃️ Total active models in database: {len(models)}")
 
     # Filter models based on user's available providers

@@ -43,7 +43,7 @@ try:
             import logging
 
             logging.getLogger(__name__).warning(
-                f"Extended package incompatible with workers "
+                "Extended package incompatible with workers "
                 f"(needs {benger_extended.COMPATIBLE_CORE_VERSIONS}, "
                 f"core is {_CORE_API_VERSION})"
             )

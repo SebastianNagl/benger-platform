@@ -300,12 +300,12 @@ app = FastAPI(
     description="""
     ## BenGER - Comprehensive LLM Evaluation Framework for German Legal Domain
 
-    BenGER (Benchmark for German Legal Reasoning) provides a complete evaluation platform for Large Language Models 
+    BenGER (Benchmark for German Legal Reasoning) provides a complete evaluation platform for Large Language Models
     in the German legal domain. It features:
 
     ### 🏗️ **Core Features**
     - **Native Annotation System**: Self-contained annotation with real-time collaboration
-    - **Multi-task Support**: QA, QAR, and human evaluation workflows  
+    - **Multi-task Support**: QA, QAR, and human evaluation workflows
     - **LLM Integration**: Support for OpenAI, Anthropic, Google, and DeepInfra models
     - **Organization Management**: Multi-organization support for collaborative research
     - **Advanced Analytics**: Performance metrics, quality control, and benchmarking
@@ -327,7 +327,7 @@ app = FastAPI(
     - Multi-stage approval processes
     - Comprehensive version control and audit trails
 
-    **Version**: 3.0.1 (Refactored Architecture)  
+    **Version**: 3.0.1 (Refactored Architecture)
     **Environment**: {environment}
     """.format(
         environment=ENVIRONMENT

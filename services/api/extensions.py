@@ -33,7 +33,7 @@ def load_extended():
     if hasattr(_extended, "COMPATIBLE_CORE_VERSIONS"):
         if CORE_API_VERSION not in _extended.COMPATIBLE_CORE_VERSIONS:
             logger.error(
-                f"BenGER extended package incompatible: "
+                "BenGER extended package incompatible: "
                 f"requires core API {_extended.COMPATIBLE_CORE_VERSIONS}, "
                 f"but core is {CORE_API_VERSION}. Extended features disabled."
             )

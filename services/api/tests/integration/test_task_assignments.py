@@ -9,16 +9,13 @@ from datetime import datetime
 from typing import List
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from models import OrganizationMembership, User
+from models import User
 from project_models import (
-    Annotation,
     Project,
     ProjectMember,
     ProjectOrganization,
-    SkippedTask,
     Task,
     TaskAssignment,
 )
@@ -1023,7 +1020,6 @@ class TestFourRolePermissions:
         assert resp.status_code == 403
 
 
-
 # ---------------------------------------------------------------------------
 # Cross-org boundary tests (Issue #1313)
 # ---------------------------------------------------------------------------
@@ -1037,7 +1033,7 @@ class TestCrossOrgBoundary:
         self, client, auth_headers, test_db, test_users
     ):
         """Superadmin can access projects in any org."""
-        from models import Organization, OrganizationMembership
+        from models import Organization
 
         # Create org-B (test_users have no membership here except superadmin bypass)
         org_b = Organization(
@@ -1472,7 +1468,7 @@ class TestAutoModeAssignment:
         assert len(set(task_order)) == 6
 
         # Order is not necessarily sequential by created_at
-        sequential_ids = [t.id for t in p["tasks"]]
+        [t.id for t in p["tasks"]]
         # Note: randomized order CAN match sequential by chance, so we just verify
         # all tasks were delivered. The MD5-based ordering is tested implicitly.
 

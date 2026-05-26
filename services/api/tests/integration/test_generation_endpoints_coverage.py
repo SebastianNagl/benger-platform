@@ -5,12 +5,10 @@ Targets: routers/projects/generation.py — get_generation_config, update_genera
          clear_generation_config, get_project_generation_status
 """
 
-import json
 import uuid
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import ResponseGeneration
 from project_models import Project, ProjectOrganization, Task

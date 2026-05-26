@@ -4,7 +4,7 @@ Tests for pseudonym generator utility.
 Targets: utils/pseudonym_generator.py lines 186-187, 211-238, 248-249, 259-266
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -80,6 +80,7 @@ class TestAssignPseudonymsToExistingUsers:
 
         # Setup query chain
         call_count = [0]
+
         def query_side_effect(model_or_field):
             call_count[0] += 1
             mock_q = Mock()

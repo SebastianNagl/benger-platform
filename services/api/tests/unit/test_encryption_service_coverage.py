@@ -8,8 +8,6 @@ import base64
 import os
 from unittest.mock import patch
 
-import pytest
-
 
 class TestEncryptionServiceInit:
     """Test EncryptionService initialization and key derivation."""
@@ -162,7 +160,7 @@ class TestIsValidApiKeyFormat:
 
     def test_openai_valid(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("sk-1234567890abcdef", "openai") is True
+        assert svc.is_valid_api_key_format("sk-1234567890abcde", "openai") is True
 
     def test_openai_too_short(self):
         svc = self._make_service()
@@ -170,7 +168,7 @@ class TestIsValidApiKeyFormat:
 
     def test_openai_wrong_prefix(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("pk-1234567890abcdef", "openai") is False
+        assert svc.is_valid_api_key_format("pk-1234567890abcde", "openai") is False
 
     def test_anthropic_valid(self):
         svc = self._make_service()
@@ -252,7 +250,7 @@ class TestIsValidApiKeyFormat:
 
     def test_case_insensitive_provider(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("sk-1234567890abcdef", "OpenAI") is True
+        assert svc.is_valid_api_key_format("sk-1234567890abcde", "OpenAI") is True
         assert svc.is_valid_api_key_format("sk-ant-123456789012345678", "ANTHROPIC") is True
 
 

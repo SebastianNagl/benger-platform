@@ -2,14 +2,12 @@
 Evaluation results, per-sample analysis, and export endpoints.
 """
 
-import json
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel, Field
-from sqlalchemy import String, cast, func, literal_column
+from sqlalchemy import func, literal_column
 from sqlalchemy.orm import Session
 
 from auth_module import User, require_user
@@ -17,7 +15,7 @@ from database import get_db
 from models import EvaluationRun as DBEvaluationRun
 from models import HumanEvaluationSession, LikertScaleEvaluation, PreferenceRanking
 from project_models import Annotation, Project, Task
-from routers.evaluations.helpers import EvaluationResultsResponse, resolve_user_org_for_project
+from routers.evaluations.helpers import EvaluationResultsResponse
 from routers.projects.helpers import check_project_accessible, get_org_context_from_request
 
 logger = logging.getLogger(__name__)
@@ -142,8 +140,6 @@ def _extract_primary_score(metrics: Optional[Dict[str, Any]]) -> Optional[float]
         return coerced
 
     return None
-
-
 
 
 # ============= Endpoints =============
@@ -855,8 +851,8 @@ async def get_results_by_task_model(
                 )
                 .filter(
                     TaskEvaluation.evaluation_id == evaluation_id,
-                    TaskEvaluation.generation_id == None,  # noqa: E711
-                    TaskEvaluation.annotation_id != None,  # noqa: E711
+                    TaskEvaluation.generation_id is None,  # noqa: E711
+                    TaskEvaluation.annotation_id is not None,  # noqa: E711
                 )
                 .all()
             )
@@ -893,7 +889,7 @@ async def get_results_by_task_model(
                 )
                 .filter(
                     TaskEvaluation.evaluation_id == evaluation_id,
-                    TaskEvaluation.generation_id == None,  # noqa: E711
+                    TaskEvaluation.generation_id is None,  # noqa: E711
                     TaskEvaluation.annotation_id.isnot(None),
                     TaskEvaluation.annotation_id.in_(db.query(latest_ann_ids.c.ann_id)),
                 )
@@ -1136,7 +1132,7 @@ def _get_task_data_availability(db, task_ids: list) -> tuple:
             db.query(Annotation.task_id)
             .filter(
                 Annotation.task_id.in_(task_ids),
-                Annotation.was_cancelled == False,  # noqa: E712
+                Annotation.was_cancelled is False,  # noqa: E712
             )
             .distinct()
             .all()
@@ -1163,8 +1159,8 @@ def _get_task_data_availability(db, task_ids: list) -> tuple:
             .join(DBUser, Annotation.completed_by == DBUser.id)
             .filter(
                 Annotation.task_id.in_(task_ids),
-                Annotation.was_cancelled == False,  # noqa: E712
-                Annotation.result != None,  # noqa: E711
+                Annotation.was_cancelled is False,  # noqa: E712
+                Annotation.result is not None,  # noqa: E711
             )
             .distinct()
             .all()
@@ -1490,8 +1486,8 @@ async def get_project_results_by_task_model(
             )
             .filter(
                 TE2.evaluation_id.in_(completed_eval_ids),
-                TE2.generation_id == None,  # noqa: E711
-                TE2.annotation_id != None,  # noqa: E711
+                TE2.generation_id is None,  # noqa: E711
+                TE2.annotation_id is not None,  # noqa: E711
             )
         )
         if latest_ann_ids_subq is not None:
@@ -1706,9 +1702,6 @@ async def get_project_results_by_task_model(
         )
 
 
-
-
-
 @router.get("/sample-result")
 async def get_sample_result_by_task_model(
     request: Request,
@@ -1771,7 +1764,7 @@ async def get_sample_result_by_task_model(
                 db.query(DBUser)
                 .filter(
                     or_(
-                        and_(DBUser.use_pseudonym == True, DBUser.pseudonym == display),  # noqa: E712
+                        and_(DBUser.use_pseudonym is True, DBUser.pseudonym == display),  # noqa: E712
                         DBUser.name == display,
                         DBUser.username == display,
                     )
@@ -1794,7 +1787,7 @@ async def get_sample_result_by_task_model(
                     .filter(
                         TaskEvaluation.task_id == task_id,
                         Annotation.completed_by == user.id,
-                        TaskEvaluation.generation_id == None,  # noqa: E711
+                        TaskEvaluation.generation_id is None,  # noqa: E711
                         DBEvaluationRun.status.in_(("completed", "running", "pending")),
                     )
                     .order_by(TaskEvaluation.created_at.desc())

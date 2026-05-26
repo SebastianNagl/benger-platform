@@ -13,11 +13,10 @@ Targets uncovered lines across:
 """
 
 import asyncio
-import json
 import os
 import sys
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, PropertyMock, call, patch
+from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -31,7 +30,6 @@ from tasks import (
     _extract_field_value_from_parsed_annotation,
     cleanup_project_data,
     extract_label_config_fields,
-    generate_classification_samples,
     generate_llm_responses,
     generate_synthetic_data,
     get_supported_metrics,
@@ -342,6 +340,7 @@ class TestGenerateLLMResponsesProjectNotFound:
         gen.structure_key = None
 
         call_count = [0]
+
         def query_side_effect(model):
             mock_q = MagicMock()
             call_count[0] += 1
@@ -425,6 +424,7 @@ class TestGenerateLLMResponsesStructureKeyListFormat:
         join_filter_mock.filter.return_value = existing_resp_query
 
         call_idx = [0]
+
         def query_side_effect(*args):
             mock_q = MagicMock()
             call_idx[0] += 1
@@ -486,6 +486,7 @@ class TestGenerateLLMResponsesStructureKeyNotFound:
         }
 
         call_idx = [0]
+
         def query_side_effect(model_cls):
             mock_q = MagicMock()
             call_idx[0] += 1
@@ -530,6 +531,7 @@ class TestGenerateLLMResponsesStructureKeyDictFormat:
         }
 
         call_idx = [0]
+
         def query_side_effect(model_cls):
             mock_q = MagicMock()
             call_idx[0] += 1
@@ -582,6 +584,7 @@ class TestGenerateLLMResponsesNoAIServices:
         model.provider = "OpenAI"
 
         call_idx = [0]
+
         def query_side_effect(model_cls):
             mock_q = MagicMock()
             call_idx[0] += 1
@@ -638,6 +641,7 @@ class TestGenerateLLMResponsesAPIKeyError:
         model.provider = "OpenAI"
 
         call_idx = [0]
+
         def query_side_effect(model_cls):
             mock_q = MagicMock()
             call_idx[0] += 1
@@ -795,6 +799,7 @@ class TestRunEvaluationProjectNotFound:
         evaluation.eval_metadata = {}
 
         call_idx = [0]
+
         def query_side_effect(model_cls):
             mock_q = MagicMock()
             call_idx[0] += 1
@@ -829,6 +834,7 @@ class TestRunEvaluationNoEnabledConfigs:
         project = MagicMock()
 
         call_idx = [0]
+
         def query_side_effect(model_cls):
             mock_q = MagicMock()
             call_idx[0] += 1
@@ -863,6 +869,7 @@ class TestRunEvaluationNoTasks:
         project = MagicMock()
 
         call_idx = [0]
+
         def query_side_effect(model_cls):
             mock_q = MagicMock()
             call_idx[0] += 1
@@ -903,6 +910,7 @@ class TestRunEvaluationOuterException:
         outer_db.query.return_value.filter.return_value.first.return_value = eval_record
 
         call_count = [0]
+
         def session_factory():
             call_count[0] += 1
             if call_count[0] == 1:
@@ -969,7 +977,7 @@ class TestRunSingleSampleEvaluation:
                 "reference_fields": ["task.ref"],
             }],
             annotation_results={"other_field": "value"},
-            task_data={"ref": "reference text"},
+            task_data={"re": "reference text"},
         )
         assert result["status"] == "completed"
         assert len(result["results"]) == 0
@@ -1014,7 +1022,7 @@ class TestRunSingleSampleEvaluation:
                         "metric_parameters": {},
                     }],
                     annotation_results={"answer": "my answer"},
-                    task_data={"ref": "reference text"},
+                    task_data={"re": "reference text"},
                     user_id="u1",
                 )
 
@@ -1051,7 +1059,7 @@ class TestRunSingleSampleEvaluation:
                         "metric_parameters": {},
                     }],
                     annotation_results={"answer": "my answer"},
-                    task_data={"ref": "reference text"},
+                    task_data={"re": "reference text"},
                     user_id="u1",
                 )
 
@@ -1124,7 +1132,7 @@ class TestEvaluateLLMJudgeSingle:
                     _evaluate_llm_judge_single(
                         db=db, record_id="r1", immediate_eval_id="i1",
                         project_id="p1", task_id="t1", annotation_id="a1",
-                        user_id="u1", field_name="f", metric_type="llm_judge_x",
+                        user_id="u1", field_name="", metric_type="llm_judge_x",
                         prediction="p", reference="r",
                         metric_params={}, organization_id=None,
                     )
@@ -1260,6 +1268,7 @@ class TestForceRerun:
         # force_rerun skips the existing-response join query (step 5), so step 5
         # becomes the existing attempts count instead. Override the query chain.
         call_idx = [0]
+
         def query_side_effect(*args):
             mock_q = MagicMock()
             call_idx[0] += 1

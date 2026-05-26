@@ -6,11 +6,7 @@ mark_notification_read, mark_all_read, get_user_preferences,
 update_user_preferences, cleanup, bulk operations.
 """
 
-from datetime import datetime, timedelta
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 
 class TestUserWantsNotification:

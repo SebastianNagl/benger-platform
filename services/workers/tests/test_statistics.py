@@ -17,7 +17,6 @@ import os
 import sys
 
 import numpy as np
-import pytest
 
 workers_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if workers_root not in sys.path:
@@ -103,7 +102,7 @@ class TestPairedBootstrapTest:
         b = [0.3, 0.35, 0.32, 0.28, 0.31]
         result = paired_bootstrap_test(a, b)
         assert result["mean_difference"] > 0
-        assert result["a_better"] == True
+        assert result["a_better"] is True
 
     def test_unequal_length_error(self):
         result = paired_bootstrap_test([1.0, 2.0], [1.0])
@@ -144,7 +143,7 @@ class TestCohensD:
         result = cohens_d(a, b)
         assert abs(result["cohens_d"]) > 0.8
         assert result["interpretation"] == "large"
-        assert result["a_better"] == True
+        assert result["a_better"] is True
 
     def test_small_effect(self):
         a = [1.0, 2.0, 3.0, 4.0, 5.0]

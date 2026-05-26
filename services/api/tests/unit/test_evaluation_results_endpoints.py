@@ -3,14 +3,13 @@ Unit tests for routers/evaluations/results.py — covers helper functions and en
 """
 
 from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch, AsyncMock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException
 
 from routers.evaluations.results import (
     _extract_primary_score,
-    _get_task_preview,
     _get_task_data_availability,
     _build_all_tasks_response,
 )
@@ -112,7 +111,7 @@ class TestGetTaskDataAvailability:
 
         # Mock annotation query
         mock_ann_query = MagicMock()
-        mock_gen_query = MagicMock()
+        MagicMock()
 
         def query_side_effect(model):
             if hasattr(model, '__name__') and model.__name__ == 'task_id':

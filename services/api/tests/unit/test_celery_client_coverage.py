@@ -3,9 +3,6 @@ Unit tests for celery_client.py to increase coverage.
 Tests celery app configuration.
 """
 
-import pytest
-from unittest.mock import patch
-
 
 class TestCeleryClient:
     def test_import(self):

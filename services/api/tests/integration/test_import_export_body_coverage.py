@@ -22,17 +22,13 @@ import uuid
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
     Generation,
-    Organization,
-    OrganizationMembership,
     ResponseGeneration,
     TaskEvaluation,
-    User,
 )
 from project_models import (
     Annotation,
@@ -253,8 +249,8 @@ class TestExportWithData:
         resp = client.get(f"/api/projects/{p.id}/export?format=json", headers=_h(auth_headers, test_org))
         assert resp.status_code == 200
         data = json.loads(resp.text)
-        task0_ann = data["tasks"][0]["annotations"][0] if data["tasks"][0]["annotations"] else data["tasks"][1]["annotations"][0]
-        task1_ann = data["tasks"][1]["annotations"][0] if data["tasks"][1]["annotations"] else data["tasks"][0]["annotations"][0]
+        data["tasks"][0]["annotations"][0] if data["tasks"][0]["annotations"] else data["tasks"][1]["annotations"][0]
+        data["tasks"][1]["annotations"][0] if data["tasks"][1]["annotations"] else data["tasks"][0]["annotations"][0]
         # One should be cancelled, one not
         cancelled_flags = [t["annotations"][0]["was_cancelled"] for t in data["tasks"] if t["annotations"]]
         assert True in cancelled_flags or False in cancelled_flags

@@ -87,6 +87,7 @@ def test_register_replaces_existing_with_warning(caplog):
     # Define a second handler with the same name; registration should
     # replace the first and emit a warning so accidental double-registration
     # at startup is observable.
+
     class _Replacement(MetricHandler):
         name = "stub_simple"
 

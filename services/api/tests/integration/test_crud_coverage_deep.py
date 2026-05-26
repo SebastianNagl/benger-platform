@@ -6,25 +6,17 @@ Covers lines: 100-197 (list_projects), 217-348 (create_project),
 630-711 (update_project_visibility), 727-746 (recalculate_stats), 772-792 (completion_stats)
 """
 
-import json
 import uuid
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
-    EvaluationRun,
     Generation,
-    Organization,
-    OrganizationMembership,
     ResponseGeneration,
-    TaskEvaluation,
-    User,
 )
 from project_models import (
     Annotation,
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
 )
@@ -419,7 +411,6 @@ class TestUpdateProject:
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
-
 
 
 # ===================================================================

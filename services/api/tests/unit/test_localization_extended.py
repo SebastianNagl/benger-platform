@@ -3,8 +3,6 @@ Unit tests for localization/translations.py to increase branch coverage.
 Tests translation functions and language detection.
 """
 
-import pytest
-
 
 class TestEmailTranslations:
     def test_get_de(self):

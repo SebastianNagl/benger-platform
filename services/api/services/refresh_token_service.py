@@ -76,7 +76,7 @@ def validate_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
         db.query(RefreshToken)
         .filter(
             RefreshToken.token_hash == token_hash,
-            RefreshToken.is_active == True,
+            RefreshToken.is_active is True,
             RefreshToken.expires_at > datetime.now(timezone.utc),
         )
         .first()
@@ -124,7 +124,7 @@ def revoke_refresh_token(db: Session, token: str) -> bool:
 
     db_token = (
         db.query(RefreshToken)
-        .filter(RefreshToken.token_hash == token_hash, RefreshToken.is_active == True)
+        .filter(RefreshToken.token_hash == token_hash, RefreshToken.is_active is True)
         .first()
     )
 
@@ -143,7 +143,7 @@ def revoke_user_tokens(db: Session, user_id: str) -> int:
     """
     count = (
         db.query(RefreshToken)
-        .filter(RefreshToken.user_id == user_id, RefreshToken.is_active == True)
+        .filter(RefreshToken.user_id == user_id, RefreshToken.is_active is True)
         .update({"is_active": False})
     )
 
@@ -195,7 +195,7 @@ def get_user_active_tokens(db: Session, user_id: str) -> list[RefreshToken]:
         db.query(RefreshToken)
         .filter(
             RefreshToken.user_id == user_id,
-            RefreshToken.is_active == True,
+            RefreshToken.is_active is True,
             RefreshToken.expires_at > datetime.now(timezone.utc),
         )
         .order_by(RefreshToken.last_used_at.desc())
@@ -213,7 +213,7 @@ def revoke_token_by_id(db: Session, token_id: str, user_id: str) -> bool:
         .filter(
             RefreshToken.id == token_id,
             RefreshToken.user_id == user_id,
-            RefreshToken.is_active == True,
+            RefreshToken.is_active is True,
         )
         .first()
     )

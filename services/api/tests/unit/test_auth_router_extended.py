@@ -8,7 +8,7 @@ Targets: routers/auth.py lines 96-108, 117-119, 219-287, 296-351,
 """
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, Mock, MagicMock, patch
 
 import pytest
 from fastapi import status

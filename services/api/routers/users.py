@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 
 from auth_module import (
     User,
-    get_all_users,
     require_superadmin,
     update_user_status,
     update_user_superadmin_status,

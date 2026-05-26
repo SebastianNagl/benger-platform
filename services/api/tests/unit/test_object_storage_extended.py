@@ -22,7 +22,7 @@ import json
 import os
 import tempfile
 from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -139,7 +139,7 @@ class TestS3Initialization:
                  patch("services.storage.object_storage.boto3", mock_boto3), \
                  patch("services.storage.object_storage.Config", mock_config_cls):
                 from services.storage.object_storage import ObjectStorageService
-                service = ObjectStorageService()
+                ObjectStorageService()
 
         # Verify Config was called with path addressing for minio
         mock_config_cls.assert_called_once()
@@ -169,7 +169,7 @@ class TestS3Initialization:
                  patch("services.storage.object_storage.boto3", mock_boto3), \
                  patch("services.storage.object_storage.Config", mock_config_cls):
                 from services.storage.object_storage import ObjectStorageService
-                service = ObjectStorageService()
+                ObjectStorageService()
 
         mock_config_cls.assert_called_once()
         call_kwargs = mock_config_cls.call_args
@@ -256,7 +256,7 @@ class TestEnsureBucketExists:
                  patch("services.storage.object_storage.Config", mock_config_cls), \
                  patch("services.storage.object_storage.ClientError", client_error):
                 from services.storage.object_storage import ObjectStorageService
-                service = ObjectStorageService()
+                ObjectStorageService()
 
         mock_client.create_bucket.assert_called_once_with(Bucket="new-bucket")
         mock_client.put_bucket_cors.assert_called_once()
@@ -289,7 +289,7 @@ class TestEnsureBucketExists:
                  patch("services.storage.object_storage.Config", mock_config_cls), \
                  patch("services.storage.object_storage.ClientError", client_error):
                 from services.storage.object_storage import ObjectStorageService
-                service = ObjectStorageService()
+                ObjectStorageService()
 
         mock_client.create_bucket.assert_called_once_with(
             Bucket="eu-bucket",

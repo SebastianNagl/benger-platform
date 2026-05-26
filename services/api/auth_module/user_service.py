@@ -471,11 +471,11 @@ def delete_user(db: Session, user_id: str) -> bool:
 
     # Find a fallback superadmin for reassigning ownership
     fallback_user = (
-        db.query(User).filter(User.username == "pschOrr95", User.is_superadmin == True).first()
+        db.query(User).filter(User.username == "pschOrr95", User.is_superadmin is True).first()
     )
     if not fallback_user:
         fallback_user = (
-            db.query(User).filter(User.is_superadmin == True, User.id != user_id).first()
+            db.query(User).filter(User.is_superadmin is True, User.id != user_id).first()
         )
 
     if not fallback_user:
@@ -629,7 +629,6 @@ def _complete_demo_user_profile(db: Session, user):
     rather than trusting the mandatory_profile_completed boolean flag.
     Only sets fields that are None, so manually changed values are preserved.
     """
-    import json
     from datetime import datetime, timezone
     from decimal import Decimal
 

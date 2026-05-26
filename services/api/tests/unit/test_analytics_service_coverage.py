@@ -2,11 +2,6 @@
 Unit tests for services/analytics_service.py to increase coverage.
 """
 
-from datetime import datetime, timedelta
-from unittest.mock import Mock
-
-import pytest
-from sqlalchemy.orm import Session
 
 from services.analytics_service import (
     AnalyticsOverview,

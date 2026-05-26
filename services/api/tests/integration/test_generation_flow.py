@@ -283,7 +283,7 @@ class TestGenerationExecution:
         db.commit()
 
         with patch('routers.generation.celery_app.control.revoke') as mock_revoke:
-            response = client.post(f"/api/generation/gen-to-stop/stop", headers=auth_headers)
+            response = client.post("/api/generation/gen-to-stop/stop", headers=auth_headers)
 
             assert response.status_code == 200
             data = response.json()
@@ -317,7 +317,7 @@ class TestGenerationExecution:
         db.add_all([generation, response1])
         db.commit()
 
-        response = client.delete(f"/api/generation/gen-to-delete", headers=auth_headers)
+        response = client.delete("/api/generation/gen-to-delete", headers=auth_headers)
 
         assert response.status_code == 200
         data = response.json()

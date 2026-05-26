@@ -10,7 +10,6 @@ import json
 import sys
 import os
 import tempfile
-import time
 
 import pytest
 
@@ -27,7 +26,6 @@ from ml_evaluation.utils import (
     extract_task_type_from_label_config,
     merge_evaluation_results,
     export_evaluation_results,
-    EvaluationTimer,
 )
 
 

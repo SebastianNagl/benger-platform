@@ -3,13 +3,11 @@ Unit tests for routers/organizations.py to increase branch coverage.
 Covers permission check helper functions.
 """
 
-from datetime import datetime, timezone
 from unittest.mock import Mock
 
-import pytest
 from sqlalchemy.orm import Session
 
-from models import OrganizationMembership, OrganizationRole, User
+from models import OrganizationMembership, User
 from routers.organizations import can_manage_organization, can_create_organization
 
 

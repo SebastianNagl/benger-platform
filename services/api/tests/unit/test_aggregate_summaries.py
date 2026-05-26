@@ -22,7 +22,6 @@ from models import (
     EvaluationRun,
     Generation,
     LLMLeaderboardScore,
-    LLMModel,
     Organization,
     ProjectSummary,
     ResponseGeneration,

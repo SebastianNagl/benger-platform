@@ -2,8 +2,6 @@
 Unit tests for routers/projects/crud.py - deep_merge_dicts and visibility endpoints.
 """
 
-import pytest
-
 
 class TestDeepMergeDicts:
     """Test the deep_merge_dicts helper function directly."""

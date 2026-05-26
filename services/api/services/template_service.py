@@ -107,7 +107,7 @@ class TemplateService:
                     db.query(OrganizationMembership)
                     .filter(
                         OrganizationMembership.user_id == user.id,
-                        OrganizationMembership.is_active == True,
+                        OrganizationMembership.is_active is True,
                     )
                     .all()
                 )
@@ -314,9 +314,9 @@ class TemplateService:
             "multiple_choice": """<View>
   <Header value="Question"/>
   <Text name="question" value="$question" style="white-space: pre-wrap; font-size: 16px; margin-bottom: 15px;"/>
-  
+
   <Text name="context" value="$context" style="color: #666; font-style: italic; margin-bottom: 10px;"/>
-  
+
   <Header value="Choose the correct answer:"/>
   <Choices name="selected_answer" toName="question" choice="single-radio" required="true">
     <Choice value="A" style="margin-bottom: 8px;"/>
@@ -324,32 +324,32 @@ class TemplateService:
     <Choice value="C" style="margin-bottom: 8px;"/>
     <Choice value="D" style="margin-bottom: 8px;"/>
   </Choices>
-  
+
   <Header value="Answer Options"/>
   <Text name="choice_a" value="A) $choice_a" style="margin-bottom: 5px;"/>
   <Text name="choice_b" value="B) $choice_b" style="margin-bottom: 5px;"/>
   <Text name="choice_c" value="C) $choice_c" style="margin-bottom: 5px;"/>
   <Text name="choice_d" value="D) $choice_d" style="margin-bottom: 5px;"/>
-  
+
   <Header value="Confidence Level"/>
   <Rating name="confidence" toName="question" maxRating="5" defaultValue="3"/>
 </View>""",
             "generation": """<View>
   <Header value="Prompt"/>
   <Text name="prompt" value="$prompt" style="white-space: pre-wrap; font-size: 16px; margin-bottom: 15px;"/>
-  
+
   <Text name="context" value="$context" style="color: #666; font-style: italic; margin-bottom: 10px;"/>
-  
+
   <Header value="Generated Response"/>
   <TextArea name="generated_text" toName="prompt" placeholder="Enter or edit the generated text..." required="true" rows="8"/>
-  
+
   <Header value="Quality Assessment"/>
   <Rating name="quality_rating" toName="prompt" maxRating="5" defaultValue="3"/>
-  
+
   <Checkbox name="needs_revision" toName="prompt">
     <Label value="Needs Revision"/>
   </Checkbox>
-  
+
   <TextArea name="revision_notes" toName="prompt" placeholder="Explain what needs to be improved..." rows="3"/>
 </View>""",
         }

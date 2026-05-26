@@ -11,26 +11,14 @@ Covers routers/projects/tasks.py:
 - GET /{project_id}/task-fields — task fields discovery
 """
 
-import json
 import uuid
-from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
-from models import (
-    EvaluationRun,
-    Generation,
-    OrganizationMembership,
-    ResponseGeneration,
-    TaskEvaluation,
-    User,
-)
 from project_models import (
     Annotation,
     Project,
     ProjectOrganization,
-    SkippedTask,
     Task,
     TaskAssignment,
 )

@@ -10,26 +10,12 @@ routers/evaluations/validation.py, routers/generation.py,
 routers/leaderboards.py, routers/flexible_annotations.py
 """
 
-import json
 import uuid
-from datetime import datetime
 
-import pytest
-from sqlalchemy.orm import Session
 
-from models import (
-    EvaluationRun,
-    HumanEvaluationSession,
-    LikertScaleEvaluation,
-    Organization,
-    OrganizationMembership,
-    PreferenceRanking,
-    User,
-)
 from project_models import (
     Annotation,
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
 )
@@ -432,7 +418,7 @@ class TestEvaluationMetadata:
 class TestEvaluationRunEndpoint:
     def test_run_evaluation(self, client, test_db, test_users, auth_headers, test_org):
         p = _proj(test_db, test_users[0], test_org)
-        t = _tsk(test_db, p, test_users[0])
+        _tsk(test_db, p, test_users[0])
         test_db.commit()
 
         resp = client.post(

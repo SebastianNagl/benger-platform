@@ -199,7 +199,7 @@ async def run_evaluation(
                 .join(Task, Annotation.task_id == Task.id)
                 .filter(
                     Task.project_id == request.project_id,
-                    Annotation.was_cancelled == False,  # noqa: E712
+                    Annotation.was_cancelled is False,  # noqa: E712
                 )
                 .distinct()
             }
@@ -265,7 +265,7 @@ async def run_evaluation(
                 project_id=request.project_id,
                 status="ongoing",
                 message=(
-                    f"Human grading queue is ongoing "
+                    "Human grading queue is ongoing "
                     f"({len(human_configs)} human-graded metric(s))"
                 ),
                 evaluation_configs_count=len(enabled_configs),
@@ -594,7 +594,7 @@ def _cancel_runs(
             f"Cancelled {len(actually_cancelled)} run(s); "
             f"{failed_judge_runs or 0} in-flight judge_run(s) marked failed; "
             f"{preserved or 0} task_evaluation row(s) preserved for "
-            f"missing-only re-trigger."
+            "missing-only re-trigger."
         ),
     )
 
@@ -783,7 +783,7 @@ async def get_available_fields(
                 .filter(
                     Task.project_id == project_id,
                     Generation.parse_status == "success",
-                    Generation.parsed_annotation != None,  # noqa: E711
+                    Generation.parsed_annotation is not None,  # noqa: E711
                 )
                 .distinct()
                 .all()

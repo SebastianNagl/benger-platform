@@ -7,13 +7,11 @@ from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 from auth_module import require_user
 from auth_module.dependencies import get_current_user
 from auth_module.models import User as AuthUser
-from database import Base, get_db
+from database import get_db
 from label_config_version_service import LabelConfigVersionService
 from main import app
 from models import User

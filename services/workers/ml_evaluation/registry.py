@@ -5,7 +5,7 @@ This module manages the registration and discovery of ML evaluators.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Type
+from typing import Dict, List, Optional, Type
 
 from .base_evaluator import BaseEvaluator
 

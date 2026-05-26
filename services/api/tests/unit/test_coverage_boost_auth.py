@@ -11,14 +11,7 @@ Targets specific branches in routers/auth.py:
 """
 
 import uuid
-from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock
-
-import pytest
-from sqlalchemy.orm import Session
-
-from models import User
-from user_service import get_password_hash
 
 
 class TestSignup:

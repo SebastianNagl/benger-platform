@@ -8,7 +8,6 @@ check_confirmation_due, create_profile_snapshot, _check_mandatory_fields_present
 from datetime import datetime, timezone
 from decimal import Decimal
 from types import SimpleNamespace
-from unittest.mock import MagicMock
 
 import pytest
 from fastapi import HTTPException

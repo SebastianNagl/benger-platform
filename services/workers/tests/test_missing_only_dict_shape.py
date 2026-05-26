@@ -16,7 +16,6 @@ contract test below catches any drift between the two copies.
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -372,9 +371,9 @@ def test_task_evaluation_constructors_pass_evaluation_config_id():
     kwarg_count = len(re.findall(r"evaluation_config_id\s*=", src))
 
     assert kwarg_count >= constructor_count, (
-        f"Every TaskEvaluation(...) must set evaluation_config_id "
-        f"alongside field_name. Without it, the per-config statistics "
-        f"filter for issue #111 will silently exclude rows. Found "
+        "Every TaskEvaluation(...) must set evaluation_config_id "
+        "alongside field_name. Without it, the per-config statistics "
+        "filter for issue #111 will silently exclude rows. Found "
         f"{constructor_count} TaskEvaluation(...) constructors but only "
         f"{kwarg_count} occurrences of 'evaluation_config_id=' in tasks.py."
     )

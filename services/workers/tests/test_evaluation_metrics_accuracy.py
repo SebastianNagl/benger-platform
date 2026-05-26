@@ -205,7 +205,7 @@ class TestROUGEScore:
         """Test ROUGE-1 for perfect match"""
         text = "The legal brief was submitted to the court"
         scores = self.calculate_rouge_n(text, text, n=1)
-        assert scores["f1"] == 1.0, f"Perfect match should have ROUGE-1 F1=1.0"
+        assert scores["f1"] == 1.0, "Perfect match should have ROUGE-1 F1=1.0"
 
     def test_rouge_2_bigram_matching(self):
         """Test ROUGE-2 bigram matching"""
@@ -224,7 +224,7 @@ class TestROUGEScore:
         scores = self.calculate_rouge_l(candidate, reference)
 
         # Most words match in sequence
-        assert scores["f1"] > 0.8, f"High LCS overlap expected"
+        assert scores["f1"] > 0.8, "High LCS overlap expected"
 
     def test_rouge_precision_recall_tradeoff(self):
         """Test precision/recall tradeoff in ROUGE"""
@@ -728,7 +728,7 @@ class TestChrFScore:
         )
 
         score = evaluator._compute_metric(
-            "chrf", "The contract is binding", "The contract is binding", "text"
+            "chr", "The contract is binding", "The contract is binding", "text"
         )
         # Score is normalized to [0, 1]
         assert score > 0.9, f"Perfect match chrF should be > 0.9, got {score}"

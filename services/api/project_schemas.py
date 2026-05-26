@@ -291,7 +291,6 @@ class ProjectUpdate(BaseModel):
         return v
 
 
-
 class ProjectResponse(ProjectBase):
     """Schema for project responses"""
 

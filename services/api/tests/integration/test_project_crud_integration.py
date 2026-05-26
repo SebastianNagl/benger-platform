@@ -11,7 +11,7 @@ from datetime import datetime
 import pytest
 from sqlalchemy.orm import Session
 
-from models import Organization, OrganizationMembership, User
+from models import Organization, OrganizationMembership
 from project_models import Project, ProjectOrganization, Task
 
 
@@ -74,7 +74,7 @@ class TestProjectCrudIntegration:
     def test_list_projects(self, client, test_db, test_users, auth_headers, test_org):
         """Test listing projects."""
         # Create a project
-        project = self._create_project(test_db, test_org.id, test_users[0].id)
+        self._create_project(test_db, test_org.id, test_users[0].id)
 
         response = client.get(
             "/api/projects",
@@ -87,7 +87,7 @@ class TestProjectCrudIntegration:
 
     def test_list_projects_with_org_context(self, client, test_db, test_users, auth_headers, test_org):
         """Test listing projects with org context filter."""
-        project = self._create_project(test_db, test_org.id, test_users[0].id)
+        self._create_project(test_db, test_org.id, test_users[0].id)
 
         response = client.get(
             "/api/projects",

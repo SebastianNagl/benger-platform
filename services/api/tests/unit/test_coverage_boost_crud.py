@@ -13,15 +13,10 @@ Targets specific branches in routers/projects/crud.py:
 
 import uuid
 from datetime import datetime
-from unittest.mock import patch, MagicMock
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
-from models import Organization, OrganizationMembership, User
+from models import Organization, OrganizationMembership
 from project_models import (
-    Annotation,
     Project,
     ProjectMember,
     ProjectOrganization,

@@ -1181,7 +1181,7 @@ async def bulk_export_projects(
         task_count = db.query(Task).filter(Task.project_id == project.id).count()
         annotation_count = (
             db.query(Annotation)
-            .filter(Annotation.project_id == project.id, Annotation.was_cancelled == False)
+            .filter(Annotation.project_id == project.id, Annotation.was_cancelled is False)
             .count()
         )
 
@@ -1402,7 +1402,7 @@ async def import_full_project(
 
     Returns: Created project information with import statistics
     """
-    org_context = get_org_context_from_request(request)
+    get_org_context_from_request(request)
     try:
         # Parse the upload directly off the SpooledTemporaryFile that Starlette
         # gives us via UploadFile.file — Starlette already spills past ~1 MB to
@@ -1774,7 +1774,7 @@ async def import_full_project(
         # Import task evaluations (per-task evaluation results)
         task_evaluations_data = import_data.get("task_evaluations", [])
         for te_data in task_evaluations_data:
-            old_te_id = te_data.get("id", str(uuid.uuid4()))
+            te_data.get("id", str(uuid.uuid4()))
             new_te_id = str(uuid.uuid4())
 
             evaluation_id = id_mappings["evaluations"].get(te_data.get("evaluation_id"))

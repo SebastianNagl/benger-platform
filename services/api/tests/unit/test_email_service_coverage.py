@@ -19,7 +19,7 @@ Covers:
 """
 
 import os
-from unittest.mock import MagicMock, AsyncMock, patch, Mock
+from unittest.mock import MagicMock, AsyncMock, patch
 
 import pytest
 

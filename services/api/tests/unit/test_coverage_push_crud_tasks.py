@@ -5,29 +5,19 @@ timer, questionnaire, and serializer branches.
 Targets uncovered branches across multiple routers.
 """
 
-import json
 import uuid
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from datetime import datetime
+from unittest.mock import patch
 
-import pytest
-from sqlalchemy.orm import Session
 
 from models import (
-    EvaluationRun,
-    Generation,
     Organization,
     OrganizationMembership,
-    ResponseGeneration,
-    TaskEvaluation,
 )
 from project_models import (
     Annotation,
-    PostAnnotationResponse,
     Project,
-    ProjectMember,
     ProjectOrganization,
-    SkippedTask,
     Task,
     TaskAssignment,
 )

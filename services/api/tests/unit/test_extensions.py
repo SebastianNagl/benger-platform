@@ -3,8 +3,6 @@
 import importlib
 import sys
 
-import pytest
-
 
 class TestExtensionLoader:
     """Test that extensions.py works correctly without benger_extended installed."""

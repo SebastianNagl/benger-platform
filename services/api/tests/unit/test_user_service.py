@@ -105,7 +105,7 @@ class TestUserCRUD:
         assert user.username == "testuser@example.com"
         assert user.email == "testuser@example.com"
         assert user.name == "Test User"
-        assert user.is_superadmin == False
+        assert user.is_superadmin is False
         assert user.is_active is True
 
     def test_create_user_duplicate_username(self, test_db, test_users):
@@ -166,7 +166,7 @@ class TestUserCRUD:
 
         assert user is not None
         assert user.username == "admin@test.com"
-        assert user.is_superadmin == True
+        assert user.is_superadmin is True
 
     def test_authenticate_user_wrong_password(self, test_db, test_users):
         """Test authentication with wrong password"""
@@ -193,7 +193,7 @@ class TestUserCRUD:
         updated_user = update_user_superadmin_status(test_db, user.id, True)
 
         assert updated_user is not None
-        assert updated_user.is_superadmin == True
+        assert updated_user.is_superadmin is True
         assert updated_user.is_superadmin != original_superadmin
 
     def test_update_user_superadmin_status_nonexistent(self, test_db):
@@ -239,12 +239,12 @@ class TestDemoUsers:
 
         # Verify admin is superadmin
         admin_user = get_user_by_username(db, "admin")
-        assert admin_user.is_superadmin == True
+        assert admin_user.is_superadmin is True
 
         # Check that admin user can authenticate
         admin_auth = authenticate_user(db, "admin", "admin")
         assert admin_auth is not None
-        assert admin_auth.is_superadmin == True
+        assert admin_auth.is_superadmin is True
 
     def test_init_demo_users_idempotent(self, clean_database):
         """Test that initializing demo users multiple times is safe"""

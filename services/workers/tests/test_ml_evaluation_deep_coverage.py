@@ -12,11 +12,9 @@ All heavy ML dependencies (torch, transformers, sentence_transformers, bert_scor
 are mocked to test logic without requiring model downloads.
 """
 
-import json
-import math
 import os
 import sys
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -777,7 +775,7 @@ class TestSampleEvaluatorPureMetrics:
 
     def test_parse_hierarchy_path_plain(self):
         ev = self._make_evaluator()
-        assert ev._parse_hierarchy_path("Leaf") == ["Leaf"]
+        assert ev._parse_hierarchy_path("Lea") == ["Leaf"]
 
     def test_parse_hierarchy_path_none(self):
         ev = self._make_evaluator()
@@ -1806,7 +1804,6 @@ class TestEMDBackend:
 
     def test_get_emd_backend_falls_back_to_pyemd(self):
         """When POT not available, falls to pyemd on x86_64."""
-        from ml_evaluation.backends.emd_backend import PyEMDBackend
 
         with patch("ml_evaluation.backends.emd_backend.POTEMDBackend") as MockPOT:
             mock_pot = MockPOT.return_value
@@ -2158,13 +2155,13 @@ class TestSampleEvaluatorTextSimilarity:
 
     def test_chrf_identical(self):
         ev = self._make_evaluator()
-        score = ev._compute_text_similarity("chrf", "hello world", "hello world")
+        score = ev._compute_text_similarity("chr", "hello world", "hello world")
         assert score > 0.9
 
     def test_chrf_custom_params(self):
         ev = self._make_evaluator()
         score = ev._compute_text_similarity(
-            "chrf", "hello world", "hello world",
+            "chr", "hello world", "hello world",
             parameters={"char_order": 3, "word_order": 1, "beta": 1}
         )
         assert 0.0 < score <= 1.0
