@@ -8,6 +8,7 @@ build_evaluation_indexes.
 
 from datetime import datetime
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -152,6 +153,10 @@ class TestSerializeTaskEvaluation:
             # Round-trip judge-prompt provenance.
             "judge_prompts_used": None,
             "judge_run_id": None,
+            # PR #112 exposed task_evaluation.created_by in the serializer
+            # (grader user_id for korrektur / LLM-judge rows). The fake
+            # needs the attribute or serializer raises AttributeError.
+            "created_by": "u1",
         }
         defaults.update(overrides)
         return SimpleNamespace(**defaults)
@@ -225,73 +230,64 @@ class TestSerializeEvaluationRun:
 
 
 class TestBuildJudgeModelLookup:
+    """Coverage for build_judge_model_lookup.
+
+    PR #79a3cf0 rewrote this helper: it now reads judge_model_id per-row
+    directly from `evaluation_judge_runs` (one row per (run, judge_model,
+    run_index)) and returns ``{judge_run_id: judge_model_id}``. The
+    previous (run_id, config_id) -> judge_model lookup keyed off
+    eval_metadata and silently collapsed multi-judge configs.
+    """
+
     def test_empty_runs(self):
         from routers.projects.serializers import build_judge_model_lookup
-        assert build_judge_model_lookup([]) == {}
+        db = MagicMock()
+        assert build_judge_model_lookup([], db) == {}
+        db.query.assert_not_called()
 
-    def test_new_format_judge_models(self):
+    def test_single_judge_run_round_trips(self):
         from routers.projects.serializers import build_judge_model_lookup
-        er = SimpleNamespace(
-            id="er1",
-            eval_metadata={"judge_models": {"cfg1": "claude-3", "cfg2": "gpt-4"}},
-        )
-        lookup = build_judge_model_lookup([er])
-        assert lookup[("er1", "cfg1")] == "claude-3"
-        assert lookup[("er1", "cfg2")] == "gpt-4"
+        er = SimpleNamespace(id="er1")
+        ejr = SimpleNamespace(id="jr1", judge_model_id="claude-3")
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [ejr]
 
-    def test_old_format_evaluation_configs(self):
-        from routers.projects.serializers import build_judge_model_lookup
-        er = SimpleNamespace(
-            id="er1",
-            eval_metadata={
-                "evaluation_configs": [
-                    {"id": "cfg1", "metric_parameters": {"judge_model": "gpt-4"}},
-                ]
-            },
-        )
-        lookup = build_judge_model_lookup([er])
-        assert lookup[("er1", "cfg1")] == "gpt-4"
+        assert build_judge_model_lookup([er], db) == {"jr1": "claude-3"}
 
-    def test_new_format_takes_priority(self):
+    def test_multi_judge_run_distinct_models(self):
         from routers.projects.serializers import build_judge_model_lookup
-        er = SimpleNamespace(
-            id="er1",
-            eval_metadata={
-                "judge_models": {"cfg1": "claude-3"},
-                "evaluation_configs": [
-                    {"id": "cfg1", "metric_parameters": {"judge_model": "gpt-4"}},
-                ],
-            },
-        )
-        lookup = build_judge_model_lookup([er])
-        assert lookup[("er1", "cfg1")] == "claude-3"
+        # One evaluation run with multiple judge runs (multi-judge config).
+        er = SimpleNamespace(id="er1")
+        rows = [
+            SimpleNamespace(id="jr1", judge_model_id="claude-3"),
+            SimpleNamespace(id="jr2", judge_model_id="gpt-4"),
+            SimpleNamespace(id="jr3", judge_model_id="gemini-pro"),
+        ]
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = rows
 
-    def test_none_eval_metadata(self):
-        from routers.projects.serializers import build_judge_model_lookup
-        er = SimpleNamespace(id="er1", eval_metadata=None)
-        assert build_judge_model_lookup([er]) == {}
+        result = build_judge_model_lookup([er], db)
+        assert result == {"jr1": "claude-3", "jr2": "gpt-4", "jr3": "gemini-pro"}
 
-    def test_config_without_judge_model(self):
+    def test_judge_model_id_none_round_trips(self):
         from routers.projects.serializers import build_judge_model_lookup
-        er = SimpleNamespace(
-            id="er1",
-            eval_metadata={
-                "evaluation_configs": [
-                    {"id": "cfg1", "metric_parameters": {}},
-                ]
-            },
-        )
-        assert build_judge_model_lookup([er]) == {}
+        # Non-LLM-judge metrics (bleu/rouge/etc.) carry judge_model_id=None
+        # per migration 042/043 backfill — must round-trip as None.
+        er = SimpleNamespace(id="er1")
+        ejr = SimpleNamespace(id="jr1", judge_model_id=None)
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [ejr]
 
-    def test_config_without_metric_parameters(self):
+        assert build_judge_model_lookup([er], db) == {"jr1": None}
+
+    def test_no_judge_runs_for_runs(self):
         from routers.projects.serializers import build_judge_model_lookup
-        er = SimpleNamespace(
-            id="er1",
-            eval_metadata={
-                "evaluation_configs": [{"id": "cfg1"}],
-            },
-        )
-        assert build_judge_model_lookup([er]) == {}
+        # Run exists but produced no EvaluationJudgeRun rows — must not crash.
+        er = SimpleNamespace(id="er1")
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = []
+
+        assert build_judge_model_lookup([er], db) == {}
 
 
 class TestBuildEvaluationIndexes:
