@@ -1309,23 +1309,34 @@ export default function EvaluationDashboard() {
                     .map(([key, value]) => {
                       // Multi-run aggregate (migration 042 + issue #111):
                       // pull from the statistics endpoint's
-                      // runs_by_model_metric block. Key shape changed from
-                      // "model_id|metric" (2-part) to
-                      // "model_id|config_id|metric" (3-part). The score-card
-                      // grid shows the latest result's per-metric aggregate
-                      // (not per-config), so scan all matching 3-part keys
-                      // for this (model, metric) and surface the highest
-                      // n_runs entry — that's the same multi-run cell the
-                      // user would see if they drilled into the config.
+                      // runs_by_model_metric block, keyed as
+                      // "model_id|config_id|metric". When the user has
+                      // narrowed to a single config, look it up exactly so
+                      // the score card and the chart agree. When multiple
+                      // configs share this metric, surface the one with the
+                      // most multi-run data (highest n_runs) — the card is
+                      // a summary; the chart/table below show the per-config
+                      // breakdown.
                       const block = (statisticsData as any)?.runs_by_model_metric
                       let runsAggregateRaw: any = undefined
+                      let matchedConfigId: string | undefined = undefined
                       if (block) {
-                        const prefix = `${result.model_id}|`
-                        const suffix = `|${key}`
-                        for (const [k, v] of Object.entries(block)) {
-                          if (k.startsWith(prefix) && k.endsWith(suffix)) {
-                            if (!runsAggregateRaw || ((v as any)?.n_runs ?? 0) > (runsAggregateRaw.n_runs ?? 0)) {
-                              runsAggregateRaw = v
+                        if (selectedConfigIds.length === 1) {
+                          const exactKey = `${result.model_id}|${selectedConfigIds[0]}|${key}`
+                          if (block[exactKey]) {
+                            runsAggregateRaw = block[exactKey]
+                            matchedConfigId = selectedConfigIds[0]
+                          }
+                        }
+                        if (!runsAggregateRaw) {
+                          const prefix = `${result.model_id}|`
+                          const suffix = `|${key}`
+                          for (const [k, v] of Object.entries(block)) {
+                            if (k.startsWith(prefix) && k.endsWith(suffix)) {
+                              if (!runsAggregateRaw || ((v as any)?.n_runs ?? 0) > (runsAggregateRaw.n_runs ?? 0)) {
+                                runsAggregateRaw = v
+                                matchedConfigId = k.slice(prefix.length, k.length - suffix.length)
+                              }
                             }
                           }
                         }
@@ -1336,12 +1347,19 @@ export default function EvaluationDashboard() {
                             stdAcrossRuns: runsAggregateRaw.std_of_means ?? 0,
                           }
                         : undefined
+                      const matchedCfg = matchedConfigId
+                        ? projectEvalConfig?.evaluation_configs?.find((c) => c.id === matchedConfigId)
+                        : undefined
+                      const cardLabel = matchedCfg?.display_name || key
+                      const description = matchedCfg
+                        ? `${matchedCfg.display_name || key} — ${result.model_id}`
+                        : `${key} for ${result.model_id}`
                       return (
                         <ScoreCard
-                          key={key}
-                          metric={key}
+                          key={`${key}|${matchedConfigId || ''}`}
+                          metric={cardLabel}
                           value={value}
-                          description={`${key} for ${result.model_id}`}
+                          description={description}
                           higherIsBetter={true}
                           formatAs="decimal"
                           sampleSize={result.samples_evaluated}

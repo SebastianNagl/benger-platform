@@ -126,7 +126,7 @@ def _mock_project_response(**overrides):
 
 class TestListProjectsHappyPath:
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.calculate_generation_stats")
+    @patch("routers.projects.crud.calculate_generation_stats_batch", return_value={})
     @patch("routers.projects.crud.calculate_project_stats_batch", return_value={
         "proj-1": {
             "task_count": 5,
@@ -165,7 +165,7 @@ class TestListProjectsHappyPath:
         assert result.total >= 0
 
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.calculate_generation_stats")
+    @patch("routers.projects.crud.calculate_generation_stats_batch", return_value={})
     @patch("routers.projects.crud.calculate_project_stats_batch", return_value={})
     @patch("routers.projects.crud.get_accessible_project_ids", return_value=None)
     @patch("routers.projects.crud.ProjectResponse")

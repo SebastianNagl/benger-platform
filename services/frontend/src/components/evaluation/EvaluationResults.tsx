@@ -1068,11 +1068,13 @@ export function EvaluationResults({
    * within a single run).
    *
    * The composite key shape changed from `"model_id|metric"` (2-part)
-   * to `"model_id|config_id|metric"` (3-part). This formatter is called
-   * by the per-model summary row which doesn't know which config to
-   * scope to, so we aggregate all matching configs for the metric:
-   * pick the entry with the highest `n_runs` (the user-facing intent is
-   * "how many distinct runs were there for this model + metric?").
+   * to `"model_id|config_id|metric"` (3-part). Issue #111:
+   *  - If exactly one config is selected, do an exact 3-part lookup so
+   *    the summary row matches the per-config chart/table below.
+   *  - Otherwise (multiple configs selected) the summary row spans
+   *    multiple configs; pick the entry with the highest `n_runs` —
+   *    the user-facing intent is "how many distinct runs were there for
+   *    this model + metric?".
    */
   const formatRunsAggregate = (
     modelId: string,
@@ -1081,12 +1083,18 @@ export function EvaluationResults({
     const block = (statisticsData as any)?.runs_by_model_metric
     if (!block) return null
     let entry: any = null
-    const prefix = `${modelId}|`
-    const suffix = `|${metricName}`
-    for (const [k, v] of Object.entries(block)) {
-      if (k.startsWith(prefix) && k.endsWith(suffix)) {
-        if (!entry || ((v as any)?.n_runs ?? 0) > (entry.n_runs ?? 0)) {
-          entry = v
+    if (selectedConfigIds.length === 1) {
+      const exactKey = `${modelId}|${selectedConfigIds[0]}|${metricName}`
+      entry = block[exactKey] ?? null
+    }
+    if (!entry) {
+      const prefix = `${modelId}|`
+      const suffix = `|${metricName}`
+      for (const [k, v] of Object.entries(block)) {
+        if (k.startsWith(prefix) && k.endsWith(suffix)) {
+          if (!entry || ((v as any)?.n_runs ?? 0) > (entry.n_runs ?? 0)) {
+            entry = v
+          }
         }
       }
     }
