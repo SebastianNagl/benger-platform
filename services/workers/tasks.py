@@ -3771,6 +3771,9 @@ def run_single_sample_evaluation(
                         reference=str(reference_value) if reference_value else "",
                         metric_params=metric_params,
                         organization_id=organization_id,
+                        # Issue #111 / migration 057: thread the config id
+                        # down so the persisted row carries it discretely.
+                        evaluation_config_id=eval_cfg.get("id"),
                     )
                     results.append(result)
 
@@ -3807,6 +3810,12 @@ def run_single_sample_evaluation(
                         annotation_id=annotation_id,
                         generation_id=None,
                         field_name=field_name,
+                        # Issue #111 / migration 057: store the config id
+                        # discretely so downstream readers don't have to
+                        # parse field_name. Immediate-eval writes a bare
+                        # field_name, so this column is the only place
+                        # the config id survives.
+                        evaluation_config_id=eval_cfg.get("id"),
                         answer_type="text",
                         ground_truth=str(reference_value) if reference_value else "",
                         prediction=str(prediction_value) if prediction_value else "",
@@ -3938,6 +3947,7 @@ def _evaluate_llm_judge_single(
     annotation_id, user_id, field_name, metric_type, prediction,
     reference, metric_params, organization_id,
     judge_run_id: Optional[str] = None,
+    evaluation_config_id: Optional[str] = None,
 ):
     """Run generic LLM judge evaluation for a single sample.
 
@@ -3946,6 +3956,10 @@ def _evaluate_llm_judge_single(
             Optional for backwards compatibility with any caller that hasn't
             been updated; passing None leaves the column NULL until the
             judge_run_id NOT NULL migration lands.
+        evaluation_config_id: Issue #111 / migration 057 — the evaluation
+            config id this row belongs to, persisted discretely so
+            downstream readers don't parse ``field_name``. Optional for
+            backward compatibility; older callers leave it NULL.
     """
     from ml_evaluation.llm_judge_evaluator import create_llm_judge_for_user
     from models import TaskEvaluation
@@ -4058,6 +4072,8 @@ def _evaluate_llm_judge_single(
             annotation_id=annotation_id,
             generation_id=None,
             field_name=field_name,
+            # Issue #111 / migration 057: discrete carrier of the config id.
+            evaluation_config_id=evaluation_config_id,
             answer_type="text",
             ground_truth=reference,
             prediction=prediction,
@@ -4130,6 +4146,8 @@ def _evaluate_llm_judge_single(
         annotation_id=annotation_id,
         generation_id=None,
         field_name=field_name,
+        # Issue #111 / migration 057: discrete carrier of the config id.
+        evaluation_config_id=evaluation_config_id,
         answer_type="text",
         ground_truth=reference,
         prediction=prediction,
@@ -4788,6 +4806,7 @@ def evaluate_generation_cell(
                                 "task_id": task.id,
                                 "generation_id": gen.id,
                                 "field_name": field_key,
+                                "evaluation_config_id": config_id,
                                 "answer_type": "text",
                                 "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
                                 "prediction": str(prediction)[:1000] if prediction else "",
@@ -4848,6 +4867,7 @@ def evaluate_generation_cell(
                                         "task_id": task.id,
                                         "generation_id": gen.id,
                                         "field_name": field_key,
+                                        "evaluation_config_id": config_id,
                                         "answer_type": "text",
                                         "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
                                         "prediction": str(prediction)[:1000] if prediction else "",
@@ -4947,6 +4967,7 @@ def evaluate_generation_cell(
                                         "task_id": task.id,
                                         "generation_id": gen.id,
                                         "field_name": field_key,
+                                        "evaluation_config_id": config_id,
                                         "answer_type": "text",
                                         "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
                                         "prediction": str(prediction)[:1000] if prediction else "",
@@ -4990,6 +5011,7 @@ def evaluate_generation_cell(
                                         "generation_id": gen.id,
                                         "annotation_id": None,
                                         "field_name": field_key,
+                                        "evaluation_config_id": config_id,
                                         "answer_type": "text",
                                         "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
                                         "prediction": str(prediction)[:1000] if prediction else "",
@@ -5005,6 +5027,7 @@ def evaluate_generation_cell(
                                         "task_id": task.id,
                                         "generation_id": gen.id,
                                         "field_name": field_key,
+                                        "evaluation_config_id": config_id,
                                         "answer_type": "text",
                                         "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
                                         "prediction": str(prediction)[:1000] if prediction else "",
@@ -5055,6 +5078,8 @@ def evaluate_generation_cell(
                         )
                         if isinstance(sample_result, dict):
                             sample_result["judge_run_id"] = default_judge_run_id
+                            # Issue #111 / migration 057: discrete config-id carrier.
+                            sample_result["evaluation_config_id"] = config_id
 
                         sample_results.append(sample_result)
                         local_samples_evaluated += 1
@@ -5075,6 +5100,7 @@ def evaluate_generation_cell(
                             "task_id": task.id,
                             "generation_id": gen.id,
                             "field_name": field_key,
+                            "evaluation_config_id": config_id,
                             "answer_type": "text",
                             "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
                             "prediction": str(prediction)[:1000] if prediction else "",
@@ -5320,6 +5346,7 @@ def evaluate_annotation_cell(
                                     "generation_id": None,
                                     "annotation_id": annotation.id,
                                     "field_name": field_key,
+                                    "evaluation_config_id": config_id,
                                     "answer_type": "text",
                                     "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
                                     "prediction": str(prediction)[:1000] if prediction else "",
@@ -5378,6 +5405,7 @@ def evaluate_annotation_cell(
                                             "generation_id": None,
                                             "annotation_id": annotation.id,
                                             "field_name": field_key,
+                                            "evaluation_config_id": config_id,
                                             "answer_type": "text",
                                             "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
                                             "prediction": str(prediction)[:1000] if prediction else "",
@@ -5477,6 +5505,7 @@ def evaluate_annotation_cell(
                                             "generation_id": None,
                                             "annotation_id": annotation.id,
                                             "field_name": field_key,
+                                            "evaluation_config_id": config_id,
                                             "answer_type": "text",
                                             "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
                                             "prediction": str(prediction)[:1000] if prediction else "",
@@ -5516,6 +5545,7 @@ def evaluate_annotation_cell(
                                             "generation_id": None,
                                             "annotation_id": annotation.id,
                                             "field_name": field_key,
+                                            "evaluation_config_id": config_id,
                                             "answer_type": "text",
                                             "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
                                             "prediction": str(prediction)[:1000] if prediction else "",
@@ -5532,6 +5562,7 @@ def evaluate_annotation_cell(
                                             "generation_id": None,
                                             "annotation_id": annotation.id,
                                             "field_name": field_key,
+                                            "evaluation_config_id": config_id,
                                             "answer_type": "text",
                                             "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
                                             "prediction": str(prediction)[:1000] if prediction else "",
@@ -5582,6 +5613,8 @@ def evaluate_annotation_cell(
                             annotation_result["generation_id"] = None
                             if isinstance(annotation_result, dict):
                                 annotation_result["judge_run_id"] = default_judge_run_id
+                                # Issue #111 / migration 057: discrete config-id carrier.
+                                annotation_result["evaluation_config_id"] = config_id
 
                             sample_results.append(annotation_result)
                             local_samples_evaluated += 1
@@ -5605,6 +5638,7 @@ def evaluate_annotation_cell(
                                 "generation_id": None,
                                 "annotation_id": annotation.id,
                                 "field_name": field_key,
+                                "evaluation_config_id": config_id,
                                 "answer_type": "text",
                                 "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
                                 "prediction": str(prediction)[:1000] if prediction else "",
