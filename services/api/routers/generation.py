@@ -679,7 +679,15 @@ async def get_parse_metrics(
             total_retries = sum(
                 (md or {}).get("retry_count", 1) for (md,) in metadata_rows
             )
-            avg_retries = total_retries / len(metadata_rows) if metadata_rows else 0
+            # `if metadata_rows` is truthy even when `len(metadata_rows) == 0`
+            # if the value is a Mock or other truthy-empty container, which
+            # gave a ZeroDivisionError under unit tests. Check the length
+            # directly so the guard matches the divisor.
+            avg_retries = (
+                total_retries / len(metadata_rows)
+                if len(metadata_rows) > 0
+                else 0
+            )
 
         # Common parse errors — group in SQL instead of streaming every
         # failed row to Python. ORDER BY DESC + LIMIT keeps the top-5 in

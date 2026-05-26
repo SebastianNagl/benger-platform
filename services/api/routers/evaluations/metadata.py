@@ -756,7 +756,11 @@ async def get_evaluation_history(
                 *date_filters,
             )
         )
-        if evaluation_config_ids:
+        # `evaluation_config_ids` defaults to FastAPI's Query(None) sentinel,
+        # which is truthy when this handler is called directly from tests
+        # (FastAPI resolves it to None in the request path). Guard against the
+        # sentinel leaking into the SQL `IN (...)` clause.
+        if isinstance(evaluation_config_ids, list) and evaluation_config_ids:
             q = q.filter(TaskEvaluation.evaluation_config_id.in_(evaluation_config_ids))
         rows = q.all()
 
@@ -901,7 +905,9 @@ async def get_significance_tests(
             )
         )
         # Issue #111: scope by evaluation_config_id when requested.
-        if evaluation_config_ids:
+        # Guard against FastAPI's Query(None) sentinel leaking through when
+        # this handler is called directly from tests (see /history above).
+        if isinstance(evaluation_config_ids, list) and evaluation_config_ids:
             sample_results_q = sample_results_q.filter(
                 TaskEvaluation.evaluation_config_id.in_(evaluation_config_ids)
             )
@@ -927,7 +933,11 @@ async def get_significance_tests(
         # level ``EvaluationRun.metrics`` are aggregated across configs
         # and cannot be re-scoped retroactively; mixing them in would
         # silently leak cross-config data into a per-config comparison.
-        if not evaluation_config_ids:
+        # ``not Query(None)`` is False (Query() is a truthy sentinel), so
+        # this branch correctly runs when called via FastAPI without the
+        # param. Tests calling directly with ``evaluation_config_ids=None``
+        # also fall through here.
+        if not (isinstance(evaluation_config_ids, list) and evaluation_config_ids):
             direct_evaluations = (
                 db.query(DBEvaluationRun)
                 .filter(
