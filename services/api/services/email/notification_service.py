@@ -147,7 +147,7 @@ class NotificationService:
             logger.error(f"❌ Invalid notification type: {notification_type}")
             return []
 
-        logger.info("🔔 CREATE_NOTIFICATION: Starting notification creation")
+        logger.info(f"🔔 CREATE_NOTIFICATION: Starting notification creation")  # noqa: F541
         logger.info(f"  📝 Type: {notification_type_str} (enum: {notification_type_enum})")
         logger.info(f"  📝 Title: {title}")
         logger.info(f"  👥 User IDs count: {len(user_ids)}")
@@ -204,7 +204,7 @@ class NotificationService:
             if "invalid input value for enum" in str(e).lower():
                 logger.error(
                     f"Database enum constraint violation for notification type '{notification_type}'. "
-                    "Please ensure the database enum includes this value by running migrations."
+                    f"Please ensure the database enum includes this value by running migrations."
                 )
             return []
 
@@ -892,7 +892,7 @@ def notify_project_created(
 
     logger = logging.getLogger(__name__)
 
-    logger.info("🔔 NOTIFICATION: Starting notify_project_created")
+    logger.info(f"🔔 NOTIFICATION: Starting notify_project_created")  # noqa: F541
     logger.info(f"  📝 Project ID: {project_id}")
     logger.info(f"  📝 Project Title: {project_title}")
     logger.info(f"  👤 Creator: {creator_name}")
@@ -953,123 +953,6 @@ def notify_project_created(
         logger.error(f"❌ Error in notify_project_created: {str(e)}", exc_info=True)
         # Don't raise - we don't want notification failures to break project creation
         # The caller should handle this gracefully
-
-
-def notify_project_deleted(
-    db: Session,
-    project_id: str,
-    project_title: str,
-    deleted_by_user_id: str,
-    deleted_by_username: str,
-    organization_id: str,
-):
-    """Notify about project deletion"""
-    recipients = NotificationService.get_notification_recipients(
-        db, NotificationType.PROJECT_DELETED, {"organization_id": organization_id}
-    )
-
-    if recipients:
-        NotificationService.create_notification(
-            db=db,
-            user_ids=recipients,
-            notification_type=NotificationType.PROJECT_DELETED,
-            title=f"Project Deleted: {project_title}",
-            message=f"{deleted_by_username} deleted project '{project_title}'",
-            data={
-                "project_id": project_id,
-                "project_title": project_title,
-                "deleted_by": deleted_by_username,
-            },
-            organization_id=organization_id,
-        )
-
-
-def notify_project_archived(
-    db: Session,
-    project_id: str,
-    project_title: str,
-    archived_by_username: str,
-    organization_id: str,
-):
-    """Notify about project archival"""
-    recipients = NotificationService.get_notification_recipients(
-        db, NotificationType.PROJECT_ARCHIVED, {"organization_id": organization_id}
-    )
-
-    if recipients:
-        NotificationService.create_notification(
-            db=db,
-            user_ids=recipients,
-            notification_type=NotificationType.PROJECT_ARCHIVED,
-            title=f"Project Archived: {project_title}",
-            message=f"{archived_by_username} archived project '{project_title}'",
-            data={
-                "project_id": project_id,
-                "project_title": project_title,
-                "archived_by": archived_by_username,
-            },
-            organization_id=organization_id,
-        )
-
-
-def notify_data_import_success(
-    db: Session,
-    project_id: str,
-    project_title: str,
-    imported_by_username: str,
-    task_count: int,
-    organization_id: str,
-):
-    """Notify about successful data import"""
-    recipients = NotificationService.get_notification_recipients(
-        db, NotificationType.DATA_IMPORT_SUCCESS, {"organization_id": organization_id}
-    )
-
-    if recipients:
-        NotificationService.create_notification(
-            db=db,
-            user_ids=recipients,
-            notification_type=NotificationType.DATA_IMPORT_SUCCESS,
-            title=f"Data Import Success: {project_title}",
-            message=f"{imported_by_username} imported {task_count} tasks to '{project_title}'",
-            data={
-                "project_id": project_id,
-                "project_title": project_title,
-                "imported_by": imported_by_username,
-                "task_count": task_count,
-            },
-            organization_id=organization_id,
-        )
-
-
-def notify_labeling_config_updated(
-    db: Session,
-    project_id: str,
-    project_title: str,
-    updated_by_username: str,
-    organization_id: str,
-):
-    """Notify about labeling configuration update"""
-    recipients = NotificationService.get_notification_recipients(
-        db,
-        NotificationType.LABELING_CONFIG_UPDATED,
-        {"organization_id": organization_id},
-    )
-
-    if recipients:
-        NotificationService.create_notification(
-            db=db,
-            user_ids=recipients,
-            notification_type=NotificationType.LABELING_CONFIG_UPDATED,
-            title=f"Labeling Config Updated: {project_title}",
-            message=f"{updated_by_username} updated the labeling configuration for '{project_title}'",
-            data={
-                "project_id": project_id,
-                "project_title": project_title,
-                "updated_by": updated_by_username,
-            },
-            organization_id=organization_id,
-        )
 
 
 def notify_evaluation_completed(
@@ -1514,5 +1397,172 @@ def notify_project_completed(
             "project_id": project_id,
             "project_title": project_title,
             "organization_id": organization_id,
+        },
+    )
+
+
+# Note: The duplicate notify_project_deleted and notify_project_archived functions below were
+# kept during migration from task-based to project-based system. Using the ones defined above.
+
+
+def notify_project_deleted(
+    db: Session,
+    project_id: str,
+    project_title: str,
+    deleted_by_user_id: str,
+    deleted_by_username: str,
+    organization_id: str,
+):
+    """Notify organization members when a project is deleted"""
+    recipients = NotificationService.get_notification_recipients(
+        db=db,
+        event_type=NotificationType.PROJECT_DELETED,
+        context={"organization_id": organization_id, "project_id": project_id},
+    )
+
+    # Don't notify the user who deleted the project
+    recipients = [r for r in recipients if r != deleted_by_user_id]
+
+    if not recipients:
+        return
+
+    title = f"Project Deleted: {project_title}"
+    message = f"{deleted_by_username} has deleted project '{project_title}'"
+
+    NotificationService.create_notification(
+        db=db,
+        user_ids=recipients,
+        notification_type=NotificationType.PROJECT_DELETED,
+        title=title,
+        message=message,
+        data={
+            "project_id": project_id,
+            "project_title": project_title,
+            "deleted_by_user_id": deleted_by_user_id,
+            "deleted_by_username": deleted_by_username,
+            "organization_id": organization_id,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
+
+
+def notify_project_archived(
+    db: Session,
+    project_id: str,
+    project_title: str,
+    archived_by_user_id: str,
+    archived_by_username: str,
+    organization_id: str,
+):
+    """Notify organization members when a project is archived"""
+    recipients = NotificationService.get_notification_recipients(
+        db=db,
+        event_type=NotificationType.PROJECT_ARCHIVED,
+        context={"organization_id": organization_id, "project_id": project_id},
+    )
+
+    # Don't notify the user who archived the project
+    recipients = [r for r in recipients if r != archived_by_user_id]
+
+    if not recipients:
+        return
+
+    title = f"Project Archived: {project_title}"
+    message = f"{archived_by_username} has archived project '{project_title}'"
+
+    NotificationService.create_notification(
+        db=db,
+        user_ids=recipients,
+        notification_type=NotificationType.PROJECT_ARCHIVED,
+        title=title,
+        message=message,
+        data={
+            "project_id": project_id,
+            "project_title": project_title,
+            "archived_by_user_id": archived_by_user_id,
+            "archived_by_username": archived_by_username,
+            "organization_id": organization_id,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
+
+
+def notify_data_import_success(
+    db: Session,
+    project_id: str,
+    project_title: str,
+    imported_by_user_id: str,
+    imported_by_username: str,
+    organization_id: str,
+    imported_items_count: int,
+):
+    """Notify organization members when data is successfully imported into a project"""
+    recipients = NotificationService.get_notification_recipients(
+        db=db,
+        event_type=NotificationType.DATA_IMPORT_SUCCESS,
+        context={"organization_id": organization_id, "project_id": project_id},
+    )
+
+    if not recipients:
+        return
+
+    title = f"Data Import Completed: {project_title}"
+    message = f"{imported_by_username} has imported {imported_items_count} items into project '{project_title}'"
+
+    NotificationService.create_notification(
+        db=db,
+        user_ids=recipients,
+        notification_type=NotificationType.DATA_IMPORT_SUCCESS,
+        title=title,
+        message=message,
+        data={
+            "project_id": project_id,
+            "project_title": project_title,
+            "imported_by_user_id": imported_by_user_id,
+            "imported_by_username": imported_by_username,
+            "imported_items_count": imported_items_count,
+            "organization_id": organization_id,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
+
+
+def notify_labeling_config_updated(
+    db: Session,
+    project_id: str,
+    project_title: str,
+    updated_by_user_id: str,
+    updated_by_username: str,
+    organization_id: str,
+):
+    """Notify project members when labeling configuration is updated"""
+    recipients = NotificationService.get_notification_recipients(
+        db=db,
+        event_type=NotificationType.LABELING_CONFIG_UPDATED,
+        context={"organization_id": organization_id, "project_id": project_id},
+    )
+
+    # Don't notify the user who updated the config
+    recipients = [r for r in recipients if r != updated_by_user_id]
+
+    if not recipients:
+        return
+
+    title = f"Labeling Config Updated: {project_title}"
+    message = f"{updated_by_username} has updated the labeling configuration for project '{project_title}'"
+
+    NotificationService.create_notification(
+        db=db,
+        user_ids=recipients,
+        notification_type=NotificationType.LABELING_CONFIG_UPDATED,
+        title=title,
+        message=message,
+        data={
+            "project_id": project_id,
+            "project_title": project_title,
+            "updated_by_user_id": updated_by_user_id,
+            "updated_by_username": updated_by_username,
+            "organization_id": organization_id,
+            "timestamp": datetime.utcnow().isoformat(),
         },
     )
