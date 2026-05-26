@@ -314,10 +314,12 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
   })
 
   // Lines 320, 328, 331, 337, 342, 346: URL filter application after data loads
-  describe('URL model/metric filters applied after data loads (lines 320-346)', () => {
-    it('applies URL models and metrics filters when data is available', async () => {
+  describe('URL model/config filters applied after data loads (lines 320-346)', () => {
+    it('applies URL models and configs filters when data is available', async () => {
+      // Issue #111: URL filter key moved from `?metrics=` to `?configs=`
+      // (now scoped by evaluation_config.id).
       const mockSearchParams = new URLSearchParams(
-        'projectId=1&models=gpt-4,claude-3&metrics=bleu,rouge'
+        'projectId=1&models=gpt-4,claude-3&configs=cfg-bleu,cfg-rouge'
       )
       ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
 
@@ -327,8 +329,8 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
 
       ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
         evaluation_configs: [
-          { metric: 'bleu', enabled: true, prediction_fields: ['text'], reference_fields: ['ref'] },
-          { metric: 'rouge', enabled: true, prediction_fields: ['text'], reference_fields: ['ref'] },
+          { id: 'cfg-bleu', metric: 'bleu', enabled: true, prediction_fields: ['text'], reference_fields: ['ref'] },
+          { id: 'cfg-rouge', metric: 'rouge', enabled: true, prediction_fields: ['text'], reference_fields: ['ref'] },
         ],
       })
       ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({
@@ -346,9 +348,9 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
       })
     })
 
-    it('handles URL models filter with some invalid model ids', async () => {
+    it('handles URL models filter with some invalid model ids and configs', async () => {
       const mockSearchParams = new URLSearchParams(
-        'projectId=1&models=gpt-4,nonexistent&metrics=bleu,nonexistent_metric'
+        'projectId=1&models=gpt-4,nonexistent&configs=cfg-bleu,cfg-nonexistent'
       )
       ;(useSearchParams as jest.Mock).mockReturnValue(mockSearchParams)
 
@@ -358,7 +360,7 @@ describe('EvaluationDashboard - Surgical Branch Coverage 2', () => {
 
       ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue({
         evaluation_configs: [
-          { metric: 'bleu', enabled: true, prediction_fields: ['text'], reference_fields: ['ref'] },
+          { id: 'cfg-bleu', metric: 'bleu', enabled: true, prediction_fields: ['text'], reference_fields: ['ref'] },
         ],
       })
       ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({

@@ -205,7 +205,7 @@ function setupMocks(overrides: Record<string, any> = {}) {
   })
   ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(overrides.evaluatedModels ?? [])
   ;(apiClient.evaluations.getProjectAnnotators as jest.Mock).mockResolvedValue([])
-  ;(apiClient.evaluations.getEvaluationHistory as jest.Mock).mockResolvedValue([])
+  ;(apiClient.evaluations.getEvaluationHistory as jest.Mock).mockResolvedValue({ series: [] })
   ;(apiClient.evaluations.getSignificanceTests as jest.Mock).mockResolvedValue([])
   ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue({})
   ;(apiClient.get as jest.Mock).mockResolvedValue({ configured_methods: [], metrics_with_results: [] })

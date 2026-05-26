@@ -78,7 +78,14 @@ type StatisticalMethod =
 interface EvaluationResultsProps {
   projectId: string | number
   selectedModels?: string[]
-  selectedMetrics?: string[]
+  /**
+   * Issue #111: per-config selection (one entry per
+   * `evaluation_config.id`) instead of per-metric-name. Two configs
+   * sharing the same `metric` type but distinct `display_name`s now
+   * filter independently — the page-level dropdown is keyed on
+   * `evaluation_config_id` so this prop matches.
+   */
+  selectedConfigIds?: string[]
   selectedEvalTypes?: ('automated' | 'llm-judge' | 'human')[]
   onRefresh?: () => void
   hasConfiguration?: boolean
@@ -162,7 +169,7 @@ interface ProjectEvaluationResults {
 export function EvaluationResults({
   projectId,
   selectedModels = [],
-  selectedMetrics = [],
+  selectedConfigIds = [],
   selectedEvalTypes = ['automated', 'llm-judge', 'human'],
   onRefresh,
   hasConfiguration,
@@ -193,14 +200,17 @@ export function EvaluationResults({
   const [byRunChart, setByRunChart] = useState(false)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
 
-  // Available metric methods — one entry per evaluation method (NOT per
-  // EvaluationRun). Multiple runs of the same metric (e.g. dozens of
-  // immediate-eval submissions) collapse into a single dropdown entry.
-  // Selecting a method passes ALL matching run IDs to the by-task-model
-  // endpoint, which already deduplicates to the latest result per
-  // (generation_id, field_name) via row_number() OVER ... — so the user
-  // sees the most recent score per cell across the entire metric history.
-  // Sorted by the evaluation config order from the project page wizard.
+  // Issue #111: this dropdown now lists one entry per
+  // `evaluation_config.id` (not per metric_name). Two configs sharing
+  // the same `metric` type but distinct `display_name`s render as
+  // separate, independently-selectable entries — the page-level filter
+  // in the parent component is keyed on `evaluation_config_id`, so this
+  // results-card-scoped dropdown mirrors that. Multiple EvaluationRuns
+  // of the same config (e.g. immediate-eval re-submissions) still
+  // collapse into one entry whose `runIds` list spans every matching
+  // run. Sorted by the evaluation config order from the project wizard
+  // using `cfg.metric` for GROUPED_METRICS lookup (configs of the same
+  // metric group together).
   const availableMetricRuns = useMemo(() => {
     if (!results?.evaluations) return []
 
@@ -217,44 +227,45 @@ export function EvaluationResults({
         e.status === 'pending'
       )
       .filter((e) => {
-        if (!selectedMetrics || selectedMetrics.length === 0) return true
-        return e.evaluation_configs?.some((c: any) => selectedMetrics.includes(c.metric))
+        if (!selectedConfigIds || selectedConfigIds.length === 0) return true
+        return e.evaluation_configs?.some((c: any) => selectedConfigIds.includes(c.id))
       })
 
-    type MetricEntry = {
-      id: string             // metric key (e.g. "llm_judge_falloesung")
-      metric: string         // same as id
-      configId: string
+    type ConfigEntry = {
+      id: string             // evaluation_config.id — primary key for the dropdown
+      metric: string         // raw metric name, kept separate for METRIC_ORDER sort
+      configId: string       // same as id (kept for backward-compat reading sites)
       displayName: string
       samplesEvaluated: number
       runIds: string[]
     }
 
-    const byMetric = new Map<string, MetricEntry>()
+    const byConfig = new Map<string, ConfigEntry>()
     for (const e of visible) {
-      // A single EvaluationRun may bundle multiple metrics (the API's
+      // A single EvaluationRun may bundle multiple configs (the API's
       // /run endpoint accepts multi-config requests, and the worker
       // dispatch accepts a list of configs). Walk EVERY config in the
-      // run, not just the first — otherwise metrics 2..N silently
+      // run, not just the first — otherwise configs 2..N silently
       // disappear from the dropdown even though their rows live in the
-      // DB. The same run id then appears under each metric it ran.
+      // DB. The same run id then appears under each config it ran.
       const cfgs =
         Array.isArray(e.evaluation_configs) && e.evaluation_configs.length > 0
           ? e.evaluation_configs
           : [{ metric: 'unknown', id: '', display_name: undefined } as any]
       for (const cfg of cfgs) {
+        const cfgId = cfg?.id || cfg?.metric || 'unknown'
         const metric = cfg?.metric || 'unknown'
-        const existing = byMetric.get(metric)
+        const existing = byConfig.get(cfgId)
         if (existing) {
           if (!existing.runIds.includes(e.evaluation_id)) {
             existing.runIds.push(e.evaluation_id)
           }
           existing.samplesEvaluated = Math.max(existing.samplesEvaluated, e.samples_evaluated || 0)
         } else {
-          byMetric.set(metric, {
-            id: metric,
+          byConfig.set(cfgId, {
+            id: cfgId,
             metric,
-            configId: cfg?.id || '',
+            configId: cfgId,
             displayName: cfg?.display_name || metric || 'Unknown',
             samplesEvaluated: e.samples_evaluated || 0,
             runIds: [e.evaluation_id],
@@ -263,8 +274,9 @@ export function EvaluationResults({
       }
     }
 
-    // Sort by GROUPED_METRICS order (same order as the evaluation wizard)
-    const runs = Array.from(byMetric.values())
+    // Sort by GROUPED_METRICS order (same as wizard) using cfg.metric
+    // — this keeps configs of the same metric type adjacent.
+    const runs = Array.from(byConfig.values())
     const orderMap = new Map(METRIC_ORDER.map((m, i) => [m, i]))
     runs.sort((a, b) => {
       const orderA = orderMap.get(a.metric) ?? 999
@@ -273,9 +285,13 @@ export function EvaluationResults({
     })
 
     return runs
-  }, [results, selectedMetrics, evaluationConfigs])
+  }, [results, selectedConfigIds, evaluationConfigs])
 
-  // Auto-select metric run — restore from localStorage or default to first
+  // Auto-select config — restore from localStorage or default to first.
+  // Issue #111: storage now keys on evaluation_config.id (not metric
+  // name) so two configs of the same metric type round-trip cleanly.
+  // Stale legacy values that don't match any config_id fall back to
+  // the first available entry (clean break, no metric-name shim).
   useEffect(() => {
     if (availableMetricRuns.length === 0) return
 
@@ -284,10 +300,10 @@ export function EvaluationResults({
       return
     }
 
-    // Try to restore from localStorage by metric name
-    const savedMetric = localStorage.getItem(`eval-selected-metric-${projectId}`)
-    if (savedMetric) {
-      const match = availableMetricRuns.find((r) => r.metric === savedMetric)
+    // Try to restore from localStorage by config_id
+    const savedConfigId = localStorage.getItem(`eval-selected-config-${projectId}`)
+    if (savedConfigId) {
+      const match = availableMetricRuns.find((r) => r.id === savedConfigId)
       if (match) {
         setSelectedMetricRunId(match.id)
         return
@@ -296,7 +312,7 @@ export function EvaluationResults({
 
     // Default to first
     setSelectedMetricRunId(availableMetricRuns[0].id)
-  }, [availableMetricRuns, selectedMetricRunId])
+  }, [availableMetricRuns, selectedMetricRunId, projectId])
 
   // Per-task/model data table state
   const [taskModelData, setTaskModelData] = useState<{
@@ -445,18 +461,24 @@ export function EvaluationResults({
       return true
     }) || []
 
-  // When showHistory is off, deduplicate to latest run per metric
+  // When showHistory is off, deduplicate to latest run per config.
+  // Issue #111: key by evaluation_config.id (not metric name) so two
+  // configs of the same metric type stay distinct — keying by metric
+  // would surface only one of them in the result-card list.
   const displayEvaluations = useMemo(() => {
     if (showHistory) return filteredEvaluations
-    const latestByMetric = new Map<string, typeof filteredEvaluations[0]>()
+    const latestByConfig = new Map<string, typeof filteredEvaluations[0]>()
     for (const evaluation of filteredEvaluations) {
-      const metric = evaluation.evaluation_configs?.[0]?.metric || 'unknown'
-      const existing = latestByMetric.get(metric)
+      const cfgId =
+        evaluation.evaluation_configs?.[0]?.id ||
+        evaluation.evaluation_configs?.[0]?.metric ||
+        'unknown'
+      const existing = latestByConfig.get(cfgId)
       if (!existing || (evaluation.created_at && existing.created_at && evaluation.created_at > existing.created_at)) {
-        latestByMetric.set(metric, evaluation)
+        latestByConfig.set(cfgId, evaluation)
       }
     }
-    return [...latestByMetric.values()]
+    return [...latestByConfig.values()]
   }, [filteredEvaluations, showHistory])
 
   // Close export dropdown on click outside
@@ -512,24 +534,42 @@ export function EvaluationResults({
 
     // If we have taskModelData with summary, use it for chart data (preferred - has real model names)
     if (taskModelData?.summary && Object.keys(taskModelData.summary).length > 0) {
-      // "By run" toggle (migration 042): split each model into one entry
-      // per judge_run when statisticsData.per_run_means_by_model_metric has
-      // data for it. Falls back to single-bar-per-model when toggle is off
-      // OR when no per-run data exists.
+      // "By run" toggle (migration 042 + issue #111): split each model
+      // into one entry per judge_run when
+      // statisticsData.per_run_means_by_model_metric has data for it.
+      // The composite key shape changed from "model_id|metric" (2-part)
+      // to "model_id|config_id|metric" (3-part) — the chart aggregates
+      // ACROSS configs of the same metric here (the per-config split is
+      // done by the parent page's filter), so we scan all matching
+      // 3-part keys for this (model, metric) and concatenate their run
+      // entries. Configs are surfaced in the judge label so users can
+      // still tell them apart in the by-run view.
       const perRunBlock = (statisticsData as any)?.per_run_means_by_model_metric
       if (byRunChart && perRunBlock) {
         const chartData: ChartData[] = []
         for (const [modelId, summaryData] of Object.entries(taskModelData.summary)) {
-          const lookupKey = `${modelId}|${primaryMetricName}`
-          const runs = perRunBlock[lookupKey] as
-            | Array<{ judge_run_id: string; judge_model_id: string | null; run_index: number; mean: number; n_tasks: number }>
-            | undefined
-          if (runs && runs.length > 0) {
-            for (const run of runs) {
+          const matchedRuns: Array<{
+            cfgId: string
+            run: { judge_run_id: string; judge_model_id: string | null; run_index: number; mean: number; n_tasks: number }
+          }> = []
+          const prefix = `${modelId}|`
+          const suffix = `|${primaryMetricName}`
+          for (const [k, v] of Object.entries(perRunBlock)) {
+            if (k.startsWith(prefix) && k.endsWith(suffix)) {
+              // k === "model_id|config_id|metric"
+              const parts = k.split('|')
+              const cfgId = parts.length >= 3 ? parts.slice(1, -1).join('|') : 'unknown'
+              for (const run of (v as any[]) || []) {
+                matchedRuns.push({ cfgId, run })
+              }
+            }
+          }
+          if (matchedRuns.length > 0) {
+            for (const { cfgId, run } of matchedRuns) {
               const judgeLabel = run.judge_model_id ?? 'human'
               chartData.push({
-                model_id: `${modelId}__${judgeLabel}__r${run.run_index}`,
-                model_name: `${summaryData.model_name || modelId} · ${judgeLabel} · run ${run.run_index}`,
+                model_id: `${modelId}__${cfgId}__${judgeLabel}__r${run.run_index}`,
+                model_name: `${summaryData.model_name || modelId} · ${cfgId} · ${judgeLabel} · run ${run.run_index}`,
                 metrics: { [primaryMetricName]: run.mean },
                 samples_evaluated: run.n_tasks,
               })
@@ -1020,11 +1060,19 @@ export function EvaluationResults({
   }
 
   /**
-   * Multi-run aggregate (migration 042). When ≥2 runs exist for this
-   * (model, metric) pair, return a "± std (N runs)" suffix to append after
-   * the per-sample stats line. Always-on display — independent of the
-   * selectedStatistics toggle since it's a fundamentally different
-   * statistic (variance ACROSS runs, not within a single run).
+   * Multi-run aggregate (migration 042 + issue #111). When ≥2 runs
+   * exist for this (model, metric) pair, return a "± std (N runs)"
+   * suffix to append after the per-sample stats line. Always-on
+   * display — independent of the selectedStatistics toggle since it's
+   * a fundamentally different statistic (variance ACROSS runs, not
+   * within a single run).
+   *
+   * The composite key shape changed from `"model_id|metric"` (2-part)
+   * to `"model_id|config_id|metric"` (3-part). This formatter is called
+   * by the per-model summary row which doesn't know which config to
+   * scope to, so we aggregate all matching configs for the metric:
+   * pick the entry with the highest `n_runs` (the user-facing intent is
+   * "how many distinct runs were there for this model + metric?").
    */
   const formatRunsAggregate = (
     modelId: string,
@@ -1032,7 +1080,16 @@ export function EvaluationResults({
   ): string | null => {
     const block = (statisticsData as any)?.runs_by_model_metric
     if (!block) return null
-    const entry = block[`${modelId}|${metricName}`]
+    let entry: any = null
+    const prefix = `${modelId}|`
+    const suffix = `|${metricName}`
+    for (const [k, v] of Object.entries(block)) {
+      if (k.startsWith(prefix) && k.endsWith(suffix)) {
+        if (!entry || ((v as any)?.n_runs ?? 0) > (entry.n_runs ?? 0)) {
+          entry = v
+        }
+      }
+    }
     if (!entry || !entry.n_runs || entry.n_runs < 2) return null
     const std = typeof entry.std_of_means === 'number' ? entry.std_of_means : null
     return std !== null
@@ -1180,9 +1237,10 @@ export function EvaluationResults({
                 value={selectedMetricRunId}
                 onValueChange={(v) => {
                   setSelectedMetricRunId(v)
-                  // Persist selection by metric name for page refresh
-                  const run = availableMetricRuns.find((r) => r.id === v)
-                  if (run) localStorage.setItem(`eval-selected-metric-${projectId}`, run.metric)
+                  // Issue #111: persist by evaluation_config.id so two
+                  // configs of the same metric type round-trip
+                  // independently across page reloads.
+                  localStorage.setItem(`eval-selected-config-${projectId}`, v)
                 }}
                 displayValue={displayText}
               >
@@ -1347,7 +1405,7 @@ export function EvaluationResults({
        taskModelData &&
        taskModelData.tasks.length > 0 &&
        // Hide table when user has explicitly deselected all metrics
-       (selectedMetrics === undefined || selectedMetrics.length > 0) &&
+       (selectedConfigIds === undefined || selectedConfigIds.length > 0) &&
        (() => {
         // Show selected models as columns, even if they have no results yet (will show "—")
         // Fall back to models from evaluation data if no filter is active
