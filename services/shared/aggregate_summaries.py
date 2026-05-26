@@ -76,6 +76,7 @@ logger = logging.getLogger(__name__)
 # Shared utilities                                                            #
 # --------------------------------------------------------------------------- #
 
+
 def _period_cutoff(period: str) -> Optional[datetime]:
     """Cutoff datetime for the period filter; None means no time filter."""
     now = datetime.now(timezone.utc)

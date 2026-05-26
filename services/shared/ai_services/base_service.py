@@ -276,6 +276,7 @@ class BaseAIService(ABC):
         response["metadata"].update(self.get_invocation_provenance())
         return response
 
+
 # ----------------------------------------------------------------
 # Phase 6.2: Per-call retry history (academic-rigor audit trail)
 # ----------------------------------------------------------------
@@ -303,4 +304,3 @@ def get_retry_history_snapshot() -> list:
     """
     history = _retry_history_ctx.get()
     return list(history) if history else []
-

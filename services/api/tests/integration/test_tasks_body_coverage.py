@@ -344,7 +344,7 @@ class TestListTasksFieldEnrichment:
         assert resp.status_code == 200
         item = resp.json()["items"][0]
         required = ["id", "inner_id", "data", "meta", "is_labeled",
-                     "total_annotations", "total_generations", "project_id",
+                     "total_annotations", "total_generations", "project_id",  # noqa: E127
                      "assignments", "tags"]
         for field in required:
             assert field in item, f"Missing field: {field}"

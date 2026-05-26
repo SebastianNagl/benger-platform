@@ -13,7 +13,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import relationships properly
-import models  # This ensures all model relationships are loaded  # noqa: E402
+import models  # This ensures all model relationships are loaded  # noqa: E402,F401
 from database import SessionLocal  # noqa: E402
 from models import Organization, User  # noqa: E402
 from project_models import Project, Task  # noqa: E402

@@ -477,4 +477,3 @@ class TestExtensionFieldTypes:
 </View>"""
         names = LabelConfigParser.extract_field_names(xml)
         assert names == ["angabe"]
-

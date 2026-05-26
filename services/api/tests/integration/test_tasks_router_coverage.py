@@ -25,7 +25,7 @@ def _uid():
 
 
 def _make_project(db, admin, org, *, num_tasks=5, assignment_mode="open",
-                   randomize=False, with_annotations=False):
+                   randomize=False, with_annotations=False):  # noqa: E127
     """Create project with tasks for testing."""
     project = Project(
         id=_uid(),

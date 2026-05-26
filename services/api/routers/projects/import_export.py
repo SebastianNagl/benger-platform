@@ -519,7 +519,7 @@ async def import_project_data(
                             # judge_run created above for this evaluation_run
                             # (mirrors migration 043's backfill).
                             judge_run_id=eval_data.get("judge_run_id")
-                                or evaluation_run_judge_run.get(new_er_id),
+                                or evaluation_run_judge_run.get(new_er_id),  # noqa: E131
                         )
                         db.add(te)
                         created_task_evaluations += 1
@@ -556,7 +556,7 @@ async def import_project_data(
                     judge_prompts_used=eval_data.get("judge_prompts_used"),
                     # Migration 042: see comment on the generation-attached path above.
                     judge_run_id=eval_data.get("judge_run_id")
-                        or evaluation_run_judge_run.get(new_er_id),
+                        or evaluation_run_judge_run.get(new_er_id),  # noqa: E131
                 )
                 db.add(te)
                 created_task_evaluations += 1

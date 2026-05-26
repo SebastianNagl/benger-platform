@@ -111,6 +111,7 @@ def _resolve_param(
         return (rec_default[key], "recommended", recommended_at_trigger)
     return (SYSTEM_DEFAULTS.get(key), "system", recommended_at_trigger)
 
+
 # Logger konfigurieren (must be before database imports)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -298,6 +299,7 @@ def _normalize_field_key(field_name: str | None, *, is_annotation: bool) -> str 
     if is_annotation and not pred.startswith("human:") and not pred.startswith("model:"):
         pred = f"human:{pred}"
     return f"{cfg}|{pred}|{ref}"
+
 
 # Add current directory to Python path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))

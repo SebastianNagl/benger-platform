@@ -52,7 +52,7 @@ class TestProjectCrudIntegration:
             "id": str(uuid.uuid4()),
             "title": kwargs.get("title", "Test Project"),
             "description": kwargs.get("description", "Test description"),
-                        "created_by": created_by,
+                        "created_by": created_by,  # noqa: E131
             "created_at": datetime.utcnow(),
         }
         project = Project(**project_data)

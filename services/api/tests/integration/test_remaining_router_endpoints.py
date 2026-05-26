@@ -914,7 +914,7 @@ class TestDashboardEndpoints:
         from project_models import Annotation, Project, ProjectOrganization, Task
 
         admin = test_users[0]
-        _uid = lambda: str(__import__("uuid").uuid4())
+        _uid = lambda: str(__import__("uuid").uuid4())  # noqa: E731
         now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
 
         # Create a project with known data counts

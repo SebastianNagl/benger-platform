@@ -101,7 +101,7 @@ class TestProjectGenerationConfig:
 
     def test_get_generation_config(self, client, test_db, test_users, auth_headers, test_org):
         project, _, _ = _setup(test_db, test_users[0], test_org,
-                                generation_config={"selected_configuration": {"models": ["gpt-4o"]}})
+                                generation_config={"selected_configuration": {"models": ["gpt-4o"]}})  # noqa: E127
         resp = client.get(
             f"{BASE_PROJECT}/{project.id}/generation-config",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
@@ -129,7 +129,7 @@ class TestProjectGenerationConfig:
 
     def test_clear_generation_config(self, client, test_db, test_users, auth_headers, test_org):
         project, _, _ = _setup(test_db, test_users[0], test_org,
-                                generation_config={"selected_configuration": {"models": ["gpt-4o"]}})
+                                generation_config={"selected_configuration": {"models": ["gpt-4o"]}})  # noqa: E127
         resp = client.delete(
             f"{BASE_PROJECT}/{project.id}/generation-config",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},

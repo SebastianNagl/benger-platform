@@ -24,8 +24,8 @@ from project_models import (
 
 
 def create_project_fixture(db, users, questionnaire_enabled=False,
-                          num_tasks=3, is_private=False,
-                          assignment_mode="open"):
+                          num_tasks=3, is_private=False,  # noqa: E128
+                          assignment_mode="open"):  # noqa: E128
     """Create a complete project with org, membership, and tasks."""
     org = Organization(
         id=str(uuid.uuid4()),

@@ -908,7 +908,7 @@ async def generation_progress_websocket(
         logger.error(f"WebSocket error for project {project_id}: {e}")
         try:
             await websocket.send_json({"type": "error", "message": f"WebSocket error: {str(e)}"})
-        except:
+        except:  # noqa: E722
             pass
     finally:
         # Cleanup
@@ -919,7 +919,7 @@ async def generation_progress_websocket(
         # Close WebSocket if still open
         try:
             await websocket.close()
-        except:
+        except:  # noqa: E722
             pass
 
         logger.info(f"WebSocket connection closed for project {project_id}")

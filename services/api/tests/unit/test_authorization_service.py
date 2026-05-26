@@ -66,4 +66,3 @@ class TestCanCreateOrganization:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = None
         assert can_create_organization(user, db) is False
-

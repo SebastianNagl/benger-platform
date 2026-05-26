@@ -25,6 +25,7 @@ from .base_service import _retry_history_ctx, get_retry_history_snapshot  # noqa
 
 logger = logging.getLogger(__name__)
 
+
 def async_retry_with_exponential_backoff(
     max_retries: int = 5,
     base_delay: float = 2.0,

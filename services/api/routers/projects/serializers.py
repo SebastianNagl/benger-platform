@@ -391,7 +391,7 @@ def serialize_human_evaluation_data(db, project_id: str, task_ids: List[str]) ->
             .filter(LikertScaleEvaluation.session_id.in_(session_ids))
             .all()
         )
-        for l in likerts:
+        for l in likerts:  # noqa: E741
             likert_data.append({
                 "id": l.id,
                 "session_id": l.session_id,
