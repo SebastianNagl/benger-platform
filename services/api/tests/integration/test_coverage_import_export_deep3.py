@@ -221,7 +221,7 @@ class TestExportVariedAnnotations:
     def test_export_with_different_meta_structures(self, client, test_db, test_users, auth_headers, test_org):
         p = _make_project(test_db, test_users[0], test_org)
         _make_task(test_db, p, test_users[0], inner_id=1, meta={"source": "web", "difficulty": "easy"})
-        _make_task(test_db, p, test_users[0], inner_id=2, meta={"source": "pd", "pages": [1, 2, 3]})
+        _make_task(test_db, p, test_users[0], inner_id=2, meta={"source": "pdf", "pages": [1, 2, 3]})
         _make_task(test_db, p, test_users[0], inner_id=3, meta=None)
         test_db.commit()
 

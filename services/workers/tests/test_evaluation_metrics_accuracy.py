@@ -728,7 +728,7 @@ class TestChrFScore:
         )
 
         score = evaluator._compute_metric(
-            "chr", "The contract is binding", "The contract is binding", "text"
+            "chrf", "The contract is binding", "The contract is binding", "text"
         )
         # Score is normalized to [0, 1]
         assert score > 0.9, f"Perfect match chrF should be > 0.9, got {score}"

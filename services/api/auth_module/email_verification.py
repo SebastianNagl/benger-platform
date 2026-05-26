@@ -369,7 +369,7 @@ class EmailVerificationService:
             db: Database session
             user_id: User ID to mark as verified
             verified_by_id: Optional ID of user who verified (for admin verification)
-            method: Verification method ('sel', 'admin', 'system')
+            method: Verification method ('self', 'admin', 'system')
 
         Returns:
             True if successful, False otherwise

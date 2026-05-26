@@ -214,7 +214,7 @@ class TestStorageService:
             backend = LocalStorageBackend(tmpdir)
             service = StorageService(backend)
             result = await service.upload_file(
-                b"data", "test.pd", user_id="u1", file_type="document"
+                b"data", "test.pdf", user_id="u1", file_type="document"
             )
             assert result["key"].startswith("document/u1/")
 

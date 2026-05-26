@@ -304,7 +304,7 @@ class TestProjectEvaluationResults:
                     parsed[config_id][combo_key] = {}
                 parsed[config_id][combo_key][metric_name] = value
 
-        assert parsed["cfg1"]["pred_vs_re"]["metric"] == 0.5
+        assert parsed["cfg1"]["pred_vs_ref"]["metric"] == 0.5
 
     def test_evaluation_run_type_check(self):
         """Test that non-evaluation runs are rejected."""

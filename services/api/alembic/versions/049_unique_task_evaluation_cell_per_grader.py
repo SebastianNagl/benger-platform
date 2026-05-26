@@ -58,7 +58,7 @@ def upgrade() -> None:
         op.execute(f"DROP INDEX {INDEX_NAME}")
 
     op.execute(
-        """
+        f"""
         CREATE UNIQUE INDEX {INDEX_NAME}
         ON task_evaluations (
             evaluation_id,
@@ -84,7 +84,7 @@ def downgrade() -> None:
     if _index_exists("task_evaluations", INDEX_NAME):
         op.execute(f"DROP INDEX {INDEX_NAME}")
     op.execute(
-        """
+        f"""
         CREATE UNIQUE INDEX {INDEX_NAME}
         ON task_evaluations (
             evaluation_id,

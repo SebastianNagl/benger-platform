@@ -97,7 +97,7 @@ def test_finalize_evaluation_run_signature():
     # this test independent of whether we toggle `bind=`.
     names = [n for n, _ in params]
     assert (
-        names[0] in ("sel", "_sub_task_results")
+        names[0] in ("self", "_sub_task_results")
         and "_sub_task_results" in names
         and "evaluation_id" in names
     ), f"finalize_evaluation_run param order looks wrong: {names}"

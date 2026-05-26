@@ -47,6 +47,9 @@ from auth_module import (
     require_superadmin,
     revoke_refresh_token,
 )
+# Re-exported for tests that patch routers.auth.logout_user — not directly
+# used in this module but must be importable as an attribute.
+from auth_module import logout_user  # noqa: F401
 from auth_module.dependencies import require_user
 from auth_module.email_verification import email_verification_service
 from auth_module.user_service import change_user_password, update_user_profile
