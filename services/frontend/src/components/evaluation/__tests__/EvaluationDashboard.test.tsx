@@ -165,7 +165,7 @@ describe('EvaluationDashboard', () => {
     mockGetSupportedMetrics.mockResolvedValue({
       supported_metrics: ['rouge', 'bleu', 'bertscore', 'meteor'],
     })
-    mockGetEvaluationHistory.mockResolvedValue({ data: [] })
+    mockGetEvaluationHistory.mockResolvedValue({ series: [] })
     mockGetSignificanceTests.mockResolvedValue({ comparisons: [] })
   })
 
@@ -383,8 +383,26 @@ describe('EvaluationDashboard', () => {
   describe('Historical trend chart', () => {
     it('renders historical trend chart when data has entries', async () => {
       const user = userEvent.setup()
+      // Issue #111: shape moved from `{ data: [...] }` to
+      // `{ series: [{metric, evaluation_config_id, display_name, data: [...]}] }`.
       mockGetEvaluationHistory.mockResolvedValue({
-        data: [{ date: '2026-01-01', score: 0.8, model_id: 'gpt-4' }],
+        series: [
+          {
+            metric: 'bleu',
+            evaluation_config_id: 'cfg-a',
+            display_name: 'BLEU',
+            data: [
+              {
+                date: '2026-01-01',
+                model_id: 'gpt-4',
+                value: 0.8,
+                ci_lower: 0.78,
+                ci_upper: 0.82,
+                sample_count: 10,
+              },
+            ],
+          },
+        ],
       })
 
       render(<EvaluationDashboard />)

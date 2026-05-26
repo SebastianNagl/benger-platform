@@ -315,7 +315,7 @@ function setupBasicMocks(overrides: {
   ;(apiClient.evaluations.getProjectEvaluationConfig as jest.Mock).mockResolvedValue(mockEvalConfig)
   ;(apiClient.evaluations.getConfiguredMethods as jest.Mock).mockResolvedValue({ fields: [] })
   ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(mockEvaluatedModels)
-  ;(apiClient.evaluations.getEvaluationHistory as jest.Mock).mockResolvedValue({ data: [] })
+  ;(apiClient.evaluations.getEvaluationHistory as jest.Mock).mockResolvedValue({ series: [] })
   ;(apiClient.evaluations.getSignificanceTests as jest.Mock).mockResolvedValue({ comparisons: [] })
   ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue({})
   ;(apiClient.evaluations.runEvaluation as jest.Mock).mockResolvedValue({ evaluation_id: 'eval-run-1' })
@@ -418,10 +418,13 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
     })
   })
 
-  // --- URL param: models and metrics after data load (line 319-350) ---
+  // --- URL param: models and configs after data load (line 319-350)
+  //     Issue #111: URL key moved from `?metrics=<metric_name>` to
+  //     `?configs=<evaluation_config.id>` so two configs of the same
+  //     metric type can round-trip independently. ---
 
-  it('applies models and metrics from URL after data loads', async () => {
-    const sp = new URLSearchParams('projectId=p1&models=gpt-4&metrics=bleu')
+  it('applies models and configs from URL after data loads', async () => {
+    const sp = new URLSearchParams('projectId=p1&models=gpt-4&configs=cfg-bleu')
     setupBasicMocks({ searchParams: sp })
     render(<EvaluationDashboard />)
 
@@ -850,10 +853,12 @@ describe('EvaluationDashboard - Mega Branch Coverage', () => {
     })
   })
 
-  // --- URL metrics that don't match available metrics (line 344-347) ---
+  // --- URL configs that don't match available configs (line 344-347).
+  //     Issue #111: URL key is `?configs=`, and stale ids prune to "all
+  //     available" rather than carrying an invalid filter forward. ---
 
-  it('filters out invalid metric IDs from URL params', async () => {
-    const sp = new URLSearchParams('projectId=p1&metrics=nonexistent-metric')
+  it('filters out invalid config IDs from URL params', async () => {
+    const sp = new URLSearchParams('projectId=p1&configs=nonexistent-config')
     setupBasicMocks({ searchParams: sp })
     render(<EvaluationDashboard />)
 
