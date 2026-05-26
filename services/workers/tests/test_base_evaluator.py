@@ -48,7 +48,7 @@ class TestEvaluationResult:
         )
 
         assert result.success == True
-        assert result.error is None
+        assert result.error == None
         assert result.metrics == {"accuracy": 0.85, "f1": 0.82}
         assert result.metadata == {"samples": 100}
         assert result.samples_evaluated == 100
@@ -69,7 +69,7 @@ class TestEvaluationResult:
         result = EvaluationResult(metrics={"accuracy": 0.9}, metadata={}, samples_evaluated=50)
 
         assert result.success == True
-        assert result.error is None
+        assert result.error == None
         assert result.metadata == {}
 
 
@@ -171,7 +171,7 @@ class TestBaseEvaluator:
     def test_evaluator_initialization(self, evaluator):
         """Test evaluator initialization."""
         assert evaluator.task_type == "test"
-        assert evaluator.logger is not None
+        assert evaluator.logger != None
         assert evaluator.get_supported_metrics() == [
             "accuracy",
             "precision",
@@ -274,7 +274,7 @@ class TestBaseEvaluator:
         result = evaluator.evaluate("test-model", task_data, config)
 
         assert result.success == True
-        assert result.error is None
+        assert result.error == None
         assert result.samples_evaluated == 2
         assert "accuracy" in result.metrics
         assert "f1" in result.metrics

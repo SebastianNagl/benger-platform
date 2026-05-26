@@ -814,7 +814,7 @@ async def compare_llm_models(
             .all()
         )
         for r in rows:
-            if r.score is None:
+            if r.score == None:  # noqa: E711
                 continue
             model_averages[r.model_id][r.metric] = round(r.score, 4)
             all_metrics.add(r.metric)

@@ -162,7 +162,7 @@ class TestGetSingleTaskGenerationStatus:
         db.query.return_value = mock_q
 
         result = get_single_task_generation_status("task-1", "gpt-4", None, db)
-        assert result.status is None
+        assert result.status == None  # noqa: E711
         assert result.task_id == "task-1"
 
     def test_completed_with_dict_result(self):
@@ -189,7 +189,7 @@ class TestGetSingleTaskGenerationStatus:
 
         result = get_single_task_generation_status("task-1", "gpt-4", "default", db)
         assert result.status == "completed"
-        assert result.result_preview is not None
+        assert result.result_preview != None  # noqa: E711
         assert result.result_preview.endswith("...")
 
     def test_completed_with_string_result(self):
@@ -255,7 +255,7 @@ class TestGetSingleTaskGenerationStatus:
         db.query.return_value = mock_q
 
         result = get_single_task_generation_status("task-1", "gpt-4", None, db)
-        assert result.status is None
+        assert result.status == None  # noqa: E711
 
 
 # ---------------------------------------------------------------------------
@@ -908,7 +908,7 @@ class TestGetGenerationResult:
         assert len(result.results) == 1
         assert result.results[0].status == "completed"
         assert result.results[0].result["generated_text"] == "Hello world"
-        assert result.results[0].generation_time_seconds is not None
+        assert result.results[0].generation_time_seconds != None  # noqa: E711
 
     @pytest.mark.asyncio
     @patch("routers.generation_task_list.get_project_with_permissions")
@@ -1421,4 +1421,4 @@ class TestGetGenerationResult:
             db=db,
         )
         assert result.results[0].created_by == "deleted-user-99"
-        assert result.results[0].created_by_name is None
+        assert result.results[0].created_by_name == None  # noqa: E711

@@ -22,7 +22,7 @@ class EvaluationConfig:
     evaluation_params: Dict[str, Any] = None
 
     def __post_init__(self):
-        if self.evaluation_params is None:
+        if self.evaluation_params == None:
             self.evaluation_params = {}
 
 
@@ -37,7 +37,7 @@ class EvaluationResult:
 
     @property
     def success(self) -> bool:
-        return self.error is None
+        return self.error == None
 
 
 class BaseEvaluator(ABC):

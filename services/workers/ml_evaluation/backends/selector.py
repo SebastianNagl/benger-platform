@@ -27,7 +27,7 @@ class BackendSelector:
     _instance = None
 
     def __new__(cls):
-        if cls._instance is None:
+        if cls._instance == None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
@@ -58,7 +58,7 @@ class BackendSelector:
 
     def get_bertscore_backend(self) -> BERTScoreBackend:
         """Get appropriate BERTScore backend."""
-        if self._bertscore_backend is not None:
+        if self._bertscore_backend != None:
             return self._bertscore_backend
 
         if self._should_use_onnx():
@@ -95,7 +95,7 @@ class BackendSelector:
                 return TorchEmbeddingBackend(model_name)
 
         # Use cached backend for default model
-        if self._embedding_backend is not None:
+        if self._embedding_backend != None:
             return self._embedding_backend
 
         default_model = "paraphrase-multilingual-MiniLM-L12-v2"
@@ -121,7 +121,7 @@ class BackendSelector:
 
     def get_moverscore_computer(self):
         """Get MoverScore computer with appropriate backend."""
-        if self._moverscore_computer is None:
+        if self._moverscore_computer == None:
             from .moverscore_impl import MoverScoreComputer
 
             self._moverscore_computer = MoverScoreComputer(use_onnx=self._should_use_onnx())
@@ -135,7 +135,7 @@ class BackendSelector:
         Reference: Wang et al. (2020) "Asking and Answering Questions to
         Evaluate the Factual Consistency of Summaries"
         """
-        if self._qags_backend is not None:
+        if self._qags_backend != None:
             return self._qags_backend
 
         if self._should_use_onnx():
@@ -173,7 +173,7 @@ class BackendSelector:
         - Schuster et al. (2021) "Get Your Vitamin C! Robust Fact Verification
           with Contrastive Evidence" (ViTC model)
         """
-        if self._summac_backend is not None:
+        if self._summac_backend != None:
             return self._summac_backend
 
         if self._should_use_onnx():

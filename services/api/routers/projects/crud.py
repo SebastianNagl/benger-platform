@@ -299,7 +299,7 @@ async def create_project(
                 )
 
     # Validate label_config if provided (including empty strings)
-    if project.label_config is not None:
+    if project.label_config != None:  # noqa: E711
         is_valid, errors = LabelConfigValidator.validate(project.label_config)
         if not is_valid:
             raise HTTPException(

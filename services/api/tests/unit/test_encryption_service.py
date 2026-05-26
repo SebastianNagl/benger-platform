@@ -26,8 +26,8 @@ class TestEncryptionServiceInitialization:
     def test_initialization_default(self):
         """Test service initialization with default settings"""
         service = EncryptionService()
-        assert service.encryption_key is not None
-        assert service.fernet is not None
+        assert service.encryption_key != None  # noqa: E711
+        assert service.fernet != None  # noqa: E711
 
     @patch.dict(os.environ, {"ENCRYPTION_KEY": "cVZ8kQXH3Pd5dD_RTMupJmLcveZC5KHVq0vu2aANDaw="})
     def test_initialization_with_env_key(self):
@@ -35,29 +35,29 @@ class TestEncryptionServiceInitialization:
         service = EncryptionService()
         # Valid Fernet key should be used directly
         assert service.encryption_key == b"cVZ8kQXH3Pd5dD_RTMupJmLcveZC5KHVq0vu2aANDaw="
-        assert service.fernet is not None
+        assert service.fernet != None  # noqa: E711
 
     @patch.dict(os.environ, {"SECRET_KEY": "fallback-secret-key"}, clear=True)
     def test_initialization_with_invalid_env_key(self):
         """Test service falls back to deriving key from SECRET_KEY when ENCRYPTION_KEY is not set"""
         service = EncryptionService()
         # Should initialize successfully by deriving key from SECRET_KEY
-        assert service.encryption_key is not None
-        assert service.fernet is not None
+        assert service.encryption_key != None  # noqa: E711
+        assert service.fernet != None  # noqa: E711
 
     @patch.dict(os.environ, {"SECRET_KEY": "test-secret-key"})
     def test_initialization_with_secret_key(self):
         """Test service initialization with SECRET_KEY"""
         service = EncryptionService()
-        assert service.encryption_key is not None
-        assert service.fernet is not None
+        assert service.encryption_key != None  # noqa: E711
+        assert service.fernet != None  # noqa: E711
 
     @patch.dict(os.environ, {"JWT_SECRET_KEY": "test-jwt-secret"})
     def test_initialization_with_jwt_secret(self):
         """Test service initialization with JWT_SECRET_KEY fallback"""
         service = EncryptionService()
-        assert service.encryption_key is not None
-        assert service.fernet is not None
+        assert service.encryption_key != None  # noqa: E711
+        assert service.fernet != None  # noqa: E711
 
     def test_initialization_without_any_key_raises(self):
         """Regression: previously the service silently fell back to the
@@ -73,8 +73,8 @@ class TestEncryptionServiceInitialization:
         service instance without any key vars can still construct one."""
         with patch.dict(os.environ, {"BENGER_TEST_MODE": "1"}, clear=True):
             service = EncryptionService()
-            assert service.encryption_key is not None
-            assert service.fernet is not None
+            assert service.encryption_key != None  # noqa: E711
+            assert service.fernet != None  # noqa: E711
 
 
 @pytest.mark.unit

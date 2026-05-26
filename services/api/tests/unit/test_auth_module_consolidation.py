@@ -184,7 +184,7 @@ class TestAuthModuleConsolidation:
         )
 
         assert isinstance(token, Token)
-        assert token.access_token is not None
+        assert token.access_token != None  # noqa: E711
         assert token.refresh_token == "refresh_token_123"
         assert token.token_type == "bearer"
         assert token.expires_in > 0

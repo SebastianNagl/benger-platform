@@ -74,7 +74,7 @@ class TestGetOrCreateHumanEvalRun:
         )
         test_db.commit()
 
-        assert run.id is not None
+        assert run.id != None  # noqa: E711
         assert run.project_id == project.id
         assert run.model_id == "human"
         assert run.evaluation_type_ids == ["korrektur_falloesung"]

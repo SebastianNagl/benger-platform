@@ -91,7 +91,7 @@ class TestRateLimiterInitialization:
         with patch("services.rate_limiter.redis.from_url", side_effect=Exception("Connection failed")):
             limiter = RateLimiter("redis://test:6379")
 
-            assert limiter.redis_client is None
+            assert limiter.redis_client == None  # noqa: E711
             assert limiter._memory_store == {}
 
     def test_initialization_with_invalid_redis_url(self):
@@ -99,7 +99,7 @@ class TestRateLimiterInitialization:
         with patch("services.rate_limiter.redis.from_url", side_effect=ValueError("Invalid URL")):
             limiter = RateLimiter("invalid-url")
 
-            assert limiter.redis_client is None
+            assert limiter.redis_client == None  # noqa: E711
             assert isinstance(limiter._memory_store, dict)
 
 

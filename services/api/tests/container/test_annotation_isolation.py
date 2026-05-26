@@ -112,7 +112,7 @@ class TestAnnotationIsolation:
             .filter(
                 Annotation.task_id == task.id,
                 Annotation.completed_by == user_a.id,
-                Annotation.result is not None,
+                Annotation.result != None,  # noqa: E711
                 cast(Annotation.result, String) != "[]",
             )
             .all()
@@ -128,7 +128,7 @@ class TestAnnotationIsolation:
             .filter(
                 Annotation.task_id == task.id,
                 Annotation.completed_by == user_b.id,
-                Annotation.result is not None,
+                Annotation.result != None,  # noqa: E711
                 cast(Annotation.result, String) != "[]",
             )
             .all()
@@ -153,7 +153,7 @@ class TestAnnotationIsolation:
             self.db.query(Annotation)
             .filter(
                 Annotation.task_id == task.id,
-                Annotation.result is not None,
+                Annotation.result != None,  # noqa: E711
                 cast(Annotation.result, String) != "[]",
             )
             .all()
@@ -179,7 +179,7 @@ class TestAnnotationIsolation:
             .filter(
                 Annotation.task_id == task.id,
                 Annotation.completed_by == user_c.id,
-                Annotation.result is not None,
+                Annotation.result != None,  # noqa: E711
                 cast(Annotation.result, String) != "[]",
             )
             .all()

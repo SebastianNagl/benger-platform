@@ -335,7 +335,7 @@ async def get_evaluated_models(
             .filter(
                 DBEvaluationRun.project_id == project_id,
                 DBEvaluationRun.status == "completed",
-                TaskEvaluation.generation_id is None,  # noqa: E711
+                TaskEvaluation.generation_id == None,  # noqa: E711
             )
         )
         for user_id, username, name, pseudonym, use_pseudonym in annotation_evals.all():
@@ -1153,8 +1153,8 @@ async def compute_project_statistics(
             )
             .filter(
                 TaskEvaluation.evaluation_id.in_(evaluation_ids),
-                TaskEvaluation.generation_id is None,  # noqa: E711
-                TaskEvaluation.annotation_id is not None,  # noqa: E711
+                TaskEvaluation.generation_id == None,  # noqa: E711
+                TaskEvaluation.annotation_id != None,  # noqa: E711
             )
         )
         if request.evaluation_config_ids:

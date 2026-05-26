@@ -270,7 +270,7 @@ class TestInitializeCDNService:
             os.environ.pop("CDN_PROVIDER", None)
             cdn_mod.cdn_service = None
             cdn_mod.initialize_cdn_service()
-            assert cdn_mod.cdn_service is None
+            assert cdn_mod.cdn_service == None  # noqa: E711
 
     def test_cloudflare_init(self):
         import services.storage.cdn_service as cdn_mod
@@ -283,7 +283,7 @@ class TestInitializeCDNService:
         with patch.dict(os.environ, env, clear=False):
             cdn_mod.cdn_service = None
             cdn_mod.initialize_cdn_service()
-            assert cdn_mod.cdn_service is not None
+            assert cdn_mod.cdn_service != None  # noqa: E711
 
     def test_init_with_error(self):
         import services.storage.cdn_service as cdn_mod
@@ -292,4 +292,4 @@ class TestInitializeCDNService:
             cdn_mod.cdn_service = None
             cdn_mod.initialize_cdn_service()
             # Should gracefully handle error
-            assert cdn_mod.cdn_service is None
+            assert cdn_mod.cdn_service == None  # noqa: E711

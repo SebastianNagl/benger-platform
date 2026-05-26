@@ -11,7 +11,7 @@ class TestConditionalInstructionsValidator:
 
     def test_none_is_valid(self):
         update = ProjectUpdate(conditional_instructions=None)
-        assert update.conditional_instructions is None
+        assert update.conditional_instructions == None  # noqa: E711
 
     def test_valid_variants(self):
         variants = [

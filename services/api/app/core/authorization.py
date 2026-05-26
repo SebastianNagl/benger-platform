@@ -70,7 +70,7 @@ class AuthorizationService:
         The Pydantic User model has 'organizations' (list of dicts with id/name/role),
         while the DB User model has 'organization_memberships' (list of ORM objects).
         """
-        if hasattr(user, 'organization_memberships') and user.organization_memberships is not None:
+        if hasattr(user, 'organization_memberships') and user.organization_memberships != None:  # noqa: E711
             return user.organization_memberships
 
         # Pydantic User model: query DB for actual memberships

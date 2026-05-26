@@ -634,7 +634,7 @@ class TestFalloesungGradePointsLift:
         # At least one row per (scope, period) combo that the recompute writes.
         assert gp_rows
         # The grade_points scale is 0..18, so the mean is well above 1.
-        assert all(r.score is not None and r.score > 1 for r in gp_rows)
+        assert all(r.score != None and r.score > 1 for r in gp_rows)  # noqa: E711
 
 
 # ---------------------------------------------------------------------------

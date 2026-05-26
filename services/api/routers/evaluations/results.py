@@ -851,8 +851,8 @@ async def get_results_by_task_model(
                 )
                 .filter(
                     TaskEvaluation.evaluation_id == evaluation_id,
-                    TaskEvaluation.generation_id is None,  # noqa: E711
-                    TaskEvaluation.annotation_id is not None,  # noqa: E711
+                    TaskEvaluation.generation_id == None,  # noqa: E711
+                    TaskEvaluation.annotation_id != None,  # noqa: E711
                 )
                 .all()
             )
@@ -889,7 +889,7 @@ async def get_results_by_task_model(
                 )
                 .filter(
                     TaskEvaluation.evaluation_id == evaluation_id,
-                    TaskEvaluation.generation_id is None,  # noqa: E711
+                    TaskEvaluation.generation_id == None,  # noqa: E711
                     TaskEvaluation.annotation_id.isnot(None),
                     TaskEvaluation.annotation_id.in_(db.query(latest_ann_ids.c.ann_id)),
                 )
@@ -1160,7 +1160,7 @@ def _get_task_data_availability(db, task_ids: list) -> tuple:
             .filter(
                 Annotation.task_id.in_(task_ids),
                 Annotation.was_cancelled == False,  # noqa: E712
-                Annotation.result is not None,  # noqa: E711
+                Annotation.result != None,  # noqa: E711
             )
             .distinct()
             .all()
@@ -1486,8 +1486,8 @@ async def get_project_results_by_task_model(
             )
             .filter(
                 TE2.evaluation_id.in_(completed_eval_ids),
-                TE2.generation_id is None,  # noqa: E711
-                TE2.annotation_id is not None,  # noqa: E711
+                TE2.generation_id == None,  # noqa: E711
+                TE2.annotation_id != None,  # noqa: E711
             )
         )
         if latest_ann_ids_subq is not None:
@@ -1787,7 +1787,7 @@ async def get_sample_result_by_task_model(
                     .filter(
                         TaskEvaluation.task_id == task_id,
                         Annotation.completed_by == user.id,
-                        TaskEvaluation.generation_id is None,  # noqa: E711
+                        TaskEvaluation.generation_id == None,  # noqa: E711
                         DBEvaluationRun.status.in_(("completed", "running", "pending")),
                     )
                     .order_by(TaskEvaluation.created_at.desc())

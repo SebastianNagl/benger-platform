@@ -882,7 +882,7 @@ class TestComputeStatisticsDeep:
             current_user=_make_user(),
         )
         assert result.aggregation == "field"
-        assert result.by_field is not None
+        assert result.by_field != None  # noqa: E711
         assert "answer" in result.by_field
 
     @pytest.mark.asyncio
@@ -932,7 +932,7 @@ class TestComputeStatisticsDeep:
             current_user=_make_user(),
         )
         assert result.aggregation == "sample"
-        assert result.raw_scores is not None
+        assert result.raw_scores != None  # noqa: E711
         assert len(result.raw_scores) == 2
 
     @pytest.mark.asyncio
@@ -986,7 +986,7 @@ class TestComputeStatisticsDeep:
             db=db,
             current_user=_make_user(),
         )
-        assert result.warnings is not None
+        assert result.warnings != None  # noqa: E711
 
     @pytest.mark.asyncio
     @patch("routers.evaluations.metadata.check_project_accessible", return_value=True)
@@ -1048,7 +1048,7 @@ class TestComputeStatisticsDeep:
             db=db,
             current_user=_make_user(),
         )
-        assert result.pairwise_comparisons is not None
+        assert result.pairwise_comparisons != None  # noqa: E711
         assert len(result.pairwise_comparisons) >= 1
 
     @pytest.mark.asyncio
@@ -1107,7 +1107,7 @@ class TestComputeStatisticsDeep:
             db=db,
             current_user=_make_user(),
         )
-        assert result.correlations is not None
+        assert result.correlations != None  # noqa: E711
 
     @pytest.mark.asyncio
     @patch("routers.evaluations.metadata.check_project_accessible", return_value=True)
@@ -1152,7 +1152,7 @@ class TestComputeStatisticsDeep:
             db=db,
             current_user=_make_user(),
         )
-        assert result.warnings is not None
+        assert result.warnings != None  # noqa: E711
         assert any("sample-level" in w.lower() or "evaluation-level" in w.lower() for w in result.warnings)
 
     @pytest.mark.asyncio

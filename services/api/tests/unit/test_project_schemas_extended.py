@@ -10,7 +10,7 @@ class TestSkipTaskRequest:
     def test_basic_creation(self):
         from project_schemas import SkipTaskRequest
         req = SkipTaskRequest()
-        assert req.comment is None
+        assert req.comment == None  # noqa: E711
 
     def test_with_comment(self):
         from project_schemas import SkipTaskRequest
@@ -30,8 +30,8 @@ class TestProjectCreate:
         from project_schemas import ProjectCreate
         project = ProjectCreate(title="Test Project")
         assert project.title == "Test Project"
-        assert project.description is None
-        assert project.label_config is None
+        assert project.description == None  # noqa: E711
+        assert project.label_config == None  # noqa: E711
 
     def test_full(self):
         from project_schemas import ProjectCreate

@@ -34,8 +34,8 @@ class TestParseResult:
     def test_default_field_values(self):
         result = ParseResult(status="success")
         assert result.field_values == {}
-        assert result.parsed_annotation is None
-        assert result.error is None
+        assert result.parsed_annotation == None
+        assert result.error == None
 
     def test_explicit_field_values(self):
         fv = {"answer": "Ja"}
@@ -46,7 +46,7 @@ class TestParseResult:
         result = ParseResult(status="failed", error="something went wrong")
         assert result.status == "failed"
         assert result.error == "something went wrong"
-        assert result.parsed_annotation is None
+        assert result.parsed_annotation == None
 
 
 # ---------------------------------------------------------------------------

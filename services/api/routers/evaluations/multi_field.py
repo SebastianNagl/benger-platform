@@ -305,7 +305,7 @@ async def run_evaluation(
         # unchanged while letting the trigger thread one seed across all
         # judges in the run.
         def _with_run_seed(cfg_dict: dict) -> dict:
-            if request.seed is None:
+            if request.seed == None:  # noqa: E711
                 return cfg_dict
             params = dict(cfg_dict.get("metric_parameters") or {})
             if "seed" not in params:
@@ -783,7 +783,7 @@ async def get_available_fields(
                 .filter(
                     Task.project_id == project_id,
                     Generation.parse_status == "success",
-                    Generation.parsed_annotation is not None,  # noqa: E711
+                    Generation.parsed_annotation != None,  # noqa: E711
                 )
                 .distinct()
                 .all()

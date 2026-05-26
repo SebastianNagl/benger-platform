@@ -62,8 +62,8 @@ async def test_send_password_reset_email_end_to_end(mock_db, mock_user, monkeypa
         )
 
     assert ok is True
-    assert mock_user.password_reset_token is not None
-    assert mock_user.password_reset_expires is not None
+    assert mock_user.password_reset_token != None  # noqa: E711
+    assert mock_user.password_reset_expires != None  # noqa: E711
     mock_db.commit.assert_called_once()
 
     sg_instance.send_message.assert_called_once()
@@ -101,7 +101,7 @@ async def test_send_password_reset_email_propagates_sendgrid_failure(
         )
 
     assert ok is False
-    assert mock_user.password_reset_token is not None
+    assert mock_user.password_reset_token != None  # noqa: E711
 
 
 @pytest.mark.asyncio

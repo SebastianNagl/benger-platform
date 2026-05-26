@@ -733,7 +733,7 @@ class AnalyticsService:
             completed = global_stats.completed_annotations or 0
             industry_average_quality = round((completed / global_stats.total_annotations) * 100, 2)
 
-        if global_stats and global_stats.avg_lead_time is not None:
+        if global_stats and global_stats.avg_lead_time != None:  # noqa: E711
             industry_average_time = round(float(global_stats.avg_lead_time), 2)
 
         # Optimized single query to get all project stats at once to avoid N+1 queries

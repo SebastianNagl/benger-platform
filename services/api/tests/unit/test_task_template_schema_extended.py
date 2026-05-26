@@ -412,7 +412,7 @@ class TestFieldValidators:
             source=FieldSource.TASK_DATA,
         )
         # The auto-label validator may not fire in all pydantic versions
-        assert field.label is None or field.label == "My Field"
+        assert field.label == None or field.label == "My Field"  # noqa: E711
 
     def test_explicit_label(self):
         from task_template_schema import (

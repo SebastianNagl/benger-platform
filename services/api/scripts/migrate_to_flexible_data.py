@@ -41,7 +41,7 @@ def migrate_task_data(db_session):
     for task in projects:
         try:
             # Skip if already migrated or has no data
-            if task.data is None:
+            if task.data == None:  # noqa: E711
                 skipped_count += 1
                 continue
 

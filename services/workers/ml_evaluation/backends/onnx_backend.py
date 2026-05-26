@@ -31,7 +31,7 @@ class ONNXEmbeddingBackend(EmbeddingBackend):
         self._onnx_available: Optional[bool] = None
 
     def is_available(self) -> bool:
-        if self._onnx_available is None:
+        if self._onnx_available == None:
             try:
                 import onnxruntime  # noqa: F401
                 from sentence_transformers import SentenceTransformer  # noqa: F401
@@ -42,7 +42,7 @@ class ONNXEmbeddingBackend(EmbeddingBackend):
         return self._onnx_available
 
     def _get_model(self):
-        if self._model is None:
+        if self._model == None:
             from sentence_transformers import SentenceTransformer
 
             # Use ONNX backend - native ARM64 support
@@ -78,7 +78,7 @@ class ONNXBERTScoreBackend(BERTScoreBackend):
             return False
 
     def _get_embedding_backend(self) -> ONNXEmbeddingBackend:
-        if self._embedding_backend is None:
+        if self._embedding_backend == None:
             # Use multilingual model for German support
             self._embedding_backend = ONNXEmbeddingBackend("paraphrase-multilingual-MiniLM-L12-v2")
         return self._embedding_backend
@@ -149,7 +149,7 @@ class ONNXQAGSBackend(QAGSBackend):
         self._onnx_available: Optional[bool] = None
 
     def is_available(self) -> bool:
-        if self._onnx_available is None:
+        if self._onnx_available == None:
             try:
                 import onnxruntime  # noqa: F401
                 from optimum.onnxruntime import ORTModelForQuestionAnswering  # noqa: F401
@@ -162,7 +162,7 @@ class ONNXQAGSBackend(QAGSBackend):
 
     def _load_qg_model(self):
         """Lazy load T5 model for question generation."""
-        if self._qg_model is None:
+        if self._qg_model == None:
             from optimum.onnxruntime import ORTModelForSeq2SeqLM
             from transformers import T5Tokenizer
 
@@ -175,7 +175,7 @@ class ONNXQAGSBackend(QAGSBackend):
 
     def _load_qa_model(self):
         """Lazy load DistilBERT model for question answering."""
-        if self._qa_model is None:
+        if self._qa_model == None:
             from optimum.onnxruntime import ORTModelForQuestionAnswering
             from transformers import AutoTokenizer
 
@@ -277,7 +277,7 @@ class ONNXSummaCBackend(SummaCBackend):
         self._onnx_available: Optional[bool] = None
 
     def is_available(self) -> bool:
-        if self._onnx_available is None:
+        if self._onnx_available == None:
             try:
                 import onnxruntime  # noqa: F401
                 from optimum.onnxruntime import ORTModelForSequenceClassification  # noqa: F401
@@ -289,7 +289,7 @@ class ONNXSummaCBackend(SummaCBackend):
 
     def _load_model(self):
         """Lazy load ViTC NLI model."""
-        if self._model is None:
+        if self._model == None:
             from optimum.onnxruntime import ORTModelForSequenceClassification
             from transformers import AutoTokenizer
 

@@ -166,7 +166,7 @@ def cleanup_expired_tokens(db: Session) -> int:
     for token in all_tokens:
         # Handle both timezone-aware and naive datetimes
         token_expires = token.expires_at
-        if token_expires.tzinfo is None:
+        if token_expires.tzinfo == None:  # noqa: E711
             # Database returned naive datetime, make comparison datetime naive too
             compare_time = now.replace(tzinfo=None)
         else:

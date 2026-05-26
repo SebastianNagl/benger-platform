@@ -138,7 +138,7 @@ class TestClearGenerationConfig:
         user = Mock()
 
         clear_generation_config("p1", request, mock_db, user)
-        assert project.generation_config is None
+        assert project.generation_config == None  # noqa: E711
 
     @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
     @patch("routers.projects.generation.auth_service")

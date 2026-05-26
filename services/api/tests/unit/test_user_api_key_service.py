@@ -52,7 +52,7 @@ class TestUserApiKeyService:
 
     def test_init(self, service):
         """Test service initialization"""
-        assert service.encryption_service is not None
+        assert service.encryption_service != None  # noqa: E711
 
     def test_set_user_api_key_openai_success(self, service, test_db, mock_user):
         """Test successful OpenAI API key setting"""
@@ -281,7 +281,7 @@ class TestUserApiKeyService:
         result = service.remove_user_api_key(test_db, "user-123", "openai")
 
         assert result is True
-        assert mock_user.encrypted_openai_api_key is None
+        assert mock_user.encrypted_openai_api_key == None  # noqa: E711
         test_db.commit.assert_called_once()
 
     def test_remove_user_api_key_all_providers(self, service, test_db, mock_user):

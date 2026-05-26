@@ -32,7 +32,7 @@ class TorchEmbeddingBackend(EmbeddingBackend):
         self._torch_available: Optional[bool] = None
 
     def is_available(self) -> bool:
-        if self._torch_available is None:
+        if self._torch_available == None:
             try:
                 import torch  # noqa: F401
                 from sentence_transformers import SentenceTransformer  # noqa: F401
@@ -43,7 +43,7 @@ class TorchEmbeddingBackend(EmbeddingBackend):
         return self._torch_available
 
     def _get_model(self):
-        if self._model is None:
+        if self._model == None:
             from sentence_transformers import SentenceTransformer
 
             self._model = SentenceTransformer(self.model_name)
@@ -68,7 +68,7 @@ class TorchBERTScoreBackend(BERTScoreBackend):
         self._bert_score_available: Optional[bool] = None
 
     def is_available(self) -> bool:
-        if self._bert_score_available is None:
+        if self._bert_score_available == None:
             try:
                 from bert_score import score  # noqa: F401
 
@@ -115,7 +115,7 @@ class TorchQAGSBackend(QAGSBackend):
         self._torch_available: Optional[bool] = None
 
     def is_available(self) -> bool:
-        if self._torch_available is None:
+        if self._torch_available == None:
             try:
                 import torch  # noqa: F401
                 from transformers import T5ForConditionalGeneration  # noqa: F401
@@ -128,7 +128,7 @@ class TorchQAGSBackend(QAGSBackend):
 
     def _load_qg_model(self):
         """Lazy load T5 model for question generation."""
-        if self._qg_model is None:
+        if self._qg_model == None:
             from transformers import T5ForConditionalGeneration, T5Tokenizer
 
             logger.info("Loading PyTorch T5 model for question generation...")
@@ -138,7 +138,7 @@ class TorchQAGSBackend(QAGSBackend):
 
     def _load_qa_pipeline(self):
         """Lazy load DistilBERT pipeline for question answering."""
-        if self._qa_pipeline is None:
+        if self._qa_pipeline == None:
             from transformers import pipeline
 
             logger.info("Loading PyTorch QA pipeline...")
@@ -218,7 +218,7 @@ class TorchSummaCBackend(SummaCBackend):
         self._torch_available: Optional[bool] = None
 
     def is_available(self) -> bool:
-        if self._torch_available is None:
+        if self._torch_available == None:
             try:
                 import torch  # noqa: F401
                 from transformers import AutoModelForSequenceClassification  # noqa: F401
@@ -230,7 +230,7 @@ class TorchSummaCBackend(SummaCBackend):
 
     def _load_model(self):
         """Lazy load ViTC NLI model."""
-        if self._model is None:
+        if self._model == None:
             from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
             logger.info(f"Loading PyTorch ViTC model: {self.VITC_MODEL}...")

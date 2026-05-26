@@ -102,7 +102,7 @@ class TestOrganizationModels:
         from routers.organizations import OrganizationUpdate
         update = OrganizationUpdate(name="Updated Name")
         assert update.name == "Updated Name"
-        assert update.description is None
+        assert update.description == None  # noqa: E711
 
     def test_organization_member_response(self):
         from routers.organizations import OrganizationMemberResponse

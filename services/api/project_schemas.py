@@ -172,7 +172,7 @@ class ProjectCreate(ProjectBase):
     def _validate_visibility(self):
         if self.is_private and self.is_public:
             raise ValueError("A project cannot be both private and public")
-        if self.is_public and self.public_role is None:
+        if self.is_public and self.public_role == None:  # noqa: E711
             self.public_role = "ANNOTATOR"
         if not self.is_public:
             self.public_role = None

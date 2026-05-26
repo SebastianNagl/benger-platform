@@ -254,7 +254,7 @@ def build_evaluation_indexes(
     te_by_generation: Dict[str, list] = {}
     for te in task_evaluations:
         te_by_task.setdefault(te.task_id, []).append(te)
-        if te.generation_id is not None:
+        if te.generation_id != None:  # noqa: E711
             te_by_generation.setdefault(te.generation_id, []).append(te)
     return te_by_task, te_by_generation
 

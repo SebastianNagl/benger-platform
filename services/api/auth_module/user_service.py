@@ -1136,32 +1136,32 @@ def get_mandatory_profile_fields(user) -> list:
 
     # legal_expertise_level is always required
     expertise = None
-    if user.legal_expertise_level is not None:
+    if user.legal_expertise_level != None:  # noqa: E711
         expertise = user.legal_expertise_level.value if hasattr(user.legal_expertise_level, 'value') else str(user.legal_expertise_level)
     else:
         missing.append("legal_expertise_level")
 
     # Base fields required for everyone
-    if user.gender is None:
+    if user.gender == None:  # noqa: E711
         missing.append("gender")
-    if user.age is None:
+    if user.age == None:  # noqa: E711
         missing.append("age")
 
-    if user.german_proficiency is None:
+    if user.german_proficiency == None:  # noqa: E711
         missing.append("german_proficiency")
 
-    if user.subjective_competence_civil is None:
+    if user.subjective_competence_civil == None:  # noqa: E711
         missing.append("subjective_competence_civil")
-    if user.subjective_competence_public is None:
+    if user.subjective_competence_public == None:  # noqa: E711
         missing.append("subjective_competence_public")
-    if user.subjective_competence_criminal is None:
+    if user.subjective_competence_criminal == None:  # noqa: E711
         missing.append("subjective_competence_criminal")
 
-    if user.ati_s_scores is None:
+    if user.ati_s_scores == None:  # noqa: E711
         missing.append("ati_s_scores")
-    if user.ptt_a_scores is None:
+    if user.ptt_a_scores == None:  # noqa: E711
         missing.append("ptt_a_scores")
-    if user.ki_experience_scores is None:
+    if user.ki_experience_scores == None:  # noqa: E711
         missing.append("ki_experience_scores")
 
     # Expertise-dependent fields
@@ -1175,26 +1175,26 @@ def get_mandatory_profile_fields(user) -> list:
     # Levels that require Zwischenpruefung and Vorgeruecktenubung grades
     student_and_above = {"law_student", "referendar", "graduated_no_practice", "practicing_lawyer", "judge_professor"}
     if expertise in student_and_above and not is_incomparable_grading:
-        if user.grade_zwischenpruefung is None:
+        if user.grade_zwischenpruefung == None:  # noqa: E711
             missing.append("grade_zwischenpruefung")
-        if user.grade_vorgeruecktenubung is None:
+        if user.grade_vorgeruecktenubung == None:  # noqa: E711
             missing.append("grade_vorgeruecktenubung")
 
     # Levels that require 1. Staatsexamen
     referendar_and_above = {"referendar", "graduated_no_practice", "practicing_lawyer", "judge_professor"}
     if expertise in referendar_and_above and not is_incomparable_grading:
-        if user.grade_first_staatsexamen is None:
+        if user.grade_first_staatsexamen == None:  # noqa: E711
             missing.append("grade_first_staatsexamen")
 
     # Levels that require 2. Staatsexamen + job info
     graduated_and_above = {"graduated_no_practice", "practicing_lawyer", "judge_professor"}
     if expertise in graduated_and_above:
         if not is_incomparable_grading:
-            if user.grade_second_staatsexamen is None:
+            if user.grade_second_staatsexamen == None:  # noqa: E711
                 missing.append("grade_second_staatsexamen")
-        if user.job is None:
+        if user.job == None:  # noqa: E711
             missing.append("job")
-        if user.years_of_experience is None:
+        if user.years_of_experience == None:  # noqa: E711
             missing.append("years_of_experience")
 
     return missing
@@ -1230,7 +1230,7 @@ def check_confirmation_due(user) -> tuple:
         return True, next_deadline
 
     # Ensure timezone-aware
-    if confirmed_at.tzinfo is None:
+    if confirmed_at.tzinfo == None:  # noqa: E711
         confirmed_at = confirmed_at.replace(tzinfo=timezone.utc)
 
     # If confirmed before the most recent deadline, it's due

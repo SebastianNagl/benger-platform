@@ -89,7 +89,7 @@ class TestInitTemplateEnvironment:
 
                         svc = EmailService()
                         # Should still create the env despite mkdir failure
-                        assert svc.template_env is not None
+                        assert svc.template_env != None  # noqa: E711
 
     def test_canonical_template_dir_has_expected_templates(self, tmp_path):
         """Regression: API and worker resolve their template dir to

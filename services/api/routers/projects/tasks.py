@@ -156,7 +156,7 @@ async def list_project_tasks(
                 Annotation.result.isnot(None),
                 func.length(func.cast(Annotation.result, String)) > 2,
             ),
-        ).filter(Annotation.id is None)
+        ).filter(Annotation.id == None)  # noqa: E711
 
     # Exclude skipped tasks based on skip_queue setting
     skip_queue = getattr(project, 'skip_queue', 'requeue_for_others')
@@ -489,7 +489,7 @@ async def get_next_task(
                     .filter(
                         Annotation.project_id == project_id,
                         Annotation.was_cancelled == False,  # noqa: E712
-                        Annotation.result is not None,
+                        Annotation.result != None,  # noqa: E711
                         func.length(func.cast(Annotation.result, String)) > 2,
                     )
                     .group_by(Annotation.task_id)
@@ -606,7 +606,7 @@ async def get_next_task(
                         Annotation.completed_by == current_user.id,
                     ),
                 )
-                .filter(Annotation.id is None)  # User hasn't annotated this task
+                .filter(Annotation.id == None)  # User hasn't annotated this task  # noqa: E711
             )
 
             # Apply skip exclusions
@@ -642,7 +642,7 @@ async def get_next_task(
                 Annotation.completed_by == current_user.id,
             ),
         )
-        .filter(Annotation.id is None)
+        .filter(Annotation.id == None)  # noqa: E711
         .count()
     )
 
@@ -757,7 +757,7 @@ async def update_task_metadata(
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Initialize meta if it doesn't exist
-    if task.meta is None:
+    if task.meta == None:  # noqa: E711
         task.meta = {}
 
     if merge:
@@ -814,7 +814,7 @@ async def bulk_update_task_metadata(
     updated_count = 0
     for task in tasks:
         # Initialize meta if it doesn't exist
-        if task.meta is None:
+        if task.meta == None:  # noqa: E711
             task.meta = {}
 
         if merge:
@@ -1140,7 +1140,7 @@ def bulk_export_tasks(
 
             task_data["evaluations"] = []
             for te in te_by_task_id.get(task.id, []):
-                if te.generation_id is not None:
+                if te.generation_id != None:  # noqa: E711
                     continue
                 task_data["evaluations"].append(
                     serialize_task_evaluation(

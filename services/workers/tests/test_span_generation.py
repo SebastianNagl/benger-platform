@@ -47,7 +47,7 @@ class TestSpanResponseParsing:
 
         result = parser.parse(response)
         assert result.status == "success"
-        assert result.parsed_annotation is not None
+        assert result.parsed_annotation != None
 
         # Find the entities field in results
         entities_result = next(
@@ -116,7 +116,7 @@ class TestSpanResponseParsing:
         result = parser.parse(response)
         # Falls back to generic __response__ field with the raw text
         assert result.status == "success"
-        assert result.parsed_annotation is not None
+        assert result.parsed_annotation != None
         assert result.parsed_annotation[0]["from_name"] == "__response__"
 
     def test_parse_json_in_markdown(self, parser):

@@ -144,7 +144,7 @@ class DeepInfraService(BaseAIService):
 
     def is_available(self) -> bool:
         """Check if DeepInfra service is available (API key set)"""
-        return self.client is not None
+        return self.client != None
 
     @async_retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
     async def generate(
@@ -411,7 +411,7 @@ Your response must be ONLY the JSON object, no other text before or after.
                     attempt_repair=True
                 )
 
-                if validation_result.valid and validation_result.data is not None:
+                if validation_result.valid and validation_result.data != None:
                     result["content"] = json.dumps(validation_result.data, ensure_ascii=False)
                     result["metadata"]["structured_output"] = True
                     result["metadata"]["validation_status"] = "valid"

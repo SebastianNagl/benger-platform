@@ -106,7 +106,7 @@ class TestEvaluationTypeResponse:
             category="text",
         )
         assert resp.id == "custom"
-        assert resp.description is None
+        assert resp.description == None  # noqa: E711
         assert resp.higher_is_better == True  # default  # noqa: E712
 
 
@@ -138,7 +138,7 @@ class TestEvaluationResult:
             metadata=None,
             samples_evaluated=0,
         )
-        assert result.metadata is None
+        assert result.metadata == None  # noqa: E711
 
 
 class TestResolveUserOrgForProject:

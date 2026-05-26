@@ -88,7 +88,7 @@ async def create_annotation(
             .filter(
                 Annotation.task_id == task_id,
                 Annotation.was_cancelled == False,  # noqa: E712
-                Annotation.result is not None,
+                Annotation.result != None,  # noqa: E711
                 cast(Annotation.result, String) != "[]",
             )
             .count()
@@ -118,7 +118,7 @@ async def create_annotation(
                 .filter(
                     Annotation.task_id == task_id,
                     Annotation.was_cancelled == False,  # noqa: E712
-                    Annotation.result is not None,
+                    Annotation.result != None,  # noqa: E711
                     cast(Annotation.result, String) != "[]",
                 )
                 .count()
@@ -225,7 +225,7 @@ async def list_task_annotations(
         db.query(Annotation)
         .filter(
             Annotation.task_id == task_id,
-            Annotation.result is not None,
+            Annotation.result != None,  # noqa: E711
             cast(Annotation.result, String) != "[]",
         )
     )
@@ -308,13 +308,13 @@ async def update_annotation(
     old_was_cancelled = db_annotation.was_cancelled
 
     # Update the annotation
-    if annotation_update.result is not None:
+    if annotation_update.result != None:  # noqa: E711
         db_annotation.result = annotation_update.result
-    if annotation_update.was_cancelled is not None:
+    if annotation_update.was_cancelled != None:  # noqa: E711
         if db_annotation.was_cancelled != annotation_update.was_cancelled:
             was_cancelled_changed = True
         db_annotation.was_cancelled = annotation_update.was_cancelled
-    if annotation_update.lead_time is not None:
+    if annotation_update.lead_time != None:  # noqa: E711
         db_annotation.lead_time = annotation_update.lead_time
 
     # Update task counters if cancelled status changed
