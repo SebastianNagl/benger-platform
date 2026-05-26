@@ -157,7 +157,7 @@ class TestAuthRouter:
         def override_get_db():
             return Mock(spec=Session)
 
-        with patch("routers.auth.revoke_refresh_token") as mock_revoke:
+        with patch("routers.auth.revoke_refresh_token") as mock_revoke:  # noqa: F841
             # Override dependencies
             app.dependency_overrides[require_user] = override_require_user
             app.dependency_overrides[get_db] = override_get_db

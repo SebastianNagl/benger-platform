@@ -170,7 +170,7 @@ class TestListProjectsEndpoint:
             mock_db.query.return_value = mock_query
             mock_get_db.return_value = mock_db
 
-            resp = client.get("/api/projects/", headers={"Authorization": "Bearer fake"})
+            resp = client.get("/api/projects/", headers={"Authorization": "Bearer fake"})  # noqa: F841
             # May get 401 since we're not properly injecting auth
             # The test is about exercising the code path, not auth
 
@@ -194,7 +194,7 @@ class TestListProjectsEndpoint:
             mock_db.query.return_value = mock_query
             mock_get_db.return_value = mock_db
 
-            resp = client.get(
+            resp = client.get(  # noqa: F841
                 "/api/projects/?search=test",
                 headers={"Authorization": "Bearer fake"},
             )
@@ -220,7 +220,7 @@ class TestListProjectsEndpoint:
             mock_db.query.return_value = mock_query
             mock_get_db.return_value = mock_db
 
-            resp = client.get(
+            resp = client.get(  # noqa: F841
                 "/api/projects/?is_archived=true",
                 headers={"Authorization": "Bearer fake"},
             )

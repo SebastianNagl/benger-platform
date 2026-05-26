@@ -173,7 +173,7 @@ def sync_assets_to_cdn(
                 content = f.read()
 
             # Upload to storage
-            result = storage_service.upload_file(
+            result = storage_service.upload_file(  # noqa: F841
                 file_data=content,
                 filename=asset["versioned"],
                 user_id="system",

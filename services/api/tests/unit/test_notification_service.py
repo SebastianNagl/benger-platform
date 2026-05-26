@@ -194,7 +194,7 @@ class TestNotificationQueries:
         mock_db.query.return_value.filter.return_value.first.return_value = mock_notification
         mock_db.commit = Mock()
 
-        result = NotificationService.mark_notification_read(
+        result = NotificationService.mark_notification_read(  # noqa: F841
             db=mock_db, notification_id=notification_id, user_id="test_user_id"
         )
 

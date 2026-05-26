@@ -6,18 +6,19 @@ import logging
 import os
 from typing import AsyncGenerator, Dict, Generator
 
-logger = logging.getLogger(__name__)
 
-from dotenv import load_dotenv
-from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import (
+from dotenv import load_dotenv  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.ext.asyncio import (  # noqa: E402
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base  # noqa: E402
+from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 
+
+logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Database URL from environment variable
@@ -468,7 +469,7 @@ def initialize_task_types_and_evaluation_types(db: Session) -> None:
 
     # Remove old task types that are no longer needed
     # ProjectType queries removed - old task system cleanup
-    old_project_types = []  # No longer querying ProjectType - removed from system
+    old_project_types = []  # No longer querying ProjectType - removed from system  # noqa: F841
 
     # Insert/update task types
     for task_type_data in task_types_data:

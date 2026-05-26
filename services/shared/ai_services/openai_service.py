@@ -15,7 +15,6 @@ from openai import OpenAI
 from .base_service import BaseAIService, derive_truncated
 from .provider_capabilities import model_supports_seed
 
-logger = logging.getLogger(__name__)
 
 
 # Phase 6.2: shared retry-history contextvar lives in base_service so
@@ -23,6 +22,8 @@ logger = logging.getLogger(__name__)
 # audit-trail buffer.
 from .base_service import _retry_history_ctx, get_retry_history_snapshot  # noqa: E402,F401
 
+
+logger = logging.getLogger(__name__)
 
 def retry_with_exponential_backoff(
     max_retries: int = 5,

@@ -342,7 +342,7 @@ class TestLogoutAll:
     async def test_logout_all_with_response(self, mock_revoke):
         from routers.auth import logout_all_devices
 
-        mock_revoke_inner = Mock(return_value=3)
+        mock_revoke_inner = Mock(return_value=3)  # noqa: F841
         user = _mock_user()
         db = _mock_db()
         response = Response()
@@ -593,7 +593,7 @@ class TestProfileEndpoints:
         db.query.return_value.filter.return_value.first.return_value = db_user
         mock_build.return_value = Mock()
 
-        result = await get_user_profile(current_user=user, db=db)
+        result = await get_user_profile(current_user=user, db=db)  # noqa: F841
         mock_build.assert_called_once()
 
     @pytest.mark.asyncio
@@ -634,7 +634,7 @@ class TestProfileEndpoints:
         mock_update.return_value = updated_user
         mock_build.return_value = Mock(id="user-123")
 
-        result = await update_profile(
+        result = await update_profile(  # noqa: F841
             profile_data=UserUpdate(name="New Name"),
             current_user=user,
             db=db,

@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
-from routers.projects.serializers import (
+from routers.projects.serializers import (  # noqa: E402
     build_evaluation_indexes,
     build_judge_model_lookup,
     serialize_annotation,

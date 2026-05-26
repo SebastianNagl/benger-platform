@@ -15,7 +15,7 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from models import (
+from models import (  # noqa: E402
     EvaluationRun,
     EvaluationRunMetric,
     Generation,
@@ -30,7 +30,7 @@ from models import (
     ResponseGeneration,
     User,
 )
-from project_models import (
+from project_models import (  # noqa: E402
     Annotation,
     Project,
     ProjectMember,

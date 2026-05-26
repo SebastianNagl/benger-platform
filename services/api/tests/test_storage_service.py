@@ -43,7 +43,7 @@ except Exception:
     boto3 = MagicMock()
     ClientError = MockClientError
 
-from storage_service import (
+from storage_service import (  # noqa: E402
     LocalStorageBackend,
     S3StorageBackend,
     StorageBackend,
@@ -262,7 +262,7 @@ class TestStorageService:
         user_id = "user123"
         custom_metadata = {"task_id": "task456", "version": "1.0"}
 
-        result = await storage_service.upload_file(
+        result = await storage_service.upload_file(  # noqa: F841
             file_data=content,
             filename=filename,
             user_id=user_id,

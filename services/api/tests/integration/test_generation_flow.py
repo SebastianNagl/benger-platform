@@ -282,7 +282,7 @@ class TestGenerationExecution:
         db.add(generation)
         db.commit()
 
-        with patch('routers.generation.celery_app.control.revoke') as mock_revoke:
+        with patch('routers.generation.celery_app.control.revoke') as mock_revoke:  # noqa: F841
             response = client.post("/api/generation/gen-to-stop/stop", headers=auth_headers)
 
             assert response.status_code == 200

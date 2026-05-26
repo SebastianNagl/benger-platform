@@ -448,7 +448,7 @@ class TestUploadFileS3:
         service, mock_client = _make_s3_service()
         mock_client.generate_presigned_url.return_value = "https://s3.example.com/signed"
 
-        result = service.upload_file(
+        result = service.upload_file(  # noqa: F841
             file_data=b"<html>test</html>",
             filename="page.html",
             file_type="uploads",
@@ -462,7 +462,7 @@ class TestUploadFileS3:
         service, mock_client = _make_s3_service()
         mock_client.generate_presigned_url.return_value = "https://s3.example.com/signed"
 
-        result = service.upload_file(
+        result = service.upload_file(  # noqa: F841
             file_data=b"binary data",
             filename="data.xyz123",
             file_type="uploads",
@@ -476,7 +476,7 @@ class TestUploadFileS3:
         service, mock_client = _make_s3_service()
         mock_client.generate_presigned_url.return_value = "https://s3.example.com/signed"
 
-        result = service.upload_file(
+        result = service.upload_file(  # noqa: F841
             file_data=b"data",
             filename="test.txt",
             metadata={"project_id": "proj-123", "custom_key": "custom_val"},

@@ -84,7 +84,7 @@ class TestCloudFrontProviderInit:
     def test_init_with_access_key_only_no_secret(self, mock_boto3_module):
         """If only access_key is provided without secret, no credentials passed."""
         from services.storage.cdn_service import CloudFrontProvider
-        provider = CloudFrontProvider(
+        provider = CloudFrontProvider(  # noqa: F841
             distribution_id="E111",
             domain_name="cdn.test.com",
             access_key="AKIA123",

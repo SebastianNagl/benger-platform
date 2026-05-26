@@ -433,7 +433,7 @@ class TestTemplateService:
         # Test that validation errors are properly logged
         invalid_data = {"not": "valid"}
 
-        with patch('template_service.logger') as mock_logger:
+        with patch('template_service.logger') as mock_logger:  # noqa: F841
             is_valid, error = template_service.validate_template(invalid_data)
             assert is_valid is False
             # Verify logger was called (error logging is in the exception handler)

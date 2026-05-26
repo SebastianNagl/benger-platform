@@ -19,7 +19,7 @@ import requests
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
-from app.core.schema_validator import create_validator_from_env
+from app.core.schema_validator import create_validator_from_env  # noqa: E402
 
 # Configure logging
 logging.basicConfig(
@@ -194,7 +194,7 @@ class SchemaDriftMonitor:
             "OK": "#00AA00",
         }
 
-        color = severity_colors.get(self.report_data["severity"], "#000000")
+        color = severity_colors.get(self.report_data["severity"], "#000000")  # noqa: F841
 
         html = """
         <html>

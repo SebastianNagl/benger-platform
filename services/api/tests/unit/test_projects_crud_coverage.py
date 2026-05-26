@@ -88,9 +88,9 @@ class TestDeepMergeDicts:
 
 # ============= CRUD endpoint tests via TestClient =============
 
-from main import app
-from fastapi.testclient import TestClient
-from auth_module.models import User
+from main import app  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from auth_module.models import User  # noqa: E402
 
 
 def _make_user(is_superadmin=False, user_id="user-123"):

@@ -396,7 +396,7 @@ class TestDeleteOrganization:
         db.query.return_value.filter.return_value.update.return_value = 3
         user = Mock(is_superadmin=True)
 
-        with patch("redis_cache.OrgSlugCache") as mock_cache:
+        with patch("redis_cache.OrgSlugCache") as mock_cache:  # noqa: F841
             result = await delete_organization(
                 organization_id="org-1", current_user=user, db=db
             )

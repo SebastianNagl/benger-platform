@@ -83,7 +83,7 @@ class TestListRunsPermissionFilter:
 
         db = Mock()
         # First query: count(); second: paginated rows; third: project titles map.
-        query_results = [
+        query_results = [  # noqa: F841
             ([accessible, forbidden],),  # .all() for eval rows
         ]
         mock_q = MagicMock()

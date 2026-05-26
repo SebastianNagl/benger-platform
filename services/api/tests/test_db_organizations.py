@@ -8,10 +8,10 @@ import sys
 # Add the API directory to the path so we can import modules
 sys.path.append("/Users/sebastiannagl/Code/BenGer/services/api")
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
 
-from projects_api import get_project_organizations
+from projects_api import get_project_organizations  # noqa: E402
 
 # Database connection using the same settings as the production environment
 DATABASE_URL = "postgresql://postgres:changeme123!@localhost:5432/benger"

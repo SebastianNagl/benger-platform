@@ -10,7 +10,7 @@ import os
 workers_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, workers_root)
 
-from ml_evaluation.llm_judge_prompts import (
+from ml_evaluation.llm_judge_prompts import (  # noqa: E402
     TEXT_EVALUATION_PROMPT,
     CHOICES_EVALUATION_PROMPT,
     SPAN_EVALUATION_PROMPT,

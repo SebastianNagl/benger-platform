@@ -19,9 +19,9 @@ sys.path.insert(0, "/shared")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-from database import SessionLocal
-from scripts.setup_demo_org import setup_demo_organization
-from user_service import init_demo_users
+from database import SessionLocal  # noqa: E402
+from scripts.setup_demo_org import setup_demo_organization  # noqa: E402
+from user_service import init_demo_users  # noqa: E402
 
 
 def complete_mandatory_profiles(db):

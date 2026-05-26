@@ -19,7 +19,7 @@ from celery.exceptions import SoftTimeLimitExceeded, TimeLimitExceeded
 # Add path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tasks import app as celery_app
+from tasks import app as celery_app  # noqa: E402
 
 
 class TestQueueManagement:

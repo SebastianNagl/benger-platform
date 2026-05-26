@@ -405,7 +405,7 @@ class TestLabelConfigSecurityIntegration:
 
         # Attempt to update with XXE payload
         try:
-            new_version = LabelConfigVersionService.update_version_history(
+            new_version = LabelConfigVersionService.update_version_history(  # noqa: F841
                 project=mock_project,
                 new_label_config=XXE_FILE_PAYLOAD,
                 description="Malicious update",

@@ -202,7 +202,7 @@ class TestScoreExtraction:
 class TestGetEvaluationResults:
     def test_get_automated_results(self, client, test_db, test_users, auth_headers, test_org):
         p, tasks = _setup_project(test_db, test_users[0], test_org)
-        er = _make_eval_run(test_db, p, metrics={"accuracy": 0.92, "f1": 0.88})
+        er = _make_eval_run(test_db, p, metrics={"accuracy": 0.92, "f1": 0.88})  # noqa: F841
         test_db.commit()
 
         resp = client.get(

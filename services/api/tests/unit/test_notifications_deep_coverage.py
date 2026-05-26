@@ -560,7 +560,7 @@ class TestSummaryDeep:
         user = _mock_user()
         db = _mock_db()
 
-        result = await get_notification_summary(current_user=user, db=db, days=0)
+        result = await get_notification_summary(current_user=user, db=db, days=0)  # noqa: F841
         # days should be capped to 1
         mock_summary.assert_called_once()
         assert mock_summary.call_args.kwargs.get("days") == 1

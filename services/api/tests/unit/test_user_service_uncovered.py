@@ -377,7 +377,7 @@ class TestUpdateUserProfile:
 
         with patch("auth_module.user_service.get_user_by_id", return_value=user):
             with patch("auth_module.user_service.get_mandatory_profile_fields", return_value=["gender"]):
-                result = update_user_profile(db, "user-id", name="New Name")
+                result = update_user_profile(db, "user-id", name="New Name")  # noqa: F841
 
         assert user.name == "New Name"
         db.commit.assert_called()
@@ -394,7 +394,7 @@ class TestUpdateUserProfile:
             with patch("auth_module.user_service.get_user_by_email", return_value=None):
                 with patch("auth_module.user_service.get_mandatory_profile_fields", return_value=[]):
                     with patch("auth_module.user_service.create_profile_snapshot", return_value={}):
-                        result = update_user_profile(db, "user-id", email="new@example.com")
+                        result = update_user_profile(db, "user-id", email="new@example.com")  # noqa: F841
 
         assert user.email == "new@example.com"
         assert user.email_verified is False

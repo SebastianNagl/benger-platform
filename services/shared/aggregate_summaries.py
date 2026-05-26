@@ -50,7 +50,6 @@ from models import (
 )
 from project_models import Annotation, Project, ProjectOrganization, Task
 
-logger = logging.getLogger(__name__)
 
 PERIODS: Tuple[str, ...] = ("overall", "monthly", "weekly")
 # `tum` is a temporary trust-scope that mirrors the LLM leaderboard's
@@ -70,6 +69,8 @@ _TUM_SCOPE_ORG_IDS: Tuple[str, ...] = (
 # the name for backwards compatibility with existing call sites.
 from metric_filters import _metric_key_is_real  # noqa: E402
 
+
+logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------- #
 # Shared utilities                                                            #

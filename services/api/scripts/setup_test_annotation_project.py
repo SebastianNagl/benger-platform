@@ -13,10 +13,10 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import relationships properly
-import models  # This ensures all model relationships are loaded
-from database import SessionLocal
-from models import Organization, User
-from project_models import Project, Task
+import models  # This ensures all model relationships are loaded  # noqa: E402
+from database import SessionLocal  # noqa: E402
+from models import Organization, User  # noqa: E402
+from project_models import Project, Task  # noqa: E402
 
 
 def setup_test_annotation_project():

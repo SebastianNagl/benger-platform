@@ -921,7 +921,7 @@ class TestRoundTrip:
 
     def test_roundtrip_preserves_inner_ids(self, client, test_db, test_users, auth_headers, test_org):
         project = _make_project(test_db, test_users[0], test_org, title="InnerID Test")
-        tasks = _make_tasks(test_db, project, test_users[0], count=2)
+        tasks = _make_tasks(test_db, project, test_users[0], count=2)  # noqa: F841
         test_db.commit()
 
         export_resp = client.get(

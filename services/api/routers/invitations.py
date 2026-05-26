@@ -8,28 +8,29 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from uuid import uuid4
 
-logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status  # noqa: E402
+from pydantic import BaseModel, EmailStr  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
 
-from auth_module import require_user
-from database import get_db
-from models import Invitation, Organization, OrganizationMembership, OrganizationRole, User
-from notification_service import (
+from auth_module import require_user  # noqa: E402
+from database import get_db  # noqa: E402
+from models import Invitation, Organization, OrganizationMembership, OrganizationRole, User  # noqa: E402
+from notification_service import (  # noqa: E402
     notify_organization_invitation_accepted,
     notify_organization_invitation_sent,
 )
 
 # Import organization management check from organizations router
-from routers.organizations import can_manage_organization
+from routers.organizations import can_manage_organization  # noqa: E402
 
 router = APIRouter(prefix="/api/invitations", tags=["invitations"])
 
 # Celery app
-from celery_client import get_celery_app
+from celery_client import get_celery_app  # noqa: E402
 
+
+logger = logging.getLogger(__name__)
 celery_app = get_celery_app()
 
 

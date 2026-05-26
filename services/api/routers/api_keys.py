@@ -16,8 +16,8 @@ from models import LLMModel as DBLLMModel
 # Add shared services to path
 sys.path.append('/shared')
 
-from encryption_service import encryption_service
-from user_api_key_service import create_user_api_key_service
+from encryption_service import encryption_service  # noqa: E402
+from user_api_key_service import create_user_api_key_service  # noqa: E402
 
 # Create service instance with dependency
 user_api_key_service = create_user_api_key_service(encryption_service)

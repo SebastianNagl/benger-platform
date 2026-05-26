@@ -12,11 +12,12 @@ from sqlalchemy.orm import Session
 
 from models import EvaluationType as DBEvaluationType
 
-logger = logging.getLogger(__name__)
 
 # Celery app (shared across evaluation sub-routers)
-from celery_client import get_celery_app
+from celery_client import get_celery_app  # noqa: E402
 
+
+logger = logging.getLogger(__name__)
 celery_app = get_celery_app()
 
 

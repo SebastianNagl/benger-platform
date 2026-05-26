@@ -192,7 +192,7 @@ class TestHumanEvaluationLogic:
 
     def test_human_config_default_dimensions(self):
         """Test default dimensions when none configured."""
-        evaluation_config = {
+        evaluation_config = {  # noqa: F841
             "selected_methods": {}
         }
 

@@ -160,7 +160,7 @@ class TestListProjectTasks:
     def test_list_tasks_exclude_my_annotations(self, client, auth_headers, test_db, test_users):
         p, org = _setup(test_db, test_users)
         t1 = _make_task(test_db, p.id, inner_id=1)
-        t2 = _make_task(test_db, p.id, inner_id=2)
+        t2 = _make_task(test_db, p.id, inner_id=2)  # noqa: F841
 
         # Annotate t1 as admin
         test_db.add(Annotation(

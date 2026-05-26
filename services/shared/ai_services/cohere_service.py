@@ -19,12 +19,13 @@ from .base_service import BaseAIService, derive_truncated
 from .provider_capabilities import model_supports_seed
 from .response_validator import ResponseValidator
 
-logger = logging.getLogger(__name__)
 
 
 # Phase 6.2: shared retry-history contextvar (defined in base_service).
 from .base_service import _retry_history_ctx, get_retry_history_snapshot  # noqa: F401
 
+
+logger = logging.getLogger(__name__)
 
 def retry_with_exponential_backoff(
     max_retries: int = 5,

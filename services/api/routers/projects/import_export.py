@@ -132,15 +132,15 @@ def convert_from_label_studio_format(results: List[Dict[str, Any]]) -> List[Dict
     return output
 
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
-from fastapi.responses import Response
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile  # noqa: E402
+from fastapi.responses import Response  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
 
-from auth_module import require_user
-from auth_module.models import User as AuthUser
-from database import get_db
-from routers.projects.serializers import _parse_iso
-from models import (
+from auth_module import require_user  # noqa: E402
+from auth_module.models import User as AuthUser  # noqa: E402
+from database import get_db  # noqa: E402
+from routers.projects.serializers import _parse_iso  # noqa: E402
+from models import (  # noqa: E402
     EvaluationJudgeRun,
     EvaluationRun,
     EvaluationRunMetric,
@@ -154,8 +154,8 @@ from models import (
     TaskEvaluation,
     User,
 )
-from notification_service import notify_project_created
-from project_models import (
+from notification_service import notify_project_created  # noqa: E402
+from project_models import (  # noqa: E402
     Annotation,
     PostAnnotationResponse,
     Project,
@@ -164,8 +164,8 @@ from project_models import (
     Task,
     TaskAssignment,
 )
-from project_schemas import ProjectImportData
-from routers.projects.helpers import (
+from project_schemas import ProjectImportData  # noqa: E402
+from routers.projects.helpers import (  # noqa: E402
     check_project_accessible,
     check_project_write_access,
     get_comprehensive_project_data,
