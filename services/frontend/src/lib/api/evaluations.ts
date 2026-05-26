@@ -4,7 +4,7 @@
  */
 
 import { BaseApiClient } from './base'
-import type { ImmediateEvaluationData } from './evaluation-types'
+import type { HistorySeries, ImmediateEvaluationData } from './evaluation-types'
 import {
   AddPromptsResponse,
   AnnotationStatistics,
@@ -1222,27 +1222,31 @@ export class EvaluationsClient extends BaseApiClient {
 
   /**
    * Get historical evaluation data for trend charts.
+   *
+   * Issue #111: the endpoint now accepts a list of metrics + a list of
+   * evaluation_config_ids (FastAPI's `Query(...)` for `List[str]` accepts
+   * repeated keys: `?metrics=bleu&metrics=rouge_l&evaluation_config_ids=cfg-a`).
+   * The response is keyed on `(metric, evaluation_config_id)` so two
+   * configs of the same metric type render as distinct chart series.
+   * The old `{metric, data: [...]}` flat shape is gone — all callers
+   * consume `{series: [...]}`.
    */
   async getEvaluationHistory(params: {
     projectId: string
     modelIds: string[]
-    metric: string
+    metrics: string[]
+    evaluationConfigIds?: string[]
     startDate?: string
     endDate?: string
-  }): Promise<{
-    metric: string
-    data: Array<{
-      date: string
-      model_id: string
-      value: number
-      ci_lower: number
-      ci_upper: number
-      sample_count: number
-    }>
-  }> {
+  }): Promise<{ series: HistorySeries[] }> {
     const queryParams = new URLSearchParams()
     params.modelIds.forEach((id) => queryParams.append('model_ids', id))
-    queryParams.append('metric', params.metric)
+    params.metrics.forEach((m) => queryParams.append('metrics', m))
+    if (params.evaluationConfigIds && params.evaluationConfigIds.length > 0) {
+      params.evaluationConfigIds.forEach((c) =>
+        queryParams.append('evaluation_config_ids', c)
+      )
+    }
     if (params.startDate) queryParams.append('start_date', params.startDate)
     if (params.endDate) queryParams.append('end_date', params.endDate)
     return this.request(
@@ -1252,11 +1256,17 @@ export class EvaluationsClient extends BaseApiClient {
 
   /**
    * Get pairwise significance tests between models.
+   *
+   * Issue #111: optional `evaluationConfigIds` scopes the comparison to
+   * sample rows from the matching configs. When set, the run-aggregated
+   * `direct_evaluations` fallback is skipped server-side (those rows
+   * cannot be filtered per config).
    */
   async getSignificanceTests(params: {
     projectId: string
     modelIds: string[]
     metrics: string[]
+    evaluationConfigIds?: string[]
   }): Promise<{
     comparisons: Array<{
       model_a: string
@@ -1271,6 +1281,11 @@ export class EvaluationsClient extends BaseApiClient {
     const queryParams = new URLSearchParams()
     params.modelIds.forEach((id) => queryParams.append('model_ids', id))
     params.metrics.forEach((m) => queryParams.append('metrics', m))
+    if (params.evaluationConfigIds && params.evaluationConfigIds.length > 0) {
+      params.evaluationConfigIds.forEach((c) =>
+        queryParams.append('evaluation_config_ids', c)
+      )
+    }
     return this.request(
       `/evaluations/significance/${params.projectId}?${queryParams.toString()}`
     )
@@ -1279,6 +1294,12 @@ export class EvaluationsClient extends BaseApiClient {
   /**
    * Compute comprehensive statistics for evaluation results.
    * Supports multiple aggregation levels and statistical methods.
+   *
+   * Issue #111: optional `evaluationConfigIds` filters sample-level
+   * aggregations and the four `*_by_model_metric` composite-keyed dicts
+   * to rows from the matching configs. The composite keys themselves now
+   * include the config id (`"model_id|config_id|metric"`) so callers can
+   * distinguish two configs of the same metric type.
    */
   async computeStatistics(params: {
     projectId: string
@@ -1286,6 +1307,7 @@ export class EvaluationsClient extends BaseApiClient {
     aggregation: 'sample' | 'model' | 'field' | 'overall'
     methods: string[]
     compareModels?: string[]
+    evaluationConfigIds?: string[]
   }): Promise<{
     aggregation: string
     metrics: Record<
@@ -1326,6 +1348,7 @@ export class EvaluationsClient extends BaseApiClient {
           aggregation: params.aggregation,
           methods: params.methods,
           compare_models: params.compareModels,
+          evaluation_config_ids: params.evaluationConfigIds,
         }),
       }
     )

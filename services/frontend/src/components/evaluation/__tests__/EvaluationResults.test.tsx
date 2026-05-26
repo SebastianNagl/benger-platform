@@ -304,12 +304,13 @@ function setupFetchError(message = 'Network error') {
   mockGetProjectResultsByTaskModel.mockResolvedValue(emptyTaskModelData)
 }
 
-// The component's default for selectedMetrics is [], and the condition
-// (selectedMetrics === undefined || selectedMetrics.length > 0) hides the table
-// when selectedMetrics is empty. Data view tests need at least one metric selected.
+// The component's default for selectedConfigIds is [], and the condition
+// (selectedConfigIds === undefined || selectedConfigIds.length > 0) hides
+// the table when empty. Data view tests need at least one config selected
+// (issue #111: selection moved from metric_name to evaluation_config.id).
 const DATA_VIEW_PROPS = {
   viewType: 'data' as const,
-  selectedMetrics: ['exact_match'],
+  selectedConfigIds: ['exact_match'],
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

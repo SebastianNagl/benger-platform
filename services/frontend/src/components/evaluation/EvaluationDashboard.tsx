@@ -25,6 +25,7 @@ import { MetricSelector } from './MetricSelector'
 import { ModelComparisonChart } from './ModelComparisonChart'
 import { ModelSelector } from './ModelSelector'
 import { ScoreCard } from './ScoreCard'
+import type { HistorySeries } from '@/lib/api/evaluation-types'
 
 interface EvaluationDashboardProps {
   initialProjectId?: string
@@ -69,7 +70,7 @@ export function EvaluationDashboard({
   const [availableMetrics, setAvailableMetrics] = useState<string[]>([])
   const [evaluatedModels, setEvaluatedModels] = useState<EvaluatedModel[]>([])
   const [summaryStats, setSummaryStats] = useState<SummaryStats | null>(null)
-  const [historicalData, setHistoricalData] = useState<any>(null)
+  const [historicalData, setHistoricalData] = useState<{ series: HistorySeries[] } | null>(null)
   const [significanceData, setSignificanceData] = useState<SignificanceTest[]>(
     []
   )
@@ -158,7 +159,7 @@ export function EvaluationDashboard({
           ? apiClient.evaluations.getEvaluationHistory({
               projectId: selectedProject.id.toString(),
               modelIds: selectedModels,
-              metric: selectedMetrics[0],
+              metrics: selectedMetrics,
             })
           : Promise.resolve(null),
         selectedModels.length > 1
@@ -354,16 +355,22 @@ export function EvaluationDashboard({
                 </Card>
               </div>
 
-              {/* Historical Trend Chart */}
-              {historicalData && historicalData.data.length > 0 && (
-                <Card className="p-6">
-                  <HistoricalTrendChart
-                    data={historicalData.data}
-                    modelIds={selectedModels}
-                    metric={selectedMetrics[0] || 'Score'}
-                    height={400}
-                    showConfidenceIntervals={true}
-                  />
+              {/* Historical Trend Chart.
+                  Issue #111: render one chart per `(metric, evaluation_config_id)`
+                  series so multiple configs of the same metric type don't
+                  collapse into a single misleading line. */}
+              {historicalData && historicalData.series.length > 0 && (
+                <Card className="space-y-6 p-6">
+                  {historicalData.series.map((s) => (
+                    <HistoricalTrendChart
+                      key={`${s.metric}|${s.evaluation_config_id ?? 'none'}`}
+                      data={s.data || []}
+                      modelIds={selectedModels}
+                      metric={s.display_name || s.metric || 'Score'}
+                      height={400}
+                      showConfidenceIntervals={true}
+                    />
+                  ))}
                 </Card>
               )}
 
