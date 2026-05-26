@@ -342,3 +342,39 @@ class TestRowIsTerminalError:
             "llm_judge_falloesung": {"value": None, "error": "context overflow"},
         }
         assert _row_is_terminal_error(metrics) is True
+
+
+def test_task_evaluation_constructors_pass_evaluation_config_id():
+    """Drift guard: every ``TaskEvaluation(...)`` constructor in
+    ``tasks.py`` must set ``evaluation_config_id=`` alongside
+    ``field_name=``.
+
+    Why: Issue #111 / migration 057 introduces a discrete
+    ``task_evaluations.evaluation_config_id`` column so the per-config
+    statistics filter can match cleanly instead of parsing the
+    pipe-encoded ``field_name``. If a future worker patch adds a new
+    ``TaskEvaluation(...)`` constructor and forgets the new kwarg, the
+    row lands with ``evaluation_config_id IS NULL`` and the issue #111
+    aggregator silently drops it from per-config stats.
+
+    The check is intentionally coarse — count constructor opens vs.
+    ``evaluation_config_id=`` argument passes in the source. The
+    counter also picks up the function signature default in
+    ``_evaluate_llm_judge_single`` and the matching call-site kwarg,
+    which is fine: that path threads the column through, so a value of
+    ``count(eval_cfg) >= count(TaskEvaluation()) `` is the floor we
+    want, not a strict equality.
+    """
+    tasks_path = Path(__file__).parent.parent / "tasks.py"
+    src = tasks_path.read_text()
+
+    constructor_count = src.count("TaskEvaluation(")
+    kwarg_count = len(re.findall(r"evaluation_config_id\s*=", src))
+
+    assert kwarg_count >= constructor_count, (
+        f"Every TaskEvaluation(...) must set evaluation_config_id "
+        f"alongside field_name. Without it, the per-config statistics "
+        f"filter for issue #111 will silently exclude rows. Found "
+        f"{constructor_count} TaskEvaluation(...) constructors but only "
+        f"{kwarg_count} occurrences of 'evaluation_config_id=' in tasks.py."
+    )
