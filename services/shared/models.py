@@ -165,7 +165,7 @@ class User(Base):
     )  # When the email was verified
     email_verification_method = Column(
         String, nullable=True, default="self"
-    )  # How email was verified: 'sel', 'admin', 'system'
+    )  # How email was verified: 'self', 'admin', 'system'
 
     # Password reset fields
     password_reset_token = Column(

@@ -386,7 +386,7 @@ class GrokService(BaseAIService):
             api_model_name = self.MODEL_MAPPING.get(model_name, model_name)
 
             # Add format instructions to system prompt
-            format_instructions = """
+            format_instructions = f"""
 
 ## Output Format
 You MUST respond with a valid JSON object matching this schema:

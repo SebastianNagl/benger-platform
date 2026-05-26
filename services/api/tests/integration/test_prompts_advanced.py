@@ -182,7 +182,7 @@ class TestMultiplePromptsPerTask:
         detailed_inst = project.generation_config["prompt_structures"]["detailed"][
             "instruction_prompt"
         ]
-        brief_inst = project.generation_config["prompt_structures"]["brie"]["instruction_prompt"]
+        brief_inst = project.generation_config["prompt_structures"]["brief"]["instruction_prompt"]
         assert len(detailed_inst) > len(brief_inst)
 
     def test_system_and_instruction_combination(self, db: Session, complex_prompt_project: Project):

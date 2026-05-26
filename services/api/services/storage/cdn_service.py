@@ -163,12 +163,12 @@ class CDNService:
             ".jpg": "public, max-age=31536000",
             ".jpeg": "public, max-age=31536000",
             ".png": "public, max-age=31536000",
-            ".gi": "public, max-age=31536000",
+            ".gif": "public, max-age=31536000",
             ".svg": "public, max-age=31536000",
-            ".wof": "public, max-age=31536000",
+            ".woff": "public, max-age=31536000",
             ".woff2": "public, max-age=31536000",
             # Documents - shorter cache
-            ".pd": "public, max-age=3600",
+            ".pdf": "public, max-age=3600",
             ".doc": "public, max-age=3600",
             ".docx": "public, max-age=3600",
             # Dynamic content - no cache

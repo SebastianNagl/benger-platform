@@ -164,7 +164,7 @@ class SSLTLSManager:
 
     def get_nginx_ssl_config(self) -> str:
         """Generate nginx SSL configuration"""
-        return """
+        return f"""
 server {{
     listen 80;
     server_name {self.domain} www.{self.domain} api.{self.domain} labelstudio.{self.domain};

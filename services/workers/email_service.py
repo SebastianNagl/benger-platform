@@ -258,7 +258,7 @@ class EmailService:
             return False
 
         subject = "BenGER Email Test"
-        html_body = """
+        html_body = f"""
         <html>
         <body style="font-family: Arial, sans-serif; padding: 20px;">
             <h2>Hello {user_name}!</h2>
@@ -313,7 +313,7 @@ class EmailService:
             return False
 
         subject = f"Invitation to join {organization_name} on BenGER"
-        html_body = """
+        html_body = f"""
         <html>
         <body style="font-family: Arial, sans-serif; padding: 20px;">
             <h2>You're invited to join {organization_name}</h2>
@@ -374,7 +374,7 @@ class EmailService:
 
         if language == "de":
             subject = "Bestätigen Sie Ihre E-Mail-Adresse für BenGER"
-            html_body = """
+            html_body = f"""
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2>Willkommen bei BenGER, {user_name}!</h2>
@@ -394,7 +394,7 @@ class EmailService:
             """
         else:
             subject = "Verify your email address for BenGER"
-            html_body = """
+            html_body = f"""
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2>Welcome to BenGER, {user_name}!</h2>
@@ -454,7 +454,7 @@ class EmailService:
 
         if language == "de":
             subject = "Passwort zurücksetzen für BenGER"
-            html_body = """
+            html_body = f"""
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2>Hallo {user_name},</h2>
@@ -474,7 +474,7 @@ class EmailService:
             """
         else:
             subject = "Reset your password for BenGER"
-            html_body = """
+            html_body = f"""
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2>Hello {user_name},</h2>

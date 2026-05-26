@@ -328,8 +328,8 @@ class TestMultiFieldResultParsing:
                     parsed[config_id][combo_key] = {}
                 parsed[config_id][combo_key][metric_name] = value
 
-        assert parsed["cfg1"]["pred_vs_re"]["metric"] == 0.5
-        assert parsed["cfg1"]["pred_vs_re"]["metric2"] == 0.6
+        assert parsed["cfg1"]["pred_vs_ref"]["metric"] == 0.5
+        assert parsed["cfg1"]["pred_vs_ref"]["metric2"] == 0.6
 
     def test_evaluation_type_filtering(self):
         evaluations = [

@@ -160,7 +160,7 @@ class TestProviderSelection:
 
 
 class TestRetryLogic:
-    """Test retry mechanisms with exponential backof"""
+    """Test retry mechanisms with exponential backoff"""
 
     @patch("tasks.generate_llm_responses.retry")
     def test_exponential_backoff_calculation(self, mock_retry):

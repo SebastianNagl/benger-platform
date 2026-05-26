@@ -356,7 +356,7 @@ class TestInjectionPrevention:
             fields = LabelConfigVersionService._extract_field_names(COMMAND_INJECTION_PAYLOAD)
             # Verify command injection patterns are sanitized
             for field in fields:
-                assert "rm -r" not in field, "Command injection not sanitized"
+                assert "rm -rf" not in field, "Command injection not sanitized"
                 assert "; rm" not in field, "Shell command separator not sanitized"
         except Exception:
             # Rejecting is acceptable
