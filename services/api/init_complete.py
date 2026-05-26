@@ -10,7 +10,12 @@ import os
 import sys
 import uuid
 
-# Add current directory to path for imports
+# Add /shared and the script's own directory to sys.path. /shared holds the
+# canonical models (post-2026-05-19 consolidation, see CLAUDE.md) and must
+# be importable before any `from models import ...` runs. The API container
+# normally inserts /shared at startup via main.py:lifespan(), but one-shot
+# scripts (like this seeder) bypass that path setup, so we add it here.
+sys.path.insert(0, "/shared")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import json
