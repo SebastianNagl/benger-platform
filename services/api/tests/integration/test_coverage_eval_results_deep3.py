@@ -678,7 +678,7 @@ class TestEvalResultsByTaskModel:
         test_db.flush()
 
         _make_task_evaluation(test_db, er, tasks[0], annotation=ann,
-                             metrics={"score": 0.8})
+                             metrics={"score": 0.8})  # noqa: E128
         test_db.commit()
 
         resp = client.get(

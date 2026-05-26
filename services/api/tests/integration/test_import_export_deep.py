@@ -945,8 +945,8 @@ class TestSpanAnnotationConversion:
 
     def test_export_converts_benger_to_label_studio(self, client, test_db, test_users, auth_headers, test_org):
         project = _make_project(test_db, test_users[0], test_org,
-                                 label_config='<View><Text name="text" value="$text"/>'
-                                 '<Labels name="label" toName="text">'
+                                 label_config='<View><Text name="text" value="$text"/>'  # noqa: E127
+                                 '<Labels name="label" toName="text">'  # noqa: E127
                                  '<Label value="PER"/><Label value="ORG"/></Labels></View>')
         task = Task(
             id=_uid(), project_id=project.id,

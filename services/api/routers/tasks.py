@@ -182,7 +182,7 @@ async def list_all_tasks(
         annotation_count = len(task.annotations) if hasattr(task, 'annotations') else 0
 
         # Get the organization for this project
-        from project_models import ProjectOrganization
+        from project_models import ProjectOrganization  # noqa: F402
 
         project_org = (
             db.query(ProjectOrganization)

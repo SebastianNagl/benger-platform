@@ -286,4 +286,3 @@ class TestGenerateLLMResponsesErrors:
         )
         assert result["status"] == "error"
         assert "Database not available" in result["message"] or "database" in result["message"].lower()
-

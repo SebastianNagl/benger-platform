@@ -655,4 +655,3 @@ class TestGetProjectResultsByTaskModel:
                     db=db,
                 )
             assert exc_info.value.status_code == 403
-

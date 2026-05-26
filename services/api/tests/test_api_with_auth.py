@@ -103,7 +103,7 @@ def test_api_multiple_organizations():
             try:
                 error_data = response.json()
                 print(f"Error: {error_data}")
-            except:
+            except:  # noqa: E722
                 print(f"Error text: {response.text}")
 
     except Exception as e:

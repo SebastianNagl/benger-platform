@@ -954,7 +954,7 @@ async def get_significance_tests(
                 if not eval.metrics:
                     continue
 
-                from routers.evaluations.results import _coerce_metric_value
+                from routers.evaluations.results import _coerce_metric_value  # noqa: F402
                 for metric in metrics:
                     if metric in eval.metrics:
                         coerced = _coerce_metric_value(eval.metrics[metric])

@@ -31,7 +31,7 @@ def _uid():
 
 
 def _make_project(db, admin, org, *, with_annotations=True, with_generations=True,
-                   with_questionnaire=True, with_evaluations=True, num_tasks=3):
+                   with_questionnaire=True, with_evaluations=True, num_tasks=3):  # noqa: E127
     """Create a fully-populated project for export testing."""
     project = Project(
         id=_uid(),
@@ -515,7 +515,7 @@ class TestExportAccess:
 
     def test_export_contributor_access(self, client, test_db, test_users, auth_headers, test_org):
         data = _make_project(test_db, test_users[0], test_org, with_generations=False,
-                              with_questionnaire=False, with_evaluations=False)
+                              with_questionnaire=False, with_evaluations=False)  # noqa: E127
         resp = client.get(
             f"/api/projects/{data['project'].id}/export?format=json",
             headers={**auth_headers["contributor"], "X-Organization-Context": test_org.id},

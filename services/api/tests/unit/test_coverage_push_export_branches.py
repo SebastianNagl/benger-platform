@@ -36,8 +36,8 @@ from project_models import (
 
 
 def _setup_project_with_data(db, users, *, add_annotations=True, add_generations=True,
-                              add_evaluations=True, add_questionnaire=True,
-                              annotation_extras=None):
+                              add_evaluations=True, add_questionnaire=True,  # noqa: E127
+                              annotation_extras=None):  # noqa: E127
     """Create a fully populated project with all data types."""
     org = Organization(
         id=str(uuid.uuid4()),

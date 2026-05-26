@@ -39,7 +39,7 @@ from project_models import (
 
 
 def _setup_eval_project(db, users, *, add_human_evals=False, add_automated=True,
-                         add_generations=True, num_tasks=3):
+                         add_generations=True, num_tasks=3):  # noqa: E127
     """Create project with evaluation data for testing results endpoints."""
     org = Organization(
         id=str(uuid.uuid4()),
@@ -813,5 +813,3 @@ class TestExtractPrimaryScore:
         from routers.evaluations.results import _extract_primary_score
         metrics = {"some_text": "value", "not_a_number": [1, 2]}
         assert _extract_primary_score(metrics) is None
-
-

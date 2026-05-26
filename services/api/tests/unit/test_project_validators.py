@@ -71,4 +71,3 @@ class TestConditionalInstructionsValidator:
         variants = [{"id": "a", "content": "text", "weight": 100.0}]
         update = ProjectUpdate(conditional_instructions=variants)
         assert update.conditional_instructions[0]["weight"] == 100.0
-

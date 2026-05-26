@@ -39,6 +39,7 @@ def _collect_stream(response) -> str:
 
     return asyncio.run(_consume())
 
+
 # Add path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 

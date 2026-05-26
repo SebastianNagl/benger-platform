@@ -36,8 +36,8 @@ def _uid():
 
 
 def _make_eval_project(db, admin, org, *, num_tasks=3, num_models=2,
-                        with_task_evals=True, with_generations=True,
-                        with_human=False, evaluation_config=None):
+                        with_task_evals=True, with_generations=True,  # noqa: E127
+                        with_human=False, evaluation_config=None):  # noqa: E127
     """Create a rich evaluation project."""
     project = Project(
         id=_uid(),

@@ -1516,4 +1516,3 @@ def notify_project_completed(
             "organization_id": organization_id,
         },
     )
-

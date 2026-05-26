@@ -85,6 +85,7 @@ class TestEvaluationHelpers:
         )
         assert status.status == "completed"
 
+
 class TestOrganizationModels:
     """Tests for organization-related Pydantic models."""
 

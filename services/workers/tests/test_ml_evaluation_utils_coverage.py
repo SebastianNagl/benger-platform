@@ -268,4 +268,3 @@ class TestExportEvaluationResults:
         results = {"metrics": {"accuracy": 0.9}}
         output = export_evaluation_results(results, "dict")
         assert output == results
-
