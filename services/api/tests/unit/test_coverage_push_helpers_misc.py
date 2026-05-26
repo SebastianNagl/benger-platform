@@ -390,10 +390,13 @@ class TestEvaluationMetadata:
         pid = data["project"].id
 
         resp = client.get(
-            f"/api/evaluations/projects/{pid}/evaluation-history?model_ids=gpt-4o&metric=accuracy",
+            f"/api/evaluations/projects/{pid}/evaluation-history?model_ids=gpt-4o&metrics=accuracy",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
+        # Issue #111: response shape is ``{series: [...]}`` (was
+        # ``{metric, data: [...]}`` before).
+        assert "series" in resp.json()
 
 
 # =================== Project Organization Tests ===================
