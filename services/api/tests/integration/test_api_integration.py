@@ -525,7 +525,7 @@ class TestAPIIntegration:
             }
 
             with patch("notification_service.notify_project_created"):
-                response = client.post("/api/projects/", json=project_data)
+                response = client.post("/api/projects/", json=project_data)  # noqa: F841
 
                 # Regardless of success/failure, organization count should be consistent
                 final_org_count = test_db.query(Organization).count()

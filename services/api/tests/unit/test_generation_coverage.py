@@ -513,7 +513,7 @@ class TestResumeGeneration:
         try:
             with patch("routers.generation.get_redis_client") as mock_redis:
                 mock_redis.return_value = None
-                with patch("routers.generation.celery_app") as mock_celery:
+                with patch("routers.generation.celery_app") as mock_celery:  # noqa: F841
                     resp = client.post("/api/generation/gen-1/resume")
                     assert resp.status_code == 404
         finally:
@@ -616,7 +616,7 @@ class TestRetryGeneration:
         app.dependency_overrides[get_db] = lambda: mock_db
 
         try:
-            with patch("routers.generation.celery_app") as mock_celery:
+            with patch("routers.generation.celery_app") as mock_celery:  # noqa: F841
                 resp = client.post("/api/generation/gen-1/retry")
                 assert resp.status_code == 404
         finally:

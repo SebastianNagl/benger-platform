@@ -12,9 +12,9 @@ import os
 workers_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, workers_root)
 
-import numpy as np
+import numpy as np  # noqa: E402
 
-from ml_evaluation.statistics import (
+from ml_evaluation.statistics import (  # noqa: E402
     bootstrap_confidence_interval,
     paired_bootstrap_test,
     significance_test,

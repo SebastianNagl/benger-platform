@@ -107,7 +107,7 @@ class TestRoleBasedAccess:
 
     def test_contributor_can_create_tasks(self, client: TestClient, auth_headers):
         """Test that contributors can create tasks."""
-        task_data = {
+        task_data = {  # noqa: F841
             "name": "Test Task",
             "description": "A test task",
             "task_type": "qa_reasoning",  # Using static task type
@@ -132,7 +132,7 @@ class TestRoleBasedAccess:
 
     def test_annotator_cannot_create_tasks(self, client: TestClient, auth_headers):
         """Test that annotators cannot create tasks."""
-        task_data = {
+        task_data = {  # noqa: F841
             "name": "Test Task",
             "description": "A test task",
             "task_type": "qa_reasoning",  # Using static task type

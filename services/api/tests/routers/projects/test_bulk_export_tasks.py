@@ -42,8 +42,8 @@ def _collect_stream(response) -> str:
 # Add path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
-from models import Generation, ResponseGeneration, User
-from project_models import Annotation, Project, Task
+from models import Generation, ResponseGeneration, User  # noqa: E402
+from project_models import Annotation, Project, Task  # noqa: E402
 
 
 def _make_mock_request():

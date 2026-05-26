@@ -164,7 +164,7 @@ class TestTaskEndpoints:
 
     def test_create_task_contributor_required(self, client, auth_headers):
         """Test creating task requires contributor role"""
-        task_data = {
+        task_data = {  # noqa: F841
             "name": "Test Task",
             "description": "A test task",
             "template_id": "qa",  # Use template_id instead of task_type and template

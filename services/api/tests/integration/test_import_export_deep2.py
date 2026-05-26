@@ -606,7 +606,7 @@ class TestImportFullProject:
     def test_import_duplicate_title_auto_rename(self, client, test_db, test_users, auth_headers, test_org):
         """Import with duplicate title auto-renames."""
         # Create a project with same title
-        existing = _project(test_db, test_users[0], test_org, title="Duplicate Title")
+        existing = _project(test_db, test_users[0], test_org, title="Duplicate Title")  # noqa: F841
         test_db.commit()
 
         export_data = self._create_export_data("Duplicate Title")

@@ -19,7 +19,7 @@ from unittest.mock import MagicMock
 # Add path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ml_evaluation.llm_judge_evaluator import (
+from ml_evaluation.llm_judge_evaluator import (  # noqa: E402
     DEFAULT_CRITERIA,
     PAIRWISE_COMPARISON_PROMPT,
     SINGLE_EVALUATION_PROMPT,

@@ -53,4 +53,4 @@ router.include_router(validation.router)
 
 # Backward-compatible re-exports for test files that import from routers.evaluations directly
 from auth_module import require_user  # noqa: F401 - re-exported for test dependency overrides
-from routers.evaluations.helpers import extract_metric_name, get_evaluation_types_for_task_type
+from routers.evaluations.helpers import extract_metric_name, get_evaluation_types_for_task_type  # noqa: E402

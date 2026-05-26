@@ -86,7 +86,7 @@ def generate_squashed_migration():
     print(f"✅ Found {len(create_statements)} tables to create")
 
     # Generate the migration file content
-    migration_content = '''"""Complete BenGER database schema - squashed migration
+    migration_content = '''"""Complete BenGER database schema - squashed migration  # noqa: F841
 
 Revision ID: complete_schema_001
 Revises:
@@ -148,7 +148,7 @@ def downgrade():
 '''
 
     # Write the migration file
-    migration_path = (
+    migration_path = (  # noqa: F841
         Path(__file__).parent.parent
         / "alembic"
         / "versions"

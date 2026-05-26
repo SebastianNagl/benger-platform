@@ -483,7 +483,7 @@ class TestGetNextTaskAuto:
 
     def test_auto_creates_self_assignment(self, client, test_db, test_users, auth_headers, test_org):
         p = _project(test_db, test_users[0], test_org, assignment_mode="auto")
-        tasks = _tasks(test_db, p, test_users[0], count=3)
+        tasks = _tasks(test_db, p, test_users[0], count=3)  # noqa: F841
         test_db.commit()
 
         resp = client.get(f"/api/projects/{p.id}/next", headers=_h(auth_headers, test_org))

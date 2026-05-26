@@ -11,7 +11,7 @@ import os
 workers_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, workers_root)
 
-from ml_evaluation.inter_annotator_agreement import (
+from ml_evaluation.inter_annotator_agreement import (  # noqa: E402
     cohens_kappa,
     fleiss_kappa,
     cronbachs_alpha,

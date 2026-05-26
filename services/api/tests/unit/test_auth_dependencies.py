@@ -16,8 +16,6 @@ from auth_module.dependencies import (
     require_org_contributor,
     optional_user,
 )
-from datetime import datetime, timezone
-
 from auth_module.models import User
 
 _NOW = datetime.now(timezone.utc)

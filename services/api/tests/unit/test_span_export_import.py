@@ -15,7 +15,7 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from routers.projects.import_export import (
+from routers.projects.import_export import (  # noqa: E402
     convert_from_label_studio_format,
     convert_to_label_studio_format,
 )

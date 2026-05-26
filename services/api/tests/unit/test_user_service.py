@@ -12,12 +12,12 @@ api_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file
 if api_dir not in sys.path:
     sys.path.insert(0, api_dir)
 
-import pytest
-from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError
+import pytest  # noqa: E402
+from fastapi import HTTPException  # noqa: E402
+from sqlalchemy.exc import IntegrityError  # noqa: E402
 
 # UserRole enum removed - now using is_superadmin boolean
-from user_service import (
+from user_service import (  # noqa: E402
     authenticate_user,
     create_user,
     get_password_hash,

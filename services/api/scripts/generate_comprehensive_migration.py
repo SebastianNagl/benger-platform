@@ -13,7 +13,7 @@ from textwrap import dedent
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-from models import Base
+from models import Base  # noqa: E402
 
 
 def generate_migration_content():

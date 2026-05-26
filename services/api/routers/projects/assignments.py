@@ -479,7 +479,7 @@ async def remove_task_assignment(
 
     # Store info for notification before deletion
     assigned_user_id = assignment.user_id
-    task = db.query(Task).filter(Task.id == task_id).first()
+    task = db.query(Task).filter(Task.id == task_id).first()  # noqa: F841
 
     db.delete(assignment)
     db.commit()

@@ -33,13 +33,13 @@ if shared_dir not in sys.path:
     sys.path.insert(0, shared_dir)
 
 # Centralized configuration
-from app.core.config import get_settings
+from app.core.config import get_settings  # noqa: E402
 
 settings = get_settings()
 ENVIRONMENT = settings.environment
 
 # Centralized Celery client for task dispatch
-from celery_client import get_celery_app
+from celery_client import get_celery_app  # noqa: E402
 
 celery_app = get_celery_app()
 
@@ -349,7 +349,7 @@ app.add_middleware(
 )
 
 # Organization context resolution middleware (resolves X-Organization-Slug to org ID)
-from middleware.org_context import OrgContextMiddleware
+from middleware.org_context import OrgContextMiddleware  # noqa: E402
 
 app.add_middleware(OrgContextMiddleware)
 
@@ -385,43 +385,43 @@ async def reject_oversized_requests(request, call_next):
 # Import and include routers
 
 # Other routers
-from routers.api_keys import router as api_key_router
-from routers.feature_flags import router as feature_flags_router
-from routers.file_uploads import router as file_upload_router
-from routers.invitations import router as invitations_router
-from routers.org_api_keys import router as org_api_key_router
-from routers.organizations import router as organizations_router
+from routers.api_keys import router as api_key_router  # noqa: E402
+from routers.feature_flags import router as feature_flags_router  # noqa: E402
+from routers.file_uploads import router as file_upload_router  # noqa: E402
+from routers.invitations import router as invitations_router  # noqa: E402
+from routers.org_api_keys import router as org_api_key_router  # noqa: E402
+from routers.organizations import router as organizations_router  # noqa: E402
 
 # Core domain routers
-from routers.auth import router as auth_router
-from routers.dashboard import router as dashboard_router
+from routers.auth import router as auth_router  # noqa: E402
+from routers.dashboard import router as dashboard_router  # noqa: E402
 
 # Utility routers
-from routers.evaluations import router as evaluations_router
-from routers.evaluations.ws import ws_router as evaluations_ws_router
-from routers.generation import router as generation_router
-from routers.generation import ws_router as generation_ws_router
-from routers.cost_estimate import router as cost_estimate_router
-from routers.generation_task_list import router as generation_task_list_router
-from routers.health import router as health_router
-from routers.leaderboards import router as leaderboards_router
+from routers.evaluations import router as evaluations_router  # noqa: E402
+from routers.evaluations.ws import ws_router as evaluations_ws_router  # noqa: E402
+from routers.generation import router as generation_router  # noqa: E402
+from routers.generation import ws_router as generation_ws_router  # noqa: E402
+from routers.cost_estimate import router as cost_estimate_router  # noqa: E402
+from routers.generation_task_list import router as generation_task_list_router  # noqa: E402
+from routers.health import router as health_router  # noqa: E402
+from routers.leaderboards import router as leaderboards_router  # noqa: E402
 
 # Legacy routers
-from routers.legacy.debug import router as debug_router
-from routers.llm_models import router as llm_models_router
-from routers.notifications import router as notifications_router
-from routers.projects import router as projects_router
-from routers.prompt_structures import router as prompt_structures_router
-from routers.reports import router as reports_router
-from routers.runs import router as runs_router
-from routers.storage import router as storage_router
-from routers.tasks import router as tasks_router
+from routers.legacy.debug import router as debug_router  # noqa: E402
+from routers.llm_models import router as llm_models_router  # noqa: E402
+from routers.notifications import router as notifications_router  # noqa: E402
+from routers.projects import router as projects_router  # noqa: E402
+from routers.prompt_structures import router as prompt_structures_router  # noqa: E402
+from routers.reports import router as reports_router  # noqa: E402
+from routers.runs import router as runs_router  # noqa: E402
+from routers.storage import router as storage_router  # noqa: E402
+from routers.tasks import router as tasks_router  # noqa: E402
 
 # Test seeding router (only active in test/dev environments)
 # Test seeding endpoints (guarded by environment check + superadmin auth)
-from routers.test_seeding import router as test_seeding_router
+from routers.test_seeding import router as test_seeding_router  # noqa: E402
 
-from routers.users import router as users_router
+from routers.users import router as users_router  # noqa: E402
 
 # Include all routers
 app.include_router(health_router)  # Health checks first
@@ -446,7 +446,7 @@ app.include_router(feature_flags_router)  # Feature flags
 app.include_router(notifications_router)  # Notifications
 app.include_router(debug_router)  # Debug endpoints
 app.include_router(api_key_router)  # API key management
-from routers.llm_models_admin import router as llm_models_admin_router
+from routers.llm_models_admin import router as llm_models_admin_router  # noqa: E402
 app.include_router(llm_models_admin_router)  # Superadmin: reseed/inspect llm catalog
 app.include_router(org_api_key_router)  # Organization API key management (Issue #1180)
 app.include_router(file_upload_router)  # File uploads
@@ -455,7 +455,7 @@ app.include_router(leaderboards_router)  # Leaderboards for annotation performan
 app.include_router(test_seeding_router)  # Test seeding endpoints (guarded by env check + superadmin)
 
 # Load extended features if available
-from extensions import load_extended, get_extended_routers
+from extensions import load_extended, get_extended_routers  # noqa: E402
 
 if load_extended():
     for router, kwargs in get_extended_routers():
@@ -475,11 +475,11 @@ async def root():
 
 
 # Default config endpoints (minimal implementation to avoid breaking UI)
-from fastapi import Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException, status  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
 
-from auth_module import User, require_user
-from database import get_db
+from auth_module import User, require_user  # noqa: E402
+from database import get_db  # noqa: E402
 
 
 @app.get("/api/defaults/config/{task_type}")

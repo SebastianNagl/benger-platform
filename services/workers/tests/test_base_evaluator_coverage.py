@@ -9,7 +9,7 @@ import os
 workers_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, workers_root)
 
-from ml_evaluation.base_evaluator import BaseEvaluator, EvaluationConfig, EvaluationResult
+from ml_evaluation.base_evaluator import BaseEvaluator, EvaluationConfig, EvaluationResult  # noqa: E402
 
 
 class TestEvaluationConfig:

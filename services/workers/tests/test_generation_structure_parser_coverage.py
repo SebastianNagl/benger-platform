@@ -13,7 +13,7 @@ import os
 workers_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, workers_root)
 
-from generation_structure_parser import GenerationStructureParser
+from generation_structure_parser import GenerationStructureParser  # noqa: E402
 
 
 class TestParseStructure:

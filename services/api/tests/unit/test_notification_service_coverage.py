@@ -599,7 +599,7 @@ class TestSendEmailNotifications:
             with patch.dict("sys.modules", {"email_validation": None}):
                 # The fallback validator checks for "@" and "." in email
                 # "bademail" has neither, so it should be skipped
-                with patch("notification_service.send_notification_email", new_callable=AsyncMock) as mock_send:
+                with patch("notification_service.send_notification_email", new_callable=AsyncMock) as mock_send:  # noqa: F841
                     data = [{"id": "n1", "user_id": "u1", "type": NotificationType.PROJECT_CREATED}]
                     await NotificationService._send_email_notifications(mock_db, data)
                     # The function defines its own fallback validator inside the try/except

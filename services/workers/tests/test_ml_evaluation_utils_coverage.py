@@ -16,7 +16,7 @@ import pytest
 workers_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, workers_root)
 
-from ml_evaluation.utils import (
+from ml_evaluation.utils import (  # noqa: E402
     filter_tasks_with_model_predictions,
     validate_evaluation_request,
     create_evaluation_metadata,

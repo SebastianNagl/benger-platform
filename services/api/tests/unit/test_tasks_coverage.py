@@ -423,7 +423,7 @@ class TestUpdateTaskMetadata:
         task.meta = {"existing": "value"}
         mock_db.query.return_value.filter.return_value.first.return_value = task
 
-        result = await update_task_metadata(
+        result = await update_task_metadata(  # noqa: F841
             task_id="task-1",
             metadata={"replaced": "data"},
             request=_mock_request(),
@@ -445,7 +445,7 @@ class TestUpdateTaskMetadata:
         task.meta = None
         mock_db.query.return_value.filter.return_value.first.return_value = task
 
-        result = await update_task_metadata(
+        result = await update_task_metadata(  # noqa: F841
             task_id="task-1",
             metadata={"key": "value"},
             request=_mock_request(),
@@ -522,7 +522,7 @@ class TestBulkUpdateTaskMetadata:
         task.meta = {"old": "data"}
         mock_db.query.return_value.filter.return_value.all.return_value = [task]
 
-        result = await bulk_update_task_metadata(
+        result = await bulk_update_task_metadata(  # noqa: F841
             task_ids=["t-1"],
             metadata={"new": "data"},
             request=_mock_request(),
@@ -1045,7 +1045,7 @@ class TestSkipTask:
 
         mock_db.query.side_effect = query_side_effect
 
-        result = await skip_task(
+        result = await skip_task(  # noqa: F841
             project_id="proj-1",
             task_id="task-1",
             skip_request=SkipTaskRequest(comment="Too difficult"),

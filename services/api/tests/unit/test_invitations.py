@@ -55,7 +55,7 @@ class TestCreateInvitation:
         user = Mock(spec=User)
         user.id = "user-123"
         user.name = "Admin User"
-        user.role = is_superadmin = False
+        user.role = is_superadmin = False  # noqa: F841
         return user
 
     @pytest.fixture
@@ -279,7 +279,7 @@ class TestListInvitations:
         mock_db = Mock(spec=Session)
         mock_user = Mock(spec=User)
         mock_user.id = "user-123"
-        mock_user.role = is_superadmin = False
+        mock_user.role = is_superadmin = False  # noqa: F841
 
         # Mock membership check
         mock_membership = Mock()

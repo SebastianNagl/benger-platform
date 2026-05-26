@@ -67,7 +67,7 @@ class TestProjectUpdateVersioning:
 
         # Simulate what the API does
         if LabelConfigVersionService.has_schema_changed(test_project, new_schema):
-            new_version = LabelConfigVersionService.update_version_history(
+            new_version = LabelConfigVersionService.update_version_history(  # noqa: F841
                 project=test_project,
                 new_label_config=new_schema,
                 description="Added confidence rating",
@@ -280,7 +280,7 @@ class TestProjectUpdateVersioning:
 
         # Add schema
         new_schema = "<View><Choices name='sentiment'/></View>"
-        new_version = LabelConfigVersionService.update_version_history(
+        new_version = LabelConfigVersionService.update_version_history(  # noqa: F841
             project=project,
             new_label_config=new_schema,
             description="Initial schema",

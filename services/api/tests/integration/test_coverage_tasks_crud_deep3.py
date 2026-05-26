@@ -130,7 +130,7 @@ class TestTaskListing:
     def test_list_tasks_exclude_my_annotations(self, client, test_db, test_users, auth_headers, test_org):
         p = _project(test_db, test_users[0], test_org)
         t1 = _task(test_db, p, test_users[0], inner_id=1)
-        t2 = _task(test_db, p, test_users[0], inner_id=2)
+        t2 = _task(test_db, p, test_users[0], inner_id=2)  # noqa: F841
         _ann(test_db, t1, p, test_users[0])
         test_db.commit()
 

@@ -27,13 +27,14 @@ from routers.projects.helpers import (
     get_org_context_from_request,
 )
 
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/generation-tasks", tags=["generation-tasks"])
 
 # Celery app
-from celery_client import get_celery_app
+from celery_client import get_celery_app  # noqa: E402
 
+
+logger = logging.getLogger(__name__)
 celery_app = get_celery_app()
 
 

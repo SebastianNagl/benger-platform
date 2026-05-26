@@ -232,7 +232,7 @@ class TestProjectsRouter:
             return_value=[{"id": "org-123", "name": "Test Org"}],
         ) as mock_get_orgs, patch(
             "routers.projects.crud.calculate_project_stats_batch", return_value={}
-        ) as mock_calc_stats:
+        ) as mock_calc_stats:  # noqa: F841
             # Mock user with memberships
             mock_user_with_memberships = Mock()
             mock_user_with_memberships.id = mock_regular_user.id
@@ -286,7 +286,7 @@ class TestProjectsRouter:
             "routers.projects.helpers.get_project_organizations"
         ) as mock_get_orgs, patch(
             "routers.projects.crud.calculate_project_stats_batch", return_value={}
-        ) as mock_calc_stats:
+        ) as mock_calc_stats:  # noqa: F841
             mock_user_with_memberships = Mock()
             mock_user_with_memberships.id = mock_regular_user.id
             mock_user_with_memberships.is_superadmin = False
@@ -335,7 +335,7 @@ class TestProjectsRouter:
             "routers.projects.helpers.get_project_organizations"
         ) as mock_get_orgs, patch(
             "routers.projects.crud.calculate_project_stats_batch", return_value={}
-        ) as mock_calc_stats:
+        ) as mock_calc_stats:  # noqa: F841
             mock_user_with_memberships = Mock()
             mock_user_with_memberships.id = mock_regular_user.id
             mock_user_with_memberships.is_superadmin = False
@@ -381,7 +381,7 @@ class TestProjectsRouter:
             "routers.projects.helpers.get_project_organizations"
         ) as mock_get_orgs, patch(
             "routers.projects.crud.calculate_project_stats_batch", return_value={}
-        ) as mock_calc_stats:
+        ) as mock_calc_stats:  # noqa: F841
             mock_user_with_memberships = Mock()
             mock_user_with_memberships.id = mock_regular_user.id
             mock_user_with_memberships.is_superadmin = False
@@ -431,7 +431,7 @@ class TestProjectsRouter:
             return_value=[{"id": "org-123", "name": "Test Org"}],
         ) as mock_get_orgs, patch(
             "routers.projects.crud.calculate_project_stats_batch", return_value={}
-        ) as mock_calc_stats:
+        ) as mock_calc_stats:  # noqa: F841
             # Mock superadmin user
             mock_user_with_memberships = Mock()
             mock_user_with_memberships.id = mock_superadmin_user.id
@@ -670,9 +670,9 @@ class TestProjectsRouter:
             "routers.projects.crud.calculate_project_stats", return_value=None
         ) as mock_calc_stats, patch(
             "routers.projects.crud.calculate_generation_stats", return_value=None
-        ) as mock_calc_gen, patch(
+        ) as mock_calc_gen, patch(  # noqa: F841
             "notification_service.notify_project_created"
-        ) as mock_notify:
+        ) as mock_notify:  # noqa: F841
             mock_user_with_memberships = Mock()
             mock_user_with_memberships.id = mock_superadmin_user.id
             mock_user_with_memberships.is_superadmin = True
@@ -754,7 +754,7 @@ class TestProjectsRouter:
             "routers.projects.crud.calculate_project_stats", return_value=None
         ) as mock_calc_stats, patch(
             "routers.projects.crud.calculate_generation_stats", return_value=None
-        ) as mock_calc_gen:
+        ) as mock_calc_gen:  # noqa: F841
             mock_user_with_memberships = Mock()
             mock_user_with_memberships.id = mock_regular_user.id
             mock_user_with_memberships.is_superadmin = False
@@ -810,7 +810,7 @@ class TestProjectsRouter:
             mock_db.commit = Mock()
             return mock_db
 
-        with patch("notification_service.notify_project_deleted") as mock_notify:
+        with patch("notification_service.notify_project_deleted") as mock_notify:  # noqa: F841
             app.dependency_overrides[require_user] = override_require_user
             app.dependency_overrides[get_db] = override_get_db
 

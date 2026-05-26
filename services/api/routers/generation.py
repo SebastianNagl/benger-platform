@@ -33,7 +33,6 @@ from project_models import Project, Task
 from redis_cache import get_redis_client
 from routers.projects.helpers import check_project_accessible, get_accessible_project_ids, get_org_context_from_request
 
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/generation", tags=["generation"])
 
@@ -41,13 +40,15 @@ router = APIRouter(prefix="/api/generation", tags=["generation"])
 ws_router = APIRouter(prefix="/api/ws", tags=["websocket"])
 
 # Celery app
-from celery_client import get_celery_app
+from celery_client import get_celery_app  # noqa: E402
 
 celery_app = get_celery_app()
 
 # Environment configuration
-import os
+import os  # noqa: E402
 
+
+logger = logging.getLogger(__name__)
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 
