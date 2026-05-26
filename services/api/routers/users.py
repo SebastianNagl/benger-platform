@@ -15,6 +15,8 @@ from auth_module import (
     update_user_status,
     update_user_superadmin_status,
 )
+# Re-exported for tests that patch routers.users.get_all_users.
+from auth_module import get_all_users  # noqa: F401
 from auth_module.email_verification import email_verification_service
 from database import get_db
 from models import User as DBUser
