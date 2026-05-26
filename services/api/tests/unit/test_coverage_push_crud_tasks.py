@@ -767,6 +767,7 @@ class TestSerializers:
             error_message = None
             processing_time_ms = 100
             created_at = datetime(2024, 1, 1)
+            created_by = "u1"
             evaluation_id = "er1"
             judge_prompts_used = None
             judge_run_id = "jr-1"
@@ -800,6 +801,7 @@ class TestSerializers:
             error_message = None
             processing_time_ms = 50
             created_at = None
+            created_by = "u1"
             evaluation_id = "er1"
             task_id = "t1"
             generation_id = "g1"
