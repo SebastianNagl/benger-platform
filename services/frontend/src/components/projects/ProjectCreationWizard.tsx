@@ -221,6 +221,7 @@ export function ProjectCreationWizard() {
 
   // Derive fields from earlier wizard steps for cross-step data flow
   const labelConfigFields = useMemo(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     () =>
       wizardData.labelingConfig?.config
         ? extractFieldsFromLabelConfig(wizardData.labelingConfig.config)
@@ -390,7 +391,7 @@ export function ProjectCreationWizard() {
             organization_ids: wizardData.organizationIds,
           })
         } catch (err) {
-          // eslint-disable-next-line no-console
+           
           console.error('Failed to assign organizations after project create', err)
           addToast(
             t(

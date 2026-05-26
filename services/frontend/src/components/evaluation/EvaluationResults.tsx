@@ -714,7 +714,7 @@ export function EvaluationResults({
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- taskModelData
+     
     // intentionally excluded; otherwise the effect re-fires on every
     // setTaskModelData call and creates a fetch-loop.
   }, [projectId, selectedRunIdsKey, selectedMetricKey, showHistory])
@@ -1927,6 +1927,7 @@ function ResultDetailsModal({
   // Reset structure index, metric selection, and default tab when modal opens
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedStructureIndex(0)
       setActiveTab(isAnnotatorCell ? 'annotation' : 'generation')
       // Select all enabled configs by default

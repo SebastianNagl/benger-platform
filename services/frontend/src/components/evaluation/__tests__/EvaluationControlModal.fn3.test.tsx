@@ -42,7 +42,9 @@ jest.mock('@headlessui/react', () => ({
 
 // Need to add Dialog.Panel, Dialog.Title
 const HeadlessUI = require('@headlessui/react')
+// eslint-disable-next-line react/display-name
 HeadlessUI.Dialog.Panel = ({ children }: any) => <div>{children}</div>
+// eslint-disable-next-line react/display-name
 HeadlessUI.Dialog.Title = ({ children, ...props }: any) => <h3 {...props}>{children}</h3>
 
 import { EvaluationControlModal } from '../EvaluationControlModal'

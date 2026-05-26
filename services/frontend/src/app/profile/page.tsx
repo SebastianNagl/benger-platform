@@ -135,6 +135,7 @@ function GradeInput({
   // Sync from external value changes (e.g. profile load)
   useEffect(() => {
     const formatted = value != null ? String(value).replace('.', ',') : ''
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRawValue((prev) => {
       // Only update if the numeric value actually changed
       const prevNum = prev ? parseFloat(prev.replace(',', '.')) : undefined

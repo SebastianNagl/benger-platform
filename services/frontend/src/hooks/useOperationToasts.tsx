@@ -151,6 +151,7 @@ export function useOperationToasts() {
 
   // Helper functions for specific operation types
   const startGeneration = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     (taskId: string, modelCount: number) => {
       return addOperationToast(
         'generation',
@@ -177,6 +178,7 @@ export function useOperationToasts() {
   )
 
   const startEvaluation = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     (taskId: string, evaluationCount: number) => {
       return addOperationToast(
         'evaluation',

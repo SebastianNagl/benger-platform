@@ -75,13 +75,18 @@ jest.mock('@/lib/api/client', () => ({
 // Stub HeadlessUI portal components so the dialog children render in-place.
 jest.mock('@headlessui/react', () => {
   const Dialog = ({ children }: any) => <div data-testid="dialog">{children}</div>
+  // eslint-disable-next-line react/display-name
   Dialog.Title = ({ children, as }: any) => {
     const Tag = as || 'h3'
     return <Tag>{children}</Tag>
+  // eslint-disable-next-line react/display-name
   }
+  // eslint-disable-next-line react/display-name
   Dialog.Panel = ({ children }: any) => <div data-testid="dialog-panel">{children}</div>
   const Transition: any = ({ children, show }: any) => (show !== false ? <>{children}</> : null)
+  // eslint-disable-next-line react/display-name
   Transition.Root = ({ children, show }: any) => (show !== false ? <>{children}</> : null)
+  // eslint-disable-next-line react/display-name
   Transition.Child = ({ children }: any) => <>{children}</>
   return { Dialog, Transition, Fragment: ({ children }: any) => <>{children}</> }
 })

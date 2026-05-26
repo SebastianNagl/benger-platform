@@ -21,6 +21,7 @@ export function APIKeysModal({ isOpen, onClose }: APIKeysModalProps) {
 
   useEffect(() => {
     if (!isOpen || !currentOrganization) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOrgProvidesKeys(false)
       return
     }
