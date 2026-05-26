@@ -843,28 +843,25 @@ export default function EvaluationDashboard() {
     }
   }, [user, authLoading, router, isPrivateMode])
 
-  if (authLoading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <LoadingSpinner />
+  // Early-return rendering is computed once after all hooks have run — this
+  // keeps `useMemo`/`useEffect` calls below in the same order on every render
+  // (react-hooks/rules-of-hooks).
+  const earlyReturn: React.ReactNode = authLoading ? (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <LoadingSpinner />
+    </div>
+  ) : !canAccessProjectData(user, { isPrivateMode }) ? (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <div className="text-center">
+        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+          {t('evaluation.accessDenied')}
+        </h3>
+        <Button onClick={() => router.push('/projects')} className="mt-4">
+          {t('common.backToProjects')}
+        </Button>
       </div>
-    )
-  }
-
-  if (!canAccessProjectData(user, { isPrivateMode })) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="text-center">
-          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {t('evaluation.accessDenied')}
-          </h3>
-          <Button onClick={() => router.push('/projects')} className="mt-4">
-            {t('common.backToProjects')}
-          </Button>
-        </div>
-      </div>
-    )
-  }
+    </div>
+  ) : null
 
   const toggleModel = (modelId: string) => {
     if (selectedModels.includes(modelId)) {
@@ -962,6 +959,10 @@ export default function EvaluationDashboard() {
 
     return baseModels
   }, [filteredResults, evaluationChartData, statisticsData, selectedConfigIds])
+
+  if (earlyReturn) {
+    return earlyReturn
+  }
 
   return (
     <FeatureFlag
@@ -1300,74 +1301,59 @@ export default function EvaluationDashboard() {
         {/* Results Section - Only show when project selected and not loading */}
         {selectedProject && !loading && (
           <div className="space-y-6">
-            {/* Score Cards */}
+            {/* Score Cards — issue #111: render one card per selected
+              * (config × metric) pair so multiple configs of the same metric
+              * type stay distinct. The card's value comes from the per-
+              * (model, config, metric) aggregate in `runs_by_model_metric`
+              * (3-part key) when available; otherwise we fall back to the
+              * legacy per-result metric value (which collapses configs of
+              * the same type — acceptable when statistics haven't loaded
+              * yet). Card label uses the config's display_name. */}
             {filteredResults.length > 0 && (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {filteredResults.slice(0, 1).flatMap((result) =>
-                  Object.entries(result.metrics || {})
-                    .slice(0, 4)
-                    .map(([key, value]) => {
-                      // Multi-run aggregate (migration 042 + issue #111):
-                      // pull from the statistics endpoint's
-                      // runs_by_model_metric block, keyed as
-                      // "model_id|config_id|metric". When the user has
-                      // narrowed to a single config, look it up exactly so
-                      // the score card and the chart agree. When multiple
-                      // configs share this metric, surface the one with the
-                      // most multi-run data (highest n_runs) — the card is
-                      // a summary; the chart/table below show the per-config
-                      // breakdown.
-                      const block = (statisticsData as any)?.runs_by_model_metric
-                      let runsAggregateRaw: any = undefined
-                      let matchedConfigId: string | undefined = undefined
-                      if (block) {
-                        if (selectedConfigIds.length === 1) {
-                          const exactKey = `${result.model_id}|${selectedConfigIds[0]}|${key}`
-                          if (block[exactKey]) {
-                            runsAggregateRaw = block[exactKey]
-                            matchedConfigId = selectedConfigIds[0]
-                          }
-                        }
-                        if (!runsAggregateRaw) {
-                          const prefix = `${result.model_id}|`
-                          const suffix = `|${key}`
-                          for (const [k, v] of Object.entries(block)) {
-                            if (k.startsWith(prefix) && k.endsWith(suffix)) {
-                              if (!runsAggregateRaw || ((v as any)?.n_runs ?? 0) > (runsAggregateRaw.n_runs ?? 0)) {
-                                runsAggregateRaw = v
-                                matchedConfigId = k.slice(prefix.length, k.length - suffix.length)
-                              }
-                            }
-                          }
-                        }
-                      }
-                      const runsAggregate = runsAggregateRaw && runsAggregateRaw.n_runs > 1
+                {(() => {
+                  const result = filteredResults[0]
+                  const block = (statisticsData as any)?.runs_by_model_metric as
+                    | Record<string, { n_runs: number; mean_of_means?: number; std_of_means?: number }>
+                    | undefined
+                  const configs = projectEvalConfig?.evaluation_configs?.filter(
+                    (c) => selectedConfigIds.includes(c.id)
+                  ) ?? []
+                  // Stable ordering: same as the metric selector dropdown.
+                  // Cap at 4 cards to keep the grid tidy.
+                  const pairs = configs.slice(0, 4).map((cfg) => {
+                    const exactKey = `${result.model_id}|${cfg.id}|${cfg.metric}`
+                    const agg = block?.[exactKey]
+                    // Prefer the multi-run mean (config-scoped) when present;
+                    // fall back to the legacy per-result metric value.
+                    const value =
+                      typeof agg?.mean_of_means === 'number'
+                        ? agg.mean_of_means
+                        : (result.metrics?.[cfg.metric] ?? null)
+                    const runsAggregate =
+                      agg && agg.n_runs > 1
                         ? {
-                            runs: runsAggregateRaw.n_runs,
-                            stdAcrossRuns: runsAggregateRaw.std_of_means ?? 0,
+                            runs: agg.n_runs,
+                            stdAcrossRuns: agg.std_of_means ?? 0,
                           }
                         : undefined
-                      const matchedCfg = matchedConfigId
-                        ? projectEvalConfig?.evaluation_configs?.find((c) => c.id === matchedConfigId)
-                        : undefined
-                      const cardLabel = matchedCfg?.display_name || key
-                      const description = matchedCfg
-                        ? `${matchedCfg.display_name || key} — ${result.model_id}`
-                        : `${key} for ${result.model_id}`
-                      return (
-                        <ScoreCard
-                          key={`${key}|${matchedConfigId || ''}`}
-                          metric={cardLabel}
-                          value={value}
-                          description={description}
-                          higherIsBetter={true}
-                          formatAs="decimal"
-                          sampleSize={result.samples_evaluated}
-                          runsAggregate={runsAggregate}
-                        />
-                      )
-                    })
-                )}
+                    return { cfg, value, runsAggregate }
+                  })
+                  return pairs.map(({ cfg, value, runsAggregate }) =>
+                    value === null ? null : (
+                      <ScoreCard
+                        key={`${cfg.id}|${cfg.metric}`}
+                        metric={cfg.display_name || cfg.metric}
+                        value={value}
+                        description={`${cfg.display_name || cfg.metric} — ${result.model_id}`}
+                        higherIsBetter={true}
+                        formatAs="decimal"
+                        sampleSize={result.samples_evaluated}
+                        runsAggregate={runsAggregate}
+                      />
+                    )
+                  )
+                })()}
               </div>
             )}
 
