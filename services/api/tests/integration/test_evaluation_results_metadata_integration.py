@@ -780,43 +780,51 @@ class TestEvaluationHistory:
     """Tests for GET /projects/{project_id}/evaluation-history"""
 
     def test_evaluation_history(self, client, auth_header, test_project, evaluation_run):
+        # Issue #111: ``metric`` was renamed to ``metrics`` and the
+        # response is now ``{series: [...]}``.
         resp = client.get(
             f"{META_PREFIX}/projects/{test_project.id}/evaluation-history"
-            f"?model_ids=gpt-4&metric=accuracy",
+            f"?model_ids=gpt-4&metrics=accuracy",
             headers=auth_header,
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["metric"] == "accuracy"
-        assert "data" in data
+        assert "series" in data
+        assert isinstance(data["series"], list)
 
     def test_evaluation_history_data_points(self, client, auth_header, test_project, evaluation_run):
         resp = client.get(
             f"{META_PREFIX}/projects/{test_project.id}/evaluation-history"
-            f"?model_ids=gpt-4&metric=accuracy",
+            f"?model_ids=gpt-4&metrics=accuracy",
             headers=auth_header,
         )
         assert resp.status_code == 200
         data = resp.json()
-        if data["data"]:
-            point = data["data"][0]
-            assert "date" in point
-            assert "model_id" in point
-            assert "value" in point
+        # Issue #111: data points live under each series rather than a
+        # top-level "data" array.
+        for series in data["series"]:
+            assert "metric" in series
+            assert "evaluation_config_id" in series
+            assert "display_name" in series
+            for point in series.get("data", []):
+                assert "date" in point
+                assert "model_id" in point
+                assert "value" in point
+                assert "sample_count" in point
 
     def test_evaluation_history_date_filter(self, client, auth_header, test_project, evaluation_run):
         yesterday = (datetime.utcnow() - timedelta(days=1)).isoformat()
         tomorrow = (datetime.utcnow() + timedelta(days=1)).isoformat()
         resp = client.get(
             f"{META_PREFIX}/projects/{test_project.id}/evaluation-history"
-            f"?model_ids=gpt-4&metric=accuracy&start_date={yesterday}&end_date={tomorrow}",
+            f"?model_ids=gpt-4&metrics=accuracy&start_date={yesterday}&end_date={tomorrow}",
             headers=auth_header,
         )
         assert resp.status_code == 200
 
     def test_evaluation_history_nonexistent_project(self, client, auth_header):
         resp = client.get(
-            f"{META_PREFIX}/projects/nonexistent/evaluation-history?model_ids=gpt-4&metric=accuracy",
+            f"{META_PREFIX}/projects/nonexistent/evaluation-history?model_ids=gpt-4&metrics=accuracy",
             headers=auth_header,
         )
         assert resp.status_code in [403, 404]
