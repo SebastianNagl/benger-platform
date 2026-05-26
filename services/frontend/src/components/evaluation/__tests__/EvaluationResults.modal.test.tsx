@@ -187,7 +187,10 @@ function makeProjectResults() {
 
 const DATA_VIEW_PROPS = {
   viewType: 'data' as const,
-  selectedMetrics: ['exact_match'],
+  // Issue #111: prop renamed from `selectedMetrics` to `selectedConfigIds`.
+  // The default fixture's evaluation_config carries id='exact_match',
+  // so keeping the same string id keeps the existing test setup valid.
+  selectedConfigIds: ['exact_match'],
 }
 
 function setupMocks() {

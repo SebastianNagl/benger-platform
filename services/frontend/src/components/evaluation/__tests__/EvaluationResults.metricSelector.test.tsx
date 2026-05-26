@@ -1,19 +1,26 @@
 /**
  * Pin behavior of the metric selector dropdown when an EvaluationRun
- * bundles multiple configs.
+ * bundles multiple configs AND/OR multiple configs of the same metric
+ * type exist (issue #111).
  *
- * The bug this catches: pre-fix, the dropdown grouped runs by
- * `evaluation_configs[0].metric` only, so a run dispatched with
- * 5 metrics (legitimate via the API's /run endpoint and the worker's
- * Celery task signature) showed only 1 entry in the selector. The
- * other 4 metrics' rows existed in the DB but the user couldn't
- * navigate to them via the UI.
+ * Two regressions this catches together:
  *
- * Test approach: extract the same grouping logic the component uses
- * into a pure function and exercise it with multi-config inputs.
- * If the production component is refactored to use the helper directly
- * the drift guard at the bottom catches that the multi-config branch
- * stays in EvaluationResults.tsx.
+ * 1. Pre-fix-A (multi-config in one run): the dropdown grouped runs by
+ *    `evaluation_configs[0].metric` only, so a run dispatched with N
+ *    metrics showed only 1 entry. Other (N-1) metrics' rows existed in
+ *    the DB but the user couldn't navigate to them via the UI.
+ *
+ * 2. Pre-fix-B (issue #111 — multiple configs sharing a metric type):
+ *    the dropdown grouped by `cfg.metric`, so 3 `llm_judge_falloesung`
+ *    configs differing only in `metric_parameters.judges` collapsed
+ *    into 1 entry. Selecting it merged scores across all 3 configs and
+ *    hid the cross-config variance that the research question depends
+ *    on.
+ *
+ * The fix groups by `cfg.id` (each evaluation_config has a unique id)
+ * and labels by `cfg.display_name`. The pure-function mirror below
+ * tracks the production reducer; a drift guard at the bottom asserts
+ * the source file keeps both invariants.
  */
 import { readFileSync } from 'fs'
 import { join } from 'path'
@@ -29,7 +36,7 @@ type EvalRun = {
   }>
 }
 
-type MetricEntry = {
+type ConfigEntry = {
   id: string
   metric: string
   configId: string
@@ -39,19 +46,21 @@ type MetricEntry = {
 }
 
 // Mirror of the (post-fix) `availableMetricRuns` reducer in
-// `EvaluationResults.tsx:197-246`. Kept in sync via the drift guard
-// at the bottom of this file.
-function groupRunsByMetric(runs: EvalRun[]): MetricEntry[] {
+// `EvaluationResults.tsx`. Kept in sync via the drift guard at the
+// bottom. Groups by evaluation_config.id so two configs of the same
+// metric type stay distinct (issue #111).
+function groupRunsByConfig(runs: EvalRun[]): ConfigEntry[] {
   const completed = runs.filter((e) => e.status === 'completed')
-  const byMetric = new Map<string, MetricEntry>()
+  const byConfig = new Map<string, ConfigEntry>()
   for (const e of completed) {
     const cfgs =
       Array.isArray(e.evaluation_configs) && e.evaluation_configs.length > 0
         ? e.evaluation_configs
         : [{ metric: 'unknown', id: '', display_name: undefined } as any]
     for (const cfg of cfgs) {
+      const cfgId = cfg?.id || cfg?.metric || 'unknown'
       const metric = cfg?.metric || 'unknown'
-      const existing = byMetric.get(metric)
+      const existing = byConfig.get(cfgId)
       if (existing) {
         if (!existing.runIds.includes(e.evaluation_id)) {
           existing.runIds.push(e.evaluation_id)
@@ -61,10 +70,10 @@ function groupRunsByMetric(runs: EvalRun[]): MetricEntry[] {
           e.samples_evaluated || 0,
         )
       } else {
-        byMetric.set(metric, {
-          id: metric,
+        byConfig.set(cfgId, {
+          id: cfgId,
           metric,
-          configId: cfg?.id || '',
+          configId: cfgId,
           displayName: cfg?.display_name || metric || 'Unknown',
           samplesEvaluated: e.samples_evaluated || 0,
           runIds: [e.evaluation_id],
@@ -72,12 +81,12 @@ function groupRunsByMetric(runs: EvalRun[]): MetricEntry[] {
       }
     }
   }
-  return Array.from(byMetric.values())
+  return Array.from(byConfig.values())
 }
 
-describe('availableMetricRuns grouping (post multi-config fix)', () => {
-  it('produces N entries for a single run bundling N metrics', () => {
-    // The actual prod scenario: 1 run with all 5 Benchathon metrics.
+describe('availableMetricRuns grouping (post multi-config + issue #111 fix)', () => {
+  it('produces N entries for a single run bundling N configs of distinct metrics', () => {
+    // The Benchathon prod scenario: 1 run with 5 different metrics.
     const runs: EvalRun[] = [
       {
         evaluation_id: 'run-1',
@@ -92,7 +101,7 @@ describe('availableMetricRuns grouping (post multi-config fix)', () => {
         ],
       },
     ]
-    const result = groupRunsByMetric(runs)
+    const result = groupRunsByConfig(runs)
     expect(result).toHaveLength(5)
     expect(result.map((r) => r.metric).sort()).toEqual([
       'bleu',
@@ -101,39 +110,84 @@ describe('availableMetricRuns grouping (post multi-config fix)', () => {
       'rouge',
       'semantic_similarity',
     ])
-    // The same run id is associated with EVERY metric — the user can
-    // pick any metric and see the same underlying samples.
+    // The same run id is associated with EVERY config — the user can
+    // pick any config and see the same underlying samples.
     for (const entry of result) {
       expect(entry.runIds).toEqual(['run-1'])
     }
   })
 
-  it('still groups multiple single-metric runs of the same metric', () => {
-    // The "old" pattern (one run per metric) must still work.
+  // Issue #111: the headline test. Three llm_judge_falloesung configs
+  // sharing the same metric type but differing in display_name and
+  // metric_parameters MUST surface as three distinct entries.
+  it('produces N entries when N configs share the same metric type', () => {
+    const runs: EvalRun[] = [
+      {
+        evaluation_id: 'run-multi',
+        status: 'completed',
+        samples_evaluated: 50,
+        evaluation_configs: [
+          {
+            metric: 'llm_judge_falloesung',
+            id: 'cfg-judges-a',
+            display_name: 'Judge lineup A (Anne+Sebastian)',
+          },
+          {
+            metric: 'llm_judge_falloesung',
+            id: 'cfg-judges-b',
+            display_name: 'Judge lineup B (Aleyna+Anne+Sebastian)',
+          },
+          {
+            metric: 'llm_judge_falloesung',
+            id: 'cfg-judges-c',
+            display_name: 'Judge lineup C (3-judge ensemble)',
+          },
+        ],
+      },
+    ]
+    const result = groupRunsByConfig(runs)
+    expect(result).toHaveLength(3)
+    expect(result.map((r) => r.id).sort()).toEqual([
+      'cfg-judges-a',
+      'cfg-judges-b',
+      'cfg-judges-c',
+    ])
+    expect(result.map((r) => r.displayName).sort()).toEqual([
+      'Judge lineup A (Anne+Sebastian)',
+      'Judge lineup B (Aleyna+Anne+Sebastian)',
+      'Judge lineup C (3-judge ensemble)',
+    ])
+    // All three carry the same metric for METRIC_ORDER sort fallback.
+    for (const entry of result) {
+      expect(entry.metric).toBe('llm_judge_falloesung')
+    }
+  })
+
+  it('still groups multiple single-config runs of the same config id', () => {
+    // The "old" pattern (one run per config) must still work.
     const runs: EvalRun[] = [
       {
         evaluation_id: 'r1',
         status: 'completed',
         samples_evaluated: 50,
-        evaluation_configs: [{ metric: 'bleu' }],
+        evaluation_configs: [{ metric: 'bleu', id: 'cfg-bleu' }],
       },
       {
         evaluation_id: 'r2',
         status: 'completed',
         samples_evaluated: 40,
-        evaluation_configs: [{ metric: 'bleu' }],
+        evaluation_configs: [{ metric: 'bleu', id: 'cfg-bleu' }],
       },
     ]
-    const result = groupRunsByMetric(runs)
+    const result = groupRunsByConfig(runs)
     expect(result).toHaveLength(1)
     expect(result[0].metric).toBe('bleu')
     expect(result[0].runIds.sort()).toEqual(['r1', 'r2'])
-    // samplesEvaluated keeps the max across the two runs.
     expect(result[0].samplesEvaluated).toBe(50)
   })
 
-  it('does not double-count the same run under one metric', () => {
-    // A single run somehow has two configs for the same metric — should
+  it('does not double-count the same run under one config', () => {
+    // A single run somehow has two configs with the same id — should
     // count the run once, not twice, in runIds.
     const runs: EvalRun[] = [
       {
@@ -141,12 +195,12 @@ describe('availableMetricRuns grouping (post multi-config fix)', () => {
         status: 'completed',
         samples_evaluated: 10,
         evaluation_configs: [
-          { metric: 'rouge', id: 'cfg-a' },
-          { metric: 'rouge', id: 'cfg-b' },
+          { metric: 'rouge', id: 'cfg-rouge' },
+          { metric: 'rouge', id: 'cfg-rouge' },
         ],
       },
     ]
-    const result = groupRunsByMetric(runs)
+    const result = groupRunsByConfig(runs)
     expect(result).toHaveLength(1)
     expect(result[0].runIds).toEqual(['rOnce'])
   })
@@ -157,16 +211,16 @@ describe('availableMetricRuns grouping (post multi-config fix)', () => {
         evaluation_id: 'rPending',
         status: 'pending',
         samples_evaluated: 0,
-        evaluation_configs: [{ metric: 'meteor' }],
+        evaluation_configs: [{ metric: 'meteor', id: 'cfg-meteor' }],
       },
       {
         evaluation_id: 'rFailed',
         status: 'failed',
         samples_evaluated: 0,
-        evaluation_configs: [{ metric: 'rouge' }],
+        evaluation_configs: [{ metric: 'rouge', id: 'cfg-rouge' }],
       },
     ]
-    expect(groupRunsByMetric(runs)).toHaveLength(0)
+    expect(groupRunsByConfig(runs)).toHaveLength(0)
   })
 
   it('handles run with no evaluation_configs (legacy)', () => {
@@ -178,19 +232,62 @@ describe('availableMetricRuns grouping (post multi-config fix)', () => {
         // evaluation_configs missing — legacy run record
       },
     ]
-    const result = groupRunsByMetric(runs)
+    const result = groupRunsByConfig(runs)
     expect(result).toHaveLength(1)
     expect(result[0].metric).toBe('unknown')
   })
 })
 
-describe('drift guard: EvaluationResults.tsx still iterates all configs', () => {
+// Issue #111: the composite-key dicts on StatisticsResponse moved from
+// 2-part (`"model_id|metric"`) to 3-part (`"model_id|config_id|metric"`).
+// Pin the parser so a regression to 2-part keys gets caught.
+describe('composite key parsing for *_by_model_metric blocks', () => {
+  function parseCompositeKey(key: string): {
+    modelId: string
+    configId: string
+    metric: string
+  } | null {
+    const parts = key.split('|')
+    if (parts.length < 3) return null
+    const modelId = parts[0]
+    const metric = parts[parts.length - 1]
+    const configId = parts.slice(1, -1).join('|')
+    return { modelId, configId, metric }
+  }
+
+  it('splits a canonical 3-part key', () => {
+    expect(parseCompositeKey('gpt-4|cfg-a|bleu')).toEqual({
+      modelId: 'gpt-4',
+      configId: 'cfg-a',
+      metric: 'bleu',
+    })
+  })
+
+  it('preserves config_ids that contain a pipe (defensive)', () => {
+    // The dedicated column on TaskEvaluation is a free-form string, so
+    // a config id could in theory contain a pipe. The parser slices the
+    // middle so model_id and metric stay correct.
+    const parsed = parseCompositeKey('gpt-4|weird|cfg|name|bleu')
+    expect(parsed).toEqual({
+      modelId: 'gpt-4',
+      configId: 'weird|cfg|name',
+      metric: 'bleu',
+    })
+  })
+
+  it('returns null for legacy 2-part keys (so callers can fall back)', () => {
+    expect(parseCompositeKey('gpt-4|bleu')).toBeNull()
+  })
+
+  it('returns null for malformed inputs', () => {
+    expect(parseCompositeKey('')).toBeNull()
+    expect(parseCompositeKey('only-one-part')).toBeNull()
+  })
+})
+
+describe('drift guard: EvaluationResults.tsx still iterates all configs and groups by id', () => {
   it('source file walks evaluation_configs in a for-of, not [0]', () => {
-    const tsxPath = join(
-      __dirname,
-      '..',
-      'EvaluationResults.tsx',
-    )
+    const tsxPath = join(__dirname, '..', 'EvaluationResults.tsx')
     const src = readFileSync(tsxPath, 'utf8')
     // Multi-config iteration must be present in the metric grouping.
     expect(src).toMatch(/for \(const cfg of cfgs\)/)
@@ -202,5 +299,10 @@ describe('drift guard: EvaluationResults.tsx still iterates all configs', () => 
     expect(src).toMatch(
       /Array\.isArray\(e\.evaluation_configs\) && e\.evaluation_configs\.length > 0/,
     )
+    // Issue #111: grouping moves from `byMetric` to `byConfig` keyed on
+    // cfg.id. The presence of `byConfig` and a key derived from cfg.id
+    // catches accidental reverts to the per-metric grouping.
+    expect(src).toMatch(/byConfig/)
+    expect(src).toMatch(/cfg\?\.id \|\| cfg\?\.metric \|\| 'unknown'/)
   })
 })

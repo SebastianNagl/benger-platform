@@ -1729,9 +1729,83 @@ describe('EvaluationsClient', () => {
       await client.getEvaluationHistory({
         projectId: 'proj-1',
         modelIds: ['gpt-4'],
-        metric: 'bleu',
+        metrics: ['bleu'],
       })
       expect(true).toBe(true)
+    })
+
+    it('should call getEvaluationHistory with evaluationConfigIds', async () => {
+      await client.getEvaluationHistory({
+        projectId: 'proj-1',
+        modelIds: ['gpt-4'],
+        metrics: ['bleu', 'rouge_l'],
+        evaluationConfigIds: ['cfg-a', 'cfg-b'],
+      })
+      expect(true).toBe(true)
+    })
+
+    // Issue #111: assert the query string carries repeated metrics= and
+    // evaluation_config_ids= keys (FastAPI's `Query(...)` syntax for List[str])
+    // and that the response shape is the new {series: [...]} payload.
+    it('builds a getEvaluationHistory URL with repeated keys and returns {series}', async () => {
+      const mockRequest = jest
+        .spyOn(client as any, 'request')
+        .mockResolvedValue({
+          series: [
+            {
+              metric: 'bleu',
+              evaluation_config_id: 'cfg-a',
+              display_name: 'BLEU (3-gram)',
+              data: [
+                {
+                  date: '2026-05-26',
+                  model_id: 'gpt-4',
+                  value: 0.41,
+                  ci_lower: 0.39,
+                  ci_upper: 0.43,
+                  sample_count: 20,
+                },
+              ],
+            },
+          ],
+        })
+
+      const result = await client.getEvaluationHistory({
+        projectId: 'proj-1',
+        modelIds: ['gpt-4', 'claude-3'],
+        metrics: ['bleu', 'rouge_l'],
+        evaluationConfigIds: ['cfg-a', 'cfg-b'],
+      })
+
+      const calledPath = mockRequest.mock.calls[0][0] as string
+      expect(calledPath).toContain('/evaluations/projects/proj-1/evaluation-history?')
+      expect(calledPath.match(/(?:^|[?&])metrics=bleu(?:&|$)/)).not.toBeNull()
+      expect(calledPath.match(/(?:^|[?&])metrics=rouge_l(?:&|$)/)).not.toBeNull()
+      expect(calledPath.match(/(?:^|[?&])evaluation_config_ids=cfg-a(?:&|$)/)).not.toBeNull()
+      expect(calledPath.match(/(?:^|[?&])evaluation_config_ids=cfg-b(?:&|$)/)).not.toBeNull()
+      // Issue #111: ensure the legacy `metric=` (singular) key is gone.
+      expect(calledPath).not.toMatch(/[?&]metric=/)
+      expect(result).toEqual({
+        series: [
+          {
+            metric: 'bleu',
+            evaluation_config_id: 'cfg-a',
+            display_name: 'BLEU (3-gram)',
+            data: [
+              {
+                date: '2026-05-26',
+                model_id: 'gpt-4',
+                value: 0.41,
+                ci_lower: 0.39,
+                ci_upper: 0.43,
+                sample_count: 20,
+              },
+            ],
+          },
+        ],
+      })
+
+      mockRequest.mockRestore()
     })
 
     it('should call getSignificanceTests', async () => {
@@ -1741,6 +1815,24 @@ describe('EvaluationsClient', () => {
         metrics: ['bleu'],
       })
       expect(true).toBe(true)
+    })
+
+    it('should call getSignificanceTests with evaluationConfigIds', async () => {
+      const mockRequest = jest
+        .spyOn(client as any, 'request')
+        .mockResolvedValue({ comparisons: [] })
+
+      await client.getSignificanceTests({
+        projectId: 'proj-1',
+        modelIds: ['gpt-4', 'claude-3'],
+        metrics: ['bleu'],
+        evaluationConfigIds: ['cfg-a'],
+      })
+
+      const calledPath = mockRequest.mock.calls[0][0] as string
+      expect(calledPath).toMatch(/[?&]evaluation_config_ids=cfg-a(?:&|$)/)
+
+      mockRequest.mockRestore()
     })
 
     it('should call computeStatistics', async () => {
@@ -1762,6 +1854,31 @@ describe('EvaluationsClient', () => {
         compareModels: ['gpt-4', 'claude-3'],
       })
       expect(true).toBe(true)
+    })
+
+    it('should call computeStatistics with evaluationConfigIds in the body', async () => {
+      const mockRequest = jest
+        .spyOn(client as any, 'request')
+        .mockResolvedValue({})
+
+      await client.computeStatistics({
+        projectId: 'proj-1',
+        metrics: ['bleu'],
+        aggregation: 'sample',
+        methods: ['ci'],
+        evaluationConfigIds: ['cfg-a', 'cfg-b'],
+      })
+
+      const opts = mockRequest.mock.calls[0][1] as { body?: string } | undefined
+      const body = opts?.body ? JSON.parse(opts.body) : null
+      expect(body).toMatchObject({
+        metrics: ['bleu'],
+        aggregation: 'sample',
+        methods: ['ci'],
+        evaluation_config_ids: ['cfg-a', 'cfg-b'],
+      })
+
+      mockRequest.mockRestore()
     })
 
     it('should call getConfiguredMethods', async () => {
