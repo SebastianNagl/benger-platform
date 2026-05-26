@@ -96,7 +96,7 @@ class TestEvaluationTypeResponse:
             is_active=True,
         )
         assert resp.id == "bleu"
-        assert resp.higher_is_better is True
+        assert resp.higher_is_better == True  # noqa: E712
 
     def test_minimal(self):
         from routers.evaluations.helpers import EvaluationTypeResponse
@@ -107,7 +107,7 @@ class TestEvaluationTypeResponse:
         )
         assert resp.id == "custom"
         assert resp.description is None
-        assert resp.higher_is_better is True  # default
+        assert resp.higher_is_better == True  # default  # noqa: E712
 
 
 class TestEvaluationResult:

@@ -106,7 +106,7 @@ async def assign_tasks(
         .filter(
             ProjectMember.project_id == project_id,
             ProjectMember.user_id.in_(user_ids),
-            ProjectMember.is_active is True,
+            ProjectMember.is_active == True,  # noqa: E712
         )
         .all()
     )
@@ -128,7 +128,7 @@ async def assign_tasks(
             .filter(
                 OrganizationMembership.organization_id.in_(project_orgs),
                 OrganizationMembership.user_id.in_(remaining_user_ids),
-                OrganizationMembership.is_active is True,
+                OrganizationMembership.is_active == True,  # noqa: E712
             )
             .all()
         )

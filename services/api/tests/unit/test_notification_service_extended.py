@@ -187,7 +187,7 @@ class TestMarkNotificationRead:
         db.query.return_value.filter.return_value.first.return_value = notification
         result = NotificationService.mark_notification_read(db, "notif-1", "user-1")
         assert result is True
-        assert notification.is_read is True
+        assert notification.is_read == True  # noqa: E712
 
     def test_nonexistent_notification(self):
         from services.email.notification_service import NotificationService

@@ -153,7 +153,7 @@ class TestCreateAnnotation:
         assert resp.status_code == 200
         # Check task is labeled
         test_db.refresh(tasks[0])
-        assert tasks[0].is_labeled is True
+        assert tasks[0].is_labeled == True  # noqa: E712
 
 
 @pytest.mark.integration

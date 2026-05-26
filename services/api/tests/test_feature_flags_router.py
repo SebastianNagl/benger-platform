@@ -158,7 +158,7 @@ class TestFeatureFlagsRouter:
                     # Verify
                     mock_service.update_flag.assert_called_once()
                     assert result.id == flag_id
-                    assert result.is_enabled is False
+                    assert result.is_enabled == False  # noqa: E712
 
     def test_check_feature_flag(self, mock_db, mock_regular_user):
         """Test checking if a feature flag is enabled"""
@@ -189,7 +189,7 @@ class TestFeatureFlagsRouter:
                     # Verify
                     assert isinstance(result, FeatureFlagStatusResponse)
                     assert result.flag_name == flag_name
-                    assert result.is_enabled is True
+                    assert result.is_enabled == True  # noqa: E712
                     mock_service.is_enabled.assert_called_once()
 
     def test_delete_feature_flag_not_found(self, mock_db, mock_superadmin):

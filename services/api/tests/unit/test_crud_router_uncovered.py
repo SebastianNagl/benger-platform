@@ -271,7 +271,7 @@ class TestCreateProjectOrgMode:
                 current_user=user,
                 db=db,
             )
-        assert result.is_private is True
+        assert result.is_private == True  # noqa: E712
         db.add.assert_called()
         db.commit.assert_called()
 

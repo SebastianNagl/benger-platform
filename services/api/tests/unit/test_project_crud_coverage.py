@@ -294,9 +294,9 @@ class TestProjectHelpersCoverage:
         response = Mock()
         response.task_count = 0
         calculate_generation_stats(mock_db, project, response)
-        assert response.generation_config_ready is False
+        assert response.generation_config_ready == False  # noqa: E712
         assert response.generation_models_count == 0
-        assert response.generation_completed is False
+        assert response.generation_completed == False  # noqa: E712
 
     def test_calculate_generation_stats_with_config(self):
         from routers.projects.helpers import calculate_generation_stats
@@ -323,7 +323,7 @@ class TestProjectHelpersCoverage:
         mock_db.query.side_effect = [mock_task_query, mock_gen_query]
 
         calculate_generation_stats(mock_db, project, response)
-        assert response.generation_config_ready is True
+        assert response.generation_config_ready == True  # noqa: E712
         assert response.generation_models_count == 2
 
     def test_get_accessible_project_ids_superadmin_with_opt_in(self):

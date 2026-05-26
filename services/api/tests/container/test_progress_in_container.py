@@ -120,7 +120,7 @@ class TestProgressAlignment:
         tasks[0].is_labeled = True
         self.db.commit()
 
-        assert tasks[0].is_labeled is True
+        assert tasks[0].is_labeled == True  # noqa: E712
         assert tasks[0].total_annotations == 3
 
         # Scenario 2: Task with 2 annotations (incomplete)
@@ -145,7 +145,7 @@ class TestProgressAlignment:
         tasks[1].is_labeled = False  # Should not be labeled with only 2 annotations
         self.db.commit()
 
-        assert tasks[1].is_labeled is False
+        assert tasks[1].is_labeled == False  # noqa: E712
         assert tasks[1].total_annotations == 2
 
         # Scenario 3: Task with 4 annotations (exceeds requirement)
@@ -170,7 +170,7 @@ class TestProgressAlignment:
         tasks[2].is_labeled = True  # Should be labeled with 4 annotations (exceeds minimum)
         self.db.commit()
 
-        assert tasks[2].is_labeled is True
+        assert tasks[2].is_labeled == True  # noqa: E712
         assert tasks[2].total_annotations == 4
 
         # Scenario 4: Task with 0 annotations (no progress)
@@ -178,7 +178,7 @@ class TestProgressAlignment:
         tasks[3].is_labeled = False
         self.db.commit()
 
-        assert tasks[3].is_labeled is False
+        assert tasks[3].is_labeled == False  # noqa: E712
         assert tasks[3].total_annotations == 0
 
     def test_progress_calculation(self):
@@ -277,7 +277,7 @@ class TestProgressAlignment:
         # Count only valid annotations
         valid_annotation_count = (
             self.db.query(Annotation)
-            .filter(Annotation.task_id == task.id, Annotation.was_cancelled is False)
+            .filter(Annotation.task_id == task.id, Annotation.was_cancelled == False)  # noqa: E712
             .count()
         )
 
@@ -288,7 +288,7 @@ class TestProgressAlignment:
         task.is_labeled = valid_annotation_count >= project.min_annotations_per_task
         self.db.commit()
 
-        assert task.is_labeled is False
+        assert task.is_labeled == False  # noqa: E712
         assert task.total_annotations == 1
 
     def test_progress_with_mixed_requirements(self):
@@ -343,5 +343,5 @@ class TestProgressAlignment:
             self.db.commit()
 
             # Verify task is marked as complete
-            assert task.is_labeled is True
+            assert task.is_labeled == True  # noqa: E712
             assert task.total_annotations == expected_min

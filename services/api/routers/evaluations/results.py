@@ -1132,7 +1132,7 @@ def _get_task_data_availability(db, task_ids: list) -> tuple:
             db.query(Annotation.task_id)
             .filter(
                 Annotation.task_id.in_(task_ids),
-                Annotation.was_cancelled is False,  # noqa: E712
+                Annotation.was_cancelled == False,  # noqa: E712
             )
             .distinct()
             .all()
@@ -1159,7 +1159,7 @@ def _get_task_data_availability(db, task_ids: list) -> tuple:
             .join(DBUser, Annotation.completed_by == DBUser.id)
             .filter(
                 Annotation.task_id.in_(task_ids),
-                Annotation.was_cancelled is False,  # noqa: E712
+                Annotation.was_cancelled == False,  # noqa: E712
                 Annotation.result is not None,  # noqa: E711
             )
             .distinct()
@@ -1764,7 +1764,7 @@ async def get_sample_result_by_task_model(
                 db.query(DBUser)
                 .filter(
                     or_(
-                        and_(DBUser.use_pseudonym is True, DBUser.pseudonym == display),  # noqa: E712
+                        and_(DBUser.use_pseudonym == True, DBUser.pseudonym == display),  # noqa: E712
                         DBUser.name == display,
                         DBUser.username == display,
                     )

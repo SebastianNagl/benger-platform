@@ -1208,7 +1208,7 @@ class TestWebSocketClusteringInitBranches:
         with patch("websocket_clustering.get_redis_client", return_value=sync_redis), \
              patch("websocket_clustering.redis.Redis", return_value=mock_redis):
             await manager.initialize()
-            assert manager.is_listening is True
+            assert manager.is_listening == True  # noqa: E712
 
 
 class TestWebSocketListenForMessages:
@@ -1295,7 +1295,7 @@ class TestWebSocketCleanupPartial:
         manager.redis_client = None
 
         await manager.cleanup()
-        assert manager.is_listening is False
+        assert manager.is_listening == False  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_cleanup_with_redis_only(self):
@@ -1307,7 +1307,7 @@ class TestWebSocketCleanupPartial:
         manager.redis_client = AsyncMock()
 
         await manager.cleanup()
-        assert manager.is_listening is False
+        assert manager.is_listening == False  # noqa: E712
         manager.redis_client.close.assert_called_once()
 
 

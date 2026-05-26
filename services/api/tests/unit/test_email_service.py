@@ -47,24 +47,24 @@ class TestEmailService:
 
         with patch('database.SessionLocal', return_value=mock_db_session):
             service = EmailService()
-            assert service.mail_enabled is True
+            assert service.mail_enabled == True  # noqa: E712
 
         # Test with feature flag disabled
         mock_flag.is_enabled = False
         with patch('database.SessionLocal', return_value=mock_db_session):
             service = EmailService()
-            assert service.mail_enabled is False
+            assert service.mail_enabled == False  # noqa: E712
 
         # Test with no feature flag (default to enabled)
         mock_db_session.query.return_value.filter.return_value.first.return_value = None
         with patch('database.SessionLocal', return_value=mock_db_session):
             service = EmailService()
-            assert service.mail_enabled is True
+            assert service.mail_enabled == True  # noqa: E712
 
     def test_template_environment_initialization(self, email_service):
         """Test Jinja2 template environment initialization"""
         assert email_service.template_env is not None
-        assert email_service.template_env.autoescape is True
+        assert email_service.template_env.autoescape == True  # noqa: E712
         assert 'format_date' in email_service.template_env.filters
 
     @patch('services.email.email_service.Path.exists')

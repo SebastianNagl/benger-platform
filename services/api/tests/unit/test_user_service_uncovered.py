@@ -245,7 +245,7 @@ class TestCompleteDemoUserProfile:
 
         assert result is True
         # Should set mandatory_profile_completed
-        assert user.mandatory_profile_completed is True
+        assert user.mandatory_profile_completed == True  # noqa: E712
         assert user.profile_confirmed_at is not None
 
     def test_fills_fields_but_still_missing(self):
@@ -274,7 +274,7 @@ class TestCompleteDemoUserProfile:
 
         assert result is True
         # Should NOT set mandatory_profile_completed because still missing
-        assert user.mandatory_profile_completed is False
+        assert user.mandatory_profile_completed == False  # noqa: E712
 
 
 # ---------------------------------------------------------------------------
@@ -397,7 +397,7 @@ class TestUpdateUserProfile:
                         result = update_user_profile(db, "user-id", email="new@example.com")  # noqa: F841
 
         assert user.email == "new@example.com"
-        assert user.email_verified is False
+        assert user.email_verified == False  # noqa: E712
 
     def test_update_email_already_taken(self):
         from auth_module.user_service import update_user_profile
@@ -538,7 +538,7 @@ class TestUpdateUserProfile:
                 with patch("auth_module.user_service.create_profile_snapshot", return_value={}):
                     update_user_profile(db, "user-id", name="Complete User")
 
-        assert user.mandatory_profile_completed is True
+        assert user.mandatory_profile_completed == True  # noqa: E712
 
     def test_update_german_state_exam_fields(self):
         from auth_module.user_service import update_user_profile
@@ -587,7 +587,7 @@ class TestUpdateUserProfile:
                 with patch("auth_module.user_service.create_profile_snapshot", return_value={}):
                     update_user_profile(db, "user-id", use_pseudonym=False)
 
-        assert user.use_pseudonym is False
+        assert user.use_pseudonym == False  # noqa: E712
 
     def test_update_invalid_email_format(self):
         from auth_module.user_service import update_user_profile
@@ -646,7 +646,7 @@ class TestConfirmProfile:
                     result = confirm_profile(db, "user-id")
 
         assert result == user
-        assert user.mandatory_profile_completed is True
+        assert user.mandatory_profile_completed == True  # noqa: E712
         assert user.profile_confirmed_at is not None
         db.add.assert_called_once()  # history entry
         db.commit.assert_called_once()

@@ -132,7 +132,7 @@ class TestPrivateProjectCreation:
             label_config="<View><Text name='text' value='$text'/></View>",
             is_private=True,
         )
-        assert project_data.is_private is True
+        assert project_data.is_private == True  # noqa: E712
 
     def test_default_is_not_private(self):
         """Default project creation should not be private."""
@@ -142,7 +142,7 @@ class TestPrivateProjectCreation:
             title="Org Project",
             label_config="<View><Text name='text' value='$text'/></View>",
         )
-        assert project_data.is_private is False
+        assert project_data.is_private == False  # noqa: E712
 
 
 class TestSlugLookup:
@@ -340,7 +340,7 @@ class TestPublicProjectCreation:
             is_public=True,
             public_role="CONTRIBUTOR",
         )
-        assert project.is_public is True
+        assert project.is_public == True  # noqa: E712
         assert project.public_role == "CONTRIBUTOR"
 
     def test_public_without_role_defaults_to_annotator(self):
@@ -397,7 +397,7 @@ class TestScopedUserListing:
         """Superadmin flag should bypass org scoping."""
         user = Mock()
         user.is_superadmin = True
-        assert user.is_superadmin is True
+        assert user.is_superadmin == True  # noqa: E712
 
     def test_non_superadmin_org_ids_extraction(self):
         """Non-superadmin should extract org IDs from organizations list."""

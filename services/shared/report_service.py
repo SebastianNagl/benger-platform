@@ -209,7 +209,7 @@ def update_report_annotations_section(db: Session, project_id: str) -> Optional[
     # Get annotation statistics
     annotation_count = (
         db.query(Annotation)
-        .filter(Annotation.project_id == project_id, Annotation.was_cancelled is False)
+        .filter(Annotation.project_id == project_id, Annotation.was_cancelled == False)
         .count()
     )
 
@@ -217,7 +217,7 @@ def update_report_annotations_section(db: Session, project_id: str) -> Optional[
     participants_data = (
         db.query(Annotation.completed_by, User.username, func.count(Annotation.id).label('count'))
         .join(User, Annotation.completed_by == User.id)
-        .filter(Annotation.project_id == project_id, Annotation.was_cancelled is False)
+        .filter(Annotation.project_id == project_id, Annotation.was_cancelled == False)
         .group_by(Annotation.completed_by, User.username)
         .all()
     )
@@ -457,13 +457,13 @@ def get_report_statistics(db: Session, project_id: str) -> Dict:
 
     annotation_count = (
         db.query(Annotation)
-        .filter(Annotation.project_id == project_id, Annotation.was_cancelled is False)
+        .filter(Annotation.project_id == project_id, Annotation.was_cancelled == False)
         .count()
     )
 
     participant_count = (
         db.query(Annotation.completed_by)
-        .filter(Annotation.project_id == project_id, Annotation.was_cancelled is False)
+        .filter(Annotation.project_id == project_id, Annotation.was_cancelled == False)
         .distinct()
         .count()
     )
@@ -516,7 +516,7 @@ def get_report_statistics_batch(
         db.query(Annotation.project_id, func.count(Annotation.id))
         .filter(
             Annotation.project_id.in_(project_ids),
-            Annotation.was_cancelled is False,
+            Annotation.was_cancelled == False,
         )
         .group_by(Annotation.project_id)
         .all()
@@ -531,7 +531,7 @@ def get_report_statistics_batch(
         )
         .filter(
             Annotation.project_id.in_(project_ids),
-            Annotation.was_cancelled is False,
+            Annotation.was_cancelled == False,
         )
         .group_by(Annotation.project_id)
         .all()
@@ -569,7 +569,7 @@ def get_report_participants(db: Session, project_id: str) -> List[Dict]:
     participants = (
         db.query(User.id, User.username, func.count(Annotation.id).label('annotation_count'))
         .join(Annotation, Annotation.completed_by == User.id)
-        .filter(Annotation.project_id == project_id, Annotation.was_cancelled is False)
+        .filter(Annotation.project_id == project_id, Annotation.was_cancelled == False)
         .group_by(User.id, User.username)
         .all()
     )
@@ -766,7 +766,7 @@ def create_or_update_report_from_existing_data(
     task_count = db.query(Task).filter(Task.project_id == project_id).count()
     annotation_count = (
         db.query(Annotation)
-        .filter(Annotation.project_id == project_id, Annotation.was_cancelled is False)
+        .filter(Annotation.project_id == project_id, Annotation.was_cancelled == False)
         .count()
     )
     # Generation doesn't have direct project_id - join through ResponseGeneration

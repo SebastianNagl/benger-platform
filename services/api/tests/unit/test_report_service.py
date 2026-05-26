@@ -166,7 +166,7 @@ class TestCreateInitialReportDraft(TestReportService):
         assert report is not None
         assert report.project_id == setup_project.id
         assert report.created_by == test_user.id
-        assert report.is_published is False
+        assert report.is_published == False  # noqa: E712
 
         # Check project_info section is populated
         content = report.content

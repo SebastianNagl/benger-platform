@@ -61,7 +61,7 @@ class TestEvaluationSchemas:
             missing_in_evaluation=[],
             missing_in_generation=[],
         )
-        assert result.valid is True
+        assert result.valid == True  # noqa: E712
 
 
 class TestEvaluationHelpers:
@@ -158,7 +158,7 @@ class TestOrganizationModels:
     def test_user_superadmin_update(self):
         from routers.organizations import UserSuperadminUpdate
         update = UserSuperadminUpdate(is_superadmin=True)
-        assert update.is_superadmin is True
+        assert update.is_superadmin == True  # noqa: E712
 
 
 class TestStatisticsModels:
@@ -183,7 +183,7 @@ class TestStatisticsModels:
             model_a="gpt-4", model_b="claude-3", metric="accuracy",
             ttest_p=0.03, ttest_significant=True, significant=True,
         )
-        assert comp.significant is True
+        assert comp.significant == True  # noqa: E712
 
     def test_model_statistics(self):
         from routers.evaluations.metadata import ModelStatistics, MetricStatistics

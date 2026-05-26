@@ -199,7 +199,7 @@ async def run_evaluation(
                 .join(Task, Annotation.task_id == Task.id)
                 .filter(
                     Task.project_id == request.project_id,
-                    Annotation.was_cancelled is False,  # noqa: E712
+                    Annotation.was_cancelled == False,  # noqa: E712
                 )
                 .distinct()
             }

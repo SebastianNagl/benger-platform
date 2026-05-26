@@ -72,7 +72,7 @@ class TestObjectStorageServiceInitialization:
         service = ObjectStorageService()
 
         assert service.storage_backend == "local"
-        assert service.cdn_enabled is False
+        assert service.cdn_enabled == False  # noqa: E712
         assert service.local_storage_path == "/tmp/benger-storage"
         assert service.bucket_name == "benger-storage"
 

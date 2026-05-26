@@ -865,7 +865,7 @@ def auto_submit_expired_timer(session_id: str) -> Dict[str, Any]:
                 from sqlalchemy import String, cast, func
                 non_cancelled = db.query(Annotation).filter(
                     Annotation.task_id == session.task_id,
-                    Annotation.was_cancelled is False,
+                    Annotation.was_cancelled == False,
                     Annotation.result.isnot(None),
                     func.length(cast(Annotation.result, String)) > 2,
                 ).count() + 1  # +1 for the annotation being created
@@ -3153,7 +3153,7 @@ def run_evaluation(
                 task_id_list = [t.id for t in tasks]
                 ann_query = db.query(Annotation).filter(
                     Annotation.task_id.in_(task_id_list),
-                    Annotation.was_cancelled is False,  # noqa: E712
+                    Annotation.was_cancelled == False,  # noqa: E712
                 )
                 if annotator_user_ids:
                     ann_pre_count = ann_query.count()
@@ -4691,7 +4691,7 @@ def evaluate_generation_cell(
         if uses_annotation_fields:
             ann = (
                 db.query(Annotation)
-                .filter(Annotation.task_id == task_id, Annotation.was_cancelled is False)  # noqa: E712
+                .filter(Annotation.task_id == task_id, Annotation.was_cancelled == False)  # noqa: E712
                 .first()
             )
             ground_truth_annotation = ann

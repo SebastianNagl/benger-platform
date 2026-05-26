@@ -619,7 +619,7 @@ class TestProfileEndpoints:
 
         result = await get_user_profile(current_user=user, db=db)
         assert result.id == "user-123"
-        assert result.is_active is True
+        assert result.is_active == True  # noqa: E712
 
     @pytest.mark.asyncio
     @patch("routers.auth._build_user_profile_response")
@@ -917,7 +917,7 @@ class TestVerifyEmailEnhanced:
         db = _mock_db()
 
         result = await verify_email_enhanced(token="bad", db=db)
-        assert result.success is False
+        assert result.success == False  # noqa: E712
         assert result.user_type == "unknown"
 
     @pytest.mark.asyncio
@@ -931,7 +931,7 @@ class TestVerifyEmailEnhanced:
         with patch("auth_module.email_verification.email_verification_service") as inner_svc:
             inner_svc.validate_verification_token.return_value = None
             result = await verify_email_enhanced(token="tok", db=db)
-        assert result.success is True
+        assert result.success == True  # noqa: E712
         assert result.redirect_url == "/login"
 
     @pytest.mark.asyncio
@@ -1076,7 +1076,7 @@ class TestCompleteProfile:
                 current_user=user,
                 db=db,
             )
-        assert result.success is True
+        assert result.success == True  # noqa: E712
 
 
 # ---------------------------------------------------------------------------
@@ -1096,7 +1096,7 @@ class TestMandatoryProfileStatus:
         with patch("auth_module.user_service.get_mandatory_profile_fields", return_value=[]), \
              patch("auth_module.user_service.check_confirmation_due", return_value=(False, None)):
             result = await get_mandatory_profile_status(current_user=user, db=db)
-        assert result.confirmation_due is False
+        assert result.confirmation_due == False  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_mandatory_profile_due_creates_notification(self):
@@ -1124,7 +1124,7 @@ class TestMandatoryProfileStatus:
         with patch("auth_module.user_service.get_mandatory_profile_fields", return_value=["gender"]), \
              patch("auth_module.user_service.check_confirmation_due", return_value=(True, deadline)):
             result = await get_mandatory_profile_status(current_user=user, db=db)
-        assert result.confirmation_due is True
+        assert result.confirmation_due == True  # noqa: E712
         db.add.assert_called_once()
 
     @pytest.mark.asyncio
@@ -1157,7 +1157,7 @@ class TestConfirmProfile:
 
         with patch("auth_module.user_service.confirm_profile", return_value=updated):
             result = await confirm_profile_endpoint(current_user=user, db=db)
-        assert result.success is True
+        assert result.success == True  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_confirm_profile_not_found(self):
@@ -1331,8 +1331,8 @@ class TestCheckProfileStatus:
         db.query.return_value.filter.return_value.first.return_value = db_user
 
         result = await check_profile_status(current_user=user, db=db)
-        assert result.has_password is True
-        assert result.needs_profile_completion is False
+        assert result.has_password == True  # noqa: E712
+        assert result.needs_profile_completion == False  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_check_profile_status_not_found(self):

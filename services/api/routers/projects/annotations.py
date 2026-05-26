@@ -87,7 +87,7 @@ async def create_annotation(
             db.query(Annotation)
             .filter(
                 Annotation.task_id == task_id,
-                Annotation.was_cancelled is False,
+                Annotation.was_cancelled == False,  # noqa: E712
                 Annotation.result is not None,
                 cast(Annotation.result, String) != "[]",
             )
@@ -117,7 +117,7 @@ async def create_annotation(
                 db.query(Annotation)
                 .filter(
                     Annotation.task_id == task_id,
-                    Annotation.was_cancelled is False,
+                    Annotation.was_cancelled == False,  # noqa: E712
                     Annotation.result is not None,
                     cast(Annotation.result, String) != "[]",
                 )
@@ -245,7 +245,7 @@ async def list_task_annotations(
             .filter(
                 or_(
                     and_(
-                        DBUser.use_pseudonym is True,  # noqa: E712
+                        DBUser.use_pseudonym == True,  # noqa: E712
                         DBUser.pseudonym == completed_by_username,
                     ),
                     DBUser.name == completed_by_username,

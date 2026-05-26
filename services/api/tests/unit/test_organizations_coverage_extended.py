@@ -401,7 +401,7 @@ class TestDeleteOrganization:
                 organization_id="org-1", current_user=user, db=db
             )
             assert result["message"] == "Organization deleted successfully"
-            assert org.is_active is False
+            assert org.is_active == False  # noqa: E712
 
 
 class TestListOrganizationMembers:

@@ -107,7 +107,7 @@ class TemplateService:
                     db.query(OrganizationMembership)
                     .filter(
                         OrganizationMembership.user_id == user.id,
-                        OrganizationMembership.is_active is True,
+                        OrganizationMembership.is_active == True,  # noqa: E712
                     )
                     .all()
                 )

@@ -45,7 +45,7 @@ class TestProjectCreate:
             enable_empty_annotation=True,
         )
         assert project.title == "Full Project"
-        assert project.show_instruction is True
+        assert project.show_instruction == True  # noqa: E712
 
 
 class TestProjectUpdate:
@@ -129,7 +129,7 @@ class TestTaskResponse:
             is_labeled=False,
         )
         assert task.id == "task-1"
-        assert task.is_labeled is False
+        assert task.is_labeled == False  # noqa: E712
 
 
 class TestAnnotationResponse:

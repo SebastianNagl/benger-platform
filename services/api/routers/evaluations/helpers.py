@@ -41,7 +41,7 @@ def resolve_user_org_for_project(user, project, db: Session) -> Optional[str]:
         db.query(OrganizationMembership)
         .filter(
             OrganizationMembership.user_id == user.id,
-            OrganizationMembership.is_active is True,
+            OrganizationMembership.is_active == True,  # noqa: E712
             OrganizationMembership.organization_id.in_(project_org_ids),
         )
         .all()

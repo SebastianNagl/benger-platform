@@ -141,9 +141,9 @@ async def list_project_tasks(
 
     # Apply filters
     if only_labeled:
-        query = query.filter(Task.is_labeled is True)
+        query = query.filter(Task.is_labeled == True)  # noqa: E712
     elif only_unlabeled:
-        query = query.filter(Task.is_labeled is False)
+        query = query.filter(Task.is_labeled == False)  # noqa: E712
 
     # Exclude tasks the current user has already annotated
     if exclude_my_annotations:
@@ -152,7 +152,7 @@ async def list_project_tasks(
             and_(
                 Annotation.task_id == Task.id,
                 Annotation.completed_by == current_user.id,
-                Annotation.was_cancelled is False,
+                Annotation.was_cancelled == False,  # noqa: E712
                 Annotation.result.isnot(None),
                 func.length(func.cast(Annotation.result, String)) > 2,
             ),
@@ -488,7 +488,7 @@ async def get_next_task(
                     db.query(Annotation.task_id)
                     .filter(
                         Annotation.project_id == project_id,
-                        Annotation.was_cancelled is False,
+                        Annotation.was_cancelled == False,  # noqa: E712
                         Annotation.result is not None,
                         func.length(func.cast(Annotation.result, String)) > 2,
                     )

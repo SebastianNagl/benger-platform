@@ -198,7 +198,7 @@ class TestNotificationQueries:
             db=mock_db, notification_id=notification_id, user_id="test_user_id"
         )
 
-        assert mock_notification.is_read is True
+        assert mock_notification.is_read == True  # noqa: E712
         mock_db.commit.assert_called_once()
 
 

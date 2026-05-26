@@ -326,7 +326,7 @@ class TestMarkEmailVerified:
 
         result = svc.mark_email_verified(db, "user-1")
         assert result is True
-        assert user.email_verified is True
+        assert user.email_verified == True  # noqa: E712
         assert user.email_verification_token is None
         assert user.email_verification_sent_at is None
         db.commit.assert_called_once()

@@ -728,7 +728,7 @@ class TestBulkExportTasks:
         assert len(task_evals) == 1, f"Expected 1 task eval for first task, got {len(task_evals)}"
         assert task_evals[0].field_name == "answer"
         assert task_evals[0].metrics == {"accuracy": 0.85}
-        assert task_evals[0].passed is True
+        assert task_evals[0].passed == True  # noqa: E712
 
         # Other tasks should have no evaluations
         for task in data["tasks"][1:]:

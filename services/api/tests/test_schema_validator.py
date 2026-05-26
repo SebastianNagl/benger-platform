@@ -80,7 +80,7 @@ class TestSchemaValidator:
         validator = SchemaValidator(temp_db, ValidationMode.DISABLED)
         result = validator.validate()
 
-        assert result.is_valid is True
+        assert result.is_valid == True  # noqa: E712
         assert len(result.errors) == 0
         assert len(result.warnings) == 0
 
@@ -101,7 +101,7 @@ class TestSchemaValidator:
         validator.get_expected_schema = mock_expected_schema
         result = validator.validate()
 
-        assert result.is_valid is False
+        assert result.is_valid == False  # noqa: E712
         assert len(result.errors) > 0
         assert any("missing_table" in str(e) for e in result.errors)
 
@@ -140,7 +140,7 @@ class TestSchemaValidator:
         validator.get_expected_schema = mock_expected_schema
         result = validator.validate()
 
-        assert result.is_valid is False
+        assert result.is_valid == False  # noqa: E712
         assert any("missing_column" in str(e) for e in result.errors)
 
     def test_extra_column_warning(self, temp_db):
@@ -196,7 +196,7 @@ class TestSchemaValidator:
         result = validator.validate()
 
         # In lenient mode, should still be valid but with warnings
-        assert result.is_valid is True
+        assert result.is_valid == True  # noqa: E712
         assert len(result.errors) == 0
         assert len(result.warnings) > 0
 
@@ -230,7 +230,7 @@ class TestSchemaValidator:
         result = validator.check_type_consistency()
 
         # Should detect type mismatch
-        assert result.is_valid is False
+        assert result.is_valid == False  # noqa: E712
         assert any("Type mismatch" in str(e) for e in result.errors)
 
     def test_migration_history_check_no_table(self, temp_db):
@@ -262,7 +262,7 @@ class TestSchemaValidator:
         result = validator.check_migration_history()
 
         # Should detect multiple heads
-        assert result.is_valid is False
+        assert result.is_valid == False  # noqa: E712
         assert any("Multiple migration heads" in str(e) for e in result.errors)
 
     def test_validation_result_summary(self):
