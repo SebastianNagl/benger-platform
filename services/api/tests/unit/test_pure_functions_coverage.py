@@ -9,6 +9,7 @@ import json
 import math
 from datetime import datetime, timezone
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -1628,80 +1629,89 @@ class TestBuildEvaluationIndexes:
 
 
 class TestBuildJudgeModelLookupExtended:
-    """Extended tests for build_judge_model_lookup."""
+    """Coverage tests for build_judge_model_lookup.
+
+    PR #79a3cf0 rewrote this helper: it now reads judge_model_id per-row
+    directly from `evaluation_judge_runs` (one row per (run, judge_model,
+    run_index)) and returns ``{judge_run_id: judge_model_id}``. The
+    previous (run_id, config_id) -> judge_model lookup keyed off
+    eval_metadata and silently collapsed multi-judge configs. These tests
+    pin the new contract.
+    """
 
     def test_empty_runs(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        assert build_judge_model_lookup([]) == {}
+        # No evaluation runs → no DB query → empty dict.
+        db = MagicMock()
+        assert build_judge_model_lookup([], db) == {}
+        db.query.assert_not_called()
 
-    def test_new_format(self):
+    def test_single_run_single_judge(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = SimpleNamespace(
-            id="run1",
-            eval_metadata={"judge_models": {"config1": "gpt-4", "config2": "claude-3"}},
-        )
-        result = build_judge_model_lookup([er])
-        assert result[("run1", "config1")] == "gpt-4"
-        assert result[("run1", "config2")] == "claude-3"
+        er = SimpleNamespace(id="run1")
+        ejr = SimpleNamespace(id="jr1", judge_model_id="gpt-4")
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [ejr]
 
-    def test_old_format(self):
+        result = build_judge_model_lookup([er], db)
+        assert result == {"jr1": "gpt-4"}
+
+    def test_multi_judge_run_distinct_models(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = SimpleNamespace(
-            id="run1",
-            eval_metadata={
-                "evaluation_configs": [
-                    {"id": "cfg1", "metric_parameters": {"judge_model": "gpt-4"}},
-                ]
-            },
-        )
-        result = build_judge_model_lookup([er])
-        assert result[("run1", "cfg1")] == "gpt-4"
+        # One EvaluationRun with three judge runs (multi-judge config).
+        er = SimpleNamespace(id="run1")
+        rows = [
+            SimpleNamespace(id="jr1", judge_model_id="gpt-4"),
+            SimpleNamespace(id="jr2", judge_model_id="claude-3"),
+            SimpleNamespace(id="jr3", judge_model_id="gemini-pro"),
+        ]
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = rows
 
-    def test_new_format_precedence(self):
+        result = build_judge_model_lookup([er], db)
+        assert result == {"jr1": "gpt-4", "jr2": "claude-3", "jr3": "gemini-pro"}
+
+    def test_judge_model_id_none_round_trips(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = SimpleNamespace(
-            id="run1",
-            eval_metadata={
-                "judge_models": {"cfg1": "claude-3"},
-                "evaluation_configs": [
-                    {"id": "cfg1", "metric_parameters": {"judge_model": "gpt-4"}},
-                ],
-            },
-        )
-        result = build_judge_model_lookup([er])
-        assert result[("run1", "cfg1")] == "claude-3"
+        # Non-LLM-judge metrics (bleu/rouge/etc.) carry judge_model_id=None
+        # per the migration 042/043 backfill; the lookup must preserve that.
+        er = SimpleNamespace(id="run1")
+        ejr = SimpleNamespace(id="jr1", judge_model_id=None)
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [ejr]
 
-    def test_none_eval_metadata(self):
+        result = build_judge_model_lookup([er], db)
+        assert result == {"jr1": None}
+
+    def test_multiple_runs_aggregated(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = SimpleNamespace(id="run1", eval_metadata=None)
-        result = build_judge_model_lookup([er])
-        assert result == {}
+        # Two EvaluationRuns share the query in one IN clause.
+        runs = [SimpleNamespace(id="run1"), SimpleNamespace(id="run2")]
+        rows = [
+            SimpleNamespace(id="jr1", judge_model_id="gpt-4"),
+            SimpleNamespace(id="jr2", judge_model_id="claude-3"),
+        ]
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = rows
 
-    def test_old_format_no_judge_model(self):
+        result = build_judge_model_lookup(runs, db)
+        assert result == {"jr1": "gpt-4", "jr2": "claude-3"}
+
+    def test_no_judge_runs_for_runs(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = SimpleNamespace(
-            id="run1",
-            eval_metadata={
-                "evaluation_configs": [{"id": "cfg1", "metric_parameters": {}}]
-            },
-        )
-        result = build_judge_model_lookup([er])
-        assert result == {}
+        # Runs exist but produced no EvaluationJudgeRun rows (degenerate
+        # legacy data — shouldn't crash, returns empty dict).
+        er = SimpleNamespace(id="run1")
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = []
 
-    def test_old_format_no_metric_parameters(self):
-        from routers.projects.serializers import build_judge_model_lookup
-
-        er = SimpleNamespace(
-            id="run1",
-            eval_metadata={"evaluation_configs": [{"id": "cfg1"}]},
-        )
-        result = build_judge_model_lookup([er])
+        result = build_judge_model_lookup([er], db)
         assert result == {}
 
 

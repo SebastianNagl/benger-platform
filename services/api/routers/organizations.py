@@ -737,7 +737,10 @@ async def list_all_users(
         )
         query = query.filter(User.id.in_(member_user_ids))
 
-    if search:
+    # `search` defaults to FastAPI's Query(None) sentinel — truthy when this
+    # handler is called directly from tests (FastAPI resolves it to None in
+    # the request path). isinstance keeps the function safe in both paths.
+    if isinstance(search, str) and search:
         escaped = search.replace("%", r"\%").replace("_", r"\_")
         like = f"%{escaped}%"
         query = query.filter(

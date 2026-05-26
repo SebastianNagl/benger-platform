@@ -313,8 +313,14 @@ class TestListAllUsersOrgFiltering:
             "created_at": datetime(2025, 1, 1), "updated_at": None,
         }
 
+        # The endpoint chains
+        # query.filter(...).filter(...).order_by(...).limit(...).all().
+        # Every link must return the same mock so the final .all() hits the
+        # seeded list. distinct/subquery exist on the nested member-id chain.
         mock_q = MagicMock()
         mock_q.filter.return_value = mock_q
+        mock_q.order_by.return_value = mock_q
+        mock_q.limit.return_value = mock_q
         mock_q.distinct.return_value = mock_q
         mock_q.subquery.return_value = MagicMock()
         mock_q.all.return_value = [u1]
@@ -339,7 +345,13 @@ class TestListAllUsersOrgFiltering:
             "created_at": datetime(2025, 1, 1), "updated_at": None,
         }
 
-        db.query.return_value.filter.return_value.all.return_value = [u1]
+        # Superadmin path: query.filter(is_active).order_by(...).limit(...).all().
+        mock_q = MagicMock()
+        mock_q.filter.return_value = mock_q
+        mock_q.order_by.return_value = mock_q
+        mock_q.limit.return_value = mock_q
+        mock_q.all.return_value = [u1]
+        db.query.return_value = mock_q
 
         result = await list_all_users(current_user=user, db=db)
         assert len(result) >= 1
