@@ -21,18 +21,14 @@ Covers:
   data_import_success/labeling_config_updated functions
 """
 
-import asyncio
 from datetime import datetime
-from unittest.mock import MagicMock, Mock, AsyncMock, patch, call
+from unittest.mock import MagicMock, Mock, AsyncMock, patch
 from uuid import uuid4
 
 import pytest
 
 from models import (
     NotificationType,
-    Organization,
-    OrganizationRole,
-    User,
 )
 
 
@@ -65,7 +61,6 @@ class TestImportFallbacks:
     def test_email_service_import_failure_fallback(self):
         """When email_service cannot be imported, EMAIL_SERVICE_AVAILABLE is False
         and a stub send_notification_email is created (lines 37-42)."""
-        import importlib
         import sys
 
         # Force reimport with email_service missing

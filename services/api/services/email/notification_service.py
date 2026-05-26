@@ -147,7 +147,7 @@ class NotificationService:
             logger.error(f"❌ Invalid notification type: {notification_type}")
             return []
 
-        logger.info(f"🔔 CREATE_NOTIFICATION: Starting notification creation")
+        logger.info("🔔 CREATE_NOTIFICATION: Starting notification creation")
         logger.info(f"  📝 Type: {notification_type_str} (enum: {notification_type_enum})")
         logger.info(f"  📝 Title: {title}")
         logger.info(f"  👥 User IDs count: {len(user_ids)}")
@@ -204,7 +204,7 @@ class NotificationService:
             if "invalid input value for enum" in str(e).lower():
                 logger.error(
                     f"Database enum constraint violation for notification type '{notification_type}'. "
-                    f"Please ensure the database enum includes this value by running migrations."
+                    "Please ensure the database enum includes this value by running migrations."
                 )
             return []
 
@@ -360,7 +360,7 @@ class NotificationService:
     def _get_admin_recipients(db: Session) -> List[str]:
         """Get all system administrators"""
         logger.debug("    Looking up superadmins...")
-        admins = db.query(User).filter(User.is_superadmin == True).all()
+        admins = db.query(User).filter(User.is_superadmin is True).all()
         admin_ids = [admin.id for admin in admins]
         logger.debug(
             f"    Found {len(admin_ids)} superadmins: {admin_ids[:3]}..."
@@ -465,7 +465,7 @@ class NotificationService:
         query = db.query(Notification).filter(Notification.user_id == user_id)
 
         if unread_only:
-            query = query.filter(Notification.is_read == False)
+            query = query.filter(Notification.is_read is False)
 
         notifications = (
             query.order_by(desc(Notification.created_at)).offset(offset).limit(limit).all()
@@ -477,7 +477,7 @@ class NotificationService:
         """Get count of unread notifications for a user"""
         count = (
             db.query(Notification)
-            .filter(and_(Notification.user_id == user_id, Notification.is_read == False))
+            .filter(and_(Notification.user_id == user_id, Notification.is_read is False))
             .count()
         )
         return count
@@ -522,7 +522,7 @@ class NotificationService:
         """
         count = (
             db.query(Notification)
-            .filter(and_(Notification.user_id == user_id, Notification.is_read == False))
+            .filter(and_(Notification.user_id == user_id, Notification.is_read is False))
             .update({"is_read": True, "updated_at": datetime.utcnow()})
         )
         db.commit()
@@ -721,7 +721,7 @@ class NotificationService:
                 and_(
                     Notification.id.in_(notification_ids),
                     Notification.user_id == user_id,
-                    Notification.is_read == False,
+                    Notification.is_read is False,
                 )
             )
             .update(
@@ -840,7 +840,7 @@ class NotificationService:
                 and_(
                     Notification.user_id == user_id,
                     Notification.created_at >= cutoff_date,
-                    Notification.is_read == False,
+                    Notification.is_read is False,
                 )
             )
             .count()
@@ -892,7 +892,7 @@ def notify_project_created(
 
     logger = logging.getLogger(__name__)
 
-    logger.info(f"🔔 NOTIFICATION: Starting notify_project_created")
+    logger.info("🔔 NOTIFICATION: Starting notify_project_created")
     logger.info(f"  📝 Project ID: {project_id}")
     logger.info(f"  📝 Project Title: {project_title}")
     logger.info(f"  👤 Creator: {creator_name}")
@@ -1358,7 +1358,7 @@ def notify_system_maintenance(
 ):
     """Notify all active users about system maintenance"""
     # Get all active users
-    active_users = db.query(User).filter(User.is_active == True).all()
+    active_users = db.query(User).filter(User.is_active is True).all()
     recipients = [user.id for user in active_users]
 
     data = {"maintenance_type": "scheduled", "notification_level": "important"}

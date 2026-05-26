@@ -5,10 +5,6 @@ Targets: routers/projects/import_export.py — 26.60% coverage (454 uncovered li
 Tests span conversion, format handling, etc.
 """
 
-import uuid
-
-import pytest
-
 
 class TestConvertToLabelStudioFormat:
     """Test convert_to_label_studio_format."""

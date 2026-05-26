@@ -14,10 +14,7 @@ small pure-function surfaces, not the worker LLM-call paths (which need
 mocked AI services and live in services/workers/tests/).
 """
 
-import uuid
 from typing import Any, Dict
-
-import pytest
 
 
 # --- bg_statistics integration sanity ---

@@ -5,22 +5,14 @@ Targets: routers/projects/tasks.py, crud.py, members.py, reviews.py,
 annotations.py, assignments.py, timer.py, questionnaire.py, helpers.py
 """
 
-import json
 import uuid
-from datetime import datetime, timezone
 
-import pytest
-from sqlalchemy.orm import Session
 
-from models import Organization, OrganizationMembership, User
 from project_models import (
     Annotation,
     Project,
-    ProjectMember,
     ProjectOrganization,
-    SkippedTask,
     Task,
-    TaskAssignment,
 )
 
 
@@ -187,7 +179,7 @@ class TestTaskOperations:
         assert resp.status_code == 200
 
     def test_get_nonexistent_task(self, client, test_db, test_users, auth_headers, test_org):
-        p = _project(test_db, test_users[0], test_org)
+        _project(test_db, test_users[0], test_org)
         test_db.commit()
 
         resp = client.get(

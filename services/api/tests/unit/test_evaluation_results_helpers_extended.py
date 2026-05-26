@@ -3,11 +3,6 @@ Unit tests for evaluation results internal helpers.
 
 """
 
-from types import SimpleNamespace
-from unittest.mock import MagicMock
-
-import pytest
-
 
 class TestEvaluationConfigHelper:
     """Test _derive_evaluation_configs_from_selected_methods helper."""

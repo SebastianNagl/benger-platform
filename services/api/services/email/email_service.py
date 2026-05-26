@@ -168,7 +168,6 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-
         template_context = {
             "notification": notification,
             "notification_type": notification.type.value if notification.type else "general",
@@ -218,7 +217,6 @@ class EmailService:
         if not self.mail_enabled:
             logger.debug("Email not sent: Mail service is disabled")
             return False
-
 
         if not notifications:
             logger.info(f"No notifications to send in {digest_type} digest for {user_email}")
@@ -281,9 +279,8 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-
         subject = "BenGER Email Test"
-        html_body = f"""
+        html_body = """
         <html>
         <body style="font-family: Arial, sans-serif; padding: 20px;">
             <h2>Hello {user_name}!</h2>
@@ -337,9 +334,8 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-
         subject = f"Invitation to join {organization_name} on BenGER"
-        html_body = f"""
+        html_body = """
         <html>
         <body style="font-family: Arial, sans-serif; padding: 20px;">
             <h2>You're invited to join {organization_name}</h2>
@@ -398,10 +394,9 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-
         if language == "de":
             subject = "Bestätigen Sie Ihre E-Mail-Adresse für BenGER"
-            html_body = f"""
+            html_body = """
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2>Willkommen bei BenGER, {user_name}!</h2>
@@ -421,7 +416,7 @@ class EmailService:
             """
         else:
             subject = "Verify your email address for BenGER"
-            html_body = f"""
+            html_body = """
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2>Welcome to BenGER, {user_name}!</h2>
@@ -479,10 +474,9 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-
         if language == "de":
             subject = "Passwort zurücksetzen für BenGER"
-            html_body = f"""
+            html_body = """
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2>Hallo {user_name},</h2>
@@ -502,7 +496,7 @@ class EmailService:
             """
         else:
             subject = "Reset your password for BenGER"
-            html_body = f"""
+            html_body = """
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2>Hello {user_name},</h2>

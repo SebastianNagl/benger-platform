@@ -4,7 +4,7 @@ get_current_user, require_superadmin, require_org_admin, require_org_contributor
 """
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -103,7 +103,7 @@ class TestOptionalUser:
         mock_get.return_value = None
         request = Mock()
         db = Mock()
-        result = optional_user(request, db)
+        optional_user(request, db)
         mock_get.assert_called_once_with(request, db)
 
 

@@ -871,7 +871,7 @@ async def get_project_completion_stats(
     # Get task counts
     total_tasks = db.query(Task).filter(Task.project_id == project_id).count()
     completed_tasks = (
-        db.query(Task).filter(Task.project_id == project_id, Task.is_labeled == True).count()
+        db.query(Task).filter(Task.project_id == project_id, Task.is_labeled is True).count()
     )
 
     # Calculate completion rate

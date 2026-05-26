@@ -40,7 +40,7 @@ def _require_org_member(user: User, org_id: str, db: Session):
         .filter(
             OrganizationMembership.user_id == user.id,
             OrganizationMembership.organization_id == org_id,
-            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_active is True,
         )
         .first()
     )
@@ -161,7 +161,7 @@ async def test_org_api_key(
     if provider.lower() not in org_api_key_service.SUPPORTED_PROVIDERS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported provider",
+            detail="Unsupported provider",
         )
 
     from user_api_key_service import user_api_key_service
@@ -290,7 +290,7 @@ async def get_org_available_models(
         db, current_user.id, org_id
     )
 
-    models = db.query(DBLLMModel).filter(DBLLMModel.is_active == True).all()
+    models = db.query(DBLLMModel).filter(DBLLMModel.is_active is True).all()
 
     available_models = []
     for model in models:

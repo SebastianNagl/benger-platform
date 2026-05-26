@@ -3,7 +3,6 @@ Unit tests for task_template_schema.py to increase coverage.
 Covers enums and helper functions.
 """
 
-import pytest
 
 from task_template_schema import (
     FieldType,

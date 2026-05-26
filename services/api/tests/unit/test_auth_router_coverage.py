@@ -4,12 +4,9 @@ Covers login, signup, refresh, logout, profile, password, email verification,
 profile completion, mandatory profile, and profile history endpoints.
 """
 
-import os
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-import pytest
-from fastapi import status
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -240,7 +237,6 @@ class TestSignup:
         finally:
             app.dependency_overrides.clear()
 
-
     def test_signup_exception(self):
         client = TestClient(app)
         mock_db = _mock_db()
@@ -314,7 +310,6 @@ class TestCurrentUser:
                 assert resp.json()["username"] == "testuser"
         finally:
             app.dependency_overrides.clear()
-
 
     def test_get_me_contexts_regular_user(self):
         client = TestClient(app)
@@ -426,7 +421,6 @@ class TestProfile:
                 assert resp.status_code == 200
         finally:
             app.dependency_overrides.clear()
-
 
     def test_update_profile_not_found(self):
         client = TestClient(app)
@@ -752,11 +746,9 @@ class TestEnhancedEmailVerification:
             app.dependency_overrides.clear()
 
 
-
 # ---------------------------------------------------------------------------
 # Profile completion
 # ---------------------------------------------------------------------------
-
 
 
 # ---------------------------------------------------------------------------

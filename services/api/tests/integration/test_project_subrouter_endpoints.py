@@ -9,26 +9,20 @@ Each test hits a real PostgreSQL database via the shared test_db fixture
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List
-from unittest.mock import patch
 
-import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from models import (
-    Generation as DBGeneration,
     Organization,
     ResponseGeneration as DBResponseGeneration,
     User,
 )
 from project_models import (
     Annotation,
-    PostAnnotationResponse,
     Project,
     ProjectMember,
     ProjectOrganization,
     Task,
-    TaskDraft,
 )
 
 BASE = "/api/projects"

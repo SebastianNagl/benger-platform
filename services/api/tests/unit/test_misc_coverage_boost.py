@@ -13,7 +13,7 @@ Targets:
 
 import asyncio
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
@@ -304,8 +304,8 @@ class TestAnalyticsDateFilter:
 
         db.query.side_effect = [base_q, task_q]
 
-        start = datetime(2025, 1, 1)
-        end = datetime(2025, 1, 31)
+        datetime(2025, 1, 1)
+        datetime(2025, 1, 31)
 
         # Build date_filter list (simulating what get_project_statistics does)
         date_filter = [True, True]  # Simplified - just need non-empty list

@@ -5,8 +5,6 @@ Tests only pure functions (no DB, no I/O, no mocking).
 Each test calls a function with inputs and asserts on outputs.
 """
 
-import json
-import math
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -196,9 +194,9 @@ class TestLookupAvailableMethods:
     def test_enabled_metrics_starts_empty(self):
         from services.evaluation.config import lookup_available_methods
 
-        types = [{"name": "f", "type": "numeric", "tag": "number", "to_name": ""}]
+        types = [{"name": "", "type": "numeric", "tag": "number", "to_name": ""}]
         result = lookup_available_methods(types)
-        assert result["f"]["enabled_metrics"] == []
+        assert result[""]["enabled_metrics"] == []
 
     def test_multiple_fields(self):
         from services.evaluation.config import lookup_available_methods
@@ -215,10 +213,10 @@ class TestLookupAvailableMethods:
     def test_preserves_tag(self):
         from services.evaluation.config import lookup_available_methods
 
-        types = [{"name": "f", "type": "rating", "tag": "rating", "to_name": "x"}]
+        types = [{"name": "", "type": "rating", "tag": "rating", "to_name": "x"}]
         result = lookup_available_methods(types)
-        assert result["f"]["tag"] == "rating"
-        assert result["f"]["to_name"] == "x"
+        assert result[""]["tag"] == "rating"
+        assert result[""]["to_name"] == "x"
 
 
 # ============================================================================

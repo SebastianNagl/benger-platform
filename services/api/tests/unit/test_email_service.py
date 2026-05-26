@@ -47,24 +47,24 @@ class TestEmailService:
 
         with patch('database.SessionLocal', return_value=mock_db_session):
             service = EmailService()
-            assert service.mail_enabled == True
+            assert service.mail_enabled is True
 
         # Test with feature flag disabled
         mock_flag.is_enabled = False
         with patch('database.SessionLocal', return_value=mock_db_session):
             service = EmailService()
-            assert service.mail_enabled == False
+            assert service.mail_enabled is False
 
         # Test with no feature flag (default to enabled)
         mock_db_session.query.return_value.filter.return_value.first.return_value = None
         with patch('database.SessionLocal', return_value=mock_db_session):
             service = EmailService()
-            assert service.mail_enabled == True
+            assert service.mail_enabled is True
 
     def test_template_environment_initialization(self, email_service):
         """Test Jinja2 template environment initialization"""
         assert email_service.template_env is not None
-        assert email_service.template_env.autoescape == True
+        assert email_service.template_env.autoescape is True
         assert 'format_date' in email_service.template_env.filters
 
     @patch('services.email.email_service.Path.exists')
@@ -119,7 +119,7 @@ class TestEmailService:
             'Welcome to our research group!',
         )
 
-        assert result == True
+        assert result is True
         email_service.mail_client.send_message.assert_called_once()
 
         call_args = email_service.mail_client.send_message.call_args
@@ -138,7 +138,7 @@ class TestEmailService:
             'newuser@example.com', 'user', 'Test Org', 'https://test.com/invite', 'Welcome'
         )
 
-        assert result == False
+        assert result is False
         email_service.mail_client.send_message.assert_not_called()
 
     @pytest.mark.asyncio
@@ -152,7 +152,7 @@ class TestEmailService:
             'user@example.com', 'Test User', 'https://what-a-benger.net/reset/token456'
         )
 
-        assert result == True
+        assert result is True
         email_service.mail_client.send_message.assert_called_once()
 
         call_args = email_service.mail_client.send_message.call_args
@@ -174,7 +174,7 @@ class TestEmailService:
             'newuser@example.com', 'New User', 'https://what-a-benger.net/verify/token789'
         )
 
-        assert result == True
+        assert result is True
         email_service.mail_client.send_message.assert_called_once()
 
         call_args = email_service.mail_client.send_message.call_args
@@ -197,7 +197,7 @@ class TestEmailService:
 
         result = await email_service.send_notification_email('user@example.com', notification)
 
-        assert result == True
+        assert result is True
         email_service.mail_client.send_message.assert_called_once()
 
         call_args = email_service.mail_client.send_message.call_args
@@ -216,7 +216,7 @@ class TestEmailService:
             'user@example.com', 'Test User', 'https://test.com/verify'
         )
 
-        assert result == False
+        assert result is False
 
     # Removed test_send_bulk_emails - method doesn't exist
     # Removed test_send_bulk_emails_with_failures - method doesn't exist

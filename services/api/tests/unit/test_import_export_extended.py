@@ -3,11 +3,6 @@ Unit tests for routers/projects/import_export.py - span conversion functions.
 Tests pure functions for import/export format conversion.
 """
 
-import uuid
-from unittest.mock import patch
-
-import pytest
-
 
 class TestConvertToLabelStudioFormat:
     def setup_method(self):

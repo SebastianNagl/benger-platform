@@ -87,7 +87,7 @@ class BaseAIService(ABC):
     def __init__(self, api_key: Optional[str] = None):
         """
         Initialize the AI service with an API key.
-        
+
         Args:
             api_key: API key for the service (optional, can be set via environment)
         """
@@ -98,7 +98,6 @@ class BaseAIService(ABC):
     @abstractmethod
     def _initialize_client(self):
         """Initialize the service client."""
-        pass
 
     @abstractmethod
     def generate(
@@ -124,7 +123,6 @@ class BaseAIService(ABC):
         Returns:
             Dict with response data including content, metadata, and usage stats
         """
-        pass
 
     def generate_structured(
         self,
@@ -203,7 +201,7 @@ class BaseAIService(ABC):
     ) -> Dict[str, Any]:
         """
         Create a standardized response dictionary.
-        
+
         Args:
             content: Generated content
             model: Model used
@@ -211,7 +209,7 @@ class BaseAIService(ABC):
             success: Whether generation was successful
             error: Error message if failed
             **additional_data: Additional data to include
-            
+
         Returns:
             Standardized response dictionary
         """
@@ -226,13 +224,13 @@ class BaseAIService(ABC):
             },
             "success": success,
         }
-        
+
         if error:
             response["error"] = error
-            
+
         # Add any additional data
         response.update(additional_data)
-        
+
         return response
 
     def _create_error_response(

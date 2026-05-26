@@ -15,7 +15,6 @@ from ml_evaluation.llm_judge_prompts import (
     CHOICES_EVALUATION_PROMPT,
     SPAN_EVALUATION_PROMPT,
     NUMERIC_EVALUATION_PROMPT,
-    TYPE_SPECIFIC_CRITERIA,
     PROMPT_TEMPLATES,
     get_template_for_type,
     get_criteria_for_type,

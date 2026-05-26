@@ -14,10 +14,8 @@ Focuses on:
 import json
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import List
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
@@ -25,7 +23,6 @@ from models import (
     Generation,
     ResponseGeneration,
     TaskEvaluation,
-    User,
 )
 from project_models import (
     Annotation,

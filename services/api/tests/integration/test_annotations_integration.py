@@ -6,18 +6,13 @@ Uses real PostgreSQL with per-test transaction rollback.
 """
 
 import uuid
-from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
-from models import Organization, User
 from project_models import (
-    Annotation,
     Project,
     ProjectOrganization,
     Task,
-    TaskAssignment,
 )
 
 

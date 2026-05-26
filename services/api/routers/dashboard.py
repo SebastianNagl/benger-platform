@@ -58,7 +58,7 @@ def _live_dashboard_counts(db: Session, accessible_ids):
     """
     task_q = select(func.count(Task.id))
     ann_q = select(func.count(Annotation.id)).where(
-        Annotation.was_cancelled == False,  # noqa: E712
+        Annotation.was_cancelled is False,  # noqa: E712
         func.jsonb_array_length(Annotation.result) > 0,
     )
     # Generation count predicate must match aggregate_summaries:

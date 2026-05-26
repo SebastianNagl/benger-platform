@@ -7,7 +7,6 @@ and get_evaluation_run_results endpoints.
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -198,6 +197,7 @@ class TestRunEvaluation:
 
         # First .first() returns project, second returns model_id tuple (model_id, count)
         first_calls = [0]
+
         def first_side_effect():
             first_calls[0] += 1
             if first_calls[0] == 1:
@@ -297,6 +297,7 @@ class TestGetAvailableFields:
         mock_q.first.return_value = None
 
         call_count = [0]
+
         def side_effect_first():
             call_count[0] += 1
             if call_count[0] == 1:

@@ -6,7 +6,7 @@ recalculate_project_statistics, get_project_completion_stats.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch, PropertyMock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -445,6 +445,7 @@ class TestProjectHelpersCoverage:
 
         # First query returns project, second returns org ids
         call_count = [0]
+
         def query_side_effect(*args, **kwargs):
             call_count[0] += 1
             q = MagicMock()
@@ -506,6 +507,7 @@ class TestProjectHelpersCoverage:
 
         # project query
         call_count = [0]
+
         def query_side_effect(*args, **kwargs):
             call_count[0] += 1
             q = MagicMock()
@@ -587,6 +589,7 @@ class TestProjectHelpersLegacyAccess:
         project.created_by = "u1"
 
         call_count = [0]
+
         def query_side_effect(*args, **kwargs):
             call_count[0] += 1
             q = MagicMock()

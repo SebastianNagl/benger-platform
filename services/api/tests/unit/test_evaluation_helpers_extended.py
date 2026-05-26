@@ -3,7 +3,6 @@ Unit tests for routers/evaluations/helpers.py to increase coverage.
 Tests helper functions used across evaluation endpoints.
 """
 
-import pytest
 from datetime import datetime, timezone
 
 

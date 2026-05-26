@@ -176,7 +176,6 @@ class TestTemplateEnvironment:
         Jinja2 env can load each one — guards against future drift in the
         path-resolution code.
         """
-        from pathlib import Path as _Path
 
         # Mirror the canonical filenames we ship in services/shared/email_templates/email
         for name in ("default_notification.html", "task_assigned.html", "korrektur_assigned.html"):

@@ -2,10 +2,6 @@
 Unit tests for project_schemas.py, schemas/, and model validation — covers schema creation and validation.
 """
 
-from unittest.mock import Mock
-
-import pytest
-
 
 class TestProjectSchemasValidation:
     """Tests for project_schemas.py validation logic."""

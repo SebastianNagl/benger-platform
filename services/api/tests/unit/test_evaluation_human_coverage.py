@@ -3,11 +3,9 @@ Unit tests for routers/evaluations/human.py to increase branch coverage.
 Covers all human evaluation session endpoints.
 """
 
-import uuid
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -205,6 +203,7 @@ class TestGetNextEvaluationItem:
         mock_q.distinct.return_value = mock_q
 
         call_count = [0]
+
         def mock_first():
             call_count[0] += 1
             if call_count[0] == 1:

@@ -3,8 +3,7 @@ Unit tests for routers/projects/ subrouters — covers access control branches.
 Tests use direct function calls with mocked DB to cover internal logic.
 """
 
-from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import HTTPException

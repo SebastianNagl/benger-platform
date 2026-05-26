@@ -12,18 +12,14 @@ Targets specific branches in routers/projects/tasks.py:
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
-import pytest
-from sqlalchemy.orm import Session
 
-from models import Organization, OrganizationMembership, EvaluationRun, Generation, ResponseGeneration, TaskEvaluation
+from models import Organization, OrganizationMembership
 from project_models import (
     Annotation,
     Project,
-    ProjectMember,
     ProjectOrganization,
-    SkippedTask,
     Task,
     TaskAssignment,
 )

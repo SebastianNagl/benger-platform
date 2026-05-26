@@ -4,7 +4,6 @@ Unit tests for schema_validator.py to increase coverage.
 
 from unittest.mock import Mock, patch
 
-import pytest
 
 from schema_validator import (
     get_expected_schema,

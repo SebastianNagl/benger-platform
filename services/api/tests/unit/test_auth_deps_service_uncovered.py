@@ -11,11 +11,11 @@ service.py targets: db_user_to_user with organizations (lines 26-36),
   logout_user (lines 189-194).
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from fastapi import HTTPException, Request
+from fastapi import HTTPException
 
 from auth_module.models import User
 

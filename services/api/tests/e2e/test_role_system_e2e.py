@@ -129,10 +129,10 @@ class TestRoleSystemE2E:
         assert len(available_roles) == 3
 
         # ✅ Only superadmins can do everything
-        assert superadmin.is_superadmin == True
-        assert tum_admin.is_superadmin == False
-        assert company_admin.is_superadmin == False
-        assert multi_org_user.is_superadmin == False
+        assert superadmin.is_superadmin is True
+        assert tum_admin.is_superadmin is False
+        assert company_admin.is_superadmin is False
+        assert multi_org_user.is_superadmin is False
 
         # ✅ TUM org admins have same permissions as all other org admins
         tum_admin_membership = (
@@ -186,9 +186,9 @@ class TestRoleSystemE2E:
         def can_promote_superadmin(user: User) -> bool:
             return user.is_superadmin
 
-        assert can_promote_superadmin(superadmin) == True
-        assert can_promote_superadmin(tum_admin) == False
-        assert can_promote_superadmin(company_admin) == False
+        assert can_promote_superadmin(superadmin) is True
+        assert can_promote_superadmin(tum_admin) is False
+        assert can_promote_superadmin(company_admin) is False
 
         print("✅ All role system requirements verified!")
 
@@ -352,8 +352,8 @@ class TestRoleSystemE2E:
         test_db.commit()
 
         # Verify TUM admin has NO special privileges
-        assert tum_admin.is_superadmin == False  # Not a superadmin
-        assert other_admin.is_superadmin == False  # Same as other admins
+        assert tum_admin.is_superadmin is False  # Not a superadmin
+        assert other_admin.is_superadmin is False  # Same as other admins
 
         # Both admins have exactly the same role
         tum_membership = (

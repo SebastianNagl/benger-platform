@@ -14,7 +14,7 @@ workers_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, workers_root)
 
 from ml_evaluation.registry import EvaluatorRegistry
-from ml_evaluation.base_evaluator import BaseEvaluator, EvaluationConfig, EvaluationResult
+from ml_evaluation.base_evaluator import BaseEvaluator, EvaluationResult
 
 
 class DummyEvaluator(BaseEvaluator):

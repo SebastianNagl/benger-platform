@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 from main import app
 from models import User

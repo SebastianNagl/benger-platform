@@ -18,9 +18,6 @@ import uuid
 sys.path.insert(0, "/shared")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import json
-from datetime import datetime, timezone
-from decimal import Decimal
 
 from database import SessionLocal
 from scripts.setup_demo_org import setup_demo_organization
@@ -699,7 +696,7 @@ def setup_e2e_evaluations(db):
 
     db.commit()
     print(f"✅ Created mock evaluation data for E2E QA Project ({len(model_scores)} models)")
-    print(f"✅ Configured evaluation settings for E2E QA Project")
+    print("✅ Configured evaluation settings for E2E QA Project")
 
 
 def setup_user_api_keys(db):

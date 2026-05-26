@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from auth_module import require_user
 from auth_module.models import User as AuthUser
 from database import get_db
-from project_models import Annotation, Project, Task, TaskAssignment
+from project_models import Annotation, Project, Task
 from project_schemas import AnnotationCreate, AnnotationResponse
 from utils.assignment_helpers import (
     mark_assignment_completed as _mark_assignment_completed,
@@ -87,8 +87,8 @@ async def create_annotation(
             db.query(Annotation)
             .filter(
                 Annotation.task_id == task_id,
-                Annotation.was_cancelled == False,
-                Annotation.result != None,
+                Annotation.was_cancelled is False,
+                Annotation.result is not None,
                 cast(Annotation.result, String) != "[]",
             )
             .count()
@@ -117,8 +117,8 @@ async def create_annotation(
                 db.query(Annotation)
                 .filter(
                     Annotation.task_id == task_id,
-                    Annotation.was_cancelled == False,
-                    Annotation.result != None,
+                    Annotation.was_cancelled is False,
+                    Annotation.result is not None,
                     cast(Annotation.result, String) != "[]",
                 )
                 .count()
@@ -225,7 +225,7 @@ async def list_task_annotations(
         db.query(Annotation)
         .filter(
             Annotation.task_id == task_id,
-            Annotation.result != None,
+            Annotation.result is not None,
             cast(Annotation.result, String) != "[]",
         )
     )
@@ -245,7 +245,7 @@ async def list_task_annotations(
             .filter(
                 or_(
                     and_(
-                        DBUser.use_pseudonym == True,  # noqa: E712
+                        DBUser.use_pseudonym is True,  # noqa: E712
                         DBUser.pseudonym == completed_by_username,
                     ),
                     DBUser.name == completed_by_username,

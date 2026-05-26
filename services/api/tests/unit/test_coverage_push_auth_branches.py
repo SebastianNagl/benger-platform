@@ -10,13 +10,10 @@ Targets specific uncovered branches in routers/auth.py:
 - Signup with additional fields
 """
 
-import json
 import uuid
 from datetime import datetime
 from unittest.mock import patch
 
-import pytest
-from sqlalchemy.orm import Session
 
 from models import Organization, OrganizationMembership
 

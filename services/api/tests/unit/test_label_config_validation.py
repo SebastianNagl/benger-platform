@@ -578,7 +578,7 @@ class TestUnicodeFieldNames:
             ("über", "German umlaut"),
         ]
         for name, description in test_cases:
-            xml = f"""<View>
+            xml = """<View>
   <Text name="{name}" value="$text"/>
 </View>"""
             is_valid, errors = LabelConfigValidator.validate(xml)
@@ -596,7 +596,7 @@ class TestUnicodeFieldNames:
         ]
         for name, description in invalid_names:
             if name:  # Skip empty string test here, handled separately
-                xml = f"""<View>
+                xml = """<View>
   <Text name="{name}" value="$text"/>
 </View>"""
                 is_valid, errors = LabelConfigValidator.validate(xml)

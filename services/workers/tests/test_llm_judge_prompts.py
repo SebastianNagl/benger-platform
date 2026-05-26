@@ -12,7 +12,6 @@ Covers:
 import os
 import sys
 
-import pytest
 
 workers_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if workers_root not in sys.path:

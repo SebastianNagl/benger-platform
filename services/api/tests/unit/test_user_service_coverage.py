@@ -2,7 +2,7 @@
 Unit tests for auth_module/user_service.py — covers core user management functions.
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 

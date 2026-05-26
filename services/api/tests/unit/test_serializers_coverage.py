@@ -10,8 +10,6 @@ from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import pytest
-
 
 def _mock_dt():
     return datetime(2026, 1, 15, 12, 0, 0)

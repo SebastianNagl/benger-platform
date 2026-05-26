@@ -80,7 +80,7 @@ def get_model_generation_params(
         params['temperature'] = required_temp
         reproducibility_level = 'NONE'  # Cannot achieve determinism
         logger.info(
-            f"🔒 Model {model_id} enforces temperature={required_temp} " f"(non-deterministic)"
+            f"🔒 Model {model_id} enforces temperature={required_temp} " "(non-deterministic)"
         )
 
     else:

@@ -9,8 +9,6 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock
 
-import pytest
-
 
 def _dt():
     return datetime(2024, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
@@ -318,7 +316,8 @@ class TestBuildJudgeModelLookup:
 
     def test_single_judge(self):
         from routers.projects.serializers import build_judge_model_lookup
-        er = Mock(); er.id = "er1"
+        er = Mock()
+        er.id = "er1"
         ejr = SimpleNamespace(id="jr-1", judge_model_id="gpt-4o-judge")
         db = MagicMock()
         db.query.return_value.filter.return_value.all.return_value = [ejr]
@@ -327,7 +326,8 @@ class TestBuildJudgeModelLookup:
     def test_multi_judge_distinct_models(self):
         from routers.projects.serializers import build_judge_model_lookup
         # One run, three judges (multi-judge config).
-        er = Mock(); er.id = "er1"
+        er = Mock()
+        er.id = "er1"
         rows = [
             SimpleNamespace(id="jr-1", judge_model_id="gpt-4o-judge"),
             SimpleNamespace(id="jr-2", judge_model_id="claude-judge"),
@@ -345,7 +345,8 @@ class TestBuildJudgeModelLookup:
     def test_judge_model_id_none_round_trips(self):
         from routers.projects.serializers import build_judge_model_lookup
         # Non-LLM-judge metrics (bleu/rouge/etc.) carry judge_model_id=None.
-        er = Mock(); er.id = "er1"
+        er = Mock()
+        er.id = "er1"
         ejr = SimpleNamespace(id="jr-1", judge_model_id=None)
         db = MagicMock()
         db.query.return_value.filter.return_value.all.return_value = [ejr]

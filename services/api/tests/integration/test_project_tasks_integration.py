@@ -5,27 +5,19 @@ Targets: routers/projects/tasks.py — 19.06% coverage (348 uncovered lines)
 Uses real PostgreSQL with per-test transaction rollback.
 """
 
-import json
 import uuid
-from datetime import datetime
 
 import pytest
 from sqlalchemy.orm import Session
 
 from models import (
-    EvaluationRun,
-    Generation,
     Organization,
-    TaskEvaluation,
     User,
 )
 from project_models import (
-    Annotation,
     Project,
     ProjectOrganization,
-    SkippedTask,
     Task,
-    TaskAssignment,
 )
 
 

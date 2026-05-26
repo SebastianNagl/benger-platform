@@ -55,7 +55,7 @@ def get_or_create_human_eval_run(
     """
     if not is_human_graded_metric(metric):
         raise ValueError(
-            f"get_or_create_human_eval_run is only valid for human-graded metrics; "
+            "get_or_create_human_eval_run is only valid for human-graded metrics; "
             f"got {metric!r} (allowed: {sorted(HUMAN_GRADED_METRICS)})"
         )
 

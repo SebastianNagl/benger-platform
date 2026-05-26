@@ -227,7 +227,7 @@ class TestAcceptInvitation:
         assert result["role"] == OrganizationRole.CONTRIBUTOR
 
         # Check invitation marked as accepted
-        assert mock_invitation.accepted == True
+        assert mock_invitation.accepted is True
         assert mock_invitation.accepted_at is not None
 
         # Check membership created

@@ -15,7 +15,6 @@ from sqlalchemy.orm import Session
 from app.core.authorization import Permission, auth_service
 from auth_module import User, require_user
 from database import get_db
-from models import EvaluationRun as DBEvaluationRun
 from models import Generation as DBLLMResponse
 from models import HumanEvaluationSession, LikertScaleEvaluation, PreferenceRanking
 from project_models import Project, Task

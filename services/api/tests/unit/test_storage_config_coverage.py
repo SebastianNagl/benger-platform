@@ -6,12 +6,6 @@ the test environment. Tests for get_storage_config and get_cdn_config mock
 the module-level config instances.
 """
 
-import sys
-from unittest.mock import Mock, MagicMock, patch
-import importlib
-
-import pytest
-
 
 # The module can't be imported directly due to pydantic_settings
 # So we test the helper functions by mocking the config objects

@@ -5,10 +5,8 @@ email status, test notifications, and error paths.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
-import pytest
-from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 

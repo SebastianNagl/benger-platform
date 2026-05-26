@@ -299,13 +299,13 @@ class TestTaskFormatterEdgeCases:
     def test_very_long_text_field(self):
         """Test template formatting with very long text"""
         long_text = "x" * 200
-        task_data = {"short": "brief", "long": long_text}
+        task_data = {"short": "brie", "long": long_text}
 
         result = TaskFormatter.format_task(task_data=task_data, presentation_mode="template")
 
         # Long fields should be formatted differently
         assert "[LONG]" in result["formatted_text"].upper()
-        assert "short: brief" in result["formatted_text"]
+        assert "short: brie" in result["formatted_text"]
 
     def test_create_prompt_with_formatted_text(self):
         """Test prompt creation uses formatted_text when available"""

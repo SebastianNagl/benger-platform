@@ -3,7 +3,6 @@ Unit tests for project_schemas.py to increase coverage.
 Tests Pydantic schema validation, serialization, and edge cases.
 """
 
-import pytest
 from datetime import datetime
 
 

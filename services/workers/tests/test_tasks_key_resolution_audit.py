@@ -15,7 +15,6 @@ import sys
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 workers_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if workers_root not in sys.path:

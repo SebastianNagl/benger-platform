@@ -3,12 +3,10 @@ Unit tests for evaluation status, human evaluation, and multi-field endpoints.
 Covers business logic in routers/evaluations/status.py, human.py, multi_field.py.
 """
 
-import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
 
 from main import app
@@ -268,9 +266,9 @@ class TestMultiFieldResultParsing:
         for key, value in metrics.items():
             parts = key.split(":")
             if len(parts) >= 4:
-                config_id = parts[0]
-                pred_field = parts[1]
-                ref_field = parts[2]
+                parts[0]
+                parts[1]
+                parts[2]
                 metric_name = ":".join(parts[3:])
 
         assert metric_name == "custom:metric:name"
@@ -330,8 +328,8 @@ class TestMultiFieldResultParsing:
                     parsed[config_id][combo_key] = {}
                 parsed[config_id][combo_key][metric_name] = value
 
-        assert parsed["cfg1"]["pred_vs_ref"]["metric"] == 0.5
-        assert parsed["cfg1"]["pred_vs_ref"]["metric2"] == 0.6
+        assert parsed["cfg1"]["pred_vs_re"]["metric"] == 0.5
+        assert parsed["cfg1"]["pred_vs_re"]["metric2"] == 0.6
 
     def test_evaluation_type_filtering(self):
         evaluations = [

@@ -7,7 +7,6 @@ and statistics endpoints.
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -119,7 +118,6 @@ class TestEvaluatedModels:
                 assert resp.json() == []
         finally:
             app.dependency_overrides.clear()
-
 
 
 # ---------------------------------------------------------------------------
@@ -467,9 +465,6 @@ class TestStatistics:
                 assert "No completed evaluations" in resp.json()["detail"]
         finally:
             app.dependency_overrides.clear()
-
-
-
 
     def test_access_denied(self):
         client = TestClient(app)

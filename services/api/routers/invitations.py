@@ -96,7 +96,7 @@ async def create_invitation(
             .filter(
                 OrganizationMembership.user_id == existing_user.id,
                 OrganizationMembership.organization_id == organization_id,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .first()
         )
@@ -112,7 +112,7 @@ async def create_invitation(
         .filter(
             Invitation.organization_id == organization_id,
             Invitation.email == invitation_data.email,
-            Invitation.accepted == False,
+            Invitation.accepted is False,
             Invitation.expires_at > datetime.now(timezone.utc),
         )
         .first()
@@ -220,7 +220,7 @@ async def list_organization_invitations(
                 OrganizationMembership.user_id == current_user.id,
                 OrganizationMembership.organization_id == organization_id,
                 OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .first()
         )
@@ -236,7 +236,7 @@ async def list_organization_invitations(
         .join(Organization, Invitation.organization_id == Organization.id)
         .join(User, Invitation.invited_by == User.id)
         .filter(Invitation.organization_id == organization_id)
-        .filter(Invitation.accepted == False)  # Only show pending invitations
+        .filter(Invitation.accepted is False)  # Only show pending invitations
     )
 
     if not include_expired:
@@ -383,7 +383,7 @@ async def accept_invitation(
         .filter(
             OrganizationMembership.user_id == current_user.id,
             OrganizationMembership.organization_id == invitation.organization_id,
-            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_active is True,
         )
         .first()
     )
@@ -468,7 +468,7 @@ async def cancel_invitation(
                 OrganizationMembership.user_id == current_user.id,
                 OrganizationMembership.organization_id == invitation.organization_id,
                 OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .first()
         )

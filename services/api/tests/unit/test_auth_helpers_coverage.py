@@ -7,8 +7,6 @@ Tests _ensure_dict, get_user_primary_role, and auth models.
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import pytest
-
 
 class TestEnsureDict:
     """Test _ensure_dict helper function."""

@@ -4,10 +4,8 @@ Covers deep_merge_dicts, project CRUD, visibility, and completion stats.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
-import pytest
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from routers.projects.crud import deep_merge_dicts

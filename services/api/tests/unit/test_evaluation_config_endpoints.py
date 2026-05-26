@@ -4,10 +4,9 @@ Covers routers/evaluations/config.py and validation.py.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
 
 from main import app

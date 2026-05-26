@@ -164,11 +164,11 @@ class SSLTLSManager:
 
     def get_nginx_ssl_config(self) -> str:
         """Generate nginx SSL configuration"""
-        return f"""
+        return """
 server {{
     listen 80;
     server_name {self.domain} www.{self.domain} api.{self.domain} labelstudio.{self.domain};
-    
+
     # Redirect HTTP to HTTPS
     return 301 https://$server_name$request_uri;
 }}
@@ -176,37 +176,37 @@ server {{
 server {{
     listen 443 ssl http2;
     server_name {self.domain} www.{self.domain};
-    
+
     # SSL Configuration
     ssl_certificate {self.cert_dir}/fullchain.pem;
     ssl_certificate_key {self.cert_dir}/privkey.pem;
     ssl_trusted_certificate {self.cert_dir}/chain.pem;
-    
+
     # SSL Security Settings
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK;
     ssl_prefer_server_ciphers off;
     ssl_dhparam /etc/nginx/dhparam.pem;
-    
+
     # SSL Session
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
     ssl_session_tickets off;
-    
+
     # OCSP Stapling
     ssl_stapling on;
     ssl_stapling_verify on;
     resolver 8.8.8.8 8.8.4.4 valid=300s;
     resolver_timeout 5s;
-    
+
     # Security Headers
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
     add_header X-Frame-Options DENY always;
     add_header X-Content-Type-Options nosniff always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;" always;
-    
+    add_header Content-Security-Policy "default-src 'sel'; script-src 'sel' 'unsafe-inline' 'unsafe-eval'; style-src 'sel' 'unsafe-inline'; img-src 'sel' data: https:; font-src 'self' data:;" always;
+
     # Main application
     location / {{
         proxy_pass http://frontend:3000;
@@ -222,12 +222,12 @@ server {{
 server {{
     listen 443 ssl http2;
     server_name api.{self.domain};
-    
+
     # SSL Configuration (same as above)
     ssl_certificate {self.cert_dir}/fullchain.pem;
     ssl_certificate_key {self.cert_dir}/privkey.pem;
     ssl_trusted_certificate {self.cert_dir}/chain.pem;
-    
+
     # SSL Security Settings (same as above)
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK;
@@ -237,14 +237,14 @@ server {{
     ssl_session_tickets off;
     ssl_stapling on;
     ssl_stapling_verify on;
-    
+
     # Security Headers
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
     add_header X-Frame-Options DENY always;
     add_header X-Content-Type-Options nosniff always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    
+
     # API endpoints
     location / {{
         proxy_pass http://api:8000;
@@ -254,7 +254,7 @@ server {{
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Forwarded-Port $server_port;
-        
+
         # API-specific settings
         proxy_read_timeout 300;
         proxy_connect_timeout 60;
@@ -266,12 +266,12 @@ server {{
 server {{
     listen 443 ssl http2;
     server_name labelstudio.{self.domain};
-    
+
     # SSL Configuration (same as above)
     ssl_certificate {self.cert_dir}/fullchain.pem;
     ssl_certificate_key {self.cert_dir}/privkey.pem;
     ssl_trusted_certificate {self.cert_dir}/chain.pem;
-    
+
     # SSL Security Settings (same as above)
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!3DES:!MD5:!PSK;
@@ -281,13 +281,13 @@ server {{
     ssl_session_tickets off;
     ssl_stapling on;
     ssl_stapling_verify on;
-    
+
     # Security Headers (relaxed for Label Studio)
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
     add_header X-Content-Type-Options nosniff always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    
+
     # Label Studio
     location / {{
         proxy_pass http://labelstudio:8080;
@@ -297,7 +297,7 @@ server {{
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Forwarded-Port $server_port;
-        
+
         # Project specific settings
         proxy_read_timeout 300;
         proxy_connect_timeout 60;
@@ -318,8 +318,8 @@ def get_security_headers() -> Dict[str, str]:
         "Referrer-Policy": "strict-origin-when-cross-origin",
         "Content-Security-Policy": (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-            "style-src 'self' 'unsafe-inline'; "
+            "script-src 'sel' 'unsafe-inline' 'unsafe-eval'; "
+            "style-src 'sel' 'unsafe-inline'; "
             "img-src 'self' data: https:; "
             "font-src 'self' data:; "
             "connect-src 'self'; "
@@ -392,16 +392,16 @@ DAYS_LEFT=$(( ($EXPIRY_DAYS - $CURRENT_TIME) / 86400 ))
 if [ $DAYS_LEFT -le 7 ]; then
     # Send alert
     MESSAGE="⚠️ SSL Certificate for $DOMAIN expires in $DAYS_LEFT days!"
-    
+
     # Email alert
     echo "$MESSAGE" | mail -s "SSL Certificate Expiry Alert" $EMAIL
-    
+
     # Slack webhook (if configured)
     if [ -n "$WEBHOOK" ]; then
         curl -X POST -H 'Content-type: application/json' \
             --data "{\\"text\\":\\"$MESSAGE\\"}" $WEBHOOK
     fi
-    
+
     # Log alert
     echo "$(date): $MESSAGE" >> /var/log/ssl-monitor.log
 fi

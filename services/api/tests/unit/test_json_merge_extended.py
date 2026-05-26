@@ -2,8 +2,6 @@
 Unit tests for utils/json_merge.py to increase coverage.
 """
 
-import pytest
-
 
 class TestJsonMerge:
     def setup_method(self):

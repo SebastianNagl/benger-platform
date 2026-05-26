@@ -192,7 +192,7 @@ class TestEmailValidation:
         for email in emails:
             assert is_valid_email(email), f"{email} should be valid regardless of case"
             sanitized = sanitize_email(email)
-            assert sanitized == "user@example.com", f"All should sanitize to lowercase"
+            assert sanitized == "user@example.com", "All should sanitize to lowercase"
 
 
 class TestEmailValidationIntegration:
@@ -201,7 +201,6 @@ class TestEmailValidationIntegration:
     # test_notification_skips_invalid_emails, test_user_creation_validates_email,
     # and test_profile_update_validates_email removed: all had empty bodies.
     # These belong in integration tests with real services.
-    pass
 
 
 if __name__ == "__main__":

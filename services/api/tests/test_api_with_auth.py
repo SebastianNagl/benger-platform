@@ -28,7 +28,7 @@ def get_user_auth_token():
         # Get a user who has access to the project
         result = db.execute(
             """
-            SELECT u.id, u.name, u.email 
+            SELECT u.id, u.name, u.email
             FROM users u
             JOIN organization_memberships om ON u.id = om.user_id
             JOIN project_organizations po ON om.organization_id = po.organization_id
@@ -82,7 +82,7 @@ def test_api_multiple_organizations():
 
         elif response.status_code == 200:
             data = response.json()
-            print(f"SUCCESS: Got response data")
+            print("SUCCESS: Got response data")
 
             if "organizations" in data:
                 orgs = data["organizations"]

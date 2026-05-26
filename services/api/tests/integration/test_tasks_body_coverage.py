@@ -24,19 +24,13 @@ import uuid
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     Generation,
-    OrganizationMembership,
     ResponseGeneration,
-    User,
-    EvaluationRun,
-    TaskEvaluation,
 )
 from project_models import (
     Annotation,
-    PostAnnotationResponse,
     Project,
     ProjectOrganization,
     SkippedTask,

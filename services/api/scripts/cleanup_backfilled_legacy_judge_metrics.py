@@ -40,7 +40,6 @@ Usage (inside the api container):
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from datetime import datetime, timezone
 
@@ -64,7 +63,7 @@ def _print_dry_run_summary(db) -> int:
 
     print()
     print("per (project_id, field_name):")
-    rows = db.execute(text(f"""
+    rows = db.execute(text("""
         SELECT t.project_id::text AS project_id, te.field_name, COUNT(*) AS n
         FROM task_evaluations te
         JOIN tasks t ON t.id = te.task_id
@@ -77,7 +76,7 @@ def _print_dry_run_summary(db) -> int:
 
     print()
     print("recoverability (all should equal affected rows):")
-    r = db.execute(text(f"""
+    r = db.execute(text("""
         SELECT
           COUNT(*) FILTER (WHERE metrics->>'raw_score' IS NOT NULL),
           COUNT(*) FILTER (WHERE metrics->'llm_judge_falloesung_response'->>'score' IS NOT NULL),
@@ -99,7 +98,7 @@ def _print_dry_run_summary(db) -> int:
         print()
         print(f"  warning: {r[4]} rows cannot be recovered (no raw_score and no response.score).")
         print("  these will be skipped on --apply and logged below.")
-        skipped = db.execute(text(f"""
+        skipped = db.execute(text("""
             SELECT te.id::text, t.project_id::text, te.field_name
             FROM task_evaluations te
             JOIN tasks t ON t.id = te.task_id
@@ -114,7 +113,7 @@ def _print_dry_run_summary(db) -> int:
 
     print()
     print("sample of resulting `llm_judge_falloesung.details` (5 rows):")
-    sample = db.execute(text(f"""
+    sample = db.execute(text("""
         SELECT te.id::text,
                metrics->>'raw_score' AS top_raw,
                metrics->'llm_judge_falloesung'->>'value' AS old_value,
@@ -143,7 +142,7 @@ def _apply(db, rewrite_value: bool) -> tuple[int, int]:
         else "'value', metrics->'llm_judge_falloesung'->'value'"
     )
 
-    update_sql = text(f"""
+    update_sql = text("""
         WITH updates AS (
           SELECT
             te.id,
@@ -190,7 +189,7 @@ def _apply(db, rewrite_value: bool) -> tuple[int, int]:
     result = db.execute(update_sql, {"recovered_at": recovered_at})
     updated = result.rowcount or 0
 
-    skipped = db.execute(text(f"""
+    skipped = db.execute(text("""
         SELECT COUNT(*) FROM task_evaluations
         WHERE {PREDICATE}
           AND metrics->>'raw_score' IS NULL

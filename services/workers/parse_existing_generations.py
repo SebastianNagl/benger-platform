@@ -103,7 +103,7 @@ def parse_existing_generations(limit: int = None, dry_run: bool = False):
                     generation_structure = prompt_structures.get(response_gen.structure_key)
 
                 if not generation_structure or not project.label_config:
-                    logger.info(f"  ℹ️ No generation_structure or label_config - skipping")
+                    logger.info("  ℹ️ No generation_structure or label_config - skipping")
                     stats["skipped_no_config"] += 1
                     continue
 

@@ -5,7 +5,7 @@ Targets: services/redis_cache.py lines 88-197, 214-250, 259-405, 410-449
 """
 
 import json
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock
 
 import pytest
 import fakeredis
@@ -156,7 +156,7 @@ class TestCachedDecorator:
     """Test the @cached decorator."""
 
     def test_cached_decorator_caches_result(self):
-        from services.redis_cache import cached, cache
+        from services.redis_cache import cached
 
         @cached("test_func:{x}", ttl=60)
         def my_func(x):

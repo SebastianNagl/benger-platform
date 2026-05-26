@@ -97,7 +97,7 @@ def test_finalize_evaluation_run_signature():
     # this test independent of whether we toggle `bind=`.
     names = [n for n, _ in params]
     assert (
-        names[0] in ("self", "_sub_task_results")
+        names[0] in ("sel", "_sub_task_results")
         and "_sub_task_results" in names
         and "evaluation_id" in names
     ), f"finalize_evaluation_run param order looks wrong: {names}"
@@ -238,8 +238,8 @@ def test_cell_sub_tasks_short_circuit_on_parent_cancel():
                     '"cancelled"' in body_src or "'cancelled'" in body_src
                 ), (
                     f"{fn_name} must read EvaluationRun.status at entry and "
-                    f"short-circuit on cancelled/terminal to avoid burning "
-                    f"LLM quota on already-cancelled evals"
+                    "short-circuit on cancelled/terminal to avoid burning "
+                    "LLM quota on already-cancelled evals"
                 )
                 break
         else:
@@ -609,7 +609,7 @@ def test_sub_tasks_do_not_create_judge_runs():
             body_src = ast.get_source_segment(src, node) or ""
             assert "_create_judge_run" not in body_src, (
                 f"{node.name} must not call _create_judge_run — orchestrator "
-                f"pre-creates all judge_runs to avoid UQ races"
+                "pre-creates all judge_runs to avoid UQ races"
             )
 
 

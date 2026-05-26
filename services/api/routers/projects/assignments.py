@@ -2,7 +2,6 @@
 
 import random
 import uuid
-from datetime import datetime
 from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -14,7 +13,7 @@ from auth_module.models import User as AuthUser
 from database import get_db
 from models import NotificationType, OrganizationMembership, User
 from notification_service import NotificationService
-from project_models import Annotation, Project, ProjectMember, ProjectOrganization, Task, TaskAssignment
+from project_models import Project, ProjectMember, ProjectOrganization, Task, TaskAssignment
 from routers.projects.helpers import check_project_accessible, get_org_context_from_request, get_user_with_memberships
 
 router = APIRouter()
@@ -107,7 +106,7 @@ async def assign_tasks(
         .filter(
             ProjectMember.project_id == project_id,
             ProjectMember.user_id.in_(user_ids),
-            ProjectMember.is_active == True,
+            ProjectMember.is_active is True,
         )
         .all()
     )
@@ -129,7 +128,7 @@ async def assign_tasks(
             .filter(
                 OrganizationMembership.organization_id.in_(project_orgs),
                 OrganizationMembership.user_id.in_(remaining_user_ids),
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .all()
         )
@@ -325,7 +324,7 @@ async def assign_tasks(
         for user_id, user_tasks in user_assignments.items():
             task_count = len(user_tasks)
 
-            title = f"New Task Assignment"
+            title = "New Task Assignment"
             if task_count == 1:
                 message = f"You have been assigned 1 new task in {project.title}"
             else:

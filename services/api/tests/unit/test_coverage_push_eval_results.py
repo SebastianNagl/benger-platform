@@ -15,11 +15,8 @@ Targets specific branches in routers/evaluations/results.py:
 
 import json
 import uuid
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from datetime import datetime
 
-import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
@@ -27,7 +24,6 @@ from models import (
     Generation,
     HumanEvaluationSession,
     LikertScaleEvaluation,
-    LLMModel,
     Organization,
     OrganizationMembership,
     PreferenceRanking,

@@ -9,7 +9,6 @@ allowing direct comparison between human annotations and LLM outputs.
 """
 
 import json
-import re
 from typing import Any, Dict, List, Optional, Tuple
 from xml.etree import ElementTree as ET
 

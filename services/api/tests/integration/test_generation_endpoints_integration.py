@@ -9,16 +9,12 @@ Targets:
 
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import patch
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     Generation,
-    Organization,
     ResponseGeneration,
-    User,
 )
 from project_models import (
     Project,

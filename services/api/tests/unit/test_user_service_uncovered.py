@@ -6,11 +6,7 @@ change_user_password, confirm_profile, _complete_demo_user_profile,
 and various branches in create_user.
 """
 
-import uuid
-from datetime import datetime, timezone
-from decimal import Decimal
-from types import SimpleNamespace
-from unittest.mock import MagicMock, Mock, PropertyMock, call, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException

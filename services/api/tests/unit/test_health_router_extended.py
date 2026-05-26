@@ -5,12 +5,11 @@ Targets: routers/health.py lines 24, 30, 40-62, 68, 82-94, 117-171, 188-226
 """
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock, patch, MagicMock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 from main import app
 from models import User

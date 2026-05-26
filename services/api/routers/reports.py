@@ -178,7 +178,7 @@ def check_report_access(
             m.organization_id
             for m in db.query(OrganizationMembership)
             .filter(
-                OrganizationMembership.user_id == user.id, OrganizationMembership.is_active == True
+                OrganizationMembership.user_id == user.id, OrganizationMembership.is_active is True
             )
             .all()
         ]
@@ -470,7 +470,7 @@ async def list_published_reports(
             for m in db.query(OrganizationMembership)
             .filter(
                 OrganizationMembership.user_id == current_user.id,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .all()
         ]
@@ -479,7 +479,7 @@ async def list_published_reports(
     query = (
         db.query(ProjectReport)
         .options(joinedload(ProjectReport.project))
-        .filter(ProjectReport.is_published == True)
+        .filter(ProjectReport.is_published is True)
     )
 
     # Filter by organization for non-superadmins

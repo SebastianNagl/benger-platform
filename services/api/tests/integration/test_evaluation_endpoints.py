@@ -18,17 +18,14 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
-    EvaluationType,
     Generation,
     HumanEvaluationSession,
     LikertScaleEvaluation,
-    PreferenceRanking,
     ResponseGeneration,
     TaskEvaluation,
     User,
@@ -917,7 +914,7 @@ class TestEvaluationsList:
         self, client, test_db, test_users, test_org, auth_headers
     ):
         """Returns evaluations scoped to accessible projects."""
-        data = _create_evaluation_project(test_db, test_users, test_org)
+        _create_evaluation_project(test_db, test_users, test_org)
 
         resp = client.get(
             "/api/evaluations/",
@@ -1083,8 +1080,6 @@ class TestSupportedMetrics:
     the ASGI handler in a way that corrupts the TestClient lifecycle. The endpoint
     is tested via the workers test suite and E2E tests instead.
     """
-
-    pass
 
 
 # ===========================================================================

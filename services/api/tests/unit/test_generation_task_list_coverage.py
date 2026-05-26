@@ -6,8 +6,6 @@ Covers: get_project_with_permissions, get_single_task_generation_status,
 get_task_generation_status, start_generation, get_generation_result.
 """
 
-import json
-import uuid
 from datetime import datetime, timezone
 from unittest.mock import Mock, MagicMock, patch
 

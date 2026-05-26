@@ -14,7 +14,6 @@ import os
 import sys
 import uuid
 from asyncio import run
-from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
@@ -33,10 +32,7 @@ from project_models import (
     Annotation,
     PostAnnotationResponse,
     Project,
-    ProjectMember,
-    ProjectOrganization,
     Task,
-    TaskAssignment,
 )
 
 
@@ -759,7 +755,8 @@ class TestRoundtripExtensions:
             id=str(uuid.uuid4()), title="Annotation FK target",
             label_config="<View></View>", created_by=user.id,
         )
-        db_session.add(target); db_session.commit()
+        db_session.add(target)
+        db_session.commit()
         rt._import(db_session, target.id, export, user.id)
 
         target_task_ids = [t.id for t in db_session.query(Task).filter(Task.project_id == target.id).all()]
@@ -797,7 +794,8 @@ class TestRoundtripExtensions:
             id=str(uuid.uuid4()), title="Annotation extras target",
             label_config="<View></View>", created_by=user.id,
         )
-        db_session.add(target); db_session.commit()
+        db_session.add(target)
+        db_session.commit()
         rt._import(db_session, target.id, export, user.id)
 
         # Find the imported annotation that mirrors the source via instruction_variant.
@@ -825,13 +823,15 @@ class TestRoundtripExtensions:
             target_type="annotation", target_id=ann.id, parent_id=None,
             text="Parent comment", created_by=user.id,
         )
-        db_session.add(parent); db_session.flush()
+        db_session.add(parent)
+        db_session.flush()
         reply = KorrekturComment(
             id=str(uuid.uuid4()), project_id=project.id, task_id=ann.task_id,
             target_type="annotation", target_id=ann.id, parent_id=parent.id,
             text="Reply comment", created_by=user.id,
         )
-        db_session.add(reply); db_session.commit()
+        db_session.add(reply)
+        db_session.commit()
 
         rt = TestDataExportImportRoundtrip()
         export = rt._export(db_session, project.id, [t.id for t in data["tasks"]], user.id)
@@ -842,12 +842,15 @@ class TestRoundtripExtensions:
             id=str(uuid.uuid4()), title="Korrektur target",
             label_config="<View></View>", created_by=user.id,
         )
-        db_session.add(target); db_session.commit()
+        db_session.add(target)
+        db_session.commit()
 
         # The single-project import schema accepts korrektur_comments under the
         # `data` payload via the extended ProjectImportData fields.
         from routers.projects.import_export import import_project_data
-        mock_user = Mock(); mock_user.id = user.id; mock_user.is_superadmin = True
+        mock_user = Mock()
+        mock_user.id = user.id
+        mock_user.is_superadmin = True
         body = json.dumps({
             "data": export["tasks"],
             "evaluation_runs": export.get("evaluation_runs"),
@@ -857,7 +860,9 @@ class TestRoundtripExtensions:
         async def _stream():
             yield body
 
-        mock_request = Mock(); mock_request.headers = {}; mock_request.state = Mock(spec=[])
+        mock_request = Mock()
+        mock_request.headers = {}
+        mock_request.state = Mock(spec=[])
         mock_request.stream = _stream
         run(import_project_data(target.id, request=mock_request, current_user=mock_user, db=db_session))
 
@@ -895,7 +900,8 @@ class TestRoundtripExtensions:
             id=str(uuid.uuid4()), title="Judge prompts target",
             label_config="<View></View>", created_by=user.id,
         )
-        db_session.add(target); db_session.commit()
+        db_session.add(target)
+        db_session.commit()
         rt._import(db_session, target.id, export, user.id)
 
         target_task_ids = [

@@ -85,13 +85,13 @@ class DeepInfraService(BaseAIService):
     def __init__(self, api_key: Optional[str] = None):
         """
         Initialize DeepInfra service.
-        
+
         Args:
             api_key: DeepInfra API key (optional, defaults to DEEPINFRA_API_KEY env var)
         """
         self.api_key = api_key or os.getenv("DEEPINFRA_API_KEY")
         self.base_url = "https://api.deepinfra.com/v1/openai"
-        
+
         # Model name mapping from display names to API names
         self.model_mapping = {
             # DeepSeek models
@@ -126,7 +126,7 @@ class DeepInfraService(BaseAIService):
             "meta-llama/Llama-3.1-70B-Instruct": "meta-llama/Meta-Llama-3.1-70B-Instruct",
             "meta-llama/Llama-3.1-8B-Instruct": "meta-llama/Meta-Llama-3.1-8B-Instruct",
         }
-        
+
         super().__init__(self.api_key)
 
     def _initialize_client(self):
@@ -380,7 +380,7 @@ class DeepInfraService(BaseAIService):
 
         try:
             # Add format instructions to system prompt
-            format_instructions = f"""
+            format_instructions = """
 
 ## Output Format
 You MUST respond with a valid JSON object matching this schema:
@@ -494,7 +494,7 @@ Your response must be ONLY the JSON object, no other text before or after.
         """
         Legacy method for backward compatibility.
         Generate a response using DeepInfra API with case data.
-        
+
         Args:
             system_prompt: System-level instructions
             instruction_prompt: Specific task instructions
@@ -503,13 +503,13 @@ Your response must be ONLY the JSON object, no other text before or after.
             max_tokens: Maximum tokens in response
             temperature: Sampling temperature
             **kwargs: Additional parameters
-            
+
         Returns:
             Dictionary with response data and metadata
         """
         # Combine prompts for the user message
         user_message = f"{instruction_prompt}\n\nCase to analyze:\n{case_data}"
-        
+
         # Use the base generate method
         result = await self.generate(
             prompt=user_message,
@@ -519,7 +519,7 @@ Your response must be ONLY the JSON object, no other text before or after.
             temperature=temperature,
             **kwargs
         )
-        
+
         # Map to legacy response format for backward compatibility
         if result["success"]:
             return {

@@ -73,7 +73,7 @@ def upgrade() -> None:
     )
 
     op.execute(
-        f"""
+        """
         CREATE UNIQUE INDEX {INDEX_NAME}
         ON task_evaluations (
             evaluation_id,

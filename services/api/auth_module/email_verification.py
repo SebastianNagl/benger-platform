@@ -99,7 +99,7 @@ class EmailVerificationService:
             .join(Organization, Invitation.organization_id == Organization.id)
             .filter(
                 ((Invitation.email == user_email) | (Invitation.pending_user_id == user_id)),
-                Invitation.accepted == False,
+                Invitation.accepted is False,
                 Invitation.expires_at > datetime.now(timezone.utc),
             )
             .all()
@@ -113,7 +113,7 @@ class EmailVerificationService:
                     .filter(
                         OrganizationMembership.user_id == user_id,
                         OrganizationMembership.organization_id == invitation.organization_id,
-                        OrganizationMembership.is_active == True,
+                        OrganizationMembership.is_active is True,
                     )
                     .first()
                 )
@@ -369,7 +369,7 @@ class EmailVerificationService:
             db: Database session
             user_id: User ID to mark as verified
             verified_by_id: Optional ID of user who verified (for admin verification)
-            method: Verification method ('self', 'admin', 'system')
+            method: Verification method ('sel', 'admin', 'system')
 
         Returns:
             True if successful, False otherwise
@@ -755,19 +755,19 @@ class EmailVerificationService:
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         # Count unverified users
-        unverified_count = db.query(User).filter(User.email_verified == False).count()
+        unverified_count = db.query(User).filter(User.email_verified is False).count()
 
         # Count recently created unverified users
         recent_unverified = (
             db.query(User)
-            .filter(User.email_verified == False, User.created_at >= cutoff_date)
+            .filter(User.email_verified is False, User.created_at >= cutoff_date)
             .count()
         )
 
         # Count users with pending verification emails
         pending_verification = (
             db.query(User)
-            .filter(User.email_verification_token.isnot(None), User.email_verified == False)
+            .filter(User.email_verification_token.isnot(None), User.email_verified is False)
             .count()
         )
 
@@ -777,7 +777,7 @@ class EmailVerificationService:
             db.query(User)
             .filter(
                 User.email_verification_sent_at <= expired_cutoff,
-                User.email_verified == False,
+                User.email_verified is False,
                 User.email_verification_token.isnot(None),
             )
             .count()
@@ -832,7 +832,7 @@ class EmailVerificationService:
                 .filter(
                     User.email_verification_sent_at <= expiration_cutoff,
                     User.email_verification_token.isnot(None),
-                    User.email_verified == False,
+                    User.email_verified is False,
                 )
                 .all()
             )

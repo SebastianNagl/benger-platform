@@ -11,15 +11,11 @@ Targets specific uncovered branches in routers/projects/import_export.py:
 - Span conversion functions with edge cases
 """
 
-import io
 import json
 import uuid
-import zipfile
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from datetime import datetime
+from unittest.mock import patch
 
-import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,

@@ -12,7 +12,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import requests
 
@@ -196,15 +196,15 @@ class SchemaDriftMonitor:
 
         color = severity_colors.get(self.report_data["severity"], "#000000")
 
-        html = f"""
+        html = """
         <html>
         <body>
         <h2 style="color: {color};">Schema Drift Detection Report</h2>
-        
+
         <p><strong>Environment:</strong> {self.report_data['environment']}</p>
         <p><strong>Timestamp:</strong> {self.report_data['timestamp']}</p>
         <p><strong>Severity:</strong> <span style="color: {color}; font-weight: bold;">{self.report_data['severity']}</span></p>
-        
+
         <h3>Metrics</h3>
         <ul>
             <li>Tables Checked: {self.report_data['metrics']['tables_checked']}</li>
@@ -253,7 +253,7 @@ class SchemaDriftMonitor:
 
             title = f"[Schema Drift] {self.report_data['severity']} issues detected in {self.report_data['environment']}"
 
-            body = f"""## Schema Drift Detection Report
+            body = """## Schema Drift Detection Report
 
 **Environment:** {self.report_data['environment']}
 **Timestamp:** {self.report_data['timestamp']}
@@ -358,7 +358,7 @@ def main():
             monitor.create_github_issue(args.github_repo, token)
 
     # Print summary
-    print(f"Schema Drift Monitoring Complete")
+    print("Schema Drift Monitoring Complete")
     print(f"Severity: {report['severity']}")
     print(f"Issues: {report['metrics']['total_issues']}")
     print(f"Warnings: {report['metrics']['total_warnings']}")

@@ -4,8 +4,6 @@ Unit tests for utils/pseudonym_generator.py — 74.55% coverage (11 uncovered li
 Tests get_pseudonym_statistics and edge cases of generate_pseudonym.
 """
 
-import pytest
-
 
 class TestGeneratePseudonym:
     """Test generate_pseudonym function."""

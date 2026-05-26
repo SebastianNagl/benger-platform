@@ -11,7 +11,6 @@ Rewritten to call handler functions directly (no TestClient) so that pytest-cov
 tracks the router code.
 """
 
-import os
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
@@ -376,7 +375,6 @@ class TestSignup:
     @patch("routers.auth.create_user")
     async def test_signup_regular(self, mock_create, mock_email_svc):
         from routers.auth import signup
-        from auth_module import UserCreate
 
         new_user = _mock_user()
         mock_create.return_value = new_user
@@ -398,7 +396,6 @@ class TestSignup:
     @patch("routers.auth.create_user")
     async def test_signup_invitation_flow(self, mock_create, mock_email_svc):
         from routers.auth import signup
-        from auth_module import UserCreate
 
         new_user = _mock_user()
         mock_create.return_value = new_user
@@ -425,7 +422,6 @@ class TestSignup:
     @patch("routers.auth.create_user")
     async def test_signup_invitation_invalid(self, mock_create):
         from routers.auth import signup
-        from auth_module import UserCreate
 
         db = _mock_db()
         db.query.return_value.filter.return_value.first.return_value = None
@@ -442,7 +438,6 @@ class TestSignup:
     @patch("routers.auth.create_user")
     async def test_signup_invitation_expired(self, mock_create):
         from routers.auth import signup
-        from auth_module import UserCreate
 
         invitation = Mock()
         invitation.token = "inv-token"
@@ -978,6 +973,7 @@ class TestVerifyEmailEnhanced:
         db = _mock_db()
 
         call_count = [0]
+
         def query_side_effect(*args):
             call_count[0] += 1
             q = MagicMock()
@@ -1113,6 +1109,7 @@ class TestMandatoryProfileStatus:
         db = _mock_db()
 
         call_count = [0]
+
         def query_side_effect(*args):
             call_count[0] += 1
             q = MagicMock()

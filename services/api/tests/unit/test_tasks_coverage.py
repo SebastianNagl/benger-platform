@@ -16,7 +16,6 @@ Covers:
 - get_task_data_fields endpoint (lines 1163-1231)
 """
 
-import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 

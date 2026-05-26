@@ -12,8 +12,7 @@ Covers:
 - Benchmark notes and reproducibility impact overrides
 """
 
-import pytest
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock
 
 from model_parameter_config import get_model_generation_params
 

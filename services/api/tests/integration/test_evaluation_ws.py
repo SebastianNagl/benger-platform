@@ -137,7 +137,7 @@ async def test_ws_forwards_all_redis_connection_kwargs(
     for required_key in ("host", "port", "db", "password", "socket_timeout"):
         assert required_key in captured_kwargs, (
             f"{required_key} missing from async Redis kwargs — regression of the "
-            f"password-forwarding bug fixed in b6529dc"
+            "password-forwarding bug fixed in b6529dc"
         )
     assert captured_kwargs["password"] == "super-secret-pw"
 

@@ -35,7 +35,7 @@ def can_manage_organization(user: User, organization_id: str, db: Session) -> bo
             OrganizationMembership.user_id == user.id,
             OrganizationMembership.organization_id == organization_id,
             OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_active is True,
         )
         .first()
     )
@@ -57,7 +57,7 @@ def can_create_organization(user: User, db: Session) -> bool:
         .filter(
             OrganizationMembership.user_id == user.id,
             OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_active is True,
         )
         .first()
     )
@@ -124,16 +124,16 @@ class UpdateMemberRole(BaseModel):
     summary="List Organizations",
     description="""
     Retrieve list of organizations accessible to the current user.
-    
+
     **Access Control:**
     - **Superadmins**: Can see all active organizations
     - **Regular Users**: Can only see organizations they are members of
-    
+
     **Response includes:**
     - Organization details (name, description, settings)
     - Member count for each organization
     - Organization status and metadata
-    
+
     **Use Cases:**
     - Organization switcher in UI
     - Admin management interfaces
@@ -171,7 +171,7 @@ async def list_organizations(
     # Performance monitoring removed
     if current_user.is_superadmin:
         # OPTIMIZED: Get all organizations first
-        organizations = db.query(Organization).filter(Organization.is_active == True).all()
+        organizations = db.query(Organization).filter(Organization.is_active is True).all()
 
         # Get member counts for all organizations
         member_counts_query = (
@@ -180,7 +180,7 @@ async def list_organizations(
                 func.count(OrganizationMembership.id).label("member_count"),
             )
             .filter(
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .group_by(OrganizationMembership.organization_id)
             .all()
@@ -194,7 +194,7 @@ async def list_organizations(
             db.query(OrganizationMembership.organization_id, OrganizationMembership.role)
             .filter(
                 OrganizationMembership.user_id == current_user.id,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .all()
         )
@@ -218,8 +218,8 @@ async def list_organizations(
             .join(OrganizationMembership, Organization.id == OrganizationMembership.organization_id)
             .filter(
                 OrganizationMembership.user_id == current_user.id,
-                OrganizationMembership.is_active == True,
-                Organization.is_active == True,
+                OrganizationMembership.is_active is True,
+                Organization.is_active is True,
             )
             .all()
         )
@@ -234,7 +234,7 @@ async def list_organizations(
                 )
                 .filter(
                     OrganizationMembership.organization_id.in_(org_ids),
-                    OrganizationMembership.is_active == True,
+                    OrganizationMembership.is_active is True,
                 )
                 .group_by(OrganizationMembership.organization_id)
                 .all()
@@ -310,7 +310,7 @@ async def get_organization_by_slug(
 
     organization = (
         db.query(Organization)
-        .filter(Organization.slug == slug, Organization.is_active == True)
+        .filter(Organization.slug == slug, Organization.is_active is True)
         .first()
     )
     if not organization:
@@ -323,7 +323,7 @@ async def get_organization_by_slug(
             .filter(
                 OrganizationMembership.user_id == current_user.id,
                 OrganizationMembership.organization_id == organization.id,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .first()
         )
@@ -335,7 +335,7 @@ async def get_organization_by_slug(
         db.query(func.count(OrganizationMembership.id))
         .filter(
             OrganizationMembership.organization_id == organization.id,
-            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_active is True,
         )
         .scalar()
     )
@@ -346,7 +346,7 @@ async def get_organization_by_slug(
         .filter(
             OrganizationMembership.user_id == current_user.id,
             OrganizationMembership.organization_id == organization.id,
-            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_active is True,
         )
         .first()
     )
@@ -380,7 +380,7 @@ async def get_organization(
             .filter(
                 OrganizationMembership.user_id == current_user.id,
                 OrganizationMembership.organization_id == organization_id,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .first()
         )
@@ -395,7 +395,7 @@ async def get_organization(
         db.query(func.count(OrganizationMembership.id))
         .filter(
             OrganizationMembership.organization_id == organization_id,
-            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_active is True,
         )
         .scalar()
     )
@@ -446,7 +446,7 @@ async def update_organization(
         db.query(func.count(OrganizationMembership.id))
         .filter(
             OrganizationMembership.organization_id == organization_id,
-            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_active is True,
         )
         .scalar()
     )
@@ -506,7 +506,7 @@ async def list_organization_members(
             .filter(
                 OrganizationMembership.user_id == current_user.id,
                 OrganizationMembership.organization_id == organization_id,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .first()
         )
@@ -522,7 +522,7 @@ async def list_organization_members(
         .join(User, OrganizationMembership.user_id == User.id)
         .filter(
             OrganizationMembership.organization_id == organization_id,
-            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_active is True,
         )
         .all()
     )
@@ -557,7 +557,7 @@ async def update_member_role(
                 OrganizationMembership.user_id == current_user.id,
                 OrganizationMembership.organization_id == organization_id,
                 OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .first()
         )
@@ -573,7 +573,7 @@ async def update_member_role(
         .filter(
             OrganizationMembership.user_id == user_id,
             OrganizationMembership.organization_id == organization_id,
-            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_active is True,
         )
         .first()
     )
@@ -617,7 +617,7 @@ async def remove_member(
                 OrganizationMembership.user_id == current_user.id,
                 OrganizationMembership.organization_id == organization_id,
                 OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .first()
         )
@@ -633,7 +633,7 @@ async def remove_member(
         .filter(
             OrganizationMembership.user_id == user_id,
             OrganizationMembership.organization_id == organization_id,
-            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_active is True,
         )
         .first()
     )
@@ -716,7 +716,7 @@ async def list_all_users(
 
     from sqlalchemy import or_ as sa_or
 
-    query = db.query(User).filter(User.is_active == True)
+    query = db.query(User).filter(User.is_active is True)
 
     if not current_user.is_superadmin:
         # Get user's organization IDs from the Pydantic User model
@@ -730,7 +730,7 @@ async def list_all_users(
             db.query(OrganizationMembership.user_id)
             .filter(
                 OrganizationMembership.organization_id.in_(user_org_ids),
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .distinct()
             .subquery()
@@ -978,7 +978,7 @@ async def add_user_to_organization(
                 OrganizationMembership.user_id == current_user.id,
                 OrganizationMembership.organization_id == organization_id,
                 OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .first()
         )
@@ -1076,7 +1076,7 @@ async def verify_member_email(
                 OrganizationMembership.user_id == current_user.id,
                 OrganizationMembership.organization_id == organization_id,
                 OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .first()
         )
@@ -1095,7 +1095,7 @@ async def verify_member_email(
             .filter(
                 OrganizationMembership.user_id == user_id,
                 OrganizationMembership.organization_id == organization_id,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .first()
         )
@@ -1177,7 +1177,7 @@ async def bulk_verify_member_emails(
                 OrganizationMembership.user_id == current_user.id,
                 OrganizationMembership.organization_id == organization_id,
                 OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active is True,
             )
             .first()
         )
@@ -1202,7 +1202,7 @@ async def bulk_verify_member_emails(
                 .filter(
                     OrganizationMembership.user_id == user_id,
                     OrganizationMembership.organization_id == organization_id,
-                    OrganizationMembership.is_active == True,
+                    OrganizationMembership.is_active is True,
                 )
                 .first()
             )

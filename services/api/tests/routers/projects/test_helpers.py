@@ -335,10 +335,10 @@ def test_calculate_generation_stats():
 
     calculate_generation_stats(db, project, response)
 
-    assert response.generation_config_ready == True
-    assert response.generation_prompts_ready == True
+    assert response.generation_config_ready is True
+    assert response.generation_prompts_ready is True
     assert response.generation_models_count == 2
-    assert response.generation_completed == True
+    assert response.generation_completed is True
 
 
 def test_calculate_generation_stats_incomplete():
@@ -372,4 +372,4 @@ def test_calculate_generation_stats_incomplete():
     calculate_generation_stats(db, project, response)
 
     assert response.generation_models_count == 2
-    assert response.generation_completed == False
+    assert response.generation_completed is False

@@ -207,7 +207,7 @@ class BaseEvaluator(ABC):
         """Log evaluation completion."""
         if result.success:
             self.logger.info(
-                f"Evaluation completed successfully. "
+                "Evaluation completed successfully. "
                 f"Evaluated {result.samples_evaluated} samples. "
                 f"Metrics: {result.metrics}"
             )

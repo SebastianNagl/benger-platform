@@ -5,7 +5,7 @@ Targets: routers/dashboard.py lines 37-119
 """
 
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import status

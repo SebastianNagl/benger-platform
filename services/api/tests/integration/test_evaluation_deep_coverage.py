@@ -10,12 +10,10 @@ import uuid
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
-    EvaluationType,
     Generation,
     HumanEvaluationSession,
     LikertScaleEvaluation,
@@ -384,7 +382,7 @@ class TestEvalStatus:
     """Evaluation status and listing endpoints."""
 
     def test_list_evaluations_with_data(self, client, test_db, test_users, auth_headers, test_org):
-        data = _make_eval_project(test_db, test_users[0], test_org)
+        _make_eval_project(test_db, test_users[0], test_org)
         resp = client.get(
             f"{BASE}/",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},

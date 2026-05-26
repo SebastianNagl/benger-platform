@@ -96,7 +96,7 @@ def upgrade() -> None:
     if remaining and remaining > 0:
         raise RuntimeError(
             f"043 backfill left {remaining} task_evaluations with null judge_run_id; "
-            f"abort before tightening to NOT NULL"
+            "abort before tightening to NOT NULL"
         )
 
     op.alter_column(

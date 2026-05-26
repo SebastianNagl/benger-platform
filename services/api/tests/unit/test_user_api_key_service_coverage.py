@@ -2,9 +2,8 @@
 Unit tests for services/user_api_key_service.py to increase coverage.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
-import pytest
 from sqlalchemy.orm import Session
 
 from services.user_api_key_service import UserApiKeyService
