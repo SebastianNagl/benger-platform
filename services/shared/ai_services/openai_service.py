@@ -123,7 +123,7 @@ class OpenAIService(BaseAIService):
 
     def is_available(self) -> bool:
         """Check if OpenAI service is available (API key set)"""
-        return self.client is not None
+        return self.client != None
 
     @staticmethod
     def _is_responses_api_only_model(model_name: str) -> bool:

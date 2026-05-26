@@ -84,7 +84,7 @@ class TestDataclasses:
             industry_average_time=None,
             similar_projects=[],
         )
-        assert b.industry_average_quality is None
+        assert b.industry_average_quality == None  # noqa: E711
 
 
 class TestAnalyticsServiceImport:

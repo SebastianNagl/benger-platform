@@ -130,10 +130,10 @@ class TestAgreement:
         report = compute_agreement(triples, score_type="categorical")
         assert report.n_raters == 2
         assert report.n_items == 3
-        assert report.percent_agreement is not None
+        assert report.percent_agreement != None  # noqa: E711
         # 2 of 3 items agreed
         assert report.percent_agreement == round(2 / 3, 4)
-        assert report.fleiss_kappa is not None
+        assert report.fleiss_kappa != None  # noqa: E711
         assert ("rater1", "rater2") in report.cohens_kappa_pairwise
 
     def test_compute_agreement_numeric(self):
@@ -149,7 +149,7 @@ class TestAgreement:
         assert report.n_raters == 2
         assert report.n_items == 3
         assert ("judge_a", "judge_b") in report.pearson_r_pairwise
-        assert report.mean_absolute_deviation is not None
+        assert report.mean_absolute_deviation != None  # noqa: E711
         # Per-item MAD averages roughly (0.05 + 0.05 + 0.025) / 3 ≈ 0.0417
         assert 0.0 < report.mean_absolute_deviation < 0.1
 

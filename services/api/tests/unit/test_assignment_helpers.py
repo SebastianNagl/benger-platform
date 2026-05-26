@@ -201,7 +201,7 @@ def test_mark_assignment_completed_flips_status_and_stamps_time(
     assert out is not None
     assert out.id == a.id
     assert out.status == "completed"
-    assert out.completed_at is not None
+    assert out.completed_at != None  # noqa: E711
     assert (datetime.now(timezone.utc) - out.completed_at).total_seconds() < 60
 
 

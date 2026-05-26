@@ -36,7 +36,7 @@ class TestEmailService:
         """Test email service initialization"""
         assert email_service.from_email == 'noreply@what-a-benger.net'  # Default
         assert email_service.from_name == 'BenGER Platform'  # Default
-        assert email_service.mail_client is not None
+        assert email_service.mail_client != None  # noqa: E711
 
     def test_feature_flag_check(self, mock_db_session):
         """Test email service feature flag checking"""
@@ -63,7 +63,7 @@ class TestEmailService:
 
     def test_template_environment_initialization(self, email_service):
         """Test Jinja2 template environment initialization"""
-        assert email_service.template_env is not None
+        assert email_service.template_env != None  # noqa: E711
         assert email_service.template_env.autoescape == True  # noqa: E712
         assert 'format_date' in email_service.template_env.filters
 

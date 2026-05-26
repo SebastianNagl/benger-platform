@@ -31,7 +31,7 @@ class TestEncryptionServiceInit:
             os.environ.pop("ENCRYPTION_KEY", None)
             from encryption_service import EncryptionService
             svc = EncryptionService()
-            assert svc.encryption_key is not None
+            assert svc.encryption_key != None  # noqa: E711
 
     def test_init_with_jwt_secret_key(self):
         with patch.dict(os.environ, {"JWT_SECRET_KEY": "jwt-secret-for-test"}, clear=False):
@@ -39,7 +39,7 @@ class TestEncryptionServiceInit:
             os.environ.pop("SECRET_KEY", None)
             from encryption_service import EncryptionService
             svc = EncryptionService()
-            assert svc.encryption_key is not None
+            assert svc.encryption_key != None  # noqa: E711
 
     def test_init_with_valid_fernet_key(self):
         from cryptography.fernet import Fernet
@@ -47,7 +47,7 @@ class TestEncryptionServiceInit:
         with patch.dict(os.environ, {"ENCRYPTION_KEY": valid_key}, clear=False):
             from encryption_service import EncryptionService
             svc = EncryptionService()
-            assert svc.encryption_key is not None
+            assert svc.encryption_key != None  # noqa: E711
 
     def test_init_with_test_key(self):
         test_key = "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcw=="
@@ -62,14 +62,14 @@ class TestEncryptionServiceInit:
         with patch.dict(os.environ, {"ENCRYPTION_KEY": short_key}, clear=False):
             from encryption_service import EncryptionService
             svc = EncryptionService()
-            assert svc.encryption_key is not None
+            assert svc.encryption_key != None  # noqa: E711
 
     def test_init_with_long_base64_key(self):
         long_key = base64.b64encode(b"a" * 64).decode('utf-8')
         with patch.dict(os.environ, {"ENCRYPTION_KEY": long_key}, clear=False):
             from encryption_service import EncryptionService
             svc = EncryptionService()
-            assert svc.encryption_key is not None
+            assert svc.encryption_key != None  # noqa: E711
 
     def test_init_with_invalid_encryption_key_falls_back(self):
         with patch.dict(os.environ, {
@@ -78,7 +78,7 @@ class TestEncryptionServiceInit:
         }, clear=False):
             from encryption_service import EncryptionService
             svc = EncryptionService()
-            assert svc.encryption_key is not None
+            assert svc.encryption_key != None  # noqa: E711
 
 
 class TestEncryptDecrypt:
@@ -265,9 +265,9 @@ class TestFernetProperty:
 
     def test_fernet_lazy_init(self):
         svc = self._make_service()
-        assert svc._fernet is None
+        assert svc._fernet == None  # noqa: E711
         _ = svc.fernet
-        assert svc._fernet is not None
+        assert svc._fernet != None  # noqa: E711
 
     def test_fernet_returns_same_instance(self):
         svc = self._make_service()

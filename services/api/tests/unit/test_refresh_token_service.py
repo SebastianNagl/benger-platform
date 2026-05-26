@@ -136,7 +136,7 @@ class TestRefreshTokenService:
             result = validate_refresh_token(test_db, "valid_token")
 
             assert result == mock_refresh_token
-            assert mock_refresh_token.last_used_at is not None
+            assert mock_refresh_token.last_used_at != None  # noqa: E711
             test_db.commit.assert_called_once()
             test_db.refresh.assert_called_once_with(mock_refresh_token)
 

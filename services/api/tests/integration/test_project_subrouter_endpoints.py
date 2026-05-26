@@ -389,7 +389,7 @@ class TestGenerationEndpoints:
         assert resp.status_code == 204
 
         test_db.refresh(project)
-        assert project.generation_config is None
+        assert project.generation_config == None  # noqa: E711
 
     def test_generation_status_no_generations(self, client, test_db, test_users, test_org, auth_headers):
         """Generation status with no generations returns empty list and is_running=False."""

@@ -374,7 +374,7 @@ class TestPublicProjectCreation:
             is_public=False,
             public_role="CONTRIBUTOR",
         )
-        assert project.public_role is None
+        assert project.public_role == None  # noqa: E711
 
 
 class TestPublicVisibilityPayloads:

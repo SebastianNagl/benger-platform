@@ -114,9 +114,9 @@ class TestHelperFunctions:
 
         assert result.task_id == "task-id"
         assert result.model_id == "model-id"
-        assert result.structure_key is None
-        assert result.status is None
-        assert result.generation_id is None
+        assert result.structure_key == None  # noqa: E711
+        assert result.status == None  # noqa: E711
+        assert result.generation_id == None  # noqa: E711
 
     def test_get_single_task_generation_status_completed(self, mock_db):
         """Test status for completed generation."""
@@ -134,10 +134,10 @@ class TestHelperFunctions:
 
         assert result.task_id == "task-id"
         assert result.model_id == "model-id"
-        assert result.structure_key is None
+        assert result.structure_key == None  # noqa: E711
         assert result.status == "completed"
         assert result.generation_id == mock_generation.id
-        assert result.result_preview is not None
+        assert result.result_preview != None  # noqa: E711
 
     def test_get_single_task_generation_status_failed(self, mock_db):
         """Test status for failed generation."""
@@ -155,10 +155,10 @@ class TestHelperFunctions:
 
         assert result.task_id == "task-id"
         assert result.model_id == "model-id"
-        assert result.structure_key is None
+        assert result.structure_key == None  # noqa: E711
         assert result.status == "failed"
         assert result.error_message == "API rate limit exceeded"
-        assert result.result_preview is None
+        assert result.result_preview == None  # noqa: E711
 
     def test_get_single_task_generation_status_with_structure_key(self, mock_db):
         """Test status lookup with explicit structure_key finds matching generation."""
@@ -186,7 +186,7 @@ class TestHelperFunctions:
         result = get_single_task_generation_status("task-id", "model-id", "default", mock_db)
 
         assert result.structure_key == "default"
-        assert result.status is None
+        assert result.status == None  # noqa: E711
 
 
 class TestPrivateProjectPermissions:
@@ -328,8 +328,8 @@ class TestGenerationEndpoint:
         # Valid request with missing mode
         request = GenerationRequest(mode="missing", model_ids=None, task_ids=None)
         assert request.mode == "missing"
-        assert request.model_ids is None
-        assert request.task_ids is None
+        assert request.model_ids == None  # noqa: E711
+        assert request.task_ids == None  # noqa: E711
 
     def test_generation_mode_validation(self):
         """Test that only 'all' or 'missing' modes are accepted."""

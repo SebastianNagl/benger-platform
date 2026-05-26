@@ -291,6 +291,6 @@ class TestProjectUpdateVersioning:
 
         # Should create v2 (increments from v1 default)
         # Note: This might be v2 based on service logic - see unit tests
-        assert project.label_config_version is not None
+        assert project.label_config_version != None  # noqa: E711
         assert project.label_config == new_schema
-        assert project.label_config_history is not None
+        assert project.label_config_history != None  # noqa: E711

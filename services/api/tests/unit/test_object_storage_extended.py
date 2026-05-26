@@ -187,7 +187,7 @@ class TestS3Initialization:
                 service = ObjectStorageService()
 
         assert service.storage_backend == "local"
-        assert service.s3_client is None
+        assert service.s3_client == None  # noqa: E711
 
     def test_s3_init_falls_back_to_local_on_exception(self):
         """If S3 client creation fails, falls back to local storage."""

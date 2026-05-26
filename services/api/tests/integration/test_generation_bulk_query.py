@@ -295,7 +295,7 @@ class TestStartGenerationMissingModeDecisionMatrix:
         )
         assert len(queued) == 1
         assert queued[0].task_id == t1.id
-        assert queued[0].structure_key is None
+        assert queued[0].structure_key == None  # noqa: E711
 
 
 # ---------------------------------------------------------------------------

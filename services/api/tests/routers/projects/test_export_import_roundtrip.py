@@ -383,7 +383,7 @@ class TestDataExportImportRoundtrip:
         )
         assert len(imported_anns) == 3
         for ann in imported_anns:
-            assert ann.result is not None
+            assert ann.result != None  # noqa: E711
             assert ann.ground_truth == True  # noqa: E712
 
         imported_qrs = (
@@ -505,8 +505,8 @@ class TestDataExportImportRoundtrip:
         )
         assert len(imported_tes) == 6
 
-        gen_tes = [te for te in imported_tes if te.generation_id is not None]
-        task_tes = [te for te in imported_tes if te.generation_id is None]
+        gen_tes = [te for te in imported_tes if te.generation_id != None]  # noqa: E711
+        task_tes = [te for te in imported_tes if te.generation_id == None]  # noqa: E711
         assert len(gen_tes) == 3
         assert len(task_tes) == 3
 
@@ -771,7 +771,7 @@ class TestRoundtripExtensions:
         # newly-imported annotation, not None.
         assert anno_tes, "expected at least one task-level TaskEvaluation"
         for te in anno_tes:
-            assert te.annotation_id is not None, "annotation_id was dropped on import"
+            assert te.annotation_id != None, "annotation_id was dropped on import"  # noqa: E711
             assert te.annotation_id in target_ann_ids
 
     def test_annotation_extras_survive(
@@ -872,8 +872,8 @@ class TestRoundtripExtensions:
             .all()
         )
         assert len(imported) == 2
-        parents = [c for c in imported if c.parent_id is None]
-        replies = [c for c in imported if c.parent_id is not None]
+        parents = [c for c in imported if c.parent_id == None]  # noqa: E711
+        replies = [c for c in imported if c.parent_id != None]  # noqa: E711
         assert len(parents) == 1 and len(replies) == 1
         assert replies[0].parent_id == parents[0].id, "reply.parent_id must point to the new parent id"
 

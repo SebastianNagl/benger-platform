@@ -122,7 +122,7 @@ def generate_migration_content():
                     col_str += ", nullable=False"
 
                 # Add default
-                if column.server_default is not None:
+                if column.server_default != None:  # noqa: E711
                     default_str = str(column.server_default.arg)
                     if default_str == "now()":
                         col_str += ", server_default=sa.text('now()')"

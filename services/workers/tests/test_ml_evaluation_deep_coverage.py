@@ -1331,7 +1331,7 @@ class TestLLMJudgeDeepCoverage:
 
     def test_answer_type_auto_selects_template(self):
         ev = self._make_evaluator(answer_type="choices", criteria=None)
-        assert ev.custom_prompt_template is not None
+        assert ev.custom_prompt_template != None
         assert "classification" in ev.custom_prompt_template.lower()
 
     def test_no_answer_type_defaults_criteria(self):
@@ -1375,7 +1375,7 @@ class TestLLMJudgeDeepCoverage:
         ev = self._make_evaluator(ai_service=None)
         config = EvaluationConfig(metrics=["llm_judge_helpfulness"], model_config={})
         result = ev.evaluate("model-1", [], config)
-        assert result.error is not None
+        assert result.error != None
         assert result.samples_evaluated == 0
 
     def test_evaluate_overall_metric(self):
@@ -1684,28 +1684,28 @@ class TestTorchBackendAvailability:
 
         backend = TorchEmbeddingBackend("custom-model")
         assert backend.model_name == "custom-model"
-        assert backend._model is None
+        assert backend._model == None
 
     def test_torch_bertscore_init(self):
         from ml_evaluation.backends.torch_backend import TorchBERTScoreBackend
 
         backend = TorchBERTScoreBackend()
-        assert backend._bert_score_available is None
+        assert backend._bert_score_available == None
 
     def test_torch_qags_init(self):
         from ml_evaluation.backends.torch_backend import TorchQAGSBackend
 
         backend = TorchQAGSBackend()
-        assert backend._qg_model is None
-        assert backend._qg_tokenizer is None
-        assert backend._qa_pipeline is None
+        assert backend._qg_model == None
+        assert backend._qg_tokenizer == None
+        assert backend._qa_pipeline == None
 
     def test_torch_summac_init(self):
         from ml_evaluation.backends.torch_backend import TorchSummaCBackend
 
         backend = TorchSummaCBackend()
-        assert backend._model is None
-        assert backend._tokenizer is None
+        assert backend._model == None
+        assert backend._tokenizer == None
         assert backend.VITC_MODEL == "tals/albert-xlarge-vitaminc-mnli"
 
     def test_torch_embedding_encode_calls_model(self):

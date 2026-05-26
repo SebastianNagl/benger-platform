@@ -842,7 +842,7 @@ async def export_project(
 
         # Add task-level evaluations (annotation/ground-truth evals without a generation)
         for te in te_by_task.get(task.id, []):
-            if te.generation_id is not None:
+            if te.generation_id != None:  # noqa: E711
                 continue  # Already nested under the generation above
             task_data["evaluations"].append(
                 serialize_task_evaluation(

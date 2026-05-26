@@ -133,8 +133,8 @@ class TestBuildUserProfileResponse:
         # Test that profile works even when optional attrs are missing
         profile = _build_user_profile_response(user, test_db)
         # Optional fields default to None
-        assert profile.pseudonym is None or isinstance(profile.pseudonym, str)
-        assert profile.legal_expertise_level is None or isinstance(profile.legal_expertise_level, str)
+        assert profile.pseudonym == None or isinstance(profile.pseudonym, str)  # noqa: E711
+        assert profile.legal_expertise_level == None or isinstance(profile.legal_expertise_level, str)  # noqa: E711
 
 
 class TestLoginEndpoint:

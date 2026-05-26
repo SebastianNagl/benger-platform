@@ -100,8 +100,8 @@ class TestAssignPseudonymsToExistingUsers:
 
         result = assign_pseudonyms_to_existing_users(mock_db)
         assert result == 2
-        assert user1.pseudonym is not None
-        assert user2.pseudonym is not None
+        assert user1.pseudonym != None  # noqa: E711
+        assert user2.pseudonym != None  # noqa: E711
         mock_db.commit.assert_called_once()
 
 

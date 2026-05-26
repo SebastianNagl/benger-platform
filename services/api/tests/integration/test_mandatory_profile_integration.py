@@ -406,7 +406,7 @@ class TestCreateUserWithProfile:
             ki_experience_scores=VALID_SCALES["ki_exp"],
         )
         assert user.mandatory_profile_completed == True  # noqa: E712
-        assert user.profile_confirmed_at is not None
+        assert user.profile_confirmed_at != None  # noqa: E711
         assert user.gender == "maennlich"
         assert user.age == 30
 
@@ -421,7 +421,7 @@ class TestCreateUserWithProfile:
             password="securepassword123",
         )
         assert user.mandatory_profile_completed == False  # noqa: E712
-        assert user.profile_confirmed_at is None
+        assert user.profile_confirmed_at == None  # noqa: E711
 
     def test_create_user_invalid_gender_rejected(self, test_db):
         from fastapi import HTTPException
@@ -494,7 +494,7 @@ class TestConfirmProfileService:
         old_confirmed = complete_user.profile_confirmed_at
         updated = confirm_profile(test_db, complete_user.id)
         assert updated is not None
-        assert updated.profile_confirmed_at is not None
+        assert updated.profile_confirmed_at != None  # noqa: E711
         assert updated.profile_confirmed_at > old_confirmed
 
     def test_confirm_creates_history(self, test_db, complete_user):

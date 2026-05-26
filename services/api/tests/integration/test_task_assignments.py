@@ -876,7 +876,7 @@ class TestManualModeEnforcement:
         # Assignment should now be "completed"
         test_db.refresh(assignment)
         assert assignment.status == "completed"
-        assert assignment.completed_at is not None
+        assert assignment.completed_at != None  # noqa: E711
 
     def test_next_returns_none_after_all_assigned_annotated(
         self, client, auth_headers, assignment_project, test_db
@@ -1267,7 +1267,7 @@ class TestAutoModeAssignment:
         assert assignment is not None
         assert assignment.status == "in_progress"
         assert assignment.assigned_by == p["users"]["annotator"].id  # self-assignment
-        assert assignment.started_at is not None
+        assert assignment.started_at != None  # noqa: E711
 
     def test_auto_next_resumes_existing(
         self, client, auth_headers, auto_assignment_project, test_db
@@ -1526,7 +1526,7 @@ class TestAutoModeAssignment:
         ).first()
         assert assignment is not None
         assert assignment.status == "completed"
-        assert assignment.completed_at is not None
+        assert assignment.completed_at != None  # noqa: E711
 
     def test_manual_mode_no_auto_assign(
         self, client, auth_headers, auto_assignment_project, test_db

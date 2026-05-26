@@ -323,7 +323,7 @@ class TestStorageConfigModelFields:
         """CDNConfig defaults cdn_provider to None."""
         mod = storage_config_module
         field = mod.CDNConfig.model_fields["cdn_provider"]
-        assert field.default is None
+        assert field.default == None  # noqa: E711
 
     def test_storage_config_default_local_path(self, storage_config_module):
         """StorageConfig defaults local_storage_path."""
@@ -339,13 +339,13 @@ class TestModuleLevelInstances:
         """Module has a global storage_config instance."""
         mod = storage_config_module
         assert hasattr(mod, "storage_config")
-        assert mod.storage_config is not None
+        assert mod.storage_config != None  # noqa: E711
 
     def test_cdn_config_instance_exists(self, storage_config_module):
         """Module has a global cdn_config instance."""
         mod = storage_config_module
         assert hasattr(mod, "cdn_config")
-        assert mod.cdn_config is not None
+        assert mod.cdn_config != None  # noqa: E711
 
     def test_helper_functions_exist(self, storage_config_module):
         """Module exports get_storage_config and get_cdn_config."""

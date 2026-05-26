@@ -246,7 +246,7 @@ class TestCompleteDemoUserProfile:
         assert result is True
         # Should set mandatory_profile_completed
         assert user.mandatory_profile_completed == True  # noqa: E712
-        assert user.profile_confirmed_at is not None
+        assert user.profile_confirmed_at != None  # noqa: E711
 
     def test_fills_fields_but_still_missing(self):
         from auth_module.user_service import _complete_demo_user_profile
@@ -462,7 +462,7 @@ class TestUpdateUserProfile:
                 with patch("auth_module.user_service.create_profile_snapshot", return_value={}):
                     update_user_profile(db, "user-id", current_semester=5)
 
-        assert user.current_semester is None
+        assert user.current_semester == None  # noqa: E711
 
     def test_update_legal_specializations_filters_invalid(self):
         from auth_module.user_service import update_user_profile
@@ -647,7 +647,7 @@ class TestConfirmProfile:
 
         assert result == user
         assert user.mandatory_profile_completed == True  # noqa: E712
-        assert user.profile_confirmed_at is not None
+        assert user.profile_confirmed_at != None  # noqa: E711
         db.add.assert_called_once()  # history entry
         db.commit.assert_called_once()
         db.refresh.assert_called_once_with(user)

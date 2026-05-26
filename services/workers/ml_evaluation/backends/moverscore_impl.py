@@ -36,7 +36,7 @@ class MoverScoreComputer:
         self._emd_backend = None
 
     def _get_embedding_backend(self) -> EmbeddingBackend:
-        if self._embedding_backend is None:
+        if self._embedding_backend == None:
             if self.use_onnx:
                 from .onnx_backend import ONNXEmbeddingBackend
 
@@ -50,7 +50,7 @@ class MoverScoreComputer:
         return self._embedding_backend
 
     def _get_emd_backend(self):
-        if self._emd_backend is None:
+        if self._emd_backend == None:
             self._emd_backend = get_emd_backend()
         return self._emd_backend
 

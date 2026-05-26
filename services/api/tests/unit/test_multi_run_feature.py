@@ -36,7 +36,7 @@ def test_compute_agreement_two_judges_two_runs_categorical():
     assert report.n_raters == 2
     assert report.n_items == 3
     assert report.percent_agreement == round(2 / 3, 4)
-    assert report.fleiss_kappa is not None
+    assert report.fleiss_kappa != None  # noqa: E711
     # The (judge_a, judge_b) pair should have a Cohen's kappa value
     assert ("judge_a", "judge_b") in report.cohens_kappa_pairwise
 
@@ -57,7 +57,7 @@ def test_compute_agreement_numeric_pearson_pair():
     assert ("judge_a", "judge_b") in report.pearson_r_pairwise
     # Variance is non-zero for both judges → pearson is defined
     assert report.pearson_r_pairwise[("judge_a", "judge_b")] is not None
-    assert report.mean_absolute_deviation is not None
+    assert report.mean_absolute_deviation != None  # noqa: E711
 
 
 def test_compute_agreement_empty_returns_empty_report():
@@ -226,7 +226,7 @@ def test_runs_aggregate_collapses_to_n_runs_1_for_single_run():
         ci_upper=None,
     )
     assert agg.n_runs == 1
-    assert agg.ci_lower is None
+    assert agg.ci_lower == None  # noqa: E711
 
 
 # --- (H) Top-level seed on EvaluationRunRequest ---
@@ -247,7 +247,7 @@ def test_evaluation_run_request_accepts_top_level_seed():
     assert req.seed == 7
     # Default is None so unaffected callers behave exactly as before.
     req_default = EvaluationRunRequest(project_id="proj-1", evaluation_configs=[])
-    assert req_default.seed is None
+    assert req_default.seed == None  # noqa: E711
 
 
 def test_top_level_seed_injection_respects_per_config_override():

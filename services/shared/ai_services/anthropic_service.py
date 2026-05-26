@@ -81,7 +81,7 @@ class AnthropicService(BaseAIService):
 
     def is_available(self) -> bool:
         """Check if Anthropic service is available (API key set)"""
-        return self.client is not None
+        return self.client != None
 
     @retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
     def generate(

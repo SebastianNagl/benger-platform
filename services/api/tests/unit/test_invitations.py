@@ -228,7 +228,7 @@ class TestAcceptInvitation:
 
         # Check invitation marked as accepted
         assert mock_invitation.accepted == True  # noqa: E712
-        assert mock_invitation.accepted_at is not None
+        assert mock_invitation.accepted_at != None  # noqa: E711
 
         # Check membership created
         mock_db.add.assert_called_once()

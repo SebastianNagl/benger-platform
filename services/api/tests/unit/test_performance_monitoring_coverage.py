@@ -16,7 +16,7 @@ class TestQueryPerformanceMonitor:
         monitor = QueryPerformanceMonitor("test_op", warn_threshold_ms=100.0)
         with monitor:
             time.sleep(0.001)  # 1ms
-        assert monitor.duration_ms is not None
+        assert monitor.duration_ms != None  # noqa: E711
         assert monitor.duration_ms > 0
 
     def test_slow_query_warning(self):
@@ -30,14 +30,14 @@ class TestQueryPerformanceMonitor:
     def test_duration_before_exit_is_none(self):
         from services.performance_monitoring import QueryPerformanceMonitor
         monitor = QueryPerformanceMonitor("test")
-        assert monitor.duration_ms is None
+        assert monitor.duration_ms == None  # noqa: E711
 
     def test_fast_query_debug_log(self):
         from services.performance_monitoring import QueryPerformanceMonitor
         monitor = QueryPerformanceMonitor("fast_op", warn_threshold_ms=10000)
         with monitor:
             pass  # Very fast
-        assert monitor.duration_ms is not None
+        assert monitor.duration_ms != None  # noqa: E711
         assert monitor.duration_ms < 10000
 
 
@@ -48,7 +48,7 @@ class TestMonitorQueryPerformance:
         from services.performance_monitoring import monitor_query_performance
         with monitor_query_performance("test_operation") as monitor:
             time.sleep(0.001)
-        assert monitor.duration_ms is not None
+        assert monitor.duration_ms != None  # noqa: E711
 
     def test_custom_threshold(self):
         from services.performance_monitoring import monitor_query_performance

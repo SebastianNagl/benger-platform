@@ -24,7 +24,7 @@ class ParseResult:
     field_values: Dict[str, Any] = None
 
     def __post_init__(self):
-        if self.field_values is None:
+        if self.field_values == None:
             self.field_values = {}
 
 

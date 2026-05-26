@@ -58,7 +58,7 @@ class TestEvaluationResult:
             samples_evaluated=100,
         )
         assert result.success == True
-        assert result.error is None
+        assert result.error == None
 
     def test_error_result(self):
         result = EvaluationResult(

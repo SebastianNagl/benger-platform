@@ -211,9 +211,9 @@ class TestBuildUserProfileResponse:
             mock_role.return_value = None
             result = _build_user_profile_response(mock_user, mock_db)
 
-        assert result.created_at is None
-        assert result.updated_at is None
-        assert result.role is None
+        assert result.created_at == None  # noqa: E711
+        assert result.updated_at == None  # noqa: E711
+        assert result.role == None  # noqa: E711
 
 
 class TestAuthRouterExtended:

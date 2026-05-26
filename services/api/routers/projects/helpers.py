@@ -334,7 +334,7 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
             .filter(
                 Annotation.project_id.in_(missing_summary_ids),
                 Annotation.was_cancelled == False,  # noqa: E712
-                Annotation.result is not None,
+                Annotation.result != None,  # noqa: E711
                 func.jsonb_array_length(Annotation.result) > 0,
             )
             .group_by(Annotation.project_id)

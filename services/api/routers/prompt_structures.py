@@ -68,7 +68,7 @@ def get_project_or_403(
 
 def ensure_generation_config_structure(project: Project) -> None:
     """Ensure generation_config has the correct structure"""
-    if project.generation_config is None:
+    if project.generation_config == None:  # noqa: E711
         project.generation_config = {}
 
     if "selected_configuration" not in project.generation_config:

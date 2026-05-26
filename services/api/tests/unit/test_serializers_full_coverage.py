@@ -229,7 +229,7 @@ class TestSerializeTaskEvaluation:
         te.created_at = None
         te.evaluation_id = "er1"
 
-        # Even with a populated lookup, te.judge_run_id is None -> judge_model is None
+        # Even with a populated lookup, te.judge_run_id == None -> judge_model is None
         result = serialize_task_evaluation(te, mode="data", judge_model_lookup={"jr-1": "x"})
         assert result["judge_model"] is None
 

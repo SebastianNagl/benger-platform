@@ -213,7 +213,7 @@ class TestGenerationConfiguration:
 
         # Verify it's cleared
         db.refresh(test_project)
-        assert test_project.generation_config is None
+        assert test_project.generation_config == None  # noqa: E711
 
 
 class TestGenerationExecution:

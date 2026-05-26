@@ -20,7 +20,7 @@ class TestCeleryClient:
     def test_celery_app_has_name(self):
         from celery_client import get_celery_app
         app = get_celery_app()
-        assert app.main is not None
+        assert app.main != None  # noqa: E711
 
     def test_celery_app_config(self):
         from celery_client import get_celery_app

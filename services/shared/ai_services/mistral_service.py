@@ -147,7 +147,7 @@ class MistralService(BaseAIService):
 
     def is_available(self) -> bool:
         """Check if Mistral service is available (API key set)"""
-        return self.client is not None
+        return self.client != None
 
     @retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
     def generate(
@@ -434,7 +434,7 @@ Your response must be ONLY the JSON object, no other text before or after.
                 **self.get_invocation_provenance(),
             }
 
-            if validation_result.valid and validation_result.data is not None:
+            if validation_result.valid and validation_result.data != None:
                 content = json.dumps(validation_result.data, ensure_ascii=False)
                 result_metadata["validation_status"] = "valid"
                 result_metadata["schema_validated"] = True

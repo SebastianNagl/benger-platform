@@ -773,7 +773,7 @@ async def start_generation(
     # parent ResponseGeneration so retries and dashboard counters use the
     # value that was active when the trigger fired, not whatever the project
     # default happens to be at retry time.
-    if request.runs_per_task is not None:
+    if request.runs_per_task != None:  # noqa: E711
         runs_per_task = request.runs_per_task
     else:
         runs_per_task = int(generation_config.get("runs_per_task", 1) or 1)

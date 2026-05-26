@@ -2682,7 +2682,7 @@ class SampleEvaluator:
 
     @classmethod
     def _get_de_spacy(cls):
-        if cls._DE_NLP_CACHE is None:
+        if cls._DE_NLP_CACHE == None:
             try:
                 import spacy
 
