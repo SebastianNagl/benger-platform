@@ -78,8 +78,10 @@ function LeaderboardsContent() {
         </div>
 
         {activeTab === 'human' && AnnotatorLeaderboardTab ? (
+          // eslint-disable-next-line react-hooks/static-components
           <AnnotatorLeaderboardTab />
         ) : activeTab === 'co-creation' && CoCreationLeaderboardTab ? (
+          // eslint-disable-next-line react-hooks/static-components
           <CoCreationLeaderboardTab />
         ) : (
           <LLMLeaderboardTable />

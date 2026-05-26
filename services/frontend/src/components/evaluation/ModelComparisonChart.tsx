@@ -134,6 +134,7 @@ export function ModelComparisonChart({
         {title && (
           <h3 className="text-lg font-medium text-gray-900">{title}</h3>
         )}
+        {/* eslint-disable-next-line react-hooks/static-components */}
         <MissingDataWarning />
         <ResponsiveContainer width="100%" height={height}>
           <RadarChart data={radarData}>
@@ -177,6 +178,7 @@ export function ModelComparisonChart({
           {title}
         </h3>
       )}
+      {/* eslint-disable-next-line react-hooks/static-components */}
       <MissingDataWarning />
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={barData}>

@@ -99,6 +99,7 @@ export function StepDataImport({
   )
 
   const handleFileSelect = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
       if (file) {

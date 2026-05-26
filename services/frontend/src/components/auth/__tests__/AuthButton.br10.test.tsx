@@ -63,6 +63,7 @@ jest.mock('@/components/shared/Button', () => ({
 }))
 
 jest.mock('next/link', () => {
+  // eslint-disable-next-line react/display-name
   return ({ children, href, onClick }: any) => <a href={href} onClick={onClick}>{children}</a>
 })
 

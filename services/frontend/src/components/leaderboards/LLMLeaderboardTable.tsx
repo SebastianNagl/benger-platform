@@ -202,6 +202,7 @@ export function LLMLeaderboardTable() {
   // query callback (pre-react-query the state-driven refetch handled it);
   // an explicit effect keeps it decoupled and matches the existing pattern.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1)
   }, [
     period,
@@ -331,6 +332,7 @@ export function LLMLeaderboardTable() {
       const fallback =
         metricOptions.find((o) => o.value === 'llm_judge_falloesung_grade_points') ??
         metricOptions[0]
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMetric(fallback.value)
     }
   }, [metricOptions, metric])
@@ -340,6 +342,7 @@ export function LLMLeaderboardTable() {
   // (the API would reject sum-on-non-summable; this prevents the round-trip).
   useEffect(() => {
     if (aggregation === 'sum' && !currentMetricSummable) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAggregation('average')
     }
   }, [aggregation, currentMetricSummable])

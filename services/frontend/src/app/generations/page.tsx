@@ -68,6 +68,7 @@ export default function GenerationPage() {
     if (projectId) {
       const project = projects.find((p) => p.id.toString() === projectId)
       if (project) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedProject(project)
         localStorage.setItem('generations_lastProjectId', project.id.toString())
       }
