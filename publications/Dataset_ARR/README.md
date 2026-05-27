@@ -6,9 +6,8 @@ Quarto manuscript for the BenGER dataset paper (ACL/ARR target). The dataset is 
 
 When the preprint goes up:
 
-- **Hugging Face**: `huggingface.co/datasets/SebastianNagl/benger` *(URL pending)* — `load_dataset("SebastianNagl/benger")` returns the full benchmark; `load_dataset("SebastianNagl/benger", "benchathon")` returns one subset.
-- **Zenodo DOI**: [10.5281/zenodo.20409635](https://doi.org/10.5281/zenodo.20409635) — archival snapshot with the same content.
-- **GitHub**: this folder ships everything except the unredacted ZJS source and the private grader map.
+- **Zenodo (canonical dataset distribution)**: [10.5281/zenodo.20409635](https://doi.org/10.5281/zenodo.20409635) — `benger-v1.0.zip` with the full anonymised `benchathon/`, `zjs/`, `grundprinzipien/`, and `processed/` subtrees.
+- **GitHub** (this folder): ships the manuscript source, the derived `data/processed/` and `data/interim/` JSONs the paper loads, and the scripts that produced everything. The raw platform exports and the unredacted ZJS source stay out of git.
 
 ### Grader anonymisation
 

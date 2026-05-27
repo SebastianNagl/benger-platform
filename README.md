@@ -20,19 +20,9 @@ A dataset with three thematic subsets, produced and reviewed by nine co-authors 
 | `zjs` | *Zeitschrift für das Juristische Studium* — published exam-style cases from 2008–2026 | Long-form *Gutachten*-style case analysis | 581 cases |
 | `grundprinzipien` | Foundational legal-principle multiple-choice items | Knowledge probe across the three branches | (see paper) |
 
-**Hugging Face**: `huggingface.co/datasets/SebastianNagl/benger` *(URL goes live with the preprint)*
-**Zenodo DOI**: [10.5281/zenodo.20409635](https://doi.org/10.5281/zenodo.20409635)
+**Zenodo (archival, citable)**: [10.5281/zenodo.20409635](https://doi.org/10.5281/zenodo.20409635) — the full anonymised dataset (`benger-v1.0.zip`) with `benchathon/`, `zjs/`, `grundprinzipien/`, and the small derived `processed/` files used by the manuscript.
 **Paper (preprint)**: *(arXiv link goes live with the preprint)*
-
-```python
-from datasets import load_dataset
-
-# the full benchmark — all three subsets in one stream, with a `subset` column
-ds = load_dataset("SebastianNagl/benger")
-
-# or a single subset
-ds_zjs = load_dataset("SebastianNagl/benger", "zjs")
-```
+**In-repo copies of the derived artefacts** the paper loads (small JSON/CSV files, ~5 MB total): `publications/Dataset_ARR/data/processed/` and `publications/Dataset_ARR/data/interim/`.
 
 The data is licensed CC BY 4.0; the platform code is Apache 2.0. Human-grader identities have been replaced with stable codes (`grader_01..grader_07`).
 

@@ -34,7 +34,7 @@ authors:
 license: CC-BY-4.0
 doi: 10.5281/zenodo.20409635
 repository-code: "https://github.com/SebastianNagl/benger-platform"
-url: "https://huggingface.co/datasets/SebastianNagl/benger"
+url: "https://doi.org/10.5281/zenodo.20409635"
 identifiers:
   - type: doi
     value: 10.5281/zenodo.20409635
