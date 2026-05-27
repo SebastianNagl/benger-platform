@@ -16,16 +16,13 @@ import zipfile
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
     Generation,
-    Organization,
     ResponseGeneration,
     TaskEvaluation,
-    User,
 )
 from project_models import (
     Annotation,
@@ -418,7 +415,7 @@ class TestBulkExportFull:
         """Full ZIP export with comprehensive data."""
         p = _project(test_db, test_users[0], test_org, title="Full ZIP Export")
         tasks = _tasks(test_db, p, test_users[0], count=3)
-        anns = _annotations(test_db, p, tasks, test_users[0].id)
+        _annotations(test_db, p, tasks, test_users[0].id)
         _generations(test_db, p, tasks)
         er = _eval_run(test_db, p)
         _task_evals(test_db, er, tasks)
@@ -609,7 +606,7 @@ class TestImportFullProject:
     def test_import_duplicate_title_auto_rename(self, client, test_db, test_users, auth_headers, test_org):
         """Import with duplicate title auto-renames."""
         # Create a project with same title
-        existing = _project(test_db, test_users[0], test_org, title="Duplicate Title")
+        existing = _project(test_db, test_users[0], test_org, title="Duplicate Title")  # noqa: F841
         test_db.commit()
 
         export_data = self._create_export_data("Duplicate Title")

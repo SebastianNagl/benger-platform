@@ -65,7 +65,7 @@ class TestLLMModelsRouter:
             assert data[0]["id"] == "gpt-4"
             assert data[0]["provider"] == "openai"
             assert "parameter_constraints" in data[0]
-            assert data[0]["parameter_constraints"]["temperature"]["supported"] is True
+            assert data[0]["parameter_constraints"]["temperature"]["supported"] == True  # noqa: E712
             assert data[0]["parameter_constraints"]["max_tokens"]["default"] == 4096
         finally:
             app.dependency_overrides.clear()

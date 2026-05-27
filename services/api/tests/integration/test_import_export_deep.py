@@ -18,20 +18,13 @@ import zipfile
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
-    EvaluationRunMetric,
     Generation,
-    HumanEvaluationSession,
-    LikertScaleEvaluation,
-    Organization,
-    PreferenceRanking,
     ResponseGeneration,
     TaskEvaluation,
-    User,
 )
 from project_models import (
     Annotation,
@@ -224,7 +217,7 @@ class TestExportJSON:
     def test_export_json_full_data(self, client, test_db, test_users, auth_headers, test_org):
         project = _make_project(test_db, test_users[0], test_org)
         tasks = _make_tasks(test_db, project, test_users[0], count=5)
-        anns = _make_annotations(test_db, project, tasks, test_users[0].id)
+        _make_annotations(test_db, project, tasks, test_users[0].id)
         gens = _make_generations(test_db, project, tasks)
         er = _make_evaluation_run(test_db, project)
         _make_task_evaluations(test_db, er, tasks, gens)
@@ -282,7 +275,7 @@ class TestExportJSON:
         tasks = _make_tasks(test_db, project, test_users[0], count=3)
         gens = _make_generations(test_db, project, tasks)
         er = _make_evaluation_run(test_db, project)
-        tes = _make_task_evaluations(test_db, er, tasks, gens)
+        _make_task_evaluations(test_db, er, tasks, gens)
         test_db.commit()
 
         resp = client.get(
@@ -318,7 +311,7 @@ class TestExportCSV:
     def test_export_csv_with_generations_and_evals(self, client, test_db, test_users, auth_headers, test_org):
         project = _make_project(test_db, test_users[0], test_org)
         tasks = _make_tasks(test_db, project, test_users[0], count=2)
-        anns = _make_annotations(test_db, project, tasks, test_users[0].id)
+        _make_annotations(test_db, project, tasks, test_users[0].id)
         gens = _make_generations(test_db, project, tasks)
         er = _make_evaluation_run(test_db, project)
         _make_task_evaluations(test_db, er, tasks, gens)
@@ -897,7 +890,7 @@ class TestRoundTrip:
         """Export a project in JSON format, create a new one, import into it, verify counts."""
         project = _make_project(test_db, test_users[0], test_org, title="Roundtrip Source")
         tasks = _make_tasks(test_db, project, test_users[0], count=3)
-        anns = _make_annotations(test_db, project, tasks, test_users[0].id)
+        _make_annotations(test_db, project, tasks, test_users[0].id)
         test_db.commit()
 
         # Export in label_studio format (produces a list of task objects)
@@ -928,7 +921,7 @@ class TestRoundTrip:
 
     def test_roundtrip_preserves_inner_ids(self, client, test_db, test_users, auth_headers, test_org):
         project = _make_project(test_db, test_users[0], test_org, title="InnerID Test")
-        tasks = _make_tasks(test_db, project, test_users[0], count=2)
+        tasks = _make_tasks(test_db, project, test_users[0], count=2)  # noqa: F841
         test_db.commit()
 
         export_resp = client.get(
@@ -952,8 +945,8 @@ class TestSpanAnnotationConversion:
 
     def test_export_converts_benger_to_label_studio(self, client, test_db, test_users, auth_headers, test_org):
         project = _make_project(test_db, test_users[0], test_org,
-                                 label_config='<View><Text name="text" value="$text"/>'
-                                 '<Labels name="label" toName="text">'
+                                 label_config='<View><Text name="text" value="$text"/>'  # noqa: E127
+                                 '<Labels name="label" toName="text">'  # noqa: E127
                                  '<Label value="PER"/><Label value="ORG"/></Labels></View>')
         task = Task(
             id=_uid(), project_id=project.id,

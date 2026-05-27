@@ -123,7 +123,6 @@ class TestValidateRule:
             DisplayMode,
             FieldDisplay,
             FieldSource,
-            FieldType,
             TaskTemplate,
             TaskTemplateField,
             ValidationRule,
@@ -336,8 +335,8 @@ class TestGenerateJsonSchema:
 
     def test_email_url_textarea_richtext(self):
         for ft in ("email", "url", "text_area", "rich_text"):
-            template = self._make_template([{"name": "f", "type": ft}])
-            assert template.generate_json_schema()["properties"]["f"]["type"] == "string"
+            template = self._make_template([{"name": "", "type": ft}])
+            assert template.generate_json_schema()["properties"][""]["type"] == "string"
 
     def test_validation_constraints_in_schema(self):
         template = self._make_template([{
@@ -413,7 +412,7 @@ class TestFieldValidators:
             source=FieldSource.TASK_DATA,
         )
         # The auto-label validator may not fire in all pydantic versions
-        assert field.label is None or field.label == "My Field"
+        assert field.label == None or field.label == "My Field"  # noqa: E711
 
     def test_explicit_label(self):
         from task_template_schema import (

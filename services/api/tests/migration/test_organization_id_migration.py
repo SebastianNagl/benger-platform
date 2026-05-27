@@ -8,7 +8,6 @@ for data setup and raw SQL for the migration logic itself.
 """
 
 import uuid
-from datetime import datetime
 
 import pytest
 from sqlalchemy import text

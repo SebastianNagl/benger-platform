@@ -25,7 +25,7 @@ import 'jest-location-mock'
 
 // Patch LocationMockRelative.prototype.href setter so it accepts relative
 // URLs (the parent URL setter throws "Invalid URL: /login" otherwise).
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const { LocationMockRelative } = require('jest-location-mock/lib/utils')
 let proto = Object.getPrototypeOf(LocationMockRelative.prototype)
 let hrefDesc: PropertyDescriptor | null = null

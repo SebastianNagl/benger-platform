@@ -109,7 +109,7 @@ class TestDeepMergeDicts:
         assert result["list"] == [4, 5]  # Replaced
         assert result["dict"]["nested"] == "updated"  # Updated
         assert result["dict"]["new"] == "field"  # Added
-        assert result["bool"] is True  # Preserved
+        assert result["bool"] == True  # Preserved  # noqa: E712
 
     def test_generation_config_use_case_models_then_prompts(self):
         """

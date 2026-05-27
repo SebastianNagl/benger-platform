@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from auth_module.dependencies import get_current_user
 from database import get_db
-from models import EvaluationRun, TaskEvaluation, Generation, LLMModel, User
+from models import EvaluationRun, LLMModel, User
 from project_models import Annotation, Project, ProjectOrganization
 from routers.projects.helpers import check_project_accessible, get_org_context_from_request
 
@@ -312,7 +312,7 @@ async def get_leaderboard_statistics(
 
     # Get total active users count (regardless of annotations)
     total_users = (
-        db.query(func.count(User.id)).filter(User.is_active == True).scalar() or 0
+        db.query(func.count(User.id)).filter(User.is_active == True).scalar() or 0  # noqa: E712
     )  # noqa: E712
 
     # Calculate average
@@ -814,7 +814,7 @@ async def compare_llm_models(
             .all()
         )
         for r in rows:
-            if r.score is None:
+            if r.score == None:  # noqa: E711
                 continue
             model_averages[r.model_id][r.metric] = round(r.score, 4)
             all_metrics.add(r.metric)

@@ -3,9 +3,6 @@ Unit tests for services/encryption_service.py to increase coverage.
 Tests encryption/decryption edge cases.
 """
 
-import pytest
-from unittest.mock import patch
-
 
 class TestEncryptionService:
     def test_import(self):

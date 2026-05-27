@@ -4,14 +4,13 @@ Evaluation metadata, statistics, and significance endpoints.
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.authorization import Permission, auth_service
 from auth_module import User, require_user
 from database import get_db
 from models import EvaluationRun as DBEvaluationRun
@@ -33,6 +32,12 @@ class StatisticsRequest(BaseModel):
     aggregation: str = "model"  # sample, model, field, overall
     methods: List[str] = ["ci"]  # ci, ttest, bootstrap, cohens_d, cliffs_delta, correlation
     compare_models: Optional[List[str]] = None
+    # Issue #111: scope statistics to one or more evaluation_configs. When
+    # provided, only TaskEvaluation rows whose ``evaluation_config_id``
+    # matches are included in sample-level aggregations and the four
+    # ``*_by_model_metric`` composite-keyed dicts. When None / empty all
+    # configs are included (legacy behavior).
+    evaluation_config_ids: Optional[List[str]] = None
 
 
 class MetricStatistics(BaseModel):
@@ -76,19 +81,39 @@ class ModelStatistics(BaseModel):
 
 
 class FieldStatistics(BaseModel):
-    """Statistics for a single field across metrics"""
+    """Statistics for a single field across metrics.
 
-    field_name: str
+    Issue #111: the encoded ``"{cfg_id}|{pred}|{ref}"`` string that the
+    workers historically wrote into ``TaskEvaluation.field_name`` is now
+    parsed server-side and exposed as discrete fields so the UI never has
+    to split the string itself. ``display_name`` is sourced from
+    ``project.evaluation_config.evaluation_configs[*].display_name`` and
+    falls back to the raw ``field_name`` when no matching config is found
+    (legacy bare-name rows). The outer dict key in
+    ``StatisticsResponse.by_field`` remains the raw ``field_name`` string
+    — kept as a stable identifier for client-side sort / expand state.
+    """
+
+    evaluation_config_id: Optional[str] = None
+    prediction_field: Optional[str] = None
+    reference_field: Optional[str] = None
+    display_name: str
     metrics: Dict[str, MetricStatistics]
     sample_count: int
 
 
 class RawScore(BaseModel):
-    """Raw score for a single sample (for box plots)"""
+    """Raw score for a single sample (for box plots).
+
+    Issue #111: ``evaluation_config_id`` carries the new column directly
+    so the UI can filter per-config without parsing ``field_name``. May be
+    ``None`` for legacy rows that pre-date the column.
+    """
 
     task_id: Optional[str] = None
     model_id: str
     field_name: Optional[str] = None
+    evaluation_config_id: Optional[str] = None
     metric: str
     value: float
 
@@ -169,15 +194,20 @@ class StatisticsResponse(BaseModel):
     # Comparisons and correlations
     pairwise_comparisons: Optional[List[PairwiseComparison]] = None
     correlations: Optional[Dict[str, Dict[str, Optional[float]]]] = None
-    # Multi-run aggregates (migration 042). Keys are "model_id|metric".
+    # Multi-run aggregates (migration 042). Keys are
+    # ``"model_id|config_id|metric"`` (issue #111 — was ``"model_id|metric"``
+    # before, but multiple ``evaluation_configs`` of the same metric type
+    # would collapse into a single bucket and hide cross-config variance).
+    # ``config_id`` is the literal string ``"unknown"`` for rows that
+    # pre-date the dedicated column (legacy bare-name ``field_name``).
     # Always present in the response shape; values default to n_runs=1 with
     # null variance fields for legacy single-run evaluations.
     runs_by_model_metric: Optional[Dict[str, RunsAggregate]] = None
     task_consistency_by_model_metric: Optional[Dict[str, List[TaskConsistency]]] = None
     judge_agreement_by_model_metric: Optional[Dict[str, JudgeAgreement]] = None
-    # Per-run means keyed on "model_id|metric" → list of (judge_run_id,
-    # judge_model_id, run_index, mean, n_tasks). Used by the "By run" chart
-    # toggle to split a single bar into one bar per run.
+    # Per-run means keyed on ``"model_id|config_id|metric"`` → list of
+    # (judge_run_id, judge_model_id, run_index, mean, n_tasks). Used by the
+    # "By run" chart toggle to split a single bar into one bar per run.
     per_run_means_by_model_metric: Optional[Dict[str, List[PerRunMean]]] = None
     # Warnings about data quality or limitations
     warnings: Optional[List[str]] = None
@@ -629,7 +659,11 @@ async def get_evaluation_history(
     request: Request,
     project_id: str,
     model_ids: List[str] = Query(..., description="List of model IDs to get history for"),
-    metric: str = Query(..., description="Metric name to get history for"),
+    metrics: List[str] = Query(..., description="One or more metric names. Pass repeatedly: ?metrics=bleu&metrics=rouge_l"),
+    evaluation_config_ids: Optional[List[str]] = Query(
+        None,
+        description="Optional list of evaluation_config_ids to scope the series; when omitted, all configs that produced rows for the requested metrics are included.",
+    ),
     start_date: Optional[str] = Query(None, description="Start date (ISO format)"),
     end_date: Optional[str] = Query(None, description="End date (ISO format)"),
     db: Session = Depends(get_db),
@@ -637,10 +671,38 @@ async def get_evaluation_history(
 ) -> dict:
     """
     Get historical evaluation data for trend charts.
-    Returns time-series data with values and confidence intervals.
+
+    Issue #111: aggregates ``TaskEvaluation`` rows by
+    ``(day, model_id, evaluation_config_id, metric)`` and emits one series
+    per ``(metric, evaluation_config_id)`` pair so multiple configs of the
+    same metric type render as distinct lines. ``display_name`` is sourced
+    from ``project.evaluation_config.evaluation_configs[*].display_name``
+    when available and falls back to a formatted metric name.
+
+    Response::
+
+        {
+            "series": [
+                {
+                    "metric": "bleu",
+                    "evaluation_config_id": "cfg-abc",
+                    "display_name": "BLEU (3-gram)",
+                    "data": [
+                        {"date": "2026-05-01", "model_id": "gpt-4",
+                         "value": 0.82, "ci_lower": 0.78,
+                         "ci_upper": 0.86, "sample_count": 42},
+                        ...
+                    ],
+                },
+                ...
+            ]
+        }
     """
     try:
-        pass
+        from models import TaskEvaluation, Generation
+        from routers.evaluations.results import _coerce_metric_value
+        from routers.leaderboards import calculate_confidence_interval
+        from collections import defaultdict
 
         # Verify project exists
         project = db.query(Project).filter(Project.id == project_id).first()
@@ -654,6 +716,18 @@ async def get_evaluation_history(
         if not check_project_accessible(db, current_user, project_id, org_context):
             raise HTTPException(status_code=403, detail="Access denied")
 
+        # Build the project's evaluation_config lookup once so per-series
+        # display names resolve cleanly. Robust to missing / malformed
+        # evaluation_config payloads (legacy projects keep the field at
+        # NULL until the first generation_config save).
+        cfg_by_id: Dict[str, dict] = {}
+        if isinstance(project.evaluation_config, dict):
+            for cfg in (project.evaluation_config.get("evaluation_configs") or []):
+                if isinstance(cfg, dict):
+                    cfg_id = cfg.get("id")
+                    if cfg_id:
+                        cfg_by_id[cfg_id] = cfg
+
         # Build date filters
         date_filters = []
         if start_date:
@@ -661,55 +735,95 @@ async def get_evaluation_history(
         if end_date:
             date_filters.append(DBEvaluationRun.created_at <= datetime.fromisoformat(end_date))
 
-        # Query evaluations for the specified models
-        evaluations = (
-            db.query(DBEvaluationRun)
+        # Query TaskEvaluation rows joined through Generation for the model
+        # axis and through EvaluationRun for the date axis and project /
+        # status filters. We pull TaskEvaluation.metrics (the per-sample
+        # dict) and coerce the numeric value per-metric in Python.
+        q = (
+            db.query(
+                DBEvaluationRun.created_at,
+                Generation.model_id,
+                TaskEvaluation.evaluation_config_id,
+                TaskEvaluation.metrics,
+            )
+            .join(Generation, TaskEvaluation.generation_id == Generation.id)
+            .join(DBEvaluationRun, TaskEvaluation.evaluation_id == DBEvaluationRun.id)
             .filter(
                 DBEvaluationRun.project_id == project_id,
-                DBEvaluationRun.model_id.in_(model_ids),
+                Generation.model_id.in_(model_ids),
                 DBEvaluationRun.status == "completed",
                 *date_filters,
             )
-            .order_by(DBEvaluationRun.created_at)
-            .all()
         )
+        # `evaluation_config_ids` defaults to FastAPI's Query(None) sentinel,
+        # which is truthy when this handler is called directly from tests
+        # (FastAPI resolves it to None in the request path). Guard against the
+        # sentinel leaking into the SQL `IN (...)` clause.
+        if isinstance(evaluation_config_ids, list) and evaluation_config_ids:
+            q = q.filter(TaskEvaluation.evaluation_config_id.in_(evaluation_config_ids))
+        rows = q.all()
 
-        # Build time-series data
-        from routers.evaluations.results import _coerce_metric_value
-
-        data_points = []
-        for eval in evaluations:
-            if not eval.metrics or metric not in eval.metrics:
+        # Bucket: {(date_str, model_id, cfg_id, metric): [floats]}.
+        # cfg_id may be None for legacy rows that pre-date the column —
+        # those collapse into a single ``evaluation_config_id=None`` series.
+        buckets: Dict[tuple, List[float]] = defaultdict(list)
+        for row in rows:
+            metrics_dict = row.metrics or {}
+            if not isinstance(metrics_dict, dict):
                 continue
-
-            # Phase 2: accept both legacy bare-float and the new
-            # {value, details} dict shape.
-            value = _coerce_metric_value(eval.metrics.get(metric))
-            if value is None:
+            if not row.created_at:
                 continue
+            date_str = row.created_at.date().isoformat()
+            for metric_name in metrics:
+                val = _coerce_metric_value(metrics_dict.get(metric_name))
+                if val is None:
+                    continue
+                buckets[(date_str, row.model_id, row.evaluation_config_id, metric_name)].append(
+                    float(val)
+                )
 
-            # Get CI from metadata if available
-            ci_lower, ci_upper = None, None
-            if eval.eval_metadata and "confidence_intervals" in eval.eval_metadata:
-                ci_data = eval.eval_metadata["confidence_intervals"].get(metric, {})
-                ci_lower = ci_data.get("lower")
-                ci_upper = ci_data.get("upper")
-
-            data_points.append(
+        # Group buckets into series keyed by (metric, evaluation_config_id).
+        series_map: Dict[tuple, List[dict]] = defaultdict(list)
+        for (date_str, model_id, cfg_id, metric_name), values in buckets.items():
+            if not values:
+                continue
+            mean_val = sum(values) / len(values)
+            ci_lower, ci_upper, _ = calculate_confidence_interval(values)
+            series_map[(metric_name, cfg_id)].append(
                 {
-                    "date": eval.created_at.isoformat() if eval.created_at else None,
-                    "model_id": eval.model_id,
-                    "value": round(float(value), 4),
-                    "ci_lower": round(ci_lower, 4) if ci_lower else None,
-                    "ci_upper": round(ci_upper, 4) if ci_upper else None,
-                    "sample_count": eval.samples_evaluated or 0,
+                    "date": date_str,
+                    "model_id": model_id,
+                    "value": round(float(mean_val), 4),
+                    "ci_lower": round(ci_lower, 4) if ci_lower is not None else None,
+                    "ci_upper": round(ci_upper, 4) if ci_upper is not None else None,
+                    "sample_count": len(values),
                 }
             )
 
-        return {
-            "metric": metric,
-            "data": data_points,
-        }
+        # Emit one series per (metric, evaluation_config_id) pair, sorted
+        # by date inside each series so chart consumers don't have to
+        # re-sort. Series order is deterministic ((metric, cfg_id)
+        # lexicographic) so snapshot tests stay stable.
+        series: List[dict] = []
+        for (metric_name, cfg_id) in sorted(
+            series_map.keys(), key=lambda k: (k[0], k[1] or "")
+        ):
+            cfg = cfg_by_id.get(cfg_id) if cfg_id else None
+            display_name = (
+                (cfg.get("display_name") if cfg else None)
+                or metric_name.replace("_", " ").title()
+            )
+            data_points = sorted(series_map[(metric_name, cfg_id)], key=lambda p: p["date"])
+            series.append(
+                {
+                    "metric": metric_name,
+                    "evaluation_config_id": cfg_id,
+                    "display_name": display_name,
+                    "data": data_points,
+                }
+            )
+
+        return {"series": series}
 
     except HTTPException:
         raise
@@ -726,6 +840,10 @@ async def get_significance_tests(
     project_id: str,
     model_ids: List[str] = Query(..., description="List of model IDs to compare"),
     metrics: List[str] = Query(..., description="List of metrics to compare"),
+    evaluation_config_ids: Optional[List[str]] = Query(
+        None,
+        description="Optional evaluation_config_ids to scope the comparison; when set, the run-level direct_evaluations fallback is skipped (run-aggregated metrics cannot be filtered by config_id).",
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_user),
 ) -> dict:
@@ -766,7 +884,7 @@ async def get_significance_tests(
 
         # Query scores from TaskEvaluation (handles N:M field evaluations)
         # This joins through Generation to get the actual model_id
-        sample_results = (
+        sample_results_q = (
             db.query(
                 Generation.model_id,
                 TaskEvaluation.metrics,
@@ -784,8 +902,15 @@ async def get_significance_tests(
                 DBEvaluationRun.status == "completed",
                 Generation.model_id.in_(model_ids),
             )
-            .all()
         )
+        # Issue #111: scope by evaluation_config_id when requested.
+        # Guard against FastAPI's Query(None) sentinel leaking through when
+        # this handler is called directly from tests (see /history above).
+        if isinstance(evaluation_config_ids, list) and evaluation_config_ids:
+            sample_results_q = sample_results_q.filter(
+                TaskEvaluation.evaluation_config_id.in_(evaluation_config_ids)
+            )
+        sample_results = sample_results_q.all()
 
         # Collect scores from sample results
         for result in sample_results:
@@ -802,30 +927,39 @@ async def get_significance_tests(
                     if coerced is not None:
                         model_metric_scores[model_id][metric].append(coerced)
 
-        # Also check direct evaluations for backwards compatibility
-        direct_evaluations = (
-            db.query(DBEvaluationRun)
-            .filter(
-                DBEvaluationRun.project_id == project_id,
-                DBEvaluationRun.model_id.in_(model_ids),
-                DBEvaluationRun.model_id != "unknown",  # Exclude legacy artifacts
-                DBEvaluationRun.status == "completed",
+        # Also check direct evaluations for backwards compatibility — but
+        # skip when an explicit evaluation_config_ids filter is set. Run-
+        # level ``EvaluationRun.metrics`` are aggregated across configs
+        # and cannot be re-scoped retroactively; mixing them in would
+        # silently leak cross-config data into a per-config comparison.
+        # ``not Query(None)`` is False (Query() is a truthy sentinel), so
+        # this branch correctly runs when called via FastAPI without the
+        # param. Tests calling directly with ``evaluation_config_ids=None``
+        # also fall through here.
+        if not (isinstance(evaluation_config_ids, list) and evaluation_config_ids):
+            direct_evaluations = (
+                db.query(DBEvaluationRun)
+                .filter(
+                    DBEvaluationRun.project_id == project_id,
+                    DBEvaluationRun.model_id.in_(model_ids),
+                    DBEvaluationRun.model_id != "unknown",  # Exclude legacy artifacts
+                    DBEvaluationRun.status == "completed",
+                )
+                .all()
             )
-            .all()
-        )
 
-        for eval in direct_evaluations:
-            if eval.model_id not in model_metric_scores:
-                continue
-            if not eval.metrics:
-                continue
+            for eval in direct_evaluations:
+                if eval.model_id not in model_metric_scores:
+                    continue
+                if not eval.metrics:
+                    continue
 
-            from routers.evaluations.results import _coerce_metric_value
-            for metric in metrics:
-                if metric in eval.metrics:
-                    coerced = _coerce_metric_value(eval.metrics[metric])
-                    if coerced is not None:
-                        model_metric_scores[eval.model_id][metric].append(coerced)
+                from routers.evaluations.results import _coerce_metric_value  # noqa: F402
+                for metric in metrics:
+                    if metric in eval.metrics:
+                        coerced = _coerce_metric_value(eval.metrics[metric])
+                        if coerced is not None:
+                            model_metric_scores[eval.model_id][metric].append(coerced)
 
         # Perform pairwise comparisons
         comparisons = []
@@ -965,12 +1099,24 @@ async def compute_project_statistics(
 
         evaluation_ids = [e.id for e in evaluations]
 
+        # Issue #111: cache the project's evaluation_configs lookup once so
+        # FieldStatistics can resolve human-friendly display names from
+        # config ids without hitting the DB per-row.
+        cfg_by_id: Dict[str, dict] = {}
+        if isinstance(project.evaluation_config, dict):
+            for cfg in (project.evaluation_config.get("evaluation_configs") or []):
+                if isinstance(cfg, dict):
+                    cfg_id = cfg.get("id")
+                    if cfg_id:
+                        cfg_by_id[cfg_id] = cfg
+
         # Query sample results with model information (handles N:M field evaluations)
         # This is the authoritative data source for per-sample, per-model scores
-        generation_sample_results = (
+        generation_sample_results_q = (
             db.query(
                 TaskEvaluation.task_id,
                 TaskEvaluation.field_name,
+                TaskEvaluation.evaluation_config_id,
                 TaskEvaluation.metrics,
                 Generation.model_id,
             )
@@ -981,8 +1127,12 @@ async def compute_project_statistics(
             .filter(
                 TaskEvaluation.evaluation_id.in_(evaluation_ids),
             )
-            .all()
         )
+        if request.evaluation_config_ids:
+            generation_sample_results_q = generation_sample_results_q.filter(
+                TaskEvaluation.evaluation_config_id.in_(request.evaluation_config_ids)
+            )
+        generation_sample_results = generation_sample_results_q.all()
 
         # Query annotation-based evaluation results.
         # IMPORTANT: import the SQLAlchemy User model from `models`, not the
@@ -993,10 +1143,11 @@ async def compute_project_statistics(
         from models import User as DBUser
         from types import SimpleNamespace
 
-        annotation_eval_results = (
+        annotation_eval_results_q = (
             db.query(
                 TaskEvaluation.task_id,
                 TaskEvaluation.field_name,
+                TaskEvaluation.evaluation_config_id,
                 TaskEvaluation.metrics,
                 TaskEvaluation.annotation_id,
             )
@@ -1005,8 +1156,12 @@ async def compute_project_statistics(
                 TaskEvaluation.generation_id == None,  # noqa: E711
                 TaskEvaluation.annotation_id != None,  # noqa: E711
             )
-            .all()
         )
+        if request.evaluation_config_ids:
+            annotation_eval_results_q = annotation_eval_results_q.filter(
+                TaskEvaluation.evaluation_config_id.in_(request.evaluation_config_ids)
+            )
+        annotation_eval_results = annotation_eval_results_q.all()
 
         # Build annotator name map and merge results — apply pseudonym
         # rule so user-facing model_id matches the leaderboard.
@@ -1040,6 +1195,7 @@ async def compute_project_statistics(
                     sample_results.append(SimpleNamespace(
                         task_id=r.task_id,
                         field_name=r.field_name,
+                        evaluation_config_id=r.evaluation_config_id,
                         metrics=r.metrics,
                         model_id=f"annotator:{display}",
                     ))
@@ -1099,6 +1255,10 @@ async def compute_project_statistics(
         overall_metric_values: Dict[str, List[float]] = {m: [] for m in request.metrics}
         model_metric_values: Dict[str, Dict[str, List[float]]] = {}
         field_metric_values: Dict[str, Dict[str, List[float]]] = {}
+        # Issue #111: remember the evaluation_config_id observed alongside
+        # each ``field_name`` so we can hydrate the structured
+        # FieldStatistics shape without re-parsing the encoded key.
+        field_to_cfg_id: Dict[str, Optional[str]] = {}
         raw_scores: List[RawScore] = []
 
         for result in sample_results:
@@ -1107,12 +1267,14 @@ async def compute_project_statistics(
 
             model_id = result.model_id
             field_name = result.field_name or "default"
+            cfg_id = getattr(result, "evaluation_config_id", None)
 
             # Initialize nested dicts if needed
             if model_id not in model_metric_values:
                 model_metric_values[model_id] = {m: [] for m in request.metrics}
             if field_name not in field_metric_values:
                 field_metric_values[field_name] = {m: [] for m in request.metrics}
+                field_to_cfg_id[field_name] = cfg_id
 
             from routers.evaluations.results import _coerce_metric_value
             for metric in request.metrics:
@@ -1133,13 +1295,17 @@ async def compute_project_statistics(
                                     task_id=str(result.task_id) if result.task_id else None,
                                     model_id=model_id,
                                     field_name=field_name if field_name != "default" else None,
+                                    evaluation_config_id=cfg_id,
                                     metric=metric,
                                     value=float_value,
                                 )
                             )
 
-        # If no sample results, fall back to evaluation-level metrics
-        if not any(overall_metric_values.values()):
+        # If no sample results, fall back to evaluation-level metrics.
+        # Issue #111: skip this fallback when an explicit evaluation_config
+        # filter is set — run-aggregated ``EvaluationRun.metrics`` are not
+        # config-scoped and would silently leak cross-config data.
+        if not any(overall_metric_values.values()) and not request.evaluation_config_ids:
             from routers.evaluations.results import _coerce_metric_value
             for eval in evaluations:
                 if not eval.metrics:
@@ -1207,7 +1373,12 @@ async def compute_project_statistics(
                 warnings.append("Only one model has data; pairwise comparisons not possible")
 
         elif request.aggregation == "field":
-            # Compute per-field statistics
+            # Compute per-field statistics. Issue #111: parse the encoded
+            # ``"{cfg_id}|{pred}|{ref}"`` ``field_name`` into discrete
+            # components and resolve a human display name from the
+            # project's evaluation_configs lookup. The outer dict key
+            # stays the raw ``field_name`` so clients keep their stable
+            # sort / expand identifier.
             by_field = {}
             for field_name, metric_data in field_metric_values.items():
                 field_metrics: Dict[str, MetricStatistics] = {}
@@ -1218,12 +1389,37 @@ async def compute_project_statistics(
                         field_metrics[metric] = stats
                         sample_count = max(sample_count, stats.n)
 
-                if field_metrics:
-                    by_field[field_name] = FieldStatistics(
-                        field_name=field_name,
-                        metrics=field_metrics,
-                        sample_count=sample_count,
-                    )
+                if not field_metrics:
+                    continue
+
+                # Prefer the column value observed alongside the
+                # ``field_name`` (matches the worker's write path 1:1).
+                # Fall back to splitting the encoded ``field_name`` when
+                # the column is NULL for legacy rows.
+                cfg_id: Optional[str] = field_to_cfg_id.get(field_name)
+                pred_field: Optional[str] = None
+                ref_field: Optional[str] = None
+                if "|" in field_name:
+                    parts = field_name.split("|", 3)[:3]
+                    if cfg_id is None and len(parts) >= 1 and parts[0]:
+                        cfg_id = parts[0]
+                    if len(parts) >= 2:
+                        pred_field = parts[1] or None
+                    if len(parts) >= 3:
+                        ref_field = parts[2] or None
+                display_name = (
+                    (cfg_by_id.get(cfg_id, {}).get("display_name") if cfg_id else None)
+                    or field_name
+                )
+
+                by_field[field_name] = FieldStatistics(
+                    evaluation_config_id=cfg_id,
+                    prediction_field=pred_field,
+                    reference_field=ref_field,
+                    display_name=display_name,
+                    metrics=field_metrics,
+                    sample_count=sample_count,
+                )
 
             if len(by_field) == 0:
                 warnings.append("No per-field data available")
@@ -1354,10 +1550,11 @@ async def compute_project_statistics(
             # under their own model bucket alongside LLM targets.
             from sqlalchemy import func as _sa_func
 
-            multirun_rows = (
+            multirun_q = (
                 db.query(
                     TaskEvaluation.task_id,
                     TaskEvaluation.metrics,
+                    TaskEvaluation.evaluation_config_id,
                     _sa_func.coalesce(Generation.model_id, "human").label("model_id"),
                     EvaluationJudgeRun.id.label("judge_run_id"),
                     EvaluationJudgeRun.judge_model_id,
@@ -1369,29 +1566,48 @@ async def compute_project_statistics(
                     TaskEvaluation.judge_run_id == EvaluationJudgeRun.id,
                 )
                 .filter(TaskEvaluation.evaluation_id.in_(evaluation_ids))
-                .all()
             )
+            if request.evaluation_config_ids:
+                multirun_q = multirun_q.filter(
+                    TaskEvaluation.evaluation_config_id.in_(request.evaluation_config_ids)
+                )
+            multirun_rows = multirun_q.all()
 
-            # Index rows by (model_id, metric, judge_model_id, run_index, task_id)
+            # Index rows by (model_id, config_id, metric, judge_model_id, run_index, task_id)
             # → primary scalar value. Skip rows where the metric value isn't
             # numeric (e.g. judge-error placeholders that store a dict under
-            # the metric key with `error: True`).
+            # the metric key with `error: True`). Issue #111: the
+            # ``config_id`` axis prevents two ``evaluation_configs`` of the
+            # same metric type (e.g. three ``llm_judge_falloesung`` configs
+            # with different judges) from collapsing into one bucket.
             from collections import defaultdict
 
             per_run_per_task: Dict[tuple, Dict[str, float]] = defaultdict(dict)
             judge_models_per_metric: Dict[tuple, set] = defaultdict(set)
-            # Map (model_id, metric, judge_model_id, run_index) → judge_run_id
-            # for the per_run_means_by_model_metric block (chart by-run toggle).
+            # Map (model_id, config_id, metric, judge_model_id, run_index)
+            # → judge_run_id for the per_run_means_by_model_metric block
+            # (chart by-run toggle).
             judge_run_id_by_key: Dict[tuple, str] = {}
             for row in multirun_rows:
                 metrics_dict = row.metrics or {}
                 if not isinstance(metrics_dict, dict):
                     continue
+                # Sentinel "unknown" lets legacy bare-name rows (NULL
+                # evaluation_config_id) still group cleanly; otherwise the
+                # tuple key would carry `None` and the response key would
+                # render as `model|None|metric`.
+                cfg_id = row.evaluation_config_id or "unknown"
                 for metric_name in request.metrics:
                     val = metrics_dict.get(metric_name)
                     if not isinstance(val, (int, float)):
                         continue
-                    key = (row.model_id, metric_name, row.judge_model_id, row.run_index)
+                    key = (
+                        row.model_id,
+                        cfg_id,
+                        metric_name,
+                        row.judge_model_id,
+                        row.run_index,
+                    )
                     per_run_per_task[key][row.task_id] = float(val)
                     # Only add to the inter-judge-agreement set when the
                     # judge_model_id is a real string. Deterministic-metric
@@ -1402,19 +1618,19 @@ async def compute_project_statistics(
                     # distinct rater. Per-run aggregates stay correct
                     # because per_run_per_task still records them.
                     if row.judge_model_id:
-                        judge_models_per_metric[(row.model_id, metric_name)].add(
+                        judge_models_per_metric[(row.model_id, cfg_id, metric_name)].add(
                             row.judge_model_id
                         )
                     judge_run_id_by_key[key] = row.judge_run_id
 
-            # Group keys by (model_id, metric).
-            keys_by_mm: Dict[tuple, List[tuple]] = defaultdict(list)
+            # Group keys by (model_id, config_id, metric).
+            keys_by_mcm: Dict[tuple, List[tuple]] = defaultdict(list)
             for key in per_run_per_task.keys():
-                model_id, metric_name, _jm, _ri = key
-                keys_by_mm[(model_id, metric_name)].append(key)
+                model_id, cfg_id, metric_name, _jm, _ri = key
+                keys_by_mcm[(model_id, cfg_id, metric_name)].append(key)
 
-            for (model_id, metric_name), run_keys in keys_by_mm.items():
-                resp_key = f"{model_id}|{metric_name}"
+            for (model_id, cfg_id, metric_name), run_keys in keys_by_mcm.items():
+                resp_key = f"{model_id}|{cfg_id}|{metric_name}"
 
                 # Cross-run aggregate: one mean per (judge_model, run_index).
                 # Track per-key means in parallel so we can emit them under
@@ -1427,7 +1643,7 @@ async def compute_project_statistics(
                         continue
                     mean_v = sum(vals) / len(vals)
                     per_run_means.append(mean_v)
-                    _mid, _met, jm, ri = k
+                    _mid, _cid, _met, jm, ri = k
                     per_run_entries.append(PerRunMean(
                         judge_run_id=judge_run_id_by_key[k],
                         judge_model_id=jm,
@@ -1480,14 +1696,16 @@ async def compute_project_statistics(
                 # produced rows for this metric. Build (rater, item, score)
                 # triples where rater = judge_model_id, item = task_id, score
                 # is the per-task mean across that judge's runs.
-                judges_for_mm = judge_models_per_metric.get((model_id, metric_name), set())
+                judges_for_mm = judge_models_per_metric.get(
+                    (model_id, cfg_id, metric_name), set()
+                )
                 if len(judges_for_mm) >= 2:
                     triples: List[tuple] = []
                     # Aggregate across run_index per judge: mean of that
                     # judge's score for the task.
                     by_judge_task: Dict[tuple, List[float]] = defaultdict(list)
                     for k in run_keys:
-                        _mid, _met, jm, _ri = k
+                        _mid, _cid, _met, jm, _ri = k
                         # Defense in depth — judges_for_mm is already
                         # filtered above, but a None rater here would
                         # corrupt the kappa / pearson computation.

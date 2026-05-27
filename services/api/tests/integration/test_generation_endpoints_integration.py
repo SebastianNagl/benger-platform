@@ -9,16 +9,12 @@ Targets:
 
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import patch
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     Generation,
-    Organization,
     ResponseGeneration,
-    User,
 )
 from project_models import (
     Project,
@@ -105,7 +101,7 @@ class TestProjectGenerationConfig:
 
     def test_get_generation_config(self, client, test_db, test_users, auth_headers, test_org):
         project, _, _ = _setup(test_db, test_users[0], test_org,
-                                generation_config={"selected_configuration": {"models": ["gpt-4o"]}})
+                                generation_config={"selected_configuration": {"models": ["gpt-4o"]}})  # noqa: E127
         resp = client.get(
             f"{BASE_PROJECT}/{project.id}/generation-config",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
@@ -133,7 +129,7 @@ class TestProjectGenerationConfig:
 
     def test_clear_generation_config(self, client, test_db, test_users, auth_headers, test_org):
         project, _, _ = _setup(test_db, test_users[0], test_org,
-                                generation_config={"selected_configuration": {"models": ["gpt-4o"]}})
+                                generation_config={"selected_configuration": {"models": ["gpt-4o"]}})  # noqa: E127
         resp = client.delete(
             f"{BASE_PROJECT}/{project.id}/generation-config",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
@@ -172,7 +168,7 @@ class TestGenerationStatus:
         assert resp.status_code == 200
         data = resp.json()
         assert data["generations"] == []
-        assert data["is_running"] is False
+        assert data["is_running"] == False  # noqa: E712
 
     def test_get_generation_status_not_found(self, client, test_db, test_users, auth_headers):
         resp = client.get(

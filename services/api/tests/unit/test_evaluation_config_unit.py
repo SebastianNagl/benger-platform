@@ -8,8 +8,6 @@ Targets:
 - routers/evaluations/helpers.py — 83.33%
 """
 
-import pytest
-
 
 class TestEvaluationConfigRouter:
     """Test evaluation config router structure."""

@@ -3,24 +3,22 @@ Unit tests for routers/organizations.py to increase branch coverage.
 Covers permission check helper functions.
 """
 
-from datetime import datetime, timezone
 from unittest.mock import Mock
 
-import pytest
 from sqlalchemy.orm import Session
 
-from models import OrganizationMembership, OrganizationRole, User
+from models import OrganizationMembership, User
 from routers.organizations import can_manage_organization, can_create_organization
 
 
 class TestCanManageOrganization:
     def test_none_user(self):
-        assert can_manage_organization(None, "org-1", Mock()) is False
+        assert can_manage_organization(None, "org-1", Mock()) == False  # noqa: E712
 
     def test_superadmin(self):
         user = Mock(spec=User)
         user.is_superadmin = True
-        assert can_manage_organization(user, "org-1", Mock()) is True
+        assert can_manage_organization(user, "org-1", Mock()) == True  # noqa: E712
 
     def test_org_admin_found(self):
         user = Mock(spec=User)
@@ -31,7 +29,7 @@ class TestCanManageOrganization:
         mock_q.filter.return_value = mock_q
         mock_q.first.return_value = Mock(spec=OrganizationMembership)
         mock_db.query.return_value = mock_q
-        assert can_manage_organization(user, "org-1", mock_db) is True
+        assert can_manage_organization(user, "org-1", mock_db) == True  # noqa: E712
 
     def test_no_membership(self):
         user = Mock(spec=User)
@@ -42,17 +40,17 @@ class TestCanManageOrganization:
         mock_q.filter.return_value = mock_q
         mock_q.first.return_value = None
         mock_db.query.return_value = mock_q
-        assert can_manage_organization(user, "org-1", mock_db) is False
+        assert can_manage_organization(user, "org-1", mock_db) == False  # noqa: E712
 
 
 class TestCanCreateOrganization:
     def test_none_user(self):
-        assert can_create_organization(None, Mock()) is False
+        assert can_create_organization(None, Mock()) == False  # noqa: E712
 
     def test_superadmin(self):
         user = Mock(spec=User)
         user.is_superadmin = True
-        assert can_create_organization(user, Mock()) is True
+        assert can_create_organization(user, Mock()) == True  # noqa: E712
 
     def test_admin_of_any_org(self):
         user = Mock(spec=User)
@@ -63,7 +61,7 @@ class TestCanCreateOrganization:
         mock_q.filter.return_value = mock_q
         mock_q.first.return_value = Mock(spec=OrganizationMembership)
         mock_db.query.return_value = mock_q
-        assert can_create_organization(user, mock_db) is True
+        assert can_create_organization(user, mock_db) == True  # noqa: E712
 
     def test_not_admin(self):
         user = Mock(spec=User)
@@ -74,4 +72,4 @@ class TestCanCreateOrganization:
         mock_q.filter.return_value = mock_q
         mock_q.first.return_value = None
         mock_db.query.return_value = mock_q
-        assert can_create_organization(user, mock_db) is False
+        assert can_create_organization(user, mock_db) == False  # noqa: E712

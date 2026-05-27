@@ -83,8 +83,8 @@ class TestAuthModuleConsolidation:
         assert user.username == "testuser"
         assert user.email == "test@example.com"
         assert user.name == "Test User"
-        assert user.is_superadmin is False
-        assert user.is_active is True
+        assert user.is_superadmin == False  # noqa: E712
+        assert user.is_active == True  # noqa: E712
 
     @patch("auth_module.service.db_authenticate_user")
     def test_authenticate_user_success(self, mock_db_auth):
@@ -184,7 +184,7 @@ class TestAuthModuleConsolidation:
         )
 
         assert isinstance(token, Token)
-        assert token.access_token is not None
+        assert token.access_token != None  # noqa: E711
         assert token.refresh_token == "refresh_token_123"
         assert token.token_type == "bearer"
         assert token.expires_in > 0
@@ -349,7 +349,7 @@ class TestAuthModuleConsolidation:
 
         user = require_superadmin(superadmin_user)
 
-        assert user.is_superadmin is True
+        assert user.is_superadmin == True  # noqa: E712
 
     def test_require_superadmin_failure(self):
         """Test require_superadmin with regular user"""

@@ -57,7 +57,7 @@ class AnthropicService(BaseAIService):
     def __init__(self, api_key: Optional[str] = None):
         """
         Initialize Anthropic service.
-        
+
         Args:
             api_key: Anthropic API key (optional, defaults to ANTHROPIC_API_KEY env var)
         """
@@ -81,7 +81,7 @@ class AnthropicService(BaseAIService):
 
     def is_available(self) -> bool:
         """Check if Anthropic service is available (API key set)"""
-        return self.client is not None
+        return self.client != None
 
     @retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
     def generate(
@@ -389,7 +389,7 @@ class AnthropicService(BaseAIService):
         """
         Legacy method for backward compatibility.
         Generate a response using Anthropic Claude API with case data.
-        
+
         Args:
             system_prompt: System-level instructions
             instruction_prompt: Specific task instructions
@@ -398,13 +398,13 @@ class AnthropicService(BaseAIService):
             max_tokens: Maximum tokens in response
             temperature: Sampling temperature
             **kwargs: Additional parameters
-            
+
         Returns:
             Dictionary with response data and metadata
         """
         # Combine prompts for Claude
         user_message = f"{instruction_prompt}\n\nCase to analyze:\n{case_data}"
-        
+
         # Use the base generate method
         result = self.generate(
             prompt=user_message,
@@ -414,7 +414,7 @@ class AnthropicService(BaseAIService):
             temperature=temperature,
             **kwargs
         )
-        
+
         # Map to legacy response format for backward compatibility
         if result["success"]:
             return {

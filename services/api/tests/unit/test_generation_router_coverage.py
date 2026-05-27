@@ -2,8 +2,7 @@
 Unit tests for routers/generation.py — covers endpoint access control and logic.
 """
 
-from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
 from fastapi import HTTPException

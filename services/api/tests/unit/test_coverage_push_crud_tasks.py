@@ -5,37 +5,27 @@ timer, questionnaire, and serializer branches.
 Targets uncovered branches across multiple routers.
 """
 
-import json
 import uuid
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from datetime import datetime
+from unittest.mock import patch
 
-import pytest
-from sqlalchemy.orm import Session
 
 from models import (
-    EvaluationRun,
-    Generation,
     Organization,
     OrganizationMembership,
-    ResponseGeneration,
-    TaskEvaluation,
 )
 from project_models import (
     Annotation,
-    PostAnnotationResponse,
     Project,
-    ProjectMember,
     ProjectOrganization,
-    SkippedTask,
     Task,
     TaskAssignment,
 )
 
 
 def create_project_fixture(db, users, questionnaire_enabled=False,
-                          num_tasks=3, is_private=False,
-                          assignment_mode="open"):
+                          num_tasks=3, is_private=False,  # noqa: E128
+                          assignment_mode="open"):  # noqa: E128
     """Create a complete project with org, membership, and tasks."""
     org = Organization(
         id=str(uuid.uuid4()),
@@ -767,6 +757,7 @@ class TestSerializers:
             error_message = None
             processing_time_ms = 100
             created_at = datetime(2024, 1, 1)
+            created_by = "u1"
             evaluation_id = "er1"
             judge_prompts_used = None
             judge_run_id = "jr-1"
@@ -800,6 +791,7 @@ class TestSerializers:
             error_message = None
             processing_time_ms = 50
             created_at = None
+            created_by = "u1"
             evaluation_id = "er1"
             task_id = "t1"
             generation_id = "g1"
@@ -830,7 +822,7 @@ class TestSerializers:
 
         result = serialize_evaluation_run(FakeER(), mode="data")
         assert result["eval_metadata"] == {"type": "automated"}
-        assert result["has_sample_results"] is True
+        assert result["has_sample_results"] == True  # noqa: E712
 
     def test_serialize_evaluation_run_full_mode(self):
         from routers.projects.serializers import serialize_evaluation_run

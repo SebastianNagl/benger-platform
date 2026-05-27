@@ -10,13 +10,10 @@ Targets specific uncovered branches in routers/auth.py:
 - Signup with additional fields
 """
 
-import json
 import uuid
 from datetime import datetime
 from unittest.mock import patch
 
-import pytest
-from sqlalchemy.orm import Session
 
 from models import Organization, OrganizationMembership
 
@@ -136,8 +133,8 @@ class TestBuildUserProfileResponse:
         # Test that profile works even when optional attrs are missing
         profile = _build_user_profile_response(user, test_db)
         # Optional fields default to None
-        assert profile.pseudonym is None or isinstance(profile.pseudonym, str)
-        assert profile.legal_expertise_level is None or isinstance(profile.legal_expertise_level, str)
+        assert profile.pseudonym == None or isinstance(profile.pseudonym, str)  # noqa: E711
+        assert profile.legal_expertise_level == None or isinstance(profile.legal_expertise_level, str)  # noqa: E711
 
 
 class TestLoginEndpoint:
@@ -199,7 +196,7 @@ class TestProfileEndpoint:
         assert resp.status_code == 200
         body = resp.json()
         assert body["email"] == "admin@test.com"
-        assert body["is_superadmin"] is True
+        assert body["is_superadmin"] == True  # noqa: E712
 
 
 class TestMeEndpoint:

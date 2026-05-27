@@ -8,15 +8,10 @@ Targets: routers/projects/import_export.py — import_project_data handler,
 
 import json
 import uuid
-from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
-from models import EvaluationRun, Generation, ResponseGeneration, TaskEvaluation
 from project_models import (
-    Annotation,
-    PostAnnotationResponse,
     Project,
     ProjectOrganization,
     Task,

@@ -21,7 +21,6 @@ from datetime import datetime, timedelta
 from typing import Dict, List
 from unittest.mock import patch
 
-import pytest
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
@@ -296,7 +295,7 @@ class TestStartGenerationMissingModeDecisionMatrix:
         )
         assert len(queued) == 1
         assert queued[0].task_id == t1.id
-        assert queued[0].structure_key is None
+        assert queued[0].structure_key == None  # noqa: E711
 
 
 # ---------------------------------------------------------------------------

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from auth_module import require_user
 from auth_module.models import User as AuthUser
 from database import get_db
-from project_models import Annotation, Project, Task, TaskAssignment
+from project_models import Annotation, Project, Task
 from project_schemas import AnnotationCreate, AnnotationResponse
 from utils.assignment_helpers import (
     mark_assignment_completed as _mark_assignment_completed,
@@ -87,8 +87,8 @@ async def create_annotation(
             db.query(Annotation)
             .filter(
                 Annotation.task_id == task_id,
-                Annotation.was_cancelled == False,
-                Annotation.result != None,
+                Annotation.was_cancelled == False,  # noqa: E712
+                Annotation.result != None,  # noqa: E711
                 cast(Annotation.result, String) != "[]",
             )
             .count()
@@ -117,8 +117,8 @@ async def create_annotation(
                 db.query(Annotation)
                 .filter(
                     Annotation.task_id == task_id,
-                    Annotation.was_cancelled == False,
-                    Annotation.result != None,
+                    Annotation.was_cancelled == False,  # noqa: E712
+                    Annotation.result != None,  # noqa: E711
                     cast(Annotation.result, String) != "[]",
                 )
                 .count()
@@ -225,7 +225,7 @@ async def list_task_annotations(
         db.query(Annotation)
         .filter(
             Annotation.task_id == task_id,
-            Annotation.result != None,
+            Annotation.result != None,  # noqa: E711
             cast(Annotation.result, String) != "[]",
         )
     )
@@ -308,13 +308,13 @@ async def update_annotation(
     old_was_cancelled = db_annotation.was_cancelled
 
     # Update the annotation
-    if annotation_update.result is not None:
+    if annotation_update.result != None:  # noqa: E711
         db_annotation.result = annotation_update.result
-    if annotation_update.was_cancelled is not None:
+    if annotation_update.was_cancelled != None:  # noqa: E711
         if db_annotation.was_cancelled != annotation_update.was_cancelled:
             was_cancelled_changed = True
         db_annotation.was_cancelled = annotation_update.was_cancelled
-    if annotation_update.lead_time is not None:
+    if annotation_update.lead_time != None:  # noqa: E711
         db_annotation.lead_time = annotation_update.lead_time
 
     # Update task counters if cancelled status changed

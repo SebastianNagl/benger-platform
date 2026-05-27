@@ -297,14 +297,14 @@ class TaskFormatter:
                 # Add NER/span annotation instructions (Issue #964)
                 labels = reqs["labels"]
                 user_prompt_parts.append(
-                    f"Identify named entities in the text and return them as a JSON array.\n"
+                    "Identify named entities in the text and return them as a JSON array.\n"
                     f"Available entity types: {', '.join(labels)}\n"
-                    f"For each entity, provide:\n"
-                    f"- \"start\": character offset where entity begins (0-indexed)\n"
-                    f"- \"end\": character offset where entity ends (exclusive)\n"
-                    f"- \"text\": the exact text of the entity\n"
-                    f"- \"type\": one of [{', '.join(labels)}]\n\n"
-                    f"Example format:\n"
+                    "For each entity, provide:\n"
+                    "- \"start\": character offset where entity begins (0-indexed)\n"
+                    "- \"end\": character offset where entity ends (exclusive)\n"
+                    "- \"text\": the exact text of the entity\n"
+                    "- \"type\": one of [{', '.join(labels)}]\n\n"
+                    "Example format:\n"
                     f"[{{\"start\": 0, \"end\": 10, \"text\": \"John Smith\", \"type\": \"{labels[0]}\"}}]"
                 )
 

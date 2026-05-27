@@ -27,16 +27,19 @@ jest.mock('@headlessui/react', () => {
       {typeof children === 'function' ? children({}) : children}
     </div>
   )
+  // eslint-disable-next-line react/display-name
   Listbox.Button = ({ children, className }: any) => (
     <button data-testid="listbox-button" className={typeof className === 'function' ? className({}) : className}>
       {typeof children === 'function' ? children({}) : children}
     </button>
   )
+  // eslint-disable-next-line react/display-name
   Listbox.Options = ({ children }: any) => (
     <ul data-testid="listbox-options">
       {typeof children === 'function' ? children({}) : children}
     </ul>
   )
+  // eslint-disable-next-line react/display-name
   Listbox.Option = ({ value, children, className }: any) => (
     <li data-testid="listbox-option" data-value={value} className={typeof className === 'function' ? className({ active: false }) : className}>
       {typeof children === 'function' ? children({ selected: false }) : children}

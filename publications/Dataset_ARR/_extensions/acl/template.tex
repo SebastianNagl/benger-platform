@@ -1,0 +1,102 @@
+\documentclass[11pt]{article}
+
+$if(review)$
+\usepackage[review]{acl}
+$else$
+\usepackage{acl}
+$endif$
+
+\usepackage{latexsym}
+\usepackage{iftex}
+\ifpdftex
+  \usepackage{times}
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp}
+  \DeclareUnicodeCharacter{2248}{\ensuremath{\approx}}
+  \DeclareUnicodeCharacter{2264}{\ensuremath{\leq}}
+  \DeclareUnicodeCharacter{2265}{\ensuremath{\geq}}
+\else
+  \usepackage{fontspec}
+  \directlua{luaotfload.add_fallback("emojifallback", { "[TwemojiMozilla.ttf]:mode=harf;" })}
+  \defaultfontfeatures{RawFeature={fallback=emojifallback}}
+  \setmainfont{TeX Gyre Termes}
+  \setsansfont{TeX Gyre Heros}
+  \setmonofont{TeX Gyre Cursor}
+\fi
+\usepackage{microtype}
+\usepackage{inconsolata}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{longtable}
+\usepackage{fvextra}
+\usepackage{multicol}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+
+% Prompt environment for German prompt blocks in the appendix.
+% breaklines wraps overlong lines so they fit in the column;
+% breakanywhere lets the break fall mid-word when no space is reachable.
+% breaksymbolleft/right are emptied so wrapped lines don't show the
+% default \hookrightarrow marker (the prompts are documentary, not code).
+\DefineVerbatimEnvironment{Prompt}{Verbatim}{%
+  breaklines=true,breakanywhere=true,fontsize=\footnotesize,%
+  breaksymbolleft={},breaksymbolright={},%
+  formatcom=\rmfamily}
+
+% Bordered, breakable container for prompts. The J/K/L appendix sections
+% are wrapped in \onecolumn so each PromptBox spans the full text width;
+% breakable lets long prompts (K.1) flow across pages cleanly. Padding is
+% kept tight so the long prompts stay close to a single page.
+\newtcolorbox{PromptBox}{%
+  enhanced jigsaw, breakable,
+  colback=white, colframe=black!50,
+  boxrule=0.4pt, arc=1.5pt,
+  left=3pt, right=3pt, top=2pt, bottom=2pt,
+  before skip=4pt, after skip=4pt}
+
+% Pandoc tight list support
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+% Pandoc bounded image support (Quarto 1.9+)
+\providecommand{\pandocbounded}[1]{#1}
+
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
+
+$for(header-includes)$
+$header-includes$
+$endfor$
+
+\title{$title$}
+
+$if(anonymous)$
+\author{}
+$else$
+$if(author-tex)$
+$author-tex$
+$else$
+\author{$for(author/allbutlast)$$author.name$$sep$ \and $endfor$$for(author/last)$$if(author/allbutlast)$ \and $endif$$author.name$$endfor$}
+$endif$
+$endif$
+
+\begin{document}
+\maketitle
+
+$if(abstract)$
+\begin{abstract}
+$abstract$
+\end{abstract}
+$endif$
+
+$body$
+
+% Bibliography is emitted from inside the body (before \appendix) via a raw
+% LaTeX block in manuscript.qmd, so the references list appears before the
+% appendix per ACL style. Do not re-emit it here.
+
+\end{document}

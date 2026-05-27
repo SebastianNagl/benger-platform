@@ -2,9 +2,7 @@
 Unit tests for dashboard stats business logic.
 """
 
-from unittest.mock import MagicMock, Mock
-
-import pytest
+from unittest.mock import Mock
 
 
 class TestDashboardStatsLogic:

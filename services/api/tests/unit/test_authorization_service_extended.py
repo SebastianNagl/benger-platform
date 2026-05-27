@@ -3,14 +3,12 @@ Extended unit tests for AuthorizationService covering all role-permission
 combinations and context-aware access checking.
 """
 
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
-import pytest
 
 from app.core.authorization import (
     AuthorizationService,
     Permission,
-    auth_service,
 )
 
 

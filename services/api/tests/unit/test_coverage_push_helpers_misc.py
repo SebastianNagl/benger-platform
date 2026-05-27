@@ -19,25 +19,17 @@ Targets uncovered branches in:
 
 import json
 import uuid
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from datetime import datetime
 
-import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationRun,
-    EvaluationType,
-    Generation,
     Organization,
     OrganizationMembership,
-    ResponseGeneration,
-    TaskEvaluation,
 )
 from project_models import (
     Annotation,
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
 )
@@ -202,7 +194,7 @@ class TestProjectHelpers:
     def test_get_user_with_memberships(self, test_db, test_users):
         from routers.projects.helpers import get_user_with_memberships
 
-        data = _setup_helper_project(test_db, test_users)
+        _setup_helper_project(test_db, test_users)
 
         user = get_user_with_memberships(test_db, test_users[0].id)
         assert user is not None
@@ -215,7 +207,7 @@ class TestProjectHelpers:
         pid = data["project"].id
 
         # Superadmin can edit
-        assert check_user_can_edit_project(test_db, test_users[0], pid) is True
+        assert check_user_can_edit_project(test_db, test_users[0], pid) == True  # noqa: E712
 
     def test_get_accessible_project_ids_superadmin(self, test_db, test_users):
         from routers.projects.helpers import get_accessible_project_ids
@@ -390,10 +382,13 @@ class TestEvaluationMetadata:
         pid = data["project"].id
 
         resp = client.get(
-            f"/api/evaluations/projects/{pid}/evaluation-history?model_ids=gpt-4o&metric=accuracy",
+            f"/api/evaluations/projects/{pid}/evaluation-history?model_ids=gpt-4o&metrics=accuracy",
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
+        # Issue #111: response shape is ``{series: [...]}`` (was
+        # ``{metric, data: [...]}`` before).
+        assert "series" in resp.json()
 
 
 # =================== Project Organization Tests ===================

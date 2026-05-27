@@ -22,7 +22,7 @@ import json
 import os
 import tempfile
 from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -139,7 +139,7 @@ class TestS3Initialization:
                  patch("services.storage.object_storage.boto3", mock_boto3), \
                  patch("services.storage.object_storage.Config", mock_config_cls):
                 from services.storage.object_storage import ObjectStorageService
-                service = ObjectStorageService()
+                ObjectStorageService()
 
         # Verify Config was called with path addressing for minio
         mock_config_cls.assert_called_once()
@@ -169,7 +169,7 @@ class TestS3Initialization:
                  patch("services.storage.object_storage.boto3", mock_boto3), \
                  patch("services.storage.object_storage.Config", mock_config_cls):
                 from services.storage.object_storage import ObjectStorageService
-                service = ObjectStorageService()
+                ObjectStorageService()
 
         mock_config_cls.assert_called_once()
         call_kwargs = mock_config_cls.call_args
@@ -187,7 +187,7 @@ class TestS3Initialization:
                 service = ObjectStorageService()
 
         assert service.storage_backend == "local"
-        assert service.s3_client is None
+        assert service.s3_client == None  # noqa: E711
 
     def test_s3_init_falls_back_to_local_on_exception(self):
         """If S3 client creation fails, falls back to local storage."""
@@ -256,7 +256,7 @@ class TestEnsureBucketExists:
                  patch("services.storage.object_storage.Config", mock_config_cls), \
                  patch("services.storage.object_storage.ClientError", client_error):
                 from services.storage.object_storage import ObjectStorageService
-                service = ObjectStorageService()
+                ObjectStorageService()
 
         mock_client.create_bucket.assert_called_once_with(Bucket="new-bucket")
         mock_client.put_bucket_cors.assert_called_once()
@@ -289,7 +289,7 @@ class TestEnsureBucketExists:
                  patch("services.storage.object_storage.Config", mock_config_cls), \
                  patch("services.storage.object_storage.ClientError", client_error):
                 from services.storage.object_storage import ObjectStorageService
-                service = ObjectStorageService()
+                ObjectStorageService()
 
         mock_client.create_bucket.assert_called_once_with(
             Bucket="eu-bucket",
@@ -448,7 +448,7 @@ class TestUploadFileS3:
         service, mock_client = _make_s3_service()
         mock_client.generate_presigned_url.return_value = "https://s3.example.com/signed"
 
-        result = service.upload_file(
+        result = service.upload_file(  # noqa: F841
             file_data=b"<html>test</html>",
             filename="page.html",
             file_type="uploads",
@@ -462,7 +462,7 @@ class TestUploadFileS3:
         service, mock_client = _make_s3_service()
         mock_client.generate_presigned_url.return_value = "https://s3.example.com/signed"
 
-        result = service.upload_file(
+        result = service.upload_file(  # noqa: F841
             file_data=b"binary data",
             filename="data.xyz123",
             file_type="uploads",
@@ -476,7 +476,7 @@ class TestUploadFileS3:
         service, mock_client = _make_s3_service()
         mock_client.generate_presigned_url.return_value = "https://s3.example.com/signed"
 
-        result = service.upload_file(
+        result = service.upload_file(  # noqa: F841
             file_data=b"data",
             filename="test.txt",
             metadata={"project_id": "proj-123", "custom_key": "custom_val"},
@@ -1352,7 +1352,7 @@ class TestHealthCheckS3:
 
         health = service.health_check()
 
-        assert health["healthy"] is True
+        assert health["healthy"] == True  # noqa: E712
         assert health["storage_backend"] == "s3"
         assert health["details"]["bucket"] == "test-bucket"
         assert health["details"]["endpoint"] == "https://s3.example.com"
@@ -1366,7 +1366,7 @@ class TestHealthCheckS3:
 
         health = service.health_check()
 
-        assert health["healthy"] is True
+        assert health["healthy"] == True  # noqa: E712
         assert health["details"]["endpoint"] == "AWS S3"
 
     def test_s3_healthy_with_cdn(self):
@@ -1379,8 +1379,8 @@ class TestHealthCheckS3:
 
         health = service.health_check()
 
-        assert health["healthy"] is True
-        assert health["details"]["cdn_enabled"] is True
+        assert health["healthy"] == True  # noqa: E712
+        assert health["details"]["cdn_enabled"] == True  # noqa: E712
         assert health["details"]["cdn_domain"] == "cdn.example.com"
 
     def test_s3_unhealthy_on_exception(self):
@@ -1391,7 +1391,7 @@ class TestHealthCheckS3:
 
         health = service.health_check()
 
-        assert health["healthy"] is False
+        assert health["healthy"] == False  # noqa: E712
         assert "error" in health
         assert "Connection timeout" in health["error"]
         assert health["details"]["error_type"] == "Exception"

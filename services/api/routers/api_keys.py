@@ -16,8 +16,8 @@ from models import LLMModel as DBLLMModel
 # Add shared services to path
 sys.path.append('/shared')
 
-from encryption_service import encryption_service
-from user_api_key_service import create_user_api_key_service
+from encryption_service import encryption_service  # noqa: E402
+from user_api_key_service import create_user_api_key_service  # noqa: E402
 
 # Create service instance with dependency
 user_api_key_service = create_user_api_key_service(encryption_service)
@@ -224,7 +224,7 @@ async def get_available_models_for_user(
     logger.info(f"📋 Available providers for user: {available_providers}")
 
     # Get all models from database
-    models = db.query(DBLLMModel).filter(DBLLMModel.is_active == True).all()
+    models = db.query(DBLLMModel).filter(DBLLMModel.is_active == True).all()  # noqa: E712
     logger.info(f"🗃️ Total active models in database: {len(models)}")
 
     # Filter models based on user's available providers

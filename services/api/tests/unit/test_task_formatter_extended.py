@@ -2,8 +2,6 @@
 Unit tests for services/task_formatter.py to increase branch coverage.
 """
 
-import pytest
-
 
 class TestTaskFormatter:
     def test_import(self):

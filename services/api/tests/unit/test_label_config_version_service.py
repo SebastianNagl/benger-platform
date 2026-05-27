@@ -331,7 +331,7 @@ class TestLabelConfigVersionService:
 
         assert len(result) == 1
         assert result[0]["version"] == "v1"
-        assert result[0]["is_current"] is True
+        assert result[0]["is_current"] == True  # noqa: E712
         assert result[0]["description"] == "Current schema"
 
     def test_list_versions_multiple(self, mock_project):
@@ -381,8 +381,8 @@ class TestLabelConfigVersionService:
         v1_entry = next(v for v in result if v["version"] == "v1")
         v2_entry = next(v for v in result if v["version"] == "v2")
 
-        assert v1_entry["is_current"] is False
-        assert v2_entry["is_current"] is True
+        assert v1_entry["is_current"] == False  # noqa: E712
+        assert v2_entry["is_current"] == True  # noqa: E712
 
     # ========================================
     # Version Comparison Tests
@@ -399,7 +399,7 @@ class TestLabelConfigVersionService:
         assert result["version1"] == "v1"
         assert result["version2"] == "v2"
         assert "confidence" in result["fields_added"]  # Rating field added
-        assert result["has_breaking_changes"] is False
+        assert result["has_breaking_changes"] == False  # noqa: E712
 
     def test_compare_versions_fields_removed(self, mock_project, sample_xml_v1, sample_xml_v3):
         """Test detecting removed fields (breaking change)"""
@@ -410,7 +410,7 @@ class TestLabelConfigVersionService:
         result = LabelConfigVersionService.compare_versions(mock_project, "v1", "v3")
 
         assert "comment" in result["fields_removed"]  # TextArea field removed
-        assert result["has_breaking_changes"] is True
+        assert result["has_breaking_changes"] == True  # noqa: E712
 
     def test_compare_versions_fields_renamed(self, mock_project):
         """Test detecting field rename (shows as remove + add)"""
@@ -425,7 +425,7 @@ class TestLabelConfigVersionService:
 
         assert "old_name" in result["fields_removed"]
         assert "new_name" in result["fields_added"]
-        assert result["has_breaking_changes"] is True
+        assert result["has_breaking_changes"] == True  # noqa: E712
 
     def test_compare_versions_breaking_changes(self, mock_project, sample_xml_v1, sample_xml_v3):
         """Test has_breaking_changes flag is set correctly"""
@@ -436,7 +436,7 @@ class TestLabelConfigVersionService:
         result = LabelConfigVersionService.compare_versions(mock_project, "v1", "v3")
 
         # Removing fields is a breaking change
-        assert result["has_breaking_changes"] is True
+        assert result["has_breaking_changes"] == True  # noqa: E712
 
     def test_compare_versions_no_breaking_changes(self, mock_project, sample_xml_v1, sample_xml_v2):
         """Test has_breaking_changes is False when only adding fields"""
@@ -447,7 +447,7 @@ class TestLabelConfigVersionService:
         result = LabelConfigVersionService.compare_versions(mock_project, "v1", "v2")
 
         # Only adding fields, no breaking changes
-        assert result["has_breaking_changes"] is False
+        assert result["has_breaking_changes"] == False  # noqa: E712
 
     def test_compare_versions_version_not_found(self, mock_project):
         """Test comparison when one version doesn't exist"""

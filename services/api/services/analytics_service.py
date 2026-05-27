@@ -239,7 +239,7 @@ class AnalyticsService:
         total_annotations = base_query.count()
 
         # Completed annotations (not cancelled)
-        completed_query = base_query.filter(Annotation.was_cancelled == False)
+        completed_query = base_query.filter(Annotation.was_cancelled == False)  # noqa: E712
         completed_count = completed_query.count()
 
         # Unique annotators
@@ -305,7 +305,7 @@ class AnalyticsService:
                     Annotation.project_id == project_id,
                     Annotation.created_at >= day_start,
                     Annotation.created_at < day_end,
-                    Annotation.was_cancelled == False,
+                    Annotation.was_cancelled == False,  # noqa: E712
                 )
             )
 
@@ -352,8 +352,8 @@ class AnalyticsService:
 
         # Since new model doesn't have quality scores, we'll use completion metrics
         total_annotations = base_query.count()
-        completed_annotations = base_query.filter(Annotation.was_cancelled == False).count()
-        cancelled_annotations = base_query.filter(Annotation.was_cancelled == True).count()
+        completed_annotations = base_query.filter(Annotation.was_cancelled == False).count()  # noqa: E712
+        cancelled_annotations = base_query.filter(Annotation.was_cancelled == True).count()  # noqa: E712
 
         # Quality distribution (simplified)
         quality_distribution = [
@@ -406,7 +406,7 @@ class AnalyticsService:
         # Find tasks that have been annotated by multiple users
         base_query = db.query(Annotation).filter(
             Annotation.project_id == project_id,
-            Annotation.was_cancelled == False,
+            Annotation.was_cancelled == False,  # noqa: E712
         )
 
         if date_filter:
@@ -515,7 +515,7 @@ class AnalyticsService:
                 User.name,
                 User.email,
                 func.count(Annotation.id).label('annotations_count'),
-                func.sum(case((Annotation.was_cancelled == False, 1), else_=0)).label(
+                func.sum(case((Annotation.was_cancelled == False, 1), else_=0)).label(  # noqa: E712
                     'completed_count'
                 ),
                 func.avg(Annotation.lead_time).label('avg_lead_time'),
@@ -683,8 +683,8 @@ class AnalyticsService:
                 ]
 
         # Annotation types (simplified - just completed vs cancelled)
-        completed = base_query.filter(Annotation.was_cancelled == False).count()
-        cancelled = base_query.filter(Annotation.was_cancelled == True).count()
+        completed = base_query.filter(Annotation.was_cancelled == False).count()  # noqa: E712
+        cancelled = base_query.filter(Annotation.was_cancelled == True).count()  # noqa: E712
         total = completed + cancelled
 
         annotation_types = [
@@ -715,7 +715,7 @@ class AnalyticsService:
         global_stats = (
             db.query(
                 func.count(Annotation.id).label('total_annotations'),
-                func.sum(case((Annotation.was_cancelled == False, 1), else_=0)).label(
+                func.sum(case((Annotation.was_cancelled == False, 1), else_=0)).label(  # noqa: E712
                     'completed_annotations'
                 ),
                 func.avg(Annotation.lead_time).label('avg_lead_time'),
@@ -733,7 +733,7 @@ class AnalyticsService:
             completed = global_stats.completed_annotations or 0
             industry_average_quality = round((completed / global_stats.total_annotations) * 100, 2)
 
-        if global_stats and global_stats.avg_lead_time is not None:
+        if global_stats and global_stats.avg_lead_time != None:  # noqa: E711
             industry_average_time = round(float(global_stats.avg_lead_time), 2)
 
         # Optimized single query to get all project stats at once to avoid N+1 queries
@@ -742,7 +742,7 @@ class AnalyticsService:
                 Project.id,
                 Project.title,
                 func.count(Annotation.id).label('total_annotations'),
-                func.sum(case((Annotation.was_cancelled == False, 1), else_=0)).label(
+                func.sum(case((Annotation.was_cancelled == False, 1), else_=0)).label(  # noqa: E712
                     'completed_annotations'
                 ),
                 func.count(func.distinct(Annotation.completed_by)).label('unique_users'),

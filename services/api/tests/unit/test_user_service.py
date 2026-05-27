@@ -12,12 +12,12 @@ api_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file
 if api_dir not in sys.path:
     sys.path.insert(0, api_dir)
 
-import pytest
-from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError
+import pytest  # noqa: E402
+from fastapi import HTTPException  # noqa: E402
+from sqlalchemy.exc import IntegrityError  # noqa: E402
 
 # UserRole enum removed - now using is_superadmin boolean
-from user_service import (
+from user_service import (  # noqa: E402
     authenticate_user,
     create_user,
     get_password_hash,
@@ -50,7 +50,7 @@ class TestPasswordFunctions:
         password = "test_password_123"
         hashed = get_password_hash(password)
 
-        assert verify_password(password, hashed) is True
+        assert verify_password(password, hashed) == True  # noqa: E712
 
     def test_password_verification_failure(self):
         """Test failed password verification"""
@@ -58,7 +58,7 @@ class TestPasswordFunctions:
         wrong_password = "wrong_password"
         hashed = get_password_hash(password)
 
-        assert verify_password(wrong_password, hashed) is False
+        assert verify_password(wrong_password, hashed) == False  # noqa: E712
 
     def test_password_verification_empty(self):
         """Test password verification with empty values"""
@@ -105,8 +105,8 @@ class TestUserCRUD:
         assert user.username == "testuser@example.com"
         assert user.email == "testuser@example.com"
         assert user.name == "Test User"
-        assert user.is_superadmin == False
-        assert user.is_active is True
+        assert user.is_superadmin == False  # noqa: E712
+        assert user.is_active == True  # noqa: E712
 
     def test_create_user_duplicate_username(self, test_db, test_users):
         """Test creating user with duplicate username fails"""
@@ -166,7 +166,7 @@ class TestUserCRUD:
 
         assert user is not None
         assert user.username == "admin@test.com"
-        assert user.is_superadmin == True
+        assert user.is_superadmin == True  # noqa: E712
 
     def test_authenticate_user_wrong_password(self, test_db, test_users):
         """Test authentication with wrong password"""
@@ -193,7 +193,7 @@ class TestUserCRUD:
         updated_user = update_user_superadmin_status(test_db, user.id, True)
 
         assert updated_user is not None
-        assert updated_user.is_superadmin == True
+        assert updated_user.is_superadmin == True  # noqa: E712
         assert updated_user.is_superadmin != original_superadmin
 
     def test_update_user_superadmin_status_nonexistent(self, test_db):
@@ -239,12 +239,12 @@ class TestDemoUsers:
 
         # Verify admin is superadmin
         admin_user = get_user_by_username(db, "admin")
-        assert admin_user.is_superadmin == True
+        assert admin_user.is_superadmin == True  # noqa: E712
 
         # Check that admin user can authenticate
         admin_auth = authenticate_user(db, "admin", "admin")
         assert admin_auth is not None
-        assert admin_auth.is_superadmin == True
+        assert admin_auth.is_superadmin == True  # noqa: E712
 
     def test_init_demo_users_idempotent(self, clean_database):
         """Test that initializing demo users multiple times is safe"""

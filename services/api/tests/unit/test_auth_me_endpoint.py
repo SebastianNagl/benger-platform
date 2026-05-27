@@ -64,7 +64,7 @@ class TestAuthMeEndpoint:
         result = mock_superadmin
 
         assert result == mock_superadmin
-        assert result.is_superadmin is True
+        assert result.is_superadmin == True  # noqa: E712
         assert result.id == "admin-user-id"
 
     @patch("auth_module.dependencies.verify_token_cookie_or_header")

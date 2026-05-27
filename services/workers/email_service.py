@@ -135,7 +135,6 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-
         # notification.type can be a NotificationType enum OR a plain
         # string (send_notification_batch_task hydrates an unattached
         # Notification with `type=notif_dict["type"]` from the JSON
@@ -196,7 +195,6 @@ class EmailService:
         if not self.mail_enabled:
             logger.debug("Email not sent: Mail service is disabled")
             return False
-
 
         if not notifications:
             logger.info(f"No notifications to send in {digest_type} digest for {user_email}")
@@ -259,7 +257,6 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-
         subject = "BenGER Email Test"
         html_body = f"""
         <html>
@@ -314,7 +311,6 @@ class EmailService:
         if not self.mail_enabled:
             logger.debug("Email not sent: Mail service is disabled")
             return False
-
 
         subject = f"Invitation to join {organization_name} on BenGER"
         html_body = f"""
@@ -375,7 +371,6 @@ class EmailService:
         if not self.mail_enabled:
             logger.debug("Email not sent: Mail service is disabled")
             return False
-
 
         if language == "de":
             subject = "Bestätigen Sie Ihre E-Mail-Adresse für BenGER"
@@ -456,7 +451,6 @@ class EmailService:
         if not self.mail_enabled:
             logger.debug("Email not sent: Mail service is disabled")
             return False
-
 
         if language == "de":
             subject = "Passwort zurücksetzen für BenGER"

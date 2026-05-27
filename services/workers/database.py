@@ -80,13 +80,13 @@ def initialize_task_types_and_evaluation_types(db: Session) -> None:
                     <Text name="case_name" value="$case_name"/>
                     <Text name="area" value="$area" style="color: #666; font-style: italic;"/>
                     <Text name="fall" value="$fall"/>
-                    
+
                     <Header value="Analysis"/>
                     <Choices name="binary_solution" toName="fall" choice="single-radio">
                         <Choice value="Ja"/>
                         <Choice value="Nein"/>
                     </Choices>
-                    
+
                     <Header value="Legal Reasoning"/>
                     <TextArea name="reasoning" toName="fall" placeholder="Provide detailed legal reasoning..." rows="8" required="true"/>
                 </View>

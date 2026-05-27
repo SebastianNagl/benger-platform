@@ -3,8 +3,7 @@ Unit tests for routers/projects/ subrouters — covers access control branches.
 Tests use direct function calls with mocked DB to cover internal logic.
 """
 
-from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -61,8 +60,8 @@ class TestSkipTask:
         request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
             await skip_task(project_id="proj-1", task_id="task-1",
-                           request=request, skip_request=SkipTaskRequest(),
-                           current_user=user, db=db)
+                           request=request, skip_request=SkipTaskRequest(),  # noqa: E128
+                           current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404
 
 
@@ -78,7 +77,7 @@ class TestAssignTasks:
         user = Mock()
         with pytest.raises(HTTPException) as exc_info:
             await assign_tasks(project_id="proj-1", data={},
-                             current_user=user, db=db)
+                             current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404
 
 
@@ -93,7 +92,7 @@ class TestListTaskAssignments:
         request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
             await list_task_assignments(project_id="proj-1", task_id="task-1",
-                                       request=request, current_user=user, db=db)
+                                       request=request, current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404
 
 
@@ -106,7 +105,7 @@ class TestRemoveTaskAssignment:
         user = Mock()
         with pytest.raises(HTTPException) as exc_info:
             await remove_task_assignment(project_id="proj-1", task_id="task-1",
-                                        assignment_id="a-1", current_user=user, db=db)
+                                        assignment_id="a-1", current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404
 
 
@@ -125,8 +124,8 @@ class TestGetMyTasks:
         request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
             await get_my_tasks(project_id="proj-1", request=request,
-                             page=1, page_size=30, status=None,
-                             current_user=user, db=db)
+                             page=1, page_size=30, status=None,  # noqa: E128
+                             current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404
 
 
@@ -144,7 +143,7 @@ class TestListProjectMembers:
         request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
             await list_project_members(project_id="proj-1", request=request,
-                                      current_user=user, db=db)
+                                      current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404
 
 
@@ -159,7 +158,7 @@ class TestGetProjectAnnotators:
         request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
             await get_project_annotators(project_id="proj-1", request=request,
-                                        current_user=user, db=db)
+                                        current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404
 
 
@@ -242,7 +241,7 @@ class TestExportProject:
         request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
             await export_project(project_id="proj-1", request=request,
-                               current_user=user, db=db)
+                               current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
@@ -257,5 +256,5 @@ class TestExportProject:
         with patch("routers.projects.import_export.check_project_accessible", return_value=False):
             with pytest.raises(HTTPException) as exc_info:
                 await export_project(project_id="proj-1", request=request,
-                                    current_user=user, db=db)
+                                    current_user=user, db=db)  # noqa: E128
             assert exc_info.value.status_code == 403

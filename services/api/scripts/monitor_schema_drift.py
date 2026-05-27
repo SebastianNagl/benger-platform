@@ -12,14 +12,14 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import requests
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
-from app.core.schema_validator import create_validator_from_env
+from app.core.schema_validator import create_validator_from_env  # noqa: E402
 
 # Configure logging
 logging.basicConfig(
@@ -194,17 +194,17 @@ class SchemaDriftMonitor:
             "OK": "#00AA00",
         }
 
-        color = severity_colors.get(self.report_data["severity"], "#000000")
+        color = severity_colors.get(self.report_data["severity"], "#000000")  # noqa: F841
 
         html = f"""
         <html>
         <body>
         <h2 style="color: {color};">Schema Drift Detection Report</h2>
-        
+
         <p><strong>Environment:</strong> {self.report_data['environment']}</p>
         <p><strong>Timestamp:</strong> {self.report_data['timestamp']}</p>
         <p><strong>Severity:</strong> <span style="color: {color}; font-weight: bold;">{self.report_data['severity']}</span></p>
-        
+
         <h3>Metrics</h3>
         <ul>
             <li>Tables Checked: {self.report_data['metrics']['tables_checked']}</li>
@@ -358,7 +358,7 @@ def main():
             monitor.create_github_issue(args.github_repo, token)
 
     # Print summary
-    print(f"Schema Drift Monitoring Complete")
+    print("Schema Drift Monitoring Complete")
     print(f"Severity: {report['severity']}")
     print(f"Issues: {report['metrics']['total_issues']}")
     print(f"Warnings: {report['metrics']['total_warnings']}")

@@ -137,8 +137,8 @@ class TestClearGenerationConfig:
         request = Mock()
         user = Mock()
 
-        result = clear_generation_config("p1", request, mock_db, user)
-        assert project.generation_config is None
+        clear_generation_config("p1", request, mock_db, user)
+        assert project.generation_config == None  # noqa: E711
 
     @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
     @patch("routers.projects.generation.auth_service")
@@ -167,6 +167,7 @@ class TestGetProjectGenerationStatus:
         project.id = "p1"
 
         call_count = [0]
+
         def query_side_effect(*args, **kwargs):
             call_count[0] += 1
             q = MagicMock()
@@ -182,7 +183,7 @@ class TestGetProjectGenerationStatus:
 
         result = get_project_generation_status("p1", request, mock_db, user)
         assert result["generations"] == []
-        assert result["is_running"] is False
+        assert result["is_running"] == False  # noqa: E712
 
     @patch("routers.projects.generation.check_project_accessible", return_value=True)
     @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
@@ -202,6 +203,7 @@ class TestGetProjectGenerationStatus:
         gen.error_message = None
 
         call_count = [0]
+
         def query_side_effect(*args, **kwargs):
             call_count[0] += 1
             q = MagicMock()
@@ -216,6 +218,6 @@ class TestGetProjectGenerationStatus:
         user = Mock()
 
         result = get_project_generation_status("p1", request, mock_db, user)
-        assert result["is_running"] is True
+        assert result["is_running"] == True  # noqa: E712
         assert result["latest_status"] == "running"
         assert len(result["generations"]) == 1

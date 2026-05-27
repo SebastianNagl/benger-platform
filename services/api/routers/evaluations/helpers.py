@@ -6,17 +6,18 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from models import EvaluationType as DBEvaluationType
 
-logger = logging.getLogger(__name__)
 
 # Celery app (shared across evaluation sub-routers)
-from celery_client import get_celery_app, send_task_safe
+from celery_client import get_celery_app  # noqa: E402
 
+
+logger = logging.getLogger(__name__)
 celery_app = get_celery_app()
 
 
@@ -40,7 +41,7 @@ def resolve_user_org_for_project(user, project, db: Session) -> Optional[str]:
         db.query(OrganizationMembership)
         .filter(
             OrganizationMembership.user_id == user.id,
-            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_active == True,  # noqa: E712
             OrganizationMembership.organization_id.in_(project_org_ids),
         )
         .all()

@@ -248,6 +248,75 @@ export interface ImmediateEvaluationData {
 }
 
 /**
+ * Per-metric statistics block returned by the statistics endpoint.
+ */
+export interface MetricStatistics {
+  mean: number
+  median?: number
+  std: number
+  se?: number
+  min?: number
+  max?: number
+  ci_lower: number
+  ci_upper: number
+  n: number
+}
+
+/**
+ * Issue #111: structured per-field statistics.
+ *
+ * The outer dict key in `StatisticsResponse.by_field` remains the raw
+ * `field_name` string (stable client-side identifier for sort/expand state),
+ * but the value now carries the parsed evaluation_config_id / pred / ref
+ * tuple plus a human-friendly `display_name` so the UI never has to split
+ * the encoded `"{cfg_id}|{pred}|{ref}"` string itself.
+ */
+export interface FieldStatistics {
+  evaluation_config_id?: string | null
+  prediction_field?: string | null
+  reference_field?: string | null
+  display_name: string
+  metrics: Record<string, MetricStatistics>
+  sample_count: number
+}
+
+/**
+ * Issue #111: raw per-sample score row, used by the sample-aggregation
+ * box plots and the page-level filter. `evaluation_config_id` is the new
+ * dedicated column on `TaskEvaluation` — populated for all new writes,
+ * `null` for legacy bare-name rows that pre-date migration 057.
+ */
+export interface RawScore {
+  task_id?: string | null
+  model_id: string
+  field_name?: string | null
+  evaluation_config_id?: string | null
+  metric: string
+  value: number
+}
+
+/**
+ * Issue #111: evaluation-history series. The endpoint now emits one
+ * series per `(metric, evaluation_config_id)` pair so multiple configs
+ * of the same metric type render as distinct lines in the trend chart
+ * (the old `{metric, data: [...]}` shape collapsed them into a single
+ * line whose values were the merged mean across configs).
+ */
+export interface HistorySeries {
+  metric: string
+  evaluation_config_id: string | null
+  display_name: string
+  data: Array<{
+    date: string
+    model_id: string
+    value: number
+    ci_lower: number | null
+    ci_upper: number | null
+    sample_count: number
+  }>
+}
+
+/**
  * Metric category for grouping in UI
  */
 export interface MetricCategory {

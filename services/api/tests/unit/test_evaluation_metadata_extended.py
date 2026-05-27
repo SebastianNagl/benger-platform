@@ -6,7 +6,6 @@ Tests evaluated models, configured methods, history, and significance endpoints.
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -226,7 +225,7 @@ class TestGetEvaluationHistory:
         try:
             resp = client.get(
                 "/api/evaluations/projects/nonexistent/evaluation-history",
-                params={"model_ids": ["gpt-4"], "metric": "bleu"},
+                params={"model_ids": ["gpt-4"], "metrics": "bleu"},
             )
             assert resp.status_code == 404
         finally:
@@ -251,7 +250,7 @@ class TestGetEvaluationHistory:
             with patch("routers.evaluations.metadata.check_project_accessible", return_value=False):
                 resp = client.get(
                     "/api/evaluations/projects/p-1/evaluation-history",
-                    params={"model_ids": ["gpt-4"], "metric": "bleu"},
+                    params={"model_ids": ["gpt-4"], "metrics": "bleu"},
                 )
                 assert resp.status_code == 403
         finally:
@@ -264,9 +263,17 @@ class TestGetEvaluationHistory:
 
         project = Mock()
         project.id = "p-1"
+        # Issue #111: ``/evaluation-history`` now reads
+        # ``project.evaluation_config.get("evaluation_configs")`` to
+        # resolve series ``display_name``; the bare ``Mock`` would
+        # auto-spawn a MagicMock there. Set it to ``None`` so the new
+        # code path skips the lookup cleanly.
+        project.evaluation_config = None
 
         mock_q = MagicMock()
         mock_q.filter.return_value = mock_q
+        mock_q.join.return_value = mock_q
+        mock_q.outerjoin.return_value = mock_q
         mock_q.order_by.return_value = mock_q
         mock_q.first.return_value = project
         mock_q.all.return_value = []
@@ -278,9 +285,10 @@ class TestGetEvaluationHistory:
             with patch("routers.evaluations.metadata.check_project_accessible", return_value=True):
                 resp = client.get(
                     "/api/evaluations/projects/p-1/evaluation-history",
-                    params={"model_ids": ["gpt-4"], "metric": "bleu"},
+                    params={"model_ids": ["gpt-4"], "metrics": "bleu"},
                 )
                 assert resp.status_code == 200
+                assert resp.json() == {"series": []}
         finally:
             app.dependency_overrides.clear()
 

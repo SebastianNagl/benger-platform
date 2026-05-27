@@ -13,10 +13,8 @@ Targets specific branches in routers/organizations.py:
 import uuid
 from datetime import datetime
 
-import pytest
-from sqlalchemy.orm import Session
 
-from models import Organization, OrganizationMembership, User
+from models import Organization, OrganizationMembership
 
 
 def _make_org(db, name="Test Org", slug=None):
@@ -268,7 +266,7 @@ class TestUpdateOrganization:
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
-        assert resp.json()["is_active"] is False
+        assert resp.json()["is_active"] == False  # noqa: E712
 
 
 class TestDeleteOrganization:

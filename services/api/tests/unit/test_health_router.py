@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 from main import app
 from models import User
@@ -254,9 +253,9 @@ class TestHealthRouter:
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
                 assert data["status"] == "healthy"
-                assert data["configured"] is True
+                assert data["configured"] == True  # noqa: E712
                 assert data["service"] == "sendgrid"
-                assert data["connection"]["success"] is True
+                assert data["connection"]["success"] == True  # noqa: E712
             finally:
                 app.dependency_overrides.clear()
 
@@ -285,7 +284,7 @@ class TestHealthRouter:
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
                 assert data["status"] == "healthy"
-                assert data["test_send"]["success"] is True
+                assert data["test_send"]["success"] == True  # noqa: E712
             finally:
                 app.dependency_overrides.clear()
 
@@ -315,7 +314,7 @@ class TestHealthRouter:
                 assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
                 data = response.json()
                 assert data["status"] == "unhealthy"
-                assert data["connection"]["success"] is False
+                assert data["connection"]["success"] == False  # noqa: E712
                 assert "Connection timeout" in data["connection"]["error"]
             finally:
                 app.dependency_overrides.clear()
@@ -344,7 +343,7 @@ class TestHealthRouter:
                 assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
                 data = response.json()
                 assert data["status"] == "unhealthy"
-                assert data["configured"] is False
+                assert data["configured"] == False  # noqa: E712
             finally:
                 app.dependency_overrides.clear()
 

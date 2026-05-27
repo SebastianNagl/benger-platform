@@ -2,8 +2,6 @@
 Unit tests for routers/projects/crud.py - deep_merge_dicts and visibility endpoints.
 """
 
-import pytest
-
 
 class TestDeepMergeDicts:
     """Test the deep_merge_dicts helper function directly."""
@@ -66,7 +64,7 @@ class TestDeepMergeDicts:
         update = {"l1": {"l2": {"l3": "updated"}}}
         result = self.merge(base, update)
         assert result["l1"]["l2"]["l3"] == "updated"
-        assert result["l1"]["l2"]["keep"] is True
+        assert result["l1"]["l2"]["keep"] == True  # noqa: E712
 
     def test_new_nested_key(self):
         base = {"a": 1}

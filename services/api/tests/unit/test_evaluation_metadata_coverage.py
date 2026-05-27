@@ -4,10 +4,8 @@ Covers endpoint error paths for evaluation listing, details, deletion, and stati
 """
 
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
-import pytest
-from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 

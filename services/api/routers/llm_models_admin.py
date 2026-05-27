@@ -13,7 +13,7 @@ import logging
 import os
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from auth_module.dependencies import require_superadmin

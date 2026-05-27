@@ -16,7 +16,6 @@ Covers:
 - get_task_data_fields endpoint (lines 1163-1231)
 """
 
-import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
@@ -142,7 +141,7 @@ class TestExtractFieldsFromData:
     def test_boolean_field(self):
         from routers.projects.tasks import extract_fields_from_data
 
-        # Note: In Python, isinstance(True, (int, float)) is True because bool subclasses int.
+        # Note: In Python, isinstance(True, (int, float)) == True because bool subclasses int.
         # The code checks (int, float) before bool, so booleans are classified as "number".
         result = extract_fields_from_data({"is_active": True})
         assert result[0]["data_type"] == "number"
@@ -179,8 +178,8 @@ class TestExtractFieldsFromData:
 
         parent = next(f for f in result if f["path"] == "$context")
         child = next(f for f in result if f["path"] == "$context.inner")
-        assert parent["is_nested"] is False
-        assert child["is_nested"] is True
+        assert parent["is_nested"] == False  # noqa: E712
+        assert child["is_nested"] == True  # noqa: E712
 
 
 # ============= list_project_tasks =============
@@ -424,7 +423,7 @@ class TestUpdateTaskMetadata:
         task.meta = {"existing": "value"}
         mock_db.query.return_value.filter.return_value.first.return_value = task
 
-        result = await update_task_metadata(
+        result = await update_task_metadata(  # noqa: F841
             task_id="task-1",
             metadata={"replaced": "data"},
             request=_mock_request(),
@@ -446,7 +445,7 @@ class TestUpdateTaskMetadata:
         task.meta = None
         mock_db.query.return_value.filter.return_value.first.return_value = task
 
-        result = await update_task_metadata(
+        result = await update_task_metadata(  # noqa: F841
             task_id="task-1",
             metadata={"key": "value"},
             request=_mock_request(),
@@ -523,7 +522,7 @@ class TestBulkUpdateTaskMetadata:
         task.meta = {"old": "data"}
         mock_db.query.return_value.filter.return_value.all.return_value = [task]
 
-        result = await bulk_update_task_metadata(
+        result = await bulk_update_task_metadata(  # noqa: F841
             task_ids=["t-1"],
             metadata={"new": "data"},
             request=_mock_request(),
@@ -947,7 +946,7 @@ class TestBulkArchiveTasks:
         )
 
         assert result["archived"] == 1
-        assert task.meta["is_archived"] is True
+        assert task.meta["is_archived"] == True  # noqa: E712
 
 
 # ============= skip_task =============
@@ -1046,7 +1045,7 @@ class TestSkipTask:
 
         mock_db.query.side_effect = query_side_effect
 
-        result = await skip_task(
+        result = await skip_task(  # noqa: F841
             project_id="proj-1",
             task_id="task-1",
             skip_request=SkipTaskRequest(comment="Too difficult"),

@@ -11,10 +11,8 @@ Covers:
 
 import json
 import logging
-import uuid
-from unittest.mock import MagicMock, Mock, call, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
 
 from notification_service import (
     NotificationService,

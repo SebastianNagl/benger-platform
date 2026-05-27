@@ -73,15 +73,15 @@ class TestIsValidOrganizationRole:
 
     def test_valid_role(self):
         from services.role_validation import is_valid_organization_role
-        assert is_valid_organization_role("ORG_ADMIN") is True
+        assert is_valid_organization_role("ORG_ADMIN") == True  # noqa: E712
 
     def test_valid_role_lowercase(self):
         from services.role_validation import is_valid_organization_role
-        assert is_valid_organization_role("org_admin") is True
+        assert is_valid_organization_role("org_admin") == True  # noqa: E712
 
     def test_invalid_role(self):
         from services.role_validation import is_valid_organization_role
-        assert is_valid_organization_role("invalid") is False
+        assert is_valid_organization_role("invalid") == False  # noqa: E712
 
 
 class TestCreateSafeMembershipData:

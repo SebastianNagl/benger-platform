@@ -3,8 +3,7 @@ Unit tests for routers/evaluations/ — status.py, validation.py, metadata.py, c
 Covers endpoint logic with mocked DB.
 """
 
-from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -139,7 +138,7 @@ class TestValidateEvaluationConfig:
         request.state.organization_context = None
         with patch("routers.evaluations.validation.check_project_accessible", return_value=True):
             result = await validate_evaluation_config(project_id="proj-1", request=request, current_user=user, db=db)
-            assert result.valid is True
+            assert result.valid == True  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_missing_fields(self):
@@ -155,7 +154,7 @@ class TestValidateEvaluationConfig:
         request.state.organization_context = None
         with patch("routers.evaluations.validation.check_project_accessible", return_value=True):
             result = await validate_evaluation_config(project_id="proj-1", request=request, current_user=user, db=db)
-            assert result.valid is False
+            assert result.valid == False  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_no_configs(self):
@@ -168,7 +167,7 @@ class TestValidateEvaluationConfig:
         request.state.organization_context = None
         with patch("routers.evaluations.validation.check_project_accessible", return_value=True):
             result = await validate_evaluation_config(project_id="proj-1", request=request, current_user=user, db=db)
-            assert result.valid is False
+            assert result.valid == False  # noqa: E712
 
 
 # ============= evaluation/metadata.py =============

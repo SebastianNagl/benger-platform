@@ -5,19 +5,16 @@ Targets: routers/projects/tasks.py — list_project_tasks, get_next_task,
          get_task, create_task, update_task, delete_task, skip_task
 """
 
-import json
 import uuid
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
-from models import Generation, ResponseGeneration, User
+from models import Generation, ResponseGeneration
 from project_models import (
     Annotation,
     Project,
     ProjectOrganization,
-    SkippedTask,
     Task,
     TaskAssignment,
 )
@@ -28,7 +25,7 @@ def _uid():
 
 
 def _make_project(db, admin, org, *, num_tasks=5, assignment_mode="open",
-                   randomize=False, with_annotations=False):
+                   randomize=False, with_annotations=False):  # noqa: E127
     """Create project with tasks for testing."""
     project = Project(
         id=_uid(),

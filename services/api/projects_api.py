@@ -45,4 +45,4 @@ import_data = import_project_data
 # ---------------------------------------------------------------------------
 # Re-exported endpoint functions (routers/projects/tasks.py)
 # ---------------------------------------------------------------------------
-from routers.projects.tasks import get_next_task  # noqa: F401
+from routers.projects.tasks import get_next_task  # noqa: F401,E402

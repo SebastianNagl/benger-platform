@@ -3,7 +3,6 @@ Unit tests for routers/evaluations/helpers.py to increase coverage.
 Tests helper functions used across evaluation endpoints.
 """
 
-import pytest
 from datetime import datetime, timezone
 
 
@@ -97,7 +96,7 @@ class TestEvaluationTypeResponse:
             is_active=True,
         )
         assert resp.id == "bleu"
-        assert resp.higher_is_better is True
+        assert resp.higher_is_better == True  # noqa: E712
 
     def test_minimal(self):
         from routers.evaluations.helpers import EvaluationTypeResponse
@@ -107,8 +106,8 @@ class TestEvaluationTypeResponse:
             category="text",
         )
         assert resp.id == "custom"
-        assert resp.description is None
-        assert resp.higher_is_better is True  # default
+        assert resp.description == None  # noqa: E711
+        assert resp.higher_is_better == True  # default  # noqa: E712
 
 
 class TestEvaluationResult:
@@ -139,7 +138,7 @@ class TestEvaluationResult:
             metadata=None,
             samples_evaluated=0,
         )
-        assert result.metadata is None
+        assert result.metadata == None  # noqa: E711
 
 
 class TestResolveUserOrgForProject:

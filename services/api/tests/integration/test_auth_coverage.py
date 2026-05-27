@@ -19,14 +19,10 @@ Focuses on:
 """
 
 import uuid
-from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
-    Organization,
-    OrganizationMembership,
     User,
 )
 
@@ -130,7 +126,7 @@ class TestMeDeep:
         data = resp.json()
         assert data["id"] == "admin-test-id"
         assert data["username"] == "admin@test.com"
-        assert data["is_superadmin"] is True
+        assert data["is_superadmin"] == True  # noqa: E712
         assert "role" in data
 
     def test_me_annotator(self, client, test_db, test_users, auth_headers, test_org):
@@ -139,7 +135,7 @@ class TestMeDeep:
         assert resp.status_code == 200
         data = resp.json()
         assert data["id"] == "annotator-test-id"
-        assert data["is_superadmin"] is False
+        assert data["is_superadmin"] == False  # noqa: E712
 
     def test_me_unauthorized(self, client, test_db):
         """No auth header returns 401."""
@@ -199,7 +195,7 @@ class TestVerifyToken:
         """Valid token returns valid=True."""
         resp = client.get("/api/auth/verify", headers=auth_headers["admin"])
         assert resp.status_code == 200
-        assert resp.json()["valid"] is True
+        assert resp.json()["valid"] == True  # noqa: E712
 
     def test_verify_invalid_token(self, client, test_db):
         """Invalid token returns 401."""
@@ -409,7 +405,7 @@ class TestConfirmProfile:
         assert resp.status_code in (200, 400, 404)
         if resp.status_code == 200:
             data = resp.json()
-            assert data["success"] is True
+            assert data["success"] == True  # noqa: E712
             assert "confirmed_at" in data
 
 
@@ -499,7 +495,7 @@ class TestSignupDeep:
         assert resp.status_code == 200
         data = resp.json()
         assert "id" in data
-        assert data["is_superadmin"] is False
+        assert data["is_superadmin"] == False  # noqa: E712
 
     def test_signup_duplicate_username(self, client, test_db, test_users):
         """Signup with existing username fails."""

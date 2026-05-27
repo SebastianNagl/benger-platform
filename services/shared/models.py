@@ -1007,6 +1007,14 @@ class TaskEvaluation(Base):
 
     # Field-level results
     field_name = Column(String, nullable=False, index=True)
+    # Issue #111: discrete carrier of the evaluation config id. Previously
+    # encoded inside ``field_name`` as ``"{config_id}|{pred_field}|{ref_field}"``;
+    # readers had to ``split('|', 1)`` on every query. New writes populate this
+    # column directly so downstream aggregators can filter cleanly. Nullable
+    # because legacy rows (pre-migration 057) only carry the pipe-encoded form
+    # — the migration backfills pipe-encoded rows; bare-name legacy rows stay
+    # NULL (documented in ``workers/tasks.py::_normalize_field_key``).
+    evaluation_config_id = Column(String, nullable=True, index=True)
     answer_type = Column(String, nullable=False)
 
     # Ground truth and prediction (stored as JSON for flexibility)

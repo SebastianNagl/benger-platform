@@ -28,7 +28,7 @@ class TaskTemplateCreate(TaskTemplateBase):
     parent_template_id: Optional[str] = None
     organization_id: Optional[str] = None
     is_public: bool = Field(default=False)
-    semantic_version: str = Field(default="1.0.0", pattern="^\d+\.\d+\.\d+$")
+    semantic_version: str = Field(default="1.0.0", pattern=r"^\d+\.\d+\.\d+$")
     version_notes: Optional[str] = None
 
 
@@ -88,7 +88,7 @@ class TemplateListResponse(BaseModel):
 class TemplateVersionBase(BaseModel):
     """Base schema for template versions"""
 
-    version: str = Field(..., pattern="^\d+\.\d+\.\d+$")
+    version: str = Field(..., pattern=r"^\d+\.\d+\.\d+$")
     schema: Dict[str, Any]
     version_notes: Optional[str] = None
     is_major_version: bool = Field(default=False)

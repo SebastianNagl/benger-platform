@@ -8,27 +8,15 @@ generation data, span annotations, different meta structures, CSV export.
 import io
 import json
 import uuid
-from datetime import datetime
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
-    EvaluationRun,
-    EvaluationRunMetric,
     Generation,
-    HumanEvaluationConfig,
-    HumanEvaluationSession,
-    LikertScaleEvaluation,
-    Organization,
-    PreferenceRanking,
     ResponseGeneration,
-    TaskEvaluation,
-    User,
 )
 from project_models import (
     Annotation,
-    PostAnnotationResponse,
     Project,
     ProjectMember,
     ProjectOrganization,
@@ -314,7 +302,7 @@ class TestComprehensiveExport:
     def test_comprehensive_export(self, client, test_db, test_users, auth_headers, test_org):
         p = _make_project(test_db, test_users[0], test_org)
         t = _make_task(test_db, p, test_users[0])
-        ann = _make_annotation(test_db, t, p, test_users[0])
+        _make_annotation(test_db, t, p, test_users[0])
         test_db.commit()
 
         resp = client.get(

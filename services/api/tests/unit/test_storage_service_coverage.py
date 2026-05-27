@@ -17,7 +17,7 @@ class TestLocalStorageBackendInit:
         from services.storage.storage_service import LocalStorageBackend
         with tempfile.TemporaryDirectory() as tmpdir:
             new_dir = os.path.join(tmpdir, "storage", "test")
-            backend = LocalStorageBackend(new_dir)
+            LocalStorageBackend(new_dir)
             assert os.path.isdir(new_dir)
 
     def test_existing_directory(self):
@@ -77,7 +77,7 @@ class TestLocalStorageUpload:
         from services.storage.storage_service import LocalStorageBackend
         with tempfile.TemporaryDirectory() as tmpdir:
             backend = LocalStorageBackend(tmpdir)
-            key = await backend.upload_file(b"data", "subdir/file.txt")
+            await backend.upload_file(b"data", "subdir/file.txt")
             assert os.path.exists(os.path.join(tmpdir, "subdir", "file.txt"))
 
     @pytest.mark.asyncio
@@ -98,7 +98,7 @@ class TestLocalStorageUpload:
         with tempfile.TemporaryDirectory() as tmpdir:
             backend = LocalStorageBackend(tmpdir)
             file_obj = io.BytesIO(b"file object data")
-            key = await backend.upload_file(file_obj, "obj.txt")
+            await backend.upload_file(file_obj, "obj.txt")
             assert os.path.exists(os.path.join(tmpdir, "obj.txt"))
 
 
@@ -179,14 +179,14 @@ class TestLocalStorageFileExists:
         with tempfile.TemporaryDirectory() as tmpdir:
             backend = LocalStorageBackend(tmpdir)
             await backend.upload_file(b"data", "exists.txt")
-            assert await backend.file_exists("exists.txt") is True
+            assert await backend.file_exists("exists.txt") == True  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_nonexistent_file(self):
         from services.storage.storage_service import LocalStorageBackend
         with tempfile.TemporaryDirectory() as tmpdir:
             backend = LocalStorageBackend(tmpdir)
-            assert await backend.file_exists("nope.txt") is False
+            assert await backend.file_exists("nope.txt") == False  # noqa: E712
 
 
 class TestStorageService:

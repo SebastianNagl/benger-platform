@@ -73,6 +73,7 @@ jest.mock('@/components/shared/FilterToolbar', () => {
   const FilterToolbar = ({ children }: any) => (
     <div data-testid="filter-toolbar">{children}</div>
   )
+  // eslint-disable-next-line react/display-name
   FilterToolbar.Field = ({ label, children }: any) => (
     <div data-testid={`filter-field-${String(label)}`}>{children}</div>
   )

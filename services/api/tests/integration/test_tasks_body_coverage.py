@@ -24,19 +24,13 @@ import uuid
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     Generation,
-    OrganizationMembership,
     ResponseGeneration,
-    User,
-    EvaluationRun,
-    TaskEvaluation,
 )
 from project_models import (
     Annotation,
-    PostAnnotationResponse,
     Project,
     ProjectOrganization,
     SkippedTask,
@@ -350,7 +344,7 @@ class TestListTasksFieldEnrichment:
         assert resp.status_code == 200
         item = resp.json()["items"][0]
         required = ["id", "inner_id", "data", "meta", "is_labeled",
-                     "total_annotations", "total_generations", "project_id",
+                     "total_annotations", "total_generations", "project_id",  # noqa: E127
                      "assignments", "tags"]
         for field in required:
             assert field in item, f"Missing field: {field}"
@@ -489,7 +483,7 @@ class TestGetNextTaskAuto:
 
     def test_auto_creates_self_assignment(self, client, test_db, test_users, auth_headers, test_org):
         p = _project(test_db, test_users[0], test_org, assignment_mode="auto")
-        tasks = _tasks(test_db, p, test_users[0], count=3)
+        tasks = _tasks(test_db, p, test_users[0], count=3)  # noqa: F841
         test_db.commit()
 
         resp = client.get(f"/api/projects/{p.id}/next", headers=_h(auth_headers, test_org))
@@ -609,7 +603,7 @@ class TestUpdateTaskMetadata:
         assert resp.status_code == 200
         meta = resp.json()["meta"]
         assert "old_key" not in meta
-        assert meta["replaced"] is True
+        assert meta["replaced"] == True  # noqa: E712
 
     def test_metadata_init_null_meta(self, client, test_db, test_users, auth_headers, test_org):
         p = _project(test_db, test_users[0], test_org)
@@ -627,7 +621,7 @@ class TestUpdateTaskMetadata:
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
-        assert resp.json()["meta"]["init"] is True
+        assert resp.json()["meta"]["init"] == True  # noqa: E712
 
 
 # ===================================================================

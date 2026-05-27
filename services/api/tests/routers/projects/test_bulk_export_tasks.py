@@ -39,11 +39,12 @@ def _collect_stream(response) -> str:
 
     return asyncio.run(_consume())
 
+
 # Add path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
-from models import Generation, ResponseGeneration, User
-from project_models import Annotation, Project, Task
+from models import Generation, ResponseGeneration, User  # noqa: E402
+from project_models import Annotation, Project, Task  # noqa: E402
 
 
 def _make_mock_request():
@@ -634,10 +635,8 @@ class TestBulkExportTasks:
 
     def test_export_includes_evaluation_runs(self, tasks_with_annotations, test_db_session, test_user):
         """Test that evaluation runs are included at top level."""
-        from unittest.mock import Mock
 
         from models import EvaluationJudgeRun, EvaluationRun, TaskEvaluation
-        from routers.projects.tasks import bulk_export_tasks
 
         session = test_db_session
         data = tasks_with_annotations
@@ -687,8 +686,8 @@ class TestBulkExportTasks:
         session.flush()
 
         # Ensure data is visible by expunging cached objects and refreshing
-        eval_run_id = eval_run.id
-        task_eval_id = task_eval.id
+        eval_run.id
+        task_eval.id
         session.expire_all()
 
         # Export — call synchronously to avoid asyncio session issues
@@ -696,12 +695,6 @@ class TestBulkExportTasks:
 
         from routers.projects.serializers import (
             build_evaluation_indexes,
-            build_judge_model_lookup,
-            serialize_evaluation_run,
-            serialize_task,
-            serialize_task_evaluation,
-            serialize_annotation,
-            serialize_generation,
         )
 
         # Replicate export logic directly (avoiding asyncio.run)
@@ -735,7 +728,7 @@ class TestBulkExportTasks:
         assert len(task_evals) == 1, f"Expected 1 task eval for first task, got {len(task_evals)}"
         assert task_evals[0].field_name == "answer"
         assert task_evals[0].metrics == {"accuracy": 0.85}
-        assert task_evals[0].passed is True
+        assert task_evals[0].passed == True  # noqa: E712
 
         # Other tasks should have no evaluations
         for task in data["tasks"][1:]:

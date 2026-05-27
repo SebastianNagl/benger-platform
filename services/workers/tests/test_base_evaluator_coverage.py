@@ -9,7 +9,7 @@ import os
 workers_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, workers_root)
 
-from ml_evaluation.base_evaluator import BaseEvaluator, EvaluationConfig, EvaluationResult
+from ml_evaluation.base_evaluator import BaseEvaluator, EvaluationConfig, EvaluationResult  # noqa: E402
 
 
 class TestEvaluationConfig:
@@ -29,11 +29,11 @@ class TestEvaluationConfig:
 class TestEvaluationResult:
     def test_success(self):
         result = EvaluationResult(metrics={"accuracy": 0.9}, metadata={}, samples_evaluated=10)
-        assert result.success is True
+        assert result.success == True
 
     def test_failure(self):
         result = EvaluationResult(metrics={}, metadata={}, error="Something failed")
-        assert result.success is False
+        assert result.success == False
 
     def test_default_samples(self):
         result = EvaluationResult(metrics={}, metadata={})

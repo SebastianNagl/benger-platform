@@ -6,7 +6,6 @@ Covers run evaluation, available fields, and project evaluation results endpoint
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -223,7 +222,6 @@ class TestAvailableFields:
                 assert resp.status_code == 403
         finally:
             app.dependency_overrides.clear()
-
 
 
 # ---------------------------------------------------------------------------

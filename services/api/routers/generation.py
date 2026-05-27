@@ -33,7 +33,6 @@ from project_models import Project, Task
 from redis_cache import get_redis_client
 from routers.projects.helpers import check_project_accessible, get_accessible_project_ids, get_org_context_from_request
 
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/generation", tags=["generation"])
 
@@ -41,13 +40,15 @@ router = APIRouter(prefix="/api/generation", tags=["generation"])
 ws_router = APIRouter(prefix="/api/ws", tags=["websocket"])
 
 # Celery app
-from celery_client import get_celery_app
+from celery_client import get_celery_app  # noqa: E402
 
 celery_app = get_celery_app()
 
 # Environment configuration
-import os
+import os  # noqa: E402
 
+
+logger = logging.getLogger(__name__)
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 
@@ -679,7 +680,15 @@ async def get_parse_metrics(
             total_retries = sum(
                 (md or {}).get("retry_count", 1) for (md,) in metadata_rows
             )
-            avg_retries = total_retries / len(metadata_rows) if metadata_rows else 0
+            # `if metadata_rows` is truthy even when `len(metadata_rows) == 0`
+            # if the value is a Mock or other truthy-empty container, which
+            # gave a ZeroDivisionError under unit tests. Check the length
+            # directly so the guard matches the divisor.
+            avg_retries = (
+                total_retries / len(metadata_rows)
+                if len(metadata_rows) > 0
+                else 0
+            )
 
         # Common parse errors — group in SQL instead of streaming every
         # failed row to Python. ORDER BY DESC + LIMIT keeps the top-5 in
@@ -899,7 +908,7 @@ async def generation_progress_websocket(
         logger.error(f"WebSocket error for project {project_id}: {e}")
         try:
             await websocket.send_json({"type": "error", "message": f"WebSocket error: {str(e)}"})
-        except:
+        except:  # noqa: E722
             pass
     finally:
         # Cleanup
@@ -910,7 +919,7 @@ async def generation_progress_websocket(
         # Close WebSocket if still open
         try:
             await websocket.close()
-        except:
+        except:  # noqa: E722
             pass
 
         logger.info(f"WebSocket connection closed for project {project_id}")

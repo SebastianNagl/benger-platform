@@ -10,8 +10,8 @@ import requests
 # Add the API directory to the path so we can import modules
 sys.path.append("/Users/sebastiannagl/Code/BenGer/services/api")
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 # Database connection
 DATABASE_URL = "postgresql://postgres:changeme123!@localhost:5432/benger"
@@ -28,7 +28,7 @@ def get_user_auth_token():
         # Get a user who has access to the project
         result = db.execute(
             """
-            SELECT u.id, u.name, u.email 
+            SELECT u.id, u.name, u.email
             FROM users u
             JOIN organization_memberships om ON u.id = om.user_id
             JOIN project_organizations po ON om.organization_id = po.organization_id
@@ -82,7 +82,7 @@ def test_api_multiple_organizations():
 
         elif response.status_code == 200:
             data = response.json()
-            print(f"SUCCESS: Got response data")
+            print("SUCCESS: Got response data")
 
             if "organizations" in data:
                 orgs = data["organizations"]
@@ -103,7 +103,7 @@ def test_api_multiple_organizations():
             try:
                 error_data = response.json()
                 print(f"Error: {error_data}")
-            except:
+            except:  # noqa: E722
                 print(f"Error text: {response.text}")
 
     except Exception as e:

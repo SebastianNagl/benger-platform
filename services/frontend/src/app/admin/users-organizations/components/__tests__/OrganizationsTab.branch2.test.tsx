@@ -154,6 +154,7 @@ jest.mock('@/components/shared/FilterToolbar', () => {
       {rightExtras}
     </div>
   )
+  // eslint-disable-next-line react/display-name
   FilterToolbar.Field = ({ children }: any) => <div>{children}</div>
   return { FilterToolbar }
 })

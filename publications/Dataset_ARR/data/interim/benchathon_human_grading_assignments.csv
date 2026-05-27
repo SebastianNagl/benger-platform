@@ -1,0 +1,181 @@
+assignment_id,pick_id,task_inner_id,bereich,provenance,difficulty,reviewer_name,reviewer_uuid,reviewer_role,is_blind,pass
+A001,P01,1,Zivilrecht,classic,Sehr Schwer,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,A
+A002,P01,1,Zivilrecht,classic,Sehr Schwer,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,B
+A003,P01,1,Zivilrecht,classic,Sehr Schwer,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,C
+A004,P01,1,Zivilrecht,classic,Sehr Schwer,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A005,P02,1,Zivilrecht,co_creation,Sehr Schwer,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,A
+A006,P02,1,Zivilrecht,co_creation,Sehr Schwer,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,B
+A007,P02,1,Zivilrecht,co_creation,Sehr Schwer,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,C
+A008,P02,1,Zivilrecht,co_creation,Sehr Schwer,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A009,P03,1,Zivilrecht,llm,Sehr Schwer,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,A
+A010,P03,1,Zivilrecht,llm,Sehr Schwer,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,B
+A011,P03,1,Zivilrecht,llm,Sehr Schwer,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,C
+A012,P03,1,Zivilrecht,llm,Sehr Schwer,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A013,P04,2,Zivilrecht,classic,Schwer,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,A
+A014,P04,2,Zivilrecht,classic,Schwer,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,B
+A015,P04,2,Zivilrecht,classic,Schwer,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,C
+A016,P04,2,Zivilrecht,classic,Schwer,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A017,P05,2,Zivilrecht,co_creation,Schwer,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,A
+A018,P05,2,Zivilrecht,co_creation,Schwer,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,B
+A019,P05,2,Zivilrecht,co_creation,Schwer,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,C
+A020,P05,2,Zivilrecht,co_creation,Schwer,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A021,P06,2,Zivilrecht,llm,Schwer,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,A
+A022,P06,2,Zivilrecht,llm,Schwer,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,B
+A023,P06,2,Zivilrecht,llm,Schwer,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,C
+A024,P06,2,Zivilrecht,llm,Schwer,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A025,P07,3,Zivilrecht,classic,Mittel,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,A
+A026,P07,3,Zivilrecht,classic,Mittel,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,B
+A027,P07,3,Zivilrecht,classic,Mittel,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,C
+A028,P07,3,Zivilrecht,classic,Mittel,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A029,P08,3,Zivilrecht,co_creation,Mittel,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,A
+A030,P08,3,Zivilrecht,co_creation,Mittel,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,B
+A031,P08,3,Zivilrecht,co_creation,Mittel,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,C
+A032,P08,3,Zivilrecht,co_creation,Mittel,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A033,P09,3,Zivilrecht,llm,Mittel,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,A
+A034,P09,3,Zivilrecht,llm,Mittel,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,B
+A035,P09,3,Zivilrecht,llm,Mittel,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,C
+A036,P09,3,Zivilrecht,llm,Mittel,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A037,P10,4,Zivilrecht,classic,Sehr Leicht,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,A
+A038,P10,4,Zivilrecht,classic,Sehr Leicht,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,B
+A039,P10,4,Zivilrecht,classic,Sehr Leicht,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,C
+A040,P10,4,Zivilrecht,classic,Sehr Leicht,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A041,P11,4,Zivilrecht,co_creation,Sehr Leicht,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,A
+A042,P11,4,Zivilrecht,co_creation,Sehr Leicht,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,B
+A043,P11,4,Zivilrecht,co_creation,Sehr Leicht,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,C
+A044,P11,4,Zivilrecht,co_creation,Sehr Leicht,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A045,P12,4,Zivilrecht,llm,Sehr Leicht,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,A
+A046,P12,4,Zivilrecht,llm,Sehr Leicht,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,B
+A047,P12,4,Zivilrecht,llm,Sehr Leicht,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,C
+A048,P12,4,Zivilrecht,llm,Sehr Leicht,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A049,P13,5,Zivilrecht,classic,Leicht,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,A
+A050,P13,5,Zivilrecht,classic,Leicht,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,B
+A051,P13,5,Zivilrecht,classic,Leicht,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,C
+A052,P13,5,Zivilrecht,classic,Leicht,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A053,P14,5,Zivilrecht,co_creation,Leicht,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,A
+A054,P14,5,Zivilrecht,co_creation,Leicht,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,B
+A055,P14,5,Zivilrecht,co_creation,Leicht,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,C
+A056,P14,5,Zivilrecht,co_creation,Leicht,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A057,P15,5,Zivilrecht,llm,Leicht,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,A
+A058,P15,5,Zivilrecht,llm,Leicht,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,B
+A059,P15,5,Zivilrecht,llm,Leicht,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,C
+A060,P15,5,Zivilrecht,llm,Leicht,grader_03,c40e983f-87c3-5127-a107-024f7a89a398,creator,false,creator
+A061,P16,6,Öffentliches Recht,classic,Sehr Schwer,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,A
+A062,P16,6,Öffentliches Recht,classic,Sehr Schwer,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,B
+A063,P16,6,Öffentliches Recht,classic,Sehr Schwer,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,C
+A064,P16,6,Öffentliches Recht,classic,Sehr Schwer,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A065,P17,6,Öffentliches Recht,co_creation,Sehr Schwer,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,A
+A066,P17,6,Öffentliches Recht,co_creation,Sehr Schwer,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,B
+A067,P17,6,Öffentliches Recht,co_creation,Sehr Schwer,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,C
+A068,P17,6,Öffentliches Recht,co_creation,Sehr Schwer,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A069,P18,6,Öffentliches Recht,llm,Sehr Schwer,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,A
+A070,P18,6,Öffentliches Recht,llm,Sehr Schwer,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,B
+A071,P18,6,Öffentliches Recht,llm,Sehr Schwer,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,C
+A072,P18,6,Öffentliches Recht,llm,Sehr Schwer,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A073,P19,7,Öffentliches Recht,classic,Mittel,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,A
+A074,P19,7,Öffentliches Recht,classic,Mittel,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,B
+A075,P19,7,Öffentliches Recht,classic,Mittel,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,C
+A076,P19,7,Öffentliches Recht,classic,Mittel,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A077,P20,7,Öffentliches Recht,co_creation,Mittel,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,A
+A078,P20,7,Öffentliches Recht,co_creation,Mittel,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,B
+A079,P20,7,Öffentliches Recht,co_creation,Mittel,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,C
+A080,P20,7,Öffentliches Recht,co_creation,Mittel,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A081,P21,7,Öffentliches Recht,llm,Mittel,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,A
+A082,P21,7,Öffentliches Recht,llm,Mittel,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,B
+A083,P21,7,Öffentliches Recht,llm,Mittel,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,C
+A084,P21,7,Öffentliches Recht,llm,Mittel,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A085,P22,8,Öffentliches Recht,classic,Sehr Leicht,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,A
+A086,P22,8,Öffentliches Recht,classic,Sehr Leicht,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,B
+A087,P22,8,Öffentliches Recht,classic,Sehr Leicht,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,C
+A088,P22,8,Öffentliches Recht,classic,Sehr Leicht,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A089,P23,8,Öffentliches Recht,co_creation,Sehr Leicht,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,A
+A090,P23,8,Öffentliches Recht,co_creation,Sehr Leicht,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,B
+A091,P23,8,Öffentliches Recht,co_creation,Sehr Leicht,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,C
+A092,P23,8,Öffentliches Recht,co_creation,Sehr Leicht,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A093,P24,8,Öffentliches Recht,llm,Sehr Leicht,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,A
+A094,P24,8,Öffentliches Recht,llm,Sehr Leicht,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,B
+A095,P24,8,Öffentliches Recht,llm,Sehr Leicht,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,C
+A096,P24,8,Öffentliches Recht,llm,Sehr Leicht,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A097,P25,9,Öffentliches Recht,classic,Schwer,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,A
+A098,P25,9,Öffentliches Recht,classic,Schwer,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,B
+A099,P25,9,Öffentliches Recht,classic,Schwer,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,C
+A100,P25,9,Öffentliches Recht,classic,Schwer,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A101,P26,9,Öffentliches Recht,co_creation,Schwer,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,A
+A102,P26,9,Öffentliches Recht,co_creation,Schwer,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,B
+A103,P26,9,Öffentliches Recht,co_creation,Schwer,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,C
+A104,P26,9,Öffentliches Recht,co_creation,Schwer,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A105,P27,9,Öffentliches Recht,llm,Schwer,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,A
+A106,P27,9,Öffentliches Recht,llm,Schwer,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,B
+A107,P27,9,Öffentliches Recht,llm,Schwer,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,C
+A108,P27,9,Öffentliches Recht,llm,Schwer,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A109,P28,10,Öffentliches Recht,classic,Leicht,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,A
+A110,P28,10,Öffentliches Recht,classic,Leicht,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,B
+A111,P28,10,Öffentliches Recht,classic,Leicht,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,C
+A112,P28,10,Öffentliches Recht,classic,Leicht,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A113,P29,10,Öffentliches Recht,co_creation,Leicht,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,A
+A114,P29,10,Öffentliches Recht,co_creation,Leicht,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,B
+A115,P29,10,Öffentliches Recht,co_creation,Leicht,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,C
+A116,P29,10,Öffentliches Recht,co_creation,Leicht,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A117,P30,10,Öffentliches Recht,llm,Leicht,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,blind,true,A
+A118,P30,10,Öffentliches Recht,llm,Leicht,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,B
+A119,P30,10,Öffentliches Recht,llm,Leicht,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,blind,true,C
+A120,P30,10,Öffentliches Recht,llm,Leicht,grader_06,f01776a6-5409-5f29-aef6-a9fdf44fe4d9,creator,false,creator
+A121,P31,11,Strafrecht,classic,Sehr Schwer,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,A
+A122,P31,11,Strafrecht,classic,Sehr Schwer,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,B
+A123,P31,11,Strafrecht,classic,Sehr Schwer,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,C
+A124,P31,11,Strafrecht,classic,Sehr Schwer,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,creator,false,creator
+A125,P32,11,Strafrecht,co_creation,Sehr Schwer,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,A
+A126,P32,11,Strafrecht,co_creation,Sehr Schwer,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,B
+A127,P32,11,Strafrecht,co_creation,Sehr Schwer,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,C
+A128,P32,11,Strafrecht,co_creation,Sehr Schwer,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,creator,false,creator
+A129,P33,11,Strafrecht,llm,Sehr Schwer,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,A
+A130,P33,11,Strafrecht,llm,Sehr Schwer,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,B
+A131,P33,11,Strafrecht,llm,Sehr Schwer,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,C
+A132,P33,11,Strafrecht,llm,Sehr Schwer,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,creator,false,creator
+A133,P34,12,Strafrecht,classic,Schwer,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,A
+A134,P34,12,Strafrecht,classic,Schwer,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,B
+A135,P34,12,Strafrecht,classic,Schwer,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,C
+A136,P34,12,Strafrecht,classic,Schwer,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,creator,false,creator
+A137,P35,12,Strafrecht,co_creation,Schwer,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,A
+A138,P35,12,Strafrecht,co_creation,Schwer,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,B
+A139,P35,12,Strafrecht,co_creation,Schwer,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,C
+A140,P35,12,Strafrecht,co_creation,Schwer,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,creator,false,creator
+A141,P36,12,Strafrecht,llm,Schwer,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,A
+A142,P36,12,Strafrecht,llm,Schwer,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,B
+A143,P36,12,Strafrecht,llm,Schwer,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,C
+A144,P36,12,Strafrecht,llm,Schwer,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,creator,false,creator
+A145,P37,13,Strafrecht,classic,Mittel,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,A
+A146,P37,13,Strafrecht,classic,Mittel,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,B
+A147,P37,13,Strafrecht,classic,Mittel,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,C
+A148,P37,13,Strafrecht,classic,Mittel,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,creator,false,creator
+A149,P38,13,Strafrecht,co_creation,Mittel,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,A
+A150,P38,13,Strafrecht,co_creation,Mittel,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,B
+A151,P38,13,Strafrecht,co_creation,Mittel,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,C
+A152,P38,13,Strafrecht,co_creation,Mittel,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,creator,false,creator
+A153,P39,13,Strafrecht,llm,Mittel,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,A
+A154,P39,13,Strafrecht,llm,Mittel,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,B
+A155,P39,13,Strafrecht,llm,Mittel,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,C
+A156,P39,13,Strafrecht,llm,Mittel,grader_01,00c570ab-0668-503c-9697-d992c9bcac79,creator,false,creator
+A157,P40,14,Strafrecht,classic,Leicht,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,A
+A158,P40,14,Strafrecht,classic,Leicht,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,B
+A159,P40,14,Strafrecht,classic,Leicht,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,C
+A160,P40,14,Strafrecht,classic,Leicht,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,creator,false,creator
+A161,P41,14,Strafrecht,co_creation,Leicht,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,A
+A162,P41,14,Strafrecht,co_creation,Leicht,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,B
+A163,P41,14,Strafrecht,co_creation,Leicht,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,C
+A164,P41,14,Strafrecht,co_creation,Leicht,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,creator,false,creator
+A165,P42,14,Strafrecht,llm,Leicht,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,A
+A166,P42,14,Strafrecht,llm,Leicht,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,B
+A167,P42,14,Strafrecht,llm,Leicht,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,C
+A168,P42,14,Strafrecht,llm,Leicht,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,creator,false,creator
+A169,P43,15,Strafrecht,classic,Sehr Leicht,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,A
+A170,P43,15,Strafrecht,classic,Sehr Leicht,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,B
+A171,P43,15,Strafrecht,classic,Sehr Leicht,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,C
+A172,P43,15,Strafrecht,classic,Sehr Leicht,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,creator,false,creator
+A173,P44,15,Strafrecht,co_creation,Sehr Leicht,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,A
+A174,P44,15,Strafrecht,co_creation,Sehr Leicht,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,B
+A175,P44,15,Strafrecht,co_creation,Sehr Leicht,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,C
+A176,P44,15,Strafrecht,co_creation,Sehr Leicht,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,creator,false,creator
+A177,P45,15,Strafrecht,llm,Sehr Leicht,grader_07,f9579927-be7d-5dc1-810e-be9ec99c14e3,blind,true,A
+A178,P45,15,Strafrecht,llm,Sehr Leicht,grader_02,8c151f30-bf2e-5196-a750-2d892c0ee592,blind,true,B
+A179,P45,15,Strafrecht,llm,Sehr Leicht,grader_05,e5993a12-2b17-50a3-a52c-4e748117d1cb,blind,true,C
+A180,P45,15,Strafrecht,llm,Sehr Leicht,grader_04,93adbf98-bb4d-5ab5-8f75-4e66c370f019,creator,false,creator

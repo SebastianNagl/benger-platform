@@ -19,7 +19,7 @@ from unittest.mock import MagicMock
 # Add path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ml_evaluation.llm_judge_evaluator import (
+from ml_evaluation.llm_judge_evaluator import (  # noqa: E402
     DEFAULT_CRITERIA,
     PAIRWISE_COMPARISON_PROMPT,
     SINGLE_EVALUATION_PROMPT,
@@ -261,7 +261,7 @@ class TestLLMJudgeSingleEvaluation:
         )
 
         assert result is not None
-        assert result.get("error") is True
+        assert result.get("error") == True
         assert "score" not in result
         assert result["error_message"] == "rate limit exceeded — try again later"
         # Typed error_type carried forward from the AI service.
@@ -334,8 +334,8 @@ class TestLLMJudgeSingleEvaluation:
         assert cm["total_tokens"] == 1290
         assert cm["seed"] == 42
         assert cm["finish_reason"] == "stop"
-        assert cm["truncated"] is False
-        assert cm["refusal"] is False
+        assert cm["truncated"] == False
+        assert cm["refusal"] == False
         assert cm["error_type"] is None
         assert cm["response_time_ms"] == 800
         assert cm["provider_route"] == "user_key"
@@ -871,7 +871,7 @@ class TestRubricJsonSchema:
     def test_top_level_requires_scores_total_assessment(self):
         schema = _build_rubric_json_schema(GRUNDPRINZIPIEN_CRITERIA)
         assert set(schema["required"]) == {"scores", "total_score", "overall_assessment"}
-        assert schema["additionalProperties"] is False
+        assert schema["additionalProperties"] == False
 
     def test_all_dimensions_listed_in_required(self):
         schema = _build_rubric_json_schema(GRUNDPRINZIPIEN_CRITERIA)
@@ -918,7 +918,7 @@ class TestMultidimResponseParser:
 class TestIsMultidimMode:
     def test_no_custom_criteria_returns_false(self):
         ev = LLMJudgeEvaluator(ai_service=MagicMock(), judge_model="gpt-4o")
-        assert ev.is_multidim_mode() is False
+        assert ev.is_multidim_mode() == False
 
     def test_custom_criteria_without_max_score_returns_false(self):
         ev = LLMJudgeEvaluator(
@@ -926,7 +926,7 @@ class TestIsMultidimMode:
             judge_model="gpt-4o",
             custom_criteria={"a": {"name": "A", "description": "d", "rubric": "r"}},
         )
-        assert ev.is_multidim_mode() is False
+        assert ev.is_multidim_mode() == False
 
     def test_any_max_score_flips_to_true(self):
         ev = LLMJudgeEvaluator(
@@ -934,7 +934,7 @@ class TestIsMultidimMode:
             judge_model="gpt-4o",
             custom_criteria=GRUNDPRINZIPIEN_CRITERIA,
         )
-        assert ev.is_multidim_mode() is True
+        assert ev.is_multidim_mode() == True
 
 
 _FOUR_DIM_ZEROES = (
@@ -1114,7 +1114,7 @@ class TestEvaluateMultidimSingleCall:
         # populate a default template).
         ev.custom_prompt_template = None
         result = ev._evaluate_multidim_single_call(context="", ground_truth="", prediction="", task_data={})
-        assert result["error"] is True
+        assert result["error"] == True
         assert "custom_prompt_template" in result["error_message"]
 
     def test_parse_failure_returns_error_with_provenance(self):
@@ -1130,7 +1130,7 @@ class TestEvaluateMultidimSingleCall:
             context="", ground_truth="", prediction="",
             task_data={"fall": "x", "answer": "y"},
         )
-        assert result["error"] is True
+        assert result["error"] == True
         assert result["_call_metadata"]["error_type"] == "parse_error"
         assert result["_raw_output"] == "not json at all"
 
@@ -1147,7 +1147,7 @@ class TestEvaluateMultidimSingleCall:
             context="", ground_truth="", prediction="",
             task_data={"fall": "x", "answer": "y"},
         )
-        assert result["error"] is True
+        assert result["error"] == True
         # Provider-side failures shouldn't trigger our retries (provider already retried).
         assert ev.ai_service.generate_structured.call_count == 1
 
@@ -1168,5 +1168,5 @@ class TestEvaluateMultidimSingleCall:
         kwargs = ev.ai_service.generate_structured.call_args.kwargs
         schema = kwargs.get("json_schema")
         assert schema is not None
-        assert schema["additionalProperties"] is False
+        assert schema["additionalProperties"] == False
         assert "result_correctness" in schema["properties"]["scores"]["properties"]

@@ -13,7 +13,6 @@ out of scope for the wrap-up.
 """
 
 import uuid
-from datetime import datetime, timezone
 
 import pytest
 

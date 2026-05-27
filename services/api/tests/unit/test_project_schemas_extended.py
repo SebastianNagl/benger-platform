@@ -3,7 +3,6 @@ Unit tests for project_schemas.py to increase coverage.
 Tests Pydantic schema validation, serialization, and edge cases.
 """
 
-import pytest
 from datetime import datetime
 
 
@@ -11,7 +10,7 @@ class TestSkipTaskRequest:
     def test_basic_creation(self):
         from project_schemas import SkipTaskRequest
         req = SkipTaskRequest()
-        assert req.comment is None
+        assert req.comment == None  # noqa: E711
 
     def test_with_comment(self):
         from project_schemas import SkipTaskRequest
@@ -31,8 +30,8 @@ class TestProjectCreate:
         from project_schemas import ProjectCreate
         project = ProjectCreate(title="Test Project")
         assert project.title == "Test Project"
-        assert project.description is None
-        assert project.label_config is None
+        assert project.description == None  # noqa: E711
+        assert project.label_config == None  # noqa: E711
 
     def test_full(self):
         from project_schemas import ProjectCreate
@@ -46,7 +45,7 @@ class TestProjectCreate:
             enable_empty_annotation=True,
         )
         assert project.title == "Full Project"
-        assert project.show_instruction is True
+        assert project.show_instruction == True  # noqa: E712
 
 
 class TestProjectUpdate:
@@ -73,7 +72,7 @@ class TestProjectUpdate:
         )
         data = update.dict(exclude_unset=True)
         assert data["title"] == "Updated"
-        assert data["show_skip_button"] is True
+        assert data["show_skip_button"] == True  # noqa: E712
 
 
 class TestPaginatedResponse:
@@ -130,7 +129,7 @@ class TestTaskResponse:
             is_labeled=False,
         )
         assert task.id == "task-1"
-        assert task.is_labeled is False
+        assert task.is_labeled == False  # noqa: E712
 
 
 class TestAnnotationResponse:

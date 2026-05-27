@@ -76,7 +76,7 @@ def validate_refresh_token(db: Session, token: str) -> Optional[RefreshToken]:
         db.query(RefreshToken)
         .filter(
             RefreshToken.token_hash == token_hash,
-            RefreshToken.is_active == True,
+            RefreshToken.is_active == True,  # noqa: E712
             RefreshToken.expires_at > datetime.now(timezone.utc),
         )
         .first()
@@ -124,7 +124,7 @@ def revoke_refresh_token(db: Session, token: str) -> bool:
 
     db_token = (
         db.query(RefreshToken)
-        .filter(RefreshToken.token_hash == token_hash, RefreshToken.is_active == True)
+        .filter(RefreshToken.token_hash == token_hash, RefreshToken.is_active == True)  # noqa: E712
         .first()
     )
 
@@ -143,7 +143,7 @@ def revoke_user_tokens(db: Session, user_id: str) -> int:
     """
     count = (
         db.query(RefreshToken)
-        .filter(RefreshToken.user_id == user_id, RefreshToken.is_active == True)
+        .filter(RefreshToken.user_id == user_id, RefreshToken.is_active == True)  # noqa: E712
         .update({"is_active": False})
     )
 
@@ -166,7 +166,7 @@ def cleanup_expired_tokens(db: Session) -> int:
     for token in all_tokens:
         # Handle both timezone-aware and naive datetimes
         token_expires = token.expires_at
-        if token_expires.tzinfo is None:
+        if token_expires.tzinfo == None:  # noqa: E711
             # Database returned naive datetime, make comparison datetime naive too
             compare_time = now.replace(tzinfo=None)
         else:
@@ -195,7 +195,7 @@ def get_user_active_tokens(db: Session, user_id: str) -> list[RefreshToken]:
         db.query(RefreshToken)
         .filter(
             RefreshToken.user_id == user_id,
-            RefreshToken.is_active == True,
+            RefreshToken.is_active == True,  # noqa: E712
             RefreshToken.expires_at > datetime.now(timezone.utc),
         )
         .order_by(RefreshToken.last_used_at.desc())
@@ -213,7 +213,7 @@ def revoke_token_by_id(db: Session, token_id: str, user_id: str) -> bool:
         .filter(
             RefreshToken.id == token_id,
             RefreshToken.user_id == user_id,
-            RefreshToken.is_active == True,
+            RefreshToken.is_active == True,  # noqa: E712
         )
         .first()
     )

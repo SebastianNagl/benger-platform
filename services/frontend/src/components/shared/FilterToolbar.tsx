@@ -98,6 +98,7 @@ export function FilterToolbar({
 
   // If the consumer flips defaults dynamically (e.g. URL-driven), keep state in sync.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (defaultShowSearch) setShowSearch(true)
   }, [defaultShowSearch])
 

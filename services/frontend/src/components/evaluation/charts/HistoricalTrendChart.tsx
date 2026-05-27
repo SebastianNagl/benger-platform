@@ -25,8 +25,15 @@ interface DataPoint {
   date: string
   model_id: string
   value: number
-  ci_lower?: number
-  ci_upper?: number
+  /**
+   * Issue #111: the evaluation-history endpoint now emits per-bucket
+   * confidence intervals as `number | null` (null for single-sample
+   * buckets where the CI is undefined). The chart treats null and
+   * undefined identically — both skip the CI band — so we widen the
+   * type rather than coerce at every call site.
+   */
+  ci_lower?: number | null
+  ci_upper?: number | null
 }
 
 interface HistoricalTrendChartProps {
@@ -116,8 +123,8 @@ export function HistoricalTrendChart({
 
       if (
         showConfidenceIntervals &&
-        point.ci_lower !== undefined &&
-        point.ci_upper !== undefined
+        point.ci_lower != null &&
+        point.ci_upper != null
       ) {
         dateMap[point.date][`${point.model_id}_ci`] = [
           point.ci_lower,

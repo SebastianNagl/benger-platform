@@ -2,11 +2,8 @@
 Extended unit tests for routers/projects/helpers.py covering business logic.
 """
 
-from datetime import datetime
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
-from fastapi import HTTPException
 
 from routers.projects.helpers import (
     calculate_project_stats_batch,
@@ -59,21 +56,21 @@ class TestCheckProjectAccessibleSuperadmin:
 
         db = Mock()
         user = Mock(is_superadmin=True)
-        assert check_project_accessible(db, user, "proj-1") is True
+        assert check_project_accessible(db, user, "proj-1") == True  # noqa: E712
 
     def test_superadmin_with_org_context(self):
         from routers.projects.helpers import check_project_accessible
 
         db = Mock()
         user = Mock(is_superadmin=True)
-        assert check_project_accessible(db, user, "proj-1", org_context="org-1") is True
+        assert check_project_accessible(db, user, "proj-1", org_context="org-1") == True  # noqa: E712
 
     def test_superadmin_with_private_context(self):
         from routers.projects.helpers import check_project_accessible
 
         db = Mock()
         user = Mock(is_superadmin=True)
-        assert check_project_accessible(db, user, "proj-1", org_context="private") is True
+        assert check_project_accessible(db, user, "proj-1", org_context="private") == True  # noqa: E712
 
 
 class TestCheckProjectAccessibleNotFound:
@@ -85,7 +82,7 @@ class TestCheckProjectAccessibleNotFound:
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = None
         user = Mock(is_superadmin=False)
-        assert check_project_accessible(db, user, "nonexistent") is False
+        assert check_project_accessible(db, user, "nonexistent") == False  # noqa: E712
 
 
 class TestCheckProjectAccessiblePrivateContext:
@@ -99,7 +96,7 @@ class TestCheckProjectAccessiblePrivateContext:
         db.query.return_value.filter.return_value.first.return_value = project
 
         user = Mock(is_superadmin=False, id="user-1")
-        assert check_project_accessible(db, user, "proj-1", org_context="private") is True
+        assert check_project_accessible(db, user, "proj-1", org_context="private") == True  # noqa: E712
 
     def test_private_context_non_creator_denied(self):
         from routers.projects.helpers import check_project_accessible
@@ -109,7 +106,7 @@ class TestCheckProjectAccessiblePrivateContext:
         db.query.return_value.filter.return_value.first.return_value = project
 
         user = Mock(is_superadmin=False, id="user-1")
-        assert check_project_accessible(db, user, "proj-1", org_context="private") is False
+        assert check_project_accessible(db, user, "proj-1", org_context="private") == False  # noqa: E712
 
     def test_private_context_non_private_project_denied(self):
         from routers.projects.helpers import check_project_accessible
@@ -119,7 +116,7 @@ class TestCheckProjectAccessiblePrivateContext:
         db.query.return_value.filter.return_value.first.return_value = project
 
         user = Mock(is_superadmin=False, id="user-1")
-        assert check_project_accessible(db, user, "proj-1", org_context="private") is False
+        assert check_project_accessible(db, user, "proj-1", org_context="private") == False  # noqa: E712
 
 
 class TestCheckProjectAccessibleLegacy:
@@ -133,7 +130,7 @@ class TestCheckProjectAccessibleLegacy:
         db.query.return_value.filter.return_value.first.return_value = project
 
         user = Mock(is_superadmin=False, id="user-1")
-        assert check_project_accessible(db, user, "proj-1", org_context=None) is True
+        assert check_project_accessible(db, user, "proj-1", org_context=None) == True  # noqa: E712
 
     def test_legacy_private_project_non_creator(self):
         from routers.projects.helpers import check_project_accessible
@@ -143,7 +140,7 @@ class TestCheckProjectAccessibleLegacy:
         db.query.return_value.filter.return_value.first.return_value = project
 
         user = Mock(is_superadmin=False, id="user-1")
-        assert check_project_accessible(db, user, "proj-1", org_context=None) is False
+        assert check_project_accessible(db, user, "proj-1", org_context=None) == False  # noqa: E712
 
 
 class TestCheckTaskAssignedToUser:
@@ -155,7 +152,7 @@ class TestCheckTaskAssignedToUser:
         db = Mock()
         user = Mock(is_superadmin=False)
         project = Mock(assignment_mode="open")
-        assert check_task_assigned_to_user(db, user, "task-1", project) is True
+        assert check_task_assigned_to_user(db, user, "task-1", project) == True  # noqa: E712
 
     def test_superadmin_always_true(self):
         from routers.projects.helpers import check_task_assigned_to_user
@@ -163,7 +160,7 @@ class TestCheckTaskAssignedToUser:
         db = Mock()
         user = Mock(is_superadmin=True)
         project = Mock(assignment_mode="manual")
-        assert check_task_assigned_to_user(db, user, "task-1", project) is True
+        assert check_task_assigned_to_user(db, user, "task-1", project) == True  # noqa: E712
 
     def test_no_assignment_mode_defaults_to_open(self):
         from routers.projects.helpers import check_task_assigned_to_user
@@ -172,7 +169,7 @@ class TestCheckTaskAssignedToUser:
         user = Mock(is_superadmin=False)
         # assignment_mode defaults to "open"
         project = Mock(spec=[])
-        assert check_task_assigned_to_user(db, user, "task-1", project) is True
+        assert check_task_assigned_to_user(db, user, "task-1", project) == True  # noqa: E712
 
 
 class TestCheckUserCanEditProject:
@@ -183,7 +180,7 @@ class TestCheckUserCanEditProject:
 
         db = Mock()
         user = Mock(is_superadmin=True)
-        assert check_user_can_edit_project(db, user, "proj-1") is True
+        assert check_user_can_edit_project(db, user, "proj-1") == True  # noqa: E712
 
     def test_creator_can_edit(self):
         from routers.projects.helpers import check_user_can_edit_project
@@ -192,7 +189,7 @@ class TestCheckUserCanEditProject:
         user = Mock(is_superadmin=False, id="user-1")
         project = Mock(created_by="user-1")
         db.query.return_value.filter.return_value.first.return_value = project
-        assert check_user_can_edit_project(db, user, "proj-1") is True
+        assert check_user_can_edit_project(db, user, "proj-1") == True  # noqa: E712
 
 
 class TestGetAccessibleProjectIds:
@@ -329,10 +326,10 @@ class TestCalculateGenerationStats:
 
         calculate_generation_stats(db, project, response)
 
-        assert response.generation_config_ready is False
-        assert response.generation_prompts_ready is False
+        assert response.generation_config_ready == False  # noqa: E712
+        assert response.generation_prompts_ready == False  # noqa: E712
         assert response.generation_models_count == 0
-        assert response.generation_completed is False
+        assert response.generation_completed == False  # noqa: E712
 
     def test_with_prompt_structures(self):
         from routers.projects.helpers import calculate_generation_stats
@@ -348,10 +345,10 @@ class TestCalculateGenerationStats:
 
         calculate_generation_stats(db, project, response)
 
-        assert response.generation_config_ready is True
-        assert response.generation_prompts_ready is True
+        assert response.generation_config_ready == True  # noqa: E712
+        assert response.generation_prompts_ready == True  # noqa: E712
         assert response.generation_models_count == 2
-        assert response.generation_completed is False
+        assert response.generation_completed == False  # noqa: E712
 
     def test_empty_prompt_structures(self):
         from routers.projects.helpers import calculate_generation_stats
@@ -361,7 +358,7 @@ class TestCalculateGenerationStats:
         response = Mock(task_count=0)
 
         calculate_generation_stats(db, project, response)
-        assert response.generation_config_ready is False
+        assert response.generation_config_ready == False  # noqa: E712
 
     def test_no_selected_configuration(self):
         from routers.projects.helpers import calculate_generation_stats

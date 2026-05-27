@@ -57,8 +57,8 @@ class TestEvaluationResult:
             metadata={"model_id": "gpt-4"},
             samples_evaluated=100,
         )
-        assert result.success is True
-        assert result.error is None
+        assert result.success == True
+        assert result.error == None
 
     def test_error_result(self):
         result = EvaluationResult(
@@ -66,7 +66,7 @@ class TestEvaluationResult:
             metadata={},
             error="Something went wrong",
         )
-        assert result.success is False
+        assert result.success == False
         assert result.error == "Something went wrong"
 
     def test_default_samples(self):
@@ -182,5 +182,5 @@ class TestBaseEvaluatorMethods:
             self.evaluator.compute_metrics([], [], [])
 
     def test_validate_model_config(self):
-        assert self.evaluator.validate_model_config({"model": "gpt-4"}) is True
-        assert self.evaluator.validate_model_config({}) is False
+        assert self.evaluator.validate_model_config({"model": "gpt-4"}) == True
+        assert self.evaluator.validate_model_config({}) == False

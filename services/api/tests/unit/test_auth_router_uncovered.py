@@ -11,7 +11,6 @@ Rewritten to call handler functions directly (no TestClient) so that pytest-cov
 tracks the router code.
 """
 
-import os
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
@@ -343,7 +342,7 @@ class TestLogoutAll:
     async def test_logout_all_with_response(self, mock_revoke):
         from routers.auth import logout_all_devices
 
-        mock_revoke_inner = Mock(return_value=3)
+        mock_revoke_inner = Mock(return_value=3)  # noqa: F841
         user = _mock_user()
         db = _mock_db()
         response = Response()
@@ -376,7 +375,6 @@ class TestSignup:
     @patch("routers.auth.create_user")
     async def test_signup_regular(self, mock_create, mock_email_svc):
         from routers.auth import signup
-        from auth_module import UserCreate
 
         new_user = _mock_user()
         mock_create.return_value = new_user
@@ -398,7 +396,6 @@ class TestSignup:
     @patch("routers.auth.create_user")
     async def test_signup_invitation_flow(self, mock_create, mock_email_svc):
         from routers.auth import signup
-        from auth_module import UserCreate
 
         new_user = _mock_user()
         mock_create.return_value = new_user
@@ -425,7 +422,6 @@ class TestSignup:
     @patch("routers.auth.create_user")
     async def test_signup_invitation_invalid(self, mock_create):
         from routers.auth import signup
-        from auth_module import UserCreate
 
         db = _mock_db()
         db.query.return_value.filter.return_value.first.return_value = None
@@ -442,7 +438,6 @@ class TestSignup:
     @patch("routers.auth.create_user")
     async def test_signup_invitation_expired(self, mock_create):
         from routers.auth import signup
-        from auth_module import UserCreate
 
         invitation = Mock()
         invitation.token = "inv-token"
@@ -546,7 +541,7 @@ class TestUserInfoEndpoints:
         db.query.return_value = mock_q
 
         result = await get_user_contexts(current_user=user, db=db)
-        assert result["private_mode_available"] is True
+        assert result["private_mode_available"] == True  # noqa: E712
         assert "organizations" in result
 
     @pytest.mark.asyncio
@@ -578,7 +573,7 @@ class TestUserInfoEndpoints:
         db.query.return_value = mock_q
 
         result = await get_user_contexts(current_user=user, db=db)
-        assert result["private_mode_available"] is True
+        assert result["private_mode_available"] == True  # noqa: E712
 
 
 # ---------------------------------------------------------------------------
@@ -598,7 +593,7 @@ class TestProfileEndpoints:
         db.query.return_value.filter.return_value.first.return_value = db_user
         mock_build.return_value = Mock()
 
-        result = await get_user_profile(current_user=user, db=db)
+        result = await get_user_profile(current_user=user, db=db)  # noqa: F841
         mock_build.assert_called_once()
 
     @pytest.mark.asyncio
@@ -624,7 +619,7 @@ class TestProfileEndpoints:
 
         result = await get_user_profile(current_user=user, db=db)
         assert result.id == "user-123"
-        assert result.is_active is True
+        assert result.is_active == True  # noqa: E712
 
     @pytest.mark.asyncio
     @patch("routers.auth._build_user_profile_response")
@@ -639,7 +634,7 @@ class TestProfileEndpoints:
         mock_update.return_value = updated_user
         mock_build.return_value = Mock(id="user-123")
 
-        result = await update_profile(
+        result = await update_profile(  # noqa: F841
             profile_data=UserUpdate(name="New Name"),
             current_user=user,
             db=db,
@@ -854,7 +849,7 @@ class TestVerifyEmail:
             verification_request=EmailVerificationRequest(token="valid-token"),
             db=db,
         )
-        assert result["success"] is True
+        assert result["success"] == True  # noqa: E712
 
     @pytest.mark.asyncio
     @patch("routers.auth.email_verification_service")
@@ -881,7 +876,7 @@ class TestVerifyEmail:
         db = _mock_db()
 
         result = await verify_email_with_token(token="path-token", db=db)
-        assert result["success"] is True
+        assert result["success"] == True  # noqa: E712
 
     @pytest.mark.asyncio
     @patch("routers.auth.email_verification_service")
@@ -922,7 +917,7 @@ class TestVerifyEmailEnhanced:
         db = _mock_db()
 
         result = await verify_email_enhanced(token="bad", db=db)
-        assert result.success is False
+        assert result.success == False  # noqa: E712
         assert result.user_type == "unknown"
 
     @pytest.mark.asyncio
@@ -936,7 +931,7 @@ class TestVerifyEmailEnhanced:
         with patch("auth_module.email_verification.email_verification_service") as inner_svc:
             inner_svc.validate_verification_token.return_value = None
             result = await verify_email_enhanced(token="tok", db=db)
-        assert result.success is True
+        assert result.success == True  # noqa: E712
         assert result.redirect_url == "/login"
 
     @pytest.mark.asyncio
@@ -978,6 +973,7 @@ class TestVerifyEmailEnhanced:
         db = _mock_db()
 
         call_count = [0]
+
         def query_side_effect(*args):
             call_count[0] += 1
             q = MagicMock()
@@ -1080,7 +1076,7 @@ class TestCompleteProfile:
                 current_user=user,
                 db=db,
             )
-        assert result.success is True
+        assert result.success == True  # noqa: E712
 
 
 # ---------------------------------------------------------------------------
@@ -1100,7 +1096,7 @@ class TestMandatoryProfileStatus:
         with patch("auth_module.user_service.get_mandatory_profile_fields", return_value=[]), \
              patch("auth_module.user_service.check_confirmation_due", return_value=(False, None)):
             result = await get_mandatory_profile_status(current_user=user, db=db)
-        assert result.confirmation_due is False
+        assert result.confirmation_due == False  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_mandatory_profile_due_creates_notification(self):
@@ -1113,6 +1109,7 @@ class TestMandatoryProfileStatus:
         db = _mock_db()
 
         call_count = [0]
+
         def query_side_effect(*args):
             call_count[0] += 1
             q = MagicMock()
@@ -1127,7 +1124,7 @@ class TestMandatoryProfileStatus:
         with patch("auth_module.user_service.get_mandatory_profile_fields", return_value=["gender"]), \
              patch("auth_module.user_service.check_confirmation_due", return_value=(True, deadline)):
             result = await get_mandatory_profile_status(current_user=user, db=db)
-        assert result.confirmation_due is True
+        assert result.confirmation_due == True  # noqa: E712
         db.add.assert_called_once()
 
     @pytest.mark.asyncio
@@ -1160,7 +1157,7 @@ class TestConfirmProfile:
 
         with patch("auth_module.user_service.confirm_profile", return_value=updated):
             result = await confirm_profile_endpoint(current_user=user, db=db)
-        assert result.success is True
+        assert result.success == True  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_confirm_profile_not_found(self):
@@ -1334,8 +1331,8 @@ class TestCheckProfileStatus:
         db.query.return_value.filter.return_value.first.return_value = db_user
 
         result = await check_profile_status(current_user=user, db=db)
-        assert result.has_password is True
-        assert result.needs_profile_completion is False
+        assert result.has_password == True  # noqa: E712
+        assert result.needs_profile_completion == False  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_check_profile_status_not_found(self):

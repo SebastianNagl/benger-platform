@@ -265,7 +265,7 @@ async def run_evaluation(
                 project_id=request.project_id,
                 status="ongoing",
                 message=(
-                    f"Human grading queue is ongoing "
+                    "Human grading queue is ongoing "
                     f"({len(human_configs)} human-graded metric(s))"
                 ),
                 evaluation_configs_count=len(enabled_configs),
@@ -305,7 +305,7 @@ async def run_evaluation(
         # unchanged while letting the trigger thread one seed across all
         # judges in the run.
         def _with_run_seed(cfg_dict: dict) -> dict:
-            if request.seed is None:
+            if request.seed == None:  # noqa: E711
                 return cfg_dict
             params = dict(cfg_dict.get("metric_parameters") or {})
             if "seed" not in params:
@@ -594,7 +594,7 @@ def _cancel_runs(
             f"Cancelled {len(actually_cancelled)} run(s); "
             f"{failed_judge_runs or 0} in-flight judge_run(s) marked failed; "
             f"{preserved or 0} task_evaluation row(s) preserved for "
-            f"missing-only re-trigger."
+            "missing-only re-trigger."
         ),
     )
 

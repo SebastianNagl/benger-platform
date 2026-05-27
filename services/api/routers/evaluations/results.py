@@ -2,14 +2,12 @@
 Evaluation results, per-sample analysis, and export endpoints.
 """
 
-import json
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel, Field
-from sqlalchemy import String, cast, func, literal_column
+from sqlalchemy import func, literal_column
 from sqlalchemy.orm import Session
 
 from auth_module import User, require_user
@@ -17,7 +15,7 @@ from database import get_db
 from models import EvaluationRun as DBEvaluationRun
 from models import HumanEvaluationSession, LikertScaleEvaluation, PreferenceRanking
 from project_models import Annotation, Project, Task
-from routers.evaluations.helpers import EvaluationResultsResponse, resolve_user_org_for_project
+from routers.evaluations.helpers import EvaluationResultsResponse
 from routers.projects.helpers import check_project_accessible, get_org_context_from_request
 
 logger = logging.getLogger(__name__)
@@ -142,8 +140,6 @@ def _extract_primary_score(metrics: Optional[Dict[str, Any]]) -> Optional[float]
         return coerced
 
     return None
-
-
 
 
 # ============= Endpoints =============
@@ -1704,9 +1700,6 @@ async def get_project_results_by_task_model(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get project results by task/model: {str(e)}",
         )
-
-
-
 
 
 @router.get("/sample-result")

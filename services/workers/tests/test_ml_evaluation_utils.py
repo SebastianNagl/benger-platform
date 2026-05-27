@@ -17,16 +17,13 @@ import json
 import os
 import sys
 import tempfile
-import time
 
-import pytest
 
 workers_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if workers_root not in sys.path:
     sys.path.insert(0, workers_root)
 
 from ml_evaluation.utils import (
-    EvaluationTimer,
     create_evaluation_metadata,
     export_evaluation_results,
     extract_task_type_from_label_config,

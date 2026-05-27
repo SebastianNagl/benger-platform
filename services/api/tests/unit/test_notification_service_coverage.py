@@ -21,18 +21,14 @@ Covers:
   data_import_success/labeling_config_updated functions
 """
 
-import asyncio
 from datetime import datetime
-from unittest.mock import MagicMock, Mock, AsyncMock, patch, call
+from unittest.mock import MagicMock, Mock, AsyncMock, patch
 from uuid import uuid4
 
 import pytest
 
 from models import (
     NotificationType,
-    Organization,
-    OrganizationRole,
-    User,
 )
 
 
@@ -65,7 +61,6 @@ class TestImportFallbacks:
     def test_email_service_import_failure_fallback(self):
         """When email_service cannot be imported, EMAIL_SERVICE_AVAILABLE is False
         and a stub send_notification_email is created (lines 37-42)."""
-        import importlib
         import sys
 
         # Force reimport with email_service missing
@@ -458,7 +453,7 @@ class TestUserWantsNotification:
 class TestUserWantsEmailNotification:
 
     def test_preference_exists_and_enabled(self, mock_db, user_id):
-        """Returns True when preference.email_enabled is True (line 613)."""
+        """Returns True when preference.email_enabled == True (line 613)."""
         from notification_service import NotificationService
 
         pref = Mock(email_enabled=True)
@@ -470,7 +465,7 @@ class TestUserWantsEmailNotification:
         assert result is True
 
     def test_preference_exists_and_disabled(self, mock_db, user_id):
-        """Returns False when preference.email_enabled is False (line 613)."""
+        """Returns False when preference.email_enabled == False (line 613)."""
         from notification_service import NotificationService
 
         pref = Mock(email_enabled=False)
@@ -604,7 +599,7 @@ class TestSendEmailNotifications:
             with patch.dict("sys.modules", {"email_validation": None}):
                 # The fallback validator checks for "@" and "." in email
                 # "bademail" has neither, so it should be skipped
-                with patch("notification_service.send_notification_email", new_callable=AsyncMock) as mock_send:
+                with patch("notification_service.send_notification_email", new_callable=AsyncMock) as mock_send:  # noqa: F841
                     data = [{"id": "n1", "user_id": "u1", "type": NotificationType.PROJECT_CREATED}]
                     await NotificationService._send_email_notifications(mock_db, data)
                     # The function defines its own fallback validator inside the try/except

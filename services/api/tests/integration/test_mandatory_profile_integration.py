@@ -113,7 +113,7 @@ class TestMandatoryProfileStatus:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["mandatory_profile_completed"] is False
+        assert data["mandatory_profile_completed"] == False  # noqa: E712
         assert len(data["missing_fields"]) > 0
         assert "gender" in data["missing_fields"]
         assert "age" in data["missing_fields"]
@@ -125,7 +125,7 @@ class TestMandatoryProfileStatus:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["mandatory_profile_completed"] is True
+        assert data["mandatory_profile_completed"] == True  # noqa: E712
         assert data["missing_fields"] == []
 
     def test_confirmation_due_when_never_confirmed(self, client, incomplete_user):
@@ -134,7 +134,7 @@ class TestMandatoryProfileStatus:
             headers={"Authorization": f"Bearer {incomplete_user.token}"},
         )
         data = response.json()
-        assert data["confirmation_due"] is True
+        assert data["confirmation_due"] == True  # noqa: E712
 
     def test_unauthenticated_returns_401(self, client):
         response = client.get("/api/auth/mandatory-profile-status")
@@ -152,7 +152,7 @@ class TestConfirmProfile:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["success"] is True
+        assert data["success"] == True  # noqa: E712
         assert "confirmed_at" in data
 
     def test_confirm_incomplete_profile_rejected(self, client, incomplete_user):
@@ -348,7 +348,7 @@ class TestProfileUpdateHistoryTracking:
 
         # Check mandatory_profile_completed is now True
         test_db.refresh(incomplete_user)
-        assert incomplete_user.mandatory_profile_completed is True
+        assert incomplete_user.mandatory_profile_completed == True  # noqa: E712
 
     def test_profile_update_with_grades(self, client, complete_user):
         response = client.put(
@@ -405,8 +405,8 @@ class TestCreateUserWithProfile:
             ptt_a_scores=VALID_SCALES["ptt_a"],
             ki_experience_scores=VALID_SCALES["ki_exp"],
         )
-        assert user.mandatory_profile_completed is True
-        assert user.profile_confirmed_at is not None
+        assert user.mandatory_profile_completed == True  # noqa: E712
+        assert user.profile_confirmed_at != None  # noqa: E711
         assert user.gender == "maennlich"
         assert user.age == 30
 
@@ -420,8 +420,8 @@ class TestCreateUserWithProfile:
             name="Basic User",
             password="securepassword123",
         )
-        assert user.mandatory_profile_completed is False
-        assert user.profile_confirmed_at is None
+        assert user.mandatory_profile_completed == False  # noqa: E712
+        assert user.profile_confirmed_at == None  # noqa: E711
 
     def test_create_user_invalid_gender_rejected(self, test_db):
         from fastapi import HTTPException
@@ -494,7 +494,7 @@ class TestConfirmProfileService:
         old_confirmed = complete_user.profile_confirmed_at
         updated = confirm_profile(test_db, complete_user.id)
         assert updated is not None
-        assert updated.profile_confirmed_at is not None
+        assert updated.profile_confirmed_at != None  # noqa: E711
         assert updated.profile_confirmed_at > old_confirmed
 
     def test_confirm_creates_history(self, test_db, complete_user):
@@ -621,7 +621,7 @@ class TestUpdateUserProfileService:
             ki_experience_scores=VALID_SCALES["ki_exp"],
         )
         test_db.refresh(incomplete_user)
-        assert incomplete_user.mandatory_profile_completed is True
+        assert incomplete_user.mandatory_profile_completed == True  # noqa: E712
 
     def test_no_change_no_history(self, test_db, complete_user):
         from auth_module.user_service import update_user_profile

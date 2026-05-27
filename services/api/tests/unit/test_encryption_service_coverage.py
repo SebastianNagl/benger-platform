@@ -8,8 +8,6 @@ import base64
 import os
 from unittest.mock import patch
 
-import pytest
-
 
 class TestEncryptionServiceInit:
     """Test EncryptionService initialization and key derivation."""
@@ -33,7 +31,7 @@ class TestEncryptionServiceInit:
             os.environ.pop("ENCRYPTION_KEY", None)
             from encryption_service import EncryptionService
             svc = EncryptionService()
-            assert svc.encryption_key is not None
+            assert svc.encryption_key != None  # noqa: E711
 
     def test_init_with_jwt_secret_key(self):
         with patch.dict(os.environ, {"JWT_SECRET_KEY": "jwt-secret-for-test"}, clear=False):
@@ -41,7 +39,7 @@ class TestEncryptionServiceInit:
             os.environ.pop("SECRET_KEY", None)
             from encryption_service import EncryptionService
             svc = EncryptionService()
-            assert svc.encryption_key is not None
+            assert svc.encryption_key != None  # noqa: E711
 
     def test_init_with_valid_fernet_key(self):
         from cryptography.fernet import Fernet
@@ -49,7 +47,7 @@ class TestEncryptionServiceInit:
         with patch.dict(os.environ, {"ENCRYPTION_KEY": valid_key}, clear=False):
             from encryption_service import EncryptionService
             svc = EncryptionService()
-            assert svc.encryption_key is not None
+            assert svc.encryption_key != None  # noqa: E711
 
     def test_init_with_test_key(self):
         test_key = "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcw=="
@@ -64,14 +62,14 @@ class TestEncryptionServiceInit:
         with patch.dict(os.environ, {"ENCRYPTION_KEY": short_key}, clear=False):
             from encryption_service import EncryptionService
             svc = EncryptionService()
-            assert svc.encryption_key is not None
+            assert svc.encryption_key != None  # noqa: E711
 
     def test_init_with_long_base64_key(self):
         long_key = base64.b64encode(b"a" * 64).decode('utf-8')
         with patch.dict(os.environ, {"ENCRYPTION_KEY": long_key}, clear=False):
             from encryption_service import EncryptionService
             svc = EncryptionService()
-            assert svc.encryption_key is not None
+            assert svc.encryption_key != None  # noqa: E711
 
     def test_init_with_invalid_encryption_key_falls_back(self):
         with patch.dict(os.environ, {
@@ -80,7 +78,7 @@ class TestEncryptionServiceInit:
         }, clear=False):
             from encryption_service import EncryptionService
             svc = EncryptionService()
-            assert svc.encryption_key is not None
+            assert svc.encryption_key != None  # noqa: E711
 
 
 class TestEncryptDecrypt:
@@ -162,98 +160,98 @@ class TestIsValidApiKeyFormat:
 
     def test_openai_valid(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("sk-1234567890abcdef", "openai") is True
+        assert svc.is_valid_api_key_format("sk-1234567890abcdef", "openai") == True  # noqa: E712
 
     def test_openai_too_short(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("sk-abc", "openai") is False
+        assert svc.is_valid_api_key_format("sk-abc", "openai") == False  # noqa: E712
 
     def test_openai_wrong_prefix(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("pk-1234567890abcdef", "openai") is False
+        assert svc.is_valid_api_key_format("pk-1234567890abcdef", "openai") == False  # noqa: E712
 
     def test_anthropic_valid(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("sk-ant-123456789012345678", "anthropic") is True
+        assert svc.is_valid_api_key_format("sk-ant-123456789012345678", "anthropic") == True  # noqa: E712
 
     def test_anthropic_too_short(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("sk-ant-abc", "anthropic") is False
+        assert svc.is_valid_api_key_format("sk-ant-abc", "anthropic") == False  # noqa: E712
 
     def test_anthropic_wrong_prefix(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("sk-1234567890abcdef12345", "anthropic") is False
+        assert svc.is_valid_api_key_format("sk-1234567890abcdef12345", "anthropic") == False  # noqa: E712
 
     def test_google_valid(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("AIzaSyB1234567890", "google") is True
+        assert svc.is_valid_api_key_format("AIzaSyB1234567890", "google") == True  # noqa: E712
 
     def test_google_too_short(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("short", "google") is False
+        assert svc.is_valid_api_key_format("short", "google") == False  # noqa: E712
 
     def test_deepinfra_valid(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("12345678", "deepinfra") is True
+        assert svc.is_valid_api_key_format("12345678", "deepinfra") == True  # noqa: E712
 
     def test_deepinfra_too_short(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("short", "deepinfra") is False
+        assert svc.is_valid_api_key_format("short", "deepinfra") == False  # noqa: E712
 
     def test_grok_valid(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("xai-1234567890", "grok") is True
+        assert svc.is_valid_api_key_format("xai-1234567890", "grok") == True  # noqa: E712
 
     def test_grok_too_short(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("xai-12", "grok") is False
+        assert svc.is_valid_api_key_format("xai-12", "grok") == False  # noqa: E712
 
     def test_grok_wrong_prefix(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("sk-1234567890", "grok") is False
+        assert svc.is_valid_api_key_format("sk-1234567890", "grok") == False  # noqa: E712
 
     def test_mistral_valid(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("a" * 25, "mistral") is True
+        assert svc.is_valid_api_key_format("a" * 25, "mistral") == True  # noqa: E712
 
     def test_mistral_too_short(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("short", "mistral") is False
+        assert svc.is_valid_api_key_format("short", "mistral") == False  # noqa: E712
 
     def test_cohere_valid(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("b" * 25, "cohere") is True
+        assert svc.is_valid_api_key_format("b" * 25, "cohere") == True  # noqa: E712
 
     def test_cohere_too_short(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("short", "cohere") is False
+        assert svc.is_valid_api_key_format("short", "cohere") == False  # noqa: E712
 
     def test_unknown_provider_valid(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("some-long-key", "unknown_provider") is True
+        assert svc.is_valid_api_key_format("some-long-key", "unknown_provider") == True  # noqa: E712
 
     def test_unknown_provider_too_short(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("ab", "unknown_provider") is False
+        assert svc.is_valid_api_key_format("ab", "unknown_provider") == False  # noqa: E712
 
     def test_empty_key_all_providers(self):
         svc = self._make_service()
         for provider in ["openai", "anthropic", "google", "deepinfra", "grok", "mistral", "cohere"]:
-            assert svc.is_valid_api_key_format("", provider) is False
+            assert svc.is_valid_api_key_format("", provider) == False  # noqa: E712
 
     def test_whitespace_key_all_providers(self):
         svc = self._make_service()
         for provider in ["openai", "anthropic", "google"]:
-            assert svc.is_valid_api_key_format("   ", provider) is False
+            assert svc.is_valid_api_key_format("   ", provider) == False  # noqa: E712
 
     def test_none_provider(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("some-valid-key-12345", None) is True
+        assert svc.is_valid_api_key_format("some-valid-key-12345", None) == True  # noqa: E712
 
     def test_case_insensitive_provider(self):
         svc = self._make_service()
-        assert svc.is_valid_api_key_format("sk-1234567890abcdef", "OpenAI") is True
-        assert svc.is_valid_api_key_format("sk-ant-123456789012345678", "ANTHROPIC") is True
+        assert svc.is_valid_api_key_format("sk-1234567890abcdef", "OpenAI") == True  # noqa: E712
+        assert svc.is_valid_api_key_format("sk-ant-123456789012345678", "ANTHROPIC") == True  # noqa: E712
 
 
 class TestFernetProperty:
@@ -267,9 +265,9 @@ class TestFernetProperty:
 
     def test_fernet_lazy_init(self):
         svc = self._make_service()
-        assert svc._fernet is None
+        assert svc._fernet == None  # noqa: E711
         _ = svc.fernet
-        assert svc._fernet is not None
+        assert svc._fernet != None  # noqa: E711
 
     def test_fernet_returns_same_instance(self):
         svc = self._make_service()

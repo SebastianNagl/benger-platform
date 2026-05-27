@@ -147,7 +147,7 @@ class NotificationService:
             logger.error(f"❌ Invalid notification type: {notification_type}")
             return []
 
-        logger.info(f"🔔 CREATE_NOTIFICATION: Starting notification creation")
+        logger.info(f"🔔 CREATE_NOTIFICATION: Starting notification creation")  # noqa: F541
         logger.info(f"  📝 Type: {notification_type_str} (enum: {notification_type_enum})")
         logger.info(f"  📝 Title: {title}")
         logger.info(f"  👥 User IDs count: {len(user_ids)}")
@@ -360,7 +360,7 @@ class NotificationService:
     def _get_admin_recipients(db: Session) -> List[str]:
         """Get all system administrators"""
         logger.debug("    Looking up superadmins...")
-        admins = db.query(User).filter(User.is_superadmin == True).all()
+        admins = db.query(User).filter(User.is_superadmin == True).all()  # noqa: E712
         admin_ids = [admin.id for admin in admins]
         logger.debug(
             f"    Found {len(admin_ids)} superadmins: {admin_ids[:3]}..."
@@ -465,7 +465,7 @@ class NotificationService:
         query = db.query(Notification).filter(Notification.user_id == user_id)
 
         if unread_only:
-            query = query.filter(Notification.is_read == False)
+            query = query.filter(Notification.is_read == False)  # noqa: E712
 
         notifications = (
             query.order_by(desc(Notification.created_at)).offset(offset).limit(limit).all()
@@ -477,7 +477,7 @@ class NotificationService:
         """Get count of unread notifications for a user"""
         count = (
             db.query(Notification)
-            .filter(and_(Notification.user_id == user_id, Notification.is_read == False))
+            .filter(and_(Notification.user_id == user_id, Notification.is_read == False))  # noqa: E712
             .count()
         )
         return count
@@ -522,7 +522,7 @@ class NotificationService:
         """
         count = (
             db.query(Notification)
-            .filter(and_(Notification.user_id == user_id, Notification.is_read == False))
+            .filter(and_(Notification.user_id == user_id, Notification.is_read == False))  # noqa: E712
             .update({"is_read": True, "updated_at": datetime.utcnow()})
         )
         db.commit()
@@ -721,7 +721,7 @@ class NotificationService:
                 and_(
                     Notification.id.in_(notification_ids),
                     Notification.user_id == user_id,
-                    Notification.is_read == False,
+                    Notification.is_read == False,  # noqa: E712
                 )
             )
             .update(
@@ -840,7 +840,7 @@ class NotificationService:
                 and_(
                     Notification.user_id == user_id,
                     Notification.created_at >= cutoff_date,
-                    Notification.is_read == False,
+                    Notification.is_read == False,  # noqa: E712
                 )
             )
             .count()
@@ -892,7 +892,7 @@ def notify_project_created(
 
     logger = logging.getLogger(__name__)
 
-    logger.info(f"🔔 NOTIFICATION: Starting notify_project_created")
+    logger.info(f"🔔 NOTIFICATION: Starting notify_project_created")  # noqa: F541
     logger.info(f"  📝 Project ID: {project_id}")
     logger.info(f"  📝 Project Title: {project_title}")
     logger.info(f"  👤 Creator: {creator_name}")
@@ -953,123 +953,6 @@ def notify_project_created(
         logger.error(f"❌ Error in notify_project_created: {str(e)}", exc_info=True)
         # Don't raise - we don't want notification failures to break project creation
         # The caller should handle this gracefully
-
-
-def notify_project_deleted(
-    db: Session,
-    project_id: str,
-    project_title: str,
-    deleted_by_user_id: str,
-    deleted_by_username: str,
-    organization_id: str,
-):
-    """Notify about project deletion"""
-    recipients = NotificationService.get_notification_recipients(
-        db, NotificationType.PROJECT_DELETED, {"organization_id": organization_id}
-    )
-
-    if recipients:
-        NotificationService.create_notification(
-            db=db,
-            user_ids=recipients,
-            notification_type=NotificationType.PROJECT_DELETED,
-            title=f"Project Deleted: {project_title}",
-            message=f"{deleted_by_username} deleted project '{project_title}'",
-            data={
-                "project_id": project_id,
-                "project_title": project_title,
-                "deleted_by": deleted_by_username,
-            },
-            organization_id=organization_id,
-        )
-
-
-def notify_project_archived(
-    db: Session,
-    project_id: str,
-    project_title: str,
-    archived_by_username: str,
-    organization_id: str,
-):
-    """Notify about project archival"""
-    recipients = NotificationService.get_notification_recipients(
-        db, NotificationType.PROJECT_ARCHIVED, {"organization_id": organization_id}
-    )
-
-    if recipients:
-        NotificationService.create_notification(
-            db=db,
-            user_ids=recipients,
-            notification_type=NotificationType.PROJECT_ARCHIVED,
-            title=f"Project Archived: {project_title}",
-            message=f"{archived_by_username} archived project '{project_title}'",
-            data={
-                "project_id": project_id,
-                "project_title": project_title,
-                "archived_by": archived_by_username,
-            },
-            organization_id=organization_id,
-        )
-
-
-def notify_data_import_success(
-    db: Session,
-    project_id: str,
-    project_title: str,
-    imported_by_username: str,
-    task_count: int,
-    organization_id: str,
-):
-    """Notify about successful data import"""
-    recipients = NotificationService.get_notification_recipients(
-        db, NotificationType.DATA_IMPORT_SUCCESS, {"organization_id": organization_id}
-    )
-
-    if recipients:
-        NotificationService.create_notification(
-            db=db,
-            user_ids=recipients,
-            notification_type=NotificationType.DATA_IMPORT_SUCCESS,
-            title=f"Data Import Success: {project_title}",
-            message=f"{imported_by_username} imported {task_count} tasks to '{project_title}'",
-            data={
-                "project_id": project_id,
-                "project_title": project_title,
-                "imported_by": imported_by_username,
-                "task_count": task_count,
-            },
-            organization_id=organization_id,
-        )
-
-
-def notify_labeling_config_updated(
-    db: Session,
-    project_id: str,
-    project_title: str,
-    updated_by_username: str,
-    organization_id: str,
-):
-    """Notify about labeling configuration update"""
-    recipients = NotificationService.get_notification_recipients(
-        db,
-        NotificationType.LABELING_CONFIG_UPDATED,
-        {"organization_id": organization_id},
-    )
-
-    if recipients:
-        NotificationService.create_notification(
-            db=db,
-            user_ids=recipients,
-            notification_type=NotificationType.LABELING_CONFIG_UPDATED,
-            title=f"Labeling Config Updated: {project_title}",
-            message=f"{updated_by_username} updated the labeling configuration for '{project_title}'",
-            data={
-                "project_id": project_id,
-                "project_title": project_title,
-                "updated_by": updated_by_username,
-            },
-            organization_id=organization_id,
-        )
 
 
 def notify_evaluation_completed(
@@ -1358,7 +1241,7 @@ def notify_system_maintenance(
 ):
     """Notify all active users about system maintenance"""
     # Get all active users
-    active_users = db.query(User).filter(User.is_active == True).all()
+    active_users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
     recipients = [user.id for user in active_users]
 
     data = {"maintenance_type": "scheduled", "notification_level": "important"}

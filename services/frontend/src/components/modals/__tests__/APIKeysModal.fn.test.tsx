@@ -44,7 +44,7 @@ jest.mock('@headlessui/react', () => ({
         {children}
       </div>
     ) : null,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   'Dialog.Panel': undefined,
   'Dialog.Title': undefined,
 }))
@@ -57,7 +57,9 @@ jest.mock('@headlessui/react', () => {
         {children}
       </div>
     ) : null
+  // eslint-disable-next-line react/display-name
   Dialog.Panel = ({ children, className }: any) => <div data-testid="dialog-panel" className={className}>{children}</div>
+  // eslint-disable-next-line react/display-name
   Dialog.Title = ({ children, className }: any) => <h2 data-testid="dialog-title" className={className}>{children}</h2>
   return { Dialog }
 })

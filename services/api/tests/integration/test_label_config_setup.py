@@ -315,7 +315,7 @@ class TestErrorHandling:
 
         # Currently no size validation in API, so this will succeed
         # After validation integration, this should fail with 422
-        response = client.patch(
+        response = client.patch(  # noqa: F841
             f"/api/projects/{test_project_with_config.id}",
             json={"label_config": huge_config},
             headers=auth_headers["admin"],

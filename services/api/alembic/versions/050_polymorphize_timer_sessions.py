@@ -99,7 +99,7 @@ def upgrade() -> None:
         op.execute(
             f"CREATE UNIQUE INDEX {NEW_CONSTRAINT} "
             f"ON {NEW_TABLE} (task_id, user_id, target_type, "
-            f"COALESCE(target_id, '__no_target__'))"
+            "COALESCE(target_id, '__no_target__'))"
         )
 
 

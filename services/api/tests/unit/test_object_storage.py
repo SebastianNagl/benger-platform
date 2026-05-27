@@ -72,7 +72,7 @@ class TestObjectStorageServiceInitialization:
         service = ObjectStorageService()
 
         assert service.storage_backend == "local"
-        assert service.cdn_enabled is False
+        assert service.cdn_enabled == False  # noqa: E712
         assert service.local_storage_path == "/tmp/benger-storage"
         assert service.bucket_name == "benger-storage"
 
@@ -233,9 +233,9 @@ class TestHealthCheck:
             service = ObjectStorageService()
             health = service.health_check()
 
-            assert health["healthy"] is True
+            assert health["healthy"] == True  # noqa: E712
             assert health["storage_backend"] == "local"
-            assert health["details"]["writable"] is True
+            assert health["details"]["writable"] == True  # noqa: E712
 
 
 if __name__ == "__main__":

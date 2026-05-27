@@ -65,7 +65,7 @@ class TestEnsureGenerationConfigStructure:
         project = Mock()
         project.generation_config = None
         ensure_generation_config_structure(project)
-        assert project.generation_config is not None
+        assert project.generation_config != None  # noqa: E711
         assert "selected_configuration" in project.generation_config
         assert "prompt_structures" in project.generation_config
 

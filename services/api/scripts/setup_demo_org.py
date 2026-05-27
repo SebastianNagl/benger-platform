@@ -10,8 +10,8 @@ import uuid
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from database import SessionLocal
-from models import Organization, OrganizationMembership, User
+from database import SessionLocal  # noqa: E402
+from models import Organization, OrganizationMembership, User  # noqa: E402
 
 
 def setup_demo_organization():

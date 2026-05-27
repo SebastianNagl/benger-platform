@@ -264,7 +264,7 @@ describe('EvaluationDashboard - coverage extensions', () => {
     ;(apiClient.evaluations.getEvaluatedModels as jest.Mock).mockResolvedValue(mockModels)
     ;(apiClient.evaluations.getProjectAnnotators as jest.Mock).mockResolvedValue({ annotators: [] })
     ;(apiClient.get as jest.Mock).mockResolvedValue({ data: [] })
-    ;(apiClient.evaluations.getEvaluationHistory as jest.Mock).mockResolvedValue({ data: [] })
+    ;(apiClient.evaluations.getEvaluationHistory as jest.Mock).mockResolvedValue({ series: [] })
     ;(apiClient.evaluations.getSignificanceTests as jest.Mock).mockResolvedValue({ comparisons: [] })
     ;(apiClient.evaluations.computeStatistics as jest.Mock).mockResolvedValue({})
   })

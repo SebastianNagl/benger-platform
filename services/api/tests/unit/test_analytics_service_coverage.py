@@ -2,11 +2,6 @@
 Unit tests for services/analytics_service.py to increase coverage.
 """
 
-from datetime import datetime, timedelta
-from unittest.mock import Mock
-
-import pytest
-from sqlalchemy.orm import Session
 
 from services.analytics_service import (
     AnalyticsOverview,
@@ -89,7 +84,7 @@ class TestDataclasses:
             industry_average_time=None,
             similar_projects=[],
         )
-        assert b.industry_average_quality is None
+        assert b.industry_average_quality == None  # noqa: E711
 
 
 class TestAnalyticsServiceImport:

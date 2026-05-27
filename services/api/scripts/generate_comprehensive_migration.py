@@ -13,7 +13,7 @@ from textwrap import dedent
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-from models import Base
+from models import Base  # noqa: E402
 
 
 def generate_migration_content():
@@ -35,37 +35,37 @@ def generate_migration_content():
     # Generate migration content
     migration = dedent(
         '''"""Comprehensive schema with all tables
-    
+
     Revision ID: 002_comprehensive_schema
     Revises: 001_initial_schema
     Create Date: {date}
-    
+
     This migration creates ALL tables from models.py that were missing from the initial migration.
     This ensures we use ONLY Alembic for schema management, avoiding create_all().
     """
-    
+
     import sqlalchemy as sa
     from alembic import op
     from sqlalchemy.dialects import postgresql
-    
+
     # revision identifiers, used by Alembic.
     revision = "002_comprehensive_schema"
     down_revision = "001_initial_schema"
     branch_labels = None
     depends_on = None
-    
-    
+
+
     def upgrade():
         """Create all missing tables from models.py"""
-        
+
         # Tables already created in 001_initial_schema
         existing_tables = {{
             'organizations', 'users', 'refresh_tokens', 'organization_memberships',
-            'invitations', 'evaluation_types', 'tags', 'task_templates', 
+            'invitations', 'evaluation_types', 'tags', 'task_templates',
             'llm_models', 'prompts', 'uploaded_data', 'feature_flags',
             'notifications', 'notification_preferences', 'annotation_templates', 'projects'
         }}
-        
+
     '''
     ).format(date=datetime.now().isoformat())
 
@@ -91,7 +91,7 @@ def generate_migration_content():
         ]:
             migration += f"    # Create {table_name} table\n"
             migration += f"    if '{table_name}' not in existing_tables:\n"
-            migration += f"        op.create_table(\n"
+            migration += "        op.create_table(\n"
             migration += f"            '{table_name}',\n"
 
             # Add columns
@@ -122,7 +122,7 @@ def generate_migration_content():
                     col_str += ", nullable=False"
 
                 # Add default
-                if column.server_default is not None:
+                if column.server_default != None:  # noqa: E711
                     default_str = str(column.server_default.arg)
                     if default_str == "now()":
                         col_str += ", server_default=sa.text('now()')"
@@ -165,7 +165,7 @@ def generate_migration_content():
         ]:
             migration += f"    # Create {table_name} table\n"
             migration += f"    if '{table_name}' not in existing_tables:\n"
-            migration += f"        op.create_table(\n"
+            migration += "        op.create_table(\n"
             migration += f"            '{table_name}',\n"
 
             # Process similar to above but simplified for brevity
@@ -176,12 +176,12 @@ def generate_migration_content():
         '''
     def downgrade():
         """Drop all tables created in this migration"""
-        
+
         # Drop tables in reverse order (tables with FK first)
         tables_to_drop = [
             # List would include all the tables created above
         ]
-        
+
         for table in tables_to_drop:
             op.drop_table(table)
     '''
@@ -199,18 +199,18 @@ def main():
     migration_path = "alembic/versions/002_comprehensive_schema.py"
 
     print(f"Generating comprehensive migration to: {migration_path}")
-    print(f"\nThis migration will ensure ALL tables are created via Alembic")
-    print(f"After this, we can remove init_db() / create_all() calls\n")
+    print("\nThis migration will ensure ALL tables are created via Alembic")
+    print("After this, we can remove init_db() / create_all() calls\n")
 
     with open(migration_path, 'w') as f:
         f.write(migration_content)
 
-    print(f"✅ Migration generated successfully!")
-    print(f"\nNext steps:")
+    print("✅ Migration generated successfully!")
+    print("\nNext steps:")
     print(f"1. Review the generated migration: {migration_path}")
-    print(f"2. Run: alembic upgrade head")
-    print(f"3. Remove init_db() call from main.py")
-    print(f"4. Test that everything works with Alembic only")
+    print("2. Run: alembic upgrade head")
+    print("3. Remove init_db() call from main.py")
+    print("4. Test that everything works with Alembic only")
 
 
 if __name__ == "__main__":

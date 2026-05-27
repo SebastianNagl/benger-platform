@@ -130,11 +130,11 @@ async def list_all_tasks(
     # Apply status filter
     if status and status != 'all':
         if status == 'completed':
-            query = query.filter(Task.is_labeled == True)
+            query = query.filter(Task.is_labeled == True)  # noqa: E712
         elif status == 'incomplete':
-            query = query.filter(Task.is_labeled == False)
+            query = query.filter(Task.is_labeled == False)  # noqa: E712
         elif status == 'in_progress':
-            query = query.filter(and_(Task.assigned_to.isnot(None), Task.is_labeled == False))
+            query = query.filter(and_(Task.assigned_to.isnot(None), Task.is_labeled == False))  # noqa: E712
 
     # Apply assigned user filter
     if assigned_to:
@@ -182,7 +182,7 @@ async def list_all_tasks(
         annotation_count = len(task.annotations) if hasattr(task, 'annotations') else 0
 
         # Get the organization for this project
-        from project_models import ProjectOrganization
+        from project_models import ProjectOrganization  # noqa: F402
 
         project_org = (
             db.query(ProjectOrganization)

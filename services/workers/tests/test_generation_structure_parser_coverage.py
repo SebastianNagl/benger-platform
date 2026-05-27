@@ -13,7 +13,7 @@ import os
 workers_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, workers_root)
 
-from generation_structure_parser import GenerationStructureParser
+from generation_structure_parser import GenerationStructureParser  # noqa: E402
 
 
 class TestParseStructure:
@@ -263,28 +263,28 @@ class TestContainsSensitiveData:
         self.parser = GenerationStructureParser()
 
     def test_dict_with_sensitive_key(self):
-        assert self.parser._contains_sensitive_data({"ground_truth": "x"}) is True
+        assert self.parser._contains_sensitive_data({"ground_truth": "x"}) == True
 
     def test_dict_without_sensitive_key(self):
-        assert self.parser._contains_sensitive_data({"question": "x"}) is False
+        assert self.parser._contains_sensitive_data({"question": "x"}) == False
 
     def test_list_with_sensitive_nested(self):
-        assert self.parser._contains_sensitive_data([{"answer": "x"}]) is True
+        assert self.parser._contains_sensitive_data([{"answer": "x"}]) == True
 
     def test_list_without_sensitive(self):
-        assert self.parser._contains_sensitive_data([{"q": "x"}]) is False
+        assert self.parser._contains_sensitive_data([{"q": "x"}]) == False
 
     def test_empty_list(self):
-        assert self.parser._contains_sensitive_data([]) is False
+        assert self.parser._contains_sensitive_data([]) == False
 
     def test_non_dict_non_list(self):
-        assert self.parser._contains_sensitive_data("string value") is False
+        assert self.parser._contains_sensitive_data("string value") == False
 
     def test_none(self):
-        assert self.parser._contains_sensitive_data(None) is False
+        assert self.parser._contains_sensitive_data(None) == False
 
     def test_list_with_non_dict_items(self):
-        assert self.parser._contains_sensitive_data(["a", "b", "c"]) is False
+        assert self.parser._contains_sensitive_data(["a", "b", "c"]) == False
 
 
 class TestBuildPrompts:

@@ -19,7 +19,7 @@ workers_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if workers_root not in sys.path:
     sys.path.insert(0, workers_root)
 
-from ml_evaluation.base_evaluator import BaseEvaluator, EvaluationConfig, EvaluationResult
+from ml_evaluation.base_evaluator import BaseEvaluator, EvaluationResult
 from ml_evaluation.registry import EvaluatorRegistry
 
 
@@ -92,16 +92,16 @@ class TestRegistryExtended:
 
     def test_is_task_type_supported(self):
         self.registry.register("task_a", DummyEvaluatorA)
-        assert self.registry.is_task_type_supported("task_a") is True
-        assert self.registry.is_task_type_supported("nonexistent") is False
+        assert self.registry.is_task_type_supported("task_a") == True
+        assert self.registry.is_task_type_supported("nonexistent") == False
 
     def test_unregister(self):
         self.registry.register("task_a", DummyEvaluatorA)
-        assert self.registry.unregister("task_a") is True
+        assert self.registry.unregister("task_a") == True
         assert self.registry.get_evaluator("task_a") is None
 
     def test_unregister_nonexistent(self):
-        assert self.registry.unregister("nonexistent") is False
+        assert self.registry.unregister("nonexistent") == False
 
     def test_list_evaluators(self):
         self.registry.register("task_a", DummyEvaluatorA)
@@ -115,7 +115,7 @@ class TestRegistryExtended:
 
     def test_validate_evaluator_compatibility(self):
         self.registry.register("task_a", DummyEvaluatorA)
-        assert self.registry.validate_evaluator_compatibility("task_a", {}) is True
+        assert self.registry.validate_evaluator_compatibility("task_a", {}) == True
 
     def test_validate_evaluator_compatibility_unknown(self):
-        assert self.registry.validate_evaluator_compatibility("unknown", {}) is False
+        assert self.registry.validate_evaluator_compatibility("unknown", {}) == False

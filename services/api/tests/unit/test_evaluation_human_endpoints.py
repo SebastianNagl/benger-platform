@@ -2,12 +2,6 @@
 Unit tests for human evaluation session business logic (human.py).
 """
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
-from fastapi import HTTPException
-
 
 class TestHumanEvaluationSessionLogic:
     """Tests for human evaluation session creation logic."""

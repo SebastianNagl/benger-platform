@@ -119,7 +119,7 @@ class MigrationHealthChecker:
                         if len(meaningful_lines) < 2:
                             self.issues.append(
                                 f"Merge migration {revision.revision} ({migration_file.name}) "
-                                f"has empty or nearly empty upgrade() function"
+                                "has empty or nearly empty upgrade() function"
                             )
                             has_empty_merges = True
 
@@ -179,7 +179,7 @@ class MigrationHealthChecker:
             if "_" not in filename and not any(c.isupper() for c in filename[1:]):
                 self.warnings.append(
                     f"Migration {filename} should have a more descriptive name "
-                    f"(e.g., add_user_table, fix_foreign_keys)"
+                    "(e.g., add_user_table, fix_foreign_keys)"
                 )
 
         return not has_issues

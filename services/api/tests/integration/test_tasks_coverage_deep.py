@@ -13,23 +13,18 @@ import uuid
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
     Generation,
-    Organization,
     ResponseGeneration,
     TaskEvaluation,
-    User,
 )
 from project_models import (
     Annotation,
-    PostAnnotationResponse,
     Project,
     ProjectOrganization,
-    SkippedTask,
     Task,
     TaskAssignment,
 )
@@ -543,7 +538,7 @@ class TestBulkUpdateTaskMetadata:
         test_db.commit()
 
         resp = client.patch(
-            f"/api/projects/tasks/bulk-metadata?merge=true",
+            "/api/projects/tasks/bulk-metadata?merge=true",
             json={
                 "task_ids": [t.id for t in tasks],
                 "metadata": {"tag": "important"},
@@ -561,7 +556,7 @@ class TestBulkUpdateTaskMetadata:
         test_db.commit()
 
         resp = client.patch(
-            f"/api/projects/tasks/bulk-metadata?merge=false",
+            "/api/projects/tasks/bulk-metadata?merge=false",
             json={
                 "task_ids": [t.id for t in tasks],
                 "metadata": {"replaced": True},
@@ -573,7 +568,7 @@ class TestBulkUpdateTaskMetadata:
     def test_bulk_metadata_not_found(self, client, test_db, test_users, auth_headers, test_org):
         """Bulk update with non-existent task IDs."""
         resp = client.patch(
-            f"/api/projects/tasks/bulk-metadata",
+            "/api/projects/tasks/bulk-metadata",
             json={
                 "task_ids": [_uid()],
                 "metadata": {"key": "val"},

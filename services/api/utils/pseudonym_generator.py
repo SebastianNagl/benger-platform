@@ -188,7 +188,7 @@ def generate_pseudonym(
         f"Unable to generate unique pseudonym after {max_attempts} attempts. "
         f"Existing pseudonyms: {len(existing)}, "
         f"Total possible combinations: {total_combinations}. "
-        f"Consider expanding the adjective/noun lists."
+        "Consider expanding the adjective/noun lists."
     )
 
 
@@ -257,10 +257,10 @@ def get_pseudonym_statistics() -> dict:
 if __name__ == "__main__":
     # Display statistics when run directly
     stats = get_pseudonym_statistics()
-    print(f"Pseudonym Generator Statistics:")
+    print("Pseudonym Generator Statistics:")
     print(f"  Adjectives: {stats['adjectives']}")
     print(f"  Nouns: {stats['nouns']}")
     print(f"  Total Combinations: {stats['total_combinations']:,}")
-    print(f"\nSample pseudonyms:")
+    print("\nSample pseudonyms:")
     for pseudonym in stats['sample_pseudonyms']:
         print(f"  - {pseudonym}")

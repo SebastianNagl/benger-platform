@@ -10,16 +10,18 @@ import os
 import sys
 import uuid
 
-# Add current directory to path for imports
+# Add /shared and the script's own directory to sys.path. /shared holds the
+# canonical models (post-2026-05-19 consolidation, see CLAUDE.md) and must
+# be importable before any `from models import ...` runs. The API container
+# normally inserts /shared at startup via main.py:lifespan(), but one-shot
+# scripts (like this seeder) bypass that path setup, so we add it here.
+sys.path.insert(0, "/shared")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import json
-from datetime import datetime, timezone
-from decimal import Decimal
 
-from database import SessionLocal
-from scripts.setup_demo_org import setup_demo_organization
-from user_service import init_demo_users
+from database import SessionLocal  # noqa: E402
+from scripts.setup_demo_org import setup_demo_organization  # noqa: E402
+from user_service import init_demo_users  # noqa: E402
 
 
 def complete_mandatory_profiles(db):
@@ -694,7 +696,7 @@ def setup_e2e_evaluations(db):
 
     db.commit()
     print(f"✅ Created mock evaluation data for E2E QA Project ({len(model_scores)} models)")
-    print(f"✅ Configured evaluation settings for E2E QA Project")
+    print("✅ Configured evaluation settings for E2E QA Project")
 
 
 def setup_user_api_keys(db):

@@ -18,5 +18,6 @@ export default function KorrekturPage() {
     )
   }
 
+  // eslint-disable-next-line react-hooks/static-components
   return <KorrekturComponent projectId={projectId} />
 }

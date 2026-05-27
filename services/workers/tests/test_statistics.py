@@ -17,7 +17,6 @@ import os
 import sys
 
 import numpy as np
-import pytest
 
 workers_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if workers_root not in sys.path:
@@ -184,14 +183,14 @@ class TestCliffsDelta:
         result = cliffs_delta(a, b)
         assert result["cliffs_delta"] == 1.0
         assert result["interpretation"] == "large"
-        assert result["a_better"] is True
+        assert result["a_better"] == True
 
     def test_b_dominates(self):
         a = [1.0, 2.0, 3.0]
         b = [10.0, 11.0, 12.0]
         result = cliffs_delta(a, b)
         assert result["cliffs_delta"] == -1.0
-        assert result["a_better"] is False
+        assert result["a_better"] == False
 
     def test_empty_scores(self):
         result = cliffs_delta([], [1.0, 2.0])

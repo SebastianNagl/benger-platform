@@ -5,12 +5,11 @@ Targets: routers/health.py lines 24, 30, 40-62, 68, 82-94, 117-171, 188-226
 """
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock, patch, MagicMock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 from main import app
 from models import User
@@ -201,7 +200,7 @@ class TestHealthEndpoints:
                 response = client.get("/health/email")
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
-                assert data["configured"] is True
+                assert data["configured"] == True  # noqa: E712
             finally:
                 app.dependency_overrides.clear()
 
@@ -225,7 +224,7 @@ class TestHealthEndpoints:
                 response = client.get("/health/email?test_email=admin@test.com")
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
-                assert data["test_send"]["success"] is True
+                assert data["test_send"]["success"] == True  # noqa: E712
             finally:
                 app.dependency_overrides.clear()
 

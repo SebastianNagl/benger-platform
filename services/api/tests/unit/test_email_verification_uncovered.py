@@ -26,8 +26,8 @@ class TestModuleInit:
     def test_import_module(self):
         """Importing the module should set up loggers."""
         import auth_module.email_verification as ev
-        assert ev.email_monitoring_logger is not None
-        assert ev.JWT_SECRET is not None
+        assert ev.email_monitoring_logger != None  # noqa: E711
+        assert ev.JWT_SECRET != None  # noqa: E711
         assert ev.VERIFICATION_TOKEN_EXPIRE_HOURS == 48
         assert ev.RATE_LIMIT_MINUTES == 5
 
@@ -326,9 +326,9 @@ class TestMarkEmailVerified:
 
         result = svc.mark_email_verified(db, "user-1")
         assert result is True
-        assert user.email_verified is True
-        assert user.email_verification_token is None
-        assert user.email_verification_sent_at is None
+        assert user.email_verified == True  # noqa: E712
+        assert user.email_verification_token == None  # noqa: E711
+        assert user.email_verification_sent_at == None  # noqa: E711
         db.commit.assert_called_once()
 
     def test_admin_verification(self):
@@ -385,17 +385,17 @@ class TestCanSendVerificationEmail:
     def test_no_previous_send(self):
         svc = self._make_service()
         user = Mock(email_verification_sent_at=None)
-        assert svc.can_send_verification_email(user) is True
+        assert svc.can_send_verification_email(user) == True  # noqa: E712
 
     def test_sent_recently_rate_limited(self):
         svc = self._make_service()
         user = Mock(email_verification_sent_at=datetime.now(timezone.utc) - timedelta(minutes=1))
-        assert svc.can_send_verification_email(user) is False
+        assert svc.can_send_verification_email(user) == False  # noqa: E712
 
     def test_sent_long_ago_not_rate_limited(self):
         svc = self._make_service()
         user = Mock(email_verification_sent_at=datetime.now(timezone.utc) - timedelta(minutes=10))
-        assert svc.can_send_verification_email(user) is True
+        assert svc.can_send_verification_email(user) == True  # noqa: E712
 
 
 # ---------------------------------------------------------------------------
@@ -700,10 +700,10 @@ class TestCleanupExpiredTokens:
 
         count = svc.cleanup_expired_tokens(db)
         assert count == 2
-        assert expired_user1.email_verification_token is None
-        assert expired_user1.email_verification_sent_at is None
-        assert expired_user2.email_verification_token is None
-        assert expired_user2.email_verification_sent_at is None
+        assert expired_user1.email_verification_token == None  # noqa: E711
+        assert expired_user1.email_verification_sent_at == None  # noqa: E711
+        assert expired_user2.email_verification_token == None  # noqa: E711
+        assert expired_user2.email_verification_sent_at == None  # noqa: E711
         db.commit.assert_called_once()
 
     def test_exception_rolls_back(self):

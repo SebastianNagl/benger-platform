@@ -14,14 +14,13 @@ import os
 import sys
 import uuid
 from asyncio import run
-from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 
-from models import (
+from models import (  # noqa: E402
     EvaluationJudgeRun,
     EvaluationRun,
     Generation,
@@ -29,14 +28,11 @@ from models import (
     TaskEvaluation,
     User,
 )
-from project_models import (
+from project_models import (  # noqa: E402
     Annotation,
     PostAnnotationResponse,
     Project,
-    ProjectMember,
-    ProjectOrganization,
     Task,
-    TaskAssignment,
 )
 
 
@@ -387,8 +383,8 @@ class TestDataExportImportRoundtrip:
         )
         assert len(imported_anns) == 3
         for ann in imported_anns:
-            assert ann.result is not None
-            assert ann.ground_truth is True
+            assert ann.result != None  # noqa: E711
+            assert ann.ground_truth == True  # noqa: E712
 
         imported_qrs = (
             db_session.query(PostAnnotationResponse)
@@ -509,8 +505,8 @@ class TestDataExportImportRoundtrip:
         )
         assert len(imported_tes) == 6
 
-        gen_tes = [te for te in imported_tes if te.generation_id is not None]
-        task_tes = [te for te in imported_tes if te.generation_id is None]
+        gen_tes = [te for te in imported_tes if te.generation_id != None]  # noqa: E711
+        task_tes = [te for te in imported_tes if te.generation_id == None]  # noqa: E711
         assert len(gen_tes) == 3
         assert len(task_tes) == 3
 
@@ -759,7 +755,8 @@ class TestRoundtripExtensions:
             id=str(uuid.uuid4()), title="Annotation FK target",
             label_config="<View></View>", created_by=user.id,
         )
-        db_session.add(target); db_session.commit()
+        db_session.add(target)
+        db_session.commit()
         rt._import(db_session, target.id, export, user.id)
 
         target_task_ids = [t.id for t in db_session.query(Task).filter(Task.project_id == target.id).all()]
@@ -774,7 +771,7 @@ class TestRoundtripExtensions:
         # newly-imported annotation, not None.
         assert anno_tes, "expected at least one task-level TaskEvaluation"
         for te in anno_tes:
-            assert te.annotation_id is not None, "annotation_id was dropped on import"
+            assert te.annotation_id != None, "annotation_id was dropped on import"  # noqa: E711
             assert te.annotation_id in target_ann_ids
 
     def test_annotation_extras_survive(
@@ -797,7 +794,8 @@ class TestRoundtripExtensions:
             id=str(uuid.uuid4()), title="Annotation extras target",
             label_config="<View></View>", created_by=user.id,
         )
-        db_session.add(target); db_session.commit()
+        db_session.add(target)
+        db_session.commit()
         rt._import(db_session, target.id, export, user.id)
 
         # Find the imported annotation that mirrors the source via instruction_variant.
@@ -807,8 +805,8 @@ class TestRoundtripExtensions:
             .filter(Annotation.instruction_variant == "variant-A")
             .one()
         )
-        assert imported.auto_submitted is True
-        assert imported.ai_assisted is True
+        assert imported.auto_submitted == True  # noqa: E712
+        assert imported.ai_assisted == True  # noqa: E712
         assert imported.review_result == "approved"
         assert imported.review_comment == "Looks good"
 
@@ -825,13 +823,15 @@ class TestRoundtripExtensions:
             target_type="annotation", target_id=ann.id, parent_id=None,
             text="Parent comment", created_by=user.id,
         )
-        db_session.add(parent); db_session.flush()
+        db_session.add(parent)
+        db_session.flush()
         reply = KorrekturComment(
             id=str(uuid.uuid4()), project_id=project.id, task_id=ann.task_id,
             target_type="annotation", target_id=ann.id, parent_id=parent.id,
             text="Reply comment", created_by=user.id,
         )
-        db_session.add(reply); db_session.commit()
+        db_session.add(reply)
+        db_session.commit()
 
         rt = TestDataExportImportRoundtrip()
         export = rt._export(db_session, project.id, [t.id for t in data["tasks"]], user.id)
@@ -842,12 +842,15 @@ class TestRoundtripExtensions:
             id=str(uuid.uuid4()), title="Korrektur target",
             label_config="<View></View>", created_by=user.id,
         )
-        db_session.add(target); db_session.commit()
+        db_session.add(target)
+        db_session.commit()
 
         # The single-project import schema accepts korrektur_comments under the
         # `data` payload via the extended ProjectImportData fields.
         from routers.projects.import_export import import_project_data
-        mock_user = Mock(); mock_user.id = user.id; mock_user.is_superadmin = True
+        mock_user = Mock()
+        mock_user.id = user.id
+        mock_user.is_superadmin = True
         body = json.dumps({
             "data": export["tasks"],
             "evaluation_runs": export.get("evaluation_runs"),
@@ -857,7 +860,9 @@ class TestRoundtripExtensions:
         async def _stream():
             yield body
 
-        mock_request = Mock(); mock_request.headers = {}; mock_request.state = Mock(spec=[])
+        mock_request = Mock()
+        mock_request.headers = {}
+        mock_request.state = Mock(spec=[])
         mock_request.stream = _stream
         run(import_project_data(target.id, request=mock_request, current_user=mock_user, db=db_session))
 
@@ -867,8 +872,8 @@ class TestRoundtripExtensions:
             .all()
         )
         assert len(imported) == 2
-        parents = [c for c in imported if c.parent_id is None]
-        replies = [c for c in imported if c.parent_id is not None]
+        parents = [c for c in imported if c.parent_id == None]  # noqa: E711
+        replies = [c for c in imported if c.parent_id != None]  # noqa: E711
         assert len(parents) == 1 and len(replies) == 1
         assert replies[0].parent_id == parents[0].id, "reply.parent_id must point to the new parent id"
 
@@ -895,7 +900,8 @@ class TestRoundtripExtensions:
             id=str(uuid.uuid4()), title="Judge prompts target",
             label_config="<View></View>", created_by=user.id,
         )
-        db_session.add(target); db_session.commit()
+        db_session.add(target)
+        db_session.commit()
         rt._import(db_session, target.id, export, user.id)
 
         target_task_ids = [
@@ -956,9 +962,9 @@ class TestRoundtripExtensions:
         export = get_comprehensive_project_data(db_session, project.id)
         proj = export["project"]
         assert proj["conditional_instructions"][0]["id"] == "var-A"
-        assert proj["instructions_always_visible"] is True
-        assert proj["review_enabled"] is True
+        assert proj["instructions_always_visible"] == True  # noqa: E712
+        assert proj["review_enabled"] == True  # noqa: E712
         assert proj["review_mode"] == "independent"
-        assert proj["allow_self_review"] is True
-        assert proj["korrektur_enabled"] is True
+        assert proj["allow_self_review"] == True  # noqa: E712
+        assert proj["korrektur_enabled"] == True  # noqa: E712
         assert proj["korrektur_config"][0]["value"] == "✓"

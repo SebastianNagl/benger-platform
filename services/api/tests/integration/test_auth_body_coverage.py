@@ -27,14 +27,10 @@ Covers:
 """
 
 import uuid
-from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
-    Organization,
-    OrganizationMembership,
     User,
 )
 
@@ -75,7 +71,7 @@ class TestLoginBody:
         user = data["user"]
         assert user["id"] == "admin-test-id"
         assert user["email"] == "admin@test.com"
-        assert user["is_superadmin"] is True
+        assert user["is_superadmin"] == True  # noqa: E712
 
     def test_login_sets_access_cookie(self, client, test_db, test_users):
         resp = client.post(
@@ -144,7 +140,7 @@ class TestSignupBody:
         assert resp.status_code == 200
         data = resp.json()
         assert data["username"] == payload["username"]
-        assert data["is_superadmin"] is False
+        assert data["is_superadmin"] == False  # noqa: E712
 
     def test_signup_with_demographic_fields(self, client, test_db, test_users):
         payload = _signup_payload(
@@ -276,15 +272,15 @@ class TestMeBody:
         required = ["id", "username", "email", "name", "is_superadmin", "is_active", "role"]
         for f in required:
             assert f in data
-        assert data["is_superadmin"] is True
-        assert data["email_verified"] is True
+        assert data["is_superadmin"] == True  # noqa: E712
+        assert data["email_verified"] == True  # noqa: E712
 
     def test_me_annotator_has_role(self, client, test_db, test_users, auth_headers, test_org):
         resp = client.get("/api/auth/me", headers=auth_headers["annotator"])
         assert resp.status_code == 200
         data = resp.json()
         assert data["role"] == "ANNOTATOR"
-        assert data["is_superadmin"] is False
+        assert data["is_superadmin"] == False  # noqa: E712
 
     def test_me_unauthorized(self, client, test_db):
         resp = client.get("/api/auth/me")
@@ -304,7 +300,7 @@ class TestMeContextsBody:
         data = resp.json()
         assert "user" in data
         assert "organizations" in data
-        assert data["private_mode_available"] is True
+        assert data["private_mode_available"] == True  # noqa: E712
         assert data["user"]["id"] == "admin-test-id"
 
     def test_contexts_org_fields(self, client, test_db, test_users, auth_headers, test_org):
@@ -338,7 +334,7 @@ class TestVerifyBody:
     def test_verify_valid(self, client, test_db, test_users, auth_headers):
         resp = client.get("/api/auth/verify", headers=auth_headers["admin"])
         assert resp.status_code == 200
-        assert resp.json()["valid"] is True
+        assert resp.json()["valid"] == True  # noqa: E712
 
     def test_verify_invalid(self, client, test_db):
         resp = client.get(
@@ -643,7 +639,7 @@ class TestConfirmProfileBody:
         resp = client.post("/api/auth/confirm-profile", headers=auth_headers["admin"])
         assert resp.status_code == 200
         data = resp.json()
-        assert data["success"] is True
+        assert data["success"] == True  # noqa: E712
         assert "confirmed_at" in data
 
 

@@ -8,28 +8,29 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from uuid import uuid4
 
-logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status  # noqa: E402
+from pydantic import BaseModel, EmailStr  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
 
-from auth_module import require_user
-from database import get_db
-from models import Invitation, Organization, OrganizationMembership, OrganizationRole, User
-from notification_service import (
+from auth_module import require_user  # noqa: E402
+from database import get_db  # noqa: E402
+from models import Invitation, Organization, OrganizationMembership, OrganizationRole, User  # noqa: E402
+from notification_service import (  # noqa: E402
     notify_organization_invitation_accepted,
     notify_organization_invitation_sent,
 )
 
 # Import organization management check from organizations router
-from routers.organizations import can_manage_organization
+from routers.organizations import can_manage_organization  # noqa: E402
 
 router = APIRouter(prefix="/api/invitations", tags=["invitations"])
 
 # Celery app
-from celery_client import get_celery_app
+from celery_client import get_celery_app  # noqa: E402
 
+
+logger = logging.getLogger(__name__)
 celery_app = get_celery_app()
 
 
@@ -96,7 +97,7 @@ async def create_invitation(
             .filter(
                 OrganizationMembership.user_id == existing_user.id,
                 OrganizationMembership.organization_id == organization_id,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active == True,  # noqa: E712
             )
             .first()
         )
@@ -112,7 +113,7 @@ async def create_invitation(
         .filter(
             Invitation.organization_id == organization_id,
             Invitation.email == invitation_data.email,
-            Invitation.accepted == False,
+            Invitation.accepted == False,  # noqa: E712
             Invitation.expires_at > datetime.now(timezone.utc),
         )
         .first()
@@ -220,7 +221,7 @@ async def list_organization_invitations(
                 OrganizationMembership.user_id == current_user.id,
                 OrganizationMembership.organization_id == organization_id,
                 OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active == True,  # noqa: E712
             )
             .first()
         )
@@ -236,7 +237,7 @@ async def list_organization_invitations(
         .join(Organization, Invitation.organization_id == Organization.id)
         .join(User, Invitation.invited_by == User.id)
         .filter(Invitation.organization_id == organization_id)
-        .filter(Invitation.accepted == False)  # Only show pending invitations
+        .filter(Invitation.accepted == False)  # Only show pending invitations  # noqa: E712
     )
 
     if not include_expired:
@@ -383,7 +384,7 @@ async def accept_invitation(
         .filter(
             OrganizationMembership.user_id == current_user.id,
             OrganizationMembership.organization_id == invitation.organization_id,
-            OrganizationMembership.is_active == True,
+            OrganizationMembership.is_active == True,  # noqa: E712
         )
         .first()
     )
@@ -468,7 +469,7 @@ async def cancel_invitation(
                 OrganizationMembership.user_id == current_user.id,
                 OrganizationMembership.organization_id == invitation.organization_id,
                 OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active == True,  # noqa: E712
             )
             .first()
         )

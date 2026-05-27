@@ -86,10 +86,10 @@ def generate_squashed_migration():
     print(f"✅ Found {len(create_statements)} tables to create")
 
     # Generate the migration file content
-    migration_content = f'''"""Complete BenGER database schema - squashed migration
+    migration_content = '''f"""Complete BenGER database schema - squashed migration  # noqa: F841
 
 Revision ID: complete_schema_001
-Revises: 
+Revises:
 Create Date: {datetime.now().isoformat()}
 
 This is a squashed migration that creates the complete database schema.
@@ -110,10 +110,10 @@ depends_on = None
 
 def upgrade():
     """Create complete database schema."""
-    
+
     # Create all tables
     # Tables creation will be handled by autogenerate or manual migration
-    
+
     # Insert initial feature flags
     op.execute("""
         INSERT INTO feature_flags (name, description, is_enabled, created_at, updated_at) VALUES
@@ -124,7 +124,7 @@ def upgrade():
         ('how-to', 'Enable access to How-To page', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT (name) DO NOTHING;
     """)
-    
+
     print("✅ Complete database schema created")
 
 
@@ -140,15 +140,15 @@ def downgrade():
         'feature_flag_overrides', 'feature_flags',
         'users', 'evaluation_types'
     ]
-    
+
     for table in tables:
         op.execute(f"DROP TABLE IF EXISTS {{table}} CASCADE")
-    
+
     print("✅ All tables dropped")
 '''
 
     # Write the migration file
-    migration_path = (
+    migration_path = (  # noqa: F841
         Path(__file__).parent.parent
         / "alembic"
         / "versions"
@@ -193,7 +193,7 @@ def write_manual_migration():
     migration_content = '''"""Complete BenGER database schema - squashed migration
 
 Revision ID: complete_schema_001
-Revises: 
+Revises:
 Create Date: {datetime}
 
 This is a squashed migration that creates the complete database schema.
@@ -213,7 +213,7 @@ depends_on = None
 
 def upgrade():
     """Create complete database schema."""
-    
+
     # Users table
     op.create_table('users',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
@@ -238,7 +238,7 @@ def upgrade():
         sa.Column('profile_completed', sa.Boolean(), default=False),
         sa.Column('password_set', sa.Boolean(), default=False)
     )
-    
+
     # Organizations table
     op.create_table('organizations',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
@@ -250,7 +250,7 @@ def upgrade():
         sa.Column('updated_at', sa.DateTime(), onupdate=sa.func.now()),
         sa.Column('created_by', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id'))
     )
-    
+
     # Organization members table
     op.create_table('organization_members',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
@@ -260,7 +260,7 @@ def upgrade():
         sa.Column('joined_at', sa.DateTime(), server_default=sa.func.now()),
         sa.UniqueConstraint('organization_id', 'user_id', name='uq_org_user')
     )
-    
+
     # Project types table
     op.create_table('project_types',
         sa.Column('id', sa.Integer(), primary_key=True),
@@ -273,7 +273,7 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(), onupdate=sa.func.now())
     )
-    
+
     # Projects table
     op.create_table('projects',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
@@ -301,7 +301,7 @@ def upgrade():
         sa.Column('updated_at', sa.DateTime(), onupdate=sa.func.now()),
         sa.Index('idx_projects_org_public', 'organization_id', 'is_public')
     )
-    
+
     # Project members table
     op.create_table('project_members',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
@@ -311,7 +311,7 @@ def upgrade():
         sa.Column('joined_at', sa.DateTime(), server_default=sa.func.now()),
         sa.UniqueConstraint('project_id', 'user_id', name='uq_project_user')
     )
-    
+
     # Annotation tasks table
     op.create_table('annotation_tasks',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
@@ -327,7 +327,7 @@ def upgrade():
         sa.Index('idx_tasks_project_status', 'project_id', 'status'),
         sa.Index('idx_tasks_assigned', 'assigned_to', 'status')
     )
-    
+
     # Annotations table
     op.create_table('annotations',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
@@ -341,7 +341,7 @@ def upgrade():
         sa.Index('idx_annotations_task_user', 'task_id', 'user_id'),
         sa.UniqueConstraint('task_id', 'user_id', name='uq_task_user_annotation')
     )
-    
+
     # Annotation labels table
     op.create_table('annotation_labels',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
@@ -352,7 +352,7 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
         sa.UniqueConstraint('project_id', 'name', name='uq_project_label')
     )
-    
+
     # Generation jobs table
     op.create_table('generation_jobs',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
@@ -366,7 +366,7 @@ def upgrade():
         sa.Column('error_message', sa.Text()),
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now())
     )
-    
+
     # Generation results table
     op.create_table('generation_results',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
@@ -376,7 +376,7 @@ def upgrade():
         sa.Column('metadata', sa.JSON()),
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now())
     )
-    
+
     # Evaluation types table
     op.create_table('evaluation_types',
         sa.Column('id', sa.Integer(), primary_key=True),
@@ -388,7 +388,7 @@ def upgrade():
         sa.Column('is_active', sa.Boolean(), default=True),
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now())
     )
-    
+
     # Evaluation results table
     op.create_table('evaluation_results',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
@@ -400,7 +400,7 @@ def upgrade():
         sa.Column('created_by', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id')),
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now())
     )
-    
+
     # Feature flags table
     op.create_table('feature_flags',
         sa.Column('id', sa.Integer(), primary_key=True),
@@ -411,7 +411,7 @@ def upgrade():
         sa.Column('updated_at', sa.DateTime(), onupdate=sa.func.now()),
         sa.Column('created_by', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id'))
     )
-    
+
     # Feature flag overrides table
     op.create_table('feature_flag_overrides',
         sa.Column('id', sa.Integer(), primary_key=True),
@@ -422,7 +422,7 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(), onupdate=sa.func.now())
     )
-    
+
     # Refresh tokens table
     op.create_table('refresh_tokens',
         sa.Column('id', sa.Integer(), primary_key=True),
@@ -435,7 +435,7 @@ def upgrade():
         sa.Column('user_agent', sa.String(255)),
         sa.Column('ip_address', sa.String(45))
     )
-    
+
     # Email verification tokens table
     op.create_table('email_verification_tokens',
         sa.Column('id', sa.Integer(), primary_key=True),
@@ -446,7 +446,7 @@ def upgrade():
         sa.Column('used', sa.Boolean(), default=False),
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now())
     )
-    
+
     # User API keys table
     op.create_table('user_api_keys',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
@@ -460,7 +460,7 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(), onupdate=sa.func.now())
     )
-    
+
     # Insert initial feature flags
     op.execute("""
         INSERT INTO feature_flags (name, description, is_enabled) VALUES
@@ -471,7 +471,7 @@ def upgrade():
         ('how-to', 'Enable access to How-To page', true)
         ON CONFLICT (name) DO NOTHING;
     """)
-    
+
     # Insert default evaluation types
     op.execute("""
         INSERT INTO evaluation_types (name, display_name, description, category) VALUES
@@ -486,7 +486,7 @@ def upgrade():
         ('human_eval', 'Human Evaluation', 'Manual human evaluation scores', 'human')
         ON CONFLICT (name) DO NOTHING;
     """)
-    
+
     # Insert default project types
     op.execute("""
         INSERT INTO project_types (name, display_name, description, is_active) VALUES
@@ -498,7 +498,7 @@ def upgrade():
         ('custom', 'Custom', 'Custom annotation type with flexible schema', true)
         ON CONFLICT (name) DO NOTHING;
     """)
-    
+
     print("✅ Complete database schema created")
 
 
@@ -514,10 +514,10 @@ def downgrade():
         'organization_members', 'organizations',
         'users'
     ]
-    
+
     for table in tables:
         op.drop_table(table, if_exists=True)
-    
+
     print("✅ All tables dropped")
 '''.format(
         datetime=datetime.now().isoformat()

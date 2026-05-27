@@ -18,17 +18,14 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
-    EvaluationType,
     Generation,
     HumanEvaluationSession,
     LikertScaleEvaluation,
-    PreferenceRanking,
     ResponseGeneration,
     TaskEvaluation,
     User,
@@ -860,7 +857,7 @@ class TestEvaluationSamples:
         assert resp.status_code == 200
         body = resp.json()
         for item in body["items"]:
-            assert item["passed"] is True
+            assert item["passed"] == True  # noqa: E712
 
     def test_samples_filter_by_field_name(
         self, client, test_db, test_users, test_org, auth_headers
@@ -900,7 +897,7 @@ class TestEvaluationSamples:
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body["has_next"] is True
+        assert body["has_next"] == True  # noqa: E712
         assert len(body["items"]) == 2
 
 
@@ -917,7 +914,7 @@ class TestEvaluationsList:
         self, client, test_db, test_users, test_org, auth_headers
     ):
         """Returns evaluations scoped to accessible projects."""
-        data = _create_evaluation_project(test_db, test_users, test_org)
+        _create_evaluation_project(test_db, test_users, test_org)
 
         resp = client.get(
             "/api/evaluations/",
@@ -999,7 +996,7 @@ class TestEvaluationTypes:
         assert body["id"] == "accuracy"
         assert body["name"] == "Accuracy"
         assert body["category"] == "classification"
-        assert body["higher_is_better"] is True
+        assert body["higher_is_better"] == True  # noqa: E712
 
     def test_get_evaluation_type_not_found(
         self, client, test_db, test_users, test_org, auth_headers
@@ -1084,8 +1081,6 @@ class TestSupportedMetrics:
     is tested via the workers test suite and E2E tests instead.
     """
 
-    pass
-
 
 # ===========================================================================
 # Priority 5 — Validation (validation.py)
@@ -1129,7 +1124,7 @@ class TestValidateConfig:
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body["valid"] is True
+        assert body["valid"] == True  # noqa: E712
         assert "answer_type" in body["matched_fields"]
         assert "answer" in body["matched_fields"]
         assert body["errors"] == []
@@ -1210,7 +1205,7 @@ class TestValidateConfig:
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body["valid"] is False
+        assert body["valid"] == False  # noqa: E712
         assert any("No overlapping" in e for e in body["errors"])
 
 
@@ -1268,7 +1263,7 @@ class TestEvaluatedModels:
         # claude-3.5-sonnet should appear as configured even without results
         assert "claude-3.5-sonnet" in model_ids
         claude_entry = next(m for m in body if m["model_id"] == "claude-3.5-sonnet")
-        assert claude_entry["is_configured"] is True
+        assert claude_entry["is_configured"] == True  # noqa: E712
 
     def test_evaluated_models_empty_project(
         self, client, test_db, test_users, test_org, auth_headers
@@ -1342,7 +1337,7 @@ class TestConfiguredMethods:
         assert field["field_name"] == "answer_type"
         assert len(field["automated_methods"]) >= 1
         assert field["automated_methods"][0]["method_name"] == "accuracy"
-        assert field["automated_methods"][0]["is_configured"] is True
+        assert field["automated_methods"][0]["is_configured"] == True  # noqa: E712
 
     def test_configured_methods_no_eval_config(
         self, client, test_db, test_users, test_org, auth_headers
