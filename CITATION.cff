@@ -58,6 +58,6 @@ references:
       - family-names: Grabmair
         given-names: Matthias
     year: 2026
-    url: "https://huggingface.co/datasets/SebastianNagl/benger"
+    url: "https://doi.org/10.5281/zenodo.20409635"
     doi: 10.5281/zenodo.20409635
     license: CC-BY-4.0
