@@ -217,7 +217,7 @@ class TestPreferences:
                 mock_prefs.return_value = {"task_assigned": True, "system_alert": False}
                 resp = client.get("/api/notifications/preferences")
                 assert resp.status_code == 200
-                assert resp.json()["preferences"]["task_assigned"] is True
+                assert resp.json()["preferences"]["task_assigned"] == True  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 
@@ -554,7 +554,7 @@ class TestEmailStatus:
         try:
             resp = client.get("/api/notifications/email/status")
             assert resp.status_code == 200
-            assert resp.json()["available"] is False
+            assert resp.json()["available"] == False  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 
@@ -599,7 +599,7 @@ class TestTestNotifications:
                     json={"notification_type": "system_alert", "count": 1},
                 )
                 assert resp.status_code == 200
-                assert resp.json()["success"] is True
+                assert resp.json()["success"] == True  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 
@@ -689,7 +689,7 @@ class TestTestNotifications:
                     json={"type": "system_alert", "title": "Admin Test", "message": "Test msg"},
                 )
                 assert resp.status_code == 200
-                assert resp.json()["success"] is True
+                assert resp.json()["success"] == True  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 
@@ -727,7 +727,7 @@ class TestTestNotifications:
                 mock_create.return_value = [mock_notif]
                 resp = client.post("/api/notifications/test/generate-all")
                 assert resp.status_code == 200
-                assert resp.json()["success"] is True
+                assert resp.json()["success"] == True  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 
@@ -758,7 +758,7 @@ class TestTestNotifications:
                 resp = client.post("/api/notifications/test/generate-all")
                 assert resp.status_code == 200
                 data = resp.json()
-                assert data["success"] is True
+                assert data["success"] == True  # noqa: E712
                 assert data["errors"] is not None
         finally:
             app.dependency_overrides.clear()

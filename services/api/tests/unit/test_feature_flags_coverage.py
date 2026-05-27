@@ -354,7 +354,7 @@ class TestCheckFeatureFlag:
                 MockService.return_value = mock_svc
                 resp = client.get("/api/feature-flags/check/test_flag")
                 assert resp.status_code == 200
-                assert resp.json()["is_enabled"] is True
+                assert resp.json()["is_enabled"] == True  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 
@@ -382,7 +382,7 @@ class TestCheckFeatureFlag:
                 MockService.return_value = mock_svc
                 resp = client.get("/api/feature-flags/check/test_flag?organization_id=org-1")
                 assert resp.status_code == 200
-                assert resp.json()["is_enabled"] is False
+                assert resp.json()["is_enabled"] == False  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 

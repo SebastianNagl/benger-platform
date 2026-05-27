@@ -92,12 +92,12 @@ class TestParseLabelConfig:
     def test_required_field(self):
         config = '<View><TextArea name="x" toName="text" required="true"/></View>'
         parser = ResponseParser({}, config)
-        assert parser.label_config_map["x"]["required"] is True
+        assert parser.label_config_map["x"]["required"] == True
 
     def test_not_required_field(self):
         config = '<View><TextArea name="x" toName="text"/></View>'
         parser = ResponseParser({}, config)
-        assert parser.label_config_map["x"]["required"] is False
+        assert parser.label_config_map["x"]["required"] == False
 
     def test_invalid_xml(self):
         parser = ResponseParser({}, "<<not xml>>")

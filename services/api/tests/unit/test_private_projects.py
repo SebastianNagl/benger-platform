@@ -195,7 +195,7 @@ class TestProjectVisibilityEndpoint:
             "is_private": True,
             "owner_user_id": str(uuid.uuid4()),
         }
-        assert payload["is_private"] is True
+        assert payload["is_private"] == True  # noqa: E712
         assert "owner_user_id" in payload
 
     def test_make_org_assigned_payload(self):
@@ -205,7 +205,7 @@ class TestProjectVisibilityEndpoint:
             "is_private": False,
             "organization_ids": [org_id],
         }
-        assert payload["is_private"] is False
+        assert payload["is_private"] == False  # noqa: E712
         assert len(payload["organization_ids"]) == 1
 
 
@@ -258,7 +258,7 @@ class TestPublicProjectAuthorization:
         service = AuthorizationService()
         assert service.check_project_access(
             visitor_user, public_project_annotator, Permission.PROJECT_VIEW, mock_db
-        ) is True
+        ) == True  # noqa: E712
 
     def test_public_annotator_can_create_annotation(self, visitor_user, public_project_annotator, mock_db):
         from app.core.authorization import AuthorizationService, Permission
@@ -266,7 +266,7 @@ class TestPublicProjectAuthorization:
         service = AuthorizationService()
         assert service.check_project_access(
             visitor_user, public_project_annotator, Permission.ANNOTATION_CREATE, mock_db
-        ) is True
+        ) == True  # noqa: E712
 
     def test_public_annotator_cannot_create_task(self, visitor_user, public_project_annotator, mock_db):
         from app.core.authorization import AuthorizationService, Permission
@@ -274,7 +274,7 @@ class TestPublicProjectAuthorization:
         service = AuthorizationService()
         assert service.check_project_access(
             visitor_user, public_project_annotator, Permission.TASK_CREATE, mock_db
-        ) is False
+        ) == False  # noqa: E712
 
     def test_public_annotator_cannot_run_generation(self, visitor_user, public_project_annotator, mock_db):
         from app.core.authorization import AuthorizationService, Permission
@@ -282,7 +282,7 @@ class TestPublicProjectAuthorization:
         service = AuthorizationService()
         assert service.check_project_access(
             visitor_user, public_project_annotator, Permission.GENERATION_CREATE, mock_db
-        ) is False
+        ) == False  # noqa: E712
 
     def test_public_contributor_can_create_task(self, visitor_user, public_project_contributor, mock_db):
         from app.core.authorization import AuthorizationService, Permission
@@ -290,7 +290,7 @@ class TestPublicProjectAuthorization:
         service = AuthorizationService()
         assert service.check_project_access(
             visitor_user, public_project_contributor, Permission.TASK_CREATE, mock_db
-        ) is True
+        ) == True  # noqa: E712
 
     def test_public_contributor_can_run_generation(self, visitor_user, public_project_contributor, mock_db):
         from app.core.authorization import AuthorizationService, Permission
@@ -298,7 +298,7 @@ class TestPublicProjectAuthorization:
         service = AuthorizationService()
         assert service.check_project_access(
             visitor_user, public_project_contributor, Permission.GENERATION_CREATE, mock_db
-        ) is True
+        ) == True  # noqa: E712
 
     def test_public_contributor_cannot_edit_project_settings(
         self, visitor_user, public_project_contributor, mock_db
@@ -309,10 +309,10 @@ class TestPublicProjectAuthorization:
         service = AuthorizationService()
         assert service.check_project_access(
             visitor_user, public_project_contributor, Permission.PROJECT_EDIT, mock_db
-        ) is False
+        ) == False  # noqa: E712
         assert service.check_project_access(
             visitor_user, public_project_contributor, Permission.PROJECT_DELETE, mock_db
-        ) is False
+        ) == False  # noqa: E712
 
     def test_creator_retains_full_permissions_on_public(
         self, creator_user, public_project_annotator, mock_db
@@ -322,10 +322,10 @@ class TestPublicProjectAuthorization:
         service = AuthorizationService()
         assert service.check_project_access(
             creator_user, public_project_annotator, Permission.PROJECT_EDIT, mock_db
-        ) is True
+        ) == True  # noqa: E712
         assert service.check_project_access(
             creator_user, public_project_annotator, Permission.TASK_CREATE, mock_db
-        ) is True
+        ) == True  # noqa: E712
 
 
 class TestPublicProjectCreation:
@@ -382,7 +382,7 @@ class TestPublicVisibilityPayloads:
 
     def test_make_public_payload(self):
         payload = {"is_public": True, "public_role": "ANNOTATOR"}
-        assert payload["is_public"] is True
+        assert payload["is_public"] == True  # noqa: E712
         assert payload["public_role"] in ("ANNOTATOR", "CONTRIBUTOR")
 
     def test_flip_public_role_payload(self):

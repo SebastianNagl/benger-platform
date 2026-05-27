@@ -499,7 +499,7 @@ class TestGetEvaluationSamples:
         assert resp.status_code == 200
         data = resp.json()
         for item in data["items"]:
-            assert item["passed"] is True
+            assert item["passed"] == True  # noqa: E712
 
     def test_get_samples_filter_passed_false(self, client, auth_header, evaluation_run, task_evaluations):
         resp = client.get(
@@ -509,7 +509,7 @@ class TestGetEvaluationSamples:
         assert resp.status_code == 200
         data = resp.json()
         for item in data["items"]:
-            assert item["passed"] is False
+            assert item["passed"] == False  # noqa: E712
 
     def test_get_samples_pagination(self, client, auth_header, evaluation_run, task_evaluations):
         resp = client.get(
@@ -521,7 +521,7 @@ class TestGetEvaluationSamples:
         assert len(data["items"]) == 2
         assert data["page"] == 1
         assert data["page_size"] == 2
-        assert data["has_next"] is True
+        assert data["has_next"] == True  # noqa: E712
 
     def test_get_samples_page_2(self, client, auth_header, evaluation_run, task_evaluations):
         resp = client.get(

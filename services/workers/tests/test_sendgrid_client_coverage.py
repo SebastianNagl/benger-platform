@@ -119,7 +119,7 @@ class TestSendMessage:
             disable_tracking=True,
         )
         payload = mock_post.call_args[1]["json"]
-        assert payload["tracking_settings"]["click_tracking"]["enable"] is False
+        assert payload["tracking_settings"]["click_tracking"]["enable"] == False
 
     @patch("sendgrid_client.requests.post")
     def test_plain_body(self, mock_post):

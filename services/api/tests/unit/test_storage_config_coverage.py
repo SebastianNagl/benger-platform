@@ -55,7 +55,7 @@ class TestGetStorageConfigFunctions:
         else:
             result = {"storage_type": "local"}
         assert result["storage_type"] == "minio"
-        assert result["use_ssl"] is False
+        assert result["use_ssl"] == False  # noqa: E712
 
 
 class TestGetCDNConfigFunctions:

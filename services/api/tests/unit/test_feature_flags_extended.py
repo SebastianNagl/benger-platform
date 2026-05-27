@@ -196,7 +196,7 @@ class TestCheckFeatureFlag:
                 assert resp.status_code == 200
                 data = resp.json()
                 assert data["flag_name"] == "test_flag"
-                assert data["is_enabled"] is True
+                assert data["is_enabled"] == True  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 
@@ -225,6 +225,6 @@ class TestCheckFeatureFlag:
                 resp = client.get("/api/feature-flags/check/test_flag?organization_id=org-1")
                 assert resp.status_code == 200
                 data = resp.json()
-                assert data["is_enabled"] is False
+                assert data["is_enabled"] == False  # noqa: E712
         finally:
             app.dependency_overrides.clear()

@@ -73,8 +73,8 @@ class TestDatabasePerformanceValidator:
         validator = DatabasePerformanceValidator(mock_db)
         result = validator.check_indexes_exist()
         assert isinstance(result, dict)
-        assert result["idx_tasks_data_reference_answers"] is True
-        assert result["idx_tasks_data_checksum"] is False
+        assert result["idx_tasks_data_reference_answers"] == True  # noqa: E712
+        assert result["idx_tasks_data_checksum"] == False  # noqa: E712
 
     def test_validate_json_query_performance(self):
         from services.performance_monitoring import DatabasePerformanceValidator

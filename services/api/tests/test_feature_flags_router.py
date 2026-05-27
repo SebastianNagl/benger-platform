@@ -116,8 +116,8 @@ class TestFeatureFlagsRouter:
                     result = asyncio.run(get_feature_flags(mock_regular_user, mock_db, None))
 
                     # Verify
-                    assert result["test_feature"] is True
-                    assert result["disabled_feature"] is False
+                    assert result["test_feature"] == True  # noqa: E712
+                    assert result["disabled_feature"] == False  # noqa: E712
                     mock_service.get_feature_flags.assert_called_once()
 
     def test_update_feature_flag_success(self, mock_db, mock_superadmin, sample_feature_flag):

@@ -54,7 +54,7 @@ def test_yaml_gpt5_entries_declare_seed_unsupported():
     for mid in gpt5_ids:
         m = next(x for x in catalog.models if x["id"] == mid)
         seed = (m.get("constraints") or {}).get("seed") or {}
-        assert seed.get("supported") is False, f"{mid} missing seed.supported: false"
+        assert seed.get("supported") == False, f"{mid} missing seed.supported: false"  # noqa: E712
 
 
 # ─── 2. Drift checker awareness ───────────────────────────────────────────

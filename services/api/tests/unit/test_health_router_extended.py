@@ -200,7 +200,7 @@ class TestHealthEndpoints:
                 response = client.get("/health/email")
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
-                assert data["configured"] is True
+                assert data["configured"] == True  # noqa: E712
             finally:
                 app.dependency_overrides.clear()
 
@@ -224,7 +224,7 @@ class TestHealthEndpoints:
                 response = client.get("/health/email?test_email=admin@test.com")
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
-                assert data["test_send"]["success"] is True
+                assert data["test_send"]["success"] == True  # noqa: E712
             finally:
                 app.dependency_overrides.clear()
 

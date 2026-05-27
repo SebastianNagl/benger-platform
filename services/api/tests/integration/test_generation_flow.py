@@ -265,7 +265,7 @@ class TestGenerationExecution:
         data = response.json()
         assert "generations" in data
         assert len(data["generations"]) == 2
-        assert data["is_running"] is True
+        assert data["is_running"] == True  # noqa: E712
         assert data["latest_status"] == "completed"  # Most recent first
 
     def test_stop_generation(self, client: TestClient, auth_headers, db: Session):

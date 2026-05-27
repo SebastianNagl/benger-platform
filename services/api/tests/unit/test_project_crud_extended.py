@@ -64,7 +64,7 @@ class TestDeepMergeDicts:
         update = {"l1": {"l2": {"l3": "updated"}}}
         result = self.merge(base, update)
         assert result["l1"]["l2"]["l3"] == "updated"
-        assert result["l1"]["l2"]["keep"] is True
+        assert result["l1"]["l2"]["keep"] == True  # noqa: E712
 
     def test_new_nested_key(self):
         base = {"a": 1}

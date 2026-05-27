@@ -191,8 +191,8 @@ class TestEmailStatusAvailable:
         user = _mock_user()
 
         result = await get_email_status(current_user=user)
-        assert result["available"] is True
-        assert result["configured"] is True
+        assert result["available"] == True  # noqa: E712
+        assert result["configured"] == True  # noqa: E712
         assert "ready" in result["message"]
 
     @pytest.mark.asyncio
@@ -205,7 +205,7 @@ class TestEmailStatusAvailable:
         user = _mock_user()
 
         result = await get_email_status(current_user=user)
-        assert result["configured"] is False
+        assert result["configured"] == False  # noqa: E712
 
     @pytest.mark.asyncio
     @patch("routers.notifications.EMAIL_SERVICE_AVAILABLE", True)
@@ -217,7 +217,7 @@ class TestEmailStatusAvailable:
         user = _mock_user()
 
         result = await get_email_status(current_user=user)
-        assert result["available"] is False
+        assert result["available"] == False  # noqa: E712
 
     @pytest.mark.asyncio
     @patch("routers.notifications.EMAIL_SERVICE_AVAILABLE", False)
@@ -226,7 +226,7 @@ class TestEmailStatusAvailable:
 
         user = _mock_user()
         result = await get_email_status(current_user=user)
-        assert result["available"] is False
+        assert result["available"] == False  # noqa: E712
 
 
 # ---------------------------------------------------------------------------
@@ -332,7 +332,7 @@ class TestTestNotificationsDeep:
             current_user=user,
             db=db,
         )
-        assert result["success"] is True
+        assert result["success"] == True  # noqa: E712
         assert mock_create.call_count == 3
 
     @pytest.mark.asyncio
@@ -352,7 +352,7 @@ class TestTestNotificationsDeep:
             current_user=user,
             db=db,
         )
-        assert result["success"] is True
+        assert result["success"] == True  # noqa: E712
         # Verify auto-generated title was used
         call_kwargs = mock_create.call_args
         assert "System Alert" in call_kwargs.kwargs.get("title", "")
@@ -378,7 +378,7 @@ class TestTestNotificationsDeep:
             current_user=user,
             db=db,
         )
-        assert result["success"] is True
+        assert result["success"] == True  # noqa: E712
 
     @pytest.mark.asyncio
     @patch("notification_service.NotificationService.create_notification")
@@ -402,7 +402,7 @@ class TestTestNotificationsDeep:
             current_user=user,
             db=db,
         )
-        assert result["success"] is True
+        assert result["success"] == True  # noqa: E712
 
     @pytest.mark.asyncio
     @patch("notification_service.NotificationService.create_notification", side_effect=Exception("DB fail"))
@@ -458,7 +458,7 @@ class TestGenerateAllDeep:
         db = _mock_db()
 
         result = await generate_all_test_notifications(current_user=user, db=db)
-        assert result["success"] is False
+        assert result["success"] == False  # noqa: E712
         assert result["count"] == 0
         assert result["errors"] is not None
 

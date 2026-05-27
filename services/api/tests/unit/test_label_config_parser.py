@@ -370,7 +370,7 @@ class TestValidation:
 
         result = LabelConfigParser.validate_config(xml)
 
-        assert result["valid"] is True
+        assert result["valid"] == True  # noqa: E712
         assert result["field_count"] == 2
         assert "Choices" in result["field_types"]
         assert "TextArea" in result["field_types"]
@@ -379,7 +379,7 @@ class TestValidation:
         """Validate empty configuration"""
         result = LabelConfigParser.validate_config("")
 
-        assert result["valid"] is False
+        assert result["valid"] == False  # noqa: E712
         assert "error" in result
         assert "Empty configuration" in result["error"]
 
@@ -391,7 +391,7 @@ class TestValidation:
 
         result = LabelConfigParser.validate_config(invalid_xml)
 
-        assert result["valid"] is False
+        assert result["valid"] == False  # noqa: E712
         assert "error" in result
         assert "Invalid XML" in result["error"]
 
@@ -403,7 +403,7 @@ class TestValidation:
 
         result = LabelConfigParser.validate_config(xml)
 
-        assert result["valid"] is False
+        assert result["valid"] == False  # noqa: E712
         assert "error" in result
         assert "No valid fields found" in result["error"]
 
@@ -418,7 +418,7 @@ class TestValidation:
 
         result = LabelConfigParser.validate_config(xml)
 
-        assert result["valid"] is False
+        assert result["valid"] == False  # noqa: E712
         assert "error" in result
         assert "Duplicate field names" in result["error"]
         assert "label" in result["error"]

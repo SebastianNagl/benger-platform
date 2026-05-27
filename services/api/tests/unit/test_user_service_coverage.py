@@ -258,11 +258,11 @@ class TestPasswordHashing:
         password = "test_password_123"
         hashed = get_password_hash(password)
         assert hashed != password
-        assert verify_password(password, hashed) is True
+        assert verify_password(password, hashed) == True  # noqa: E712
 
     def test_wrong_password_fails(self):
         hashed = get_password_hash("password1")
-        assert verify_password("password2", hashed) is False
+        assert verify_password("password2", hashed) == False  # noqa: E712
 
     def test_aliases(self):
         assert hash_password == get_password_hash
@@ -281,5 +281,5 @@ class TestPasswordHashing:
 
     def test_empty_password(self):
         hashed = get_password_hash("")
-        assert verify_password("", hashed) is True
-        assert verify_password("non-empty", hashed) is False
+        assert verify_password("", hashed) == True  # noqa: E712
+        assert verify_password("non-empty", hashed) == False  # noqa: E712

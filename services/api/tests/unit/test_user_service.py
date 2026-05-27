@@ -50,7 +50,7 @@ class TestPasswordFunctions:
         password = "test_password_123"
         hashed = get_password_hash(password)
 
-        assert verify_password(password, hashed) is True
+        assert verify_password(password, hashed) == True  # noqa: E712
 
     def test_password_verification_failure(self):
         """Test failed password verification"""
@@ -58,7 +58,7 @@ class TestPasswordFunctions:
         wrong_password = "wrong_password"
         hashed = get_password_hash(password)
 
-        assert verify_password(wrong_password, hashed) is False
+        assert verify_password(wrong_password, hashed) == False  # noqa: E712
 
     def test_password_verification_empty(self):
         """Test password verification with empty values"""

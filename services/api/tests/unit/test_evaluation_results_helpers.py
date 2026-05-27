@@ -102,7 +102,7 @@ class TestEvaluationConfigDerivation:
         assert configs[0]["metric"] == "bleu"
         assert configs[0]["prediction_fields"] == ["pred_answer"]
         assert configs[0]["reference_fields"] == ["ref_answer"]
-        assert configs[0]["enabled"] is True
+        assert configs[0]["enabled"] == True  # noqa: E712
 
     def test_empty_selected_methods(self):
         from routers.evaluations.config import _derive_evaluation_configs_from_selected_methods
@@ -509,7 +509,7 @@ class TestSerializerFunctions:
 
         result = serialize_evaluation_run(er, mode="data")
         assert result["eval_metadata"] == {}
-        assert result["has_sample_results"] is True
+        assert result["has_sample_results"] == True  # noqa: E712
         assert "project_id" not in result
 
     def test_serialize_evaluation_run_full_mode(self):

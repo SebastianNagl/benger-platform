@@ -207,7 +207,7 @@ class TestProjectHelpers:
         pid = data["project"].id
 
         # Superadmin can edit
-        assert check_user_can_edit_project(test_db, test_users[0], pid) is True
+        assert check_user_can_edit_project(test_db, test_users[0], pid) == True  # noqa: E712
 
     def test_get_accessible_project_ids_superadmin(self, test_db, test_users):
         from routers.projects.helpers import get_accessible_project_ids

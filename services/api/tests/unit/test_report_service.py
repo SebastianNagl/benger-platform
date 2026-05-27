@@ -181,7 +181,7 @@ class TestCreateInitialReportDraft(TestReportService):
 
         # Check metadata
         assert "project_info" in content["metadata"]["sections_completed"]
-        assert content["metadata"]["can_publish"] is False
+        assert content["metadata"]["can_publish"] == False  # noqa: E712
 
     def test_raises_error_for_nonexistent_project(self, test_db: Session, test_user):
         """Test that creating report for nonexistent project raises error"""

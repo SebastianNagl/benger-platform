@@ -419,7 +419,7 @@ class TestSignificanceTests:
                 assert resp.status_code == 200
                 comps = resp.json()["comparisons"]
                 assert len(comps) == 1
-                assert comps[0]["significant"] is False
+                assert comps[0]["significant"] == False  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 

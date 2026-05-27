@@ -98,29 +98,29 @@ class TestContainsSensitiveData:
         self.parser = GenerationStructureParser()
 
     def test_dict_with_sensitive_key(self):
-        assert self.parser._contains_sensitive_data({"annotations": []}) is True
+        assert self.parser._contains_sensitive_data({"annotations": []}) == True
 
     def test_dict_with_reference_key(self):
-        assert self.parser._contains_sensitive_data({"reference_answer": "x"}) is True
+        assert self.parser._contains_sensitive_data({"reference_answer": "x"}) == True
 
     def test_dict_without_sensitive_key(self):
-        assert self.parser._contains_sensitive_data({"question": "What?"}) is False
+        assert self.parser._contains_sensitive_data({"question": "What?"}) == False
 
     def test_list_with_sensitive_dict(self):
-        assert self.parser._contains_sensitive_data([{"ground_truth": "x"}]) is True
+        assert self.parser._contains_sensitive_data([{"ground_truth": "x"}]) == True
 
     def test_list_without_sensitive(self):
-        assert self.parser._contains_sensitive_data([{"question": "x"}]) is False
+        assert self.parser._contains_sensitive_data([{"question": "x"}]) == False
 
     def test_non_container_value(self):
-        assert self.parser._contains_sensitive_data("just a string") is False
-        assert self.parser._contains_sensitive_data(42) is False
+        assert self.parser._contains_sensitive_data("just a string") == False
+        assert self.parser._contains_sensitive_data(42) == False
 
     def test_empty_dict(self):
-        assert self.parser._contains_sensitive_data({}) is False
+        assert self.parser._contains_sensitive_data({}) == False
 
     def test_empty_list(self):
-        assert self.parser._contains_sensitive_data([]) is False
+        assert self.parser._contains_sensitive_data([]) == False
 
 
 class TestSensitiveFields:

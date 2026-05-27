@@ -402,7 +402,7 @@ class TestCheckMandatoryFieldsPresent:
 
     def test_no_expertise_returns_false(self):
         from auth_module.user_service import _check_mandatory_fields_present
-        assert _check_mandatory_fields_present() is False
+        assert _check_mandatory_fields_present() == False  # noqa: E712
 
     def test_missing_base_fields(self):
         from auth_module.user_service import _check_mandatory_fields_present

@@ -88,7 +88,7 @@ class TestAuthentication:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert "valid" in data
-        assert data["valid"] is True
+        assert data["valid"] == True  # noqa: E712
 
 
 @pytest.mark.unit
@@ -239,8 +239,8 @@ class TestPasswordSecurity:
         hashed = get_password_hash(password)
 
         assert hashed != password
-        assert verify_password(password, hashed) is True
-        assert verify_password("wrong_password", hashed) is False
+        assert verify_password(password, hashed) == True  # noqa: E712
+        assert verify_password("wrong_password", hashed) == False  # noqa: E712
 
     def test_different_passwords_different_hashes(self):
         """Test that different passwords produce different hashes."""

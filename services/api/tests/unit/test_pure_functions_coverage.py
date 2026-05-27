@@ -23,88 +23,88 @@ class TestValidateMetricSelection:
     def test_valid_binary_exact_match(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("binary", "exact_match") is True
+        assert validate_metric_selection("binary", "exact_match") == True  # noqa: E712
 
     def test_valid_binary_accuracy(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("binary", "accuracy") is True
+        assert validate_metric_selection("binary", "accuracy") == True  # noqa: E712
 
     def test_invalid_binary_bleu(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("binary", "bleu") is False
+        assert validate_metric_selection("binary", "bleu") == False  # noqa: E712
 
     def test_valid_long_text_bleu(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("long_text", "bleu") is True
+        assert validate_metric_selection("long_text", "bleu") == True  # noqa: E712
 
     def test_valid_long_text_rouge(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("long_text", "rouge") is True
+        assert validate_metric_selection("long_text", "rouge") == True  # noqa: E712
 
     def test_valid_numeric_mae(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("numeric", "mae") is True
+        assert validate_metric_selection("numeric", "mae") == True  # noqa: E712
 
     def test_valid_numeric_rmse(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("numeric", "rmse") is True
+        assert validate_metric_selection("numeric", "rmse") == True  # noqa: E712
 
     def test_invalid_numeric_bleu(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("numeric", "bleu") is False
+        assert validate_metric_selection("numeric", "bleu") == False  # noqa: E712
 
     def test_unknown_answer_type_falls_to_custom(self):
         from services.evaluation.config import validate_metric_selection
 
         # Unknown type should fall back to CUSTOM which has all metrics
-        assert validate_metric_selection("nonexistent_type", "exact_match") is True
+        assert validate_metric_selection("nonexistent_type", "exact_match") == True  # noqa: E712
 
     def test_custom_has_llm_judge(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("custom", "llm_judge_classic") is True
+        assert validate_metric_selection("custom", "llm_judge_classic") == True  # noqa: E712
 
     def test_rating_cohen_kappa(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("rating", "cohen_kappa") is True
+        assert validate_metric_selection("rating", "cohen_kappa") == True  # noqa: E712
 
     def test_span_selection_iou(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("span_selection", "iou") is True
+        assert validate_metric_selection("span_selection", "iou") == True  # noqa: E712
 
     def test_taxonomy_hierarchical_f1(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("taxonomy", "hierarchical_f1") is True
+        assert validate_metric_selection("taxonomy", "hierarchical_f1") == True  # noqa: E712
 
     def test_ranking_ndcg(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("ranking", "ndcg") is True
+        assert validate_metric_selection("ranking", "ndcg") == True  # noqa: E712
 
     def test_multiple_choice_jaccard(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("multiple_choice", "jaccard") is True
+        assert validate_metric_selection("multiple_choice", "jaccard") == True  # noqa: E712
 
     def test_single_choice_confusion_matrix(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("single_choice", "confusion_matrix") is True
+        assert validate_metric_selection("single_choice", "confusion_matrix") == True  # noqa: E712
 
     def test_nonexistent_metric(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("binary", "totally_fake_metric") is False
+        assert validate_metric_selection("binary", "totally_fake_metric") == False  # noqa: E712
 
 
 # ============================================================================
@@ -425,7 +425,7 @@ class TestExtractFieldsFromData:
         assert result[0]["path"] == "$title"
         assert result[0]["data_type"] == "string"
         assert result[0]["sample_value"] == "Hello"
-        assert result[0]["is_nested"] is False
+        assert result[0]["is_nested"] == False  # noqa: E712
 
     def test_number_field(self):
         from routers.projects.tasks import extract_fields_from_data
@@ -443,7 +443,7 @@ class TestExtractFieldsFromData:
     def test_boolean_field(self):
         from routers.projects.tasks import extract_fields_from_data
 
-        # Note: Python's isinstance(True, (int, float)) is True, so booleans
+        # Note: Python's isinstance(True, (int, float)) == True, so booleans
         # are detected as "number" since that check comes first in the code.
         result = extract_fields_from_data({"active": True})
         assert result[0]["data_type"] == "number"
@@ -465,7 +465,7 @@ class TestExtractFieldsFromData:
         assert "$meta" in paths
         nested = [r for r in result if r["path"] == "$meta.key"]
         assert len(nested) == 1
-        assert nested[0]["is_nested"] is True
+        assert nested[0]["is_nested"] == True  # noqa: E712
 
     def test_long_string_truncation(self):
         from routers.projects.tasks import extract_fields_from_data
@@ -512,7 +512,7 @@ class TestExtractFieldsFromData:
 
         result = extract_fields_from_data({"a": "b"}, prefix="outer")
         assert result[0]["path"] == "$outer.a"
-        assert result[0]["is_nested"] is True
+        assert result[0]["is_nested"] == True  # noqa: E712
 
 
 # ============================================================================
@@ -839,27 +839,27 @@ class TestLabelConfigParserExtended:
 
         xml = '<View><Choices name="q" toName="text"><Choice value="A"/></Choices></View>'
         result = LabelConfigParser.validate_config(xml)
-        assert result["valid"] is True
+        assert result["valid"] == True  # noqa: E712
         assert result["field_count"] == 1
 
     def test_validate_config_empty(self):
         from services.label_config.parser import LabelConfigParser
 
         result = LabelConfigParser.validate_config("")
-        assert result["valid"] is False
+        assert result["valid"] == False  # noqa: E712
 
     def test_validate_config_no_fields(self):
         from services.label_config.parser import LabelConfigParser
 
         result = LabelConfigParser.validate_config("<View></View>")
-        assert result["valid"] is False
+        assert result["valid"] == False  # noqa: E712
 
     def test_validate_config_duplicate_names(self):
         from services.label_config.parser import LabelConfigParser
 
         xml = '<View><Choices name="q" toName="text"><Choice value="A"/></Choices><Choices name="q" toName="text"><Choice value="B"/></Choices></View>'
         result = LabelConfigParser.validate_config(xml)
-        assert result["valid"] is False
+        assert result["valid"] == False  # noqa: E712
         assert "Duplicate" in result["error"]
 
     def test_parse_field_attributes(self):
@@ -1036,47 +1036,47 @@ class TestEmailValidationExtended:
     def test_valid_standard_email(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("user@domain.com") is True
+        assert is_valid_email("user@domain.com") == True  # noqa: E712
 
     def test_valid_with_plus(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("user+tag@domain.com") is True
+        assert is_valid_email("user+tag@domain.com") == True  # noqa: E712
 
     def test_valid_with_dots(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("first.last@domain.com") is True
+        assert is_valid_email("first.last@domain.com") == True  # noqa: E712
 
     def test_invalid_no_at(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("nodomain") is False
+        assert is_valid_email("nodomain") == False  # noqa: E712
 
     def test_invalid_double_at(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("user@@domain.com") is False
+        assert is_valid_email("user@@domain.com") == False  # noqa: E712
 
     def test_invalid_consecutive_dots(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("user..name@domain.com") is False
+        assert is_valid_email("user..name@domain.com") == False  # noqa: E712
 
     def test_invalid_no_domain_dot(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("user@domain") is False
+        assert is_valid_email("user@domain") == False  # noqa: E712
 
     def test_invalid_empty(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("") is False
+        assert is_valid_email("") == False  # noqa: E712
 
     def test_invalid_none(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email(None) is False
+        assert is_valid_email(None) == False  # noqa: E712
 
     def test_validate_details_whitespace(self):
         from services.email.email_validation import validate_email_with_details
@@ -1158,17 +1158,17 @@ class TestEmailValidationExtended:
     def test_disposable_mailinator(self):
         from services.email.email_validation import is_disposable_email
 
-        assert is_disposable_email("user@mailinator.com") is True
+        assert is_disposable_email("user@mailinator.com") == True  # noqa: E712
 
     def test_disposable_yopmail(self):
         from services.email.email_validation import is_disposable_email
 
-        assert is_disposable_email("user@yopmail.com") is True
+        assert is_disposable_email("user@yopmail.com") == True  # noqa: E712
 
     def test_not_disposable(self):
         from services.email.email_validation import is_disposable_email
 
-        assert is_disposable_email("user@gmail.com") is False
+        assert is_disposable_email("user@gmail.com") == False  # noqa: E712
 
     def test_bulk_emails(self):
         from services.email.email_validation import validate_bulk_emails
@@ -1190,13 +1190,13 @@ class TestEmailValidationExtended:
         from services.email.email_validation import is_valid_email
 
         long_local = "a" * 65
-        assert is_valid_email(f"{long_local}@domain.com") is False
+        assert is_valid_email(f"{long_local}@domain.com") == False  # noqa: E712
 
     def test_long_domain(self):
         from services.email.email_validation import is_valid_email
 
         long_domain = "a" * 254 + ".com"
-        assert is_valid_email(f"user@{long_domain}") is False
+        assert is_valid_email(f"user@{long_domain}") == False  # noqa: E712
 
 
 # ============================================================================
@@ -1339,7 +1339,7 @@ class TestDeriveEvaluationConfigs:
 
         methods = {"answer": {"automated": ["bleu"], "field_mapping": {}}}
         result = _derive_evaluation_configs_from_selected_methods(methods)
-        assert result[0]["enabled"] is True
+        assert result[0]["enabled"] == True  # noqa: E712
 
     def test_no_automated_key(self):
         from routers.evaluations.config import _derive_evaluation_configs_from_selected_methods
@@ -1837,13 +1837,13 @@ class TestPasswordHashing:
         from auth_module.user_service import get_password_hash, verify_password
 
         hashed = get_password_hash("secret")
-        assert verify_password("secret", hashed) is True
+        assert verify_password("secret", hashed) == True  # noqa: E712
 
     def test_verify_wrong(self):
         from auth_module.user_service import get_password_hash, verify_password
 
         hashed = get_password_hash("secret")
-        assert verify_password("wrong", hashed) is False
+        assert verify_password("wrong", hashed) == False  # noqa: E712
 
     def test_verify_empty_password(self):
         from auth_module.user_service import verify_password
@@ -1862,7 +1862,7 @@ class TestPasswordHashing:
         from auth_module.user_service import check_password, hash_password
 
         hashed = hash_password("test")
-        assert check_password("test", hashed) is True
+        assert check_password("test", hashed) == True  # noqa: E712
 
 
 # ============================================================================

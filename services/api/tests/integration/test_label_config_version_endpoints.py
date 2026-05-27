@@ -151,13 +151,13 @@ class TestLabelConfigVersionEndpoints:
 
         # Verify v3 is marked as current
         v3_entry = next(v for v in versions_list if v["version"] == "v3")
-        assert v3_entry["is_current"] is True
+        assert v3_entry["is_current"] == True  # noqa: E712
 
         # Verify v1 and v2 are not current
         v1_entry = next(v for v in versions_list if v["version"] == "v1")
         v2_entry = next(v for v in versions_list if v["version"] == "v2")
-        assert v1_entry["is_current"] is False
-        assert v2_entry["is_current"] is False
+        assert v1_entry["is_current"] == False  # noqa: E712
+        assert v2_entry["is_current"] == False  # noqa: E712
 
     def test_list_versions_no_history(self, client_with_db, test_db_session, test_user):
         """Test listing versions for project without history"""
@@ -205,7 +205,7 @@ class TestLabelConfigVersionEndpoints:
         assert "schema" in data
         assert "<TextArea name='notes'/>" in data["schema"]
         assert data["version"] == "v3"
-        assert data["is_current"] is True
+        assert data["is_current"] == True  # noqa: E712
 
     def test_get_version_historical(self, client_with_db, test_project_with_versions):
         """Test retrieving historical version schema"""
@@ -221,7 +221,7 @@ class TestLabelConfigVersionEndpoints:
         assert "<Choices name='sentiment'/>" in data["schema"]
         assert "<Rating" not in data["schema"]  # v1 didn't have rating
         assert data["version"] == "v1"
-        assert data["is_current"] is False
+        assert data["is_current"] == False  # noqa: E712
 
     def test_get_version_not_found(self, client_with_db, test_project_with_versions):
         """Test retrieving non-existent version returns 404"""
@@ -261,7 +261,7 @@ class TestLabelConfigVersionEndpoints:
         assert len(data["fields_removed"]) == 0
 
         # No breaking changes (only additions)
-        assert data["has_breaking_changes"] is False
+        assert data["has_breaking_changes"] == False  # noqa: E712
 
     def test_compare_versions_fields_removed(self, client_with_db, test_db_session, test_user):
         """Test comparing versions detects removed fields (breaking change)"""
@@ -296,7 +296,7 @@ class TestLabelConfigVersionEndpoints:
         assert "b" in data["fields_removed"]
 
         # This is a breaking change
-        assert data["has_breaking_changes"] is True
+        assert data["has_breaking_changes"] == True  # noqa: E712
 
     def test_compare_versions_breaking_changes_flag(
         self, client_with_db, test_db_session, test_user
@@ -327,7 +327,7 @@ class TestLabelConfigVersionEndpoints:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["has_breaking_changes"] is True
+        assert data["has_breaking_changes"] == True  # noqa: E712
 
     def test_compare_versions_invalid_versions(self, client_with_db, test_project_with_versions):
         """Test comparing with invalid version returns error"""

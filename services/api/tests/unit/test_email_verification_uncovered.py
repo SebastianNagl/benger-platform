@@ -385,17 +385,17 @@ class TestCanSendVerificationEmail:
     def test_no_previous_send(self):
         svc = self._make_service()
         user = Mock(email_verification_sent_at=None)
-        assert svc.can_send_verification_email(user) is True
+        assert svc.can_send_verification_email(user) == True  # noqa: E712
 
     def test_sent_recently_rate_limited(self):
         svc = self._make_service()
         user = Mock(email_verification_sent_at=datetime.now(timezone.utc) - timedelta(minutes=1))
-        assert svc.can_send_verification_email(user) is False
+        assert svc.can_send_verification_email(user) == False  # noqa: E712
 
     def test_sent_long_ago_not_rate_limited(self):
         svc = self._make_service()
         user = Mock(email_verification_sent_at=datetime.now(timezone.utc) - timedelta(minutes=10))
-        assert svc.can_send_verification_email(user) is True
+        assert svc.can_send_verification_email(user) == True  # noqa: E712
 
 
 # ---------------------------------------------------------------------------

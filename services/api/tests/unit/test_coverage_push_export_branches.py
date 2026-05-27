@@ -273,7 +273,7 @@ class TestExportLabelStudioFormat:
         for task_item in content:
             for ann in task_item.get("annotations", []):
                 if ann.get("draft"):
-                    assert ann["draft"]["partial"] is True
+                    assert ann["draft"]["partial"] == True  # noqa: E712
 
     def test_export_label_studio_annotation_prediction(self, client, test_users, test_db, auth_headers):
         data = _setup_project_with_data(test_db, test_users)

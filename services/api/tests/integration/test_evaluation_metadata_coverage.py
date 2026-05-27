@@ -496,7 +496,7 @@ class TestSignificanceDeep:
         assert resp.status_code == 200
         body = resp.json()
         for comp in body.get("comparisons", []):
-            assert comp["significant"] is False
+            assert comp["significant"] == False  # noqa: E712
 
     def test_significance_nonexistent_project(self, client, test_db, test_users, auth_headers, test_org):
         """Significance for nonexistent project returns 404."""

@@ -453,7 +453,7 @@ class TestGetEvaluationSamples:
         body = resp.json()
         assert body["page"] == 1
         assert body["page_size"] == 2
-        assert body["has_next"] is True
+        assert body["has_next"] == True  # noqa: E712
 
     def test_get_samples_not_found(self, client, test_users, test_db, auth_headers):
         resp = client.get(

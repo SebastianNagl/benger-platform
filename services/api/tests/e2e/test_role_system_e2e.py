@@ -186,9 +186,9 @@ class TestRoleSystemE2E:
         def can_promote_superadmin(user: User) -> bool:
             return user.is_superadmin
 
-        assert can_promote_superadmin(superadmin) is True
-        assert can_promote_superadmin(tum_admin) is False
-        assert can_promote_superadmin(company_admin) is False
+        assert can_promote_superadmin(superadmin) == True  # noqa: E712
+        assert can_promote_superadmin(tum_admin) == False  # noqa: E712
+        assert can_promote_superadmin(company_admin) == False  # noqa: E712
 
         print("✅ All role system requirements verified!")
 

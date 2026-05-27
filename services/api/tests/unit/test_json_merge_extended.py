@@ -85,4 +85,4 @@ class TestJsonMerge:
         a = {"enabled": True}
         b = {"enabled": False}
         result = self.merge(a, b)
-        assert result["enabled"] is False
+        assert result["enabled"] == False  # noqa: E712

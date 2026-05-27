@@ -100,8 +100,8 @@ class TestEvaluatorRegistry:
 
     def test_is_task_type_supported(self):
         self.registry.register("qa", DummyEvaluator)
-        assert self.registry.is_task_type_supported("qa") is True
-        assert self.registry.is_task_type_supported("other") is False
+        assert self.registry.is_task_type_supported("qa") == True
+        assert self.registry.is_task_type_supported("other") == False
 
     def test_unregister(self):
         self.registry.register("qa", DummyEvaluator)
@@ -120,15 +120,15 @@ class TestEvaluatorRegistry:
 
     def test_validate_evaluator_compatibility_valid(self):
         self.registry.register("qa", DummyEvaluator)
-        assert self.registry.validate_evaluator_compatibility("qa", {"model": "gpt"}) is True
+        assert self.registry.validate_evaluator_compatibility("qa", {"model": "gpt"}) == True
 
     def test_validate_evaluator_compatibility_invalid(self):
         self.registry.register("qa", DummyEvaluator)
-        assert self.registry.validate_evaluator_compatibility("qa", {}) is False
+        assert self.registry.validate_evaluator_compatibility("qa", {}) == False
 
     def test_validate_evaluator_compatibility_not_found(self):
-        assert self.registry.validate_evaluator_compatibility("nonexistent", {}) is False
+        assert self.registry.validate_evaluator_compatibility("nonexistent", {}) == False
 
     def test_validate_evaluator_compatibility_broken(self):
         self.registry.register("broken", BrokenEvaluator)
-        assert self.registry.validate_evaluator_compatibility("broken", {}) is False
+        assert self.registry.validate_evaluator_compatibility("broken", {}) == False

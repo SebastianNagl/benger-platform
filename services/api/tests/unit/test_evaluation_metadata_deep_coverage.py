@@ -366,7 +366,7 @@ class TestConfiguredMethodsDeep:
         llm_method = [m for m in field["automated_methods"] if m["method_name"] == "llm_judge_quality"]
         assert len(llm_method) == 1
         assert llm_method[0]["method_type"] == "llm-judge"
-        assert llm_method[0]["has_results"] is True
+        assert llm_method[0]["has_results"] == True  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_project_not_found(self):
@@ -681,7 +681,7 @@ class TestSignificanceTestsDeep:
         comps = result["comparisons"]
         assert len(comps) == 1
         assert comps[0]["p_value"] == 1.0
-        assert comps[0]["significant"] is False
+        assert comps[0]["significant"] == False  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_exception_returns_500(self):

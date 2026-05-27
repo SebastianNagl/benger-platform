@@ -603,7 +603,7 @@ class TestUpdateTaskMetadata:
         assert resp.status_code == 200
         meta = resp.json()["meta"]
         assert "old_key" not in meta
-        assert meta["replaced"] is True
+        assert meta["replaced"] == True  # noqa: E712
 
     def test_metadata_init_null_meta(self, client, test_db, test_users, auth_headers, test_org):
         p = _project(test_db, test_users[0], test_org)
@@ -621,7 +621,7 @@ class TestUpdateTaskMetadata:
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
-        assert resp.json()["meta"]["init"] is True
+        assert resp.json()["meta"]["init"] == True  # noqa: E712
 
 
 # ===================================================================

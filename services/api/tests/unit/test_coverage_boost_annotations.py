@@ -89,7 +89,7 @@ class TestCreateAnnotation:
         assert resp.status_code == 200
         data = resp.json()
         assert data["task_id"] == t.id
-        assert data["was_cancelled"] is False
+        assert data["was_cancelled"] == False  # noqa: E712
 
     def test_create_cancelled_annotation(self, client, auth_headers, test_db, test_users):
         p, t, org = _setup_project_with_task(test_db, test_users[0].id)
@@ -102,7 +102,7 @@ class TestCreateAnnotation:
             headers={**auth_headers["admin"], "X-Organization-Context": org.id},
         )
         assert resp.status_code == 200
-        assert resp.json()["was_cancelled"] is True
+        assert resp.json()["was_cancelled"] == True  # noqa: E712
 
     def test_create_annotation_task_not_found(self, client, auth_headers):
         resp = client.post(
@@ -151,7 +151,7 @@ class TestCreateAnnotation:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["ai_assisted"] is True
+        assert data["ai_assisted"] == True  # noqa: E712
 
     def test_create_annotation_non_ai_variant(
         self, client, auth_headers, test_db, test_users
@@ -172,7 +172,7 @@ class TestCreateAnnotation:
             headers={**auth_headers["admin"], "X-Organization-Context": org.id},
         )
         assert resp.status_code == 200
-        assert resp.json()["ai_assisted"] is False
+        assert resp.json()["ai_assisted"] == False  # noqa: E712
 
     def test_create_annotation_empty_result(self, client, auth_headers, test_db, test_users):
         p, t, org = _setup_project_with_task(test_db, test_users[0].id)
@@ -291,7 +291,7 @@ class TestUpdateAnnotation:
             headers={**auth_headers["admin"], "X-Organization-Context": org.id},
         )
         assert resp.status_code == 200
-        assert resp.json()["was_cancelled"] is True
+        assert resp.json()["was_cancelled"] == True  # noqa: E712
 
     def test_update_annotation_uncancel(self, client, auth_headers, test_db, test_users):
         p, t, org = _setup_project_with_task(test_db, test_users[0].id)
@@ -316,7 +316,7 @@ class TestUpdateAnnotation:
             headers={**auth_headers["admin"], "X-Organization-Context": org.id},
         )
         assert resp.status_code == 200
-        assert resp.json()["was_cancelled"] is False
+        assert resp.json()["was_cancelled"] == False  # noqa: E712
 
     def test_update_annotation_not_found(self, client, auth_headers):
         resp = client.patch(

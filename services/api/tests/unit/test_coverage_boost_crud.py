@@ -171,7 +171,7 @@ class TestCreateProject:
         assert resp.status_code == 200
         data = resp.json()
         assert data["title"] == "Private Project"
-        assert data["is_private"] is True
+        assert data["is_private"] == True  # noqa: E712
 
     def test_create_project_no_org_header_makes_private(self, client, auth_headers):
         resp = client.post(
@@ -228,7 +228,7 @@ class TestCreateProject:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["show_skip_button"] is False
+        assert data["show_skip_button"] == False  # noqa: E712
 
     def test_create_project_annotator_forbidden_in_org(
         self, client, auth_headers, test_db, test_users
@@ -376,7 +376,7 @@ class TestUpdateProject:
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
-        assert resp.json()["questionnaire_enabled"] is True
+        assert resp.json()["questionnaire_enabled"] == True  # noqa: E712
 
     def test_update_skip_queue(self, client, auth_headers, test_db, test_users):
         p = _make_project(test_db, test_users[0].id, title="Skip Queue")
@@ -448,7 +448,7 @@ class TestUpdateProjectVisibility:
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
-        assert resp.json()["is_private"] is True
+        assert resp.json()["is_private"] == True  # noqa: E712
 
     def test_make_project_org_assigned(self, client, auth_headers, test_db, test_users):
         org = _make_org(test_db, test_users[0].id)
@@ -461,7 +461,7 @@ class TestUpdateProjectVisibility:
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
-        assert resp.json()["is_private"] is False
+        assert resp.json()["is_private"] == False  # noqa: E712
 
     def test_visibility_change_not_superadmin(self, client, auth_headers, test_db, test_users):
         p = _make_project(test_db, test_users[0].id, title="No Vis")

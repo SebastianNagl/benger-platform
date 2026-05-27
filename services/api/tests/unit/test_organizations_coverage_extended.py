@@ -22,25 +22,25 @@ class TestCanManageOrganization:
 
     def test_none_user(self):
         db = Mock()
-        assert can_manage_organization(None, "org-1", db) is False
+        assert can_manage_organization(None, "org-1", db) == False  # noqa: E712
 
     def test_superadmin(self):
         db = Mock()
         user = Mock(is_superadmin=True)
-        assert can_manage_organization(user, "org-1", db) is True
+        assert can_manage_organization(user, "org-1", db) == True  # noqa: E712
 
     def test_org_admin_member(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
         membership = Mock()
         db.query.return_value.filter.return_value.first.return_value = membership
-        assert can_manage_organization(user, "org-1", db) is True
+        assert can_manage_organization(user, "org-1", db) == True  # noqa: E712
 
     def test_non_admin_member(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
         db.query.return_value.filter.return_value.first.return_value = None
-        assert can_manage_organization(user, "org-1", db) is False
+        assert can_manage_organization(user, "org-1", db) == False  # noqa: E712
 
 
 # ============= can_create_organization =============
@@ -51,25 +51,25 @@ class TestCanCreateOrganization:
 
     def test_none_user(self):
         db = Mock()
-        assert can_create_organization(None, db) is False
+        assert can_create_organization(None, db) == False  # noqa: E712
 
     def test_superadmin(self):
         db = Mock()
         user = Mock(is_superadmin=True)
-        assert can_create_organization(user, db) is True
+        assert can_create_organization(user, db) == True  # noqa: E712
 
     def test_org_admin_of_any_org(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
         membership = Mock()
         db.query.return_value.filter.return_value.first.return_value = membership
-        assert can_create_organization(user, db) is True
+        assert can_create_organization(user, db) == True  # noqa: E712
 
     def test_no_admin_membership(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
         db.query.return_value.filter.return_value.first.return_value = None
-        assert can_create_organization(user, db) is False
+        assert can_create_organization(user, db) == False  # noqa: E712
 
 
 # ============= Endpoint tests =============

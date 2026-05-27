@@ -88,27 +88,27 @@ def _assign(test_db, *, task_id, user_id, status="assigned",
 
 def test_user_assignment_exists_false_when_no_row(task_with_user, test_db):
     _, task, user = task_with_user
-    assert _helpers()[0](test_db, task_id=task.id, user_id=user.id) is False
+    assert _helpers()[0](test_db, task_id=task.id, user_id=user.id) == False  # noqa: E712
 
 
 def test_user_assignment_exists_true_for_active_task_level(task_with_user, test_db):
     _, task, user = task_with_user
     _assign(test_db, task_id=task.id, user_id=user.id, status="assigned")
-    assert _helpers()[0](test_db, task_id=task.id, user_id=user.id) is True
+    assert _helpers()[0](test_db, task_id=task.id, user_id=user.id) == True  # noqa: E712
 
 
 def test_user_assignment_exists_true_for_completed_task_level(task_with_user, test_db):
     """Completed rows still count — annotators can re-open their own work."""
     _, task, user = task_with_user
     _assign(test_db, task_id=task.id, user_id=user.id, status="completed")
-    assert _helpers()[0](test_db, task_id=task.id, user_id=user.id) is True
+    assert _helpers()[0](test_db, task_id=task.id, user_id=user.id) == True  # noqa: E712
 
 
 def test_user_assignment_exists_false_for_skipped(task_with_user, test_db):
     """`skipped` is not in the active-or-done set; helper returns False."""
     _, task, user = task_with_user
     _assign(test_db, task_id=task.id, user_id=user.id, status="skipped")
-    assert _helpers()[0](test_db, task_id=task.id, user_id=user.id) is False
+    assert _helpers()[0](test_db, task_id=task.id, user_id=user.id) == False  # noqa: E712
 
 
 def test_user_assignment_exists_excludes_other_users(task_with_user, test_db):
@@ -125,7 +125,7 @@ def test_user_assignment_exists_excludes_other_users(task_with_user, test_db):
     test_db.add(other)
     test_db.commit()
     _assign(test_db, task_id=task.id, user_id=other.id, status="assigned")
-    assert _helpers()[0](test_db, task_id=task.id, user_id=user.id) is False
+    assert _helpers()[0](test_db, task_id=task.id, user_id=user.id) == False  # noqa: E712
 
 
 def test_user_assignment_exists_per_target_matches_only_exact(task_with_user, test_db):
@@ -150,7 +150,7 @@ def test_user_assignment_exists_per_target_matches_only_exact(task_with_user, te
         user_id=user.id,
         target_type="annotation",
         target_id="ann-1",
-    ) is True
+    ) == True  # noqa: E712
 
     # A different annotation_id does NOT match
     assert _helpers()[0](
@@ -159,7 +159,7 @@ def test_user_assignment_exists_per_target_matches_only_exact(task_with_user, te
         user_id=user.id,
         target_type="annotation",
         target_id="ann-2",
-    ) is False
+    ) == False  # noqa: E712
 
     # A different target_type with the same id does NOT match
     assert _helpers()[0](
@@ -168,7 +168,7 @@ def test_user_assignment_exists_per_target_matches_only_exact(task_with_user, te
         user_id=user.id,
         target_type="generation",
         target_id="ann-1",
-    ) is False
+    ) == False  # noqa: E712
 
 
 def test_user_assignment_exists_task_level_ignores_per_target_rows(task_with_user, test_db):
@@ -184,7 +184,7 @@ def test_user_assignment_exists_task_level_ignores_per_target_rows(task_with_use
         target_type="annotation",
         target_id="ann-1",
     )
-    assert _helpers()[0](test_db, task_id=task.id, user_id=user.id) is False
+    assert _helpers()[0](test_db, task_id=task.id, user_id=user.id) == False  # noqa: E712
 
 
 # ---------------------------------------------------------------------------

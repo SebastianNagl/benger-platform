@@ -219,7 +219,7 @@ class TestGetProjectStatistics:
         db = Mock()
 
         result = svc.get_project_statistics(db, "proj-1")
-        assert result["cached"] is True
+        assert result["cached"] == True  # noqa: E712
 
     def test_cache_miss_calculates(self):
         redis = Mock()

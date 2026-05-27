@@ -96,7 +96,7 @@ class TestNotificationsRouter:
                 assert isinstance(data, list)
                 assert len(data) == 2
                 assert data[0]["id"] == "notif-1"
-                assert data[0]["is_read"] is False  # API returns 'is_read', not 'read'
+                assert data[0]["is_read"] == False  # API returns 'is_read', not 'read'  # noqa: E712
                 assert data[0]["type"] == "task_assigned"  # Enum value is lowercase
             finally:
                 app.dependency_overrides.clear()

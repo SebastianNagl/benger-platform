@@ -159,7 +159,7 @@ class TestListTasks:
         assert resp.status_code == 200
         body = resp.json()
         for t in body["items"]:
-            assert t["is_labeled"] is True
+            assert t["is_labeled"] == True  # noqa: E712
 
     def test_list_unlabeled_only(self, client, test_db, test_users, auth_headers, test_org):
         p = _project(test_db, test_users[0], test_org)
@@ -173,7 +173,7 @@ class TestListTasks:
         assert resp.status_code == 200
         body = resp.json()
         for t in body["items"]:
-            assert t["is_labeled"] is False
+            assert t["is_labeled"] == False  # noqa: E712
 
     def test_list_assigned_only(self, client, test_db, test_users, auth_headers, test_org):
         p = _project(test_db, test_users[0], test_org, assignment_mode="manual")

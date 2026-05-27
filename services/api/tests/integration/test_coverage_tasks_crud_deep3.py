@@ -678,24 +678,24 @@ class TestHelpers:
         from routers.projects.helpers import check_project_accessible
         p = _project(test_db, test_users[0], test_org)
         test_db.commit()
-        assert check_project_accessible(test_db, test_users[0], p.id) is True
+        assert check_project_accessible(test_db, test_users[0], p.id) == True  # noqa: E712
 
     def test_check_project_accessible_nonexistent(self, test_db, test_users):
         from routers.projects.helpers import check_project_accessible
-        assert check_project_accessible(test_db, test_users[1], "nonexistent") is False
+        assert check_project_accessible(test_db, test_users[1], "nonexistent") == False  # noqa: E712
 
     def test_check_project_accessible_private_mode(self, test_db, test_users, test_org):
         from routers.projects.helpers import check_project_accessible
         p = _project(test_db, test_users[0], None, is_private=True)
         test_db.commit()
-        assert check_project_accessible(test_db, test_users[0], p.id, "private") is True
+        assert check_project_accessible(test_db, test_users[0], p.id, "private") == True  # noqa: E712
 
     def test_check_user_can_edit_project_creator(self, test_db, test_users, test_org):
         from routers.projects.helpers import check_user_can_edit_project
         p = _project(test_db, test_users[0], test_org)
         test_db.commit()
         # User[0] is superadmin so always True
-        assert check_user_can_edit_project(test_db, test_users[0], p.id) is True
+        assert check_user_can_edit_project(test_db, test_users[0], p.id) == True  # noqa: E712
 
     def test_calculate_project_stats_batch(self, test_db, test_users, test_org):
         from routers.projects.helpers import calculate_project_stats_batch
@@ -723,7 +723,7 @@ class TestHelpers:
         p = _project(test_db, test_users[0], test_org, assignment_mode="open")
         t = _task(test_db, p, test_users[0])
         test_db.commit()
-        assert check_task_assigned_to_user(test_db, test_users[0], t.id, p) is True
+        assert check_task_assigned_to_user(test_db, test_users[0], t.id, p) == True  # noqa: E712
 
     def test_calculate_generation_stats(self, test_db, test_users, test_org):
         from project_schemas import ProjectResponse

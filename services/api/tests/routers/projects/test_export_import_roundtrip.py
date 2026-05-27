@@ -962,9 +962,9 @@ class TestRoundtripExtensions:
         export = get_comprehensive_project_data(db_session, project.id)
         proj = export["project"]
         assert proj["conditional_instructions"][0]["id"] == "var-A"
-        assert proj["instructions_always_visible"] is True
-        assert proj["review_enabled"] is True
+        assert proj["instructions_always_visible"] == True  # noqa: E712
+        assert proj["review_enabled"] == True  # noqa: E712
         assert proj["review_mode"] == "independent"
-        assert proj["allow_self_review"] is True
-        assert proj["korrektur_enabled"] is True
+        assert proj["allow_self_review"] == True  # noqa: E712
+        assert proj["korrektur_enabled"] == True  # noqa: E712
         assert proj["korrektur_config"][0]["value"] == "✓"

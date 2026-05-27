@@ -237,14 +237,14 @@ class TestTemplateService:
         # Check answer field
         answer_field = next(f for f in result if f["name"] == "answer")
         assert answer_field["type"] == "select"
-        assert answer_field["required"] is True
+        assert answer_field["required"] == True  # noqa: E712
         assert "Ja" in answer_field["options"]
         assert "Nein" in answer_field["options"]
 
         # Check reasoning field
         reasoning_field = next(f for f in result if f["name"] == "reasoning")
         assert reasoning_field["type"] == "textarea"
-        assert reasoning_field["required"] is True
+        assert reasoning_field["required"] == True  # noqa: E712
 
     def test_get_default_fields_config_qa(self, template_service):
         """Test get_default_fields_config for qa task type"""
@@ -256,7 +256,7 @@ class TestTemplateService:
         answer_field = result[0]
         assert answer_field["name"] == "answer"
         assert answer_field["type"] == "textarea"
-        assert answer_field["required"] is True
+        assert answer_field["required"] == True  # noqa: E712
 
     def test_get_default_fields_config_multiple_choice(self, template_service):
         """Test get_default_fields_config for multiple_choice task type"""
@@ -268,13 +268,13 @@ class TestTemplateService:
         # Check selected_answer field
         answer_field = next(f for f in result if f["name"] == "selected_answer")
         assert answer_field["type"] == "radio"
-        assert answer_field["required"] is True
+        assert answer_field["required"] == True  # noqa: E712
         assert "A" in answer_field["options"]
 
         # Check confidence field
         confidence_field = next(f for f in result if f["name"] == "confidence")
         assert confidence_field["type"] == "rating"
-        assert confidence_field["required"] is False
+        assert confidence_field["required"] == False  # noqa: E712
 
     def test_get_default_fields_config_generation(self, template_service):
         """Test get_default_fields_config for generation task type"""
@@ -286,7 +286,7 @@ class TestTemplateService:
         # Check generated_text field
         text_field = next(f for f in result if f["name"] == "generated_text")
         assert text_field["type"] == "textarea"
-        assert text_field["required"] is True
+        assert text_field["required"] == True  # noqa: E712
 
         # Check quality_rating field
         quality_field = next(f for f in result if f["name"] == "quality_rating")
@@ -306,7 +306,7 @@ class TestTemplateService:
         default_field = result[0]
         assert default_field["name"] == "annotation"
         assert default_field["type"] == "textarea"
-        assert default_field["required"] is True
+        assert default_field["required"] == True  # noqa: E712
 
     def test_get_default_template_qa(self, template_service):
         """Test get_default_template for qa task type"""

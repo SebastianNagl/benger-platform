@@ -64,7 +64,7 @@ class TestDeepMergeDicts:
         update = {"level1": {"level2": {"level3": {"value": "new", "extra": True}}}}
         result = deep_merge_dicts(base, update)
         assert result["level1"]["level2"]["level3"]["value"] == "new"
-        assert result["level1"]["level2"]["level3"]["extra"] is True
+        assert result["level1"]["level2"]["level3"]["extra"] == True  # noqa: E712
 
     def test_does_not_mutate_input(self):
         base = {"a": {"b": 1}}

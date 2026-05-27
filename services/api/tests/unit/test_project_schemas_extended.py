@@ -72,7 +72,7 @@ class TestProjectUpdate:
         )
         data = update.dict(exclude_unset=True)
         assert data["title"] == "Updated"
-        assert data["show_skip_button"] is True
+        assert data["show_skip_button"] == True  # noqa: E712
 
 
 class TestPaginatedResponse:

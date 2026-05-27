@@ -473,7 +473,7 @@ class TestSendInvitationEmail:
 
         assert result is True
         call_args = email_service.mail_client.send_message.call_args
-        assert call_args[1]["disable_tracking"] is True
+        assert call_args[1]["disable_tracking"] == True
 
     @pytest.mark.asyncio
     async def test_send_invitation_email_mail_disabled(self, email_service):

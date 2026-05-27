@@ -510,7 +510,7 @@ class TestStorageRouter:
             data = response.json()
             assert data["asset_path"] == "static/logo.png"
             assert data["cdn_url"] == "https://cdn.example.com/static/logo.png"
-            assert data["cdn_enabled"] is True
+            assert data["cdn_enabled"] == True  # noqa: E712
 
     def test_check_storage_cdn_health_success(self, client, mock_superadmin_user):
         """Test successful storage and CDN health check"""

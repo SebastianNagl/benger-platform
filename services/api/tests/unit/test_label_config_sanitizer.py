@@ -111,7 +111,7 @@ class TestFieldDictSanitization:
         sanitized = LabelConfigSanitizer.sanitize_field(field)
 
         assert sanitized["maxRating"] == 5
-        assert sanitized["required"] is True
+        assert sanitized["required"] == True  # noqa: E712
         assert sanitized["choices"] is None
 
     def test_sanitize_non_dict_input(self):

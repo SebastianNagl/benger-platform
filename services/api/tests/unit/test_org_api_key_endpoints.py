@@ -96,7 +96,7 @@ class TestSettingsEndpoints:
             headers=data["admin_headers"],
         )
         assert resp.status_code == 200
-        assert resp.json()["require_private_keys"] is True
+        assert resp.json()["require_private_keys"] == True  # noqa: E712
 
     def test_member_can_read_settings(self, client, setup_org_keys):
         data = setup_org_keys
@@ -114,14 +114,14 @@ class TestSettingsEndpoints:
             headers=data["admin_headers"],
         )
         assert resp.status_code == 200
-        assert resp.json()["require_private_keys"] is False
+        assert resp.json()["require_private_keys"] == False  # noqa: E712
 
         # Verify persisted
         resp2 = client.get(
             f"/api/organizations/{data['org'].id}/api-keys/settings",
             headers=data["admin_headers"],
         )
-        assert resp2.json()["require_private_keys"] is False
+        assert resp2.json()["require_private_keys"] == False  # noqa: E712
 
     def test_member_cannot_toggle_settings(self, client, setup_org_keys):
         data = setup_org_keys
