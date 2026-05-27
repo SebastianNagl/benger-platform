@@ -248,6 +248,7 @@ services/frontend/e2e/**/_probe/
 
 # LaTeX build artifacts
 *.aux
+*.out
 *.bbl
 *.blg
 *.fdb_latexmk
@@ -266,5 +267,55 @@ docs/security-reports/
 /.quarto/
 **/*.quarto_ipynb
 
-# Publication drafts (kept local, not part of the platform repo)
-publications/Dataset_ARR/
+# Dataset_ARR publication: tracked, except large/private artifacts.
+# - raw subtrees hold 5 GB of platform exports + ZJS PDFs/source — ship via HF + Zenodo, not git
+# - .grader_map.json is the private grader-anonymization key — never commit
+# - ZJS variant trees (source_strict/, source_optimistic/) stay local until
+#   legal picks one for release; only the chosen variant ships, via HF + Zenodo
+#
+# Note: blanket-ignoring `data/raw/` is wrong here — once a directory is
+# ignored, files inside cannot be re-included via `!file/path`. So instead
+# we ignore the specific heavy subtrees and the IP-clearance map files stay
+# tracked by default.
+publications/Dataset_ARR/data/raw/zjs/source/
+publications/Dataset_ARR/data/raw/zjs/source_strict/
+publications/Dataset_ARR/data/raw/zjs/source_optimistic/
+publications/Dataset_ARR/data/raw/zjs/ZJS Fälle-tasks-*.json
+publications/Dataset_ARR/data/raw/zjs/zjs_merged*.json
+# IP-clearance roster CSV carries the outreach email column (396 work emails).
+# It is the input that produces ip_clearance.json (public, email-free); the
+# CSV itself never ships. The roster is regenerated on demand from the
+# upstream tracking sheet, not from this file.
+publications/Dataset_ARR/data/raw/zjs/ip_clearance_*.csv
+# Scripts that hold real grader identities (name → uuid → email) for the
+# one-shot anonymization + sample-building pipeline. Outputs are tracked and
+# fully anonymized; the scripts themselves stay local until refactored to
+# load identities from an external private file.
+publications/Dataset_ARR/scripts/anonymize_graders.py
+publications/Dataset_ARR/scripts/build_human_grading_sample.py
+publications/Dataset_ARR/data/raw/benchathon/
+publications/Dataset_ARR/data/raw/grundprinzipien/
+publications/Dataset_ARR/data/raw/mock/
+publications/Dataset_ARR/data/raw/archive/
+publications/Dataset_ARR/data/.grader_map.json
+publications/Dataset_ARR/.quarto/
+publications/Dataset_ARR/manuscript_files/
+publications/Dataset_ARR/manuscript.tex
+publications/Dataset_ARR/manuscript.fdb_latexmk
+
+# The repo-wide `*.json` rule below hides every JSON in the project. The
+# Dataset_ARR publication needs its small derived JSONs tracked (the ones
+# the manuscript loads), so unignore them explicitly.
+# Note: the IP-clearance roster (CSV with emails AND its email-free JSON
+# derivative) stays out of the public repo — it's internal accounting and
+# the redaction state is already encoded in source_strict/.
+!publications/Dataset_ARR/data/interim/*.json
+!publications/Dataset_ARR/data/processed/*.json
+# …but re-block all merged ZJS dumps. The unredacted `zjs.json` is the
+# full-text 21 MB merge (never publish); the strict and optimistic variants
+# are computed from raw/, ship only to HF/Zenodo at release time, and are
+# regenerable from `scripts/zjs_apply_ip_clearance.py`. Keeping them out of
+# git defers the strict-vs-optimistic legal choice to release time.
+publications/Dataset_ARR/data/interim/zjs.json
+publications/Dataset_ARR/data/interim/zjs_strict.json
+publications/Dataset_ARR/data/interim/zjs_optimistic.json

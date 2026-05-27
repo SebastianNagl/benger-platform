@@ -1,0 +1,65 @@
+{
+  "n_cells_with_triplets": 259,
+  "judges": [
+    "gpt-5-mini",
+    "claude-opus-4-7",
+    "gemini-3.1-pro-preview"
+  ],
+  "per_judge_stats": {
+    "gpt-5-mini": {
+      "n": 259,
+      "mean": 72.7915057915058,
+      "stdev": 15.876361257143936,
+      "min": 10.5,
+      "max": 96.5
+    },
+    "claude-opus-4-7": {
+      "n": 259,
+      "mean": 51.33783783783784,
+      "stdev": 21.414388154590817,
+      "min": 0.0,
+      "max": 96.0
+    },
+    "gemini-3.1-pro-preview": {
+      "n": 259,
+      "mean": 62.897683397683394,
+      "stdev": 23.612626572016353,
+      "min": 0.0,
+      "max": 100.0
+    }
+  },
+  "pairwise": {
+    "gpt-5-mini__claude-opus-4-7": {
+      "n": 259,
+      "pearson_r": 0.8377103862991383,
+      "spearman_rho": 0.8449071288164591,
+      "mae": 21.56177606177606
+    },
+    "gpt-5-mini__gemini-3.1-pro-preview": {
+      "n": 259,
+      "pearson_r": 0.8347166849867009,
+      "spearman_rho": 0.8158533130617027,
+      "mae": 13.028957528957529
+    },
+    "claude-opus-4-7__gemini-3.1-pro-preview": {
+      "n": 259,
+      "pearson_r": 0.9204118132305772,
+      "spearman_rho": 0.9183118353188685,
+      "mae": 11.907335907335908
+    }
+  },
+  "within_cell_spread": {
+    "n": 259,
+    "mean": 23.24903474903475,
+    "median": 22.0,
+    "min": 3.0,
+    "max": 90.0
+  },
+  "within_cell_stdev": {
+    "n": 259,
+    "mean": 10.020480967893974,
+    "median": 9.577171932372428,
+    "min": 1.247219128924647,
+    "max": 37.17526059088221
+  }
+}

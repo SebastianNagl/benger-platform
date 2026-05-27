@@ -1,0 +1,56 @@
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+The BenGER benchmark dataset — the contents of `publications/Dataset_ARR/data/`
+in this repository, the dataset uploaded to Hugging Face Hub at
+`huggingface.co/datasets/SebastianNagl/benger`, and the Zenodo deposit linked
+from the same — is released under the Creative Commons Attribution 4.0
+International license.
+
+Full license text: https://creativecommons.org/licenses/by/4.0/legalcode
+
+Summary
+-------
+You are free to:
+  - Share — copy and redistribute the material in any medium or format
+  - Adapt — remix, transform, and build upon the material for any purpose,
+            even commercially.
+
+Under the following terms:
+  - Attribution — You must give appropriate credit, provide a link to the
+    license, and indicate if changes were made. You may do so in any
+    reasonable manner, but not in any way that suggests the licensor
+    endorses you or your use.
+
+  - No additional restrictions — You may not apply legal terms or
+    technological measures that legally restrict others from doing anything
+    the license permits.
+
+Attribution
+-----------
+When using the BenGER dataset, please cite the accompanying paper (see
+`publications/Dataset_ARR/CITATION.cff`) and link back to either the GitHub
+repository or the Hugging Face dataset card.
+
+Notes on Subset Provenance
+--------------------------
+- **Benchathon** subset: original tasks and human grades collected by the
+  BenGER team. CC BY 4.0 applies directly.
+
+- **ZJS** subset: case texts (`Aufgabe`, `Musterlösung`) are derived from
+  *Zeitschrift für das Juristische Studium* (www.zjs-online.com). For each
+  case, the dataset records the IP-clearance status given by the original
+  author. Cases whose authors have not approved redistribution are replaced
+  with a placeholder URL pointing back to the ZJS search interface
+  (https://www.zjs-online.com/index.php?sektion=3). The non-redacted
+  metadata (title, author, citation) is reproduced under the academic
+  citation conventions of the underlying journal; the redacted full-text
+  cases are released under CC BY 4.0 only for cases the author cleared.
+  Author-supplied requests for anonymisation are honoured by replacing the
+  `Autoren` field with the literal string "Anonymisiert".
+
+- **Grundprinzipien** subset: original multiple-choice items composed by
+  the BenGER team. CC BY 4.0 applies directly.
+
+The platform source code under this repository, separate from the dataset,
+is licensed under the Apache License 2.0 (see top-level `LICENSE`). The
+two licenses do not affect each other.

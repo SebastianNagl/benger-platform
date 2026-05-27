@@ -1,0 +1,46 @@
+pick_id,task_inner_id,task_name,bereich,difficulty,provenance,subject_type,subject_id,system,model_tier,expertise_level,user_pseudonym,expertise_score,submission_tokens,judge_score_mean,judge_score_median,n_blind_reviews,created_at
+P01,1,Kerameus,Zivilrecht,Sehr Schwer,classic,human,7062cc8d-f713-4548-b4ed-6fdc14de84f6,,,law_student,ModestArbiter,-0.2931,654,12.0,12.0,3,2026-03-15T13:03:01.804098+00:00
+P02,1,Kerameus,Zivilrecht,Sehr Schwer,co_creation,human,08c82c5c-803d-4318-934d-8533250d82a3,,,law_student,KindDeputy,0.3583,1947,59.0,59.0,3,2026-03-14T15:33:12.224419+00:00
+P03,1,Kerameus,Zivilrecht,Sehr Schwer,llm,model,870ee789-f294-4dd2-9b94-02d8786d60b6,Sonnet 4.6,mid_efficiency,,,,5128,82.0,82.0,3,2026-05-08T08:00:09.788105+00:00
+P04,2,Herausgabe Buch,Zivilrecht,Schwer,classic,human,65df610e-2d47-488f-94ab-9b529e36e777,,,law_student,FairGuardian,0.3583,1644,44.0,44.0,3,2026-03-15T11:07:40.484074+00:00
+P05,2,Herausgabe Buch,Zivilrecht,Schwer,co_creation,human,9d55127b-8e34-4a59-a649-5c6e5b29931a,,,law_student,PreciseCraftsman,0.3583,7289,90.0,90.0,3,2026-03-14T19:56:54.335890+00:00
+P06,2,Herausgabe Buch,Zivilrecht,Schwer,llm,model,47bd0b94-d720-4cf5-b9c6-4b0d10dec92d,Qwen3 235B Thinking,open_weight,,,,2136,76.0,76.0,3,2026-05-08T08:11:37.534506+00:00
+P07,3,Bürobedarf,Zivilrecht,Mittel,classic,human,16573f16-ca86-43d6-a192-6f3d386d3071,,,law_student,SharpAide,-0.2931,1705,85.0,85.0,3,2026-03-15T12:16:58.839285+00:00
+P08,3,Bürobedarf,Zivilrecht,Mittel,co_creation,human,2fa57855-7902-4257-874f-3853edfa04e0,,,law_student,SubtleCustodian,1.0097,8673,94.5,94.5,3,2026-03-15T00:35:06.161397+00:00
+P09,3,Bürobedarf,Zivilrecht,Mittel,llm,model,b1d78e9c-ac68-410f-9f16-972bab083f2a,Gemini 3.1 Pro Preview,closed_flagship,,,,2188,85.5,85.5,3,2026-05-08T07:25:46.121382+00:00
+P10,4,Repetitor,Zivilrecht,Sehr Leicht,classic,human,4241abf8-a838-4f69-a7db-da80de906e50,,,referendar,StrictPioneer,0.3377,3413,43.0,43.0,3,2026-03-14T13:59:14.426500+00:00
+P11,4,Repetitor,Zivilrecht,Sehr Leicht,co_creation,human,4f657002-adc8-4772-9ffb-0947fa54ddc2,,,law_student,KindDeputy,0.3583,1336,79.0,79.0,3,2026-03-14T14:31:08.557704+00:00
+P12,4,Repetitor,Zivilrecht,Sehr Leicht,llm,model,48e4122b-a225-4229-a043-a11031ce3cea,GPT-5.4 Mini,mid_efficiency,,,,1538,76.0,76.0,3,2026-05-08T07:35:12.063295+00:00
+P13,5,Studiengebühren,Zivilrecht,Leicht,classic,human,1f5d32cf-d514-490b-b4f8-ec0503dc2476,,,referendar,SereneScholar,0.3583,1775,92.5,92.5,3,2026-03-14T20:22:42.587376+00:00
+P14,5,Studiengebühren,Zivilrecht,Leicht,co_creation,human,27f1716e-12a3-4885-a748-702378ef0f14,,,law_student,SoberEmissary,0.3583,3221,58.25,58.25,3,2026-03-15T12:53:44.428955+00:00
+P15,5,Studiengebühren,Zivilrecht,Leicht,llm,model,44c31c28-a304-4b41-ad0a-02771b79aca6,DeepSeek v4 Pro,open_weight,,,,3276,71.0,71.0,3,2026-05-08T07:34:58.725822+00:00
+P16,6,Rieser Kirchweihmusikanten,Öffentliches Recht,Sehr Schwer,classic,human,d76c0ede-6349-4d54-a168-1184e968b32a,,,law_student,SubtleCustodian,1.2198,2507,69.0,69.0,3,2026-03-15T11:57:58.779203+00:00
+P17,6,Rieser Kirchweihmusikanten,Öffentliches Recht,Sehr Schwer,co_creation,human,1187cc8b-e142-4ea1-8ade-4e44448da827,,,law_student,FairGuardian,0.0581,1876,39.0,39.0,3,2026-03-15T09:46:49.918261+00:00
+P18,6,Rieser Kirchweihmusikanten,Öffentliches Recht,Sehr Schwer,llm,model,e0c02b87-601b-4240-9044-0593c27c0492,GPT-5.4,closed_flagship,,,,4052,88.0,88.0,3,2026-05-08T18:19:08.345396+00:00
+P19,7,Die unberechtigte Finanzspritze,Öffentliches Recht,Mittel,classic,human,ae6f5d66-3b4b-4344-acd4-e095a58815e8,,,law_student,PreciseCraftsman,0.6389,1309,52.0,52.0,3,2026-03-14T13:26:26.610498+00:00
+P20,7,Die unberechtigte Finanzspritze,Öffentliches Recht,Mittel,co_creation,human,7667a163-9d3b-4d72-9766-fafdf4751ecb,,,graduated_no_practice,SkilledGuide,0.0581,5839,91.0,91.0,3,2026-03-14T14:52:43.767859+00:00
+P21,7,Die unberechtigte Finanzspritze,Öffentliches Recht,Mittel,llm,model,75ff058f-63a4-4be1-944a-67dc887974b1,Qwen 3.5 122B,mid_efficiency,,,,2547,79.5,79.5,3,2026-05-08T07:29:25.260904+00:00
+P22,8,Exmatrikulation,Öffentliches Recht,Sehr Leicht,classic,human,814a45e4-dda9-4590-b3db-e9fb05650243,,,referendar,SereneScholar,0.6389,2175,57.5,57.5,3,2026-03-14T13:37:59.834931+00:00
+P23,8,Exmatrikulation,Öffentliches Recht,Sehr Leicht,co_creation,human,4d02aeef-e084-4c12-b2a1-51b60ba64683,,,law_student,KindAlly,-0.5228,2050,89.0,89.0,3,2026-03-14T13:20:55.731533+00:00
+P24,8,Exmatrikulation,Öffentliches Recht,Sehr Leicht,llm,model,de7c14ff-d707-4ae1-9d8e-8419eb36a1fa,Llama 4 Maverick,open_weight,,,,1003,49.0,49.0,3,2026-05-08T07:40:26.519648+00:00
+P25,9,Stolpersteine,Öffentliches Recht,Schwer,classic,human,34307098-3fb7-4098-b57b-5afd35397be2,,,graduated_no_practice,ElegantColleague,0.9156,7632,45.0,45.0,3,2026-03-14T17:05:47.157922+00:00
+P26,9,Stolpersteine,Öffentliches Recht,Schwer,co_creation,human,b18e10d9-3033-4f42-a93c-a4d60b92bf98,,,layperson,KindProtector,-0.5228,6979,93.5,93.5,3,2026-03-14T14:33:45.065387+00:00
+P27,9,Stolpersteine,Öffentliches Recht,Schwer,llm,model,b1261191-e771-4281-be24-f0b0a87b1aec,Opus 4.7,closed_flagship,,,,3101,89.0,89.0,3,2026-05-08T07:31:10.620337+00:00
+P28,10,Der ungeliebte Ortsverein,Öffentliches Recht,Leicht,classic,human,1d0c7550-0608-4557-afc6-d9d0811cc70e,,,referendar,SereneScholar,0.6389,3007,73.0,73.0,3,2026-03-15T12:44:37.841354+00:00
+P29,10,Der ungeliebte Ortsverein,Öffentliches Recht,Leicht,co_creation,human,d2adae25-1d36-44c1-906f-1c098afd2875,,,referendar,StillHunter,-0.0196,2268,70.0,70.0,3,2026-03-14T15:56:23.752851+00:00
+P30,10,Der ungeliebte Ortsverein,Öffentliches Recht,Leicht,llm,model,6d59ea1d-f9e2-4744-9516-b41476b38c7c,DeepSeek v4 Flash,mid_efficiency,,,,2896,76.5,76.5,3,2026-05-08T07:56:06.348562+00:00
+P31,11,Unter der (grünen) Gürtellinie,Strafrecht,Sehr Schwer,classic,human,c10794d6-1703-46e3-a2cd-b4aff6654f6e,,,law_student,KindAlly,1.085,1552,57.0,57.0,3,2026-03-15T08:38:47.722010+00:00
+P32,11,Unter der (grünen) Gürtellinie,Strafrecht,Sehr Schwer,co_creation,human,d159d82d-2254-4249-9bd2-17f8f54fa0cd,,,law_student,CourtlyPatron,-0.0571,6279,79.0,79.0,3,2026-03-14T17:50:10.350864+00:00
+P33,11,Unter der (grünen) Gürtellinie,Strafrecht,Sehr Schwer,llm,model,646e30aa-0f62-4624-9b5d-b4834b432cdc,Qwen3 235B Thinking,open_weight,,,,979,66.0,66.0,3,2026-04-02T14:51:30.348545+00:00
+P34,12,KO-Tropfen und E-Scooter,Strafrecht,Schwer,classic,human,10d5bec9-ac08-492a-9b08-0b0331ea31fa,,,law_student,KindDeputy,1.085,3576,50.0,50.0,3,2026-03-14T17:45:37.373133+00:00
+P35,12,KO-Tropfen und E-Scooter,Strafrecht,Schwer,co_creation,human,005e23f5-33a8-4c7b-8ed6-b884a1cd0a84,,,graduated_no_practice,SkilledGuide,-0.0571,5673,86.0,86.0,3,2026-03-14T15:46:29.527206+00:00
+P36,12,KO-Tropfen und E-Scooter,Strafrecht,Schwer,llm,model,7b61a138-45d7-4050-8c80-3f1c217b26db,Opus 4.7,closed_flagship,,,,3059,82.5,82.5,3,2026-05-08T07:49:48.873388+00:00
+P37,13,Katzenpalast,Strafrecht,Mittel,classic,human,39ea3926-cfbe-463e-bb8f-768b58e94a4d,,,law_student,SubtleCustodian,1.085,2846,82.0,82.0,3,2026-03-15T12:50:52.500599+00:00
+P38,13,Katzenpalast,Strafrecht,Mittel,co_creation,human,21e9a40a-1aaf-4f3b-829c-7de5b1e95d78,,,law_student,CourtlyPatron,-0.0571,6333,75.0,75.0,3,2026-03-15T09:58:30.871947+00:00
+P39,13,Katzenpalast,Strafrecht,Mittel,llm,model,a812d855-e9d8-429f-9f51-b880c1cfdae0,Gemini 3.1 Flash Preview,mid_efficiency,,,,2979,73.5,73.5,3,2026-05-08T07:52:57.770034+00:00
+P40,14,Error in obiecto,Strafrecht,Leicht,classic,human,598b52c2-d1a8-4285-bd50-5d9956e9c072,,,law_student,FairGuardian,0.5139,1282,62.0,62.0,3,2026-03-15T12:38:35.224782+00:00
+P41,14,Error in obiecto,Strafrecht,Leicht,co_creation,human,afb1cd6d-de66-48d4-b7f3-5e05ef001fa1,,,layperson,ClearMaker,-0.0571,9320,93.5,93.5,3,2026-03-15T12:41:35.880356+00:00
+P42,14,Error in obiecto,Strafrecht,Leicht,llm,model,c51f6f54-6e76-4a8b-bf74-fd2d2fc6511d,Llama 4 Maverick,open_weight,,,,917,50.5,50.5,3,2026-05-08T08:55:52.283626+00:00
+P43,15,"Fragile, maskuline Partynacht",Strafrecht,Sehr Leicht,classic,human,6c3ec7a0-705f-4ce1-aaf2-3ad1be9dee36,,,referendar,SereneScholar,0.5139,3919,77.5,77.5,3,2026-03-14T23:18:22.863989+00:00
+P44,15,"Fragile, maskuline Partynacht",Strafrecht,Sehr Leicht,co_creation,human,9671ade3-05b4-485c-b9fd-f7704c3827d2,,,layperson,ClearMaker,-0.0571,9340,89.0,89.0,3,2026-03-14T12:09:23.738649+00:00
+P45,15,"Fragile, maskuline Partynacht",Strafrecht,Sehr Leicht,llm,model,dee799c9-9a82-4c0c-8ae3-0116fcd50b28,Gemini 3.1 Pro Preview,closed_flagship,,,,2772,83.0,83.0,3,2026-05-08T07:46:18.238910+00:00

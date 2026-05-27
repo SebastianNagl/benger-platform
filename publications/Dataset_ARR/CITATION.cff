@@ -1,0 +1,85 @@
+cff-version: 1.2.0
+title: "BenGER: Benchmarking LLM Systems on Subsumption-Based Legal Reasoning in German Law"
+message: "If you use the BenGER benchmark in your research, please cite the dataset and the companion paper."
+type: dataset
+authors:
+  - family-names: Nagl
+    given-names: Sebastian
+    affiliation: Technical University of Munich (TUM)
+    email: sebastian.nagl@tum.de
+  - family-names: Mayrhofer
+    given-names: Ann-Kristin
+    affiliation: Ludwig Maximilian University of Munich (LMU)
+  - family-names: Heidebach
+    given-names: Martin
+    affiliation: Ludwig Maximilian University of Munich (LMU)
+  - family-names: Koçak
+    given-names: Aleyna
+    affiliation: University of Konstanz
+  - family-names: Zettelmeier
+    given-names: Anne
+    affiliation: University of Saarbrücken
+  - family-names: Breu
+    given-names: Elly
+    affiliation: Technical University of Munich (TUM)
+  - family-names: Greiner
+    given-names: Angelina
+    affiliation: Technical University of Munich (TUM)
+  - family-names: Milijas
+    given-names: Sofija
+    affiliation: Technical University of Munich (TUM)
+  - family-names: Grabmair
+    given-names: Matthias
+    affiliation: Technical University of Munich (TUM)
+license: CC-BY-4.0
+doi: 10.5281/zenodo.20409635
+repository-code: "https://github.com/SebastianNagl/benger-platform"
+url: "https://huggingface.co/datasets/SebastianNagl/benger"
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.20409635
+    description: "Zenodo archival snapshot of BenGER v1.0"
+keywords:
+  - benchmark
+  - dataset
+  - legal-nlp
+  - german-law
+  - large-language-models
+  - llm-as-a-judge
+  - human-evaluation
+  - subsumption
+abstract: >-
+  BenGER is a benchmark for German legal reasoning, comprising three thematic
+  subsets — Benchathon (collaboratively graded long-form legal analyses across
+  civil, public, and criminal law), ZJS (published exam-style cases from the
+  Zeitschrift für das Juristische Studium), and Grundprinzipien (foundational
+  legal-principle multiple-choice items). Twelve LLM systems were evaluated
+  with both automatic metrics and rubric-aligned LLM-as-a-Judge scoring;
+  Benchathon further includes a seven-reviewer human grading layer used to
+  validate the judge. The dataset is released as a single Hugging Face
+  dataset (`SebastianNagl/benger`) with three configurations.
+preferred-citation:
+  type: article
+  title: "BenGER: Benchmarking LLM Systems on Subsumption-Based Legal Reasoning in German Law"
+  authors:
+    - family-names: Nagl
+      given-names: Sebastian
+    - family-names: Mayrhofer
+      given-names: Ann-Kristin
+    - family-names: Heidebach
+      given-names: Martin
+    - family-names: Koçak
+      given-names: Aleyna
+    - family-names: Zettelmeier
+      given-names: Anne
+    - family-names: Breu
+      given-names: Elly
+    - family-names: Greiner
+      given-names: Angelina
+    - family-names: Milijas
+      given-names: Sofija
+    - family-names: Grabmair
+      given-names: Matthias
+  # Year, venue, and DOI fields are populated when the preprint / camera-ready
+  # is finalised.
+  year: 2026

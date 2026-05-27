@@ -1,0 +1,2528 @@
+---
+# BLIND-REVIEW SWAPS (currently in CAMERA-READY mode).
+# To switch to ARR blind mode:
+#   • set _quarto.yml to `anonymous: true, review: true`
+#   • replace the title below with the bare "Benchmarking …" form
+#   • comment out the `author:` and `author-tex:` blocks
+#   • apply the per-paragraph BLIND-REVIEW SWAP comments throughout the body
+#   • comment out the Future Work section (body content; blind cap is 8 pages)
+#   • comment out the Acknowledgments section
+#   • comment out Appendix N (Responsible NLP Checklist)
+#
+# Blind title:
+#   title: "Benchmarking LLM Systems on Subsumption-Based Legal Reasoning in German Law"
+title: "BenGER: Benchmarking LLM Systems on Subsumption-Based Legal Reasoning in German Law"
+jupyter: benger-dataset-arr
+author:
+  - name: Sebastian Nagl
+    affiliation: Technical University of Munich (TUM)
+    email: sebastian.nagl@tum.de
+    attributes:
+      corresponding: true
+    note: "Core contributor"
+  - name: Ann-Kristin Mayrhofer
+    affiliation: Ludwig Maximilian University of Munich (LMU)
+    note: "Dataset contributor"
+  - name: Martin Heidebach
+    affiliation: Ludwig Maximilian University of Munich (LMU)
+    note: "Dataset contributor"
+  - name: Aleyna Koçak
+    affiliation: University of Konstanz
+    note: "Dataset contributor"
+  - name: Anne Zettelmeier
+    affiliation: University of Saarbrücken
+    note: "Dataset contributor"
+  - name: Elly Breu
+    affiliation: Technical University of Munich (TUM)
+    note: "Dataset contributor"
+  - name: Angelina Greiner
+    affiliation: Technical University of Munich (TUM)
+    note: "Dataset contributor"
+  - name: Sofija Milijas
+    affiliation: Technical University of Munich (TUM)
+    note: "Dataset contributor"
+  - name: Matthias Grabmair
+    affiliation: Technical University of Munich (TUM)
+    note: "Senior author"
+author-tex: |
+  \author{
+    Sebastian Nagl\textsuperscript{1}\thanks{\,Core Contributor, corresponding author. Correspondence to \texttt{sebastian.nagl@tum.de}.} \quad
+    Ann-Kristin Mayrhofer\textsuperscript{2\textdaggerdbl} \quad
+    Martin Heidebach\textsuperscript{2\textdaggerdbl} \\
+    \bfseries Aleyna Koçak\textsuperscript{3\textdaggerdbl} \quad
+    Anne Zettelmeier\textsuperscript{4\textdaggerdbl} \quad
+    Elly Breu\textsuperscript{1\textdaggerdbl} \\
+    \bfseries Angelina Greiner\textsuperscript{1\textdaggerdbl} \quad
+    Sofija Milijas\textsuperscript{1\textdaggerdbl} \quad
+    Matthias Grabmair\textsuperscript{1}\thanks{\,Senior author.} \\[6pt]
+    \mdseries \textsuperscript{1}Technical University of Munich (TUM) \quad
+    \textsuperscript{2}Ludwig Maximilian University of Munich (LMU) \\
+    \textsuperscript{3}University of Konstanz \quad
+    \textsuperscript{4}University of Saarbrücken\thanks{\,Dataset contributor.}
+  }
+---
+
+```{python}
+#| echo: false
+#| output: false
+
+import json
+from pathlib import Path
+from collections import Counter
+
+def load_json(path):
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def load_optional(path):
+    try:
+        return load_json(path)
+    except FileNotFoundError:
+        return None
+
+interim   = Path("data/interim")
+raw       = Path("data/raw")
+processed = Path("data/processed")
+
+zjs = load_json(interim / "zjs.json")
+grundprinzipien = load_json(interim / "grundprinzipien.json")
+benchathon = load_json(interim / "benchathon.json")
+variants = load_json(processed / "benchathon_instruction_variants.json")
+benchathon_tasks = load_json(raw / "benchathon" / "Benchathon-tasks-2026-05-23.json")["tasks"]
+
+# Derived exports — produced by scripts/derive_paper_exports.py from the real
+# Benchathon export + scripts/derive_inter_judge_agreement.py.
+# Loaded if present so the manuscript still renders before derive has run.
+systems_meta        = load_optional(processed / "systems.json")
+model_evals         = load_optional(processed / "benchathon_model_evaluations.json")
+human_grades        = load_optional(processed / "benchathon_human_grades.json")
+automatic_metrics   = load_optional(processed / "benchathon_automatic_metrics.json")
+human_judge_repeats = load_optional(processed / "benchathon_human_judge_repeats.json")
+zjs_summary         = load_optional(processed / "zjs_model_summary.json")
+
+n_zjs = len(zjs)
+n_qa = len(grundprinzipien)
+n_benchathon = len(benchathon)
+
+_graded_ann_ids = {
+    ev["annotation_id"]
+    for t in benchathon_tasks
+    for ev in t.get("evaluations", [])
+    if "human:loesung" in (ev.get("field_name") or "")
+    and ev.get("annotation_id") is not None
+}
+variant_counts = Counter(variants.get(aid) for aid in _graded_ann_ids)
+n_human_only = variant_counts["no_ai"]
+n_co_creation = variant_counts["ai"]
+n_human_total = n_human_only + n_co_creation
+
+# ---- Inline-expression bindings for prose: ----
+agreement_stats_setup = load_optional(processed / "agreement_stats.json") or {}
+r3 = agreement_stats_setup.get("rq3_metric_correlation", {})
+r3_humans = agreement_stats_setup.get("rq3_metric_correlation_humans") or {}
+CANONICAL_METRIC_ORDER = (
+    "bleu", "rouge", "meteor", "chrf",
+    "bertscore", "moverscore", "semantic_similarity",
+)
+METRIC_LABELS = {
+    "bleu": "BLEU", "rouge": "ROUGE", "meteor": "METEOR", "chrf": "chrF",
+    "bertscore": "BERTScore", "moverscore": "MoverScore",
+    "semantic_similarity": "Semantic sim.",
+}
+r4 = agreement_stats_setup.get("rq4_cocreation", {})
+r4_bereich = agreement_stats_setup.get("rq4_cocreation_by_bereich", {}) or {}
+r5_jh = agreement_stats_setup.get("rq5_judge_vs_human", {})
+r5_irr = agreement_stats_setup.get("rq5_human_irr", {})
+r5_cal = agreement_stats_setup.get("rq5_calderon", {})
+r5_dim = agreement_stats_setup.get("rq5_dim", {})
+r5_jr = agreement_stats_setup.get("rq5_judge_repeats", {}) or {}
+r4h = agreement_stats_setup.get("rq4_cocreation_blind_human") or {}
+r5_creator = agreement_stats_setup.get("rq5_creator_vs_blind") or {}
+r5_llm = agreement_stats_setup.get("rq5_judge_on_llm_solutions") or {}
+inter_judge = load_optional(processed / "benchathon_inter_judge_agreement.json") or {}
+tier_agg = agreement_stats_setup.get("tier_aggregates") or {}
+rank_corr = agreement_stats_setup.get("rq3_rank_correlation") or {}
+zjs_metric_corr = load_optional(processed / "zjs_metric_correlation.json") or {}
+grundprinzipien_summary  = load_optional(processed / "grundprinzipien_model_summary.json") or []
+grundprinzipien_metric_corr = load_optional(processed / "grundprinzipien_metric_correlation.json") or {}
+grundprinzipien_tier_agg = load_optional(processed / "grundprinzipien_tier_aggregates.json") or {}
+
+def _zmc(metric, field="pearson_vs_judge_raw"):
+    """Safe deep-get for ZJS per-generation metric correlation."""
+    return (zjs_metric_corr.get(metric) or {}).get(field)
+
+def _gmc(metric, field="pearson_vs_judge_raw"):
+    """Safe deep-get for Grundprinzipien per-generation metric correlation."""
+    return (grundprinzipien_metric_corr.get(metric) or {}).get(field)
+
+def _ta(corpus, dim, key, field):
+    """Safe deep-get for tier_aggregates so the prose tolerates missing keys.
+    `corpus` is benchathon/zjs (sourced from agreement_stats.json) or
+    grundprinzipien (sourced from the standalone tier file)."""
+    if corpus == "grundprinzipien":
+        return ((grundprinzipien_tier_agg.get(dim) or {}).get(key) or {}).get(field)
+    return (((tier_agg.get(corpus) or {}).get(dim) or {}).get(key) or {}).get(field)
+
+def _rc(corpus, metric, field="spearman_metric_vs_judge"):
+    """Safe deep-get for rq3_rank_correlation."""
+    return ((rank_corr.get(corpus) or {}).get(metric) or {}).get(field)
+
+def fmt(x, w=2):
+    return "—" if x is None else f"{x:.{w}f}"
+def fmtp(x, w=2):
+    return "—" if x is None else f"{x:+.{w}f}"
+def fmtpct(x, w=0):
+    return "—" if x is None else f"{x*100:.{w}f}%"
+
+# Precomputed sentences that render only when their underlying block populates.
+# Each is an empty string until the real human-grading layer makes the block
+# return non-null. Referenced as `{python} rq4_human_sentence` etc. in prose.
+rq4_human_sentence = (
+    f" Under the same comparison on the mean of the blind human reviewers, "
+    f"the trad-vs-AI difference is {fmtp(r4h.get('mean_diff_ai_minus_trad'), 1)} raw points "
+    f"(mean traditional {fmt(r4h.get('mean_traditional'), 1)}; "
+    f"mean co-creation {fmt(r4h.get('mean_co_creation'), 1)}; "
+    f"bootstrap 95% CI [{fmtp(r4h.get('ci95_lo'), 1)}, {fmtp(r4h.get('ci95_hi'), 1)}])."
+    if r4h else ""
+)
+rq5_creator_sentence = (
+    f" The author-informed creator reviews, compared against the mean of the three "
+    f"blind reviewers, show a Pearson r={fmt(r5_creator.get('pearson_creator_vs_mean_blind_raw'))} "
+    f"(mean creator − mean blind = {fmtp(r5_creator.get('mean_creator_minus_blind_raw'), 1)} "
+    f"raw points), confirming that the creator layer captures the same per-solution "
+    f"ordering as the blind pool while sitting on a slightly shifted absolute scale."
+    if r5_creator else ""
+)
+rq5_llm_sentence = (
+    f" On the {r5_llm.get('n_generations') if r5_llm else 0} LLM-generated solutions "
+    f"in the validation subset, the judge agrees with the mean of the blind human "
+    f"reviewers at Pearson r={fmt(r5_llm.get('pearson_raw')) if r5_llm else '—'} "
+    f"(MAE {fmt(r5_llm.get('mae_raw'), 1) if r5_llm else '—'} raw points), in line "
+    f"with the judge–human agreement on human-authored solutions reported above."
+    if r5_llm else ""
+)
+# Single string the prose inlines after the dimension MAE sentence.
+rq5_extension = rq5_creator_sentence + rq5_llm_sentence
+
+# Pre-extracted dimension values (the inline-expression form
+# `r5_dim.get('x', {}).get('y')` has historically tripped Quarto's
+# markdown lexer because of the empty-dict literal `{}`).
+def _dim(dim_name, key):
+    return ((r5_dim or {}).get(dim_name) or {}).get(key)
+
+dim_pearson_ergebnis      = _dim("ergebnisrichtigkeit", "pearson_judge_vs_mean_human")
+dim_pearson_vollstaendig  = _dim("vollstaendigkeit",    "pearson_judge_vs_mean_human")
+dim_pearson_rechtsgr      = _dim("rechtsgrundlagen",    "pearson_judge_vs_mean_human")
+dim_pearson_rechtsk       = _dim("rechtskenntnis",      "pearson_judge_vs_mean_human")
+dim_pearson_subsum        = _dim("subsumtion",          "pearson_judge_vs_mean_human")
+dim_pearson_schwerpunkt   = _dim("schwerpunktsetzung",  "pearson_judge_vs_mean_human")
+dim_pearson_method        = _dim("methodischer_stil",   "pearson_judge_vs_mean_human")
+dim_pearson_gliederung    = _dim("gliederung",          "pearson_judge_vs_mean_human")
+dim_pearson_sprache       = _dim("sprache",             "pearson_judge_vs_mean_human")
+dim_pearson_formalia      = _dim("formalia",            "pearson_judge_vs_mean_human")
+dim_mae_ergebnis          = _dim("ergebnisrichtigkeit", "mae_dim_points")
+dim_mae_formalia          = _dim("formalia",            "mae_dim_points")
+
+# Friendly labels for the rubric dimensions, in the same casing as the prose.
+_dim_label = {
+    "ergebnisrichtigkeit": "Result correctness",
+    "vollstaendigkeit":    "Issue identification",
+    "rechtsgrundlagen":    "Legal grounding",
+    "rechtskenntnis":      "Doctrinal knowledge",
+    "subsumtion":          "Subsumption quality",
+    "schwerpunktsetzung":  "Problem depth",
+    "methodischer_stil":   "Methodological structure",
+    "gliederung":          "Organization",
+    "sprache":             "Terminology",
+    "formalia":            "Formal correctness",
+}
+
+# Sorted dim Pearson list — drives the "highest on / lowest on" prose in RQ5.
+_dim_pearson_sorted = sorted(
+    (
+        (label, _dim(dim, "pearson_judge_vs_mean_human"))
+        for dim, label in _dim_label.items()
+    ),
+    key=lambda kv: (kv[1] if kv[1] is not None else float("-inf")),
+    reverse=True,
+)
+def _dim_prose_top(n):
+    items = [(lbl, v) for lbl, v in _dim_pearson_sorted[:n] if v is not None]
+    return ", ".join(f"{lbl} (r={fmt(v)})" for lbl, v in items)
+def _dim_prose_bottom(n):
+    items = [(lbl, v) for lbl, v in _dim_pearson_sorted[-n:] if v is not None]
+    return ", ".join(f"{lbl} (r={fmt(v)})" for lbl, v in items)
+
+# Short alias used throughout the paper for each model id; full ids stay
+# in `Table~\ref{tbl-system-overview}`{=latex} (Appendix C) so the body prose can reference
+# systems compactly. Keep this dict in sync with the systems_meta names.
+MODEL_ALIAS = {
+    "claude-sonnet-4-6":                              "Sonnet-4.6",
+    "claude-opus-4-7":                                "Opus-4.7",
+    "gpt-5.4":                                        "GPT-5.4",
+    "gpt-5.4-mini":                                   "GPT-5.4-mini",
+    "gpt-5-mini":                                     "GPT-5-mini",
+    "gemini-3.1-pro-preview":                         "Gemini-3.1-Pro",
+    "gemini-3-flash-preview":                         "Gemini-3-Flash",
+    "gemini-3.1-flash-lite-preview":                  "Gemini-3.1-Flash-Lite",
+    "deepseek-ai/DeepSeek-V4-Pro":                    "DeepSeek-V4-Pro",
+    "deepseek-ai/DeepSeek-V4-Flash":                  "DeepSeek-V4-Flash",
+    "Qwen/Qwen3-235B-A22B-Thinking-2507":             "Qwen3-235B",
+    "Qwen/Qwen3.5-122B-A10B":                         "Qwen3.5-122B",
+    "Qwen/Qwen3.6-35B-A3B":                           "Qwen3.6-35B",
+    "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": "Llama-4",
+    # systems.json strips provider prefixes from open-weight names; alias both forms.
+    "Qwen3-235B-A22B-Thinking-2507":                  "Qwen3-235B",
+    "Qwen3.5-122B-A10B":                              "Qwen3.5-122B",
+    "Qwen3.6-35B-A3B":                                "Qwen3.6-35B",
+    "Llama-4-Maverick-17B-128E-Instruct-FP8":         "Llama-4",
+}
+
+def alias_for(model_id):
+    """Return the short alias for a model id, falling back to the id itself."""
+    return MODEL_ALIAS.get(model_id, model_id)
+
+# Per-system mean judge raw on Benchathon (for RQ1 prose).
+from statistics import mean as _mean
+bench_by_sys = {}
+if model_evals:
+    _acc = {}
+    for r in model_evals:
+        if r.get("raw_score") is not None:
+            _acc.setdefault(r["system"], []).append(r["raw_score"])
+    bench_by_sys = {k: _mean(v) for k, v in _acc.items()}
+
+zjs_by_sys = {}
+if zjs_summary:
+    for r in zjs_summary:
+        zjs_by_sys[r["system"]] = r["metrics"]
+
+grundprinzipien_by_sys = {}
+for r in grundprinzipien_summary:
+    grundprinzipien_by_sys[r["system"]] = r["metrics"]
+
+def b(sys_id):
+    """Mean Benchathon judge raw for a system id, or None."""
+    return bench_by_sys.get(sys_id)
+def z(sys_id, key="llm_judge_falloesung_raw_mean"):
+    return (zjs_by_sys.get(sys_id) or {}).get(key)
+def g(sys_id, key="judge_raw_mean"):
+    """Per-system Grundprinzipien metric (judge_raw_mean / judge_pass_rate /
+    accuracy / <metric>_mean), 0-100 for judge raw, 0-1 for accuracy."""
+    return (grundprinzipien_by_sys.get(sys_id) or {}).get(key)
+
+def placeholder_panel(figsize, title, missing_files, hint):
+    import matplotlib.pyplot as _plt
+    fig, ax = _plt.subplots(figsize=figsize)
+    ax.axis("off")
+    body = f"{title}\n\nPending export(s):\n  • " + "\n  • ".join(missing_files) + f"\n\n{hint}"
+    ax.text(0.02, 0.98, body, ha="left", va="top", fontsize=7,
+            family="monospace", color="#444",
+            bbox=dict(boxstyle="round,pad=0.5", fc="#fff8dc", ec="#d4a017"))
+    _plt.tight_layout(pad=0.3)
+    return fig, ax
+
+# Per-condition human-judge scores on Benchathon (raws, passed). Used by the
+# RQ4 fig-human-vs-ai chunk (body) and the main leaderboard chunk; hoisted
+# into setup so the figure can run before the leaderboard chunk in source
+# order.
+_human_judge_by_variant = {"no_ai": ([], []), "ai": ([], [])}
+for _t in benchathon_tasks:
+    for _ev in _t.get("evaluations") or []:
+        _fn = _ev.get("field_name") or ""
+        if not _fn.startswith("llm_judge_falloesung") or "human:loesung" not in _fn:
+            continue
+        _m = _ev.get("metrics") or {}
+        _rs = _m.get("llm_judge_falloesung_raw")
+        if _rs is None: continue
+        _v = variants.get(_ev.get("annotation_id"))
+        if _v not in _human_judge_by_variant:
+            continue
+        _human_judge_by_variant[_v][0].append(_rs)
+        _human_judge_by_variant[_v][1].append(bool(_m.get("llm_judge_falloesung_passed")))
+```
+
+<!-- BLIND-REVIEW SWAP: only the opening sentence changes for blind mode.
+Replace "We introduce the BenGER (Benchmark for German Law) dataset for
+evaluating LLM systems on subsumption-based legal reasoning in German law.
+The BenGER dataset consists of three components:" with the de-identified
+form "We introduce a benchmark for evaluating LLM systems on subsumption-
+based legal reasoning in German law. The dataset comprises:" — keep the
+`\begin{abstract}` / `\end{abstract}` LaTeX wrappers in both modes; the
+ACL formatter requires this environment, not a markdown heading. -->
+```{=latex}
+\begin{abstract}
+```
+
+We introduce the BenGER (Benchmark for German Law) dataset for evaluating LLM systems on subsumption-based legal reasoning in German law. The BenGER dataset consists of three components: `{python} f"{n_zjs + n_benchathon}"` exam-style free-text legal case tasks across multiple levels of legal education and `{python} f"{n_qa}"` short doctrinal reasoning tasks. We evaluate `{python} f"{len(systems_meta) if systems_meta else 12}"` contemporary LLM systems — closed flagship, efficiency-oriented, and open-weight — across automatic and judge-based metrics. On a controlled validation subset of timed human-written solutions under both unaided and human–AI co-creation conditions, we contextualise model performance against these human baselines. We introduce a rubric-aligned LLM-as-a-Judge framework cross-validated against a multi-rater human-grading protocol (three blind reviews plus one author-informed creator review per solution). Our results show that replacing a blind human reviewer with the LLM judge degrades agreement with the full human pool no more than removing that reviewer altogether (Calderon r=`{python} fmt(r5_cal.get('pearson_judge_substituted_vs_full_human'),2)` vs. r=`{python} fmt(r5_cal.get('pearson_human_LOO_vs_full_human'),2)`, matched n=`{python} f"{r5_cal.get('n_pairs_judge_substituted')}"`), that closed-flagship systems lead the leaderboard across all corpora, and that human–AI co-creation substantially outperforms unaided human work.
+```{=latex}
+\end{abstract}
+```
+
+
+```{python}
+#| echo: false
+#| output: asis
+
+# Emit the fig-overview float here, very early in the body, so that LaTeX's
+# \afterpage hook fires after page 1 ships out -- placing the figure at the
+# top of page 2. The matplotlib PDF itself is generated by the chunk further
+# down (after the Introduction); chunk execution order is source order, but
+# the PDF file is on disk before LaTeX runs either way. Keep this chunk in
+# sync with the figure builder below.
+print(
+    r"\afterpage{%" "\n"
+    r"\begin{figure*}[t!]" "\n"
+    r"\centering" "\n"
+    r"\includegraphics[width=\textwidth]{assets/fig-overview.png}" "\n"
+    r"\caption{Overview of the benchmark and evaluation pipeline. "
+    r"Three German-law corpora -- the published ZJS exam corpus, the short "
+    r"Doctrinal Principles question set, and the controlled Benchathon "
+    r"validation subset with human solutions in two working conditions -- "
+    r"are answered by a panel of LLM systems and scored by a rubric-aligned "
+    r"LLM judge. The Benchathon subset is additionally graded by a blind "
+    r"human reviewer pool (with one author-informed creator review per "
+    r"solution); the resulting human distribution is used to validate the "
+    r"LLM judge.}" "\n"
+    r"\label{fig-overview}" "\n"
+    r"\end{figure*}%" "\n"
+    r"}" "\n"
+)
+```
+
+# Introduction
+
+Evaluating legal reasoning is hard. Grading of legal exam answers exhibits substantial variability even among human experts: Hufeld [@hufeld2024] shows that identical answers in German law exams receive markedly different scores depending on the grader, reflecting the interpretive nature of doctrinal legal analysis. This poses a challenge for recent work on large language models (LLMs): if human evaluation itself is noisy, what does it mean to benchmark legal reasoning performance?
+
+Existing benchmarks for legal NLP have evolved rapidly from classification [@chalkidis2022lexglue; @guha2023legalbench] to reasoning capabilities [@fei2024lawbench; @fan2026lexam; @jia2025readyjuristone; @shi2026plawbench] and retrieval-augmented evaluation [@pipitone2024legalbenchrag; @butler2026legalragbench], but most emphasise short-form QA, common-law jurisdictions, or stable ground-truth labels — leaving open-ended subsumption-based German legal reasoning under noisy expert judgments under-served.
+
+We address these gaps with a benchmark centered on subsumption-based legal reasoning, the core reasoning paradigm in German law (@sec-legal-methodology).
+
+<!-- BLIND-REVIEW SWAP: replace this paragraph with the de-identified form:
+"We present a benchmark^[Full code and dataset will be released upon paper
+acceptance.] for evaluating LLMs on subsumption-based legal reasoning in
+German law. The dataset comprises `{python} f"{n_zjs + n_benchathon}"`
+exam-style free-text legal case tasks across different stages of legal
+education and `{python} f"{n_qa}"` short doctrinal reasoning tasks. The
+benchmark also incorporates human baselines for traditional legal work and
+human–AI co-creation on a controlled Benchathon validation subset.
+`Figure~\ref{fig-overview}`{=latex} summarises the three corpora and the
+LLM-generation-plus-evaluation pipeline."
+(Drop the "BenGER" name, drop the GitHub URL, drop the platform
+self-citation sentence.) -->
+We present the BenGER (Benchmark for German Law) dataset^[Full code and dataset are available at <https://github.com/SebastianNagl/benger-platform>.] for evaluating LLMs on subsumption-based legal reasoning in German law. The BenGER dataset consists of three components covering `{python} f"{n_zjs + n_benchathon}"` exam-style free-text legal case tasks across different stages of legal education and `{python} f"{n_qa}"` short doctrinal reasoning tasks, and incorporates human baselines for traditional legal work and human–AI co-creation on a controlled Benchathon validation subset. `Figure~\ref{fig-overview}`{=latex} summarises the three components and the LLM-generation-plus-evaluation pipeline. Generation, annotation, and evaluation were run end-to-end on the BenGER platform [@nagl2026benger], the open-source web application we previously developed for benchmarking legal-domain LLM systems.
+
+To evaluate free-text legal reasoning under noisy human judgments, we adopt a hybrid framework: an LLM-as-a-Judge aligned with German grading rubrics, cross-validated against three blind human reviews per solution and an author-informed creator review as a reference signal. We treat evaluation as a distribution over plausible expert assessments rather than a single deterministic label.
+
+Our contributions are threefold: (i) we introduce a benchmark for subsumption-based legal reasoning in German law, (ii) we provide an empirical evaluation of `{python} f"{len(systems_meta) if systems_meta else 12}"` contemporary LLM systems — closed flagship, efficiency-oriented, and open-weight — alongside human and co-creative baselines, and (iii) an evaluation methodology that accounts for the inherent variability of legal grading.
+
+<!-- BLIND-REVIEW SWAP: drop "of the full BenGER dataset" so the sentence
+reads "We organise the empirical analysis around five questions." -->
+We organise the empirical analysis of the full BenGER dataset around five questions. **RQ1 (Performance):** how well do contemporary LLM systems solve open-ended subsumption-based German legal reasoning tasks, and how do they compare to human baselines? **RQ2 (System-tier effects):** how does performance vary across system tiers and open-/closed-weight access modes? **RQ3 (Evaluation validity):** how well do generic automatic metrics correlate with rubric-based legal evaluation? **RQ4 (Human–AI co-creation):** does AI-assisted drafting improve human performance, and how does it compare to standalone LLM systems? **RQ5 (Grading reliability):** how closely do LLM-judge evaluations align with the empirical distribution of human grades, and are their deviations comparable to inter-rater variability?
+
+# Subsumption-based legal reasoning {#sec-legal-methodology}
+
+Subsumption-based legal reasoning is the core reasoning paradigm of German civil-law doctrine [@larenz1995methodenlehre; @moellers2023methodenlehre]. Unlike common-law systems, where reasoning proceeds primarily through analogy to precedent, German legal analysis derives outcomes from codified statutory norms via a structured four-step scaffold — *Obersatz* (the legal claim or norm hypothesis to be examined), *Definition* (interpretation of the norm's elements), *Subsumtion* (anchoring of the concrete facts under those elements), and *Ergebnis* (the resulting legal consequence). This *Gutachtenstil* register — distinct from the result-first *Urteilsstil* used in judicial decisions — is the form in which German legal education, state examinations, and entry-level legal practice are trained and assessed; grading targets the written *Falllösung* end-to-end rather than the final answer alone, because the rubric rewards how each norm element is anchored in the specific fact pattern. This makes subsumption-based reasoning a structurally demanding generation task: a system has to identify the governing norm, articulate its elements, anchor every element in the facts, and conclude — a chain in which surface fluency can mask a missing *Subsumtion* step. It also makes the task unusually amenable to rubric-based evaluation, because each step in the scaffold maps to an identifiable component of the generated answer rather than to a global quality impression. The English-language legal NLP benchmarks centered on classification, multiple-choice, or precedent-style reasoning [@chalkidis2022lexglue; @guha2023legalbench] do not exercise this scaffold, leaving German subsumption-based legal reasoning under noisy expert judgement under-served.
+
+# Related Work
+
+Legal NLP benchmarking has evolved from classification baselines — LexGLUE [@chalkidis2022lexglue] (seven English legal datasets) and LegalBench [@guha2023legalbench] (162 mostly short-form US-federal-law tasks) — to reasoning-centric, jurisdiction-specific evaluation. Recent work targets jurisdiction-specific reasoning: LawBench [@fei2024lawbench] and LexEval [@li2024lexeval] for Chinese civil law, KBL [@kim2024kbl] for Korean bar-exam questions, LAR-ECHR [@chlapanis2024larechr] for European Court of Human Rights argument chains, KOBLEX [@lee2025koblex] for provision-grounded multi-hop reasoning in Korean law, GreekBarBench [@chlapanis2025greekbarbench] for free-text Greek bar exams, NitiBench [@akarajaradwong2025nitibench] for Thai financial and tax law, PLawBench [@shi2026plawbench] for rubric-graded Chinese legal practice across 13 practical scenarios, and LaborBench [@hariri2025laborbench] for US state labor-law statutory simplification. A complementary line targets retrieval-augmented evaluation — LegalBench-RAG [@pipitone2024legalbenchrag] and Legal RAG Bench [@butler2026legalragbench] — and discrepancy-based auditing of LLM legal reasoning — CLAUSE [@choudhury2026clause]. The closest precedent is LEXam [@fan2026lexam] — 7,537 questions across 340 law exams in English and German, with an ensemble LLM-as-a-Judge validated against human experts — but its rubric is not the *Obersatz–Definition–Subsumtion–Ergebnis* scaffold central to German *Falllösung* grading (@sec-legal-methodology) and it does not couple its free-text items to the dimension-level grading criteria used in German law school and state-exam evaluation.
+
+Evaluating free-text legal reasoning relies increasingly on LLM-as-a-Judge approaches, which raises concerns over bias, calibration, and alignment with expert judgment. Research in German legal education shows that human grading itself is substantially variable: Hufeld [@hufeld2024] reports an experiment with 15 beginner-level law exams and 23 graders, in which the same submissions received 15 or 16 independent grades each — the average range between the lowest and highest grade per answer was 6.47 points on the German 0–18 scale, and only 42% of grades fell within ±1 point of the answer-specific mean. Evaluation in legal reasoning tasks is therefore better treated as a distribution over plausible expert judgments than as a single ground truth, motivating hybrid methodologies that combine human expertise with calibrated LLM-based scoring.
+
+<!-- BLIND-REVIEW SWAP: replace "our prior BenGER platform [@nagl2026benger]
+provides … workflows on which the present dataset was built." with the
+non-self-attributing form "the BenGER platform [@nagl2026benger] provides
+an end-to-end framework for German legal case analysis and
+subsumption-based reasoning workflows.", and replace "The BenGER dataset
+addresses this gap" with "Our benchmark addresses this gap". -->
+Resources for German legal NLP remain limited: GerLayQA [@buttner2024gerlayqa] provides ~21,000 lay questions paired with lawyer answers but focuses on QA rather than subsumption-based reasoning, GerLeRB [@weber2025gerlerb] targets legislative retrieval, and our prior BenGER platform [@nagl2026benger] provides an end-to-end framework for German legal case analysis and subsumption-based reasoning workflows on which the present dataset was built. German legal reasoning grounded in doctrinal subsumption under statutory law remains under-served, especially for open-ended, structured analysis under noisy human judgments. The BenGER dataset addresses this gap by combining a `{python} f"{n_zjs + n_benchathon}"`-task exam-style corpus and `{python} f"{n_qa}"` short doctrinal reasoning items with a controlled Benchathon validation subset, a German doctrinal rubric, and a multi-rater cross-validation protocol.
+
+# Dataset
+
+<!-- BLIND-REVIEW SWAP: "The BenGER dataset draws on three components" →
+"Our benchmark draws on three corpora". -->
+The BenGER dataset draws on three components covering the main forms of legal reasoning in German legal education: two **exam-style case** corpora in which a fact pattern is given and a structured *Falllösung* is expected, and one set of **short doctrinal reasoning** items that probes core principles without the full case-analysis scaffolding.
+
+The ZJS corpus contributes `{python} n_zjs` publicly available exam-style cases from the *Zeitschrift für das Juristische Studium*^[<https://www.zjs-online.com/>], covering civil, criminal, and public law and spanning early undergraduate exercises through first and selected second state-examination materials, each paired with an expert-written reference solution. The Benchathon corpus adds `{python} n_benchathon` newly collected exam-style tasks at an intermediate difficulty level (more demanding than introductory exercises, less complex than full first-state-exam problems), each with `{python} n_human_total` human solutions (`{python} n_human_only` traditional, `{python} n_co_creation` human–AI co-creation).^[The corpus is named after the in-person Benchathon event at which participants produced these solutions and the validation human grading. Participants were predominantly law students at various stages of legal training, plus a smaller group of *Referendare* (post-state-exam legal trainees), recent graduates, and a small layperson cohort; full composition in Appendix `\ref{benchathon-participant-composition}`{=latex}.] The Doctrinal Principles corpus (*Grundprinzipien*) contributes `{python} n_qa` short doctrinal reasoning items (question–answer pairs with explanatory reasoning) on core principles, with recent case law where appropriate. ZJS supports at-scale automated evaluation; Benchathon supports the human baseline + judge-validation layer; Doctrinal Principles probes the same reasoning at shorter form.
+
+The benchmark is intended for evaluation only; we do not define a train/test split, since the objective is comparative evaluation of deployed LLM systems and human baselines. Pretraining-contamination considerations across the three corpora are discussed in Limitations §5.
+
+## Benchathon task design and human solution collection
+
+Benchathon participants solved tasks in a controlled annotation environment, with each task randomly assigned to one of two conditions: in the *traditional* condition, participants could use statutory texts, legal databases, literature, and internet research; in the *co-creation* condition, AI tools could additionally be used. Only the final written solution is evaluated, mirroring legal examination practice; auxiliary materials (notes, outlines, span markings) were retained for future analysis but are not used here (Appendix `\ref{full-benchathon-human-evaluation-assignment-procedure}`{=latex}). Each task had a two-hour time limit; participant expertise was measured objectively (reported legal grades and qualifications) and subjectively (self-assessed competence on a Likert scale).
+
+# Experimental setup
+
+## Generation
+
+We evaluate `{python} f"{len(systems_meta) if systems_meta else 12}"` contemporary LLM systems covering closed flagship, efficiency-oriented, and open-weight reference systems: `{python} f"{sum(1 for s in (systems_meta or []) if s.get('openness') == 'closed')}"` closed-weight via provider APIs (OpenAI, Anthropic, Google) and `{python} f"{sum(1 for s in (systems_meta or []) if s.get('openness') == 'open')}"` open-weight via a managed inference provider (DeepInfra). Per-system providers, snapshots, observed temperatures, token-budget settings, truncation counts, and the short aliases used in the body are in `Table~\ref{tbl-system-overview}`{=latex} (Appendix C). Each task received at least one generation per system; flagship and large-context systems received additional repetitions where capacity allowed. The Benchathon subset was generated by all systems; on ZJS, all `{python} f"{len(zjs_summary) if zjs_summary else 12}"` systems produced coverage of up to `{python} f"{max((r['n_tasks'] for r in zjs_summary), default=n_zjs)}"` published exams.^[Individual questions were occasionally flagged as prohibited content by the provider's safety filter, leaving a small handful of per-system coverage gaps below the corpus total.]
+
+All systems were prompted with the same German-language system and instruction prompts (Appendix `\ref{system-prompts-for-generation}`{=latex} + `\ref{instruction-prompts-for-generation}`{=latex}) and configured to return a single JSON object containing the full *Falllösung*, with the instruction prompt mirroring the *Gutachtenstil* scaffold (@sec-legal-methodology). Provider-recommended temperatures and token budgets were used (temperature 0.0–1.0, max output 8,000–16,000 tokens); generations malformed or shorter than 200 output tokens after a bounded retry budget were excluded. Truncation in kept generations is concentrated in the smaller open-weight systems (Trunc. column, `Table~\ref{tbl-system-overview}`{=latex}).
+
+# Evaluation
+
+## Black-box system evaluation
+We evaluate LLM systems through provider APIs in a black-box setting, so our results measure end-to-end system behavior rather than isolated base-model capability. We do not enable retrieval or tool-use endpoints; components we cannot disable — notably content filters and, on some products, internal routing between sub-models — operate by default. This reflects realistic deployment conditions but limits causal claims about underlying architectures.
+
+## Automatic metrics
+
+Per generation we compute BLEU [@papineni2002bleu], ROUGE [@lin2004rouge], METEOR [@banerjee2005meteor], chrF, BERTScore [@zhang2020bertscore], MoverScore [@zhao2019moverscore], and a Sentence-BERT cosine similarity [@reimers2019sentencebert] against the expert reference solution. Per-system means appear in the main leaderboard tables; per-generation values are correlated against the LLM-judge rubric score in RQ3.
+
+
+## LLM-as-a-Judge evaluation
+For rubric-based automatic evaluation, we use a specialized LLM-as-a-Judge prompt aligned with German legal grading practices. The judge receives the task, the reference solution, and the solution to be evaluated. It assigns scores across ten dimensions covering result correctness (*Ergebnisrichtigkeit*), issue identification (*Vollständigkeit*), legal grounding (*Rechtsgrundlagen*), doctrinal knowledge (*Rechtskenntnis*), subsumption quality (*Subsumtion*), problem depth (*Schwerpunktsetzung*), methodological structure (*Methodischer Stil*), organization (*Gliederung*), terminology (*Sprache*), and formal correctness (*Formalia*). Dimension scores are aggregated to a 100-point raw score and mapped to the German 0–18 grade-point scale. A generation counts as a *pass* when its grade-point score reaches *ausreichend* (≥ 4 on the 0–18 scale, corresponding to a raw score of ≥ 50/100), following the German *Staatsexamen* (state law examination) convention; this is the boolean reported in the *Pass* columns of `Table~\ref{tbl-main-leaderboard}`{=latex} and in the pass-rate aggregates throughout. The rubric operationalises the *Gutachtenstil* scaffold (@sec-legal-methodology): each step in the *Obersatz–Definition–Subsumtion–Ergebnis* schema is reflected in a dedicated dimension (issue identification, legal grounding, doctrinal knowledge, subsumption quality, methodological structure), so the per-dimension scores in @fig-rubric-dim correspond to identifiable components of the reasoning process.
+
+The judge is blind to solution origin and receives inputs in a fixed (task, reference, candidate) order. The primary judge is GPT-5-mini; configuration in Appendix `\ref{llm-judge-configuration}`{=latex}, prompt in Appendix `\ref{evaluation-prompts-for-the-llm-judge}`{=latex}. Since judge-based evaluation may itself be model-dependent, we cross-validate the judge against a multi-rater human-grading layer on a Benchathon subset (design below; results in RQ5). To quantify judge stability we additionally run two complementary checks on the Benchathon subset — *within-judge stochasticity* (k=3 re-runs of GPT-5-mini) and *between-judge bias* (additional evaluations by Opus-4.7 and Gemini-3.1-Pro); both are reported in RQ5. Outputs conform to a predefined JSON schema; non-conforming outputs are retried and reported as evaluation failures if they cannot be parsed.
+
+## Human Evaluation
+Human evaluation is conducted on a controlled subset of 45 Benchathon solutions: one traditional human, one human–AI co-created, and one LLM-generated solution per Benchathon task. Human submissions are selected as the median-expertise participant per legal area (*Bereich*), where expertise is a z-score combining self-assessed competence and, where available, first-state-exam grade (details in Appendix `\ref{full-benchathon-human-evaluation-assignment-procedure}`{=latex}); LLM submissions are drawn through a tier-balanced rotation across closed-flagship, efficiency-oriented, and open-weight reference systems. Each selected solution receives three independent blind reviews and one author-informed creator review (180 reviews total). Blind reviewers grade against the same rubric as the LLM judge and form the IRR pool used to validate the judge; creator reviews use the same rubric but are not pooled into IRR since task authors have privileged knowledge of the intended solution. The full selection and reviewer-assignment procedure is given in Appendix `\ref{full-benchathon-human-evaluation-assignment-procedure}`{=latex}; the agreement statistics — Spearman / Pearson / MAE / Cohen's $\kappa$ [@cohen1960coefficient] / ICC(2,1) / ICC(2,k) [@shrout1979intraclass; @koo2016guideline] / Calderon alternative-annotator [@calderon2025] — are reported alongside their values in RQ5. The central question is not whether the LLM judge reproduces a single human grade, but whether its deviation is comparable to that among human graders.
+
+# Results
+
+Unless otherwise noted, scores in this section are the LLM judge's rubric scores, as 0–100 raw points or 0–18 German grade points. The human-grading layer covers the 45-pick validation design with one author-informed creator review and three blind reviews per pick (180 reviews total). The analysis pipeline regenerates every reported number from the data file checked in alongside the manuscript.
+
+## RQ1: Overall performance of LLM systems and humans
+
+The unified per-system view across the three corpora is shown in `Table~\ref{tbl-main-leaderboard}`{=latex}; per-corpus full leaderboards with surface-metric columns are in `Appendix~\ref{full-results-table}`{=latex}. On the Benchathon subset, top-tier closed systems score in the low- to mid-80s on the 0–100 judge scale, with Sonnet-4.6 (`{python} fmt(b('claude-sonnet-4-6'),1)`), Opus-4.7 (`{python} fmt(b('claude-opus-4-7'),1)`), and GPT-5.4 (`{python} fmt(b('gpt-5.4'),1)`) clustered at the top with pass rates near 1.0, followed by Gemini-3.1-Pro (`{python} fmt(b('gemini-3.1-pro-preview'),1)`) in the upper 70s. The flagship open-weight systems DeepSeek-V4-Pro and Qwen3-235B trail the top closed models by roughly `{python} fmt(b('claude-sonnet-4-6') - b('deepseek-ai/DeepSeek-V4-Pro'),0)`–`{python} fmt(b('claude-sonnet-4-6') - b('Qwen/Qwen3-235B-A22B-Thinking-2507'),0)` raw points. The same ordering broadly reproduces on ZJS (`Table~\ref{tbl-main-leaderboard}`{=latex}, ZJS columns), where GPT-5.4 leads at `{python} fmt(z('gpt-5.4'),1)` raw points (`{python} fmt(z('gpt-5.4','grade_points_mean'),1)` grade points, `{python} fmtpct(z('gpt-5.4','pass_rate'),0)` pass) and the weakest open-weight Llama-4 trails at `{python} fmt(z('meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8'),1)` raw points (`{python} fmt(z('meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8','grade_points_mean'),1)` grade points, `{python} fmtpct(z('meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8','pass_rate'),0)` pass).
+
+The per-task heatmap (@fig-task-system-heatmap, `Appendix~\ref{per-task-per-system-heatmap}`{=latex}) shows that the leaderboard ordering hides substantial within-task variance: top-tier systems hold a per-task standard deviation of 6–8 raw points, while mid-tier and smaller open-weight systems show 10–15 — roughly twice the spread for the same overall mean. On the Benchathon subset, the human cohort scores in the mid-range of the LLM distribution under both conditions, with the co-creation condition shifted upward (see human rows in `Table~\ref{tbl-main-leaderboard}`{=latex} and @fig-human-vs-ai in RQ4). The judge–human–LLM comparison rests on a single judge model (see Limitations).
+
+On the short-form Doctrinal Principles corpus (`Table~\ref{tbl-main-leaderboard}`{=latex}, Doctrinal Principles columns; `{python} f"{len(grundprinzipien_summary)}"` systems, `{python} f"{sum(r['n_generations'] for r in grundprinzipien_summary)}"` generations under a 4-dimension rubric), the same flagship cluster leads: Sonnet-4.6 (`{python} fmt(g('claude-sonnet-4-6'),1)`), Gemini-3.1-Pro (`{python} fmt(g('gemini-3.1-pro-preview'),1)`), Opus-4.7 (`{python} fmt(g('claude-opus-4-7'),1)`), GPT-5.4 (`{python} fmt(g('gpt-5.4'),1)`). Doctrinal Principles items carry a Ja/Nein decision label; across systems accuracy ranges from `{python} fmtpct(min((r['metrics'].get('accuracy') or 0) for r in grundprinzipien_summary), 0)` to `{python} fmtpct(max((r['metrics'].get('accuracy') or 0) for r in grundprinzipien_summary), 0)`, with Gemini-3.1-Pro at `{python} fmtpct(g('gemini-3.1-pro-preview','accuracy'),0)` and Opus-4.7 at `{python} fmtpct(g('claude-opus-4-7','accuracy'),0)`.
+
+```{python}
+#| echo: false
+#| output: false
+# Table helpers (_tex_escape, emit_tex_table) and a few formatting maps used
+# by both this body chunk and downstream appendix chunks. Defined here so the
+# unified main leaderboard chunk below — which sits inside the Results
+# section to anchor the table* float near RQ1/RQ2 — can use them without
+# depending on the deferred chunks at the end of the document.
+def _fmt(v):
+    if v is None: return "—"
+    if isinstance(v, float):
+        return f"{v:.2g}" if abs(v) < 1 else f"{v:.0f}"
+    return str(v)
+
+_tier_label = {"flagship": "Flagship", "efficiency": "Efficiency",
+               "open_reference": "Open ref."}
+_access_label = {"provider_api": "Provider API",
+                 "managed_inference": "Managed inf."}
+
+
+def _tex_escape(s):
+    """Minimal LaTeX escape for cells with text from the dataset."""
+    if s is None:
+        return "---"
+    s = str(s)
+    replacements = (
+        ("\\", r"\textbackslash{}"),
+        ("&", r"\&"), ("%", r"\%"), ("$", r"\$"), ("#", r"\#"),
+        ("_", r"\_"), ("{", r"\{"), ("}", r"\}"),
+        ("~", r"\textasciitilde{}"), ("^", r"\textasciicircum{}"),
+        ("—", "---"), ("–", "--"),
+    )
+    for a, b in replacements:
+        s = s.replace(a, b)
+    return s
+
+
+def emit_tex_table(label, caption, headers, rows, *,
+                   col_spec=None, span_two_columns=False,
+                   first_col_left=True, tex_escape=True,
+                   tabcolsep_pt=4, fontsize_cmd=r"\footnotesize",
+                   placement="t", fill_width=False, shrink_to_fit=False):
+    """Print a native LaTeX float wrapping a booktabs tabular.
+
+    fill_width=True switches the inner environment from ``tabular`` to
+    ``tabular*`` with ``@{\\extracolsep{\\fill}}`` so the table stretches to
+    the full text-column width of the float (\\columnwidth / \\textwidth)
+    without rescaling fonts.
+
+    shrink_to_fit=True wraps the tabular in ``\\resizebox{<width>}{!}{...}``
+    so over-wide tables shrink to the float width instead of bleeding into
+    the right margin. Forces a plain ``tabular`` (not ``tabular*``) because
+    ``\\resizebox`` can't take an explicit-width tabular* as its argument.
+    Use this for appendix tables with many numeric columns.
+    """
+    n_cols = len(headers)
+    if col_spec is None:
+        col_spec = ("l" if first_col_left else "c") + "c" * (n_cols - 1)
+    env = "table*" if span_two_columns else "table"
+    target_w = r"\textwidth" if span_two_columns else r"\columnwidth"
+    out = [
+        f"\\begin{{{env}}}[{placement}]",
+        r"\centering" + fontsize_cmd,
+        r"\caption{" + caption + "}",
+        f"\\label{{{label}}}",
+        f"\\setlength{{\\tabcolsep}}{{{tabcolsep_pt}pt}}",
+    ]
+    if shrink_to_fit:
+        out.append(f"\\resizebox{{{target_w}}}{{!}}{{%")
+        out.append(f"\\begin{{tabular}}{{{col_spec}}}")
+    elif fill_width:
+        col_spec_filled = "@{\\extracolsep{\\fill}}" + col_spec + "@{}"
+        out.append(f"\\begin{{tabular*}}{{{target_w}}}{{{col_spec_filled}}}")
+    else:
+        out.append(f"\\begin{{tabular}}{{{col_spec}}}")
+    out += [
+        r"\toprule",
+        " & ".join(headers) + r" \\",
+        r"\midrule",
+    ]
+    for r in rows:
+        cells = [(_tex_escape(c) if tex_escape else (c if c is not None else "---"))
+                 for c in r]
+        out.append(" & ".join(cells) + r" \\")
+    out.append(r"\bottomrule")
+    if shrink_to_fit:
+        out.append(r"\end{tabular}")
+        out.append(r"}%  end \resizebox")
+    else:
+        out.append(r"\end{tabular*}" if fill_width else r"\end{tabular}")
+    out.append(f"\\end{{{env}}}")
+    out.append("")
+    print("\n".join(out))
+```
+
+```{python}
+#| echo: false
+#| output: asis
+
+# Unified main leaderboard across the three corpora. Sits in the Results
+# section (between RQ1 and RQ2) so the table* float lands near its first
+# reference. Replaces the previously separate per-corpus body tables; the
+# surface-metric-rich per-corpus leaderboards live in Appendix~E. The two
+# Benchathon human-baseline rows are pinned at the bottom.
+
+import math, random, statistics
+from collections import defaultdict
+
+# Raw cells in the table are rendered as "mean ± half-CI" where half-CI is the
+# half-width of a 95% interval on the per-system mean. Two derivations:
+#   - Benchathon: bootstrap CI from per-generation raw scores in model_evals.
+#   - ZJS / Grundprinzipien: analytic CI = 1.96 · stdev / sqrt(n) using the
+#     per-system stdev added to the summary JSONs by derive_zjs_summary.py and
+#     derive_grundprinzipien_summary.py (Welford's online algorithm).
+
+random.seed(7)
+
+def _bench_boot_ci(raws, n_boot=2000):
+    """Half-width of a 95% bootstrap CI on the mean."""
+    if len(raws) < 3:
+        return None
+    samples = [statistics.mean(random.choices(raws, k=len(raws)))
+               for _ in range(n_boot)]
+    samples.sort()
+    lo = samples[int(0.025 * n_boot)]
+    hi = samples[int(0.975 * n_boot) - 1]
+    return (hi - lo) / 2.0
+
+def _analytic_ci_half(mean, stdev, n):
+    """Half-width of a 95% Gaussian CI on the mean (1.96 · SE)."""
+    if mean is None or stdev is None or n is None or n <= 1:
+        return None
+    return 1.96 * stdev / math.sqrt(n)
+
+_bench_by_sys_full = defaultdict(list)
+for r in (model_evals or []):
+    _bench_by_sys_full[r["system"]].append(r)
+
+def _bench_agg(sys_id):
+    rs = _bench_by_sys_full.get(sys_id) or []
+    raws = [x["raw_score"] for x in rs if x.get("raw_score") is not None]
+    ps   = [bool(x["passed"]) for x in rs if x.get("passed") is not None]
+    return (len(raws) if raws else None,
+            statistics.mean(raws) if raws else None,
+            _bench_boot_ci(raws),
+            (sum(ps) / len(ps)) if ps else None)
+
+_zjs_by_sys_full = {r["system"]: r for r in (zjs_summary or [])}
+def _zjs_agg(sys_id):
+    r = _zjs_by_sys_full.get(sys_id)
+    if not r: return (None, None, None, None)
+    m = r.get("metrics") or {}
+    mean = m.get("llm_judge_falloesung_raw_mean")
+    stdev = m.get("llm_judge_falloesung_raw_stdev")
+    n_w = m.get("llm_judge_falloesung_raw_n") or r.get("n_generations")
+    return (r.get("n_generations"), mean,
+            _analytic_ci_half(mean, stdev, n_w),
+            m.get("pass_rate"))
+
+_gp_by_sys_full = {r["system"]: r for r in (grundprinzipien_summary or [])}
+def _gp_agg(sys_id):
+    r = _gp_by_sys_full.get(sys_id)
+    if not r: return (None, None, None, None, None)
+    m = r.get("metrics") or {}
+    mean = m.get("judge_raw_mean")
+    stdev = m.get("judge_raw_stdev")
+    n_w = m.get("judge_raw_n") or r.get("n_generations")
+    return (r.get("n_generations"), mean,
+            _analytic_ci_half(mean, stdev, n_w),
+            m.get("judge_pass_rate"),
+            m.get("accuracy"))
+
+_all_sys_ids = set(_bench_by_sys_full) | set(_zjs_by_sys_full) | set(_gp_by_sys_full)
+
+def _mean_avail(sys_id):
+    vals = []
+    for fn in (_bench_agg, _zjs_agg, _gp_agg):
+        v = fn(sys_id)
+        if v[1] is not None: vals.append(v[1])
+    return statistics.mean(vals) if vals else 0.0
+
+_sys_order = sorted(_all_sys_ids, key=lambda s: -_mean_avail(s))
+
+def _raw_ci(mean, half):
+    """Compact 'mean ± half' cell; falls back to '---' if mean missing."""
+    if mean is None:
+        return "---"
+    if half is None:
+        return f"{mean:.1f}"
+    return f"{mean:.1f}\\,$\\pm$\\,{half:.1f}"
+
+def _pct(v):  return "---" if v is None else f"{100*v:.0f}\\%"
+def _n(v):    return "---" if v is None else str(v)
+
+_rows = []
+for sys_id in _sys_order:
+    bn, br, br_ci, bp = _bench_agg(sys_id)
+    zn, zr, zr_ci, zp = _zjs_agg(sys_id)
+    gn, gr_, gr_ci, gp_r, ga = _gp_agg(sys_id)
+    _rows.append([
+        _tex_escape(alias_for(sys_id)),
+        _n(bn), _raw_ci(br, br_ci), _pct(bp),
+        _n(zn), _raw_ci(zr, zr_ci), _pct(zp),
+        _n(gn), _raw_ci(gr_, gr_ci), _pct(gp_r), _pct(ga),
+    ])
+
+def _human_row(label, raws, passed):
+    if not raws:
+        return [label, "0", "---", "---", "---", "---", "---", "---", "---", "---", "---"]
+    return [label, str(len(raws)),
+            _raw_ci(statistics.mean(raws), _bench_boot_ci(raws)),
+            f"{100*sum(passed)/len(passed):.0f}\\%",
+            "---", "---", "---", "---", "---", "---", "---"]
+
+_human_all_raw  = _human_judge_by_variant["no_ai"][0] + _human_judge_by_variant["ai"][0]
+_human_all_pass = _human_judge_by_variant["no_ai"][1] + _human_judge_by_variant["ai"][1]
+
+_lines = [
+    r"\begin{table*}[t]",
+    r"\centering\footnotesize",
+    "\\caption{Main leaderboard across the three corpora. Per-system mean "
+    "LLM-judge raw score (0--100, mean\\,$\\pm$\\,half-width of a 95\\% CI: "
+    "percentile bootstrap $B=2000$ on Benchathon for small per-system $n$, "
+    "analytic 1.96\\,$\\cdot$\\,SE on ZJS and Doctrinal Principles) and pass "
+    "rate; Doctrinal Principles also reports Ja/Nein decision accuracy. "
+    "Systems are ranked by the mean of their available per-corpus raw scores. "
+    "The two human-baseline rows use the LLM judge's grades of human-written "
+    "Benchathon solutions (traditional = unaided; co-creation = human--AI "
+    "co-creation). Per-system 95\\% CIs are in "
+    "Appendix~\\ref{full-results-table}.}",
+    r"\label{tbl-main-leaderboard}",
+    r"\setlength{\tabcolsep}{4pt}",
+    r"\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}} l rrr rrr rrrr @{}}",
+    r"\toprule",
+    r" & \multicolumn{3}{c}{Benchathon}"
+    r" & \multicolumn{3}{c}{ZJS}"
+    r" & \multicolumn{4}{c}{Doctrinal Principles} \\",
+    r"\cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-11}",
+    r"System / Group & $n$ & Raw & Pass"
+    r" & $n$ & Raw & Pass"
+    r" & $n$ & Raw & Pass & Acc. \\",
+    r"\midrule",
+]
+for row in _rows:
+    _lines.append(" & ".join(row) + r" \\")
+
+_lines.append(r"\midrule")
+for label, raws, passed in [
+    ("Human (all)",       _human_all_raw, _human_all_pass),
+    (r"\quad traditional", _human_judge_by_variant["no_ai"][0], _human_judge_by_variant["no_ai"][1]),
+    (r"\quad co-creation", _human_judge_by_variant["ai"][0],    _human_judge_by_variant["ai"][1]),
+]:
+    _lines.append(" & ".join(_human_row(label, raws, passed)) + r" \\")
+
+_lines += [r"\bottomrule", r"\end{tabular*}", r"\end{table*}", ""]
+print("\n".join(_lines))
+```
+
+## RQ2: Scaling and system effects
+
+Closed flagship systems from OpenAI, Anthropic, and Google occupy the top of every per-corpus leaderboard, while efficiency-tier closed systems and the strongest open-weight systems (DeepSeek-V4-Pro, Qwen3-235B) form an overlapping mid-band — closed-API dominance narrows substantially below the flagship tier. Aggregating by tier, the flagship-vs-open-weight gap is `{python} f"{(_ta('benchathon','by_tier','flagship','mean_raw') or 0) - (_ta('benchathon','by_tier','open_reference','mean_raw') or 0):.0f}"` raw points on Benchathon and narrows to `{python} f"{(_ta('zjs','by_tier','flagship','mean_raw') or 0) - (_ta('zjs','by_tier','open_reference','mean_raw') or 0):.0f}"` on ZJS; the closed-vs-open weights gap shrinks similarly from `{python} f"{(_ta('benchathon','by_weights','closed','mean_raw') or 0) - (_ta('benchathon','by_weights','open','mean_raw') or 0):.0f}"` to `{python} f"{(_ta('zjs','by_weights','closed','mean_raw') or 0) - (_ta('zjs','by_weights','open','mean_raw') or 0):.0f}"` raw points. The same direction holds on Doctrinal Principles, so the flagship-vs-open-weight ordering survives the three different task formats and the 4-dimension rubric variant. We frame these as system-level rather than model-level effects, since black-box API access entangles the open–closed split with provider-side prompts, decoding, post-processing, and possible retrieval or tool use (see Limitations).
+
+## RQ3: Evaluation validity — automatic metric correlation
+
+Across all three corpora, lexical surface metrics correlate with the LLM judge's rubric raw score more strongly than embedding-based metrics, running partly against the common expectation that semantic-embedding metrics dominate lexical ones on long-form legal text. On Benchathon, METEOR (r=`{python} fmtp(r3.get('meteor',{}).get('pearson_vs_judge_raw'))`), ROUGE (r=`{python} fmtp(r3.get('rouge',{}).get('pearson_vs_judge_raw'))`), and BLEU (r=`{python} fmtp(r3.get('bleu',{}).get('pearson_vs_judge_raw'))`) lead while MoverScore (r=`{python} fmtp(r3.get('moverscore',{}).get('pearson_vs_judge_raw'))`), BERTScore (r=`{python} fmtp(r3.get('bertscore',{}).get('pearson_vs_judge_raw'))`), and sentence-embedding similarity (r=`{python} fmtp(r3.get('semantic_similarity',{}).get('pearson_vs_judge_raw'))`) trail; the same ordering broadly holds on ZJS and Doctrinal Principles (`Appendix~\ref{automatic-metric-vs.-llm-judge-correlation}`{=latex}: `Table~\ref{tbl-metric-correlation}`{=latex}, @fig-metric-correlation). This is consistent with the highly templated structure of doctrinal German exam writing, where reference and high-quality system answers share substantial n-gram material around statutory citations and the *Obersatz–Definition–Subsumtion–Ergebnis* scaffolding. At the per-system level on Benchathon, the lexical metrics' Spearman against the judge ranking reaches +`{python} fmt(_rc('benchathon','meteor'))` (METEOR) while BERTScore (+`{python} fmt(_rc('benchathon','bertscore'))`) and semantic similarity (+`{python} fmt(_rc('benchathon','semantic_similarity'))`) trail — a leaderboard built on a strong lexical metric would broadly preserve the judge's coarse-tier ordering but disagree on the mid-tier, motivating a calibrated LLM judge as the primary scoring instrument.
+
+<!-- tbl-metric-correlation moved to Appendix I -->
+
+## RQ4: Human–AI co-creation under LLM-judge scoring
+
+```{python}
+#| echo: false
+#| label: fig-human-vs-ai
+#| fig-cap: "Mean LLM-judge raw score (0–100) per group with 95% bootstrap CIs on the Benchathon validation subset. Human bars: judge grades of human-written solutions, split by working condition (traditional = unaided; co-creation = human–AI co-creation). AI bars: per-generation judge scores pooled across closed-flagship-tier systems only (flagship) and across all evaluated LLM systems (pooled)."
+#| fig-pos: 't'
+
+# Single-column figure (Quarto-native crossref via @fig-human-vs-ai). Compact
+# four-group bar chart sized for a single column of the ACL two-column
+# layout (~3.3 in wide). The flagship-only AI bar makes the co-creation ≈
+# closed-flagship-tier comparison visually immediate.
+
+import random, statistics
+import matplotlib.pyplot as plt
+
+random.seed(11)
+
+def _hvsa_boot_ci(xs, n=2000):
+    xs = [float(x) for x in xs if x is not None]
+    if len(xs) < 3:
+        return (statistics.mean(xs) if xs else 0.0, 0.0, 0.0)
+    pt = statistics.mean(xs)
+    samples = sorted(statistics.mean(random.choices(xs, k=len(xs))) for _ in range(n))
+    return pt, samples[int(0.025 * n)], samples[int(0.975 * n) - 1]
+
+_flagship_ids = {s["model_id"] for s in (systems_meta or []) if s.get("tier") == "flagship"}
+_flagship_raws = [r["raw_score"] for r in (model_evals or [])
+                  if r.get("raw_score") is not None and r.get("system") in _flagship_ids]
+
+_groups = [
+    ("Human\ntraditional", _human_judge_by_variant["no_ai"][0]),
+    ("Human\nco-creation", _human_judge_by_variant["ai"][0]),
+]
+if model_evals:
+    _ai_raws = [r["raw_score"] for r in model_evals if r["raw_score"] is not None]
+    _groups.append(("AI all\n(pooled)", _ai_raws))
+if _flagship_raws:
+    _groups.append(("AI flagship\n(closed)", _flagship_raws))
+
+_labels = [g[0] for g in _groups]
+_points, _los, _his = zip(*(_hvsa_boot_ci(g[1]) for g in _groups))
+_ns = [len(g[1]) for g in _groups]
+
+_fig, _ax = plt.subplots(figsize=(2.95, 1.9))
+_xs = range(len(_groups))
+_ax.bar(_xs, _points,
+        yerr=[[p - l for p, l in zip(_points, _los)],
+              [h - p for p, h in zip(_points, _his)]],
+        color=["#6c8eb0", "#b08056", "#a89bc8", "#6f5fa0"][:len(_groups)],
+        capsize=2.5, edgecolor="black", linewidth=0.4, width=0.55)
+for _x, _p, _n in zip(_xs, _points, _ns):
+    _ax.text(_x, _p + 1.5, f"{_p:.1f}", ha="center", va="bottom",
+             fontsize=6.5, weight="bold")
+    _ax.text(_x, 2, f"$n$={_n}", ha="center", va="bottom",
+             fontsize=5.8, color="#444")
+_ax.set_xticks(list(_xs))
+_ax.set_xticklabels(_labels, fontsize=6.5)
+_ax.set_ylabel("LLM-judge raw (0–100)", fontsize=6.5)
+_ax.tick_params(axis="y", labelsize=6)
+_ax.set_ylim(0, 100)
+_ax.spines[["top", "right"]].set_visible(False)
+_ax.yaxis.grid(True, linestyle=":", linewidth=0.4, alpha=0.6)
+_ax.set_axisbelow(True)
+plt.tight_layout(pad=0.2)
+plt.show()
+```
+
+The LLM judge rates co-creation solutions substantially higher than traditional-condition solutions on the Benchathon (@fig-human-vs-ai; `Table~\ref{tbl-main-leaderboard}`{=latex}). The mean judge raw score is `{python} fmt(r4.get('mean_traditional'),1)` on the `{python} f"{r4.get('n_traditional')}"` traditional-condition solutions versus `{python} fmt(r4.get('mean_co_creation'),1)` on the `{python} f"{r4.get('n_co_creation')}"` co-creation solutions, a mean difference of `{python} fmtp(r4.get('mean_diff_ai_minus_trad'),1)` raw points (bootstrap 95% CI: [`{python} fmtp(r4.get('ci95_lo'),1)`, `{python} fmtp(r4.get('ci95_hi'),1)`]). The co-creation mean lands inside the closed-flagship-tier 95% CI (mean `{python} fmt(_ta('benchathon','by_tier','flagship','mean_raw'),1)`, CI [`{python} fmt(_ta('benchathon','by_tier','flagship','ci95_lo'),1)`, `{python} fmt(_ta('benchathon','by_tier','flagship','ci95_hi'),1)`]), while the traditional-condition mean sits between mid-pack open-weight systems and the weakest open-weight Llama-4 (mean `{python} fmt(b('meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8'),1)`). Per-condition n is unbalanced (`{python} f"{r4.get('n_co_creation')} vs. {r4.get('n_traditional')}"`) and observations are not strictly independent across participants; the bootstrap is therefore non-clustered, and the judge–LLM-style-alignment caveat is discussed in Limitations. Per-domain bootstrap intervals (civil law, public law, criminal law) overlap, so we do not infer at the domain level.
+
+```{python}
+#| echo: false
+#| output: asis
+print(rq4_human_sentence)
+```
+
+## RQ5: Grading reliability
+
+The headline of RQ5: within the per-solution variability humans already show on the same answers, the LLM judge can substitute for a reviewer without degrading the pool's agreement with the full-human reference. The same picture holds across model lineages: judges from three different families (GPT-5-mini, Opus-4.7, Gemini-3.1-Pro) disagree with each other by an amount comparable to disagreement among independent human graders, while preserving system ordering. Detailed numbers are in `Appendix~\ref{judgehuman-agreement-statistics}`{=latex} (`Table~\ref{tbl-agreement}`{=latex}); the per-dimension breakdown is in @fig-rubric-dim.
+
+`\paragraph{Judge vs.\ the mean human grade.}`{=latex}
+On the `{python} f"{r5_jh.get('n_annotations')}"` annotations where the LLM judge has a complete grade, the judge agrees with the per-solution mean of the blind human reviewers at Pearson r=`{python} fmt(r5_jh.get('pearson_raw'))` and Spearman ρ=`{python} fmt(r5_jh.get('spearman_raw'))` on raw 0–100 scores, with a mean absolute error of `{python} fmt(r5_jh.get('mae_raw'),1)` raw points (≈`{python} fmt(r5_jh.get('mae_grade_points'),1)` grade points on the 0–18 scale) and Cohen's κ=`{python} fmt(r5_jh.get('passfail_cohen_kappa'))` for the pass/fail decision. For context, the blind reviewers themselves disagree on the same solutions by a mean within-annotation max–min spread of `{python} fmt(r5_irr.get('mean_within_ann_spread_raw'),1)` raw points (`{python} fmt(r5_irr.get('mean_within_ann_spread_grade_points'),1)` grade points), broadly comparable to the several-grade-point range that prior work on German legal grading reports [@hufeld2024]. As a single-number reliability summary, the blind-reviewer pool has ICC(2,k)=`{python} fmt(r5_irr.get('icc_2_k_raw'))` on raw scores — *intra-class correlation coefficient*, the standard inter-rater reliability metric [@shrout1979intraclass]; we report the two-way random-effects variants ICC(2,1) and ICC(2,k), with their grade-point counterparts, in `Table~\ref{tbl-agreement}`{=latex}.
+
+`\paragraph{Alternative-annotator substitution.}`{=latex}
+A sharper test of whether the judge can stand in for a human is the Calderon-style alternative-annotator check [@calderon2025]: drop one human from the pool and either (a) substitute the LLM judge in that slot or (b) leave the slot empty, then re-aggregate the resulting pool and correlate it against the full-human reference. On the `{python} f"{r5_cal.get('n_pairs_judge_substituted')}"` matched annotations, both operations yield essentially the same correlation with the full-human pool — Pearson r=`{python} fmt(r5_cal.get('pearson_judge_substituted_vs_full_human'))` for the judge-substituted pool, r=`{python} fmt(r5_cal.get('pearson_human_LOO_vs_full_human'))` for the human leave-one-out. The judge's contribution to the per-solution pool score is therefore indistinguishable from a typical human's at this scale: substituting the judge degrades agreement with the full-human pool no more than dropping that human altogether. Both correlations are computed on the same underlying annotations, so we report this as a descriptive matched comparison rather than an inferential test.
+
+`\paragraph{Dimension-level pattern.}`{=latex}
+@fig-rubric-dim breaks judge–human agreement down by rubric dimension. Judge–human agreement is highest on dimensions with structured scoring criteria — `{python} _dim_prose_top(3)` — and lowest on dimensions tied more to presentation and form — `{python} _dim_prose_bottom(3)`; per-dimension MAE ranges from `{python} fmt(dim_mae_formalia)` (Formal correctness, max 2 points) to `{python} fmt(dim_mae_ergebnis,1)` (Result correctness, max 20 points). Per-dimension Pearson values are reported descriptively without multi-comparison correction; we do not make inferential claims about individual dimensions.
+
+```{python}
+#| echo: false
+#| output: asis
+print(rq5_extension)
+```
+
+`\paragraph{Judge re-run stability.}`{=latex}
+Re-running the same GPT-5-mini judge k=3 times on each generation in the Benchathon validation subset (`{python} f"{r5_jr.get('n_generations_with_repeats')}"` generations) yields a mean within-cell stdev of `{python} fmt(r5_jr.get('mean_within_gen_stdev'),2)` raw points — substantially tighter than the inter-human within-solution spread of `{python} fmt(r5_irr.get('mean_within_ann_spread_raw'),1)` raw points reported above. The judge is therefore more self-consistent across re-runs than the human raters are with each other on the same solutions.
+
+`\paragraph{Inter-judge agreement across model families.}`{=latex}
+Across three judge families (GPT-5-mini, Opus-4.7, Gemini-3.1-Pro) on the same `{python} f"{inter_judge.get('n_cells_with_triplets')}"`-generation subset, judges from different model lineages disagree by an amount comparable to disagreement among independent human graders, while preserving system ordering. The underlying numbers: a clear strictness gradient — Opus-4.7 scores on average `{python} fmt((inter_judge.get('per_judge_stats') or {}).get('gpt-5-mini',{}).get('mean',0) - (inter_judge.get('per_judge_stats') or {}).get('claude-opus-4-7',{}).get('mean',0),1)` raw points lower than GPT-5-mini, with Gemini-3.1-Pro in between; pairwise rank agreement remains high (Spearman ρ between `{python} fmt(min((p.get('spearman_rho') or 1) for p in (inter_judge.get('pairwise') or {}).values()),2)` and `{python} fmt(max((p.get('spearman_rho') or 0) for p in (inter_judge.get('pairwise') or {}).values()),2)` across the three pairs); and the within-cell stdev across the three judges is `{python} fmt((inter_judge.get('within_cell_stdev') or {}).get('median'),1)` raw points (median), on the same order as the inter-human spread among blind raters.
+
+## Error analysis
+
+Inspecting generations with high within-rubric dimension dispersion surfaces five recurring failure modes: correct outcomes reached via abstract argumentation rather than fact-bound *Subsumtion*; wrong-norm framing under otherwise plausible legal identification; perfunctory or missing *Subsumtion* in short answers; long but shallow generations that lexical metrics over-reward but the rubric does not; and correct fact-bound reasoning followed by a wrong final result. The last pattern is the cleanest judge-failure pointer — rubric-aligned scoring captures the reasoning/outcome dissociation that single-number metrics cannot. Per-pattern instance counts, representative task identifiers, dimension scores, and judge-justification quotes are reported in `Appendix~\ref{error-analysis-patterns}`{=latex}.
+
+# Discussion
+
+The five research questions together describe a consistent picture: closed-flagship LLMs lead the leaderboard across all three corpora (RQ1, RQ2) but the gap to the strongest open-weight systems narrows at the mid-tier; lexical surface metrics correlate with the rubric judge more strongly than embedding-based metrics (RQ3), and any single such metric would misrank systems at the flagship–mid-tier boundary relative to a rubric-aligned judge. The dimension-level cross-validation in @fig-rubric-dim is qualitatively consistent with Hufeld's inter-human pattern [@hufeld2024] — agreement is highest on dimensions with clearer scoring anchors and lowest on those depending more on layout and presentation judgement.
+
+Human–AI co-creation (RQ4) outperforms unaided human work by `{python} fmtp(r4.get('mean_diff_ai_minus_trad'),0)` raw points, with the co-creation mean landing inside the closed-flagship-tier CI; non-independence and judge-style-alignment caveats are discussed in Limitations.
+
+# Conclusion
+
+<!-- BLIND-REVIEW SWAP: replace "the BenGER dataset" with "a benchmark";
+drop ", all run end-to-end on our previously released BenGER platform
+[@nagl2026benger]"; and replace the closing release sentence with
+"The benchmark will be released as an open evaluation framework with
+corpora, judge prompts, rubric, and analysis pipeline upon acceptance."
+(no project name, no self-citation, no GitHub URL) -->
+We introduce the BenGER dataset for subsumption-based legal reasoning in German law, combining an exam-style free-text corpus, a Benchathon subset with human and human–AI baselines, a rubric-aligned LLM-as-a-Judge, and a multi-rater cross-validation protocol — `{python} f"{len(systems_meta) if systems_meta else 12}"` systems and `{python} f"{sum((s.get('repetitions') or 0) for s in (systems_meta or [])) + (sum(r['n_generations'] for r in zjs_summary) if zjs_summary else 0) + (sum(r['n_generations'] for r in grundprinzipien_summary) if grundprinzipien_summary else 0)}"` generations on Benchathon, ZJS, and Doctrinal Principles, all run end-to-end on our previously released BenGER platform [@nagl2026benger]. Closed flagship systems lead, the strongest open-weight systems overlap with the closed mid-tier, and substituting the LLM judge for a human reviewer produces the same multi-rater pool agreement with the full-human reference as dropping that human altogether — supporting its use as a scalable rater alongside humans rather than as standalone ground truth. BenGER is released as an open evaluation framework with corpora, judge prompts, rubric, and analysis pipeline at <https://github.com/SebastianNagl/benger-platform>.
+
+<!-- BLIND-REVIEW SWAP: comment out the ENTIRE Future Work section
+(the `# Future Work` heading plus all four `**…**` paragraphs that
+follow). The blind submission caps body content at 8 pages and this
+section identifies the present authors as the continuing maintainers
+of the platform — both reasons to suppress it under ARR. Either
+delete the section or wrap it in an HTML comment block. -->
+# Future Work
+
+The benchmark reported here is intentionally a first iteration: 12 systems, three corpora, one annotation round. We see four directions in which it should grow.
+
+**Deep integration into German legal education.** German law students write *Probeklausuren* on a weekly cadence throughout their studies; today those exam answers are graded by overworked teaching assistants and then discarded. We plan to deploy the BenGER platform [@nagl2026benger] as the substrate for that weekly grading cycle at a growing set of German law faculties, with the LLM judge providing immediate first-pass formative feedback in the *Repetitor* style and human instructors providing a second-pass authoritative grade. The platform's role-aware design [@nagl2026benger] is built for exactly this two-tier loop, and the data flowing back from each round becomes the raw material for the next benchmark release.
+
+**Broader judge pools and contamination probes.** The leaderboard reported here rests on a single primary judge (GPT-5-mini, cross-validated with Opus-4.7 and Gemini-3.1-Pro on the RQ5 subset). Future releases will re-score every generation with a multi-judge pool of at least three model families, and complement this with explicit contamination probes against the publicly indexed ZJS corpus.
+
+**Task-specific rubrics for tighter scoring variance.** The *Falllösung* rubric used here scores the same ten dimensions across every exam-style case. We hypothesise that a rubric derived per task from its reference solution — extracting the specific norms, definitions, and *Subsumtion* steps the reference performs and scoring each one explicitly — would narrow the inter-rater variance reported in RQ5 by anchoring criteria to the case rather than to the case format. Prototyping such reference-derived rubrics on the Benchathon subset is a natural next step.
+
+**Cross-jurisdiction and cross-task extension.** The *Obersatz–Definition–Subsumtion–Ergebnis* scaffold is shared directly with the other German-speaking civil-law jurisdictions (Austria, Switzerland), and through the 19th-century reception of German pandectist scholarship it also underpins legal education in many code-based systems further afield — Japan, South Korea, Taiwan, Greece, and parts of Latin America (notably Brazil). The platform's metric and prompt-template layer is designed for incremental extension [@nagl2026benger], offering straightforward near-term paths to Austrian/Swiss exam corpora as well as to short-form *Hausarbeit* and oral-examination transcript scoring; the rubric structure itself should transfer with re-calibration to the broader pandectist-influenced jurisdictions.
+
+# Limitations {.unnumbered}
+
+Several limitations bound our findings.
+
+**Black-box API evaluation.** All LLM systems are evaluated through hosted provider APIs in a black-box setting, so reported scores reflect end-to-end deployed behaviour, not isolated base-model capability. We do not vary provider-side prompts, decoding configurations, retrieval, or tool use, and so avoid claims about the contribution of individual architectural choices.
+
+**Co-developed rubric and judge prompt.** The dimension rubric and the LLM-judge prompt were co-developed for this benchmark rather than adopted from independent prior work; we validate them as a pair against the multi-rater human-grading layer (RQ5), whose within-annotation inter-rater spread (`{python} fmt(r5_irr.get('mean_within_ann_spread_grade_points'),1)` grade points) sits within the range Hufeld [@hufeld2024] documents for German legal grading. Neither component has been validated in isolation.
+
+**Modest Benchathon size.** The Benchathon subset comprises `{python} f"{n_benchathon}"` tasks and a modest participant pool. This suffices for the per-task, per-system comparisons and the judge validation reported here, but limits statistical power for fine-grained interaction effects such as expertise-stratified co-creation analyses.
+
+**Judge-model bias.** The LLM judge is itself a model, and judge bias is a known confounder in evaluation [@zheng2023mtbench; @panickssery2024self]. We address this with two complementary checks: the multi-rater agreement protocol on the Benchathon validation subset (RQ5) and the inter-judge agreement analysis across three judge families (GPT-5-mini, Opus-4.7, Gemini-3.1-Pro) reported above, which shows a clear strictness gradient but pairwise rank agreement comparable in magnitude to inter-human agreement. <!-- BLIND-REVIEW SWAP: replace "in BenGER" with "in our benchmark". -->
+Same-provider preference is a specific risk in BenGER because the primary judge GPT-5-mini (OpenAI) shares a model family with the leaderboard-leading systems GPT-5.4 and GPT-5.4-mini; we cannot fully rule out a same-family advantage of the kind documented in [@panickssery2024self]. Two bounds limit its plausible size: the cross-judge Spearman between GPT-5-mini and Opus-4.7 / Gemini-3.1-Pro (see RQ5) holds the system ordering across providers, and judge–human Pearson on the blind-reviewer subset is r=`{python} fmt(r5_jh.get('pearson_raw'),2)`. The headline LLM scores reported in RQ1–RQ2 nonetheless rest on a single judge model; cross-judge robustness of system rankings is descriptively supported by the inter-judge correlations on a subset, but the full RQ1–RQ2 leaderboard should be re-scored with at least one non-OpenAI judge (Opus-4.7 and Gemini-3.1-Pro are already in the RQ5 judge pool, but only GPT-5-mini scored every generation in RQ1–RQ2) before any strong cross-judge claim. The RQ5 reliability statistics themselves carry two method caveats: the Calderon-style alternative-annotator check is order-dependent for the single position chosen for the human leave-one-out, and the headline ICC is reported on the full k=`{python} f"{r5_irr.get('k_raters')}"` blind-rater pool over all `{python} f"{r5_irr.get('n_annotations')}"` picks.
+
+**Jurisdictional scope.** The rubric is grounded in German doctrinal grading conventions and is not designed to generalise to common-law or non-German civil-law systems; <!-- BLIND-REVIEW SWAP: replace "in the BenGER dataset" with "in this dataset". -->
+metrics and aggregate scores in the BenGER dataset should not be transferred to other jurisdictions without re-calibration.
+
+**Pretraining contamination on ZJS.** ZJS material is publicly indexed, so provider models may have encountered some of it during pretraining; we have not run an explicit memorisation probe. The Benchathon and Doctrinal Principles corpora, which remain private until publication, are not a clean contamination control: their orderings agreeing with the ZJS leaderboard is consistent with both low contamination and with contamination that scales proportionally across systems. What the agreement does bound is *catastrophic* differential contamination — a system whose ZJS rank is driven by memorisation and that would underperform on the unseen Benchathon and Doctrinal Principles items — since such a system would visibly fall out of order on the private corpora. Per-domain CIs (RQ4), the pairwise inter-judge correlations (RQ5), and the patterns reported in §Error analysis are presented descriptively without multiple-comparison correction; we do not draw inferential claims from individual cell-level comparisons.
+
+**Rubric divergence on Doctrinal Principles.** The Benchathon and ZJS exam-style corpora are graded with the 10-dimension *Falllösung* rubric, while the short-form Doctrinal Principles corpus uses a 4-dimension rubric (result correctness, legal knowledge, subsumption, clarity); per-dimension comparisons across corpora are therefore not meaningful, and only aggregate raw scores, pass rates, and Ja/Nein accuracy (Doctrinal Principles only) should be compared across the three.
+
+**Google-Flash model drift.** The Google efficiency-tier slot was generated with two distinct Google models — Gemini-3-Flash on the Benchathon subset and Gemini-3.1-Flash-Lite (a separate efficiency product line rather than a successor release of Flash) on the ZJS and Doctrinal Principles corpora — because the model set was finalised between the two generation runs. We treat them as the same conceptual tier slot for tier-level comparisons and disclose the raw model ids in `Table~\ref{tbl-system-overview}`{=latex}; row-level cross-corpus comparison for this slot should be read with the model drift in mind, and tier-level claims should not be read as a per-model claim about either Flash or Flash-Lite alone.
+
+# Ethical Considerations {.unnumbered}
+
+Benchathon participants were recruited from a pool of law students and recent graduates who consented to the use of their written solutions and self-reported expertise data for research purposes. <!-- BLIND-REVIEW SWAPS in this paragraph:
+"in the released BenGER dataset" → "in the released dataset"
+"methodology in BenGER" → "methodology used here" -->
+Solutions and self-reports are anonymized in the released BenGER dataset. Human grading is conducted by domain experts under the same consent regime; we release dimension-level rubric scores and aggregate statistics, not free-text feedback that could re-identify a participant. The Benchathon study design for human and co-creation baseline was approved by an ethics committee. The LLM-as-a-Judge methodology in BenGER is intended for research-scale evaluation of legal-reasoning systems and is not validated for use as a graded assessment instrument in legal education or for deployment in legal practice.
+
+The ZJS exams and reference solutions are copyright-protected. We have cleared IP rights for the vast majority of items, which are bundled directly with the released dataset; for the remainder we provide URL pointers to publicly accessible free locations on the web. All model generations and LLM-judge evaluation scores are released without restriction. The benchmark is therefore end-to-end reproducible — recomputing any reported number requires only a short fetch step for the IP-uncleared ZJS items.
+
+A public legal-reasoning benchmark can be optimised against, so future systems may improve on the benchmark without commensurate gains in real legal-reasoning quality. To mitigate this risk we release the rubric and judge prompts alongside the data, encourage reporting on the full per-dimension breakdown rather than a single headline score, and treat the benchmark as one signal among several in the evaluation of legal-domain LLMs.
+
+# AI usage {.unnumbered}
+The authors leveraged Anthropic Claude Opus 4.7 for coding tasks and OpenAI GPT 5.5 Pro for wording and LaTeX assistance. 
+
+<!-- BLIND-REVIEW SWAP: comment out the entire Acknowledgments section
+(heading + paragraph) — it names supporters, funders, and institutions
+that identify the author group. -->
+# Acknowledgments {.unnumbered}
+
+We thank our colleagues in the TITAN project group — Philipp Reuß (University of Göttingen), Sarah Rachut (TU Braunschweig), Liane Wörner (University of Konstanz), Dominik Brodowski (Saarland University), and Markus Langer and Asya Caroei (both University of Freiburg) — for the discussions that shaped this work. We are grateful to the Legal Tech Verband (LTV) and its members Clemens Hufeld (Beck/Noxtua), Daniella Domokos (Capgemini), Ben Kühnel (Forvis Mazars), and Katharina Hertel (Recode Law) for their support in organising the Benchathon, and to all Benchathon participants for their dedicated work. We thank Markus Wagner and the *Zeitschrift für das Juristische Studium* (ZJS) author community for generously permitting use and redistribution of their cases. Finally, we thank Peter Moser (LMU) for connecting us with the right experts and materials.
+
+BenGER is generously funded by the Daimler Benz Foundation as part of project TITAN (*Technologische Intelligenz zur Transformation, Automatisierung und Nutzerorientierung des Justizsystems*) and by the German Federal Ministry of Justice as part of the *Digitalisierungsinitiative des Bundes für die Justiz* under the GSJ project (*Generatives Sprachmodell der Justiz*), a collaboration between the justice ministries of North Rhine-Westphalia and Bavaria, TU Munich, and the University of Cologne.
+
+
+```{python}
+#| echo: false
+#| output: false
+agreement_stats = load_optional(processed / "agreement_stats.json")
+```
+
+
+```{python}
+#| echo: false
+#| output: false
+
+# Tier-aggregate state used by the RQ2 body prose (no table is emitted;
+# the prose just quotes the flagship-vs-open and closed-vs-open deltas).
+
+_tier_local = (agreement_stats_setup or {}).get("tier_aggregates", {})
+_ta_bench = (_tier_local.get("benchathon") or {})
+_ta_zjs   = (_tier_local.get("zjs") or {})
+
+def _bench_cell(d):
+    if not d: return ("0", "---")
+    return (f"{d['n_systems']} ({d['n_generations']})",
+            f"{d['mean_raw']:.1f} [{d['ci95_lo']:.1f}, {d['ci95_hi']:.1f}]")
+
+def _zjs_cell(d):
+    if not d: return ("0", "---")
+    return (f"{d['n_systems']}",
+            f"{d['mean_raw']:.1f} [{d['min']:.1f}, {d['max']:.1f}]")
+
+TIER_ORDER = ["flagship", "efficiency", "open_reference"]
+WEIGHT_ORDER = ["closed", "open"]
+
+def _section(label, keys, bench_dict, zjs_dict):
+    rows = [[r"\textit{" + label + "}", "", "", "", ""]]
+    for k in keys:
+        b = bench_dict.get(k); z = zjs_dict.get(k)
+        n_b, m_b = _bench_cell(b); n_z, m_z = _zjs_cell(z)
+        rows.append([k.replace("_", " ").title(), n_b, m_b, n_z, m_z])
+    return rows
+
+prov_order = sorted(
+    (_ta_bench.get("by_provider") or {}).keys(),
+    key=lambda k: -(_ta_bench["by_provider"][k]["mean_raw"]),
+)
+```
+
+```{=latex}
+\bibliography{references.bib}
+\appendix
+\nolinenumbers
+
+\section*{Contents of the Appendix}
+\noindent
+A\quad Full results table \dotfill \pageref{full-results-table}\par
+B\quad Operational metadata \dotfill \pageref{operational-metadata}\par
+C\quad Evaluated systems catalogue \dotfill \pageref{evaluated-systems-catalogue}\par
+D\quad Per-task per-system heatmap \dotfill \pageref{per-task-per-system-heatmap}\par
+E\quad Benchathon participant composition \dotfill \pageref{benchathon-participant-composition}\par
+F\quad Full Benchathon human-evaluation assignment procedure \dotfill \pageref{full-benchathon-human-evaluation-assignment-procedure}\par
+G\quad Automatic-metric vs.\ LLM-judge correlation \dotfill \pageref{automatic-metric-vs.-llm-judge-correlation}\par
+H\quad Judge--human agreement statistics \dotfill \pageref{judgehuman-agreement-statistics}\par
+I\quad System prompts for generation \dotfill \pageref{system-prompts-for-generation}\par
+J\quad Instruction prompts for generation \dotfill \pageref{instruction-prompts-for-generation}\par
+K\quad Evaluation prompts for the LLM judge \dotfill \pageref{evaluation-prompts-for-the-llm-judge}\par
+L\quad LLM-judge configuration \dotfill \pageref{llm-judge-configuration}\par
+M\quad Error analysis patterns \dotfill \pageref{error-analysis-patterns}\par
+N\quad Responsible NLP Research Checklist \dotfill \pageref{responsible-nlp-research-checklist}\par
+% BLIND-REVIEW SWAP: comment out the line above (prefix it with %); the
+% ARR submission form carries the checklist content separately.
+```
+
+# Full results table
+
+`Table~\ref{tbl-full-results-rubric}`{=latex} reports per-system bootstrap 95\% CIs for the rubric-based metrics (LLM-judge raw / grade-points / pass rate across all corpora, plus the human-grader rubric columns on Benchathon). `Table~\ref{tbl-full-results-auto}`{=latex} reports the same CIs for the surface and embedding-based automatic metrics, plus Doctrinal Principles Ja/Nein decision accuracy (a task-correctness measure rather than a rubric one). Both tables cover all three corpora (Benchathon, ZJS, Doctrinal Principles) with the two Benchathon human-baseline rows pinned at the top of the Benchathon block. The CI is the percentile interval over $B=2000$ resamples on the per-generation values (seed $42$); each cell shows the mean stacked above $\pm$ half the width of the 95% CI (in a smaller font). Empty cells indicate the metric is not computed on that dataset. The legacy `coherence` metric is excluded. Derived from the released analysis pipeline.
+
+```{python}
+#| echo: false
+#| output: false
+
+# Build two two-column-spanning tables (rubric metrics + automatic metrics)
+# from the combined CSV and write them to separate files. Pulled into the
+# manuscript via \input{} from a raw-LaTeX block below — this routes around
+# Quarto's auto-wrapping of any python chunk that emits \begin{...table...}.
+
+import csv
+from pathlib import Path
+
+_csv_path     = Path("data/processed/leaderboard_combined.csv")
+_tex_rubric   = Path("assets/tbl_full_results_rubric.tex")
+_tex_auto     = Path("assets/tbl_full_results_auto.tex")
+_tex_rubric.parent.mkdir(parents=True, exist_ok=True)
+
+DATASET_LABEL = {
+    "benchathon": "Bench.",
+    "zjs": "ZJS",
+    "grundprinzipien": "Grundpr.",
+}
+
+RUBRIC_METRICS = [
+    ("judge_raw",            "Judge raw"),
+    ("grade_points",         "Gr.\\,pts"),
+    ("pass_rate",            "Pass"),
+    ("human_raw",            "H.\\,raw"),
+    ("human_grade_points",   "H.\\,Gr.pts"),
+    ("human_pass_rate",      "H.\\,pass"),
+]
+
+# `accuracy` is the Grundprinzipien Ja/Nein decision accuracy — a task-
+# correctness metric, not a rubric measure. We place it alongside the
+# automatic metrics here (separated from BLEU/ROUGE/... by its own caption
+# note) rather than in the rubric table.
+AUTO_METRICS = [
+    ("accuracy",             "Acc."),
+    ("bleu",                 "BLEU"),
+    ("rouge",                "ROUGE"),
+    ("meteor",               "METEOR"),
+    ("chrf",                 "chrF"),
+    ("bertscore",            "BERTSc"),
+    ("moverscore",           "MovSc"),
+    ("semantic_similarity",  "SemSim"),
+]
+
+
+def _compact(cell):
+    """Stack 'mean [lo, hi]' as a two-line cell:
+        mean
+        ±half       (half = (hi-lo)/2, rendered one font size smaller)
+    Compresses cell width substantially vs. the bracket / inline forms,
+    at the cost of doubling row height. Asymmetric CIs lose a little
+    info; bootstrap CIs on means are typically near-symmetric. Escape %
+    for LaTeX."""
+    if not cell:
+        return "---"
+    if " [" not in cell or not cell.endswith("]"):
+        return cell.replace("%", r"\%")
+    mean_str, rest = cell.split(" [", 1)
+    lo_hi = rest[:-1]
+    try:
+        lo_s, hi_s = [s.strip() for s in lo_hi.split(",")]
+        is_pct = mean_str.endswith("%")
+        mean_clean = mean_str.rstrip("%")
+        mean_num = float(mean_clean)
+        lo_num = float(lo_s.rstrip("%"))
+        hi_num = float(hi_s.rstrip("%"))
+        half = (hi_num - lo_num) / 2.0
+        decs = len(mean_clean.split(".")[1]) if "." in mean_clean else 0
+        pct = r"\%" if is_pct else ""
+        mean_disp = f"{mean_num:.{decs}f}{pct}"
+        half_disp = f"{half:.{decs}f}"
+        return (r"\shortstack[r]{" + mean_disp
+                + r"\\{\scriptsize $\pm$" + half_disp + r"}}")
+    except (ValueError, IndexError):
+        return cell.replace("%", r"\%")
+
+
+def _build_table(rows, metrics, *, label, caption, include_n_human):
+    extra_count_cols = ["$n_H$"] if include_n_human else []
+    headers = (["Dataset", "System", "$n$"] + extra_count_cols
+               + [h for _, h in metrics])
+    # The auto-metrics table has enough columns to bleed past \textwidth
+    # at the rubric table's natural size, so we wrap the inner tabular in
+    # \resizebox{\linewidth}{!}{...}. This keeps the table within the
+    # ACL right-margin and aclpubcheck's margin check.
+    col_spec = "ll" + "r" * (len(headers) - 2)
+
+    lines = [
+        r"\begin{table*}[t]",
+        r"\centering\footnotesize",
+        r"\caption{" + caption + "}",
+        r"\label{" + label + "}",
+        r"\setlength{\tabcolsep}{4pt}",
+        r"\resizebox{\linewidth}{!}{%",
+        r"\begin{tabular}{" + col_spec + "}",
+        r"\toprule",
+        " & ".join(headers) + r" \\",
+        r"\midrule",
+    ]
+
+    prev_dataset = None
+    for r in rows:
+        ds_key = r.get("dataset", "")
+        sys_id = r.get("group_or_system", "")
+        if prev_dataset is not None and ds_key != prev_dataset:
+            lines.append(r"\midrule")
+        prev_dataset = ds_key
+
+        ds_label = DATASET_LABEL.get(ds_key, ds_key)
+        if sys_id.startswith("Human"):
+            sys_label = r"\textit{" + _tex_escape(sys_id) + "}"
+        else:
+            sys_label = _tex_escape(alias_for(sys_id))
+
+        cells = [ds_label, sys_label, r.get("n_generations", "") or "---"]
+        if include_n_human:
+            cells.append(r.get("n_human_grades", "") or "---")
+        for m, _ in metrics:
+            cells.append(_compact(r.get(f"{m} [95% CI]", "")))
+        lines.append(" & ".join(cells) + r" \\")
+
+    lines += [r"\bottomrule", r"\end{tabular}", r"}%  end \resizebox",
+              r"\end{table*}", ""]
+    return "\n".join(lines)
+
+
+if not _csv_path.exists():
+    _missing = (r"\textit{Combined leaderboard pending — run "
+                r"scripts/derive\_leaderboard\_csvs.py.}\par" + "\n")
+    _tex_rubric.write_text(_missing, encoding="utf-8")
+    _tex_auto.write_text(_missing, encoding="utf-8")
+else:
+    with _csv_path.open(encoding="utf-8") as _f:
+        _rows = list(csv.DictReader(_f))
+
+    _rubric_caption = (
+        r"Rubric-based results: per-system bootstrap 95\% CIs "
+        r"($B=2000$, seed $42$) on the LLM-judge raw / grade-points / pass "
+        r"columns (all corpora) and the human-grader rubric columns "
+        r"(Benchathon only). Each cell shows the mean stacked above $\pm$ "
+        r"half the width of the 95\% CI; dashes mark metrics not computed "
+        r"on a dataset. $n$ is the per-system generation count; $n_H$ is "
+        r"the per-system human-grader row count (Benchathon only). The two "
+        r"Benchathon human-baseline rows (traditional, co-creation) sit at "
+        r"the top of the Benchathon block."
+    )
+    _auto_caption = (
+        r"Automatic-metric and task-correctness results: per-system "
+        r"bootstrap 95\% CIs ($B=2000$, seed $42$) on the surface and "
+        r"embedding-based metrics, plus Ja/Nein decision accuracy "
+        r"(Doctrinal Principles only). Each cell shows the mean stacked above "
+        r"$\pm$ half the width of the 95\% CI; dashes mark metrics not "
+        r"computed on a dataset (chrF and Acc.\\ are Doctrinal-Principles-only). "
+        r"The legacy coherence metric is excluded."
+    )
+
+    _tex_rubric.write_text(
+        _build_table(_rows, RUBRIC_METRICS,
+                     label="tbl-full-results-rubric",
+                     caption=_rubric_caption,
+                     include_n_human=True),
+        encoding="utf-8",
+    )
+    _tex_auto.write_text(
+        _build_table(_rows, AUTO_METRICS,
+                     label="tbl-full-results-auto",
+                     caption=_auto_caption,
+                     include_n_human=False),
+        encoding="utf-8",
+    )
+```
+
+```{=latex}
+\input{assets/tbl_full_results_rubric.tex}
+\input{assets/tbl_full_results_auto.tex}
+```
+
+# Operational metadata
+
+`Table~\ref{tbl-system-cost}`{=latex} reports per-system operational metadata for the Benchathon generation run: mean cost per generation, mean wall-clock response time, mean output length, and the count of truncated generations out of total. Cost is taken from the per-call `response_metadata` recorded at generation time; aggregates are over the same generation pool reported in the main leaderboards.
+
+```{python}
+#| echo: false
+#| output: asis
+
+def _fmt_cost(v): return "---" if v is None else f"\\${v:.3f}"
+def _fmt_sec(v):  return "---" if v is None else f"{v:.1f}"
+def _fmt_int(v):  return "---" if v is None else f"{v:.0f}"
+
+if not systems_meta:
+    print(r"\textit{Systems metadata pending — run scripts/derive\_paper\_exports.py.}\par")
+else:
+    cost_rows = sorted(
+        [s for s in systems_meta if (s.get("repetitions") or 0) > 0],
+        key=lambda s: -(s.get("mean_cost_usd") or 0),
+    )
+    _cost_rows = [[
+        _tex_escape(s["provider"]),
+        _tex_escape(alias_for(s.get("name", ""))),
+        _fmt_cost(s.get("mean_cost_usd")),
+        _fmt_sec(s.get("mean_response_time_s")),
+        _fmt_int(s.get("mean_output_words")),
+        f"{s.get('n_truncated', 0)}/{s.get('repetitions') or 0}",
+    ] for s in cost_rows]
+
+    emit_tex_table(
+        "tbl-system-cost",
+        "Per-system operational metadata on the Benchathon generation run: mean "
+        "cost per generation (USD), mean wall-clock response time (s), and mean "
+        "output length (words). Cost is the cost\\_usd field carried in "
+        "response\\_metadata at generation time; aggregates are over the same "
+        "generation pool reported in the leaderboards.",
+        ["Provider", "System", "Mean cost", "Mean time (s)", "Mean words", "Trunc."],
+        _cost_rows,
+        tex_escape=False,
+        span_two_columns=True,
+        shrink_to_fit=True,
+    )
+```
+
+# Evaluated systems catalogue
+
+`Table~\ref{tbl-system-overview}`{=latex} catalogues the LLM systems evaluated in this work alongside their provider family, the short alias used throughout the body of the paper, the full model id, tier classification (closed flagship, efficiency-oriented, or open-weight reference), weights status (open vs.\ closed), the decoding temperature and max-output-tokens setting used, the total generation count on the Benchathon subset, and the count of truncated generations over that total.
+
+```{python}
+#| echo: false
+#| output: asis
+
+if not systems_meta:
+    print(r"\textit{Systems catalogue pending — run scripts/derive\_paper\_exports.py.}\par")
+else:
+    def _trunc_cell(s):
+        n_t = s.get("n_truncated", 0) or 0
+        n_g = s.get("repetitions") or 0
+        if not n_g:
+            return "---"
+        return f"{n_t}/{n_g}"
+    _sys_rows = [[
+        _tex_escape(s.get("provider", "")),
+        _tex_escape(alias_for(s.get("name", ""))),
+        r"\texttt{" + _tex_escape(s.get("name", "")) + "}",
+        _tex_escape(_tier_label.get(s.get("tier"), s.get("tier") or "---")),
+        _tex_escape((s.get("weights") or s.get("openness") or "---").capitalize()),
+        _tex_escape(_fmt(s.get("temperature"))),
+        _tex_escape(_fmt(s.get("max_output_tokens"))),
+        _tex_escape(_fmt(s.get("repetitions"))),
+        _trunc_cell(s),
+    ] for s in systems_meta]
+
+    emit_tex_table(
+        "tbl-system-overview",
+        "Evaluated LLM systems with provider family, the short alias used "
+        "throughout the paper, the full model id, tier (flagship / "
+        "efficiency-oriented / open-weight reference), weights (open vs.\\ "
+        "closed), observed generation temperature, max-output-tokens setting, "
+        "total generation count on the Benchathon subset, and the count of "
+        "truncated generations (truncated flag or finish\\_reason in length / "
+        "max\\_tokens) over total. The Google efficiency-tier row aggregates "
+        "two distinct Google models across corpora -- Gemini-3-Flash on "
+        "Benchathon and Gemini-3.1-Flash-Lite (a separate product line) on "
+        "ZJS and Doctrinal Principles; see Limitations \\S7.",
+        ["Provider", "Alias", "System", "Tier", "Weights", "$T$", "Max out", "Gens", "Trunc."],
+        _sys_rows,
+        span_two_columns=True,
+        tex_escape=False,
+        shrink_to_fit=True,
+    )
+```
+
+# Per-task per-system heatmap
+
+@fig-task-system-heatmap visualises the per-task per-system mean LLM-judge raw score on the Benchathon subset. Rows are systems ordered by overall mean (top = highest); columns are the 15 Benchathon tasks ordered by inner identifier and grouped by legal area (Civ = civil law, Pub = public law, Crim = criminal law). The heatmap exposes the within-task variance discussed in RQ1: top-tier closed systems hold a tighter per-task spread, while mid-tier and smaller open-weight systems show visibly larger task-to-task swings for the same overall mean.
+
+```{python}
+#| echo: false
+#| label: fig-task-system-heatmap
+#| fig-cap: "Per-task per-system mean LLM-judge raw score on the Benchathon subset. Rows are systems ordered by overall mean (top = highest). Columns are the 15 Benchathon tasks ordered by inner_id, grouped by legal area (Civ = civil law, Pub = public law, Crim = criminal law)."
+#| fig-pos: 'p'
+#| fig-env: figure*
+
+import matplotlib.pyplot as plt
+import statistics
+from collections import defaultdict
+
+cell: dict[tuple, list[float]] = defaultdict(list)
+for r in (model_evals or []):
+    if r.get("raw_score") is None:
+        continue
+    cell[(r["task_id"], r["system"])].append(float(r["raw_score"]))
+
+TASK_BEREICH_SHORT = {"Zivilrecht": "Civ", "Öffentliches Recht": "Pub", "Strafrecht": "Crim"}
+task_meta = sorted(
+    ({
+        "id": t["id"],
+        "inner": t.get("inner_id"),
+        "bereich": (t.get("data") or {}).get("bereich"),
+    } for t in benchathon_tasks),
+    key=lambda x: x["inner"] if x["inner"] is not None else 999,
+)
+
+sys_means = {}
+for r in (model_evals or []):
+    if r.get("raw_score") is None: continue
+    sys_means.setdefault(r["system"], []).append(float(r["raw_score"]))
+sys_order = sorted(sys_means, key=lambda s: -statistics.mean(sys_means[s]))
+
+if not sys_order or not task_meta or not model_evals:
+    fig, ax = placeholder_panel((6.8, 2.2), "fig-task-system-heatmap",
+        ["data/processed/benchathon_model_evaluations.json"],
+        "Run scripts/derive_paper_exports.py to populate.")
+    plt.show()
+else:
+    matrix = [[statistics.mean(cell.get((t["id"], s), [float("nan")])) if cell.get((t["id"], s)) else float("nan")
+               for t in task_meta] for s in sys_order]
+
+    fig, ax = plt.subplots(figsize=(6.3, 0.28 * len(sys_order) + 0.9))
+    im = ax.imshow(matrix, aspect="auto", vmin=30, vmax=95, cmap="viridis")
+
+    col_labels = [f"{TASK_BEREICH_SHORT.get(t['bereich'], '?')}{t['inner']}" for t in task_meta]
+    ax.set_xticks(range(len(task_meta)))
+    ax.set_xticklabels(col_labels, fontsize=5.5, rotation=45, ha="right")
+
+    row_labels = [s.split("/")[-1][:22] for s in sys_order]
+    ax.set_yticks(range(len(sys_order)))
+    ax.set_yticklabels(row_labels, fontsize=5.5)
+
+    import math
+    for i in range(len(sys_order)):
+        for j in range(len(task_meta)):
+            v = matrix[i][j]
+            if v is None or (isinstance(v, float) and math.isnan(v)):
+                continue
+            txt = f"{v:.0f}"
+            colour = "white" if v < 62 else "black"
+            ax.text(j, i, txt, ha="center", va="center", fontsize=4.4, color=colour)
+
+    cbar = plt.colorbar(im, ax=ax, fraction=0.025, pad=0.02)
+    cbar.ax.tick_params(labelsize=5.5)
+    cbar.set_label("Judge raw (0–100)", fontsize=6)
+    plt.tight_layout(pad=0.2)
+    plt.show()
+```
+
+
+# Benchathon participant composition
+
+The Benchathon validation cohort comprises the participants who together produced the human solutions and reviews used throughout this paper. They self-reported their legal-expertise level on a four-stage scale corresponding to standard stages of German legal education and practice: **layperson** (no formal legal training), **law student** (currently enrolled in a German law program, typically working toward the first state examination — *Erstes Staatsexamen*), **graduated** (completed legal studies but not currently in legal practice or *Referendariat*), and ***Referendar*** (in the approximately two-year practical legal traineeship that follows the first state examination and precedes the second state examination, after which a candidate becomes a fully qualified *Volljurist*). `Table~\ref{tbl-human-participants}`{=latex} breaks the cohort down by self-reported level and working condition (traditional vs.\ human--AI co-creation), counting both unique participants and annotation contributions per condition.
+
+```{python}
+#| echo: false
+#| output: asis
+
+from collections import Counter, defaultdict
+
+_users = load_json(raw / "benchathon" / "benchathon_users.json")
+_user_map = {u["id"]: u for u in _users}
+
+ann_by_user_and_variant = defaultdict(lambda: Counter())
+for t in benchathon_tasks:
+    for ann in t.get("annotations") or []:
+        uid = ann.get("completed_by")
+        v = variants.get(ann["id"])
+        if not uid or v not in ("no_ai", "ai"): continue
+        ann_by_user_and_variant[uid][v] += 1
+
+label_map = {"layperson": "Layperson", "law_student": "Law Student",
+             "graduated_no_practice": "Graduated", "referendar": "Referendar"}
+
+by_lvl = Counter()
+trad_n = Counter(); ai_n = Counter()
+for uid, cnts in ann_by_user_and_variant.items():
+    u = _user_map.get(uid) or {}
+    lvl = label_map.get(u.get("legal_expertise_level"), "Unknown")
+    by_lvl[lvl] += 1
+    trad_n[lvl] += cnts["no_ai"]
+    ai_n[lvl] += cnts["ai"]
+
+_hp_rows = []
+for lvl in ["Layperson", "Law Student", "Graduated", "Referendar", "Unknown"]:
+    if by_lvl[lvl] == 0: continue
+    _hp_rows.append([lvl, str(by_lvl[lvl]), str(trad_n[lvl]), str(ai_n[lvl])])
+_hp_rows.append([r"\textbf{Total}",
+                 f"\\textbf{{{sum(by_lvl.values())}}}",
+                 f"\\textbf{{{sum(trad_n.values())}}}",
+                 f"\\textbf{{{sum(ai_n.values())}}}"])
+
+emit_tex_table(
+    "tbl-human-participants",
+    "Benchathon participants by self-reported legal expertise level and "
+    "working condition (no\\_ai = traditional, ai = co-creation).",
+    ["Expertise", "Participants", "Trad.~annot.", "Co-creation annot."],
+    _hp_rows,
+    tex_escape=False,
+    span_two_columns=True,
+    fill_width=True,
+)
+```
+
+# Full Benchathon human-evaluation assignment procedure
+
+The validation subset comprises 45 solutions (15 Benchathon tasks × 3 provenances: human-traditional, human–AI co-creation, LLM-generated). For each task and condition, the human pick is the participant whose *expertise proxy* — a z-score combining self-assessed competence in the relevant legal area and, where available, the first state examination grade — is closest to the median expertise score of all participants in that legal area and condition. LLM picks are drawn through a deterministic rotation across three system tiers (closed flagship, efficiency-oriented, open-weight reference) with a per-system load counter that spreads picks across systems within each tier so the validation set covers as many distinct systems as the available pool permits; generations shorter than 200 output tokens are excluded.
+
+Each selected solution receives one creator review by the author of the corresponding task and up to three independent blind reviews (design target: 180 reviews — 45 creator + 135 blind). Blind reviews are assigned such that each solution is targeted for three distinct graders, while task authors do not blindly evaluate solutions from their own authored legal area. In practice, three graders contribute exclusively as blind reviewers across all three legal areas, and the two criminal-law creators additionally contribute blind reviews on civil-law and public-law solutions. The assignment procedure balances reviewer workload and monitors coverage across solution provenance, legal domain, and task difficulty. Blind graders are unaware of solution origin — i.e., whether a solution was written traditionally, produced in human–AI co-creation, or generated by an LLM — and grade against the same rubric as the LLM judge, including both total and dimension-level scores. Creator reviews are reported as an author-informed reference signal and are not included in inter-rater reliability estimates. The IRR statistics in `Table~\ref{tbl-agreement}`{=latex} are computed on the full k=`{python} f"{r5_irr.get('k_raters')}"` blind-rater pool over all `{python} f"{r5_irr.get('n_annotations')}"` picks.
+
+
+# Automatic-metric vs. LLM-judge correlation
+
+`Table~\ref{tbl-metric-correlation}`{=latex} gives the per-generation Pearson $r$ between every automatic metric and the LLM-judge raw score across the three LLM-generation corpora and the two Benchathon human-annotation conditions; @fig-metric-correlation repeats the same comparison as a 1×3 panel of per-corpus Pearson and Spearman bar plots (Benchathon | ZJS | Doctrinal Principles).
+
+```{python}
+#| echo: false
+#| output: asis
+# Native LaTeX two-column-spanning table (\begin{table*}) — vector text, real
+# font matching, and full-width layout. Same precedent the body uses for raw
+# table* emission.
+
+_columns = [
+    (r"\shortstack{Benchathon\\(LLM)}",        r3),
+    (r"\shortstack{ZJS\\(LLM)}",               zjs_metric_corr),
+    (r"\shortstack{Grundpr.\\(LLM)}",          grundprinzipien_metric_corr),
+    (r"\shortstack{Bench.\,human\\\textit{traditional}}",  (r3_humans.get("classic")    or {})),
+    (r"\shortstack{Bench.\,human\\\textit{co-creation}}",  (r3_humans.get("cocreation") or {})),
+]
+
+def _cell(d, metric):
+    v = (d.get(metric) or {})
+    r = v.get("pearson_vs_judge_raw")
+    n = v.get("n")
+    if r is None or n in (None, 0):
+        return "---"
+    return f"${r:+.2f}$ {{\\scriptsize ($n{{=}}{n}$)}}"
+
+lines = [
+    r"\begin{table*}[t]",
+    r"\centering\footnotesize",
+    r"\caption{Per-generation Pearson $r$ between each automatic metric and "
+    r"the LLM judge's raw score across three corpora of LLM generations and "
+    r"the Benchathon human-annotation working conditions (traditional vs. "
+    r"human--AI co-creation). Cell format: $r$ ($n$). `---' = metric not run "
+    r"on that corpus / condition. Rows are in a fixed canonical order "
+    r"(lexical $\rightarrow$ embedding).}",
+    r"\label{tbl-metric-correlation}",
+    r"\setlength{\tabcolsep}{4pt}",
+    r"\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}l" + "c" * len(_columns) + "@{}}",
+    r"\toprule",
+    "Metric & " + " & ".join(c for c, _ in _columns) + r" \\",
+    r"\midrule",
+]
+for m in CANONICAL_METRIC_ORDER:
+    cells = [_cell(d, m) for _, d in _columns]
+    lines.append(f"{METRIC_LABELS[m]} & " + " & ".join(cells) + r" \\")
+lines += [r"\bottomrule", r"\end{tabular*}", r"\end{table*}", ""]
+print("\n".join(lines))
+```
+
+
+```{python}
+#| echo: false
+#| output: false
+def _render_metric_correlation_subplot(ax, corr_dict, title, show_ylabels=True):
+    """Draw a Pearson + Spearman bar panel into the provided Axes.
+    Missing metrics on a given corpus are simply omitted (no zero-height bar).
+    """
+    ordered = [(m, corr_dict[m]) for m in CANONICAL_METRIC_ORDER if m in corr_dict]
+    labels = [METRIC_LABELS.get(m, m) for m, _ in ordered]
+    pearsons = [v.get("pearson_vs_judge_raw") for _, v in ordered]
+    spearmans = [v.get("spearman_vs_judge_raw") for _, v in ordered]
+    ys = range(len(ordered))
+    w = 0.4
+    ax.barh([y + w/2 for y in ys], pearsons, height=w, label="Pearson r",
+            color="#4a7ab8", edgecolor="black", linewidth=0.3)
+    ax.barh([y - w/2 for y in ys], spearmans, height=w, label="Spearman ρ",
+            color="#c08456", edgecolor="black", linewidth=0.3)
+    ax.axvline(0, color="black", linewidth=0.5)
+    ax.set_yticks(list(ys))
+    if show_ylabels:
+        ax.set_yticklabels(labels, fontsize=7)
+    else:
+        ax.set_yticklabels([])
+    ax.invert_yaxis()  # canonical order top-to-bottom
+    ax.set_xlim(-0.5, 0.8)
+    ax.set_xlabel("correlation with judge raw", fontsize=7)
+    ax.tick_params(axis="x", labelsize=6.5)
+    ax.set_title(title, fontsize=7.5)
+    ax.spines[["top", "right"]].set_visible(False)
+
+def _render_metric_correlation_panel(panels):
+    """Render a 1x3 panel (Benchathon | ZJS | Grundprinzipien)."""
+    import matplotlib.pyplot as plt
+    max_metrics = max((len([m for m in CANONICAL_METRIC_ORDER if d and m in d])
+                       for _, d, _, _ in panels), default=0)
+    if max_metrics == 0:
+        # all three corpora missing → single placeholder panel
+        fig, ax = placeholder_panel(
+            (6.8, 1.8), "fig-metric-correlation",
+            [p[3] for p in panels],
+            "Run the derive_* scripts to populate per-corpus correlation files.",
+        )
+        plt.show()
+        return
+    fig, axes = plt.subplots(1, 3, figsize=(6.3, 0.32 * max_metrics + 1.0),
+                             sharex=True)
+    for i, (title, corr_dict, _hint_label, _path) in enumerate(panels):
+        if corr_dict:
+            _render_metric_correlation_subplot(axes[i], corr_dict, title,
+                                               show_ylabels=(i == 0))
+        else:
+            axes[i].set_title(title, fontsize=7.5)
+            axes[i].text(0.5, 0.5, "—", ha="center", va="center",
+                         transform=axes[i].transAxes, fontsize=10, color="gray")
+            axes[i].set_xticks([]); axes[i].set_yticks([])
+            for spine in axes[i].spines.values():
+                spine.set_visible(False)
+    # Float the legend above the panel row (outside any subplot) so it
+    # never overlaps the correlation bars regardless of corpus / metric set.
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center",
+               bbox_to_anchor=(0.5, 1.02), ncol=2,
+               fontsize=6.5, frameon=False)
+    plt.tight_layout(pad=0.4, rect=(0, 0, 1, 0.97))
+    plt.show()
+```
+
+```{python}
+#| echo: false
+#| label: fig-metric-correlation
+#| fig-cap: "Per-generation correlation between each automatic metric and the LLM-judge raw score on the Benchathon (left), ZJS (middle), and Doctrinal Principles (right) corpora. Bars report Pearson r and Spearman ρ; n varies per metric. Metrics are shown in the fixed canonical order shared with the per-corpus correlation table in this appendix. Judge on Doctrinal Principles is the custom 4-dimension rubric."
+#| fig-env: figure*
+#| fig-pos: 'p'
+_render_metric_correlation_panel([
+    ("Benchathon",
+     (agreement_stats or {}).get("rq3_metric_correlation") or {},
+     "fig-metric-correlation",
+     "data/processed/agreement_stats.json"),
+    ("ZJS",
+     zjs_metric_corr,
+     "fig-metric-correlation",
+     "data/processed/zjs_metric_correlation.json"),
+    ("Doctrinal Principles",
+     grundprinzipien_metric_corr,
+     "fig-metric-correlation",
+     "data/processed/grundprinzipien_metric_correlation.json"),
+])
+```
+
+
+# Judge–human agreement statistics
+
+`Table~\ref{tbl-agreement}`{=latex} reports the headline judge–human and human–human agreement numbers; @fig-rubric-dim breaks the same data down by rubric dimension.
+
+```{python}
+#| echo: false
+#| output: asis
+
+if not agreement_stats:
+    print(r"\textit{Agreement statistics pending — run scripts/compute\_agreement.py.}\par")
+else:
+    jvh = agreement_stats["rq5_judge_vs_human"]
+    irr = agreement_stats["rq5_human_irr"]
+    cal = agreement_stats["rq5_calderon"]
+    def _f(v, w=2): return "---" if v is None else f"{v:.{w}f}"
+    _ag_rows = [
+        ["Judge vs.~mean-human",
+         f"$n={jvh['n_annotations']}$",
+         f"$r={_f(jvh['pearson_raw'])}$, $\\rho={_f(jvh['spearman_raw'])}$",
+         f"MAE raw {_f(jvh['mae_raw'],1)}, MAE gp {_f(jvh['mae_grade_points'],2)}",
+         f"$\\kappa={_f(jvh['passfail_cohen_kappa'])}$"],
+        [f"Human IRR ($k$={irr['k_raters']} blind)",
+         f"$n={irr['n_annotations']}\\times{irr['k_raters']}$",
+         f"ICC(2,1) raw {_f(irr['icc_2_1_raw'])}",
+         f"ICC(2,$k$) raw {_f(irr['icc_2_k_raw'])}",
+         f"spread raw {_f(irr['mean_within_ann_spread_raw'],1)}"],
+        ["Calderon (judge sub.)",
+         f"$n={cal['n_pairs_judge_substituted']}$",
+         f"$r={_f(cal['pearson_judge_substituted_vs_full_human'])}$",
+         f"$\\rho={_f(cal['spearman_judge_substituted_vs_full_human'])}$",
+         "vs."],
+        ["Calderon (human LOO)",
+         f"$n={cal['n_pairs_human_leave_one_out']}$",
+         f"$r={_f(cal['pearson_human_LOO_vs_full_human'])}$",
+         f"$\\rho={_f(cal['spearman_human_LOO_vs_full_human'])}$",
+         ""],
+    ]
+    emit_tex_table(
+        "tbl-agreement",
+        "Agreement statistics on the Benchathon human-grading validation subset "
+        "(design: three blind reviewers per solution with one author-informed "
+        "creator review reported separately; the Human IRR row reports on the "
+        "full blind pool). Judge-vs-human rows report Pearson $r$, "
+        "Spearman $\\rho$, MAE, and pass/fail Cohen's $\\kappa$; human "
+        "inter-rater rows report ICC and within-annotation max--min spread; "
+        "Calderon rows compare a judge-substituted pool against a human "
+        "leave-one-out pool.",
+        ["Comparison", "Sample", "Correlation 1", "Correlation 2 / MAE", "$\\kappa$ / spread"],
+        _ag_rows,
+        span_two_columns=True,
+        tex_escape=False,
+        placement="p",
+        fill_width=True,
+    )
+```
+
+
+```{python}
+#| echo: false
+#| label: fig-rubric-dim
+#| fig-cap: "Per-rubric-dimension agreement between the LLM judge and the mean of the blind human reviewers. Bars: Pearson r (left axis); points: MAE in dimension points (right axis). Sorted by Pearson r."
+#| fig-pos: 'p'
+#| fig-env: figure*
+
+import matplotlib.pyplot as plt
+
+if not agreement_stats:
+    fig, ax = placeholder_panel((6.8, 2.4), "fig-rubric-dim",
+        ["data/processed/agreement_stats.json"],
+        "Run scripts/compute_agreement.py to populate.")
+    plt.show()
+else:
+    rows = sorted(agreement_stats["rq5_dim"].items(),
+                  key=lambda kv: -(kv[1]["pearson_judge_vs_mean_human"] or 0))
+    labels = [_dim_label.get(d, d) for d, _ in rows]
+    pears  = [v["pearson_judge_vs_mean_human"] for _, v in rows]
+    maes   = [v["mae_dim_points"] for _, v in rows]
+    ys = range(len(rows))
+    fig, ax = plt.subplots(figsize=(6.3, 0.32 * len(rows) + 0.7))
+    ax.barh(list(ys), pears, color="#4a7ab8", edgecolor="black", linewidth=0.3)
+    ax.set_yticks(list(ys)); ax.set_yticklabels(labels, fontsize=6.5)
+    ax.set_xlim(0, 1.0)
+    ax.set_xlabel("Pearson r (judge vs mean-human)", fontsize=7)
+    ax.tick_params(axis="x", labelsize=6.5)
+    ax.spines[["top"]].set_visible(False)
+    ax2 = ax.twiny()
+    ax2.scatter(maes, list(ys), color="#c0394a", s=14, marker="D", zorder=3, label="MAE (pts)")
+    ax2.set_xlim(0, max(maes) * 1.2 if maes else 1)
+    ax2.set_xlabel("MAE (dimension points)", fontsize=7, color="#c0394a")
+    ax2.tick_params(axis="x", labelsize=6.5, colors="#c0394a")
+    ax2.spines[["top"]].set_color("#c0394a")
+    plt.tight_layout(pad=0.3)
+    plt.show()
+```
+
+# System prompts for generation
+
+*All prompts in this and the following two appendices (Appendices `\ref{instruction-prompts-for-generation}`{=latex} and `\ref{evaluation-prompts-for-the-llm-judge}`{=latex}) were sent to the models verbatim in German as reproduced below. Each German prompt is followed by an English translation marked as such; the translations are provided for reader convenience and were not used in any model interaction.*
+
+## Exam-style cases (Klausuren)
+
+Du bist ein hochqualifizierter juristischer Bearbeiter für deutsches Recht. Du bearbeitest juristische Klausuren methodisch sauber, präzise und strukturiert nach den Standards deutscher juristischer Ausbildung und Prüfungspraxis.
+
+Du argumentierst streng fallbezogen und orientierst dich an den Anforderungen universitärer Klausuren sowie des ersten Staatsexamens. Du löst Aufgaben eigenständig und ohne Meta-Kommentare.
+
+*English translation (reader reference; not sent to any model):*
+
+You are a highly qualified legal practitioner for German law. You work through legal exam-style cases (*Klausuren*) methodically, precisely, and in a structured manner, in line with the standards of German legal education and examination practice.
+
+You argue strictly with reference to the case at hand and orient yourself to the requirements of university exam-style cases and of the first state examination (*Erstes Staatsexamen*). You solve tasks independently and without meta-commentary.
+
+## Doctrinal Principles (Grundprinzipien)
+
+Du bist ein hochqualifizierter juristischer Bearbeiter für deutsches Recht. Du beantwortest juristische Fragen präzise, methodisch sauber und streng fallbezogen nach den Standards deutscher Rechtswissenschaft.
+
+Deine Antworten sollen knapp, klar und juristisch korrekt sein. Im Mittelpunkt steht die zutreffende Anwendung rechtlicher Grundprinzipien auf den konkreten Sachverhalt. Du argumentierst eigenständig und ohne Meta-Kommentare.
+
+*English translation (reader reference; not sent to any model):*
+
+You are a highly qualified legal practitioner for German law. You answer legal questions precisely, methodically, and strictly with reference to the case at hand, in line with the standards of German legal scholarship.
+
+Your answers should be concise, clear, and legally correct. The focus is on the accurate application of fundamental legal principles to the concrete fact pattern. You argue independently and without meta-commentary.
+
+
+# Instruction prompts for generation
+
+## Exam-style cases (Klausuren)
+
+Bearbeite die folgende juristische Aufgabe wie eine echte deutsche Jura-Klausur.
+
+#### **Ziel der Bearbeitung**
+
+Erstelle eine vollständige juristische Falllösung nach den methodischen Standards deutscher Rechtswissenschaft. Im Mittelpunkt steht subsumptionsbasierte Rechtsanwendung.
+
+Die Bearbeitung soll zeigen, dass du:
+
+- die rechtlichen Kernprobleme des Falls erkennst,
+- die relevanten Anspruchsgrundlagen bzw. Prüfungsprogramme auswählst,
+- die Prüfung methodisch korrekt strukturierst,
+- Definitionen und Streitstände präzise einordnest,
+- vor allem aber die konkreten Tatsachen des Falls sauber unter die rechtlichen Voraussetzungen subsumierst.
+
+Die Qualität der juristischen Argumentation ist wichtiger als reine Vollständigkeit oder Länge.
+
+#### Stil, Methodik und Gliederung
+
+Arbeite im Stil einer deutschen juristischen Klausur.
+
+Grundsätzlich ist die Lösung im Gutachtenstil zu verfassen. Das bedeutet insbesondere:
+
+- Formulierung eines Obersatzes,
+- Definition der rechtlichen Voraussetzungen,
+- Subsumtion anhand des konkreten Sachverhalts,
+- nachvollziehbares Zwischenergebnis.
+
+Nur wenn aus Aufgabenstellung, Ausbildungsniveau oder Bearbeitungskontext erkennbar ist, dass eine Referendarsklausur oder ein Urteil verlangt wird, ist stattdessen im Urteilsstil zu arbeiten. In diesem Fall soll die Lösung den typischen Aufbau gerichtlicher Entscheidungen widerspiegeln, insbesondere eine ergebnisorientierte Darstellung mit anschließender Begründung.
+
+Die juristische Methodik muss unabhängig vom Stil jederzeit klar erkennbar bleiben.
+
+Die Lösung ist klausurtypisch und hierarchisch sauber zu gliedern. Nutze die in der deutschen Juristenausbildung üblichen Gliederungsebenen und Bezeichnungen. 
+
+Typischerweise:
+
+A., B., C. für Hauptabschnitte,
+
+I., II., III. für Unterabschnitte,
+
+1., 2., 3. für weitere Ebenen,
+
+a), b), c) für Unterpunkte,
+
+aa), bb), cc) für vertiefte Untergliederungen.
+
+Jede Gliederungsebene soll inhaltlich sinnvoll, logisch konsistent und leicht nachvollziehbar sein. Das bedeutet insbesondere:
+
+- strukturiere die Lösung nach Anspruchsgrundlagen, Rechtsbehelfen oder Prüfungsprogrammen,
+- prüfe Anspruchsvoraussetzungen in methodisch sinnvoller Reihenfolge,
+- bilde erkennbare Prüfungsschwerpunkte heraus,
+- nutze Zwischenergebnisse zur Strukturierung der weiteren Prüfung,
+- vermeide unstrukturierte Textblöcke oder sprunghafte Argumentation.
+
+Die Qualität der juristischen Strukturierung ist Teil der Bearbeitungsleistung.
+
+#### **Schwerpunktsetzung**
+
+Gewichte die Bearbeitung klausurtypisch.
+
+Das bedeutet:
+
+- konzentriere dich auf die rechtlich schwierigen und problematischen Punkte,
+- behandle offensichtliche oder unproblematische Voraussetzungen kurz,
+- erkenne versteckte Probleme und Schwerpunktsetzungen im Sachverhalt,
+- vermeide lange Ausführungen zu irrelevanten Nebenaspekten.
+
+#### Umgang mit Streitständen
+
+Die Darstellung relevanter Streitstände ist in juristischen Klausuren grundsätzlich erwünscht, insbesondere wenn sie zu den Kernproblemen des Falls gehören oder methodisch vertiefte Argumentation ermöglichen.
+
+Wenn mehrere vertretbare Ansichten bestehen:
+
+- stelle die wesentlichen Positionen präzise dar,
+- arbeite Unterschiede in Argumentation oder dogmatischer Herleitung heraus,
+- argumentiere methodisch und fallbezogen,
+- entscheide dich nachvollziehbar für eine Ansicht,
+- arbeite anschließend konsequent mit der gewählten Ansicht weiter.
+
+Die Darstellung darf über das absolut unmittelbar Notwendige hinausgehen, sofern sie klausurtypisch ist und zum Schwerpunkt der Aufgabe passt. Vermeide jedoch:
+
+- rein auswendig gelernte oder schematische Streitdarstellungen ohne Fallbezug,
+- extensive Meinungsstreite zu nebensächlichen Problemen,
+- reine Namens- oder Schlagwortaufzählungen ohne argumentative Einordnung.
+
+#### **Umgang mit dem Sachverhalt**
+
+Arbeite streng sachverhaltsbezogen.
+
+- Nutze konkrete Tatsachen aktiv in der Subsumtion.
+- Erfinde keine zusätzlichen Tatsachen.
+- Unterstelle keine Informationen, die nicht im Sachverhalt enthalten sind.
+- Ignoriere keine auffälligen Hinweise oder Indizien.
+
+Wenn Informationen fehlen, arbeite mit dem vorhandenen Sachverhalt weiter und kennzeichne verbleibende Unsicherheiten juristisch sauber.
+
+#### **Normen und Zitierweise**
+
+Nenne die einschlägigen gesetzlichen Grundlagen präzise.
+
+- Zitiere Normen möglichst vollständig.
+- Nutze Absätze, Sätze, Nummern oder Buchstaben, wenn relevant.
+- Verwende deutsche juristische Terminologie.
+
+Beispiele:
+
+- „§ 823 Abs. 1 BGB”
+- „Art. 12 Abs. 1 GG”
+- „§ 242 StGB”
+
+#### **Sprachstil**
+
+- Schreibe sachlich, präzise und juristisch.
+- Vermeide Meta-Kommentare.
+- Erwähne nicht, dass du ein KI-System bist.
+- Gib keine allgemeinen Haftungsausschlüsse.
+- Verweise nicht auf externe Beratung.
+- Antworte direkt mit der juristischen Lösung.
+
+#### **Umfang**
+
+Die Lösung soll so ausführlich sein, wie es für eine gute bis sehr gute juristische Klausurbearbeitung erforderlich ist.
+
+- Wichtige Probleme sollen vertieft behandelt werden.
+- Unproblematische Punkte dürfen knapp bleiben.
+- Die Lösung soll nicht künstlich verlängert werden.
+
+#### **Ausgabeformat**
+
+- Gib ausschließlich die juristische Lösung aus.
+- Nutze sinnvolle Überschriften und Gliederungsebenen.
+- Verwende Fließtext.
+- Keine Stichpunkte außer wenn methodisch sinnvoll.
+- Keine zusätzlichen Erklärungen außerhalb der Falllösung.
+
+---
+
+#### **Aufgabe**
+
+{{sachverhalt}}
+
+*English translation (reader reference; not sent to any model):*
+
+Work through the following legal task as if it were a genuine German law exam-style case (*Klausur*).
+
+#### **Goal of the work**
+
+Produce a complete legal case solution (*Falllösung*) according to the methodological standards of German legal scholarship. The focus is on subsumption-based (*subsumtionsbasiert*) application of the law.
+
+The work should demonstrate that you:
+
+- identify the core legal problems of the case,
+- select the relevant causes of action or examination programmes,
+- structure the analysis methodologically correctly,
+- classify definitions and scholarly debates (*Streitstände*) precisely,
+- and, above all, cleanly subsume the concrete facts of the case under the legal requirements.
+
+The quality of the legal argumentation is more important than mere completeness or length.
+
+#### Style, methodology, and structure
+
+Work in the style of a German legal exam-style case.
+
+As a general rule, the solution is to be written in the assessment style (*Gutachtenstil*). This means in particular:
+
+- formulation of a major premise (*Obersatz*),
+- definition of the legal requirements,
+- subsumption on the basis of the concrete fact pattern,
+- a comprehensible intermediate result.
+
+Only when it is evident from the task, the level of training, or the work context that a trainee's exam-style case (*Referendarsklausur*) or a judgement is required should the judgement style (*Urteilsstil*) be used instead. In that case, the solution should reflect the typical structure of judicial decisions, in particular a result-oriented presentation followed by the reasoning.
+
+Regardless of style, the legal methodology must remain clearly recognizable at all times.
+
+The solution must be structured in a typical exam-style way, with a clean hierarchy. Use the levels and labels customary in German legal education.
+
+Typically:
+
+A., B., C. for main sections,
+
+I., II., III. for subsections,
+
+1., 2., 3. for further levels,
+
+a), b), c) for sub-points,
+
+aa), bb), cc) for deeper sub-structures.
+
+Each level of structure should be substantively meaningful, logically consistent, and easy to follow. This means in particular:
+
+- structure the solution by causes of action, legal remedies, or examination programmes,
+- examine the requirements of a claim in a methodologically sensible order,
+- bring out recognizable focal points of the analysis,
+- use intermediate results to structure the further analysis,
+- avoid unstructured blocks of text or erratic argumentation.
+
+The quality of the legal structuring is part of the work being assessed.
+
+#### **Setting priorities**
+
+Weight the work in the manner typical of an exam-style case.
+
+This means:
+
+- concentrate on the legally difficult and problematic points,
+- treat obvious or unproblematic requirements briefly,
+- recognize hidden problems and focal points in the fact pattern,
+- avoid lengthy discussion of irrelevant secondary aspects.
+
+#### Handling scholarly debates
+
+The presentation of relevant scholarly debates (*Streitstände*) is generally desirable in legal exam-style cases, especially when they concern the core problems of the case or enable methodologically deeper argumentation.
+
+When several defensible views exist:
+
+- present the essential positions precisely,
+- bring out differences in argumentation or doctrinal derivation,
+- argue methodologically and with reference to the case,
+- decide for one view in a comprehensible way,
+- and then work consistently with the chosen view.
+
+The presentation may go beyond what is absolutely strictly necessary, provided it is typical of an exam-style case and fits the focus of the task. However, avoid:
+
+- purely rote or schematic presentations of legal controversies without a connection to the case,
+- extensive doctrinal disputes on secondary issues,
+- mere name-dropping or buzzword listings without argumentative classification.
+
+#### **Handling the fact pattern**
+
+Work strictly with reference to the fact pattern (*Sachverhalt*).
+
+- Use concrete facts actively in the subsumption.
+- Do not invent additional facts.
+- Do not assume information that is not contained in the fact pattern.
+- Do not ignore any conspicuous indications or pieces of evidence.
+
+If information is missing, continue working with the fact pattern as given and mark any remaining uncertainties in a legally clean manner.
+
+#### **Norms and citation style**
+
+Cite the applicable statutory grounds precisely.
+
+- Cite norms as completely as possible.
+- Use paragraphs, sentences, numbers, or letters when relevant.
+- Use German legal terminology.
+
+Examples:
+
+- "§ 823 Abs. 1 BGB"
+- "Art. 12 Abs. 1 GG"
+- "§ 242 StGB"
+
+#### **Language and style**
+
+- Write objectively, precisely, and in a legal register.
+- Avoid meta-commentary.
+- Do not mention that you are an AI system.
+- Do not give general disclaimers.
+- Do not refer to external advice.
+- Respond directly with the legal solution.
+
+#### **Length**
+
+The solution should be as detailed as required for a good to very good legal exam-style case solution.
+
+- Important problems should be treated in depth.
+- Unproblematic points may be kept short.
+- The solution should not be artificially extended.
+
+#### **Output format**
+
+- Output only the legal solution.
+- Use meaningful headings and levels of structure.
+- Use running prose.
+- No bullet points except where methodologically sensible.
+- No additional explanations outside the case solution.
+
+---
+
+#### **Task**
+
+{{sachverhalt}}
+
+
+## Doctrinal Principles (Grundprinzipien)
+
+Bearbeite die folgende juristische Frage nach deutschem Recht.
+
+#### Ziel
+
+Gib eine kurze, präzise und methodisch saubere juristische Antwort auf die konkrete Fragestellung.
+
+Die Antwort soll:
+
+- die rechtlich relevante Kernfrage erkennen,
+- die einschlägigen Normen oder Prinzipien benennen,
+- den konkreten Sachverhalt knapp subsumieren,
+- und zu einer klaren Ja-/Nein-Entscheidung gelangen.
+
+#### Stil
+
+Die Antwort soll deutlich kürzer und fokussierter sein als eine vollständige Klausurlösung.
+
+- Keine umfangreiche Gliederung.
+- Keine langen Streitstandsdebatten.
+- Keine künstliche Verlängerung.
+- Keine allgemeinen Lehrbuchausführungen.
+
+Wenn mehrere vertretbare Ansichten bestehen:
+
+- stelle die wesentlichen Unterschiede knapp dar,
+- entscheide dich nachvollziehbar,
+- und arbeite konsistent mit der gewählten Ansicht weiter.
+
+#### Sachverhaltsbezug
+
+Arbeite streng sachverhaltsbezogen.
+
+- Nutze nur Informationen aus Fall und Fragestellung.
+- Erfinde keine zusätzlichen Tatsachen.
+- Vermeide abstrakte Standardformulierungen ohne Fallbezug.
+
+#### Ausgabeformat
+
+Gib ausschließlich gültiges JSON im folgenden Format aus:
+
+```json
+{
+"answer": "Ja" oder "Nein",
+"reasoning": "kurze juristische Begründung"
+}
+```
+
+#### Fall
+
+{{fall}}
+
+#### Fragestellung
+
+{{task}}
+
+*English translation (reader reference; not sent to any model):*
+
+Work through the following legal question under German law.
+
+#### Goal
+
+Give a short, precise, and methodologically clean legal answer to the concrete question.
+
+The answer should:
+
+- identify the legally relevant core question,
+- name the applicable norms or principles,
+- briefly subsume the concrete fact pattern,
+- and arrive at a clear Ja/Nein decision.
+
+#### Style
+
+The answer should be considerably shorter and more focused than a full exam-style case solution.
+
+- No extensive structuring.
+- No long discussions of scholarly debates.
+- No artificial padding.
+- No general textbook expositions.
+
+When several defensible views exist:
+
+- briefly present the essential differences,
+- decide for one view in a comprehensible way,
+- and work consistently with the chosen view.
+
+#### Reference to the fact pattern
+
+Work strictly with reference to the fact pattern.
+
+- Use only information from the case and the question.
+- Do not invent additional facts.
+- Avoid abstract standard formulations without a connection to the case.
+
+#### Output format
+
+Output only valid JSON in the following format:
+
+```json
+{
+"answer": "Ja" or "Nein",
+"reasoning": "short legal justification"
+}
+```
+
+#### Case
+
+{{fall}}
+
+#### Question
+
+{{task}}
+
+
+# Evaluation prompts for the LLM judge
+
+## Exam-style cases (Klausuren)
+
+Du bist ein strenger, aber fairer Korrektor (“LLM Judge”) für juristische Klausuren deutscher Studierender bis zum 1. Staatsexamen.
+
+Du bewertest ausschließlich auf Basis von:
+1. Angabe/Sachverhalt, 
+2. Studierendenlösung, 
+3. Musterlösung.
+
+Nutze keine externen Quellen und erfinde keine Tatsachen.
+
+Grundsätze:
+
+- Musterlösung ist Referenz. Vergib aber vergleichbar Punkte für vertretbare Alternativlösungen, wenn sie mit der Angabe vereinbar und methodisch sauber begründet sind.
+- Folgefehlerprinzip: Einen Fehler nicht doppelt bestrafen. Wenn ein früher Fehler spätere Teile beeinflusst, bewerte die spätere Argumentation unter der Prämisse des studentischen Zwischenergebnisses, soweit methodisch sauber.
+- Keine Punkte für bloße Schlagworte ohne Definition/Subsumtion.
+- Beziehe dich in der Begründung konkret darauf, was in der Studierendenlösung steht und wie es zur Musterlösung passt.
+
+Bewertungsschema (insgesamt 100 Punkte):
+
+1. Ergebnisrichtigkeit (0–20): **Vollpunkte (≈18–20):** Kernergebnisse stimmen mit Musterlösung überein oder sind vertretbar gleichwertig (z.B. anderes, aber methodisch korrekt begründetes Ergebnis). **Mittel (≈10–14):** Haupttendenz stimmt, aber ein wesentliches Ergebnis ist falsch oder Rechtsfolgen sind merklich verfehlt. **Niedrig (≈0–8):** Zentrale Ergebnisse verfehlt/inkonsistent; Lösung läuft am Fall vorbei.
+2. Vollständigkeit & Problemidentifikation (0–10): **Vollpunkte (≈9–10):** Alle wesentlichen Probleme aus Angabe/Musterlösung erkannt; keine großen „blinden Flecken“. **Mittel (≈5–7):** Ein wesentliches Problem fehlt oder ein Schwerpunkt wird übersehen; sonst ordentlich. **Niedrig (≈0–4):** Mehrere zentrale Probleme fehlen oder es werden viele irrelevante Nebenthemen geprüft („Themenklausur“ statt Falllösung).
+3. Rechtsgrundlagen & Prüfungssystematik (0–10): **Vollpunkte (≈9–10):** Richtige Anspruchsgrundlagen/Prüfungsprogramme, logische Reihenfolge, saubere Prüfungsabschnitte. **Mittel (≈5–7):** Kleine Systematikfehler (Reihenfolge, einzelne falsche/unnötige Grundlagen), aber Gesamtstruktur trägt. **Niedrig (≈0–4):** Falsche Grundstruktur (z.B. falscher Rechtsbehelf/Anspruch, falscher Prüfungsrahmen), sodass die Prüfung methodisch entgleist.
+4. Rechtskenntnis (Definitionen, Normen, Streitstände) (0–15): **Vollpunkte (≈13–15):** Definitionen korrekt, Normen passend, Streitstände nur dort, wo nötig; Streitentscheid begründet. **Mittel (≈8–11):** Einzelne Definitionen/Normen ungenau; Streitstände schematisch oder lückenhaft, aber nicht fallentscheidend falsch. **Niedrig (≈0–7):** Häufig falsche Definitionen/Normen oder erfundene Anforderungen; Streitstände wirr/fehlerhaft.
+5. Subsumtion & Argumentationsqualität (Fallbezug) (0–15): **Vollpunkte (≈13–15):** Konsequenter Tatsachenbezug, saubere Subsumtion, nachvollziehbare Argumente, Abwägungen strukturiert. **Mittel (≈8–11):** Teilweise nur abstrakt/„leerformelhaft“, aber wesentliche Punkte werden noch fallbezogen gelöst. **Niedrig (≈0–7):** Kaum Subsumtion, überwiegend Definitionen ohne Anwendung; Ergebnisse nicht begründet oder widersprüchlich.
+6. Schwerpunktsetzung & Problemtiefe (0–10): **Vollpunkte (≈9–10):** Langer Sachverhaltsblock/Indizien → angemessen vertieft; einfache Punkte kurz; Schwerpunkt stimmt mit Musterlösung und „Signalen“ der Angabe überein. **Mittel (≈5–7):** Entweder Überlänge bei Nebensachen oder Untergewichtung eines Schwerpunkts, aber noch erkennbares Klausurbewusstsein. **Niedrig (≈0–4):** Massive Fehlgewichtung: Hauptproblem kaum behandelt, Nebensachen dominieren.
+7. Methodischer Stil: Obersatz → Definition → Subsumtion → Ergebnis (0–10): **Vollpunkte (≈9–10):** Bei allen wichtigen Prüfungspunkten klar erkennbar; Zwischenergebnisse werden gezogen; auch im Urteilsstil sinngemäß eingehalten. **Mittel (≈5–7):** Grundschema vorhanden, aber häufiger vermischt/ausgelassen; Definitionen oder Ergebnisse fehlen gelegentlich. **Niedrig (≈0–4):** Kein prüfungsorientierter Stil; nur Nacherzählung, Stichworte, oder reine Ergebnisbehauptungen.
+8. Gliederung, Gliederungsebenen & Leseführung (0–5): **5:** Stringente Gliederung, Ebenen sauber, Prüfpunkte auffindbar. **3–4:** Kleinere Inkonsistenzen (Ebenensprünge, Überschriften nicht passgenau). **0–2:** Unstrukturierter Textblock; Gliederung irreführend.
+9. Sprache & juristische Terminologie (0–3): **3:** Präzise, juristisch sauber, gut verständlich. **2:** Teilweise umständlich/ungenau, aber verständlich. **0–1:** Häufig missverständlich, falsche Begriffe, viele sprachliche Brüche.
+10. Formalia: Normzitierweise, Sachverhaltsarbeit, Sorgfalt (0–2): **2:** Normen überwiegend korrekt zitiert; Sachverhalt korrekt verarbeitet; keine groben Schnitzer. **1:** Einzelne Zitier-/Sorgfaltsfehler, nicht gravierend. **0:** Häufige grobe Fehler (Rollen vertauscht, zentrale Fakten falsch wiedergegeben, Normchaos).
+
+Umrechnung Rohpunkte → Notenpunkte (0–18; <4 = nicht bestanden):
+0–12→0, 13–25→1, 26–38→2, 39–49→3,
+50–53→4, 54–56→5, 57–59→6,
+60–63→7, 64–66→8, 67–69→9,
+70–73→10, 74–76→11, 77–79→12,
+80–83→13, 84–86→14, 87–89→15,
+90–93→16, 94–96→17, 97–100→18
+
+Ausgabeformat:
+
+- Gib eine JSON-Ausgabe ohne zusätzlichen Text aus.
+- Für jede Dimension: score (0 bis max, ggf. 0.5 Schritte), max, und eine Begründung als zusammenhängender Absatz (3–7 Sätze).
+- Danach: total_score (0–100), grade_points (0–18), passed (true/false), kurze Gesamtwürdigung (2–5 Sätze) und 3 konkrete Verbesserungshinweise.
+
+
+ANGABE / SACHVERHALT:
+{{{ANGABE_TEXT}}}
+
+MUSTERLÖSUNG:
+{{{MUSTERLOESUNG_TEXT}}}
+
+STUDIERENDENLÖSUNG:
+{{{LOESUNG_TEXT}}}
+
+Aufgabe:
+Bewerte die Lösung nach dem vorgegebenen 100-Punkte-Schema.
+Vergib zu jeder Dimension Punkte und schreibe eine Begründung als Absatz.
+Berechne die Summe (0–100) und wandle in Notenpunkte (0–18) um. Markiere passed=true nur, wenn grade_points >= 4.
+
+Gib ausschließlich JSON aus.
+
+*English translation (reader reference; not sent to any model):*
+
+You are a strict but fair grader ("LLM Judge") for legal exam-style cases written by German students up to the first state examination (*Erstes Staatsexamen*).
+
+You evaluate exclusively on the basis of:
+1. the task/fact pattern,
+2. the student solution (*Studierendenlösung*),
+3. the reference solution (*Musterlösung*).
+
+Do not use any external sources and do not invent any facts.
+
+Principles:
+
+- The reference solution is the benchmark. However, award comparable points for defensible alternative solutions, provided they are compatible with the task and methodologically soundly reasoned.
+- Follow-on-error principle (*Folgefehlerprinzip*): do not punish one error twice. If an early error affects later parts, evaluate the later argumentation on the assumption of the student's intermediate result, to the extent this is methodologically clean.
+- No points for mere buzzwords without definition / subsumption.
+- In your justification, refer concretely to what the student solution says and how it fits the reference solution.
+
+Grading scheme (100 points in total):
+
+1. Correctness of result (0–20): **Full points (≈18–20):** core results match the reference solution or are defensibly equivalent (e.g. a different but methodologically correctly reasoned result). **Middle (≈10–14):** the main tendency is right, but one essential result is wrong or the legal consequences are noticeably off. **Low (≈0–8):** central results are missed / inconsistent; the solution misses the point of the case.
+2. Completeness and problem identification (0–10): **Full points (≈9–10):** all essential problems from the task / reference solution are recognized; no major "blind spots". **Middle (≈5–7):** one essential problem is missing or a focal point is overlooked; otherwise sound. **Low (≈0–4):** several central problems are missing, or many irrelevant side topics are examined ("topic essay" instead of case solution).
+3. Legal bases and examination systematics (0–10): **Full points (≈9–10):** correct causes of action / examination programmes, logical sequence, clean examination sections. **Middle (≈5–7):** small systematic errors (sequence, individual incorrect / unnecessary bases), but the overall structure holds. **Low (≈0–4):** wrong basic structure (e.g. wrong legal remedy / claim, wrong examination framework), so that the analysis methodologically derails.
+4. Legal knowledge (definitions, norms, scholarly debates) (0–15): **Full points (≈13–15):** definitions are correct, norms are apt, scholarly debates appear only where needed; the decision in the debate is reasoned. **Middle (≈8–11):** individual definitions / norms are imprecise; scholarly debates are schematic or patchy, but not wrong in a case-decisive way. **Low (≈0–7):** frequently wrong definitions / norms or invented requirements; scholarly debates are muddled / faulty.
+5. Subsumption and quality of argumentation (connection to the case) (0–15): **Full points (≈13–15):** consistent reference to facts, clean subsumption, comprehensible arguments, structured balancing. **Middle (≈8–11):** in part only abstract / "empty-formula-like", but essential points are still solved with reference to the case. **Low (≈0–7):** hardly any subsumption, predominantly definitions without application; results are unreasoned or contradictory.
+6. Setting priorities and depth of analysis (0–10): **Full points (≈9–10):** long fact-pattern blocks / indications are appropriately treated in depth; easy points are kept short; the focus matches the reference solution and the "signals" of the task. **Middle (≈5–7):** either overlength on minor matters or under-weighting of a focal point, but still recognizable exam awareness. **Low (≈0–4):** massive misallocation: the main problem is barely treated, secondary matters dominate.
+7. Methodological style: major premise → definition → subsumption → result (0–10): **Full points (≈9–10):** clearly recognizable at all important examination points; intermediate results are drawn; also observed in spirit when written in judgement style. **Middle (≈5–7):** the basic scheme is present but is frequently blended or omitted; definitions or results are occasionally missing. **Low (≈0–4):** no examination-oriented style; only narration, bullet points, or bare assertions of results.
+8. Structure, structural levels, and reader guidance (0–5): **5:** stringent structure, clean levels, examination points are findable. **3–4:** small inconsistencies (level jumps, headings not precisely fitting). **0–2:** unstructured block of text; structure is misleading.
+9. Language and legal terminology (0–3): **3:** precise, legally clean, easily understandable. **2:** partly clumsy / imprecise, but understandable. **0–1:** frequently misleading, wrong terms, many linguistic breaks.
+10. Formalia: norm citation style, work with the fact pattern, care (0–2): **2:** norms cited predominantly correctly; fact pattern processed correctly; no gross blunders. **1:** isolated citation / care errors, not serious. **0:** frequent gross errors (roles swapped, central facts misreported, norm chaos).
+
+Conversion of raw points → grade points (0–18; <4 = fail):
+0–12→0, 13–25→1, 26–38→2, 39–49→3,
+50–53→4, 54–56→5, 57–59→6,
+60–63→7, 64–66→8, 67–69→9,
+70–73→10, 74–76→11, 77–79→12,
+80–83→13, 84–86→14, 87–89→15,
+90–93→16, 94–96→17, 97–100→18
+
+Output format:
+
+- Output a JSON response without any additional text.
+- For each dimension: score (0 to max, in 0.5 steps if needed), max, and a justification as a coherent paragraph (3–7 sentences).
+- Then: total_score (0–100), grade_points (0–18), passed (true/false), a short overall assessment (2–5 sentences), and 3 concrete suggestions for improvement.
+
+
+TASK / FACT PATTERN:
+{{{ANGABE_TEXT}}}
+
+REFERENCE SOLUTION:
+{{{MUSTERLOESUNG_TEXT}}}
+
+STUDENT SOLUTION:
+{{{LOESUNG_TEXT}}}
+
+Task:
+Evaluate the solution according to the prescribed 100-point scheme.
+Award points for each dimension and write a justification as a paragraph.
+Calculate the sum (0–100) and convert it into grade points (0–18). Set passed=true only if grade_points >= 4.
+
+Output only JSON.
+
+
+## Doctrinal Principles (Grundprinzipien)
+
+Du bist ein strenger, aber fairer juristischer Korrektor für kurze juristische Begründungsfragen nach deutschem Recht.
+
+Du bewertest ausschließlich auf Basis von:
+
+1. Fall
+2. Fragestellung
+3. Referenzlösung
+4. Zu bewertende Antwort
+
+Nutze keine externen Quellen und erfinde keine Tatsachen.
+
+#### Bewertungsgrundsätze
+
+- Die Referenzlösung ist Orientierung, nicht die einzig mögliche vertretbare Lösung.
+- Vergib volle oder nahezu volle Punkte auch für methodisch vertretbare Alternativbegründungen.
+- Entscheidend ist die juristische Richtigkeit und Qualität der Begründung, nicht die sprachliche Ähnlichkeit zur Referenz.
+- Keine Punkte für bloße Schlagworte ohne nachvollziehbare Begründung.
+- Eine falsche Ja/Nein-Entscheidung begrenzt die Maximalpunktzahl erheblich, selbst wenn Teile der Begründung juristisch plausibel sind.
+
+#### Bewertungsschema (100 Punkte)
+
+1. Ergebnisrichtigkeit (0–40)
+- Ist die Ja/Nein-Entscheidung juristisch zutreffend oder vertretbar?
+1. Rechtskenntnis und Normbezug (0–25)
+- Werden einschlägige Normen, Definitionen oder Prinzipien korrekt erkannt und verwendet?
+1. Subsumtion und Fallbezug (0–25)
+- Wird der konkrete Sachverhalt nachvollziehbar unter die rechtlichen Voraussetzungen subsumiert?
+1. Klarheit und Präzision (0–10)
+- Ist die Antwort präzise, verständlich und methodisch sauber formuliert?
+
+#### Ausgabeformat
+
+Gib ausschließlich gültiges JSON aus:
+
+```json
+{
+"scores": {
+"result_correctness": {
+"score": ...,
+"max": 40,
+"reason": "..."
+},
+"legal_knowledge": {
+"score": ...,
+"max": 25,
+"reason": "..."
+},
+"subsumption": {
+"score": ...,
+"max": 25,
+"reason": "..."
+},
+"clarity": {
+"score": ...,
+"max": 10,
+"reason": "..."
+}
+},
+"total_score": ...,
+"overall_assessment": "..."
+}
+```
+
+#### Fall
+
+{{fall}}
+
+#### Fragestellung
+
+{{task}}
+
+#### Referenzlösung
+
+Antwort:
+{{binary_solution}}
+
+Begründung:
+{{reasoning}}
+
+#### Zu bewertende Antwort
+
+{{answer}}
+
+*English translation (reader reference; not sent to any model):*
+
+You are a strict but fair legal grader for short legal reasoning questions under German law.
+
+You evaluate exclusively on the basis of:
+
+1. the case,
+2. the question,
+3. the reference solution,
+4. the answer to be evaluated.
+
+Do not use any external sources and do not invent any facts.
+
+#### Grading principles
+
+- The reference solution is a guide, not the only defensible solution.
+- Award full or near-full points also for methodologically defensible alternative justifications.
+- What matters is the legal correctness and quality of the reasoning, not linguistic similarity to the reference.
+- No points for mere buzzwords without a comprehensible justification.
+- A wrong Ja/Nein decision substantially limits the maximum score, even if parts of the reasoning are legally plausible.
+
+#### Grading scheme (100 points)
+
+1. Correctness of result (0–40)
+- Is the Ja/Nein decision legally correct or defensible?
+1. Legal knowledge and reference to norms (0–25)
+- Are the applicable norms, definitions, or principles correctly identified and used?
+1. Subsumption and reference to the case (0–25)
+- Is the concrete fact pattern subsumed under the legal requirements in a comprehensible way?
+1. Clarity and precision (0–10)
+- Is the answer precisely, understandably, and methodologically cleanly formulated?
+
+#### Output format
+
+Output only valid JSON:
+
+```json
+{
+"scores": {
+"result_correctness": {
+"score": ...,
+"max": 40,
+"reason": "..."
+},
+"legal_knowledge": {
+"score": ...,
+"max": 25,
+"reason": "..."
+},
+"subsumption": {
+"score": ...,
+"max": 25,
+"reason": "..."
+},
+"clarity": {
+"score": ...,
+"max": 10,
+"reason": "..."
+}
+},
+"total_score": ...,
+"overall_assessment": "..."
+}
+```
+
+#### Case
+
+{{fall}}
+
+#### Question
+
+{{task}}
+
+#### Reference solution
+
+Answer:
+{{binary_solution}}
+
+Reasoning:
+{{reasoning}}
+
+#### Answer to be evaluated
+
+{{answer}}
+
+# LLM-judge configuration
+
+The primary judge GPT-5-mini is the one used for every reported leaderboard score and for the RQ5 within-judge stochasticity analysis (k=3 repeats per generation). The two secondary judges Opus-4.7 and Gemini-3.1-Pro evaluate every Benchathon cell once for the RQ5 between-judge bias analysis. The full model ids are shown in the *Model* column below; see `Table~\ref{tbl-system-overview}`{=latex} (`Appendix~\ref{evaluated-systems-catalogue}`{=latex}) for the canonical alias-to-id mapping.
+
+<!-- Values are read from per-call metadata captured in the inter-judge
+Benchathon evaluation run (`llm_judge_falloesung-mpe7o02k-yrio`, run
+2026-05-21); see `data/raw/benchathon/Benchathon-tasks-2026-05-23.json`
+under `tasks[*].evaluations[*].metrics.llm_judge_falloesung.details.call_metadata`.
+The retry budget is the worker-side default `max_retries=3` in
+`LLMJudgeEvaluator`; observed retries on this run were 0 for every judge. No
+provider-side snapshot id is returned for these aliases, so the model id and
+run date pin reproducibility. -->
+
+```{python}
+#| echo: false
+#| output: asis
+
+emit_tex_table(
+    "tbl-judge-config",
+    "LLM-judge configuration. Temperature and max output tokens are the "
+    "values captured in the per-call metadata of the inter-judge Benchathon "
+    "evaluation run on 2026-05-21; the retry budget is the worker-side "
+    "default of 3, with the observed retry count across this run reported "
+    "in parentheses. No provider-side snapshot id is returned for these "
+    "aliases; the model id plus run date pins reproducibility.",
+    ["Role", "Model", "Run date", "$T$", "Max tok.", "Retry budget"],
+    [
+        ["Primary judge",
+         r"\texttt{gpt-5-mini}",
+         r"2026-05-21", r"$1.0$", r"$8000$", r"$3$ (obs.\ $0$)"],
+        ["Inter-judge (Anthropic)",
+         r"\texttt{claude-opus-4-7}",
+         r"2026-05-21", r"$1.0$", r"$8000$", r"$3$ (obs.\ $0$)"],
+        ["Inter-judge (Google)",
+         r"\texttt{gemini-3.1-pro-preview}",
+         r"2026-05-21", r"$1.0$", r"$8000$", r"$3$ (obs.\ $0$)"],
+    ],
+    span_two_columns=True,
+    tex_escape=False,
+    fill_width=True,
+)
+```
+
+The full judge prompts are reproduced in Appendix `\ref{evaluation-prompts-for-the-llm-judge}`{=latex}: the exam-case rubric and the Doctrinal Principles rubric. All three judges receive the same prompt and the same input ordering (task, reference solution, solution to be evaluated); only the underlying model changes.
+
+# Error analysis patterns
+
+The body's error-analysis section reports five recurring failure modes on the Benchathon LLM-system generations. Picks are selected by high within-rubric dimension dispersion combined with at least one dimension below `0.40\cdot\text{max}`; counts are tallied against a denominator of `{python} f"{len(model_evals) if model_evals else 0}"` LLM-system generations.
+
+- (i) **correct outcome, weak subsumption** — the doctrinally expected conclusion reached via abstract argumentation rather than fact-bound *Subsumtion* (9 instances; concentrated in the open-weight mid-tier).
+- (ii) **wrong-norm framing** — low Legal grounding and Doctrinal knowledge together, indicating an unsuitable doctrinal frame rather than misexecution within the correct one (reported qualitatively; no global count).
+- (iii) **missing or perfunctory subsumption in short answers** — 16 instances below 200 words where the answer labels rather than subsumes.
+- (iv) **long but shallow** — two generations exceeding 2,200 words with weak Subsumption quality and Problem depth, where lexical metrics over-reward what the rubric does not.
+- (v) **wrong outcome despite plausible reasoning** — 5 instances where the judge praises fact-bound *Subsumtion* ($\geq 0.60\cdot\text{max}$) but the final answer is wrong.
+
+Pattern (v) is the cleanest pointer at judge-failure cases: a judge that conflated reasoning and outcome would be visible here as systematic praise of reasoning preceding a wrong result. Pattern counts are reported descriptively without multiple-comparison correction. Representative task identifiers, dimension scores, and judge-justification quotes for each pattern are available in the released analysis pipeline.
+
+<!-- BLIND-REVIEW SWAP: wrap the entire Responsible NLP Research Checklist
+appendix (from the heading through the final `**E3.** …` paragraph) in an
+HTML comment. ARR submits the checklist via the OpenReview form instead. -->
+# Responsible NLP Research Checklist
+
+## A. For every submission
+
+**A1. Did you describe the limitations of your work?**
+Yes — § Limitations enumerates seven distinct limitations: black-box API evaluation, the co-developed rubric/judge pair, modest Benchathon participant pool, judge-model bias, German-doctrinal-only rubric scope, ZJS pretraining-contamination risk, Doctrinal-Principles rubric divergence, and the Google-Flash model drift across corpora.
+
+**A2. Did you discuss any potential risks of your work?**
+Yes — § Ethical Considerations covers three risk classes: re-identification of Benchathon participants (mitigated by anonymisation), copyright on ZJS material (mitigated by IP-clearance roster, with placeholder URLs for non-cleared cases), and benchmark gaming or optimisation pressure (mitigated by releasing the rubric and judge prompts alongside the data and by reporting per-dimension breakdowns rather than only a headline score).
+
+**A3. Do the abstract and introduction summarize the paper's main claims?**
+Yes — § Abstract and § Introduction summarise the four contributions and five research questions; the contributions paragraph in § Introduction explicitly enumerates them.
+
+**A4. Have you used AI writing assistants when working on this paper?**
+Yes — see § AI usage. Anthropic Claude Opus 4.7 was used for coding tasks (analysis scripts, table generation, LaTeX assistance); OpenAI GPT-5.5 Pro was used for wording and LaTeX assistance. No AI generation of figures, results, or scientific claims.
+
+## B. Did you use or create scientific artifacts?
+
+**B1. Did you cite the creators of artifacts you used?**
+Yes — all 12 evaluated LLM systems are catalogued in `Table~\ref{tbl-system-overview}`{=latex} (Appendix C) with provider, exact model id, and access date. Related prior benchmarks are cited in § Related Work (GerLayQA, GerLeRB, LegalBench, LexEval, LawBench, LEXam, GreekBarBench, KOBLEX, NitiBench, PLawBench, LaborBench, CLAUSE, LegalBench-RAG, Legal RAG Bench). Evaluation metrics are cited at first use (BLEU, ROUGE, METEOR, BERTScore, MoverScore, ICC, Cohen's $\kappa$, Calderon alternative-annotator).
+
+**B2. Did you discuss the license or terms for use and/or distribution of any artifacts?**
+Yes — § Ethical Considerations declares CC BY 4.0 for the BenGER dataset itself; ZJS items are reproduced under explicit IP-clearance from the original authors (cleared cases bundled; non-cleared cases linked to the ZJS search interface). The BenGER platform code is Apache 2.0, separate from the dataset licence.
+
+**B3. Did you discuss intended use of artifacts?**
+Yes — § Ethical Considerations states explicitly that the LLM-as-a-Judge methodology is intended for research-scale evaluation of legal-reasoning systems and is **not** validated for use as a graded assessment instrument in legal education or for deployment in legal practice.
+
+**B4. Did you discuss steps taken to check whether the data contains PII or offensive content?**
+Yes — § Ethical Considerations and § Limitations: Benchathon participants consented to use of their submissions; all participant identifiers are replaced with pseudonyms; human-grader identifiers are replaced with stable codes (`grader_01..grader_07`); ZJS author bylines are public information from the published journal. No explicit offensive-content audit is reported because the corpus is doctrinal legal exam material rather than user-generated text — the offensive-content failure mode is not plausible at meaningful scale for this domain.
+
+**B5. Did you provide documentation of the artifacts?**
+Yes — the released dataset (Hugging Face + Zenodo) ships with a dataset card, a per-subset schema description, the IP-clearance roster, and the full analysis pipeline that reproduces every figure and table in this paper.
+
+**B6. Did you report relevant statistics about the dataset?**
+Yes — § Dataset reports per-corpus counts (`n_zjs`, `n_benchathon`, `n_qa`), Benchathon human-solution counts (traditional vs.\ human–AI co-creation), and difficulty/bereich stratification. Appendix E reports Benchathon participant composition. The dataset is intended for evaluation only and explicitly has no train/test/dev split (§ Dataset).
+
+## C. Did you run computational experiments?
+
+**C1. Did you report the number of parameters, total computational budget, and infrastructure?**
+Partial — Appendix C lists exact model ids for the 12 LLM systems. Parameter counts are public for the open-weight half; the closed-API providers do not disclose parameter counts. Appendix B reports per-system mean cost (USD), mean wall-clock response time, and mean output length, which is the appropriate compute-budget surrogate for hosted-API evaluation. Infrastructure: generation and evaluation were run via the BenGER platform [@nagl2026benger], deployed on a single Kubernetes node.
+
+**C2. Did you discuss the experimental setup, including hyperparameter search and best-found hyperparameter values?**
+Yes — § Experimental setup plus Appendix I (system prompts), Appendix J (instruction prompts), Appendix K (judge prompts), and Appendix L (LLM-judge configuration: temperature, max-output-tokens, repetition count, seed handling). No hyperparameter search was performed; the goal is to evaluate hosted systems in their as-shipped configuration.
+
+**C3. Did you report descriptive statistics about your results?**
+Yes — every leaderboard cell in `Table~\ref{tbl-main-leaderboard}`{=latex} and Appendix A is reported as mean $\pm$ half-width of a 95\% confidence interval (Benchathon: bootstrap with $B=2000$ resamples, seed 42; ZJS / Doctrinal Principles: analytic $1.96 \cdot \sigma/\sqrt{n}$ via Welford). Inter-rater statistics include Pearson $r$, Spearman $\rho$, MAE, Cohen's $\kappa$, ICC(2,1), ICC(2,k), and the Calderon alternative-annotator coefficient.
+
+**C4. If you used existing packages, did you report implementation, version, etc.?**
+Yes — Appendix L lists judge model ids, dates, temperature, max-output-tokens, and repetition counts; the released analysis pipeline pins its Python dependency tree via `pyproject.toml` and `uv.lock`.
+
+## D. Did you use human annotators or research with human participants?
+
+**D1. Did you report the full text of instructions given to participants?**
+Yes — Appendix F (full Benchathon human-evaluation assignment procedure) gives the reviewer-assignment design and the rubric reviewers saw; the rubric is identical to the one used by the LLM judge and is reproduced in Appendix K.
+
+**D2. Did you report information about how you recruited participants and paid them?**
+Yes — Appendix E reports participant composition (law students at various stages, *Referendare*, recent graduates, a small layperson cohort). Participants received in-kind compensation in the form of structured exam-style case training and expert feedback on their submitted solutions — a service for which law students in Germany typically pay through commercial *Repetitor* courses. No monetary compensation was provided.
+
+**D3. Did you discuss whether and how consent was obtained?**
+Yes — § Ethical Considerations: participants consented to the use of their written solutions and self-reported expertise data for research purposes under the same consent regime that governed the Benchathon event.
+
+**D4. Was the data collection protocol approved by an ethics review board?**
+Yes — the Benchathon study design for the human and human–AI co-creation baselines was approved by the Technical University of Munich (TUM) ethics committee, as referenced in § Ethical Considerations.
+
+**D5. Did you report basic demographic and geographic characteristics of the annotator population?**
+Yes — Appendix E (Benchathon participant composition) reports expertise level (law-student stage / *Referendar* / graduate / layperson), legal-area self-assessment, and German-proficiency self-report. Geographic spread is implicit in the affiliations of the seven human graders: TUM, LMU Munich, University of Konstanz, and University of Saarbrücken.
+
+## E. Did you use AI assistants in your research, coding, or writing?
+
+**E1. Did you discuss whether AI assistants were used for research ideation?**
+Yes — AI assistants (Anthropic Claude Opus 4.7, OpenAI GPT-5.5 Pro) were used as a sounding board for research-question phrasing and rubric drafting. All final research questions, rubric dimensions, and experimental-design choices were authored by the human research team; the AI contributions are bounded to brainstorming and refinement of wording.
+
+**E2. Did you discuss whether AI assistants were used for writing assistance?**
+Yes — § AI usage declares OpenAI GPT-5.5 Pro for wording and LaTeX assistance.
+
+**E3. Did you discuss whether AI assistants were used for coding or data analysis?**
+Yes — § AI usage declares Anthropic Claude Opus 4.7 for coding tasks. The analysis pipeline (`scripts/derive_*.py`, `scripts/compute_agreement.py`, `scripts/zjs_apply_ip_clearance.py`, `scripts/anonymize_graders.py`) was authored with AI-coding assistance under human review. The LLM judge itself is, of course, a model under evaluation rather than an authoring assistant for the paper.

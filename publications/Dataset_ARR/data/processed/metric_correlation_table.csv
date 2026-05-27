@@ -1,0 +1,9 @@
+metric,metric_label,benchathon_llm__pearson,benchathon_llm__spearman,benchathon_llm__n,zjs_llm__pearson,zjs_llm__spearman,zjs_llm__n,grundprinzipien_llm__pearson,grundprinzipien_llm__spearman,grundprinzipien_llm__n,benchathon_human_trad__pearson,benchathon_human_trad__spearman,benchathon_human_trad__n,benchathon_human_cocreat__pearson,benchathon_human_cocreat__spearman,benchathon_human_cocreat__n
+bleu,BLEU,0.563479,0.584242,208,0.344904,0.407338,7954,0.104991,0.137972,6366,0.420718,0.463126,65,0.503452,0.406390,155
+rouge,ROUGE,0.561859,0.524387,149,0.417316,0.379869,7954,0.202301,0.218352,6366,0.631527,0.564496,65,0.377665,0.192496,155
+meteor,METEOR,0.606615,0.594226,208,0.401445,0.402241,7954,0.233770,0.290687,6366,0.386447,0.336988,65,0.640458,0.607124,155
+chrf,chrF,,,,,,,0.256149,0.304112,6366,,,,,,
+bertscore,BERTScore,0.375381,0.377913,208,0.200161,0.164721,7954,0.192651,0.211624,6366,,,,,,
+moverscore,MoverScore,0.507424,0.487525,208,0.366968,0.318309,7900,0.119407,0.144286,6366,0.766481,0.337509,16,0.739768,0.565782,28
+semantic_similarity,Semantic similarity,0.283326,0.295427,200,0.098816,0.081209,7954,0.117901,0.140005,6366,0.708110,0.397937,16,0.201210,0.423279,29
+coherence,Coherence,-0.277523,-0.290575,180,,,,,,,-0.248444,-0.211746,65,-0.347110,-0.354736,155
