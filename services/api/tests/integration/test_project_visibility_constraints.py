@@ -56,7 +56,7 @@ def _ensure_constraints():
             if not existing:
                 conn.execute(
                     text(
-                        f"ALTER TABLE projects "
+                        "ALTER TABLE projects "
                         f"ADD CONSTRAINT {name} CHECK ({expr})"
                     )
                 )

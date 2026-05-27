@@ -6,18 +6,13 @@ Uses real PostgreSQL with per-test transaction rollback.
 """
 
 import uuid
-from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
-from models import Organization, User
 from project_models import (
-    Annotation,
     Project,
     ProjectOrganization,
     Task,
-    TaskAssignment,
 )
 
 
@@ -105,7 +100,7 @@ class TestCreateAnnotation:
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
-        assert resp.json()["was_cancelled"] is True
+        assert resp.json()["was_cancelled"] == True  # noqa: E712
 
     def test_create_annotation_with_enhanced_timing(self, client, test_db, test_users, auth_headers, test_org):
         project, tasks = _setup(test_db, test_users[0], test_org)
@@ -144,7 +139,7 @@ class TestCreateAnnotation:
         assert resp.status_code == 200
         data = resp.json()
         assert data["instruction_variant"] == "variant-1"
-        assert data["ai_assisted"] is True
+        assert data["ai_assisted"] == True  # noqa: E712
 
     def test_annotation_marks_task_labeled(self, client, test_db, test_users, auth_headers, test_org):
         project, tasks = _setup(test_db, test_users[0], test_org, min_annotations_per_task=1)
@@ -158,7 +153,7 @@ class TestCreateAnnotation:
         assert resp.status_code == 200
         # Check task is labeled
         test_db.refresh(tasks[0])
-        assert tasks[0].is_labeled is True
+        assert tasks[0].is_labeled == True  # noqa: E712
 
 
 @pytest.mark.integration
@@ -264,4 +259,4 @@ class TestUpdateAnnotation:
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 200
-        assert resp.json()["was_cancelled"] is True
+        assert resp.json()["was_cancelled"] == True  # noqa: E712

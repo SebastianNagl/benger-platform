@@ -14,9 +14,9 @@ from typing import Any, BinaryIO, Dict, Optional, Union
 # boto3 imports moved to S3StorageBackend to avoid system-level import issues
 # Assume boto3 is available, and let S3StorageBackend handle import errors gracefully
 BOTO3_AVAILABLE = True
-import logging
-import mimetypes
-from pathlib import Path
+import logging  # noqa: E402
+import mimetypes  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

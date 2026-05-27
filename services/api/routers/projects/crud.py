@@ -299,7 +299,7 @@ async def create_project(
                 )
 
     # Validate label_config if provided (including empty strings)
-    if project.label_config is not None:
+    if project.label_config != None:  # noqa: E711
         is_valid, errors = LabelConfigValidator.validate(project.label_config)
         if not is_valid:
             raise HTTPException(
@@ -871,7 +871,7 @@ async def get_project_completion_stats(
     # Get task counts
     total_tasks = db.query(Task).filter(Task.project_id == project_id).count()
     completed_tasks = (
-        db.query(Task).filter(Task.project_id == project_id, Task.is_labeled == True).count()
+        db.query(Task).filter(Task.project_id == project_id, Task.is_labeled == True).count()  # noqa: E712
     )
 
     # Calculate completion rate

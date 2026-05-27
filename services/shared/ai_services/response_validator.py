@@ -12,8 +12,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-import jsonschema
-from jsonschema import Draft7Validator, ValidationError
+from jsonschema import Draft7Validator
 
 logger = logging.getLogger(__name__)
 

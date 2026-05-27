@@ -145,7 +145,7 @@ class RateLimiter:
 
 # Global rate limiter instance
 # Use REDIS_URI from environment if available (production), otherwise use default
-import os
+import os  # noqa: E402
 
 redis_url = os.getenv("REDIS_URI", "redis://redis:6379")
 rate_limiter = RateLimiter(redis_url)

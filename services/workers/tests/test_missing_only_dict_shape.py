@@ -16,7 +16,6 @@ contract test below catches any drift between the two copies.
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -62,10 +61,10 @@ def test_inline_copy_present_in_tasks_py():
 
 class TestRowHasScore:
     def test_legacy_bare_float(self, row_has_score):
-        assert row_has_score({"bleu": 0.42}) is True
+        assert row_has_score({"bleu": 0.42}) == True
 
     def test_legacy_int(self, row_has_score):
-        assert row_has_score({"exact_match": 1}) is True
+        assert row_has_score({"exact_match": 1}) == True
 
     def test_unified_dict_with_numeric_value(self, row_has_score):
         # Post-academic-rigor shape — the bug case.
@@ -78,7 +77,7 @@ class TestRowHasScore:
                     "error": None,
                 }
             }
-        ) is True
+        ) == True
 
     def test_korrektur_unified_dict(self, row_has_score):
         assert row_has_score(
@@ -90,36 +89,36 @@ class TestRowHasScore:
                     "error": None,
                 }
             }
-        ) is True
+        ) == True
 
     def test_error_row(self, row_has_score):
         # Worker-persisted error sentinel — must NOT count as scored.
-        assert row_has_score({"error": True}) is False
+        assert row_has_score({"error": True}) == False
 
     def test_empty_metrics(self, row_has_score):
-        assert row_has_score({}) is False
+        assert row_has_score({}) == False
 
     def test_none_metrics(self, row_has_score):
-        assert row_has_score(None) is False
+        assert row_has_score(None) == False
 
     def test_unified_dict_without_numeric_value(self, row_has_score):
         # Edge case: a partially-formed blob where `value` isn't a number.
         # Must not count as scored.
         assert row_has_score(
             {"some_metric": {"value": "not-a-number", "details": {}}}
-        ) is False
+        ) == False
 
     def test_bool_is_not_score(self, row_has_score):
         # `passed: True` etc. are booleans — Python treats bool as int so a
         # naive isinstance check would incorrectly count them.
-        assert row_has_score({"passed": True}) is False
+        assert row_has_score({"passed": True}) == False
 
     def test_nested_bool_value_is_not_score(self, row_has_score):
-        assert row_has_score({"x": {"value": True}}) is False
+        assert row_has_score({"x": {"value": True}}) == False
 
     def test_mixed_error_and_score(self, row_has_score):
         # An error sentinel plus a real numeric metric → still scored.
-        assert row_has_score({"error": True, "bleu": 0.42}) is True
+        assert row_has_score({"error": True, "bleu": 0.42}) == True
 
     def test_legacy_korrektur_root_shape(self, row_has_score):
         # Pre-unified Korrektur Falllösung was {score, total_score, dimensions, ...}
@@ -130,7 +129,7 @@ class TestRowHasScore:
         # AND lacks a top-level numeric metric.
         assert row_has_score(
             {"korrektur_falloesung": {"score": 51.5, "total_score": 51.5}}
-        ) is False
+        ) == False
 
 
 # Inline mirror of `tasks.py:_normalize_field_key`. Same drift-control
@@ -307,7 +306,7 @@ class TestRowIsTerminalError:
                 "details": {},
             }
         }
-        assert _row_is_terminal_error(metrics) is True
+        assert _row_is_terminal_error(metrics) == True
 
     def test_legacy_null_metric_value_does_NOT_block_retry(self):
         # Pre-fix rows have `metric: null` (bare JSON null, not a dict).
@@ -315,7 +314,7 @@ class TestRowIsTerminalError:
         # the gate's introduction and need to be deleted by the
         # accompanying data backfill, not silently ignored.
         metrics = {"llm_judge_falloesung": None}
-        assert _row_is_terminal_error(metrics) is False
+        assert _row_is_terminal_error(metrics) == False
 
     def test_successful_unified_row_NOT_terminal(self):
         # A real score row is not "terminal" — the predicate is for
@@ -328,11 +327,11 @@ class TestRowIsTerminalError:
                 "details": {},
             }
         }
-        assert _row_is_terminal_error(metrics) is False
+        assert _row_is_terminal_error(metrics) == False
 
     def test_empty_or_none(self):
-        assert _row_is_terminal_error({}) is False
-        assert _row_is_terminal_error(None) is False
+        assert _row_is_terminal_error({}) == False
+        assert _row_is_terminal_error(None) == False
 
     def test_multi_metric_one_terminal(self):
         # If even one metric in the row is terminal-failed, the whole
@@ -341,4 +340,40 @@ class TestRowIsTerminalError:
             "bleu": 0.42,  # legacy bare-float, valid
             "llm_judge_falloesung": {"value": None, "error": "context overflow"},
         }
-        assert _row_is_terminal_error(metrics) is True
+        assert _row_is_terminal_error(metrics) == True
+
+
+def test_task_evaluation_constructors_pass_evaluation_config_id():
+    """Drift guard: every ``TaskEvaluation(...)`` constructor in
+    ``tasks.py`` must set ``evaluation_config_id=`` alongside
+    ``field_name=``.
+
+    Why: Issue #111 / migration 057 introduces a discrete
+    ``task_evaluations.evaluation_config_id`` column so the per-config
+    statistics filter can match cleanly instead of parsing the
+    pipe-encoded ``field_name``. If a future worker patch adds a new
+    ``TaskEvaluation(...)`` constructor and forgets the new kwarg, the
+    row lands with ``evaluation_config_id IS NULL`` and the issue #111
+    aggregator silently drops it from per-config stats.
+
+    The check is intentionally coarse — count constructor opens vs.
+    ``evaluation_config_id=`` argument passes in the source. The
+    counter also picks up the function signature default in
+    ``_evaluate_llm_judge_single`` and the matching call-site kwarg,
+    which is fine: that path threads the column through, so a value of
+    ``count(eval_cfg) >= count(TaskEvaluation()) `` is the floor we
+    want, not a strict equality.
+    """
+    tasks_path = Path(__file__).parent.parent / "tasks.py"
+    src = tasks_path.read_text()
+
+    constructor_count = src.count("TaskEvaluation(")
+    kwarg_count = len(re.findall(r"evaluation_config_id\s*=", src))
+
+    assert kwarg_count >= constructor_count, (
+        "Every TaskEvaluation(...) must set evaluation_config_id "
+        "alongside field_name. Without it, the per-config statistics "
+        "filter for issue #111 will silently exclude rows. Found "
+        f"{constructor_count} TaskEvaluation(...) constructors but only "
+        f"{kwarg_count} occurrences of 'evaluation_config_id=' in tasks.py."
+    )

@@ -15,11 +15,8 @@ Targets specific branches in routers/evaluations/results.py:
 
 import json
 import uuid
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from datetime import datetime
 
-import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
@@ -27,7 +24,6 @@ from models import (
     Generation,
     HumanEvaluationSession,
     LikertScaleEvaluation,
-    LLMModel,
     Organization,
     OrganizationMembership,
     PreferenceRanking,
@@ -43,7 +39,7 @@ from project_models import (
 
 
 def _setup_eval_project(db, users, *, add_human_evals=False, add_automated=True,
-                         add_generations=True, num_tasks=3):
+                         add_generations=True, num_tasks=3):  # noqa: E127
     """Create project with evaluation data for testing results endpoints."""
     org = Organization(
         id=str(uuid.uuid4()),
@@ -457,7 +453,7 @@ class TestGetEvaluationSamples:
         body = resp.json()
         assert body["page"] == 1
         assert body["page_size"] == 2
-        assert body["has_next"] is True
+        assert body["has_next"] == True  # noqa: E712
 
     def test_get_samples_not_found(self, client, test_users, test_db, auth_headers):
         resp = client.get(
@@ -817,5 +813,3 @@ class TestExtractPrimaryScore:
         from routers.evaluations.results import _extract_primary_score
         metrics = {"some_text": "value", "not_a_number": [1, 2]}
         assert _extract_primary_score(metrics) is None
-
-

@@ -71,8 +71,8 @@ class TestWebSocketClusterManager:
                     cluster_manager.HEARTBEAT_CHANNEL,
                 )
 
-                assert cluster_manager.is_listening is True
-                assert cluster_manager.redis_client is not None
+                assert cluster_manager.is_listening == True  # noqa: E712
+                assert cluster_manager.redis_client != None  # noqa: E711
 
     async def test_initialization_failure(self, cluster_manager):
         """Test cluster manager initialization failure"""
@@ -82,8 +82,8 @@ class TestWebSocketClusterManager:
         ):
             await cluster_manager.initialize()
 
-            assert cluster_manager.is_listening is False
-            assert cluster_manager.redis_client is None
+            assert cluster_manager.is_listening == False  # noqa: E712
+            assert cluster_manager.redis_client == None  # noqa: E711
 
     async def test_register_connection(self, cluster_manager, mock_redis):
         """Test registering a WebSocket connection with the cluster"""
@@ -290,7 +290,7 @@ class TestWebSocketClusterManager:
 
         await cluster_manager.cleanup()
 
-        assert cluster_manager.is_listening is False
+        assert cluster_manager.is_listening == False  # noqa: E712
         pubsub_mock.unsubscribe.assert_called_once()
         pubsub_mock.close.assert_called_once()
         redis_mock.close.assert_called_once()

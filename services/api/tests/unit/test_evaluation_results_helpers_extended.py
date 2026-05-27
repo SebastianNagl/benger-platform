@@ -3,11 +3,6 @@ Unit tests for evaluation results internal helpers.
 
 """
 
-from types import SimpleNamespace
-from unittest.mock import MagicMock
-
-import pytest
-
 
 class TestEvaluationConfigHelper:
     """Test _derive_evaluation_configs_from_selected_methods helper."""
@@ -33,7 +28,7 @@ class TestEvaluationConfigHelper:
         assert result[0]["metric"] == "bleu"
         assert result[0]["prediction_fields"] == ["gen_answer"]
         assert result[0]["reference_fields"] == ["ref_answer"]
-        assert result[0]["enabled"] is True
+        assert result[0]["enabled"] == True  # noqa: E712
 
     def test_multiple_metrics(self):
         from routers.evaluations.config import _derive_evaluation_configs_from_selected_methods

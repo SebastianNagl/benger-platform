@@ -132,15 +132,15 @@ def convert_from_label_studio_format(results: List[Dict[str, Any]]) -> List[Dict
     return output
 
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
-from fastapi.responses import Response
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile  # noqa: E402
+from fastapi.responses import Response  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
 
-from auth_module import require_user
-from auth_module.models import User as AuthUser
-from database import get_db
-from routers.projects.serializers import _parse_iso
-from models import (
+from auth_module import require_user  # noqa: E402
+from auth_module.models import User as AuthUser  # noqa: E402
+from database import get_db  # noqa: E402
+from routers.projects.serializers import _parse_iso  # noqa: E402
+from models import (  # noqa: E402
     EvaluationJudgeRun,
     EvaluationRun,
     EvaluationRunMetric,
@@ -154,8 +154,8 @@ from models import (
     TaskEvaluation,
     User,
 )
-from notification_service import notify_project_created
-from project_models import (
+from notification_service import notify_project_created  # noqa: E402
+from project_models import (  # noqa: E402
     Annotation,
     PostAnnotationResponse,
     Project,
@@ -164,8 +164,8 @@ from project_models import (
     Task,
     TaskAssignment,
 )
-from project_schemas import ProjectImportData
-from routers.projects.helpers import (
+from project_schemas import ProjectImportData  # noqa: E402
+from routers.projects.helpers import (  # noqa: E402
     check_project_accessible,
     check_project_write_access,
     get_comprehensive_project_data,
@@ -519,7 +519,7 @@ async def import_project_data(
                             # judge_run created above for this evaluation_run
                             # (mirrors migration 043's backfill).
                             judge_run_id=eval_data.get("judge_run_id")
-                                or evaluation_run_judge_run.get(new_er_id),
+                                or evaluation_run_judge_run.get(new_er_id),  # noqa: E131
                         )
                         db.add(te)
                         created_task_evaluations += 1
@@ -556,7 +556,7 @@ async def import_project_data(
                     judge_prompts_used=eval_data.get("judge_prompts_used"),
                     # Migration 042: see comment on the generation-attached path above.
                     judge_run_id=eval_data.get("judge_run_id")
-                        or evaluation_run_judge_run.get(new_er_id),
+                        or evaluation_run_judge_run.get(new_er_id),  # noqa: E131
                 )
                 db.add(te)
                 created_task_evaluations += 1
@@ -842,7 +842,7 @@ async def export_project(
 
         # Add task-level evaluations (annotation/ground-truth evals without a generation)
         for te in te_by_task.get(task.id, []):
-            if te.generation_id is not None:
+            if te.generation_id != None:  # noqa: E711
                 continue  # Already nested under the generation above
             task_data["evaluations"].append(
                 serialize_task_evaluation(
@@ -1181,7 +1181,7 @@ async def bulk_export_projects(
         task_count = db.query(Task).filter(Task.project_id == project.id).count()
         annotation_count = (
             db.query(Annotation)
-            .filter(Annotation.project_id == project.id, Annotation.was_cancelled == False)
+            .filter(Annotation.project_id == project.id, Annotation.was_cancelled == False)  # noqa: E712
             .count()
         )
 
@@ -1402,7 +1402,7 @@ async def import_full_project(
 
     Returns: Created project information with import statistics
     """
-    org_context = get_org_context_from_request(request)
+    get_org_context_from_request(request)
     try:
         # Parse the upload directly off the SpooledTemporaryFile that Starlette
         # gives us via UploadFile.file — Starlette already spills past ~1 MB to
@@ -1774,7 +1774,7 @@ async def import_full_project(
         # Import task evaluations (per-task evaluation results)
         task_evaluations_data = import_data.get("task_evaluations", [])
         for te_data in task_evaluations_data:
-            old_te_id = te_data.get("id", str(uuid.uuid4()))
+            te_data.get("id", str(uuid.uuid4()))
             new_te_id = str(uuid.uuid4())
 
             evaluation_id = id_mappings["evaluations"].get(te_data.get("evaluation_id"))

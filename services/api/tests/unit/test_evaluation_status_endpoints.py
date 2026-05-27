@@ -3,12 +3,10 @@ Unit tests for evaluation status, human evaluation, and multi-field endpoints.
 Covers business logic in routers/evaluations/status.py, human.py, multi_field.py.
 """
 
-import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
 
 from main import app
@@ -194,7 +192,7 @@ class TestHumanEvaluationLogic:
 
     def test_human_config_default_dimensions(self):
         """Test default dimensions when none configured."""
-        evaluation_config = {
+        evaluation_config = {  # noqa: F841
             "selected_methods": {}
         }
 
@@ -268,9 +266,9 @@ class TestMultiFieldResultParsing:
         for key, value in metrics.items():
             parts = key.split(":")
             if len(parts) >= 4:
-                config_id = parts[0]
-                pred_field = parts[1]
-                ref_field = parts[2]
+                parts[0]
+                parts[1]
+                parts[2]
                 metric_name = ":".join(parts[3:])
 
         assert metric_name == "custom:metric:name"

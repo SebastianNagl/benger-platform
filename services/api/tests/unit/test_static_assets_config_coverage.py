@@ -4,12 +4,8 @@ Unit tests for services/static_assets_config.py — 0% coverage (97 uncovered li
 Tests StaticAssetsManager for asset scanning, URL generation, and manifest operations.
 """
 
-import hashlib
-import json
 import os
 import tempfile
-
-import pytest
 
 
 class TestStaticAssetsManagerInit:

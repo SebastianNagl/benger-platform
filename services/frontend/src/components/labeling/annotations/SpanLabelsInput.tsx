@@ -312,6 +312,8 @@ export default function SpanLabelsInput({
   }, [labels, pendingSelection, spans, applyLabelToSelection, removeSpan])
 
   // Render highlighted text with spans
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const renderHighlightedText = useMemo(() => {
     if (!sourceText) {
       return (

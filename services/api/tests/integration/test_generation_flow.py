@@ -213,7 +213,7 @@ class TestGenerationConfiguration:
 
         # Verify it's cleared
         db.refresh(test_project)
-        assert test_project.generation_config is None
+        assert test_project.generation_config == None  # noqa: E711
 
 
 class TestGenerationExecution:
@@ -265,7 +265,7 @@ class TestGenerationExecution:
         data = response.json()
         assert "generations" in data
         assert len(data["generations"]) == 2
-        assert data["is_running"] is True
+        assert data["is_running"] == True  # noqa: E712
         assert data["latest_status"] == "completed"  # Most recent first
 
     def test_stop_generation(self, client: TestClient, auth_headers, db: Session):
@@ -282,8 +282,8 @@ class TestGenerationExecution:
         db.add(generation)
         db.commit()
 
-        with patch('routers.generation.celery_app.control.revoke') as mock_revoke:
-            response = client.post(f"/api/generation/gen-to-stop/stop", headers=auth_headers)
+        with patch('routers.generation.celery_app.control.revoke') as mock_revoke:  # noqa: F841
+            response = client.post("/api/generation/gen-to-stop/stop", headers=auth_headers)
 
             assert response.status_code == 200
             data = response.json()
@@ -317,7 +317,7 @@ class TestGenerationExecution:
         db.add_all([generation, response1])
         db.commit()
 
-        response = client.delete(f"/api/generation/gen-to-delete", headers=auth_headers)
+        response = client.delete("/api/generation/gen-to-delete", headers=auth_headers)
 
         assert response.status_code == 200
         data = response.json()

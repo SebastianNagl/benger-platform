@@ -96,6 +96,7 @@ jest.mock('@/components/shared/FeatureFlag', () => ({
 jest.mock('@/components/projects/LabelConfigEditor', () => {
   const React = require('react')
   return {
+    // eslint-disable-next-line react/display-name
     LabelConfigEditor: React.forwardRef((_props: any, ref: any) => {
       React.useImperativeHandle(ref, () => ({
         save: jest.fn().mockResolvedValue(undefined),

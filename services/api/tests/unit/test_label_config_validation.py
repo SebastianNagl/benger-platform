@@ -646,4 +646,3 @@ class TestUnicodeFieldNames:
         is_valid, errors = LabelConfigValidator.validate(xml)
         assert is_valid is True
         assert len(errors) == 0
-

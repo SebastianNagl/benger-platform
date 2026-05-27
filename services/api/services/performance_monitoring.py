@@ -86,9 +86,9 @@ class DatabasePerformanceValidator:
         result = self.db.execute(
             text(
                 """
-            SELECT indexname 
-            FROM pg_indexes 
-            WHERE tablename = 'tasks' 
+            SELECT indexname
+            FROM pg_indexes
+            WHERE tablename = 'tasks'
             AND indexname = ANY(:index_names)
         """
             ),
@@ -104,19 +104,19 @@ class DatabasePerformanceValidator:
 
         test_queries = {
             "reference_answers_query": """
-                SELECT COUNT(*) FROM tasks 
+                SELECT COUNT(*) FROM tasks
                 WHERE data->'reference_answers' IS NOT NULL
             """,
             "organization_filter": """
-                SELECT COUNT(*) FROM tasks 
+                SELECT COUNT(*) FROM tasks
                 WHERE organization_ids @> '["TUM"]'::jsonb
             """,
             "question_search": """
-                SELECT COUNT(*) FROM tasks 
+                SELECT COUNT(*) FROM tasks
                 WHERE data->'question' IS NOT NULL
             """,
             "task_type_filter": """
-                SELECT COUNT(*) FROM tasks 
+                SELECT COUNT(*) FROM tasks
                 WHERE task_type_id = 'qa'
             """,
         }
@@ -140,19 +140,19 @@ class DatabasePerformanceValidator:
         test_queries = {
             "json_gin_index": """
                 EXPLAIN (ANALYZE false, FORMAT json)
-                SELECT id FROM tasks 
+                SELECT id FROM tasks
                 WHERE data->'reference_answers' IS NOT NULL
                 LIMIT 10
             """,
             "organization_index": """
                 EXPLAIN (ANALYZE false, FORMAT json)
-                SELECT id FROM tasks 
+                SELECT id FROM tasks
                 WHERE organization_ids @> '["TUM"]'::jsonb
                 LIMIT 10
             """,
             "composite_index": """
                 EXPLAIN (ANALYZE false, FORMAT json)
-                SELECT id FROM tasks 
+                SELECT id FROM tasks
                 WHERE task_type_id = 'qa'
                 ORDER BY created_at DESC
                 LIMIT 10

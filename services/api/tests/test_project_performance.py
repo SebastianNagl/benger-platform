@@ -102,7 +102,7 @@ def test_list_projects_query_count(client, test_db, auth_headers, test_users):
         assert counter.count <= 12, (
             f"Too many queries: {counter.count}. "
             f"Expected <= 12, got {counter.count}. "
-            f"This indicates N+1 query problem."
+            "This indicates N+1 query problem."
         )
 
         # Verify response contains at least our test projects
@@ -110,7 +110,7 @@ def test_list_projects_query_count(client, test_db, auth_headers, test_users):
         created_ids = {p.id for p in projects}
         returned_ids = {item["id"] for item in data["items"]}
         assert created_ids.issubset(returned_ids), (
-            f"Missing test projects in response. "
+            "Missing test projects in response. "
             f"Expected {len(created_ids)} test projects, found {len(created_ids & returned_ids)}"
         )
 

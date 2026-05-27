@@ -15,19 +15,14 @@ import uuid
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationRun,
-    EvaluationType,
     Generation,
     HumanEvaluationSession,
     LikertScaleEvaluation,
-    Organization,
     PreferenceRanking,
     ResponseGeneration,
-    TaskEvaluation,
-    User,
 )
 from project_models import (
     Annotation,
@@ -289,7 +284,7 @@ class TestEvaluationStatus:
     """Evaluation listing, types, and status endpoints."""
 
     def test_list_evaluations(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup_evaluation_project(test_db, test_users[0], test_org)
+        _setup_evaluation_project(test_db, test_users[0], test_org)
         resp = client.get(
             f"{BASE}/",
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
@@ -452,7 +447,7 @@ class TestHumanEvaluation:
     def test_submit_likert_evaluation(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup_evaluation_project(test_db, test_users[0], test_org)
         if data["human_sessions"]:
-            session_id = data["human_sessions"][0].id
+            data["human_sessions"][0].id
             resp = client.post(
                 f"{BASE}/human/likert",
                 json={
@@ -468,7 +463,7 @@ class TestHumanEvaluation:
     def test_submit_preference_ranking(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup_evaluation_project(test_db, test_users[0], test_org)
         if data["human_sessions"]:
-            session_id = data["human_sessions"][0].id
+            data["human_sessions"][0].id
             resp = client.post(
                 f"{BASE}/human/preference",
                 json={

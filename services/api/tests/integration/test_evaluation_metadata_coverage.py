@@ -14,10 +14,8 @@ Focuses on:
 import json
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import List
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
@@ -25,7 +23,6 @@ from models import (
     Generation,
     ResponseGeneration,
     TaskEvaluation,
-    User,
 )
 from project_models import (
     Annotation,
@@ -379,18 +376,23 @@ class TestEvaluationHistoryDeep:
     """Deep coverage for evaluation-history endpoint."""
 
     def test_history_with_metric_and_model(self, client, test_db, test_users, auth_headers, test_org):
-        """History returns time-series data for specific metric and model."""
+        """History returns time-series data for specific metric and model.
+
+        Issue #111: ``metric`` was renamed to ``metrics`` (multi-valued)
+        and the response is ``{series: [{metric, evaluation_config_id,
+        display_name, data: [...]}, ...]}``.
+        """
         data = _build_graph(test_db, test_users[0], test_org, num_models=2,
                             with_date_spread=True)
         resp = client.get(
             f"{BASE}/projects/{data['project'].id}/evaluation-history"
-            "?model_ids=gpt-4o&model_ids=claude-3-sonnet&metric=accuracy",
+            "?model_ids=gpt-4o&model_ids=claude-3-sonnet&metrics=accuracy",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert body["metric"] == "accuracy"
-        assert "data" in body
+        assert "series" in body
+        assert isinstance(body["series"], list)
 
     def test_history_with_date_range(self, client, test_db, test_users, auth_headers, test_org):
         """History respects start_date and end_date filters."""
@@ -401,24 +403,24 @@ class TestEvaluationHistoryDeep:
         end = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
         resp = client.get(
             f"{BASE}/projects/{data['project'].id}/evaluation-history"
-            f"?model_ids=gpt-4o&metric=accuracy&start_date={start}&end_date={end}",
+            f"?model_ids=gpt-4o&metrics=accuracy&start_date={start}&end_date={end}",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
 
     def test_history_with_eval_metadata_ci(self, client, test_db, test_users, auth_headers, test_org):
-        """History includes CI from eval_metadata when available."""
+        """History includes CI in each per-series data point when computable."""
         data = _build_graph(test_db, test_users[0], test_org, num_models=1,
                             with_eval_metadata=True)
         resp = client.get(
             f"{BASE}/projects/{data['project'].id}/evaluation-history"
-            "?model_ids=gpt-4o&metric=accuracy",
+            "?model_ids=gpt-4o&metrics=accuracy",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
         body = resp.json()
-        if body.get("data"):
-            for point in body["data"]:
+        for series in body.get("series", []):
+            for point in series.get("data", []):
                 assert "ci_lower" in point
                 assert "ci_upper" in point
 
@@ -426,22 +428,22 @@ class TestEvaluationHistoryDeep:
         """History for nonexistent project returns 404."""
         resp = client.get(
             f"{BASE}/projects/nonexistent/evaluation-history"
-            "?model_ids=gpt-4o&metric=accuracy",
+            "?model_ids=gpt-4o&metrics=accuracy",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code in (404, 422)
 
     def test_history_nonexistent_metric(self, client, test_db, test_users, auth_headers, test_org):
-        """History for metric with no data returns empty data."""
+        """History for metric with no data returns no series."""
         data = _build_graph(test_db, test_users[0], test_org, num_models=1)
         resp = client.get(
             f"{BASE}/projects/{data['project'].id}/evaluation-history"
-            "?model_ids=gpt-4o&metric=nonexistent_metric",
+            "?model_ids=gpt-4o&metrics=nonexistent_metric",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code == 200
         body = resp.json()
-        assert len(body.get("data", [])) == 0
+        assert body.get("series", []) == []
 
 
 # ===================================================================
@@ -494,7 +496,7 @@ class TestSignificanceDeep:
         assert resp.status_code == 200
         body = resp.json()
         for comp in body.get("comparisons", []):
-            assert comp["significant"] is False
+            assert comp["significant"] == False  # noqa: E712
 
     def test_significance_nonexistent_project(self, client, test_db, test_users, auth_headers, test_org):
         """Significance for nonexistent project returns 404."""

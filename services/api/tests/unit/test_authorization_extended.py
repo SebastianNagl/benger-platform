@@ -3,10 +3,7 @@ Unit tests for app/core/authorization.py to increase coverage.
 Tests Permission enum, authorization service methods.
 """
 
-from datetime import datetime, timezone
-from unittest.mock import Mock, patch
-
-import pytest
+from unittest.mock import Mock
 
 
 class TestPermissionEnum:

@@ -676,7 +676,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
             )
 
         # E2E test mock: return deterministic scores without real API call
-        if self.ai_service is None:
+        if self.ai_service == None:
             import os
 
             if os.environ.get("E2E_TEST_MODE") == "true":

@@ -11,26 +11,14 @@ Covers routers/projects/tasks.py:
 - GET /{project_id}/task-fields — task fields discovery
 """
 
-import json
 import uuid
-from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
-from models import (
-    EvaluationRun,
-    Generation,
-    OrganizationMembership,
-    ResponseGeneration,
-    TaskEvaluation,
-    User,
-)
 from project_models import (
     Annotation,
     Project,
     ProjectOrganization,
-    SkippedTask,
     Task,
     TaskAssignment,
 )
@@ -171,7 +159,7 @@ class TestListTasks:
         assert resp.status_code == 200
         body = resp.json()
         for t in body["items"]:
-            assert t["is_labeled"] is True
+            assert t["is_labeled"] == True  # noqa: E712
 
     def test_list_unlabeled_only(self, client, test_db, test_users, auth_headers, test_org):
         p = _project(test_db, test_users[0], test_org)
@@ -185,7 +173,7 @@ class TestListTasks:
         assert resp.status_code == 200
         body = resp.json()
         for t in body["items"]:
-            assert t["is_labeled"] is False
+            assert t["is_labeled"] == False  # noqa: E712
 
     def test_list_assigned_only(self, client, test_db, test_users, auth_headers, test_org):
         p = _project(test_db, test_users[0], test_org, assignment_mode="manual")

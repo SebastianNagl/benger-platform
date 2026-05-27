@@ -19,11 +19,13 @@ from .base_service import BaseAIService, derive_truncated
 from .provider_capabilities import model_supports_seed
 from .response_validator import ResponseValidator
 
-logger = logging.getLogger(__name__)
 
 
 # Phase 6.2: shared retry-history contextvar (defined in base_service).
 from .base_service import _retry_history_ctx, get_retry_history_snapshot  # noqa: F401
+
+
+logger = logging.getLogger(__name__)
 
 
 def retry_with_exponential_backoff(
@@ -135,7 +137,7 @@ class CohereService(BaseAIService):
 
     def is_available(self) -> bool:
         """Check if Cohere service is available (API key set)"""
-        return self.client is not None
+        return self.client != None
 
     @retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
     def generate(
@@ -361,7 +363,7 @@ class CohereService(BaseAIService):
             api_model_name = self.MODEL_MAPPING.get(model_name, model_name)
 
             # Add format instructions to system prompt
-            format_instructions = f"""
+            format_instructions = """
 
 ## Output Format
 You MUST respond with a valid JSON object matching this schema:
@@ -444,7 +446,7 @@ Your response must be ONLY the JSON object, no other text before or after.
                 **self.get_invocation_provenance(),
             }
 
-            if validation_result.valid and validation_result.data is not None:
+            if validation_result.valid and validation_result.data != None:
                 content = json.dumps(validation_result.data, ensure_ascii=False)
                 result_metadata["validation_status"] = "valid"
                 result_metadata["schema_validated"] = True

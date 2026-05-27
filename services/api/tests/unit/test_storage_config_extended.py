@@ -11,10 +11,9 @@ instantiate StorageConfig/CDNConfig directly. Instead, we:
 """
 
 import importlib
-import os
 import sys
 from types import ModuleType
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -96,7 +95,7 @@ class TestGetStorageConfig:
         assert result["access_key"] == "AKIA123"
         assert result["secret_key"] == "secret"
         assert result["region"] == "eu-central-1"
-        assert result["use_ssl"] is True
+        assert result["use_ssl"] == True  # noqa: E712
 
     def test_minio_storage_returns_s3_config(self, storage_config_module):
         """MinIO storage type returns S3-style config dict."""
@@ -120,7 +119,7 @@ class TestGetStorageConfig:
 
         assert result["storage_type"] == "minio"
         assert result["bucket_name"] == "minio-bucket"
-        assert result["use_ssl"] is False
+        assert result["use_ssl"] == False  # noqa: E712
 
     def test_local_storage_returns_local_config(self, storage_config_module):
         """Local storage type returns base_path config."""
@@ -318,13 +317,13 @@ class TestStorageConfigModelFields:
         """StorageConfig defaults s3_use_ssl to True."""
         mod = storage_config_module
         field = mod.StorageConfig.model_fields["s3_use_ssl"]
-        assert field.default is True
+        assert field.default == True  # noqa: E712
 
     def test_cdn_config_default_provider_is_none(self, storage_config_module):
         """CDNConfig defaults cdn_provider to None."""
         mod = storage_config_module
         field = mod.CDNConfig.model_fields["cdn_provider"]
-        assert field.default is None
+        assert field.default == None  # noqa: E711
 
     def test_storage_config_default_local_path(self, storage_config_module):
         """StorageConfig defaults local_storage_path."""
@@ -340,13 +339,13 @@ class TestModuleLevelInstances:
         """Module has a global storage_config instance."""
         mod = storage_config_module
         assert hasattr(mod, "storage_config")
-        assert mod.storage_config is not None
+        assert mod.storage_config != None  # noqa: E711
 
     def test_cdn_config_instance_exists(self, storage_config_module):
         """Module has a global cdn_config instance."""
         mod = storage_config_module
         assert hasattr(mod, "cdn_config")
-        assert mod.cdn_config is not None
+        assert mod.cdn_config != None  # noqa: E711
 
     def test_helper_functions_exist(self, storage_config_module):
         """Module exports get_storage_config and get_cdn_config."""

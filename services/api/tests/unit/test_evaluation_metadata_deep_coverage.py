@@ -366,7 +366,7 @@ class TestConfiguredMethodsDeep:
         llm_method = [m for m in field["automated_methods"] if m["method_name"] == "llm_judge_quality"]
         assert len(llm_method) == 1
         assert llm_method[0]["method_type"] == "llm-judge"
-        assert llm_method[0]["has_results"] is True
+        assert llm_method[0]["has_results"] == True  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_project_not_found(self):
@@ -428,6 +428,13 @@ class TestConfiguredMethodsDeep:
 
 
 class TestEvaluationHistoryDeep:
+    # Issue #111: /evaluation-history was rewritten to aggregate TaskEvaluation
+    # rows by (date, model, config_id, metric) and return {series: [...]}.
+    # Data-path coverage moved to fixture-based tests in
+    # test_evaluation_metadata_endpoints.py::TestEvaluationHistoryPerConfig
+    # — the old DBEvaluationRun.metrics mocks no longer exercise the new code.
+    # Auth/error-handling tests stay here because they don't touch the data path.
+
     @pytest.mark.asyncio
     async def test_project_not_found(self):
         from routers.evaluations.metadata import get_evaluation_history
@@ -440,7 +447,8 @@ class TestEvaluationHistoryDeep:
                 request=_mock_request(),
                 project_id="missing",
                 model_ids=["gpt-4"],
-                metric="bleu",
+                metrics=["bleu"],
+                evaluation_config_ids=None,
                 start_date=None,
                 end_date=None,
                 db=db,
@@ -464,125 +472,14 @@ class TestEvaluationHistoryDeep:
                 request=_mock_request(),
                 project_id="p-1",
                 model_ids=["gpt-4"],
-                metric="bleu",
+                metrics=["bleu"],
+                evaluation_config_ids=None,
                 start_date=None,
                 end_date=None,
                 db=db,
                 current_user=_make_user(is_superadmin=False),
             )
         assert exc.value.status_code == 403
-
-    @pytest.mark.asyncio
-    @patch("routers.evaluations.metadata.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.metadata.get_org_context_from_request", return_value="private")
-    async def test_with_date_filters_and_ci(self, mock_org, mock_access):
-        from routers.evaluations.metadata import get_evaluation_history
-
-        db = _mock_db()
-        project = Mock()
-        project.id = "p-1"
-
-        eval1 = Mock()
-        eval1.model_id = "gpt-4"
-        eval1.metrics = {"bleu": 0.85}
-        eval1.created_at = datetime(2025, 6, 15, tzinfo=timezone.utc)
-        eval1.samples_evaluated = 10
-        eval1.eval_metadata = {
-            "confidence_intervals": {"bleu": {"lower": 0.80, "upper": 0.90}}
-        }
-
-        eval2 = Mock()
-        eval2.model_id = "gpt-4"
-        eval2.metrics = {"rouge": 0.70}
-        eval2.created_at = datetime(2025, 6, 20, tzinfo=timezone.utc)
-        eval2.samples_evaluated = 5
-        eval2.eval_metadata = None
-
-        eval3 = Mock()
-        eval3.model_id = "gpt-4"
-        eval3.metrics = {"bleu": "not_a_number"}
-        eval3.created_at = datetime(2025, 6, 25, tzinfo=timezone.utc)
-        eval3.samples_evaluated = 0
-        eval3.eval_metadata = None
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-            mock_q.order_by.return_value = mock_q
-
-            if call_count["n"] == 1:
-                mock_q.first.return_value = project
-            else:
-                mock_q.all.return_value = [eval1, eval2, eval3]
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-
-        result = await get_evaluation_history(
-            request=_mock_request(),
-            project_id="p-1",
-            model_ids=["gpt-4"],
-            metric="bleu",
-            start_date="2025-06-01T00:00:00",
-            end_date="2025-06-30T00:00:00",
-            db=db,
-            current_user=_make_user(),
-        )
-        assert result["metric"] == "bleu"
-        assert len(result["data"]) == 1
-        assert result["data"][0]["ci_lower"] is not None
-
-    @pytest.mark.asyncio
-    @patch("routers.evaluations.metadata.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.metadata.get_org_context_from_request", return_value="private")
-    async def test_no_ci_in_metadata(self, mock_org, mock_access):
-        from routers.evaluations.metadata import get_evaluation_history
-
-        db = _mock_db()
-        project = Mock()
-        project.id = "p-1"
-
-        eval1 = Mock()
-        eval1.model_id = "gpt-4"
-        eval1.metrics = {"bleu": 0.85}
-        eval1.created_at = datetime(2025, 6, 15, tzinfo=timezone.utc)
-        eval1.samples_evaluated = 10
-        eval1.eval_metadata = {"some_other_key": True}
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-            mock_q.order_by.return_value = mock_q
-
-            if call_count["n"] == 1:
-                mock_q.first.return_value = project
-            else:
-                mock_q.all.return_value = [eval1]
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-
-        result = await get_evaluation_history(
-            request=_mock_request(),
-            project_id="p-1",
-            model_ids=["gpt-4"],
-            metric="bleu",
-            start_date=None,
-            end_date=None,
-            db=db,
-            current_user=_make_user(),
-        )
-        dp = result["data"][0]
-        assert dp["ci_lower"] is None
-        assert dp["ci_upper"] is None
 
     @pytest.mark.asyncio
     async def test_exception_returns_500(self):
@@ -596,7 +493,8 @@ class TestEvaluationHistoryDeep:
                 request=_mock_request(),
                 project_id="p-1",
                 model_ids=["gpt-4"],
-                metric="bleu",
+                metrics=["bleu"],
+                evaluation_config_ids=None,
                 start_date=None,
                 end_date=None,
                 db=db,
@@ -783,7 +681,7 @@ class TestSignificanceTestsDeep:
         comps = result["comparisons"]
         assert len(comps) == 1
         assert comps[0]["p_value"] == 1.0
-        assert comps[0]["significant"] is False
+        assert comps[0]["significant"] == False  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_exception_returns_500(self):
@@ -984,7 +882,7 @@ class TestComputeStatisticsDeep:
             current_user=_make_user(),
         )
         assert result.aggregation == "field"
-        assert result.by_field is not None
+        assert result.by_field != None  # noqa: E711
         assert "answer" in result.by_field
 
     @pytest.mark.asyncio
@@ -1034,7 +932,7 @@ class TestComputeStatisticsDeep:
             current_user=_make_user(),
         )
         assert result.aggregation == "sample"
-        assert result.raw_scores is not None
+        assert result.raw_scores != None  # noqa: E711
         assert len(result.raw_scores) == 2
 
     @pytest.mark.asyncio
@@ -1088,7 +986,7 @@ class TestComputeStatisticsDeep:
             db=db,
             current_user=_make_user(),
         )
-        assert result.warnings is not None
+        assert result.warnings != None  # noqa: E711
 
     @pytest.mark.asyncio
     @patch("routers.evaluations.metadata.check_project_accessible", return_value=True)
@@ -1150,7 +1048,7 @@ class TestComputeStatisticsDeep:
             db=db,
             current_user=_make_user(),
         )
-        assert result.pairwise_comparisons is not None
+        assert result.pairwise_comparisons != None  # noqa: E711
         assert len(result.pairwise_comparisons) >= 1
 
     @pytest.mark.asyncio
@@ -1209,7 +1107,7 @@ class TestComputeStatisticsDeep:
             db=db,
             current_user=_make_user(),
         )
-        assert result.correlations is not None
+        assert result.correlations != None  # noqa: E711
 
     @pytest.mark.asyncio
     @patch("routers.evaluations.metadata.check_project_accessible", return_value=True)
@@ -1254,7 +1152,7 @@ class TestComputeStatisticsDeep:
             db=db,
             current_user=_make_user(),
         )
-        assert result.warnings is not None
+        assert result.warnings != None  # noqa: E711
         assert any("sample-level" in w.lower() or "evaluation-level" in w.lower() for w in result.warnings)
 
     @pytest.mark.asyncio

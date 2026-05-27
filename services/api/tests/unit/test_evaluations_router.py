@@ -332,11 +332,11 @@ class TestEvaluationsRouter:
             assert first_type["name"] == "Accuracy"
             assert first_type["description"] == "Measures prediction accuracy"
             assert first_type["category"] == "performance"
-            assert first_type["higher_is_better"] is True
+            assert first_type["higher_is_better"] == True  # noqa: E712
             assert first_type["value_range"]["min"] == 0.0
             assert first_type["value_range"]["max"] == 1.0
             assert first_type["applicable_project_types"] == ["qa", "classification"]
-            assert first_type["is_active"] is True
+            assert first_type["is_active"] == True  # noqa: E712
 
             # Verify second evaluation type
             second_type = data[1]
@@ -486,11 +486,11 @@ class TestEvaluationsRouter:
             assert data["name"] == "Accuracy"
             assert data["description"] == "Measures prediction accuracy"
             assert data["category"] == "performance"
-            assert data["higher_is_better"] is True
+            assert data["higher_is_better"] == True  # noqa: E712
             assert data["value_range"]["min"] == 0.0
             assert data["value_range"]["max"] == 1.0
             assert data["applicable_project_types"] == ["qa", "classification"]
-            assert data["is_active"] is True
+            assert data["is_active"] == True  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 

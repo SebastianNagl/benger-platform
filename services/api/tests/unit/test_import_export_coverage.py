@@ -10,11 +10,10 @@ Covers:
 """
 
 import json
-import uuid
 import zipfile
 from datetime import datetime, timezone
 from io import BytesIO
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from sqlalchemy.orm import Session
@@ -998,13 +997,6 @@ class TestImportFullProject:
             )
         assert "Unsupported" in str(exc_info.value.detail)
 
-    def _create_upload_file(self, data, filename="test.json"):
-        content = json.dumps(data).encode("utf-8")
-        file = Mock()
-        file.filename = filename
-        file.file = BytesIO(content)
-        return file
-
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
     async def test_import_full_project_no_project_data(self, mock_org, mock_db):
@@ -1076,17 +1068,6 @@ class TestImportFullProject:
         )
 
         assert result["project_title"] == "ZIP Import"
-
-    def _create_zip_upload_file(self, data, filename="test.zip"):
-        json_content = json.dumps(data).encode("utf-8")
-        zip_buffer = BytesIO()
-        with zipfile.ZipFile(zip_buffer, 'w') as zf:
-            zf.writestr("project.json", json_content)
-        zip_buffer.seek(0)
-        file = Mock()
-        file.filename = filename
-        file.file = zip_buffer
-        return file
 
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")

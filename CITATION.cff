@@ -30,3 +30,34 @@ preferred-citation:
   conference:
     name: "ICAIL 2026"
     city: Singapore
+  notes: "System demonstration paper (accepted to the demonstrations track; published alongside research papers in the main ICAIL proceedings)."
+references:
+  # The BenGER benchmark dataset paper — see publications/Dataset_ARR/CITATION.cff
+  # for the canonical dataset citation including its CC BY 4.0 license.
+  # Note: the benchmark paper has a different (larger) author list than the
+  # platform paper above — the dataset is the work of nine contributors.
+  - type: dataset
+    title: "BenGER: Benchmarking LLM Systems on Subsumption-Based Legal Reasoning in German Law"
+    authors:
+      - family-names: Nagl
+        given-names: Sebastian
+      - family-names: Mayrhofer
+        given-names: Ann-Kristin
+      - family-names: Heidebach
+        given-names: Martin
+      - family-names: Koçak
+        given-names: Aleyna
+      - family-names: Zettelmeier
+        given-names: Anne
+      - family-names: Breu
+        given-names: Elly
+      - family-names: Greiner
+        given-names: Angelina
+      - family-names: Milijas
+        given-names: Sofija
+      - family-names: Grabmair
+        given-names: Matthias
+    year: 2026
+    url: "https://doi.org/10.5281/zenodo.20409635"
+    doi: 10.5281/zenodo.20409635
+    license: CC-BY-4.0

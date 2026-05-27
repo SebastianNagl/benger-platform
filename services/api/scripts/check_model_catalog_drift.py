@@ -46,8 +46,8 @@ for shared_candidate in (
         sys.path.insert(0, str(shared_candidate))
         break
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 # Field names to compare (DB column names)
 COMPARE_FIELDS = (

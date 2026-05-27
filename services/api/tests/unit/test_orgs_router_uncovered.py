@@ -12,12 +12,12 @@ Rewritten to call handler functions directly (no TestClient) so that pytest-cov
 tracks the router code.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException
-from models import OrganizationMembership, OrganizationRole, User
+from models import OrganizationRole
 
 
 # ---------------------------------------------------------------------------
@@ -288,7 +288,7 @@ class TestRemoveMemberSuccess:
             db=db,
         )
         assert result["message"] == "Member removed from organization successfully"
-        assert target_membership.is_active is False
+        assert target_membership.is_active == False  # noqa: E712
 
 
 # ---------------------------------------------------------------------------
@@ -313,8 +313,14 @@ class TestListAllUsersOrgFiltering:
             "created_at": datetime(2025, 1, 1), "updated_at": None,
         }
 
+        # The endpoint chains
+        # query.filter(...).filter(...).order_by(...).limit(...).all().
+        # Every link must return the same mock so the final .all() hits the
+        # seeded list. distinct/subquery exist on the nested member-id chain.
         mock_q = MagicMock()
         mock_q.filter.return_value = mock_q
+        mock_q.order_by.return_value = mock_q
+        mock_q.limit.return_value = mock_q
         mock_q.distinct.return_value = mock_q
         mock_q.subquery.return_value = MagicMock()
         mock_q.all.return_value = [u1]
@@ -339,7 +345,13 @@ class TestListAllUsersOrgFiltering:
             "created_at": datetime(2025, 1, 1), "updated_at": None,
         }
 
-        db.query.return_value.filter.return_value.all.return_value = [u1]
+        # Superadmin path: query.filter(is_active).order_by(...).limit(...).all().
+        mock_q = MagicMock()
+        mock_q.filter.return_value = mock_q
+        mock_q.order_by.return_value = mock_q
+        mock_q.limit.return_value = mock_q
+        mock_q.all.return_value = [u1]
+        db.query.return_value = mock_q
 
         result = await list_all_users(current_user=user, db=db)
         assert len(result) >= 1
@@ -379,8 +391,8 @@ class TestUpdateSuperadminStatusSuccess:
             current_user=admin,
             db=db,
         )
-        assert target_user.is_superadmin is True
-        assert result.is_superadmin is True
+        assert target_user.is_superadmin == True  # noqa: E712
+        assert result.is_superadmin == True  # noqa: E712
 
 
 # ---------------------------------------------------------------------------
@@ -560,7 +572,7 @@ class TestVerifyMemberEmailSuccess:
             db=db,
         )
         assert result["message"] == "Email verified successfully"
-        assert user_to_verify.email_verified is True
+        assert user_to_verify.email_verified == True  # noqa: E712
         assert user_to_verify.email_verification_method == "admin"
 
     @pytest.mark.asyncio
@@ -765,5 +777,5 @@ class TestBulkVerifySuccess:
             db=db,
         )
         assert result["summary"]["success"] == 1
-        assert user1.email_verified is True
+        assert user1.email_verified == True  # noqa: E712
         assert user1.email_verification_method == "admin"

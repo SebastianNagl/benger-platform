@@ -11,19 +11,16 @@ Covers routers/evaluations/metadata.py:
 
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
-    EvaluationType,
     Generation,
     ResponseGeneration,
     TaskEvaluation,
-    User,
 )
 from project_models import (
     Annotation,
@@ -476,19 +473,26 @@ class TestEvaluationHistory:
 
     def test_evaluation_history(self, client, test_db, test_users, auth_headers, test_org):
         data = _build(test_db, test_users[0], test_org, num_models=2)
+        # Issue #111: ``metrics`` is required, response shape is ``{series: []}``.
         resp = client.get(
-            f"{BASE}/projects/{data['project'].id}/evaluation-history",
+            f"{BASE}/projects/{data['project'].id}/evaluation-history"
+            "?model_ids=gpt-4o&model_ids=claude-3-sonnet&metrics=accuracy",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code in (200, 404, 422)
+        if resp.status_code == 200:
+            assert "series" in resp.json()
 
     def test_evaluation_history_with_model_filter(self, client, test_db, test_users, auth_headers, test_org):
         data = _build(test_db, test_users[0], test_org, num_models=2)
         resp = client.get(
-            f"{BASE}/projects/{data['project'].id}/evaluation-history?model_id=gpt-4o",
+            f"{BASE}/projects/{data['project'].id}/evaluation-history"
+            "?model_ids=gpt-4o&metrics=accuracy",
             headers=_h(auth_headers, test_org),
         )
         assert resp.status_code in (200, 404, 422)
+        if resp.status_code == 200:
+            assert isinstance(resp.json().get("series"), list)
 
 
 # ===================================================================

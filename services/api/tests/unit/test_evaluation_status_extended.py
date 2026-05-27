@@ -6,14 +6,13 @@ Tests evaluation status, SSE streaming, evaluation types, and supported metrics.
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from main import app
 from auth_module.models import User
 from database import get_db
-from auth_module.dependencies import require_user, require_superadmin
+from auth_module.dependencies import require_user
 
 
 def _make_user(is_superadmin=True, user_id="user-123"):

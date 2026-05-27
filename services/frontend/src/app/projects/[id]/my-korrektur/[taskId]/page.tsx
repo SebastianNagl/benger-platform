@@ -19,5 +19,6 @@ export default function MyKorrekturPage() {
     )
   }
 
+  // eslint-disable-next-line react-hooks/static-components
   return <MyKorrekturComponent projectId={projectId} taskId={taskId} />
 }

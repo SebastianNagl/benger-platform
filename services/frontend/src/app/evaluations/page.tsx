@@ -150,16 +150,20 @@ export default function EvaluationDashboard() {
   // user perceived as three sequential loading states. Initial-state hoist
   // collapses the chain to one parallel pair (fetchProjectData +
   // fetchComparisonData fire together once selectedProject is resolved).
+  //
+  // Issue #111: the metric filter moved from `?metrics=<metric_name>` to
+  // `?configs=<evaluation_config_id>`. Bookmarked legacy `?metrics=` URLs
+  // simply don't carry state (no shim) — everything else still works.
   const initialUrlFilters = useMemo(() => {
     const models = searchParams?.get('models')?.split(',').filter(Boolean)
-    const metrics = searchParams?.get('metrics')?.split(',').filter(Boolean)
+    const configs = searchParams?.get('configs')?.split(',').filter(Boolean)
     const chart = searchParams?.get('chartType') as ChartType | null
     const validCharts: ChartType[] = ['data', 'bar', 'radar', 'box', 'heatmap', 'table']
     const aggregation = searchParams?.get('aggregation')?.split(',').filter(Boolean) as AggregationLevel[] | undefined
     const stats = searchParams?.get('stats')?.split(',').filter(Boolean) as StatisticalMethod[] | undefined
     return {
       models: models && models.length > 0 ? models : null,
-      metrics: metrics && metrics.length > 0 ? metrics : null,
+      configs: configs && configs.length > 0 ? configs : null,
       chartType: chart && validCharts.includes(chart) ? chart : null,
       aggregation: aggregation && aggregation.length > 0 ? aggregation : null,
       stats: stats && stats.length > 0 ? stats : null,
@@ -174,10 +178,14 @@ export default function EvaluationDashboard() {
   const [selectedModels, setSelectedModels] = useState<string[]>(
     initialUrlFilters.models ?? []
   )
-  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(
-    initialUrlFilters.metrics ?? []
+  // Issue #111: selection state moved from metric_name to
+  // evaluation_config_id. Two configs of the same metric type now have
+  // separate, independently-selectable entries with distinct
+  // `display_name` labels (the metric_name string alone collapsed them).
+  const [selectedConfigIds, setSelectedConfigIds] = useState<string[]>(
+    initialUrlFilters.configs ?? []
   )
-  const [availableMetrics, setAvailableMetrics] = useState<string[]>([])
+  const [availableConfigIds, setAvailableConfigIds] = useState<string[]>([])
   const [selectedEvalTypes, setSelectedEvalTypes] = useState<EvalType[]>([
     'automated',
     'llm-judge',
@@ -341,9 +349,10 @@ export default function EvaluationDashboard() {
     if (selectedModels.length > 0 && selectedModels.length < evaluatedModels.length) {
       params.set('models', selectedModels.join(','))
     }
-    // Only save metrics to URL if not all metrics are selected
-    if (selectedMetrics.length > 0 && selectedMetrics.length < availableMetrics.length) {
-      params.set('metrics', selectedMetrics.join(','))
+    // Issue #111: persist selection by evaluation_config_id under
+    // `?configs=`. Old `?metrics=` URLs no longer apply (clean break).
+    if (selectedConfigIds.length > 0 && selectedConfigIds.length < availableConfigIds.length) {
+      params.set('configs', selectedConfigIds.join(','))
     }
     if (chartType !== 'data') {
       params.set('chartType', chartType)
@@ -357,34 +366,34 @@ export default function EvaluationDashboard() {
 
     router.replace(`/evaluations?${params.toString()}`, { scroll: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Only sync when filter values change
-  }, [selectedProject, selectedModels, selectedMetrics, chartType, aggregationLevels, statisticalMethods, evaluatedModels.length, availableMetrics.length])
+  }, [selectedProject, selectedModels, selectedConfigIds, chartType, aggregationLevels, statisticalMethods, evaluatedModels.length, availableConfigIds.length])
 
-  // Fetch comparison data when models/metrics change (instant reactive)
+  // Fetch comparison data when models/configs change (instant reactive)
   // Debounced comparison data fetch — prevents API bursts when toggling filters
   useEffect(() => {
     if (
       selectedProject &&
       selectedModels.length > 0 &&
-      selectedMetrics.length > 0
+      selectedConfigIds.length > 0
     ) {
       const timer = setTimeout(() => fetchComparisonData(), 300)
       return () => clearTimeout(timer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchComparisonData is stable, only re-run when filter selections change
-  }, [selectedModels, selectedMetrics, selectedProject])
+  }, [selectedModels, selectedConfigIds, selectedProject])
 
   // Debounced statistics computation — prevents API bursts when toggling filters
   useEffect(() => {
     if (
       selectedProject &&
-      selectedMetrics.length > 0 &&
+      selectedConfigIds.length > 0 &&
       aggregationLevels.length > 0
     ) {
       const timer = setTimeout(() => computeStatistics(), 300)
       return () => clearTimeout(timer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- computeStatistics is stable, only re-run when filter selections change
-  }, [aggregationLevels, statisticalMethods, selectedMetrics, selectedModels, selectedProject])
+  }, [aggregationLevels, statisticalMethods, selectedConfigIds, selectedModels, selectedProject])
 
   const fetchProjectData = async (projectId: string) => {
     setLoading(true)
@@ -421,8 +430,8 @@ export default function EvaluationDashboard() {
         // No config - show empty state, don't derive from historical results
         setAvailableEvalTypes([])
         setSelectedEvalTypes([])
-        setAvailableMetrics([])
-        setSelectedMetrics([])
+        setAvailableConfigIds([])
+        setSelectedConfigIds([])
         setMetricsWithStatus([])
       } else {
         const enabledEvalConfigs = evaluationConfigs.filter(
@@ -454,29 +463,32 @@ export default function EvaluationDashboard() {
         setAvailableEvalTypes(derivedEvalTypes)
         setSelectedEvalTypes(derivedEvalTypes)
 
-        // Build metrics with status from config only - NO FALLBACK
-        const configuredMetricNames = enabledEvalConfigs.map(
-          (e: any) => e.metric
-        )
-        const uniqueMetrics = [...new Set(configuredMetricNames)] as string[]
-
-        // Flatten BOTH automated_methods and human_methods from configuredMethods
-        // for status lookup. Human-graded metrics (e.g. korrektur_falloesung)
-        // live under f.human_methods; without this they'd always read 0.
+        // Issue #111: build one entry per evaluation_config, not per
+        // metric name. The dedup-by-metric (the old `[...new Set(...)]`)
+        // collapsed multiple configs of the same metric type into one
+        // entry — the exact bug the issue exists to fix. Two configs
+        // sharing `metric: 'llm_judge_falloesung'` but differing in
+        // `metric_parameters.judges` now render as two distinct
+        // checkboxes labeled by `display_name`.
         const allMethods = (configuredMethods?.fields || []).flatMap(
           (f: any) => [...(f.automated_methods || []), ...(f.human_methods || [])]
         )
 
-        const metricsStatus: ItemWithStatus[] = uniqueMetrics.map(
-          (metricName) => {
+        const configsStatus: Array<ItemWithStatus & { metric: string }> = enabledEvalConfigs.map(
+          (cfg: any) => {
             const methodInfo = allMethods.find(
-              (m: any) => m.method_name === metricName
+              (m: any) => m.method_name === cfg.metric
             )
+            const label =
+              cfg.display_name && String(cfg.display_name).trim().length > 0
+                ? cfg.display_name
+                : String(cfg.metric || '')
+                    .replace(/_/g, ' ')
+                    .replace(/\b\w/g, (c: string) => c.toUpperCase())
             return {
-              id: metricName,
-              label: metricName
-                .replace(/_/g, ' ')
-                .replace(/\b\w/g, (c: string) => c.toUpperCase()),
+              id: cfg.id,
+              label,
+              metric: cfg.metric,
               isConfigured: true,
               hasResults: methodInfo?.has_results || false,
               resultCount: methodInfo?.result_count || 0,
@@ -484,21 +496,25 @@ export default function EvaluationDashboard() {
           }
         )
 
-        // Sort by GROUPED_METRICS order (same as wizard)
+        // Sort by GROUPED_METRICS order (same as wizard) using cfg.metric
+        // since the wizard groups by metric type, not config id.
         const orderMap = new Map(METRIC_ORDER.map((m, i) => [m, i]))
-        metricsStatus.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999))
-        const sortedMetrics = metricsStatus.map(m => m.id)
+        configsStatus.sort(
+          (a, b) =>
+            (orderMap.get(a.metric) ?? 999) - (orderMap.get(b.metric) ?? 999)
+        )
+        const sortedConfigIds = configsStatus.map((c) => c.id)
 
-        setAvailableMetrics(sortedMetrics)
-        // Keep any URL-provided (initial-state) selection, pruned to metrics
-        // that actually exist in the project config. Fall back to "all
+        setAvailableConfigIds(sortedConfigIds)
+        // Keep any URL-provided (initial-state) selection, pruned to
+        // configs that actually exist in the project. Fall back to "all
         // available" when nothing valid remains.
-        setSelectedMetrics(prev => {
-          if (prev.length === 0) return sortedMetrics
-          const valid = prev.filter(m => sortedMetrics.includes(m))
-          return valid.length > 0 ? valid : sortedMetrics
+        setSelectedConfigIds((prev) => {
+          if (prev.length === 0) return sortedConfigIds
+          const valid = prev.filter((c) => sortedConfigIds.includes(c))
+          return valid.length > 0 ? valid : sortedConfigIds
         })
-        setMetricsWithStatus(metricsStatus)
+        setMetricsWithStatus(configsStatus)
       }
 
       // 5+6. Fetch evaluation results and models in parallel
@@ -537,16 +553,32 @@ export default function EvaluationDashboard() {
     }
   }
 
+  // Issue #111: helper to look up the metric names corresponding to the
+  // currently-selected evaluation_config_ids. Used to wire the per-config
+  // selector through to endpoints that still take metric names alongside
+  // the new `evaluation_config_ids=` filter (history, significance).
+  const selectedMetricNames = useMemo(() => {
+    const cfgs = projectEvalConfig?.evaluation_configs ?? []
+    const byId = new Map<string, string>(cfgs.map((c) => [c.id, c.metric]))
+    const out = new Set<string>()
+    for (const id of selectedConfigIds) {
+      const m = byId.get(id)
+      if (m) out.add(m)
+    }
+    return Array.from(out)
+  }, [projectEvalConfig, selectedConfigIds])
+
   const fetchComparisonData = async () => {
     if (!selectedProject) return
     try {
       // Historical data
-      if (selectedMetrics.length > 0) {
+      if (selectedConfigIds.length > 0 && selectedMetricNames.length > 0) {
         try {
           const history = await apiClient.evaluations.getEvaluationHistory({
             projectId: selectedProject.id.toString(),
             modelIds: selectedModels,
-            metric: selectedMetrics[0],
+            metrics: selectedMetricNames,
+            evaluationConfigIds: selectedConfigIds,
           })
           setHistoricalData(history)
         } catch {
@@ -561,7 +593,8 @@ export default function EvaluationDashboard() {
             {
               projectId: selectedProject.id.toString(),
               modelIds: selectedModels,
-              metrics: selectedMetrics,
+              metrics: selectedMetricNames,
+              evaluationConfigIds: selectedConfigIds,
             }
           )
           setSignificanceData(significance.comparisons || [])
@@ -581,7 +614,7 @@ export default function EvaluationDashboard() {
   const computeStatistics = async () => {
     if (
       !selectedProject ||
-      selectedMetrics.length === 0 ||
+      selectedConfigIds.length === 0 ||
       aggregationLevels.length === 0
     )
       return
@@ -597,10 +630,11 @@ export default function EvaluationDashboard() {
         try {
           const result = await apiClient.evaluations.computeStatistics({
             projectId: selectedProject.id.toString(),
-            metrics: selectedMetrics,
+            metrics: selectedMetricNames,
             aggregation: aggregation,
             methods: statisticalMethods,
             compareModels: selectedModels.length > 1 ? selectedModels : undefined,
+            evaluationConfigIds: selectedConfigIds,
           })
           results[aggregation] = result
         } catch (err: any) {
@@ -809,28 +843,25 @@ export default function EvaluationDashboard() {
     }
   }, [user, authLoading, router, isPrivateMode])
 
-  if (authLoading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <LoadingSpinner />
+  // Early-return rendering is computed once after all hooks have run — this
+  // keeps `useMemo`/`useEffect` calls below in the same order on every render
+  // (react-hooks/rules-of-hooks).
+  const earlyReturn: React.ReactNode = authLoading ? (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <LoadingSpinner />
+    </div>
+  ) : !canAccessProjectData(user, { isPrivateMode }) ? (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <div className="text-center">
+        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+          {t('evaluation.accessDenied')}
+        </h3>
+        <Button onClick={() => router.push('/projects')} className="mt-4">
+          {t('common.backToProjects')}
+        </Button>
       </div>
-    )
-  }
-
-  if (!canAccessProjectData(user, { isPrivateMode })) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="text-center">
-          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {t('evaluation.accessDenied')}
-          </h3>
-          <Button onClick={() => router.push('/projects')} className="mt-4">
-            {t('common.backToProjects')}
-          </Button>
-        </div>
-      </div>
-    )
-  }
+    </div>
+  ) : null
 
   const toggleModel = (modelId: string) => {
     if (selectedModels.includes(modelId)) {
@@ -904,10 +935,13 @@ export default function EvaluationDashboard() {
       []
 
     if (rawScores.length > 0) {
-      // Group scores by model for the selected metrics
+      // Issue #111: filter raw scores by the selected
+      // evaluation_config_ids (carried directly on the score row) instead
+      // of the metric name — that way two configs of the same metric type
+      // don't pool their distributions when only one is selected.
       const scoresByModel = new Map<string, number[]>()
       for (const score of rawScores) {
-        if (selectedMetrics.includes(score.metric)) {
+        if (selectedConfigIds.includes(score.evaluation_config_id)) {
           const existing = scoresByModel.get(score.model_id) || []
           existing.push(score.value)
           scoresByModel.set(score.model_id, existing)
@@ -924,7 +958,11 @@ export default function EvaluationDashboard() {
     }
 
     return baseModels
-  }, [filteredResults, evaluationChartData, statisticsData, selectedMetrics])
+  }, [filteredResults, evaluationChartData, statisticsData, selectedConfigIds])
+
+  if (earlyReturn) {
+    return earlyReturn
+  }
 
   return (
     <FeatureFlag
@@ -1100,7 +1138,9 @@ export default function EvaluationDashboard() {
               </div>
             )}
 
-            {/* Metrics Dropdown - shows all configured metric variants */}
+            {/* Metrics Dropdown - shows one entry per evaluation_config
+                (issue #111). Two configs sharing the same `metric` type
+                but distinct `display_name`s are independently selectable. */}
             {selectedProject && metricsWithStatus.length > 0 && (
               <div className="relative" ref={metricsDropdownRef}>
                 <label className="mb-1 block text-xs font-medium text-gray-500">
@@ -1112,11 +1152,11 @@ export default function EvaluationDashboard() {
                   className="w-36 justify-between"
                 >
                   <span className="truncate">
-                    {selectedMetrics.length === 0
+                    {selectedConfigIds.length === 0
                       ? t('evaluation.viewer.filters.selectMetrics')
-                      : selectedMetrics.length === metricsWithStatus.length
+                      : selectedConfigIds.length === metricsWithStatus.length
                         ? t('evaluation.viewer.filters.allMetrics')
-                        : `${selectedMetrics.length} ${t('evaluation.viewer.filters.selected')}`}
+                        : `${selectedConfigIds.length} ${t('evaluation.viewer.filters.selected')}`}
                   </span>
                   <ChevronDownIcon
                     className={`ml-2 h-4 w-4 opacity-70 transition-transform ${metricsDropdownOpen ? 'rotate-180' : ''}`}
@@ -1127,7 +1167,7 @@ export default function EvaluationDashboard() {
                     <button
                       type="button"
                       onClick={() =>
-                        setSelectedMetrics(metricsWithStatus.map((m) => m.id))
+                        setSelectedConfigIds(metricsWithStatus.map((m) => m.id))
                       }
                       className="mb-1 w-full px-2 py-1 text-left text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
                     >
@@ -1135,7 +1175,7 @@ export default function EvaluationDashboard() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setSelectedMetrics([])}
+                      onClick={() => setSelectedConfigIds([])}
                       className="mb-2 w-full px-2 py-1 text-left text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
                     >
                       {t('evaluation.viewer.filters.clearAll')}
@@ -1147,15 +1187,15 @@ export default function EvaluationDashboard() {
                       >
                         <input
                           type="checkbox"
-                          checked={selectedMetrics.includes(metric.id)}
+                          checked={selectedConfigIds.includes(metric.id)}
                           onChange={() => {
-                            if (selectedMetrics.includes(metric.id)) {
-                              setSelectedMetrics(
-                                selectedMetrics.filter((m) => m !== metric.id)
+                            if (selectedConfigIds.includes(metric.id)) {
+                              setSelectedConfigIds(
+                                selectedConfigIds.filter((m) => m !== metric.id)
                               )
                             } else {
-                              setSelectedMetrics([
-                                ...selectedMetrics,
+                              setSelectedConfigIds([
+                                ...selectedConfigIds,
                                 metric.id,
                               ])
                             }
@@ -1222,7 +1262,7 @@ export default function EvaluationDashboard() {
             {selectedProject && (() => {
               const anyFilterSet =
                 selectedModels.length !== evaluatedModels.length ||
-                selectedMetrics.length !== availableMetrics.length ||
+                selectedConfigIds.length !== availableConfigIds.length ||
                 aggregationLevels.length !== 1 ||
                 aggregationLevels[0] !== 'model' ||
                 statisticalMethods.length > 0 ||
@@ -1235,7 +1275,7 @@ export default function EvaluationDashboard() {
                     setAggregationLevels(['model'])
                     setStatisticalMethods([])
                     setSelectedModels(evaluatedModels.map((m) => m.model_id))
-                    setSelectedMetrics(availableMetrics)
+                    setSelectedConfigIds(availableConfigIds)
                     setSelectedEvalTypes(['automated', 'llm-judge', 'human'])
                   }}
                   disabled={!anyFilterSet}
@@ -1261,47 +1301,66 @@ export default function EvaluationDashboard() {
         {/* Results Section - Only show when project selected and not loading */}
         {selectedProject && !loading && (
           <div className="space-y-6">
-            {/* Score Cards */}
+            {/* Score Cards — issue #111: render one card per selected
+              * (config × metric) pair so multiple configs of the same metric
+              * type stay distinct. The card's value comes from the per-
+              * (model, config, metric) aggregate in `runs_by_model_metric`
+              * (3-part key) when available; otherwise we fall back to the
+              * legacy per-result metric value (which collapses configs of
+              * the same type — acceptable when statistics haven't loaded
+              * yet). Card label uses the config's display_name. */}
             {filteredResults.length > 0 && (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {filteredResults.slice(0, 1).flatMap((result) =>
-                  Object.entries(result.metrics || {})
-                    .slice(0, 4)
-                    .map(([key, value]) => {
-                      // Multi-run aggregate (migration 042): pull from the
-                      // statistics endpoint's runs_by_model_metric block when
-                      // available. Key shape is "model_id|metric_name". Falls
-                      // back to undefined for legacy single-run evals so the
-                      // ScoreCard renders unchanged.
-                      const runsKey = `${result.model_id}|${key}`
-                      const runsAggregateRaw = (statisticsData as any)?.runs_by_model_metric?.[runsKey]
-                      const runsAggregate = runsAggregateRaw && runsAggregateRaw.n_runs > 1
+                {(() => {
+                  const result = filteredResults[0]
+                  const block = (statisticsData as any)?.runs_by_model_metric as
+                    | Record<string, { n_runs: number; mean_of_means?: number; std_of_means?: number }>
+                    | undefined
+                  const configs = projectEvalConfig?.evaluation_configs?.filter(
+                    (c) => selectedConfigIds.includes(c.id)
+                  ) ?? []
+                  // Stable ordering: same as the metric selector dropdown.
+                  // Cap at 4 cards to keep the grid tidy.
+                  const pairs = configs.slice(0, 4).map((cfg) => {
+                    const exactKey = `${result.model_id}|${cfg.id}|${cfg.metric}`
+                    const agg = block?.[exactKey]
+                    // Prefer the multi-run mean (config-scoped) when present;
+                    // fall back to the legacy per-result metric value.
+                    const value =
+                      typeof agg?.mean_of_means === 'number'
+                        ? agg.mean_of_means
+                        : (result.metrics?.[cfg.metric] ?? null)
+                    const runsAggregate =
+                      agg && agg.n_runs > 1
                         ? {
-                            runs: runsAggregateRaw.n_runs,
-                            stdAcrossRuns: runsAggregateRaw.std_of_means ?? 0,
+                            runs: agg.n_runs,
+                            stdAcrossRuns: agg.std_of_means ?? 0,
                           }
                         : undefined
-                      return (
-                        <ScoreCard
-                          key={key}
-                          metric={key}
-                          value={value}
-                          description={`${key} for ${result.model_id}`}
-                          higherIsBetter={true}
-                          formatAs="decimal"
-                          sampleSize={result.samples_evaluated}
-                          runsAggregate={runsAggregate}
-                        />
-                      )
-                    })
-                )}
+                    return { cfg, value, runsAggregate }
+                  })
+                  return pairs.map(({ cfg, value, runsAggregate }) =>
+                    value === null ? null : (
+                      <ScoreCard
+                        key={`${cfg.id}|${cfg.metric}`}
+                        metric={cfg.display_name || cfg.metric}
+                        value={value}
+                        description={`${cfg.display_name || cfg.metric} — ${result.model_id}`}
+                        higherIsBetter={true}
+                        formatAs="decimal"
+                        sampleSize={result.samples_evaluated}
+                        runsAggregate={runsAggregate}
+                      />
+                    )
+                  )
+                })()}
               </div>
             )}
 
             {/* Dynamic Chart Rendering - use evaluationChartData when filteredResults is empty */}
             {/* For 'data' view, only show the view selector and table - no charts */}
             {(filteredResults.length > 0 || evaluationChartData.length > 0) &&
-              selectedMetrics.length > 0 &&
+              selectedConfigIds.length > 0 &&
               chartType !== 'data' && (
                 <Card className="p-6">
                   <div className="mb-4 flex items-center justify-between">
@@ -1319,7 +1378,7 @@ export default function EvaluationDashboard() {
                   <DynamicChartRenderer
                     chartType={chartType}
                     models={modelsWithScores}
-                    metrics={selectedMetrics}
+                    metrics={selectedMetricNames}
                     significanceData={significanceData}
                     height={400}
                     showErrorBars={true}
@@ -1356,21 +1415,34 @@ export default function EvaluationDashboard() {
               />
             )}
 
-            {/* Historical Trend Chart - hidden in data view */}
-            {historicalData?.data?.length > 0 &&
-              selectedMetrics.length > 0 &&
+            {/* Historical Trend Chart - hidden in data view.
+                Issue #111: the endpoint now returns `{ series: [...] }`
+                with one entry per (metric, evaluation_config_id) pair.
+                Render one chart per series so two configs of the same
+                metric type don't collapse into a single misleading line. */}
+            {historicalData?.series?.length > 0 &&
+              selectedConfigIds.length > 0 &&
               chartType !== 'data' && (
                 <Card className="p-6">
                   <h3 className="mb-4 text-lg font-medium dark:text-white">
                     {t('evaluation.viewer.results.historicalTrends')}
                   </h3>
-                  <HistoricalTrendChart
-                    data={historicalData.data}
-                    modelIds={selectedModels}
-                    metric={selectedMetrics[0]}
-                    height={400}
-                    showConfidenceIntervals={true}
-                  />
+                  <div className="space-y-6">
+                    {historicalData.series.map((s: any) => (
+                      <div key={`${s.metric}|${s.evaluation_config_id ?? 'none'}`}>
+                        <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {s.display_name}
+                        </h4>
+                        <HistoricalTrendChart
+                          data={s.data || []}
+                          modelIds={selectedModels}
+                          metric={s.display_name || s.metric}
+                          height={400}
+                          showConfidenceIntervals={true}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </Card>
               )}
 
@@ -1388,7 +1460,7 @@ export default function EvaluationDashboard() {
                 {significanceData.length > 0 ? (
                   <SignificanceHeatmap
                     modelIds={selectedModels}
-                    metric={selectedMetrics[0] || t('evaluation.viewer.results.score')}
+                    metric={selectedMetricNames[0] || t('evaluation.viewer.results.score')}
                     significanceData={significanceData}
                     height={500}
                   />
@@ -1406,7 +1478,7 @@ export default function EvaluationDashboard() {
                 <EvaluationResults
                   projectId={selectedProject.id}
                   selectedModels={selectedModels}
-                  selectedMetrics={selectedMetrics}
+                  selectedConfigIds={selectedConfigIds}
                   selectedEvalTypes={selectedEvalTypes}
                   onRefresh={() =>
                     fetchProjectData(selectedProject.id.toString())

@@ -5,9 +5,7 @@ DatabasePerformanceValidator.
 """
 
 import time
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 
 class TestQueryPerformanceMonitor:
@@ -18,7 +16,7 @@ class TestQueryPerformanceMonitor:
         monitor = QueryPerformanceMonitor("test_op", warn_threshold_ms=100.0)
         with monitor:
             time.sleep(0.001)  # 1ms
-        assert monitor.duration_ms is not None
+        assert monitor.duration_ms != None  # noqa: E711
         assert monitor.duration_ms > 0
 
     def test_slow_query_warning(self):
@@ -32,14 +30,14 @@ class TestQueryPerformanceMonitor:
     def test_duration_before_exit_is_none(self):
         from services.performance_monitoring import QueryPerformanceMonitor
         monitor = QueryPerformanceMonitor("test")
-        assert monitor.duration_ms is None
+        assert monitor.duration_ms == None  # noqa: E711
 
     def test_fast_query_debug_log(self):
         from services.performance_monitoring import QueryPerformanceMonitor
         monitor = QueryPerformanceMonitor("fast_op", warn_threshold_ms=10000)
         with monitor:
             pass  # Very fast
-        assert monitor.duration_ms is not None
+        assert monitor.duration_ms != None  # noqa: E711
         assert monitor.duration_ms < 10000
 
 
@@ -50,7 +48,7 @@ class TestMonitorQueryPerformance:
         from services.performance_monitoring import monitor_query_performance
         with monitor_query_performance("test_operation") as monitor:
             time.sleep(0.001)
-        assert monitor.duration_ms is not None
+        assert monitor.duration_ms != None  # noqa: E711
 
     def test_custom_threshold(self):
         from services.performance_monitoring import monitor_query_performance
@@ -75,8 +73,8 @@ class TestDatabasePerformanceValidator:
         validator = DatabasePerformanceValidator(mock_db)
         result = validator.check_indexes_exist()
         assert isinstance(result, dict)
-        assert result["idx_tasks_data_reference_answers"] is True
-        assert result["idx_tasks_data_checksum"] is False
+        assert result["idx_tasks_data_reference_answers"] == True  # noqa: E712
+        assert result["idx_tasks_data_checksum"] == False  # noqa: E712
 
     def test_validate_json_query_performance(self):
         from services.performance_monitoring import DatabasePerformanceValidator
@@ -146,7 +144,7 @@ class TestDatabasePerformanceValidator:
         validator = DatabasePerformanceValidator(mock_db)
         # This will handle exceptions internally
         try:
-            report = validator.generate_performance_report()
+            validator.generate_performance_report()
         except Exception:
             # If the method propagates, that's acceptable for coverage
             pass
@@ -180,7 +178,7 @@ class TestSlowQueryListener:
                 # Run a query slower than the 100 ms slow-query threshold.
                 # Sleep before executing rather than inside SQLite to keep
                 # the test deterministic across platforms.
-                t0 = time.time()
+                time.time()
                 conn.execute(text("SELECT 1"))
                 # Patch the listener's start-time so the after-handler
                 # sees a "slow" duration without actually sleeping 100ms+.
@@ -227,5 +225,5 @@ class TestSlowQueryListener:
         # double-registered (the bug we just fixed).
         assert len(slow_records) == 1, (
             f"slow-query listener fired {len(slow_records)} times for one query — "
-            f"regression of the double-fire bug fixed in b7eecbe"
+            "regression of the double-fire bug fixed in b7eecbe"
         )

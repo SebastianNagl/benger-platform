@@ -4,8 +4,6 @@ Tests for localization/translations module.
 Targets: localization/translations.py lines 230-251, 267-281, 296-306, 315, 320-325, 331, 336
 """
 
-import pytest
-
 
 class TestEmailTranslations:
     """Test EmailTranslations class methods."""

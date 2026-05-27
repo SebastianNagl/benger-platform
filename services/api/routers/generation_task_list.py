@@ -27,13 +27,14 @@ from routers.projects.helpers import (
     get_org_context_from_request,
 )
 
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/generation-tasks", tags=["generation-tasks"])
 
 # Celery app
-from celery_client import get_celery_app
+from celery_client import get_celery_app  # noqa: E402
 
+
+logger = logging.getLogger(__name__)
 celery_app = get_celery_app()
 
 
@@ -772,7 +773,7 @@ async def start_generation(
     # parent ResponseGeneration so retries and dashboard counters use the
     # value that was active when the trigger fired, not whatever the project
     # default happens to be at retry time.
-    if request.runs_per_task is not None:
+    if request.runs_per_task != None:  # noqa: E711
         runs_per_task = request.runs_per_task
     else:
         runs_per_task = int(generation_config.get("runs_per_task", 1) or 1)

@@ -10,14 +10,13 @@ import json
 import sys
 import os
 import tempfile
-import time
 
 import pytest
 
 workers_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, workers_root)
 
-from ml_evaluation.utils import (
+from ml_evaluation.utils import (  # noqa: E402
     filter_tasks_with_model_predictions,
     validate_evaluation_request,
     create_evaluation_metadata,
@@ -27,7 +26,6 @@ from ml_evaluation.utils import (
     extract_task_type_from_label_config,
     merge_evaluation_results,
     export_evaluation_results,
-    EvaluationTimer,
 )
 
 
@@ -270,4 +268,3 @@ class TestExportEvaluationResults:
         results = {"metrics": {"accuracy": 0.9}}
         output = export_evaluation_results(results, "dict")
         assert output == results
-

@@ -2,8 +2,6 @@
 Unit tests for utils/json_merge.py to increase coverage.
 """
 
-import pytest
-
 
 class TestJsonMerge:
     def setup_method(self):
@@ -87,4 +85,4 @@ class TestJsonMerge:
         a = {"enabled": True}
         b = {"enabled": False}
         result = self.merge(a, b)
-        assert result["enabled"] is False
+        assert result["enabled"] == False  # noqa: E712

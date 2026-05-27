@@ -117,11 +117,11 @@ def main():
                 "UPDATED:" in updated_first_question.get("question", "")
                 and len(updated_first_question.get("reference_answers", [])) == 3
             ):
-                print(f"\n✅ SUCCESS: Cache invalidation works for question updates!")
+                print("\n✅ SUCCESS: Cache invalidation works for question updates!")
                 print("   The updated question and reference answers appear immediately!")
             else:
-                print(f"\n❌ FAILURE: Question update not visible immediately")
-                print(f"   Expected 'UPDATED:' in question and 3 reference answers")
+                print("\n❌ FAILURE: Question update not visible immediately")
+                print("   Expected 'UPDATED:' in question and 3 reference answers")
         else:
             print("No tasks found in updated data!")
     else:

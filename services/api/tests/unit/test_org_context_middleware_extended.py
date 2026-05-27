@@ -2,10 +2,7 @@
 Extended unit tests for middleware/org_context.py covering slug resolution.
 """
 
-import re
 from unittest.mock import MagicMock, Mock, patch
-
-import pytest
 
 
 class TestSlugPattern:

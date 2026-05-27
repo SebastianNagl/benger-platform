@@ -14,29 +14,24 @@ shared test_db fixture.
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List
+from typing import Dict
 from unittest.mock import patch, MagicMock
 
-import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from models import (
     FeatureFlag,
-    Generation as DBGeneration,
     Invitation,
     LLMModel,
     Notification,
     NotificationType,
     Organization,
-    OrganizationMembership,
     OrganizationRole,
     ResponseGeneration as DBResponseGeneration,
     User,
 )
 from project_models import (
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
 )
@@ -178,7 +173,7 @@ class TestGenerationStatusEndpoints:
     def test_stop_generation_permission_denied(self, client, test_db, test_users, test_org, auth_headers):
         """Non-owner, non-superadmin cannot stop another user's generation."""
         admin = test_users[0]
-        contributor = test_users[1]
+        test_users[1]
         data = _make_project(test_db, admin, test_org)
         gen = self._create_response_generation(
             test_db, data["project"], data["tasks"][0], admin, status_val="running"
@@ -396,7 +391,7 @@ class TestAuthMeEndpoints:
         assert resp.status_code == 200
         body = resp.json()
         assert body["id"] == "admin-test-id"
-        assert body["is_superadmin"] is True
+        assert body["is_superadmin"] == True  # noqa: E712
         assert body["email"] == "admin@test.com"
 
     def test_get_me_unauthenticated(self, client, test_db, test_users):
@@ -406,7 +401,7 @@ class TestAuthMeEndpoints:
     def test_verify_token_valid(self, client, test_db, test_users, auth_headers):
         resp = client.get("/api/auth/verify", headers=auth_headers["admin"])
         assert resp.status_code == 200
-        assert resp.json()["valid"] is True
+        assert resp.json()["valid"] == True  # noqa: E712
 
     def test_me_contexts_returns_orgs(self, client, test_db, test_users, test_org, auth_headers):
         resp = client.get("/api/auth/me/contexts", headers=auth_headers["admin"])
@@ -427,13 +422,13 @@ class TestAuthProfileEndpoints:
         assert body["id"] == "admin-test-id"
         assert body["username"] == "admin@test.com"
         assert body["email"] == "admin@test.com"
-        assert body["is_superadmin"] is True
+        assert body["is_superadmin"] == True  # noqa: E712
 
     def test_get_profile_contributor(self, client, test_db, test_users, test_org, auth_headers):
         resp = client.get("/api/auth/profile", headers=auth_headers["contributor"])
         assert resp.status_code == 200
         body = resp.json()
-        assert body["is_superadmin"] is False
+        assert body["is_superadmin"] == False  # noqa: E712
 
     def test_update_profile_name(self, client, test_db, test_users, auth_headers):
         resp = client.put(
@@ -520,7 +515,7 @@ class TestUsersEndpoints:
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
-        assert resp.json()["is_superadmin"] is True
+        assert resp.json()["is_superadmin"] == True  # noqa: E712
 
     def test_update_user_role_invalid_type(self, client, test_db, test_users, auth_headers):
         annotator = test_users[2]
@@ -578,7 +573,7 @@ class TestInvitationsEndpoints:
         body = resp.json()
         assert body["email"] == "newuser@example.com"
         assert body["role"] == "ANNOTATOR"
-        assert body["accepted"] is False
+        assert body["accepted"] == False  # noqa: E712
 
     def test_create_invitation_org_not_found(self, client, test_db, test_users, auth_headers):
         with patch("routers.invitations.celery_app"):
@@ -631,7 +626,7 @@ class TestInvitationsEndpoints:
         resp = client.get(f"/api/invitations/validate/{token}")
         assert resp.status_code == 200
         body = resp.json()
-        assert body["valid"] is True
+        assert body["valid"] == True  # noqa: E712
         assert body["email"] == "validate@example.com"
 
     def test_validate_expired_invitation(self, client, test_db, test_users, test_org):
@@ -851,7 +846,7 @@ class TestFeatureFlagEndpoints:
         assert resp.status_code == 200
         body = resp.json()
         assert body["name"] == flag.name
-        assert body["is_enabled"] is False
+        assert body["is_enabled"] == False  # noqa: E712
 
     def test_get_nonexistent_flag_returns_404(self, client, test_db, test_users, auth_headers):
         resp = client.get(
@@ -869,7 +864,7 @@ class TestFeatureFlagEndpoints:
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
-        assert resp.json()["is_enabled"] is True
+        assert resp.json()["is_enabled"] == True  # noqa: E712
 
     def test_delete_feature_flag(self, client, test_db, test_users, auth_headers):
         admin = test_users[0]
@@ -919,7 +914,7 @@ class TestDashboardEndpoints:
         from project_models import Annotation, Project, ProjectOrganization, Task
 
         admin = test_users[0]
-        _uid = lambda: str(__import__("uuid").uuid4())
+        _uid = lambda: str(__import__("uuid").uuid4())  # noqa: E731
         now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
 
         # Create a project with known data counts

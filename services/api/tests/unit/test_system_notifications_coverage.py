@@ -6,9 +6,7 @@ emergency_maintenance, suspicious_login_attempt, password_breach_notification,
 database_performance_alert, api_rate_limit_alert.
 """
 
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 
 class TestSendMaintenanceNotification:

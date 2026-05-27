@@ -1,0 +1,1042 @@
+[
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "words": 1055
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "words": 1830
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "words": 760
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "words": 978
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "words": 776
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "words": 672
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "words": 948
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "words": 1502
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "words": 524
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "words": 1556
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "words": 878
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "words": 1395
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "words": 1056
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+    "words": 491
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "words": 834
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "words": 1801
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "words": 1546
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "words": 1965
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "words": 841
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "words": 2365
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "words": 1634
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "words": 2482
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "words": 1134
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "words": 1589
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "words": 1856
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "words": 770
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+    "words": 1346
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "words": 544
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "words": 2314
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "words": 2141
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "words": 1796
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "words": 3038
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "words": 2075
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "words": 1545
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "words": 458
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "words": 656
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "words": 1002
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "words": 2668
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "words": 617
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "words": 1733
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+    "words": 1280
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "words": 1348
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "words": 1623
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "words": 2598
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "words": 715
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "words": 1051
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "words": 854
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "words": 1559
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "words": 2134
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "words": 2736
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "words": 1083
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "words": 805
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "words": 977
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "words": 1547
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+    "words": 1897
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "words": 1253
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "words": 2183
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "words": 729
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "words": 913
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "words": 1186
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "words": 1693
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "words": 842
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "words": 1221
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "words": 1523
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "words": 145
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "words": 1575
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "words": 2594
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "words": 1628
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+    "words": 556
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "words": 1360
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "words": 2008
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "words": 1268
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "words": 557
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "words": 1465
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "words": 1860
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "words": 102
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "words": 1930
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "words": 2868
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "words": 847
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "words": 986
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "words": 1328
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+    "words": 1622
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "words": 1651
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "words": 1449
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "words": 1078
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "words": 2295
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "words": 1910
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "words": 867
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "words": 1154
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "words": 742
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "words": 1420
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "words": 782
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "words": 2331
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "words": 1895
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "words": 548
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+    "words": 1154
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "words": 1128
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "words": 2579
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "words": 1203
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "words": 1390
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "words": 876
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "words": 2904
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "words": 2081
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "words": 940
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "words": 1784
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "words": 1613
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "words": 822
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "words": 1254
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "words": 1630
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+    "words": 595
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "words": 897
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "words": 920
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "words": 1766
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "words": 1342
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "words": 1000
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "words": 1991
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "words": 1209
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "words": 2475
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "words": 1637
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "words": 1602
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "words": 594
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "words": 1215
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "words": 382
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+    "words": 963
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "words": 1247
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "words": 1072
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "words": 1715
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "words": 951
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "words": 797
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "words": 978
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "words": 914
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "words": 1726
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "words": 1764
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "words": 750
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "words": 1028
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "words": 1345
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "words": 329
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+    "words": 979
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "words": 985
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "words": 979
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "words": 915
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "words": 1334
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "words": 1136
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "words": 626
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "words": 1069
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "words": 729
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "words": 2115
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "words": 1447
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "words": 790
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "words": 2184
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "words": 895
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+    "words": 446
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "words": 1048
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "words": 1055
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "words": 933
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "words": 1538
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "words": 3039
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "words": 252
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "words": 2063
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "words": 2206
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "words": 1238
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "words": 1482
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "words": 790
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "words": 477
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "words": 444
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "39f282c6-8eae-4b90-be83-d37c1928376a",
+    "words": 1291
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "words": 2799
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "words": 1367
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "words": 803
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "words": 3146
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "words": 1480
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "words": 925
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "words": 2411
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "words": 1213
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "words": 1685
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "words": 1788
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "words": 712
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "words": 1553
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "words": 1560
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+    "words": 387
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "words": 1526
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "words": 2223
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "words": 1658
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "words": 1264
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "words": 1220
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "words": 1150
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "words": 1388
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "words": 1970
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "words": 512
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "words": 1037
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "words": 660
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "words": 977
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "words": 510
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+    "words": 1513
+  },
+  {
+    "model": "claude-opus-4-7",
+    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "words": 1626
+  },
+  {
+    "model": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "words": 656
+  },
+  {
+    "model": "claude-sonnet-4-6",
+    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "words": 2686
+  },
+  {
+    "model": "gemini-3.1-pro-preview",
+    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "words": 1462
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Pro",
+    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "words": 1803
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "words": 767
+  },
+  {
+    "model": "gemini-3.1-flash-lite-preview",
+    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "words": 1281
+  },
+  {
+    "model": "Qwen/Qwen3.5-122B-A10B",
+    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "words": 1238
+  },
+  {
+    "model": "deepseek-ai/DeepSeek-V4-Flash",
+    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "words": 1464
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "words": 1883
+  },
+  {
+    "model": "Qwen/Qwen3.6-35B-A3B",
+    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "words": 819
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "words": 2922
+  },
+  {
+    "model": "gpt-5.4",
+    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "words": 2000
+  },
+  {
+    "model": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "task": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+    "words": 595
+  }
+]

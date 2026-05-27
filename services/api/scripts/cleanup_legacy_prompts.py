@@ -19,9 +19,9 @@ def cleanup_legacy_prompt_fields():
         result = db.execute(
             text(
                 """
-            UPDATE tasks 
+            UPDATE tasks
             SET meta = (meta::jsonb - 'generation_prompt' - 'system_prompt')::json
-            WHERE meta IS NOT NULL 
+            WHERE meta IS NOT NULL
             AND (meta::jsonb ? 'generation_prompt' OR meta::jsonb ? 'system_prompt')
         """
             )

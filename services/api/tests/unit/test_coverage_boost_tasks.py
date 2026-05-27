@@ -12,18 +12,14 @@ Targets specific branches in routers/projects/tasks.py:
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
-import pytest
-from sqlalchemy.orm import Session
 
-from models import Organization, OrganizationMembership, EvaluationRun, Generation, ResponseGeneration, TaskEvaluation
+from models import Organization, OrganizationMembership
 from project_models import (
     Annotation,
     Project,
-    ProjectMember,
     ProjectOrganization,
-    SkippedTask,
     Task,
     TaskAssignment,
 )
@@ -164,7 +160,7 @@ class TestListProjectTasks:
     def test_list_tasks_exclude_my_annotations(self, client, auth_headers, test_db, test_users):
         p, org = _setup(test_db, test_users)
         t1 = _make_task(test_db, p.id, inner_id=1)
-        t2 = _make_task(test_db, p.id, inner_id=2)
+        t2 = _make_task(test_db, p.id, inner_id=2)  # noqa: F841
 
         # Annotate t1 as admin
         test_db.add(Annotation(

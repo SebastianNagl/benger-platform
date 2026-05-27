@@ -6,15 +6,11 @@ Targets: routers/projects/tasks.py — bulk_export_tasks, bulk_archive_tasks,
          update_task_metadata, bulk_update_metadata, get_task_fields, skip_task
 """
 
-import json
 import uuid
-from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from project_models import (
-    Annotation,
     Project,
     ProjectOrganization,
     Task,

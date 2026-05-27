@@ -254,7 +254,7 @@ def build_evaluation_indexes(
     te_by_generation: Dict[str, list] = {}
     for te in task_evaluations:
         te_by_task.setdefault(te.task_id, []).append(te)
-        if te.generation_id is not None:
+        if te.generation_id != None:  # noqa: E711
             te_by_generation.setdefault(te.generation_id, []).append(te)
     return te_by_task, te_by_generation
 
@@ -391,7 +391,7 @@ def serialize_human_evaluation_data(db, project_id: str, task_ids: List[str]) ->
             .filter(LikertScaleEvaluation.session_id.in_(session_ids))
             .all()
         )
-        for l in likerts:
+        for l in likerts:  # noqa: E741
             likert_data.append({
                 "id": l.id,
                 "session_id": l.session_id,

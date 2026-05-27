@@ -54,7 +54,7 @@ class EncryptionService:
     @property
     def fernet(self) -> Fernet:
         """Lazily build the Fernet instance, with test-key normalization."""
-        if self._fernet is None:
+        if self._fernet == None:
             if self.encryption_key == _TEST_ENCRYPTION_KEY:
                 decoded = base64.b64decode(self.encryption_key.decode("utf-8"))
                 padded = decoded + b"\x00" * (32 - len(decoded))

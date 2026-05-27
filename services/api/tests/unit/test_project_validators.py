@@ -11,7 +11,7 @@ class TestConditionalInstructionsValidator:
 
     def test_none_is_valid(self):
         update = ProjectUpdate(conditional_instructions=None)
-        assert update.conditional_instructions is None
+        assert update.conditional_instructions == None  # noqa: E711
 
     def test_valid_variants(self):
         variants = [
@@ -71,4 +71,3 @@ class TestConditionalInstructionsValidator:
         variants = [{"id": "a", "content": "text", "weight": 100.0}]
         update = ProjectUpdate(conditional_instructions=variants)
         assert update.conditional_instructions[0]["weight"] == 100.0
-

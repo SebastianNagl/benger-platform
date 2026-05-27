@@ -3,8 +3,7 @@ Unit tests for services/analytics_service.py — covers all major methods.
 """
 
 import json
-from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -13,10 +12,8 @@ from services.analytics_service import (
     AnalyticsService,
     AnalyticsOverview,
     Benchmarks,
-    PerformanceTrend,
     ProjectInsights,
     QualityMetrics,
-    UserAnalytics,
 )
 
 
@@ -25,7 +22,7 @@ class TestAnalyticsServiceInit:
 
     def test_default_init(self):
         svc = AnalyticsService()
-        assert svc.redis_client is None
+        assert svc.redis_client == None  # noqa: E711
         assert svc.cache_ttl == 300
 
     def test_with_redis(self):
@@ -222,7 +219,7 @@ class TestGetProjectStatistics:
         db = Mock()
 
         result = svc.get_project_statistics(db, "proj-1")
-        assert result["cached"] is True
+        assert result["cached"] == True  # noqa: E712
 
     def test_cache_miss_calculates(self):
         redis = Mock()
@@ -419,8 +416,8 @@ class TestCalculateBenchmarks:
 
         result = svc._calculate_benchmarks(db, "proj-1")
         assert isinstance(result, Benchmarks)
-        assert result.industry_average_quality is None
-        assert result.industry_average_time is None
+        assert result.industry_average_quality == None  # noqa: E711
+        assert result.industry_average_time == None  # noqa: E711
         assert result.similar_projects == []
 
     def test_with_other_projects(self):

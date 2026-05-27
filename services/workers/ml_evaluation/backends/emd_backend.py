@@ -33,7 +33,7 @@ class POTEMDBackend(EMDBackend):
         self._pot_available: Optional[bool] = None
 
     def is_available(self) -> bool:
-        if self._pot_available is None:
+        if self._pot_available == None:
             try:
                 import ot  # noqa: F401
 
@@ -88,7 +88,7 @@ class PyEMDBackend(EMDBackend):
         self._pyemd_available: Optional[bool] = None
 
     def is_available(self) -> bool:
-        if self._pyemd_available is None:
+        if self._pyemd_available == None:
             try:
                 from pyemd import emd  # noqa: F401
 

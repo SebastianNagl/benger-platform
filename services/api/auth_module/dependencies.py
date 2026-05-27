@@ -150,8 +150,8 @@ def require_org_admin(organization_id: Optional[str] = None):
                 OrganizationMembership.user_id == current_user.id,
                 OrganizationMembership.organization_id == check_org_id,
                 OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                OrganizationMembership.is_active == True,
-                Organization.is_active == True,
+                OrganizationMembership.is_active == True,  # noqa: E712
+                Organization.is_active == True,  # noqa: E712
             )
             .first()
         )
@@ -212,8 +212,8 @@ def require_org_contributor(organization_id: Optional[str] = None):
                 OrganizationMembership.role.in_(
                     [OrganizationRole.CONTRIBUTOR, OrganizationRole.ORG_ADMIN]
                 ),
-                OrganizationMembership.is_active == True,
-                Organization.is_active == True,
+                OrganizationMembership.is_active == True,  # noqa: E712
+                Organization.is_active == True,  # noqa: E712
             )
             .first()
         )

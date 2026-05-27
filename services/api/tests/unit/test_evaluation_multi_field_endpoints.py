@@ -2,11 +2,9 @@
 Unit tests for multi-field evaluation business logic (multi_field.py).
 """
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
 import pytest
-from fastapi import HTTPException
 
 
 class TestMultiFieldEvaluationRunLogic:

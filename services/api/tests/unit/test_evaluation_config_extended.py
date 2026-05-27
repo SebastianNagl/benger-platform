@@ -6,7 +6,6 @@ Tests evaluation config CRUD, answer type detection, and field types.
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 

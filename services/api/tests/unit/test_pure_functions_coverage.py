@@ -5,10 +5,9 @@ Tests only pure functions (no DB, no I/O, no mocking).
 Each test calls a function with inputs and asserts on outputs.
 """
 
-import json
-import math
 from datetime import datetime, timezone
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -24,88 +23,88 @@ class TestValidateMetricSelection:
     def test_valid_binary_exact_match(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("binary", "exact_match") is True
+        assert validate_metric_selection("binary", "exact_match") == True  # noqa: E712
 
     def test_valid_binary_accuracy(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("binary", "accuracy") is True
+        assert validate_metric_selection("binary", "accuracy") == True  # noqa: E712
 
     def test_invalid_binary_bleu(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("binary", "bleu") is False
+        assert validate_metric_selection("binary", "bleu") == False  # noqa: E712
 
     def test_valid_long_text_bleu(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("long_text", "bleu") is True
+        assert validate_metric_selection("long_text", "bleu") == True  # noqa: E712
 
     def test_valid_long_text_rouge(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("long_text", "rouge") is True
+        assert validate_metric_selection("long_text", "rouge") == True  # noqa: E712
 
     def test_valid_numeric_mae(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("numeric", "mae") is True
+        assert validate_metric_selection("numeric", "mae") == True  # noqa: E712
 
     def test_valid_numeric_rmse(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("numeric", "rmse") is True
+        assert validate_metric_selection("numeric", "rmse") == True  # noqa: E712
 
     def test_invalid_numeric_bleu(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("numeric", "bleu") is False
+        assert validate_metric_selection("numeric", "bleu") == False  # noqa: E712
 
     def test_unknown_answer_type_falls_to_custom(self):
         from services.evaluation.config import validate_metric_selection
 
         # Unknown type should fall back to CUSTOM which has all metrics
-        assert validate_metric_selection("nonexistent_type", "exact_match") is True
+        assert validate_metric_selection("nonexistent_type", "exact_match") == True  # noqa: E712
 
     def test_custom_has_llm_judge(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("custom", "llm_judge_classic") is True
+        assert validate_metric_selection("custom", "llm_judge_classic") == True  # noqa: E712
 
     def test_rating_cohen_kappa(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("rating", "cohen_kappa") is True
+        assert validate_metric_selection("rating", "cohen_kappa") == True  # noqa: E712
 
     def test_span_selection_iou(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("span_selection", "iou") is True
+        assert validate_metric_selection("span_selection", "iou") == True  # noqa: E712
 
     def test_taxonomy_hierarchical_f1(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("taxonomy", "hierarchical_f1") is True
+        assert validate_metric_selection("taxonomy", "hierarchical_f1") == True  # noqa: E712
 
     def test_ranking_ndcg(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("ranking", "ndcg") is True
+        assert validate_metric_selection("ranking", "ndcg") == True  # noqa: E712
 
     def test_multiple_choice_jaccard(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("multiple_choice", "jaccard") is True
+        assert validate_metric_selection("multiple_choice", "jaccard") == True  # noqa: E712
 
     def test_single_choice_confusion_matrix(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("single_choice", "confusion_matrix") is True
+        assert validate_metric_selection("single_choice", "confusion_matrix") == True  # noqa: E712
 
     def test_nonexistent_metric(self):
         from services.evaluation.config import validate_metric_selection
 
-        assert validate_metric_selection("binary", "totally_fake_metric") is False
+        assert validate_metric_selection("binary", "totally_fake_metric") == False  # noqa: E712
 
 
 # ============================================================================
@@ -195,9 +194,9 @@ class TestLookupAvailableMethods:
     def test_enabled_metrics_starts_empty(self):
         from services.evaluation.config import lookup_available_methods
 
-        types = [{"name": "f", "type": "numeric", "tag": "number", "to_name": ""}]
+        types = [{"name": "", "type": "numeric", "tag": "number", "to_name": ""}]
         result = lookup_available_methods(types)
-        assert result["f"]["enabled_metrics"] == []
+        assert result[""]["enabled_metrics"] == []
 
     def test_multiple_fields(self):
         from services.evaluation.config import lookup_available_methods
@@ -214,10 +213,10 @@ class TestLookupAvailableMethods:
     def test_preserves_tag(self):
         from services.evaluation.config import lookup_available_methods
 
-        types = [{"name": "f", "type": "rating", "tag": "rating", "to_name": "x"}]
+        types = [{"name": "", "type": "rating", "tag": "rating", "to_name": "x"}]
         result = lookup_available_methods(types)
-        assert result["f"]["tag"] == "rating"
-        assert result["f"]["to_name"] == "x"
+        assert result[""]["tag"] == "rating"
+        assert result[""]["to_name"] == "x"
 
 
 # ============================================================================
@@ -426,7 +425,7 @@ class TestExtractFieldsFromData:
         assert result[0]["path"] == "$title"
         assert result[0]["data_type"] == "string"
         assert result[0]["sample_value"] == "Hello"
-        assert result[0]["is_nested"] is False
+        assert result[0]["is_nested"] == False  # noqa: E712
 
     def test_number_field(self):
         from routers.projects.tasks import extract_fields_from_data
@@ -444,7 +443,7 @@ class TestExtractFieldsFromData:
     def test_boolean_field(self):
         from routers.projects.tasks import extract_fields_from_data
 
-        # Note: Python's isinstance(True, (int, float)) is True, so booleans
+        # Note: Python's isinstance(True, (int, float)) == True, so booleans
         # are detected as "number" since that check comes first in the code.
         result = extract_fields_from_data({"active": True})
         assert result[0]["data_type"] == "number"
@@ -466,7 +465,7 @@ class TestExtractFieldsFromData:
         assert "$meta" in paths
         nested = [r for r in result if r["path"] == "$meta.key"]
         assert len(nested) == 1
-        assert nested[0]["is_nested"] is True
+        assert nested[0]["is_nested"] == True  # noqa: E712
 
     def test_long_string_truncation(self):
         from routers.projects.tasks import extract_fields_from_data
@@ -513,7 +512,7 @@ class TestExtractFieldsFromData:
 
         result = extract_fields_from_data({"a": "b"}, prefix="outer")
         assert result[0]["path"] == "$outer.a"
-        assert result[0]["is_nested"] is True
+        assert result[0]["is_nested"] == True  # noqa: E712
 
 
 # ============================================================================
@@ -840,27 +839,27 @@ class TestLabelConfigParserExtended:
 
         xml = '<View><Choices name="q" toName="text"><Choice value="A"/></Choices></View>'
         result = LabelConfigParser.validate_config(xml)
-        assert result["valid"] is True
+        assert result["valid"] == True  # noqa: E712
         assert result["field_count"] == 1
 
     def test_validate_config_empty(self):
         from services.label_config.parser import LabelConfigParser
 
         result = LabelConfigParser.validate_config("")
-        assert result["valid"] is False
+        assert result["valid"] == False  # noqa: E712
 
     def test_validate_config_no_fields(self):
         from services.label_config.parser import LabelConfigParser
 
         result = LabelConfigParser.validate_config("<View></View>")
-        assert result["valid"] is False
+        assert result["valid"] == False  # noqa: E712
 
     def test_validate_config_duplicate_names(self):
         from services.label_config.parser import LabelConfigParser
 
         xml = '<View><Choices name="q" toName="text"><Choice value="A"/></Choices><Choices name="q" toName="text"><Choice value="B"/></Choices></View>'
         result = LabelConfigParser.validate_config(xml)
-        assert result["valid"] is False
+        assert result["valid"] == False  # noqa: E712
         assert "Duplicate" in result["error"]
 
     def test_parse_field_attributes(self):
@@ -1037,47 +1036,47 @@ class TestEmailValidationExtended:
     def test_valid_standard_email(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("user@domain.com") is True
+        assert is_valid_email("user@domain.com") == True  # noqa: E712
 
     def test_valid_with_plus(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("user+tag@domain.com") is True
+        assert is_valid_email("user+tag@domain.com") == True  # noqa: E712
 
     def test_valid_with_dots(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("first.last@domain.com") is True
+        assert is_valid_email("first.last@domain.com") == True  # noqa: E712
 
     def test_invalid_no_at(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("nodomain") is False
+        assert is_valid_email("nodomain") == False  # noqa: E712
 
     def test_invalid_double_at(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("user@@domain.com") is False
+        assert is_valid_email("user@@domain.com") == False  # noqa: E712
 
     def test_invalid_consecutive_dots(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("user..name@domain.com") is False
+        assert is_valid_email("user..name@domain.com") == False  # noqa: E712
 
     def test_invalid_no_domain_dot(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("user@domain") is False
+        assert is_valid_email("user@domain") == False  # noqa: E712
 
     def test_invalid_empty(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email("") is False
+        assert is_valid_email("") == False  # noqa: E712
 
     def test_invalid_none(self):
         from services.email.email_validation import is_valid_email
 
-        assert is_valid_email(None) is False
+        assert is_valid_email(None) == False  # noqa: E712
 
     def test_validate_details_whitespace(self):
         from services.email.email_validation import validate_email_with_details
@@ -1159,17 +1158,17 @@ class TestEmailValidationExtended:
     def test_disposable_mailinator(self):
         from services.email.email_validation import is_disposable_email
 
-        assert is_disposable_email("user@mailinator.com") is True
+        assert is_disposable_email("user@mailinator.com") == True  # noqa: E712
 
     def test_disposable_yopmail(self):
         from services.email.email_validation import is_disposable_email
 
-        assert is_disposable_email("user@yopmail.com") is True
+        assert is_disposable_email("user@yopmail.com") == True  # noqa: E712
 
     def test_not_disposable(self):
         from services.email.email_validation import is_disposable_email
 
-        assert is_disposable_email("user@gmail.com") is False
+        assert is_disposable_email("user@gmail.com") == False  # noqa: E712
 
     def test_bulk_emails(self):
         from services.email.email_validation import validate_bulk_emails
@@ -1191,13 +1190,13 @@ class TestEmailValidationExtended:
         from services.email.email_validation import is_valid_email
 
         long_local = "a" * 65
-        assert is_valid_email(f"{long_local}@domain.com") is False
+        assert is_valid_email(f"{long_local}@domain.com") == False  # noqa: E712
 
     def test_long_domain(self):
         from services.email.email_validation import is_valid_email
 
         long_domain = "a" * 254 + ".com"
-        assert is_valid_email(f"user@{long_domain}") is False
+        assert is_valid_email(f"user@{long_domain}") == False  # noqa: E712
 
 
 # ============================================================================
@@ -1340,7 +1339,7 @@ class TestDeriveEvaluationConfigs:
 
         methods = {"answer": {"automated": ["bleu"], "field_mapping": {}}}
         result = _derive_evaluation_configs_from_selected_methods(methods)
-        assert result[0]["enabled"] is True
+        assert result[0]["enabled"] == True  # noqa: E712
 
     def test_no_automated_key(self):
         from routers.evaluations.config import _derive_evaluation_configs_from_selected_methods
@@ -1628,80 +1627,89 @@ class TestBuildEvaluationIndexes:
 
 
 class TestBuildJudgeModelLookupExtended:
-    """Extended tests for build_judge_model_lookup."""
+    """Coverage tests for build_judge_model_lookup.
+
+    PR #79a3cf0 rewrote this helper: it now reads judge_model_id per-row
+    directly from `evaluation_judge_runs` (one row per (run, judge_model,
+    run_index)) and returns ``{judge_run_id: judge_model_id}``. The
+    previous (run_id, config_id) -> judge_model lookup keyed off
+    eval_metadata and silently collapsed multi-judge configs. These tests
+    pin the new contract.
+    """
 
     def test_empty_runs(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        assert build_judge_model_lookup([]) == {}
+        # No evaluation runs → no DB query → empty dict.
+        db = MagicMock()
+        assert build_judge_model_lookup([], db) == {}
+        db.query.assert_not_called()
 
-    def test_new_format(self):
+    def test_single_run_single_judge(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = SimpleNamespace(
-            id="run1",
-            eval_metadata={"judge_models": {"config1": "gpt-4", "config2": "claude-3"}},
-        )
-        result = build_judge_model_lookup([er])
-        assert result[("run1", "config1")] == "gpt-4"
-        assert result[("run1", "config2")] == "claude-3"
+        er = SimpleNamespace(id="run1")
+        ejr = SimpleNamespace(id="jr1", judge_model_id="gpt-4")
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [ejr]
 
-    def test_old_format(self):
+        result = build_judge_model_lookup([er], db)
+        assert result == {"jr1": "gpt-4"}
+
+    def test_multi_judge_run_distinct_models(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = SimpleNamespace(
-            id="run1",
-            eval_metadata={
-                "evaluation_configs": [
-                    {"id": "cfg1", "metric_parameters": {"judge_model": "gpt-4"}},
-                ]
-            },
-        )
-        result = build_judge_model_lookup([er])
-        assert result[("run1", "cfg1")] == "gpt-4"
+        # One EvaluationRun with three judge runs (multi-judge config).
+        er = SimpleNamespace(id="run1")
+        rows = [
+            SimpleNamespace(id="jr1", judge_model_id="gpt-4"),
+            SimpleNamespace(id="jr2", judge_model_id="claude-3"),
+            SimpleNamespace(id="jr3", judge_model_id="gemini-pro"),
+        ]
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = rows
 
-    def test_new_format_precedence(self):
+        result = build_judge_model_lookup([er], db)
+        assert result == {"jr1": "gpt-4", "jr2": "claude-3", "jr3": "gemini-pro"}
+
+    def test_judge_model_id_none_round_trips(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = SimpleNamespace(
-            id="run1",
-            eval_metadata={
-                "judge_models": {"cfg1": "claude-3"},
-                "evaluation_configs": [
-                    {"id": "cfg1", "metric_parameters": {"judge_model": "gpt-4"}},
-                ],
-            },
-        )
-        result = build_judge_model_lookup([er])
-        assert result[("run1", "cfg1")] == "claude-3"
+        # Non-LLM-judge metrics (bleu/rouge/etc.) carry judge_model_id=None
+        # per the migration 042/043 backfill; the lookup must preserve that.
+        er = SimpleNamespace(id="run1")
+        ejr = SimpleNamespace(id="jr1", judge_model_id=None)
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [ejr]
 
-    def test_none_eval_metadata(self):
+        result = build_judge_model_lookup([er], db)
+        assert result == {"jr1": None}
+
+    def test_multiple_runs_aggregated(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = SimpleNamespace(id="run1", eval_metadata=None)
-        result = build_judge_model_lookup([er])
-        assert result == {}
+        # Two EvaluationRuns share the query in one IN clause.
+        runs = [SimpleNamespace(id="run1"), SimpleNamespace(id="run2")]
+        rows = [
+            SimpleNamespace(id="jr1", judge_model_id="gpt-4"),
+            SimpleNamespace(id="jr2", judge_model_id="claude-3"),
+        ]
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = rows
 
-    def test_old_format_no_judge_model(self):
+        result = build_judge_model_lookup(runs, db)
+        assert result == {"jr1": "gpt-4", "jr2": "claude-3"}
+
+    def test_no_judge_runs_for_runs(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = SimpleNamespace(
-            id="run1",
-            eval_metadata={
-                "evaluation_configs": [{"id": "cfg1", "metric_parameters": {}}]
-            },
-        )
-        result = build_judge_model_lookup([er])
-        assert result == {}
+        # Runs exist but produced no EvaluationJudgeRun rows (degenerate
+        # legacy data — shouldn't crash, returns empty dict).
+        er = SimpleNamespace(id="run1")
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = []
 
-    def test_old_format_no_metric_parameters(self):
-        from routers.projects.serializers import build_judge_model_lookup
-
-        er = SimpleNamespace(
-            id="run1",
-            eval_metadata={"evaluation_configs": [{"id": "cfg1"}]},
-        )
-        result = build_judge_model_lookup([er])
+        result = build_judge_model_lookup([er], db)
         assert result == {}
 
 
@@ -1829,13 +1837,13 @@ class TestPasswordHashing:
         from auth_module.user_service import get_password_hash, verify_password
 
         hashed = get_password_hash("secret")
-        assert verify_password("secret", hashed) is True
+        assert verify_password("secret", hashed) == True  # noqa: E712
 
     def test_verify_wrong(self):
         from auth_module.user_service import get_password_hash, verify_password
 
         hashed = get_password_hash("secret")
-        assert verify_password("wrong", hashed) is False
+        assert verify_password("wrong", hashed) == False  # noqa: E712
 
     def test_verify_empty_password(self):
         from auth_module.user_service import verify_password
@@ -1854,7 +1862,7 @@ class TestPasswordHashing:
         from auth_module.user_service import check_password, hash_password
 
         hashed = hash_password("test")
-        assert check_password("test", hashed) is True
+        assert check_password("test", hashed) == True  # noqa: E712
 
 
 # ============================================================================

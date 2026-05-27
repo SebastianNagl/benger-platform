@@ -39,12 +39,14 @@ class TestUsersRouterExtended:
 
     def _override_superadmin(self, mock_superadmin):
         from auth_module.dependencies import require_superadmin
+
         def override():
             return mock_superadmin
         app.dependency_overrides[require_superadmin] = override
 
     def _override_db(self, mock_db):
         from database import get_db
+
         def override():
             return mock_db
         app.dependency_overrides[get_db] = override

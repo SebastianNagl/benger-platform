@@ -11,8 +11,7 @@ from datetime import datetime
 import pytest
 from sqlalchemy.orm import Session
 
-from models import Organization, OrganizationMembership, OrganizationRole, User
-from project_models import Project, ProjectOrganization
+from models import Organization, OrganizationMembership, User
 
 
 def _uid() -> str:

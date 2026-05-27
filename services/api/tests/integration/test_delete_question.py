@@ -71,7 +71,7 @@ def main():
         if tasks and len(tasks) > 1:
             second_question = tasks[1]
             print(f"   Second question to delete: '{second_question.get('question', 'N/A')}'")
-            print(f"   Questions before deletion:")
+            print("   Questions before deletion:")
             for i, task in enumerate(tasks):
                 print(f"     {i+1}. {task.get('question', 'N/A')[:50]}...")
             print()
@@ -98,16 +98,16 @@ def main():
         updated_count = updated_data.get("total_tasks", 0)
         updated_tasks = updated_data.get("tasks", [])
         print(f"✓ Updated question count: {updated_count}")
-        print(f"   Questions after deletion:")
+        print("   Questions after deletion:")
         for i, task in enumerate(updated_tasks):
             print(f"     {i+1}. {task.get('question', 'N/A')[:50]}...")
 
         # Check if the deletion was applied
         if updated_count == initial_count - 1:
-            print(f"\n✅ SUCCESS: Cache invalidation works for question deletions!")
+            print("\n✅ SUCCESS: Cache invalidation works for question deletions!")
             print(f"   Question count reduced from {initial_count} to {updated_count} immediately!")
         else:
-            print(f"\n❌ FAILURE: Question deletion not reflected immediately")
+            print("\n❌ FAILURE: Question deletion not reflected immediately")
             print(f"   Expected count: {initial_count - 1}, Actual count: {updated_count}")
     else:
         print("Failed to get updated data!")

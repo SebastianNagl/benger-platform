@@ -11,15 +11,11 @@ Targets specific uncovered branches in routers/projects/import_export.py:
 - Span conversion functions with edge cases
 """
 
-import io
 import json
 import uuid
-import zipfile
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from datetime import datetime
+from unittest.mock import patch
 
-import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
@@ -40,8 +36,8 @@ from project_models import (
 
 
 def _setup_project_with_data(db, users, *, add_annotations=True, add_generations=True,
-                              add_evaluations=True, add_questionnaire=True,
-                              annotation_extras=None):
+                              add_evaluations=True, add_questionnaire=True,  # noqa: E127
+                              annotation_extras=None):  # noqa: E127
     """Create a fully populated project with all data types."""
     org = Organization(
         id=str(uuid.uuid4()),
@@ -277,7 +273,7 @@ class TestExportLabelStudioFormat:
         for task_item in content:
             for ann in task_item.get("annotations", []):
                 if ann.get("draft"):
-                    assert ann["draft"]["partial"] is True
+                    assert ann["draft"]["partial"] == True  # noqa: E712
 
     def test_export_label_studio_annotation_prediction(self, client, test_users, test_db, auth_headers):
         data = _setup_project_with_data(test_db, test_users)

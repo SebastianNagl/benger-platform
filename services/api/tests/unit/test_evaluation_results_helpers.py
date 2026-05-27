@@ -3,11 +3,10 @@ Unit tests for evaluation results helper functions and endpoint logic.
 Covers _extract_primary_score and core result aggregation paths.
 """
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from datetime import datetime
+from unittest.mock import Mock
 
 import pytest
-from fastapi import HTTPException
 
 from routers.evaluations.results import _extract_primary_score
 
@@ -103,7 +102,7 @@ class TestEvaluationConfigDerivation:
         assert configs[0]["metric"] == "bleu"
         assert configs[0]["prediction_fields"] == ["pred_answer"]
         assert configs[0]["reference_fields"] == ["ref_answer"]
-        assert configs[0]["enabled"] is True
+        assert configs[0]["enabled"] == True  # noqa: E712
 
     def test_empty_selected_methods(self):
         from routers.evaluations.config import _derive_evaluation_configs_from_selected_methods
@@ -510,7 +509,7 @@ class TestSerializerFunctions:
 
         result = serialize_evaluation_run(er, mode="data")
         assert result["eval_metadata"] == {}
-        assert result["has_sample_results"] is True
+        assert result["has_sample_results"] == True  # noqa: E712
         assert "project_id" not in result
 
     def test_serialize_evaluation_run_full_mode(self):
@@ -568,7 +567,8 @@ class TestBuildJudgeModelLookup:
     def test_non_judge_metric_judge_model_is_none(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = Mock(); er.id = "er-1"
+        er = Mock()
+        er.id = "er-1"
         ejrs = [self._make_ejr("jr-1", "er-1", None)]
         result = build_judge_model_lookup([er], self._make_db(ejrs))
         assert result == {"jr-1": None}
@@ -582,15 +582,18 @@ class TestBuildJudgeModelLookup:
     def test_no_judge_run_rows(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er = Mock(); er.id = "er-1"
+        er = Mock()
+        er.id = "er-1"
         result = build_judge_model_lookup([er], self._make_db([]))
         assert result == {}
 
     def test_multiple_evaluation_runs(self):
         from routers.projects.serializers import build_judge_model_lookup
 
-        er1 = Mock(); er1.id = "er-1"
-        er2 = Mock(); er2.id = "er-2"
+        er1 = Mock()
+        er1.id = "er-1"
+        er2 = Mock()
+        er2.id = "er-2"
         ejrs = [
             self._make_ejr("jr-a", "er-1", "model-a"),
             self._make_ejr("jr-b", "er-2", "model-b"),

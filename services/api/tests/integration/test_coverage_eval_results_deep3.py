@@ -7,10 +7,8 @@ distribution, export, immediate evaluation, score extraction.
 
 import json
 import uuid
-from datetime import datetime
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
@@ -19,11 +17,9 @@ from models import (
     HumanEvaluationSession,
     LikertScaleEvaluation,
     LLMModel,
-    Organization,
     PreferenceRanking,
     ResponseGeneration,
     TaskEvaluation,
-    User,
 )
 from project_models import (
     Annotation,
@@ -206,7 +202,7 @@ class TestScoreExtraction:
 class TestGetEvaluationResults:
     def test_get_automated_results(self, client, test_db, test_users, auth_headers, test_org):
         p, tasks = _setup_project(test_db, test_users[0], test_org)
-        er = _make_eval_run(test_db, p, metrics={"accuracy": 0.92, "f1": 0.88})
+        er = _make_eval_run(test_db, p, metrics={"accuracy": 0.92, "f1": 0.88})  # noqa: F841
         test_db.commit()
 
         resp = client.get(
@@ -357,7 +353,7 @@ class TestExportEvaluationResults:
         test_db.commit()
 
         resp = client.post(
-            f"/api/evaluations/export/nonexistent?format=json",
+            "/api/evaluations/export/nonexistent?format=json",
             headers=auth_headers["admin"],
         )
         # Superadmin bypasses access, so might get 200 with empty results
@@ -682,7 +678,7 @@ class TestEvalResultsByTaskModel:
         test_db.flush()
 
         _make_task_evaluation(test_db, er, tasks[0], annotation=ann,
-                             metrics={"score": 0.8})
+                             metrics={"score": 0.8})  # noqa: E128
         test_db.commit()
 
         resp = client.get(

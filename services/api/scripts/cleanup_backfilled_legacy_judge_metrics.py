@@ -40,7 +40,6 @@ Usage (inside the api container):
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from datetime import datetime, timezone
 
@@ -136,7 +135,7 @@ def _apply(db, rewrite_value: bool) -> tuple[int, int]:
 
     # Build the patched details blob in SQL. COALESCE picks raw_score from
     # top-level first, then response.score. Skip rows where both are NULL.
-    value_update = (
+    value_update = (  # noqa: F841
         "'value', "
         "(COALESCE(metrics->>'raw_score', metrics->'llm_judge_falloesung_response'->>'score')::numeric / 100.0)"
         if rewrite_value

@@ -168,7 +168,6 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-
         template_context = {
             "notification": notification,
             "notification_type": notification.type.value if notification.type else "general",
@@ -218,7 +217,6 @@ class EmailService:
         if not self.mail_enabled:
             logger.debug("Email not sent: Mail service is disabled")
             return False
-
 
         if not notifications:
             logger.info(f"No notifications to send in {digest_type} digest for {user_email}")
@@ -281,7 +279,6 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-
         subject = "BenGER Email Test"
         html_body = f"""
         <html>
@@ -336,7 +333,6 @@ class EmailService:
         if not self.mail_enabled:
             logger.debug("Email not sent: Mail service is disabled")
             return False
-
 
         subject = f"Invitation to join {organization_name} on BenGER"
         html_body = f"""
@@ -397,7 +393,6 @@ class EmailService:
         if not self.mail_enabled:
             logger.debug("Email not sent: Mail service is disabled")
             return False
-
 
         if language == "de":
             subject = "Bestätigen Sie Ihre E-Mail-Adresse für BenGER"
@@ -478,7 +473,6 @@ class EmailService:
         if not self.mail_enabled:
             logger.debug("Email not sent: Mail service is disabled")
             return False
-
 
         if language == "de":
             subject = "Passwort zurücksetzen für BenGER"

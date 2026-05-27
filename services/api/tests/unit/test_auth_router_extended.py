@@ -8,7 +8,7 @@ Targets: routers/auth.py lines 96-108, 117-119, 219-287, 296-351,
 """
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, Mock, MagicMock, patch
 
 import pytest
 from fastapi import status
@@ -211,9 +211,9 @@ class TestBuildUserProfileResponse:
             mock_role.return_value = None
             result = _build_user_profile_response(mock_user, mock_db)
 
-        assert result.created_at is None
-        assert result.updated_at is None
-        assert result.role is None
+        assert result.created_at == None  # noqa: E711
+        assert result.updated_at == None  # noqa: E711
+        assert result.role == None  # noqa: E711
 
 
 class TestAuthRouterExtended:
@@ -480,7 +480,7 @@ class TestAuthRouterExtended:
                 data = response.json()
                 assert "user" in data
                 assert "organizations" in data
-                assert data["user"]["is_superadmin"] is True
+                assert data["user"]["is_superadmin"] == True  # noqa: E712
             finally:
                 app.dependency_overrides.clear()
 
@@ -495,7 +495,7 @@ class TestAuthRouterExtended:
         try:
             response = client.get("/api/auth/verify")
             assert response.status_code == status.HTTP_200_OK
-            assert response.json()["valid"] is True
+            assert response.json()["valid"] == True  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 
@@ -704,7 +704,7 @@ class TestAuthRouterExtended:
                     "token": "valid-token",
                 })
                 assert response.status_code == status.HTTP_200_OK
-                assert response.json()["success"] is True
+                assert response.json()["success"] == True  # noqa: E712
             finally:
                 app.dependency_overrides.clear()
 
@@ -742,7 +742,7 @@ class TestAuthRouterExtended:
                 response = client.post("/api/auth/verify-email-enhanced/expired-token")
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
-                assert data["success"] is False
+                assert data["success"] == False  # noqa: E712
                 assert data["user_type"] == "unknown"
             finally:
                 app.dependency_overrides.clear()
@@ -817,8 +817,8 @@ class TestAuthRouterExtended:
             response = client.get("/api/auth/check-profile-status")
             assert response.status_code == status.HTTP_200_OK
             data = response.json()
-            assert data["profile_completed"] is True
-            assert data["needs_profile_completion"] is False
+            assert data["profile_completed"] == True  # noqa: E712
+            assert data["needs_profile_completion"] == False  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 
@@ -869,7 +869,7 @@ class TestAuthRouterExtended:
             try:
                 response = client.post("/api/auth/confirm-profile")
                 assert response.status_code == status.HTTP_200_OK
-                assert response.json()["success"] is True
+                assert response.json()["success"] == True  # noqa: E712
             finally:
                 app.dependency_overrides.clear()
 
@@ -987,8 +987,8 @@ class TestAuthRouterExtended:
                 response = client.get("/api/auth/mandatory-profile-status")
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
-                assert data["mandatory_profile_completed"] is True
-                assert data["confirmation_due"] is False
+                assert data["mandatory_profile_completed"] == True  # noqa: E712
+                assert data["confirmation_due"] == False  # noqa: E712
             finally:
                 app.dependency_overrides.clear()
 

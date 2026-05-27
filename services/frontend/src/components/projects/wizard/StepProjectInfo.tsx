@@ -64,6 +64,7 @@ export function StepProjectInfo({
     try {
       p = Promise.resolve(organizationsAPI.getOrganizations())
     } catch {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOrgs([])
       return
     }

@@ -157,7 +157,7 @@ class TestAuthRouter:
         def override_get_db():
             return Mock(spec=Session)
 
-        with patch("routers.auth.revoke_refresh_token") as mock_revoke:
+        with patch("routers.auth.revoke_refresh_token") as mock_revoke:  # noqa: F841
             # Override dependencies
             app.dependency_overrides[require_user] = override_require_user
             app.dependency_overrides[get_db] = override_get_db
@@ -234,7 +234,7 @@ class TestAuthRouter:
 
             assert response.status_code == status.HTTP_200_OK
             data = response.json()
-            assert data["valid"] is True
+            assert data["valid"] == True  # noqa: E712
             assert "user" in data
         finally:
             app.dependency_overrides.clear()
@@ -437,7 +437,7 @@ class TestAuthRouter:
 
             assert response.status_code == status.HTTP_200_OK
             data = response.json()
-            assert data["success"] is True
+            assert data["success"] == True  # noqa: E712
 
     def test_verify_email_invalid_token(self, client):
         """Test email verification with invalid token"""

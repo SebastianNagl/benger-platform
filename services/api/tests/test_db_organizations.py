@@ -8,10 +8,10 @@ import sys
 # Add the API directory to the path so we can import modules
 sys.path.append("/Users/sebastiannagl/Code/BenGer/services/api")
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
 
-from projects_api import get_project_organizations
+from projects_api import get_project_organizations  # noqa: E402
 
 # Database connection using the same settings as the production environment
 DATABASE_URL = "postgresql://postgres:changeme123!@localhost:5432/benger"
@@ -38,12 +38,12 @@ def test_project_organizations():
             print(f"  {i}. {org['name']} (ID: {org['id']})")
 
         if len(organizations) >= 2:
-            print(f"✅ SUCCESS: Multiple organizations detected!")
+            print("✅ SUCCESS: Multiple organizations detected!")
 
             # Verify expected organizations
             org_names = [org["name"] for org in organizations]
             if "TUM" in org_names and "Test Research Team" in org_names:
-                print(f"✅ Both expected organizations found: TUM and Test Research Team")
+                print("✅ Both expected organizations found: TUM and Test Research Team")
             else:
                 print(f"❌ Expected organizations not found. Got: {org_names}")
         else:

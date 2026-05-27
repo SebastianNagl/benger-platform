@@ -10,7 +10,6 @@ audit trail, so the rules get explicit coverage.
 from __future__ import annotations
 
 import os
-import sys
 
 # Direct file-import of the helpers under test. Going through the
 # ``ai_services`` package would eagerly import every provider's SDK
@@ -36,23 +35,23 @@ derive_truncated = _base_service.derive_truncated
 
 class TestDeriveTruncated:
     def test_recognizes_openai_length(self):
-        assert derive_truncated("length") is True
+        assert derive_truncated("length") == True
 
     def test_recognizes_anthropic_max_tokens(self):
-        assert derive_truncated("max_tokens") is True
+        assert derive_truncated("max_tokens") == True
 
     def test_recognizes_google_uppercase(self):
         # Google genai SDK returns enum names like "MAX_TOKENS".
-        assert derive_truncated("MAX_TOKENS") is True
+        assert derive_truncated("MAX_TOKENS") == True
 
     def test_normal_stop_is_not_truncated(self):
-        assert derive_truncated("stop") is False
-        assert derive_truncated("end_turn") is False
-        assert derive_truncated("tool_use") is False
+        assert derive_truncated("stop") == False
+        assert derive_truncated("end_turn") == False
+        assert derive_truncated("tool_use") == False
 
     def test_none_is_not_truncated(self):
-        assert derive_truncated(None) is False
-        assert derive_truncated("") is False
+        assert derive_truncated(None) == False
+        assert derive_truncated("") == False
 
 
 class TestModelSupportsSeed:
@@ -86,15 +85,15 @@ class TestModelSupportsSeed:
     def test_provider_default_openai_supports_seed(self):
         # Without a per-model override, OpenAI's provider-level default
         # (seed_support=True) wins.
-        assert self.pc.model_supports_seed("openai", "gpt-4o") is True
+        assert self.pc.model_supports_seed("openai", "gpt-4o") == True
 
     def test_provider_default_anthropic_does_not_support_seed(self):
         # Anthropic doesn't accept the seed parameter.
-        assert self.pc.model_supports_seed("anthropic", "claude-opus-4-7") is False
+        assert self.pc.model_supports_seed("anthropic", "claude-opus-4-7") == False
 
     def test_provider_default_deepinfra_now_supports_seed(self):
         # Phase 6.6 (#7): DeepInfra default flipped from False to True.
-        assert self.pc.model_supports_seed("deepinfra", "deepseek-ai/DeepSeek-V3.1") is True
+        assert self.pc.model_supports_seed("deepinfra", "deepseek-ai/DeepSeek-V3.1") == True
 
     def test_per_model_override_wins_over_provider_default(self):
         # Simulate the YAML-cached override for Kimi: Kimi is on
@@ -104,9 +103,9 @@ class TestModelSupportsSeed:
         self.pc._SEED_SUPPORT_CACHE = {
             "moonshotai/Kimi-K2.5": False,
         }
-        assert self.pc.model_supports_seed("deepinfra", "moonshotai/Kimi-K2.5") is False
+        assert self.pc.model_supports_seed("deepinfra", "moonshotai/Kimi-K2.5") == False
         # Other DeepInfra models still get the provider-level default.
-        assert self.pc.model_supports_seed("deepinfra", "deepseek-ai/DeepSeek-V3.1") is True
+        assert self.pc.model_supports_seed("deepinfra", "deepseek-ai/DeepSeek-V3.1") == True
 
     def test_per_model_true_override_wins_for_provider_with_false_default(self):
         # Hypothetical: even if some provider's default is False, an
@@ -114,7 +113,7 @@ class TestModelSupportsSeed:
         self.pc._SEED_SUPPORT_CACHE = {
             "anthropic-future-seed-model": True,
         }
-        assert self.pc.model_supports_seed("anthropic", "anthropic-future-seed-model") is True
+        assert self.pc.model_supports_seed("anthropic", "anthropic-future-seed-model") == True
 
 
 class TestClassifyErrorType:

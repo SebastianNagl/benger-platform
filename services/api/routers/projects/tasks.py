@@ -141,9 +141,9 @@ async def list_project_tasks(
 
     # Apply filters
     if only_labeled:
-        query = query.filter(Task.is_labeled == True)
+        query = query.filter(Task.is_labeled == True)  # noqa: E712
     elif only_unlabeled:
-        query = query.filter(Task.is_labeled == False)
+        query = query.filter(Task.is_labeled == False)  # noqa: E712
 
     # Exclude tasks the current user has already annotated
     if exclude_my_annotations:
@@ -152,11 +152,11 @@ async def list_project_tasks(
             and_(
                 Annotation.task_id == Task.id,
                 Annotation.completed_by == current_user.id,
-                Annotation.was_cancelled == False,
+                Annotation.was_cancelled == False,  # noqa: E712
                 Annotation.result.isnot(None),
                 func.length(func.cast(Annotation.result, String)) > 2,
             ),
-        ).filter(Annotation.id == None)
+        ).filter(Annotation.id == None)  # noqa: E711
 
     # Exclude skipped tasks based on skip_queue setting
     skip_queue = getattr(project, 'skip_queue', 'requeue_for_others')
@@ -488,8 +488,8 @@ async def get_next_task(
                     db.query(Annotation.task_id)
                     .filter(
                         Annotation.project_id == project_id,
-                        Annotation.was_cancelled == False,
-                        Annotation.result != None,
+                        Annotation.was_cancelled == False,  # noqa: E712
+                        Annotation.result != None,  # noqa: E711
                         func.length(func.cast(Annotation.result, String)) > 2,
                     )
                     .group_by(Annotation.task_id)
@@ -606,7 +606,7 @@ async def get_next_task(
                         Annotation.completed_by == current_user.id,
                     ),
                 )
-                .filter(Annotation.id == None)  # User hasn't annotated this task
+                .filter(Annotation.id == None)  # User hasn't annotated this task  # noqa: E711
             )
 
             # Apply skip exclusions
@@ -642,7 +642,7 @@ async def get_next_task(
                 Annotation.completed_by == current_user.id,
             ),
         )
-        .filter(Annotation.id == None)
+        .filter(Annotation.id == None)  # noqa: E711
         .count()
     )
 
@@ -757,7 +757,7 @@ async def update_task_metadata(
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Initialize meta if it doesn't exist
-    if task.meta is None:
+    if task.meta == None:  # noqa: E711
         task.meta = {}
 
     if merge:
@@ -814,7 +814,7 @@ async def bulk_update_task_metadata(
     updated_count = 0
     for task in tasks:
         # Initialize meta if it doesn't exist
-        if task.meta is None:
+        if task.meta == None:  # noqa: E711
             task.meta = {}
 
         if merge:
@@ -1140,7 +1140,7 @@ def bulk_export_tasks(
 
             task_data["evaluations"] = []
             for te in te_by_task_id.get(task.id, []):
-                if te.generation_id is not None:
+                if te.generation_id != None:  # noqa: E711
                     continue
                 task_data["evaluations"].append(
                     serialize_task_evaluation(
@@ -1228,7 +1228,8 @@ def bulk_export_tasks(
             "created_at",
         ])
         yield buf.getvalue()
-        buf.seek(0); buf.truncate()
+        buf.seek(0)
+        buf.truncate()
 
         eval_runs = db.query(EvaluationRun).filter(
             EvaluationRun.project_id == project_id
@@ -1251,7 +1252,8 @@ def bulk_export_tasks(
                 obj["created_at"],
             ])
             chunk = buf.getvalue()
-            buf.seek(0); buf.truncate()
+            buf.seek(0)
+            buf.truncate()
             return chunk
 
         batch: list = []

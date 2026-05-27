@@ -189,7 +189,7 @@ def test_backfill_inserted_entry_has_required_eval_config_shape(migration):
     cfg = json.loads(update_calls[0].args[1]["cfg"])
     entry = next(c for c in cfg["evaluation_configs"] if c["metric"] == "korrektur_classic")
     assert entry["display_name"] == "Korrektur (Classic)"
-    assert entry["enabled"] is True
+    assert entry["enabled"] == True  # noqa: E712
     assert entry["prediction_fields"] == []
     assert entry["reference_fields"] == []
     # Matches the id-prefix convention used by the wizard's generateEvaluationId

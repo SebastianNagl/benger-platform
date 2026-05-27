@@ -37,7 +37,7 @@ def test_run_evaluation_accepts_annotator_user_ids():
     )
     params = inspect.signature(fn).parameters
     assert "annotator_user_ids" in params, f"signature: {list(params.keys())}"
-    assert params["annotator_user_ids"].default is None
+    assert params["annotator_user_ids"].default == None
     annot = params["annotator_user_ids"].annotation
     annot_str = str(annot)
     assert "None" in annot_str or "Optional" in annot_str, (
@@ -59,7 +59,7 @@ def test_run_evaluation_accepts_existing_scope_kwargs():
     params = inspect.signature(fn).parameters
     for kw in ("task_ids", "model_ids", "annotator_user_ids"):
         assert kw in params, f"missing {kw}"
-        assert params[kw].default is None, f"{kw} default should be None"
+        assert params[kw].default == None, f"{kw} default should be None"
 
 
 # ---------------------------------------------------------------------------

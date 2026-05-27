@@ -14,9 +14,8 @@ import uuid
 
 import pytest
 from sqlalchemy import Boolean, Column, Integer, MetaData, String, Table, create_engine, inspect, text
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
 
-from database import Base
 from models import User
 from project_models import Annotation, Project, Task
 
@@ -271,7 +270,7 @@ class TestDatabaseMigrations:
         test_db.refresh(task)
 
         assert project.title == "Data Preservation Test"
-        assert task.data["metadata"]["important"] is True
+        assert task.data["metadata"]["important"] == True  # noqa: E712
 
         # Clean up temp column
         try:

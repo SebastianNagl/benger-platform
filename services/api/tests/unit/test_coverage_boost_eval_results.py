@@ -13,19 +13,15 @@ Targets specific branches in routers/evaluations/results.py:
 import uuid
 from datetime import datetime
 
-import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
-    EvaluationType,
     Organization,
     OrganizationMembership,
     TaskEvaluation,
 )
 from project_models import (
-    Annotation,
     Project,
     ProjectOrganization,
     Task,

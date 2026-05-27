@@ -25,6 +25,7 @@ export default function LandingPage() {
   // this, hydration sees the server's "not authenticated" tree but the client
   // already knows the user is logged in (cookie present), causing a mismatch.
   const [mounted, setMounted] = useState(false)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true) }, [])
 
   // Redirect authenticated users to dashboard

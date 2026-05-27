@@ -57,7 +57,7 @@ sys.path = [
 
 # Force-load email_service from the workers directory to guarantee
 # the correct module is used, regardless of sys.path state.
-import importlib.util as _ilu
+import importlib.util as _ilu  # noqa: E402
 
 _es_path = os.path.join(workers_root, 'email_service.py')
 if os.path.exists(_es_path):

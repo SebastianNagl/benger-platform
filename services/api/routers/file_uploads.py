@@ -172,7 +172,7 @@ async def list_files(
             if file.storage_key and not file.storage_url:
                 try:
                     file.storage_url = object_storage.get_download_url(file.storage_key)
-                except:
+                except:  # noqa: E722
                     pass
 
             result.append(

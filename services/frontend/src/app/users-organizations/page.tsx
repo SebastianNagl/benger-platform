@@ -49,6 +49,7 @@ export default function UsersOrganizationsPage() {
       selectedTab === 0 &&
       !UserOrganizationPermissions.canManageGlobalUsers(userWithOrganizations)
     ) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedTab(1)
     }
 

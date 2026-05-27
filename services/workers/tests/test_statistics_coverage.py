@@ -12,9 +12,9 @@ import os
 workers_root = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, workers_root)
 
-import numpy as np
+import numpy as np  # noqa: E402
 
-from ml_evaluation.statistics import (
+from ml_evaluation.statistics import (  # noqa: E402
     bootstrap_confidence_interval,
     paired_bootstrap_test,
     significance_test,
@@ -179,7 +179,7 @@ class TestCliffsDelta:
         b = [1.0, 2.0, 3.0]
         result = cliffs_delta(a, b)
         assert result["cliffs_delta"] == 1.0
-        assert result["a_better"] is True
+        assert result["a_better"] == True
 
     def test_reverse_dominance(self):
         a = [1.0, 2.0, 3.0]

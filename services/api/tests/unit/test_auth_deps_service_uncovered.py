@@ -11,11 +11,11 @@ service.py targets: db_user_to_user with organizations (lines 26-36),
   logout_user (lines 189-194).
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from fastapi import HTTPException, Request
+from fastapi import HTTPException
 
 from auth_module.models import User
 
@@ -339,7 +339,7 @@ class TestDbUserToUser:
         user = db_user_to_user(db_user)
 
         assert isinstance(user, User)
-        assert user.organizations is not None
+        assert user.organizations != None  # noqa: E711
         assert len(user.organizations) == 1
         assert user.organizations[0]["id"] == "org-1"
         assert user.organizations[0]["name"] == "Test Org"
@@ -360,7 +360,7 @@ class TestDbUserToUser:
         db_user.organization_memberships = []
 
         user = db_user_to_user(db_user)
-        assert user.organizations is None  # empty list becomes None
+        assert user.organizations == None  # empty list becomes None  # noqa: E711
 
     def test_without_memberships_attribute(self):
         from auth_module.service import db_user_to_user
@@ -376,7 +376,7 @@ class TestDbUserToUser:
         db_user.created_at = _NOW
 
         user = db_user_to_user(db_user)
-        assert user.organizations is None
+        assert user.organizations == None  # noqa: E711
 
     def test_membership_with_no_organization(self):
         from auth_module.service import db_user_to_user

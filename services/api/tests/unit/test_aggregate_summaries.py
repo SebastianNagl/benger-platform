@@ -22,7 +22,6 @@ from models import (
     EvaluationRun,
     Generation,
     LLMLeaderboardScore,
-    LLMModel,
     Organization,
     ProjectSummary,
     ResponseGeneration,
@@ -279,12 +278,11 @@ class TestLLMLeaderboardScores:
         upserts = recompute_llm_leaderboard_scores(test_db)
         assert upserts > 0
 
-        # One specific-metric row per (model, accuracy) for each scope/period
-        # plus an `average` row per model. With 'all' + 'public' scopes ×
-        # 3 periods × 1 model with eval data (gpt-4o) × 1 metric + 1 average
-        # row = at least 12 upserts.
-        # We assert structure rather than exact count to stay robust to schema
-        # tweaks.
+        # One specific-metric row per (model, metric) for each scope/period.
+        # PR #116 removed the synthetic cross-metric 'average' row — pooling
+        # values from incompatible scales (0–1, 0–18, 0–100) into one mean
+        # rendered as "1400%". The picker no longer offers it and the
+        # precompute no longer emits it.
         rows = test_db.query(LLMLeaderboardScore).filter(
             LLMLeaderboardScore.model_id == "gpt-4o",
             LLMLeaderboardScore.project_scope_key == "public",
@@ -292,7 +290,7 @@ class TestLLMLeaderboardScores:
         ).all()
         metrics_present = {r.metric for r in rows}
         assert "accuracy" in metrics_present
-        assert "average" in metrics_present
+        assert "average" not in metrics_present
         # Noise key must NOT make it into the precomputed rows.
         assert "accuracy_details" not in metrics_present
 
@@ -315,12 +313,13 @@ class TestLLMLeaderboardScores:
 
     def test_read_llm_leaderboard_returns_pivoted_entries(self, test_db, seeded):
         recompute_llm_leaderboard_scores(test_db)
-        # gpt-4o is the only model with evals; sort by 'average' (default).
+        # gpt-4o is the only model with evals; sort by a real metric (PR #116
+        # removed the synthetic 'average' that previously was the default sort).
         entries, total_models, available_metrics, computed_at = read_llm_leaderboard(
             test_db,
             project_scope_key="public",
             period="overall",
-            sort_metric="average",
+            sort_metric="accuracy",
             limit=10,
             offset=0,
         )
@@ -328,9 +327,10 @@ class TestLLMLeaderboardScores:
         # gpt-4o should appear (with eval data) and (potentially) claude too.
         model_ids = [e["model_id"] for e in entries]
         assert "gpt-4o" in model_ids
-        # 'metrics' dict on each entry should NOT include the 'average' synthetic key.
         gpt_entry = next(e for e in entries if e["model_id"] == "gpt-4o")
         assert "accuracy" in gpt_entry["metrics"]
+        # 'metrics' dict on each entry should NOT include the 'average' synthetic key.
+        assert "average" not in gpt_entry["metrics"]
         assert computed_at is not None
 
     def test_live_fallback_for_unusual_filter(self, test_db, seeded):
@@ -634,7 +634,7 @@ class TestFalloesungGradePointsLift:
         # At least one row per (scope, period) combo that the recompute writes.
         assert gp_rows
         # The grade_points scale is 0..18, so the mean is well above 1.
-        assert all(r.score is not None and r.score > 1 for r in gp_rows)
+        assert all(r.score != None and r.score > 1 for r in gp_rows)  # noqa: E711
 
 
 # ---------------------------------------------------------------------------

@@ -21,14 +21,10 @@ import uuid
 from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
 from models import (
     Generation,
-    Organization,
-    OrganizationMembership,
     ResponseGeneration,
-    User,
 )
 from project_models import (
     Annotation,
@@ -388,7 +384,7 @@ class TestUpdateProjectDeep:
         """Generation config update uses deep merge, preserving existing keys."""
         p = _project(test_db, test_users[0], test_org,
                      generation_config={"selected_configuration": {"models": ["gpt-4o"]},
-                                         "prompt_template": "original"})
+                                         "prompt_template": "original"})  # noqa: E127
         test_db.commit()
 
         resp = client.patch(
@@ -409,7 +405,7 @@ class TestUpdateProjectDeep:
         """Evaluation config update uses deep merge."""
         p = _project(test_db, test_users[0], test_org,
                      evaluation_config={"selected_methods": {"answer": {"automated": ["accuracy"]}},
-                                         "other_key": "preserved"})
+                                         "other_key": "preserved"})  # noqa: E127
         test_db.commit()
 
         resp = client.patch(

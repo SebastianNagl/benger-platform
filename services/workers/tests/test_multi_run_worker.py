@@ -14,7 +14,6 @@ in the dev-environment manual verification (documented in the plan).
 """
 
 import inspect
-from typing import Optional
 
 
 def test_generate_response_accepts_run_index():
@@ -43,7 +42,7 @@ def test_evaluate_llm_judge_single_accepts_judge_run_id():
 
     params = inspect.signature(_evaluate_llm_judge_single).parameters
     assert "judge_run_id" in params
-    assert params["judge_run_id"].default is None  # backward-compat
+    assert params["judge_run_id"].default == None  # backward-compat
 
 
 def test_evaluate_falloesung_single_accepts_judge_run_id():
@@ -56,7 +55,7 @@ def test_evaluate_falloesung_single_accepts_judge_run_id():
 
     params = inspect.signature(evaluate_falloesung_single).parameters
     assert "judge_run_id" in params
-    assert params["judge_run_id"].default is None
+    assert params["judge_run_id"].default == None
 
 
 def test_inter_annotator_agreement_delegates_to_shared():

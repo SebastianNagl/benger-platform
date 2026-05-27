@@ -13,7 +13,7 @@ Targets:
 
 import asyncio
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
@@ -304,8 +304,8 @@ class TestAnalyticsDateFilter:
 
         db.query.side_effect = [base_q, task_q]
 
-        start = datetime(2025, 1, 1)
-        end = datetime(2025, 1, 31)
+        datetime(2025, 1, 1)
+        datetime(2025, 1, 31)
 
         # Build date_filter list (simulating what get_project_statistics does)
         date_filter = [True, True]  # Simplified - just need non-empty list
@@ -567,9 +567,9 @@ class TestAuthorizationLegacyOrgMembership:
         db.query.return_value.filter.return_value.all.return_value = []
 
         # Creator can view/edit/delete
-        assert svc.check_project_access(user, project, Permission.PROJECT_VIEW, db) is True
-        assert svc.check_project_access(user, project, Permission.PROJECT_EDIT, db) is True
-        assert svc.check_project_access(user, project, Permission.PROJECT_DELETE, db) is True
+        assert svc.check_project_access(user, project, Permission.PROJECT_VIEW, db) == True  # noqa: E712
+        assert svc.check_project_access(user, project, Permission.PROJECT_EDIT, db) == True  # noqa: E712
+        assert svc.check_project_access(user, project, Permission.PROJECT_DELETE, db) == True  # noqa: E712
 
     def test_legacy_org_member_with_permission(self):
         from app.core.authorization import AuthorizationService, Permission
@@ -1208,7 +1208,7 @@ class TestWebSocketClusteringInitBranches:
         with patch("websocket_clustering.get_redis_client", return_value=sync_redis), \
              patch("websocket_clustering.redis.Redis", return_value=mock_redis):
             await manager.initialize()
-            assert manager.is_listening is True
+            assert manager.is_listening == True  # noqa: E712
 
 
 class TestWebSocketListenForMessages:
@@ -1295,7 +1295,7 @@ class TestWebSocketCleanupPartial:
         manager.redis_client = None
 
         await manager.cleanup()
-        assert manager.is_listening is False
+        assert manager.is_listening == False  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_cleanup_with_redis_only(self):
@@ -1307,7 +1307,7 @@ class TestWebSocketCleanupPartial:
         manager.redis_client = AsyncMock()
 
         await manager.cleanup()
-        assert manager.is_listening is False
+        assert manager.is_listening == False  # noqa: E712
         manager.redis_client.close.assert_called_once()
 
 

@@ -1,0 +1,2481 @@
+assignment_id,pick_id,task_inner_id,task_name,bereich,difficulty,provenance,reviewer_role,is_blind,pass,submission_tokens,submission_text
+A004,P01,1,Kerameus,Zivilrecht,Sehr Schwer,classic,creator,false,creator,654,"Kerameus (K) möchte etwas für seine Gesundheit tun. Deshalb installiert er auf seinem Smartphone die Ernährungs-App 'CholestroCoach', die von der Software-Entwicklerin Valeska (V) vertrieben wird. In der App wird damit geworben, dass sich nach sechs bis spätestens acht Monaten eine nennenswerte Senkung des LDL-Cholesterinwertes erreichen lässt, wenn die Pläne für die Ernährung eingehalten würden, welche die App fortlaufend auf der Grundlage regelmäßiger Eingaben zu Körpergröße, Gewicht, Geschlecht, Ernährungsgewohnheiten und -präferenzen automatisiert erstellt. Für diese Basisversion muss kein Entgelt in Geld bezahlt werden, sondern ist 'nur' das Einverständnis in die kommerzielle Nutzung der für die Ernährungspläne abgefragten Daten sowie weiterer abgefragter Daten zur beruflichen Tätigkeit und dem Einkommen Voraussetzung. K gibt, um die Basisversion zu nutzen, die abgefragten Daten ein und abonniert zugleich für ein Jahr das zusätzlich zum Preis von monatlich 10,- € angebotene individuelle 'Health-Package', wonach die App automatisiert das Maß der Einhaltung der Ernährungspläne und das sonstige Ernährungsverhalten in 'Reports' dokumentiert, ernährungsgesundheitlich analysiert und zusätzliche Optimierungsvorschläge unterbreitet. K nutzt die App drei Monate lang störungsfrei und bemüht sich, sein bisheriges Ernährungsverhalten zu ändern. Zu Beginn des vierten Monats wird ihm jedoch ein Ernährungsplan zur Verfügung gestellt, der seine Präferenzen ('vegetarisch'; 'kein Kohlgemüse') ignoriert. K wendet sich über die Kontaktfunktion der App an den 'Kundenservice' der V und verlangt wiederholt und ohne Erfolg einen korrigierten Ernährungsplan. In den beiden Folgewochen werden erneut Ernährungspläne zur Verfügung gestellt, die den angegebenen Präferenzen von K widersprechen. Daraufhin erklärt K per E-Mail gegenüber der V die 'Kündigung' des gesamten Vertrages, wobei er erklärt, dass er auch an den 'Reports' kein Interesse mehr habe. Er verlangt Erstattung von 40,- € für die bisherige Vertragslaufzeit von vier Monaten, da die zunächst störungsfrei erfolgten Leistungen für ihn ebenfalls ohne Interesse seien. Außerdem verlangt K Ersatz für die vergebliche Ernährungsumstellung. Diese habe ihn viel Kraft gekostet und sei nun, da er das Experiment nicht fortsetzen könne, 'für die Katz'. Vermerk für die Bearbeitung: In einem Gutachten, das - gegebenenfalls hilfsgutachtlich – auf alle aufgeworfenen Rechtsfragen eingeht, sind in der vorgegebenen Reihenfolge folgende Fragen zu beantworten: 1. Kann K von V Erstattung von 40,- € verlangen? 2. Kann K von V Ersatz für die vergebliche Ernährungsumstellung verlangen? Auf die Vorschriften über das Widerrufsrecht bei Verbraucherverträgen ist nicht einzugehen. Es ist davon auszugehen, dass die Anforderungen des § 312j BGB beachtet wurden. Bei Frage 1 ist nicht auf Schadensersatzansprüche einzugehen.
+"
+A008,P02,1,Kerameus,Zivilrecht,Sehr Schwer,co_creation,creator,false,creator,1947,"Frage 1: 
+
+A. Anspruch des K gegen V auf Zahlung von 40€ aus §§ 327m I, 327 o BGB
+
+K könnte einen Anspruch gegen V auf Zahlung von 40€ aus §§ 327m I, 327 o BGB haben. 
+
+I. Anwendbarkeit der §§ 327 ff. BGB 
+
+1. Vertrag über digitale Produkte 
+
+   Zunächst müsste ein Vertrag über digitale Produkte zwischen K und V vorliegen. 
+
+   Digitale Produkte sind nach § 327 Abs. 2 BGB digitale Inhalte oder digitale Dienstleistungen.
+
+   Die Ernährungs-App erstellt automatisiert Ernährungspläne und Reports, es handelt sich um digitale Dienstleistungen. 
+
+   Ein Vertrag über digitale Produkte liegt vor. 
+2. Verbrauchervertrag, § 310 III BGB 
+
+   Es müsste ein Verbrauchervertrag im Sinne des § 310 III BGB vorliegen. 
+
+   Hierfür benötigt werden ein Unternehmer (§ 14 BGB) und ein Verbraucher (§ 13 BGB). 
+
+   V handelt als Softwareentwicklerin gewerblich und ist damit Unternehmerin (§ 14 BGB). K nutzt die App zu Gesundheitszwecken und damit privat, er ist Verbraucher  (§ 13 BGB).
+
+   Ein Verbrauchervertrag liegt vor. 
+3. Gegenleistung 
+
+   Es müsste eine entsprechende Gegenleistung vorliegen. 
+
+   Im § 327 I BGB ist die Rede von der Zahlung eines Preises. Die Vorschriften gelten gemäß § 327 Abs. 3 BGB aber auch dann, wenn der Verbraucher personenbezogene Daten als Gegenleistung bereitstellt.
+
+   K hat der kommerziellen Nutzung seiner Daten zugestimmt. Darüber hinaus hat er für das Health-Package monatlich 10 € bezahlt.
+
+   Eine Gegenleistung liegt vor. 
+4. Bereitstellung 
+
+   Die Software ist dem K im Sinne des § 327b IV BGB auch bereitgestellt worden.
+5. Zwischenergebnis 
+
+   Die Vorschriften der §§ 327 ff. sind anwendbar. Ein Vertrag über digitale Produkte zwischen K und V liegt vor. 
+
+II. Mangel 
+
+In der Angabe von Ernährungsplänen mit Abweichung von den Präferenzen des K könnte ein Mangel liegen. 
+
+Nach § 327e Abs. 1 BGB ist ein digitales Produkt mangelfrei, wenn es den subjektiven Anforderungen und den objektiven Anforderungen entspricht.
+
+1. Subjektive Anforderungen 
+
+   Das Produkt müsste den subjektiven Anforderungen entsprechen 
+
+   a. vereinbarte Beschaffenheit § 327 e II S. 1 Nr. 1 Lit. a BGB 
+
+   Das Produkt müsste die vereinbarte Beschaffenheit haben. 
+
+   K und V haben keine explizite Vereinbarung getroffen. 
+
+   Eine Abweichung von der vereinbarten Beschaffenheit besteht nicht. 
+
+   b. vertraglich vorausgesetzte Verwendung § 327 e II S. 1 Nr. 1 Lit. b BGB
+
+   Die vertraglich vorausgesetzte Vereinbarung, nämlich eine nennenswerte Senkung des LDL-Cholesterinwertes, kann auch mit Abweichung von den Präferenzen des K erreicht werden. 
+
+   Eine Abweichung von der vertraglich vorausgesetzten Verwendung liegt nicht vor. 
+2. Objektive Beschaffenheit 
+
+   Das Produkt müsste den objektiven Anforderungen entsprechen. 
+
+   a. gewöhnliche Verwendung § 327 e III S. 1 Nr. 1 BGB 
+
+   Für die gewöhnliche Verwendung, die nennenswerte Senkung des LDL-Cholesterinwertes, ist die App trotz abweichender Ernährungspläne geeignet. 
+
+   b. übliche Beschaffenheit, die zu erwarten ist § 327 e III S. 1 Nr. 2 BGB 
+
+   Die App müsste auch der üblichen Beschaffenheit, die der K erwarten kann entsprechen. 
+
+   Die App hat das Ziel den Cholesterinwert zu senken. Von einer App, die stark in das eigene Ernährungsverhalten eingreift und bei der es sogar eine Funktion für die Angabe der Ernährungswünsche gibt, lässt sich erwarten, dass diese Wünsche auch in den Speiseplänen berücksichtigt werden. Spätestens auf extra Nachfrage hin sollten diese Wünsche berücksichtigt werden.  
+
+   Die App entspricht nicht der üblichen Beschaffenheit. 
+3. bei Gefahrübergang, § 327k II BGB 
+
+   Der Mangel müsste bereits bei Gefahrübergang vorgelegen haben. 
+
+   Gemäß § 327k II BGB wird die Mangelhaftigkeit für die gesamte Zeit vermutet. 
+4. Zwischenergebnis 
+
+   Ein objektiver Mangel liegt vor. 
+
+III. Gründe des § 327m I BGB 
+
+Einer der in § 327 m I BGB normierten gründe müsste vorliegen. 
+
+Hier könnte sich trotz der vom Unternehmer versuchten Nacherfüllung ein Mangel zeigen, § 327 m I Nr. 3 BGB. 
+
+Eine Nacherfüllung ist die Wiederherstellung der vertragsgemäßen Zustandes. 
+
+Hier hat K wiederholt falsche Ernährungspläne bekommen, die seine Präferenzen nicht berücksichtigen. 
+
+Die Nacherfüllung ist fehlgeschlagen. 
+
+IV. Ausschluss gem. § 327m II BGB 
+
+Eine Beendigung des Vertrags könnte ausgeschlossen sein, wenn der Mangel unerheblich ist. Hier handelt es sich um einen Verbrauchervertrag, ein Ausschluss ist nicht möglich, § 327m II S. 2 BGB- 
+
+V. Erklärung 
+
+K müsste den Vertrag gem. § 327 o I BGB für beendet erklären. 
+
+K erklärte per E-Mail die „Kündigung“ des Vertrages.
+
+Fraglich ist, ob diese Erklärung als Vertragsbeendigung i.S.d. § 327m BGB auszulegen ist.
+
+Nach den allgemeinen Auslegungsregeln (§§ 133, 157 BGB) ist der wirkliche Wille maßgeblich. K wollte sich erkennbar wegen des Mangels vom Vertrag lösen. Die Erklärung ist daher als Vertragsbeendigung gemäß § 327m BGB auszulegen.
+
+Eine Erklärung ist erfolgt. 
+
+VI. Rechtsfolge 
+
+Fraglich ist, wie die Rechtsfolge zu bemessen ist. 
+
+K hat Anspruch auf Rückzahlung des Geldes, das er zur Leistung seiner  Vertragspflicht geleistet hat, § 327 o II BGB. Allerdings hat er nur Anspruch auf einen Teil der Zahlung, wenn die Sache nur zu einem teil des Bereitstellungszeitraums mangelhaft war, §§ 327 o III S.1, IV, 327n IV S. 2 BGB. 
+
+Die Leistung der App war für 3 Monate lang mangelfrei, im vierten Bestand der Mangel. Gemäß 327n IV S. 2 BGB ist die Höhe der Rückzahlung auf ein viertel des Preises, 10€m zu mindern. 
+
+K hat Anspruch auf Rückzahlung von 10€. 
+
+B. Ergebnis 
+
+K hat Anspruch auf Zahlung von 10€. 
+
+\
+Frage 2: 
+
+A. Anspruch von K gegen V aus §§ 327 i Nr. 3 Alt. 2, 284 BGB
+
+K könnte gegen V einen Anspruch auf Ersatz der vergeblichen Aufwendungen haben.
+
+I. Vorraussetzungen Schadensersatz statt der Leistung, §§ 284, 280 Abs. 1, 281 BGB
+
+1. Vertragsschluss, § 327 I BGB 
+
+   siehe oben 
+2. Pflichtverletzung 
+
+   Es müsste eine Pflichtverletzung vorliegen. 
+
+   Eine Pflichtverletzung ist die Abweichung von der vertraglich vorausgesetzten Pflicht. 
+
+   V hat eine mangelhafte digitale Dienstleistung erbracht (siehe oben). 
+
+   Eine Pflichtverletzung besteht. 
+3. Vertretenmüssen 
+
+   V müsste dien Pflichtverletzung auch zu vertreten haben. 
+
+   Der Schuldner hat grundsätzlich Vorsatz und Fahrlässigkeit zu vertreten wenn keine mildere oder stärkere Haftung bestimmt ist, § 276 BGB. Der Schuldner hat sich zu entlasten, § 280 I S. 2 BGB. Gemäß 327k II BGB gilt bei dauerhafter Bereitstellung die Vermutung der dauerhaften Mangelhaftigkeit. 
+
+   Es greift die Vermutungswirkung des § 327 k II BGB, V hat den Mangel zu vertreten.
+
+   Ein Vertretenmüssen liegt vor. 
+4. Schaden 
+
+   Es müsste ein kausaler, ersatzfähiger Schaden bestehen. 
+
+   Der Schaden ermittelt sich nach der Differenzhypothese. 
+
+   Hier ist die Vermögenslage des K nach dem schädigenden Ereignis nicht schlechter als davor. Kraft und Zeit sind keine ersatzfähigen Positionen. 
+
+   Ein Schaden besteht nicht.
+
+II. Ergebnis 
+
+K hat mangels ersatzfähigem Schaden keinen Anspruch auf Aufwendungsersatz gem. § 284 BGB. 
+"
+A012,P03,1,Kerameus,Zivilrecht,Sehr Schwer,llm,creator,false,creator,5128,"# Gutachten
+
+## A. Kann K von V Erstattung von 40,- € verlangen? (Frage 1)
+
+In Betracht kommt ein Anspruch des K gegen V auf Rückzahlung von 40,- € aus § 355 Abs. 3 BGB (Widerrufsrecht wird ausdrücklich ausgeschlossen), aus den Rücktrittsfolgen gem. §§ 346 ff. BGB oder aus anderen Rückabwicklungsvorschriften. Da Schadensersatzansprüche ausdrücklich ausgeschlossen sind, kommen allein rückabwicklungsbezogene Ansprüche in Betracht. Zu prüfen ist zunächst, welcher Vertragstyp vorliegt und welches Gewährleistungsregime Anwendung findet, bevor die Rückabwicklungsvoraussetzungen geprüft werden.
+
+---
+
+### I. Vertragliche Einordnung und anwendbares Recht
+
+#### 1. Qualifikation des Vertrages über die Basisversion
+
+Die Basisversion der App „CholestroCoach"" wird von K ohne Geldzahlung genutzt. Stattdessen erklärt K sein Einverständnis in die kommerzielle Nutzung seiner personenbezogenen Daten (Gesundheitsdaten, Ernährungsgewohnheiten, Einkommensdaten, Beruf). Die Frage ist, ob hierin ein entgeltlicher Vertrag im Rechtssinne liegt.
+
+Seit der Umsetzung der Richtlinie über digitale Inhalte und digitale Dienstleistungen (Richtlinie (EU) 2019/770) durch das Gesetz zur Umsetzung der Richtlinie über bestimmte vertragsrechtliche Aspekte der Bereitstellung digitaler Inhalte und digitaler Dienstleistungen vom 25.6.2021 enthält das BGB in §§ 327 ff. BGB einen eigenen Regelungskomplex für Verträge über digitale Produkte. Gem. § 327 Abs. 3 BGB sind diese Vorschriften auch dann anwendbar, wenn der Verbraucher dem Unternehmer personenbezogene Daten bereitstellt oder sich dazu verpflichtet, es sei denn, die Daten werden ausschließlich zur Erfüllung des Vertrages verarbeitet. Die Bereitstellung der Daten gilt insoweit als „Gegenleistung"" im vertragsrechtlichen Sinne (§ 327 Abs. 3 BGB), sofern der Unternehmer die Daten für kommerzielle Zwecke nutzt.
+
+Im vorliegenden Fall stellt V die Basisversion gerade unter der Bedingung zur Verfügung, dass K in die **kommerzielle** Nutzung seiner Daten einwilligt. Diese Daten werden mithin nicht nur zur Vertragserfüllung verarbeitet, sondern für eigene wirtschaftliche Zwecke der V genutzt. Damit unterfällt der Basisvertrag dem Anwendungsbereich der §§ 327 ff. BGB, und die personenbezogenen Daten stellen die vertragsrechtlich relevante Gegenleistung dar. K ist Verbraucher i.S.v. § 13 BGB, V ist Unternehmerin i.S.v. § 14 BGB.
+
+Bei der App handelt es sich um eine digitale Dienstleistung i.S.v. § 327 Abs. 2 Nr. 2 BGB, da sie fortlaufend personalisierte Ernährungspläne automatisiert erstellt und damit eine kontinuierliche Datenverarbeitungsleistung erbringt, die auf individuelle Nutzereingaben reagiert. Es handelt sich um eine Dauerleistung im Sinne des § 327b Abs. 3 BGB.
+
+#### 2. Qualifikation des Health-Package
+
+Das Health-Package wird von K gegen ein monatliches Entgelt von 10,- € für ein Jahr abonniert. Es handelt sich um einen entgeltlichen Vertrag über eine digitale Dienstleistung i.S.v. § 327 Abs. 2 Nr. 2 BGB, da fortlaufend Reports erstellt, ernährungsgesundheitliche Analysen durchgeführt und Optimierungsvorschläge unterbreitet werden. Auch hier liegt eine Dauerleistung vor (§ 327b Abs. 3 BGB). Die §§ 327 ff. BGB finden ebenfalls Anwendung, nun auf Basis einer Geldgegenleistung.
+
+#### 3. Einheitlicher oder getrennter Vertrag?
+
+K hat beides gemeinsam abgeschlossen. Ob Basisversion und Health-Package einen einheitlichen Vertrag oder zwei selbständige Verträge bilden, ist durch Auslegung zu ermitteln. Angesichts des funktionalen Zusammenhangs – das Health-Package baut inhaltlich auf der Basisleistung (Ernährungspläne) auf und wertet diese aus – besteht eine enge inhaltliche Verknüpfung. Allerdings sind Entgeltstruktur und Leistungsinhalt klar getrennt. Im Zweifel ist nach der für den Verbraucher günstigeren Auslegung zu verfahren. Die Trennbarkeit spricht für zwei Verträge, wobei der wirtschaftliche Sinn des Health-Package von der funktionierenden Basisleistung abhängt, was im Rahmen der Rückabwicklung zu beachten ist.
+
+---
+
+### II. Besteht ein Recht des K zur Beendigung des Vertrages?
+
+K erklärt per E-Mail die „Kündigung"" des gesamten Vertrages. Die Erklärung ist auszulegen (§§ 133, 157 BGB). K macht geltend, die Basisleistung sei mangelhaft und er wolle den Vertrag insgesamt rückabwickeln. Zu prüfen ist, welches Beendigungs- und Rückabwicklungsrecht bei Verträgen über digitale Produkte im Falle von Mängeln gilt.
+
+#### 1. Mangelfreiheitspflicht und Mangel
+
+Gem. § 327d BGB hat V als Unternehmerin die digitale Dienstleistung in mangelfreiem Zustand bereitzustellen. Die Anforderungen an die Mangelfreiheit ergeben sich aus §§ 327e, 327f BGB.
+
+Gem. § 327e Abs. 1 BGB ist das digitale Produkt frei von Produktmängeln, wenn es die subjektiven (§ 327e Abs. 2 BGB), objektiven (§ 327e Abs. 3 BGB) und Montageanforderungen (§ 327e Abs. 4 BGB) erfüllt.
+
+Gem. § 327e Abs. 2 Nr. 1 BGB muss das Produkt der vereinbarten Beschreibung entsprechen. Ausdrücklich vereinbart war, dass die App die Ernährungspläne **auf der Grundlage der eingegebenen Präferenzen** erstellt. K hatte als Präferenzen „vegetarisch"" und „kein Kohlgemüse"" angegeben. Ab dem vierten Monat erstellt die App Ernährungspläne, die diese Präferenzen ignorieren. Dies stellt eine Abweichung von der vertraglich geschuldeten Beschaffenheit dar. Ein Produktmangel i.S.v. § 327e Abs. 2 Nr. 1 BGB liegt vor.
+
+#### 2. Nacherfüllung
+
+Gem. § 327l Abs. 1 BGB kann der Verbraucher zunächst Nacherfüllung verlangen, d.h. Herstellung des vertragsgemäßen Zustands. K hat dies getan: Er hat sich über die Kontaktfunktion der App an den Kundenservice der V gewandt und **wiederholt** einen korrigierten Ernährungsplan verlangt – ohne Erfolg. In den zwei Folgewochen wurden erneut mangelhafte Pläne bereitgestellt.
+
+Gem. § 327l Abs. 3 S. 1 BGB kann der Verbraucher das Recht auf Vertragsbeendigung ausüben, wenn die Nacherfüllung fehlgeschlagen, verweigert oder unzumutbar ist. Im vorliegenden Fall hat V trotz wiederholter Aufforderung keine vertragsgemäßen Ernährungspläne bereitgestellt. Nach zwei vergeblichen Versuchen und zwei weiteren mangelbelasteten Wochen ist die Nacherfüllung als fehlgeschlagen anzusehen. Eines gesonderten Ablehnens der Nacherfüllung durch V bedarf es daneben nicht mehr, da diese faktisch nicht reagiert hat.
+
+Eine Fristsetzung ist nach § 327l Abs. 2 BGB grundsätzlich erforderlich, kann aber gem. § 327l Abs. 3 S. 2 BGB entbehrlich sein, wenn der Unternehmer die Nacherfüllung ernsthaft und endgültig verweigert oder die besondere Eilbedürftigkeit der Abhilfe offensichtlich ist. Da V auf die wiederholten Anfragen des K nicht reagiert hat und stattdessen über mehrere Wochen hinweg weiter mangelhafte Pläne bereitgestellt hat, liegt jedenfalls konkludent eine Verweigerung der Abhilfe vor. Die Fristsetzung ist damit entbehrlich.
+
+#### 3. Erheblichkeit des Mangels
+
+Gem. § 327m Abs. 1 S. 2 BGB ist das Recht auf Vertragsbeendigung ausgeschlossen, wenn der Produktmangel unerheblich ist (analog zu § 323 Abs. 5 S. 2 BGB). Der Mangel ist hier nicht unerheblich: Die Präferenzen „vegetarisch"" und „kein Kohlgemüse"" sind konstitutiv für den individuellen Ernährungsplan, der gerade das Kernversprechen der App darstellt. Die Ignorierung dieser Präferenzen macht die Leistung für K nicht lediglich geringfügig schlechter, sondern beeinträchtigt deren Tauglichkeit für den vertraglich vorgesehenen Zweck wesentlich. Der Mangel ist erheblich.
+
+#### 4. Ergebnis: Recht zur Vertragsbeendigung
+
+K steht gem. §§ 327m Abs. 1, 327l Abs. 3 BGB ein Recht zur Beendigung des Vertrages zu. Seine per E-Mail erklärte „Kündigung"" ist als Ausübung dieses Beendigungsrechts auszulegen (§§ 133, 157 BGB). Die Erklärung ist hinreichend klar und gegenüber V abgegeben.
+
+---
+
+### III. Rückabwicklung nach Vertragsbeendigung (§§ 327p ff. BGB)
+
+#### 1. Rückabwicklung des Health-Package (Geldgegenleistung)
+
+Gem. § 327p Abs. 1 BGB hat V die gezahlten Entgelte zurückzuerstatten. K hat vier Monate à 10,- € = 40,- € gezahlt.
+
+Fraglich ist, ob K auch für die ersten drei störungsfrei genutzten Monate eine Erstattung verlangen kann oder ob V einen Wertersatz für die in dieser Zeit erbrachte Leistung verlangen kann.
+
+##### a) Wertersatz für mangelfreie Nutzung
+
+Gem. § 327p Abs. 3 BGB schuldet der Verbraucher für die in der Zeit vor der Beendigung vertragsgemäß erbrachten Leistungen Wertersatz, wenn und soweit er diese Leistungen bereits erhalten hat. Dies entspricht dem Gedanken, dass der Verbraucher nicht durch die Rückabwicklung bereichert werden soll.
+
+K hat die App drei Monate lang störungsfrei genutzt. Für diese drei Monate hat er die vertragsgemäßen Reports erhalten, die Ernährungspläne wurden präferenzgerecht erstellt und ausgewertet. Für diesen Zeitraum hat V ihre Leistung mangellos erbracht.
+
+§ 327p Abs. 3 S. 2 BGB ordnet jedoch an, dass ein Wertersatz nicht geschuldet wird, soweit der Unternehmer seinen Informationspflichten nicht nachgekommen ist oder die Erklärung zur Beendigung des Vertrages durch den Mangel veranlasst wurde. Der letztgenannte Ausschlussgrund ist hier maßgeblich: K erklärt die Beendigung gerade wegen des ab dem vierten Monat aufgetretenen Produktmangels. Die Beendigung ist unmittelbar durch den Mangel veranlasst.
+
+Allerdings ist § 327p Abs. 3 S. 2 BGB im Wortlaut dahingehend zu lesen, dass der Wertersatzausschluss nur für die Leistungen gilt, die durch den Mangel betroffen sind. Dies ist differenziert zu betrachten: Die Leistungen der ersten drei Monate waren mangellos. Es ist systematisch zu klären, ob der durch den Mangel veranlasste Beendigungsanlass den Wertersatz auch für die mangelfreien Vorleistungen entfallen lässt.
+
+Nach dem Schutzzweck des § 327p Abs. 3 S. 2 BGB soll der Verbraucher davor geschützt werden, die Kosten für eine Beendigung tragen zu müssen, die er nicht zu vertreten hat. Wäre er verpflichtet, für die vorangegangenen mangelfreien Leistungen Wertersatz zu leisten, würde dies die wirtschaftliche Wirkung des Beendigungsrechts erheblich abschwächen. Die Richtlinie 2019/770/EU (Art. 16 Abs. 3 lit. b) stellt explizit darauf ab, dass kein Wertersatz für Leistungen geschuldet wird, die vor dem Ende des Vertrages erbracht wurden, **wenn** die Beendigung wegen eines Mangels erfolgt ist. Der Richtlinientext differenziert insoweit nicht zwischen mangelhaften und mangelfreien Teilleistungen, sondern knüpft einheitlich an den Beendigungsanlass an.
+
+Dieser richtlinienkonforme Auslegung des § 327p Abs. 3 S. 2 BGB führt dazu, dass K für die ersten drei Monate keinen Wertersatz schuldet, weil die Beendigung durch den Mangel veranlasst wurde. V hat damit keinen Gegenanspruch.
+
+##### b) Ergebnis zu Frage 1 bezüglich des Health-Package
+
+K kann von V die vollständige Erstattung der 40,- € verlangen. V schuldet keine Aufrechnung mit einem Wertersatzanspruch für die mangelfreien Monate.
+
+#### 2. Basisversion: Rückabwicklung der Datengegenleistung
+
+Die Basisversion wurde durch Bereitstellung personenbezogener Daten „vergütet"". Gem. § 327p Abs. 4 BGB darf der Unternehmer nach Beendigung des Vertrages personenbezogene Daten, die er aufgrund des Vertrages erhalten hat, nicht mehr verarbeiten, es sei denn, die Verarbeitung beruht auf einem anderen Rechtsgrund. Darüber hinaus hat V gem. § 327p Abs. 4 S. 2 BGB alle Inhalte, die K im Rahmen des Vertrages bereitgestellt hat, dem K auf Verlangen zur Verfügung zu stellen. K verlangt keine Herausgabe von Inhalten, sondern die Beendigung des Vertrages und Rückabwicklung. Eine Erstattung von Geld aus der Basisversion scheidet mangels Geldzahlung aus.
+
+Der Anspruch auf Erstattung von 40,- € bezieht sich daher ausschließlich auf das Health-Package.
+
+---
+
+### IV. Ergebnis zu Frage 1
+
+K kann von V Erstattung von 40,- € gem. § 327p Abs. 1 BGB verlangen. Er hat wirksam sein Recht auf Vertragsbeendigung gem. § 327m BGB ausgeübt, die Nacherfüllung ist fehlgeschlagen, der Mangel war erheblich, und ein Wertersatzanspruch der V für die ersten drei mangelfreien Monate besteht gem. § 327p Abs. 3 S. 2 BGB nicht, da die Beendigung durch den Mangel veranlasst wurde.
+
+---
+
+## B. Kann K von V Ersatz für die vergebliche Ernährungsumstellung verlangen? (Frage 2)
+
+K begehrt Ersatz für den Aufwand, den er durch die Ernährungsumstellung betrieben hat, die er nun als „für die Katz"" bezeichnet. Dabei handelt es sich um einen Schadensersatzanspruch eigener Art: K macht die Nutzlosigkeit seiner aufgewendeten Mühen und Anstrengungen geltend. In Betracht kommen Ansprüche aus §§ 280 Abs. 1, 3, 281 BGB (Schadensersatz statt der Leistung), §§ 280 Abs. 1, 283 BGB sowie spezifisch § 327i BGB als Schadensersatzgrundlage im Recht der digitalen Produkte. Außerdem ist § 284 BGB zu prüfen, der den Ersatz vergeblicher Aufwendungen regelt.
+
+---
+
+### I. Schadensersatzanspruch aus § 327i BGB i.V.m. §§ 280, 281 BGB
+
+#### 1. Anwendbarkeit
+
+§ 327i BGB verweist für den Schadensersatz bei Mängeln digitaler Produkte auf die allgemeinen Vorschriften, soweit die §§ 327 ff. BGB nichts Abweichendes bestimmen. Im Bereich der digitalen Dienstleistungsverträge gelten damit grundsätzlich §§ 280 ff. BGB für Schadensersatzansprüche.
+
+#### 2. Pflichtverletzung
+
+Eine Pflichtverletzung i.S.v. § 280 Abs. 1 BGB liegt in der mangelhaften Leistung der V vor. Ab dem vierten Monat wurden Ernährungspläne bereitgestellt, die die angegebenen Präferenzen von K nicht berücksichtigten. Dies stellt eine Verletzung der vertraglichen Hauptleistungspflicht dar (§ 327d BGB i.V.m. § 327e BGB). Die Pflichtverletzung ist zudem durch die wiederholte Nichtreaktion auf die Beschwerden des K fortwährend bestätigt worden.
+
+#### 3. Vertretenmüssen
+
+Gem. § 280 Abs. 1 S. 2 BGB wird das Vertretenmüssen vermutet. V hat nichts vorgetragen, was die Pflichtverletzung entschuldigte. Das Vertretenmüssen ist zu bejahen.
+
+#### 4. Schaden: Vergebliche Ernährungsumstellung
+
+Der ersatzfähige Schaden ist zu bestimmen. K macht geltend, dass seine Ernährungsumstellung „für die Katz"" gewesen sei und ihn „viel Kraft gekostet"" habe. Es geht damit um den Ausgleich für vergeblich aufgewendete Mühe und Anstrengung. Dies ist kein klassischer Vermögensschaden im Sinne der Differenzhypothese.
+
+##### a) Schadensersatz statt der Leistung (§§ 280, 281 BGB)
+
+Schadensersatz statt der Leistung gemäß §§ 280 Abs. 1, 3, 281 BGB setzt voraus, dass K anstelle der Leistung Geldersatz begehrt. Dieser Anspruch ersetzt wirtschaftlich den Nachteil, der durch das Ausbleiben der mangelfreien Leistung entsteht. Die vergebliche Ernährungsumstellung als solche ist jedoch kein Schaden, der an die Stelle der Leistung tritt, sondern ein Begleitschaden der Leistungsstörung. Sie ist aus dem Vermögen des K heraus nicht bezifferbar, da es sich um persönliche Anstrengung handelt, nicht um wirtschaftliche Aufwendungen im Sinne von Geldausgaben.
+
+##### b) Begleitschäden / Mangelfolgeschäden (§ 280 Abs. 1 BGB)
+
+Über §§ 280 Abs. 1, 327i BGB können auch Begleit- und Mangelfolgeschäden ersetzt werden, die durch die Pflichtverletzung kausal verursacht wurden. Der Schaden muss jedoch nach §§ 249 ff. BGB ersatzfähig sein.
+
+Die vergebliche Ernährungsumstellung stellt eine Aufwendung in Form persönlicher Energie dar. Es stellt sich die Frage, ob persönlicher Zeitaufwand und körperliche Anstrengung als ersatzfähiger Schaden geltend gemacht werden können.
+
+Nach ständiger Rechtsprechung des BGH ist die bloße Mühe und Zeitaufwendung eines Nichtgewerbetreibenden grundsätzlich kein ersatzfähiger Vermögensschaden, weil die eigene Arbeitskraft nur dann einen messbaren Vermögenswert darstellt, wenn sie anderweitig wirtschaftlich einsetzbar gewesen wäre (vgl. BGH, NJW 2009, 1066). Da K als Privatperson tätig war und keine Ausführungen im Sachverhalt darauf hindeuten, dass er beruflich als Ernährungsberater oder in einem ähnlichen Feld tätig ist, scheidet ein Vermögensschaden durch entgangene Einnahmen aus.
+
+##### c) Prüfung des § 284 BGB: Ersatz vergeblicher Aufwendungen
+
+§ 284 BGB ermöglicht es dem Gläubiger, anstelle des Schadensersatzes statt der Leistung Ersatz der Aufwendungen zu verlangen, die er im Vertrauen auf den Erhalt der Leistung gemacht hat und die billigerweise machen durfte.
+
+Dieser Anspruch ist systematisch an Stelle des Schadensersatzes statt der Leistung (§§ 280, 281, 283 oder 311a BGB) gegeben, nicht kumulativ daneben. Er setzt voraus:
+
+**aa) Anstelle des Schadensersatzes statt der Leistung**
+
+Die Voraussetzungen des Schadensersatzes statt der Leistung müssen grundsätzlich vorliegen. Die Pflichtverletzung ist festgestellt (s.o.), das Vertretenmüssen ist zu bejahen, und es ist ein Schaden entstanden. Die weiteren Voraussetzungen des § 281 BGB (Fristsetzung oder deren Entbehrlichkeit) wurden oben bereits im Rahmen des Beendigungsrechts erörtert: Nach wiederholter vergeblicher Nacherfüllungsaufforderung und fortgesetzter Pflichtverletzung ist die Fristsetzung entbehrlich. Die Voraussetzungen des § 281 BGB liegen vor.
+
+**bb) Aufwendung**
+
+K hat seine Ernährung umgestellt. Dies kann als tatsächliche Investition – insbesondere wenn damit Ausgaben für besondere Lebensmittel verbunden waren – eine geldwerte Aufwendung darstellen. Allerdings macht K keine konkreten Geldausgaben geltend, sondern den Aufwand an Kraft und Mühe.
+
+Die Frage ist, ob persönliche Anstrengung und Mühe eine „Aufwendung"" i.S.v. § 284 BGB darstellt. Nach dem BGB-Verständnis sind Aufwendungen freiwillige Vermögensopfer (§ 256 BGB). Die h.M. erkennt an, dass § 284 BGB auch immaterielle Aufwendungen erfassen kann, wenn sie in Geld messbar sind (z.B. Zeitaufwand bei professioneller Verwendung). Für rein persönliche Anstrengung ohne wirtschaftlichen Inhalt wird dies jedoch überwiegend abgelehnt.
+
+K macht keine bezifferten Geldausgaben für besondere Lebensmittel, Ernährungsberatung oder ähnliches geltend. Er führt lediglich aus, dass ihn die Umstellung „viel Kraft gekostet"" habe. Dieser immaterielle Aufwand – subjektives Gefühl der Anstrengung – ist kein vermögensmäßig bezifferbares Opfer und unterfällt daher nicht dem Aufwendungsbegriff des § 284 BGB.
+
+**cc) Im Vertrauen auf den Erhalt der Leistung**
+
+K hat die Ernährungsumstellung vorgenommen, weil er darauf vertraute, dass die App dauerhaft vertragsgemäße Ernährungspläne liefern und seinen Cholesterinwert verbessern würde. Das Vertrauen auf den Erhalt der vertragsgemäßen Leistung lag vor.
+
+**dd) Ergebnis zu § 284 BGB**
+
+Da es an einer vermögensmäßig fassbaren Aufwendung fehlt – K macht keinen konkreten Geldaufwand für Lebensmittel, Beratungsleistungen o.ä. geltend, sondern ausschließlich persönliche Mühe und Anstrengung –, scheitert der Anspruch aus § 284 BGB mangels einer nach § 284 BGB ersatzfähigen Aufwendung.
+
+---
+
+### II. Ersatz immaterieller Schäden / Schmerzensgeld (§ 253 BGB)
+
+Gem. § 253 Abs. 1 BGB kann Ersatz immaterieller Schäden in Geld nur in den gesetzlich bestimmten Fällen gefordert werden. § 253 Abs. 2 BGB betrifft Verletzungen von Körper, Gesundheit, Freiheit oder sexueller Selbstbestimmung. Eine Körper- oder Gesundheitsverletzung des K ist dem Sachverhalt nicht zu entnehmen. Der bloße Aufwand und die Anstrengung der Ernährungsumstellung begründen keine ersatzfähige immaterielle Einbuße i.S.v. § 253 Abs. 2 BGB. Ein Schmerzensgeldanspruch scheidet aus.
+
+---
+
+### III. Anspruch aus § 327i BGB i.V.m. § 311a BGB oder anderen Grundlagen
+
+Weitere Anspruchsgrundlagen sind nicht ersichtlich. § 311a BGB (anfängliche Unmöglichkeit) ist nicht einschlägig, da die Leistungsstörung erst ab dem vierten Monat aufgetreten ist. Eine deliktische Haftung gem. § 823 Abs. 1 BGB setzt eine Rechtsgutverletzung voraus; eine Körper- oder Gesundheitsverletzung ist nicht nachgewiesen.
+
+---
+
+### IV. Ergebnis zu Frage 2
+
+K kann von V keinen Ersatz für die vergebliche Ernährungsumstellung verlangen. Ein Schadensersatzanspruch aus §§ 280 Abs. 1, 327i BGB scheitert daran, dass die bloße persönliche Mühe und Anstrengung kein ersatzfähiger Vermögensschaden ist. Der Aufwendungsersatzanspruch gem. § 284 BGB scheitert ebenfalls, da K keine vermögensmäßig fassbaren Aufwendungen – insbesondere keine konkreten Geldausgaben für Lebensmittel oder sonstige Kosten der Ernährungsumstellung – dargelegt hat, die als freiwillige Vermögensopfer im Vertrauen auf die Leistung der V qualifiziert werden könnten. Die persönliche Anstrengung als solche ist kein subsumtionsfähiger Aufwendungsbegriff im Sinne des § 284 BGB. Ein immaterieller Schadensersatz gem. § 253 BGB ist mangels einer Körper- oder Gesundheitsverletzung ausgeschlossen."
+A016,P04,2,Herausgabe Buch,Zivilrecht,Schwer,classic,creator,false,creator,1644,"<br />
+
+Teil 1:
+
+Fraglich ist ob A gegen B einen Anspruch auf herausgabe des buches zusteht.
+
+Hierbei kommen mehrehre Anspruchsgrundlagen in Betracht
+
+A. Anspruch aus Vertrag
+
+I. Anspruch aus Pflicht zur Rückgabe nach Vertragsbeendigung.
+
+Liegt nicht vor da ein solcher Vertrag nicht geschlossen wurde.
+
+B. Vertragsähnliche Herausgabeansprüche:
+
+**[I. C.i.c.](https://www.juraindividuell.de/pruefungsschemata/der-anspruchsaufbau/)** (§§ 280 I, 311 II, 249 I BGB)
+
+C.i.c kommt nicht in Betracht da es sich nicht um vorvertraglichen Schuldverhältnisses geht
+
+C. Sachenrechtliche Herausgabeansprüche:
+
+**[I. § 985 BGB](https://www.juraindividuell.de/pruefungsschemata/der-herausgabeanspruch-gemaess-985-bgb/)**/Verweisungen (aus Eigentum/andere dinglich Berechtigte)
+
+A ist nicht Eigentümerin also scheidet § 985 BGB aus.
+
+II. §§ 861 I BGB(aus früherem Besitz)
+
+1.) Obersatz A kann gegen B auch einen Anspruch auf Herausgabe des Bucgesaus § 861 BGB haben.
+
+Ein possessorischer Besitzschutzanspruch der A gegen B setzt voraus, dass dem früheren Besitzer A die Sache durch verbotene Eigenmacht abhanden gekommen ist, und dass der jetzige Besitzer B gegenüber A fehlerhaft besitzt.
+
+a.) Früherer unmittelbarer Besitz des Anspruchsstellers
+
+Die A muss als Anspruchsteller vor der Handlung des B unmittelbare Besitzer gewesen sein. Unmittelbarer Besitz liegt vor, wenn nach der Auffassung des täglichen Lebens auf Grund der räumlichen Beziehung und deren Dauer eine unmittelbare Sachherrschaft gegeben ist. Bevor der B der A das buch entwendete, nutzte A ddas Buch für sich selbst und hatte damit die geforderte unmittelbare Sachherrschaft inne.
+
+b.) Besitzentziehung durch verbotene Eigenmacht, § 858 I BGB
+
+Des Weiteren müsste B der A den Besitz durch verbotene Eigenmacht entzogen haben. Verbotene Eigenmacht liegt vor, wenn dem unmittelbaren Besitzer ohne dessen Willen der Besitz entzogen oder gestört wird, sofern nicht das Gesetz die Entziehung oder die Störung gestattet. Entziehung ist die Beendigung des Besitzes, also die Aufhebung der tatsächlichen Sachherrschaft. Indem der B der A das Buch ohne zu fragen weggenommen hat, hat er ihr den unmittelbaren Besitz entzogen. Der E war mit der Entwendung seines Buches nicht einverstanden, mithin erfolgte die  Handlung gegen seinen Willen.
+
+Die Beeinträchtigung müsste auch widerrechtlich erfolgt sein. Widerrechtlich erfolgt die Beeinträchtigung dann, wenn sie nicht ausdrücklich durch das Gesetz gestattet wird. Eine gesetzliche Grundlage, die das Verhalten des B gestatten würde, existiert jedoch nicht. Daher ist das Verhalten des B auch widerrechtlich.
+
+c.) Besitz des Anspruchsgegners
+
+Der Anspruchsgegner, hier der B, müsste auch im Besitz des Buches sein. Besitzer ist derjenige, der über eine Sache die tatsächliche Sachherrschaft ausübt. Besitz ist also die tatsächliche Sachherrschaft, getragen von einem natürlichen Herrschaftswillen, und richtet sich im Zweifel nach der Verkehrsauffassung. Tatsächliche Sachherrschaft erfordert i. d. R. die physische Möglichkeit, auf die Sache unmittelbar einzuwirken und andere von der Einwirkung auszuschließen. Indem der B den Buch das Afortwährend eigenmächtig benutzt, hat er wie oben gesehen, ebendiese geforderte physische Einwirkungsmöglichkeit, er ist mithin Besitzer des Buches.
+
+d.) Fehlerhaftigkeit des Besitzes des B Der Besitz des B müsste schließlich dem E gegenüber fehlerhaft sein. Der unmittelbar durch verbotene Eigenmacht gegen den ursprünglichen Besitzer erlangte Besitz ist fehlerhaft (§ 858 II BGB). Diese Voraussetzung ist daher ebenfalls erfüllt.
+
+II.) Ausschlussgründe
+
+Als Auschlussgrund kommt hier in betrahct, dass As besitzt des Buches selbst fehlerhaft war und sogar einer einstweiligen verfügung ausgesetzt.
+
+Dadurch besteht ein Auschlussgrund
+
+III.) Ergebnis
+
+A hat keinen Anspruch gegen B auf herausgabe des Buches aus §§ 861 I
+
+Teil 2:
+
+Wer ist Eigentümer der Katze?
+
+A. EIgentum des Z
+
+Z könnte eigentum an der katze erworben haben.
+
+A. erwerb nach § 929 S. 1 BGB
+
+I. Dingliche Einigung, § 929 S. 1 BGB 
+
+Erforderlich ist eine Einigung zwischen Veräußerer und Erwerber betreffend den Eigentumsübergang nach § 929 S. 1 BGB, d.h. zwei übereinstimmende Willenserklärungen, dass nunmehr der Erwerber Eigentümer sein soll. 
+
+Hierbei handelt es sich um einen dinglichen Vertrag, auf denen sämtliche Regeln des Allgemeinen Teils (§§ 104-185 BGB) anwendbar sind. 
+
+ Übereignung durch einen Minderjährigen Ist hingegen die Willenserklärung auf die Übereignung eigener Sachen gerichtet, so ist der dingliche Vertrag gemäß §§ 107, 108 BGB schwebend unwirksam, wenn er ohne die Zustimmung des gesetzlichen Vertreters geschlossen wurde. Geht es um die Übereignung fremder Sachen, so wird dadurch das Vermögen des Minderjährigen nicht berührt also besteht ein neutrales Geschäft. Dieses ist nach h.M. wirksam. Hierfür spricht auch, dass der Minderjährige gemäß § 165 BGB sogar Vertreter sein kann. 
+
+II. Übergabe und Übergabesurrogate 
+
+a) Übergabe gemäß § 929 S. 1 BGB 
+
+Die Übergabe nach § 929 S. 1 BGB findet nicht statt da der X noch im besitz der katze ist.
+
+b) Übergabesurrogat gemäß §§ 929 S. 1, 930 BGB 
+
+§ 930 BGB ermöglicht die Ersetzung der Übergabe durch Vereinbarung eines konkreten Besitzmittlungsverhältnisses (§ 868 BGB, Rechtsgeschäft). Neben der dinglichen Einigung muss dann eine weitere ausdrückliche oder konkludente Einigung über ein konkretes BMV erfolgen. Erforderlich ist ein bestimmtes BMV, d.h. es muss auf einen ganz bestimmten Gegenstand bezogen sein.
+
+Vorliegend soll der X die Katze noch genau eine Woche behalten. 
+
+Somit besteht ein BMV
+
+III. Berechtigung des veräußerers und verfügungsbefugnis.
+
+Die Eigentumsübetragung nach § 929 S. 1 BGB scheitert daran , dass X nicht Berechtigt und verfügungsbefugt ist.
+
+IV. Zwischenergebnis
+
+Die Eigentumsübetragung nach § 929 S. 1 BGB scheitert.
+
+B. Der Eigentumserwerb nach §§ 929 S. 1, 932 BGB 
+
+I. Nichtberechtigung/fehlende Berechtigung des Veräußerers
+
+1. *Für eine wirksame Übereignung nach § 929 S. 1 BGB muss der Übereignende berechtigt sein, also grds. verfügungsbefugter Eigentümer.* 
+
+   Hier scheitert es schon daran, dass X kein verfügungsbefugter Eigentümer ist.
+
+   II. Ergebnis.
+
+   Der Eigentumserwerb nach §§ 929 S. 1, 932 BGB scheitert.
+
+   C. gesamtergebnis,
+
+   Y bleibt EIgentümerin
+"
+A020,P05,2,Herausgabe Buch,Zivilrecht,Schwer,co_creation,creator,false,creator,7289,"**# Gutachten – Fall 4**
+
+
+
+\---
+
+
+
+**## Teil 1: Anspruch der A gegen B auf Herausgabe des Buchs**
+
+
+
+**### A. Herausgabeanspruch aus § 985 BGB**
+
+
+
+A könnte gegen B einen Herausgabeanspruch aus § 985 BGB haben. Danach kann der Eigentümer von dem Besitzer die Herausgabe der Sache verlangen. Voraussetzung ist, dass A Eigentümerin des Buchs ist und B Besitzerin, ohne ein Recht zum Besitz gegenüber A zu haben (§ 986 BGB).
+
+
+
+A müsste Eigentümerin des Buchs sein. Laut Sachverhalt hat B das Buch an A verliehen. Die Leihe (§ 598 BGB) begründet lediglich ein Besitzrecht, überträgt aber kein Eigentum. Eigentümerin ist und bleibt daher B.
+
+
+
+Da A nicht Eigentümerin des Buchs ist, scheidet ein Anspruch aus § 985 BGB aus.
+
+
+
+**\*\*Ergebnis: A hat keinen Anspruch aus § 985 BGB.\*\***
+
+
+
+\---
+
+
+
+**### B. Possessorischer Herausgabeanspruch aus § 861 Abs. 1 BGB**
+
+
+
+A könnte gegen B einen possessorischen Herausgabeanspruch aus § 861 Abs. 1 BGB haben. Danach kann derjenige, dem der Besitz durch verbotene Eigenmacht entzogen wird, die Wiedereinräumung des Besitzes verlangen. Der Zweck des § 861 BGB besteht darin, dem bisherigen Besitzer die Möglichkeit einer zügigen gerichtlichen Durchsetzung der Wiedereinräumung des Besitzes zu eröffnen, wenn er sich die Sache nicht selbst nach § 859 BGB verschaffen kann oder will (MüKoBGB/F. L. Schäfer, 10. Aufl. 2026, § 861 Rn. 1). Der Besitzschutz ist insoweit vorläufig, als er bei einem Recht zum Besitz des Gegners durch dessen erfolgreiche Herausgabeklage wieder beendet werden kann (MüKoBGB/F. L. Schäfer, § 861 Rn. 1 aE).
+
+
+
+**#### I. A als frühere Besitzerin**
+
+
+
+A müsste frühere unmittelbare Besitzerin des Buchs gewesen sein. Der Anspruch aus § 861 BGB steht dem bisherigen unmittelbaren Eigen- oder Fremdbesitzer zu, und zwar auch dann, wenn der Besitz unrechtmäßig war (MüKoBGB/F. L. Schäfer, § 861 Rn. 3).
+
+
+
+A hatte das Buch im Rahmen der Leihe von B erhalten und übte als Entleiherin die tatsächliche Sachherrschaft über das Buch aus (§ 854 Abs. 1 BGB). Sie war damit unmittelbare Fremdbesitzerin.
+
+
+
+A war somit unmittelbare Besitzerin des Buchs.
+
+
+
+**#### II. Besitzentziehung durch verbotene Eigenmacht (§ 858 Abs. 1 BGB)**
+
+
+
+Der Besitz müsste A durch verbotene Eigenmacht entzogen worden sein.
+
+
+
+**##### 1. Besitzentziehung**
+
+
+
+Eine Besitzentziehung liegt im dauernden und vollständigen Ausschluss des Besitzers von der tatsächlichen Sachherrschaft (MüKoBGB/F. L. Schäfer, § 858 Rn. 8).
+
+
+
+B hat das Buch während der Kaffeepause aus der Tasche der A genommen und in ihre eigene Tasche gesteckt. Damit wurde A vollständig und dauerhaft von der tatsächlichen Sachherrschaft über das Buch ausgeschlossen. A bemerkte das Fehlen des Buchs erst in der Mittagspause und hatte keine Möglichkeit mehr, auf das Buch zuzugreifen.
+
+
+
+Eine Besitzentziehung liegt vor.
+
+
+
+**##### 2. Ohne den Willen der A**
+
+
+
+Die Besitzentziehung müsste ohne den Willen der A geschehen sein. Allein die zum Beginn der Beeinträchtigung tatsächlich vorhandene Zustimmung des Besitzers macht die Beeinträchtigung zu einer erlaubten; eine solche Zustimmung muss nicht rechtsgeschäftlich erklärt werden und kann sich auch aus den Umständen ergeben (MüKoBGB/F. L. Schäfer, § 858 Rn. 19).
+
+
+
+A hat der Wegnahme des Buchs nicht zugestimmt. Im Gegenteil befand sie sich auf der Toilette und hatte keine Kenntnis von dem Zugriff der B. Dass A zuvor die Rückgabe des Buchs verweigert hatte, stellt keine Zustimmung zu einer eigenmächtigen Wegnahme durch B dar.
+
+
+
+Die Besitzentziehung geschah ohne den Willen der A.
+
+
+
+**##### 3. Widerrechtlichkeit**
+
+
+
+Die Besitzbeeinträchtigung ohne Willen des Besitzers ist grundsätzlich widerrechtlich. Dies gilt unabhängig davon, ob der Besitzer ein Recht zum Besitz (§ 986 BGB) hat oder sogar seine fehlende Berechtigung kennt. Die Widerrechtlichkeit wird insbesondere nicht dadurch ausgeschlossen, dass der Störer einen Anspruch auf Herausgabe, Beseitigung, Unterlassung oder Gestattung der beeinträchtigenden Handlung hat (MüKoBGB/F. L. Schäfer, § 858 Rn. 26). Verbotene Eigenmacht ist vielmehr jede gesetzlich nicht besonders gestattete Beeinträchtigung des bestehenden unmittelbaren Besitzes ohne Einverständnis des Besitzers. Es handelt sich um einen rein objektiven Tatbestand der Widerrechtlichkeit; Geschäftsfähigkeit, Verschuldensfähigkeit und Verschulden sind ebenso bedeutungslos wie das Bewusstsein, fremden Besitz zu beeinträchtigen, oder der gute Glaube an eine Zustimmung des Besitzers (MüKoBGB/F. L. Schäfer, § 858 Rn. 3).
+
+
+
+Die Besitzentziehung war nicht gesetzlich gestattet (zur Frage möglicher Gestattungsgründe sogleich unter III.). Insbesondere begründen nur Vollstreckungsakte, die auf Gesetz beruhen – etwa Handlungen eines Gerichtsvollziehers –, keine verbotene Eigenmacht (MüKoBGB/F. L. Schäfer, § 858 Rn. 31). Private Selbstjustiz fällt hierunter nicht. Das Gesetz untersagt unabhängig vom Bestehen eines Anspruchs auf Besitzeinräumung die Selbsthilfe gegen den Besitzer und verweist den Berechtigten zur Wiedererlangung des Besitzes auf die Inanspruchnahme der Gerichte (MüKoBGB/F. L. Schäfer, § 858 Rn. 1; vgl. BGHZ 79, 232).
+
+
+
+Die Besitzentziehung war widerrechtlich.
+
+
+
+**##### 4. Zwischenergebnis**
+
+
+
+B hat A den Besitz am Buch durch verbotene Eigenmacht im Sinne des § 858 Abs. 1 BGB entzogen.
+
+
+
+**#### III. Kein Gestattungsgrund**
+
+
+
+Die verbotene Eigenmacht könnte ausnahmsweise gerechtfertigt sein, wenn ein gesetzlicher Gestattungsgrund vorliegt.
+
+
+
+**##### 1. Eigentum der B als Rechtfertigung?**
+
+
+
+B beruft sich auf ihr Eigentum an dem Buch. Fraglich ist, ob das Eigentum die verbotene Eigenmacht rechtfertigen kann.
+
+
+
+Nach § 863 BGB kann ein Recht zum Besitz oder zur Vornahme der störenden Handlung gegenüber dem possessorischen Anspruch nur zur Begründung der Behauptung geltend gemacht werden, dass die Entziehung oder die Störung des Besitzes nicht verbotene Eigenmacht sei. Daraus folgt der Grundsatz *\*possessorium absorbet petitorium\**: Umstände außerhalb der gesetzlichen Besitzschutztatbestände stehen dem possessorischen Anspruch nicht entgegen (MüKoBGB/F. L. Schäfer, § 863 Rn. 6). Es ist einerlei, ob das geltend gemachte Recht dinglicher oder schuldrechtlicher Natur ist. Der Beklagte kann daher weder sein Eigentum noch schuldrechtliche Ansprüche einwenden (MüKoBGB/F. L. Schäfer, § 863 Rn. 6). Auch der *\*dolo-agit\**-Einwand ist nach § 863 BGB ausgeschlossen; der Besitzschutzanspruch entfällt insbesondere nicht gemäß § 242 BGB wegen Rechtsmissbrauchs (MüKoBGB/F. L. Schäfer, § 863 Rn. 7). § 863 BGB statuiert damit eine gesetzliche Ausnahme von der *\*dolo-agit\**-Einrede.
+
+
+
+Auch in der Lehrbuchliteratur wird dies betont: Im possessorischen Verfahren wird nicht gefragt, ob der klagende Besitzer ein Recht zum Besitz hat; der Beklagte kann sich daher nicht auf ein Recht zum Besitz berufen – sogenannter Ausschluss petitorischer Einwendungen (Baur/Stürner, Sachenrecht, 18. Aufl. 2009, § 9 Rn. 17).
+
+
+
+Das Eigentumsrecht der B ist daher im Rahmen des § 861 BGB unbeachtlich. Das Eigentum rechtfertigt die verbotene Eigenmacht nicht.
+
+
+
+**##### 2. Einstweilige Verfügung als Rechtfertigung?**
+
+
+
+B beruft sich ferner auf die erlassene einstweilige Verfügung. Fraglich ist, ob diese die Besitzentziehung rechtfertigt.
+
+
+
+Zunächst ist festzustellen, dass die einstweilige Verfügung die Herausgabe des Buchs an einen von B beauftragten Gerichtsvollzieher zur Verwahrung anordnete – nicht an B persönlich. Die Verfügung ermächtigte B mithin nicht, das Buch selbst an sich zu nehmen. Darüber hinaus war die einstweilige Verfügung zum Zeitpunkt der Wegnahme noch nicht vollzogen worden. Auch eine bestehende einstweilige Verfügung berechtigt nicht zur eigenmächtigen Durchsetzung; die Zwangsvollstreckung hat vielmehr nach den gesetzlichen Regeln der §§ 883 ff. ZPO zu erfolgen (MüKoBGB/F. L. Schäfer, § 858 Rn. 31). Das staatliche Gewaltmonopol verbietet die private Durchsetzung von Ansprüchen, selbst wenn ein gerichtlicher Titel vorliegt (MüKoBGB/F. L. Schäfer, § 858 Rn. 1).
+
+
+
+Baur/Stürner illustrieren dieses Prinzip eindrücklich: Wenn ein Käufer von einem Verkäufer aufgrund eines Kaufvertrags die Leistung einer Sache zu fordern hat, so darf er sie dem Verkäufer doch nicht gewaltsam wegnehmen; er muss vielmehr ein Leistungsurteil erwirken. Nimmt sodann der Gerichtsvollzieher nach § 883 ZPO dem Verkäufer die Sache weg, so begeht dieser – nicht aber der privat handelnde Gläubiger – keine verbotene Eigenmacht (Baur/Stürner, § 9 Rn. 7).
+
+
+
+Die einstweilige Verfügung rechtfertigt die eigenmächtige Wegnahme durch B daher nicht.
+
+
+
+**##### 3. Selbsthilferecht der B aus § 859 BGB?**
+
+
+
+B könnte ein Selbsthilferecht aus § 859 BGB zustehen. Das Selbsthilferecht des § 859 BGB erlaubt dem Besitzer die Ausübung von Gewalt zur Abwehr von Besitzbeeinträchtigungen (Besitzwehr, Abs. 1) und zur Wiedererlangung des Besitzes (Besitzkehr, Abs. 2 und 3) als gesetzliche Ausnahme vom Grundsatz des staatlichen Gewaltmonopols (MüKoBGB/F. L. Schäfer, § 859 Rn. 1). Ein Recht zum Besitz braucht der Besitzer hierfür nicht zu haben; selbst der fehlerhaft Besitzende hat das Recht zur Gewaltausübung nach § 859 BGB (MüKoBGB/F. L. Schäfer, § 859 Rn. 4). Umgekehrt steht einem Eigentümer kein Selbsthilferecht aus § 859 BGB zu, wenn nicht zuvor sein Besitz durch verbotene Eigenmacht beeinträchtigt wurde.
+
+
+
+**\*\*(a) Besitzwehr (§ 859 Abs. 1 BGB)\*\***
+
+
+
+Die Besitzwehr nach § 859 Abs. 1 BGB setzt voraus, dass der Besitzer sich gegen eine gegenwärtige, noch andauernde Besitzbeeinträchtigung durch verbotene Eigenmacht wehrt (MüKoBGB/F. L. Schäfer, § 859 Rn. 6). B wurde vorliegend nicht der Besitz entzogen; sie handelte vielmehr aktiv, indem sie das Buch aus der Tasche der A nahm. Eine Verteidigung gegen eine gegenwärtige Besitzbeeinträchtigung liegt darin nicht.
+
+
+
+Ein Fall der Besitzwehr nach § 859 Abs. 1 BGB liegt nicht vor.
+
+
+
+**\*\*(b) Besitzkehr bei beweglichen Sachen (§ 859 Abs. 2 BGB)\*\***
+
+
+
+Die Besitzkehr nach § 859 Abs. 2 BGB erlaubt bei beweglichen Sachen die Wiederbeschaffung einer entzogenen Sache, wenn der Täter auf frischer Tat betroffen oder verfolgt wird (MüKoBGB/F. L. Schäfer, § 859 Rn. 14). Voraussetzung ist, dass B zuvor der Besitz durch verbotene Eigenmacht entzogen wurde.
+
+
+
+Fraglich ist, ob die Weigerung der A, das Buch nach Ablauf der Leihfrist zurückzugeben, eine verbotene Eigenmacht gegenüber B darstellt. Verbotene Eigenmacht setzt eine menschliche Handlung voraus, die in einem Tun oder einem pflichtwidrigen Unterlassen bestehen kann. Das Unterlassen begründet aber nur dann verbotene Eigenmacht, wenn eine Handlungspflicht besteht (MüKoBGB/F. L. Schäfer, § 858 Rn. 3). Entscheidend ist hier, dass die bloße Vorenthaltung einer Sache nach Ablauf der Leihfrist keine Besitzentziehung darstellt. Denn die Fortsetzung des eigenen bestehenden Besitzes ist keine verbotene Eigenmacht, und zwar auch dann nicht, wenn eine Herausgabepflicht besteht (MüKoBGB/F. L. Schäfer, § 858 Rn. 7; OLG Hamm NJW 1986, 728). A hat den Besitz nicht durch verbotene Eigenmacht an sich gebracht, sondern ihn ursprünglich rechtmäßig durch die Leihe erhalten. Die bloße Nichtherausgabe nach Fristablauf begründet keine Besitzentziehung gegenüber B.
+
+
+
+B wurde daher nicht durch verbotene Eigenmacht der Besitz entzogen. Mangels vorausgehender verbotener Eigenmacht gegen B ist ein Besitzkehrrecht nach § 859 Abs. 2 BGB nicht gegeben.
+
+
+
+Selbst wenn man dies anders sehen wollte, wäre die zeitliche Voraussetzung der Besitzkehr nicht erfüllt: Die Wegnahme des Buchs durch B geschah während eines Seminars, also zeitlich deutlich nach der anfänglichen Weigerung der A, das Buch zurückzugeben. Die Besitzkehr verlangt jedoch einen engen zeitlichen Zusammenhang mit der Besitzentziehung; der Täter muss auf frischer Tat betroffen oder verfolgt werden (MüKoBGB/F. L. Schäfer, § 859 Rn. 14; vgl. OLG Schleswig NStZ 1987, 75).
+
+
+
+Ein Selbsthilferecht aus § 859 Abs. 2 BGB besteht nicht.
+
+
+
+**\*\*(c) Besitzkehr bei Grundstücken (§ 859 Abs. 3 BGB)\*\***
+
+
+
+Ein Fall des § 859 Abs. 3 BGB liegt nicht vor, da es sich um eine bewegliche Sache handelt.
+
+
+
+**\*\*Ergebnis: B steht kein Selbsthilferecht aus § 859 BGB zu.\*\***
+
+
+
+**##### 4. Allgemeine Selbsthilfe nach § 229 BGB?**
+
+
+
+Schließlich könnte B ein Recht zur allgemeinen Selbsthilfe nach § 229 BGB zustehen. Die Voraussetzungen des § 229 BGB sind, dass obrigkeitliche Hilfe nicht rechtzeitig zu erlangen ist und ohne sofortiges Eingreifen die Gefahr besteht, dass die Verwirklichung des Anspruchs vereitelt oder wesentlich erschwert wird.
+
+
+
+Vorliegend hat B jedoch bereits eine einstweilige Verfügung erwirkt. Das Gericht hat dem Antrag stattgegeben und die Herausgabe des Buchs an einen Gerichtsvollzieher zur Verwahrung angeordnet. Obrigkeitliche Hilfe stand somit nicht nur zur Verfügung, sondern war bereits eingeleitet. Die Voraussetzung, dass obrigkeitliche Hilfe nicht rechtzeitig zu erlangen ist, liegt daher nicht vor.
+
+
+
+**\*\*Ergebnis: Ein Selbsthilferecht aus § 229 BGB besteht nicht.\*\***
+
+
+
+**##### 5. Zwischenergebnis**
+
+
+
+Es liegt kein Gestattungsgrund vor, der die verbotene Eigenmacht der B rechtfertigen könnte. Weder das Eigentum der B, noch die einstweilige Verfügung, noch ein Selbsthilferecht aus § 859 oder § 229 BGB vermögen die eigenmächtige Besitzentziehung zu gestatten.
+
+
+
+**#### IV. Fehlerhaftigkeit des Besitzes der B (§ 858 Abs. 2 BGB)**
+
+
+
+Der durch verbotene Eigenmacht erlangte Besitz ist fehlerhaft (§ 858 Abs. 2 S. 1 BGB). Die Fehlerhaftigkeit ist relative Rechtswidrigkeit gegenüber bestimmten Personen (MüKoBGB/F. L. Schäfer, § 858 Rn. 40). B ist gegenüber A fehlerhafte Besitzerin. Der Anspruch aus § 861 BGB richtet sich gegen den fehlerhaft unmittelbar Besitzenden (MüKoBGB/F. L. Schäfer, § 861 Rn. 4). B ist als derzeitige unmittelbare Besitzerin des Buchs die richtige Anspruchsgegnerin.
+
+
+
+**#### V. Kein Erlöschen des Anspruchs**
+
+
+
+Der Anspruch aus § 861 BGB unterliegt nicht der Verjährung, sondern der Ausschlussfrist des § 864 Abs. 1 BGB. Danach erlischt der Anspruch mit dem Ablauf eines Jahres nach der Verübung der verbotenen Eigenmacht (MüKoBGB/F. L. Schäfer, § 861 Rn. 13; Baur/Stürner, § 9 Rn. 19). Die Frist von einem Jahr ist vorliegend noch nicht abgelaufen. Auch ein rechtskräftiges Urteil zugunsten des B auf petitorischer Grundlage, das den Anspruch nach § 864 Abs. 2 BGB erlöschen ließe, liegt nicht vor.
+
+
+
+Der Anspruch aus § 861 Abs. 1 BGB ist nicht erloschen.
+
+
+
+**#### VI. Rechtsfolge**
+
+
+
+Der Anspruch aus § 861 Abs. 1 BGB ist auf die Wiedereinräumung des Besitzes gerichtet, also auf Herausgabe des Buchs an A. Die Verpflichtete hat – auf eigene Kosten – den Besitz so wiederherzustellen, wie er vor der Verübung der verbotenen Eigenmacht bestanden hatte (MüKoBGB/F. L. Schäfer, § 861 Rn. 6).
+
+
+
+**#### VII. Ergebnis**
+
+
+
+**\*\*A hat gegen B einen Anspruch auf Herausgabe des Buchs aus § 861 Abs. 1 BGB.\*\***
+
+
+
+\---
+
+
+
+**### C. Weitere denkbare Anspruchsgrundlagen (im Überblick)**
+
+
+
+Neben dem possessorischen Anspruch aus § 861 Abs. 1 BGB kommen weitere Anspruchsgrundlagen in Betracht, die hier nur knapp zu erörtern sind, da der Schwerpunkt auf dem possessorischen Besitzschutz liegt.
+
+
+
+**##### 1. § 823 Abs. 1 BGB (Besitz als „sonstiges Recht"")**
+
+
+
+A könnte gegen B einen Schadensersatzanspruch aus § 823 Abs. 1 BGB wegen Verletzung des Besitzes als „sonstigem Recht"" haben. Nach herrschender Meinung gewährt § 823 Abs. 1 BGB einen Schadensersatzanspruch bei schuldhafter Verletzung des Besitzes, soweit dieser durch ein Recht zum Besitz eine Verstärkung erfahren hat (Baur/Stürner, § 9 Rn. 31). Da das Recht der A zum Besitz aus der Leihe nach Ablauf der vereinbarten zwei Wochen erloschen ist, fehlt es an einem berechtigten Besitz. Zudem richtet sich der Anspruch der A hier auf Herausgabe, nicht auf Schadensersatz. Ein Anspruch aus § 823 Abs. 1 BGB wäre daher jedenfalls nicht zielführend.
+
+
+
+**##### 2. § 823 Abs. 2 BGB i.V.m. § 858 BGB**
+
+
+
+Sofern man § 858 BGB als Schutzgesetz im Sinne des § 823 Abs. 2 BGB qualifiziert (vgl. Baur/Stürner, § 9 Rn. 31 aE), käme auch ein Schadensersatzanspruch aus § 823 Abs. 2 BGB in Betracht. Der Schutzbereich wäre allerdings anhand der zu § 823 Abs. 1 BGB entwickelten Kriterien zu begrenzen.
+
+
+
+**##### 3. § 812 Abs. 1 S. 1 Alt. 2 BGB (Eingriffskondiktion)**
+
+
+
+B hat den Besitz der A durch Eingriff in deren Besitzposition erlangt. A könnte daher einen Anspruch aus Eingriffskondiktion gemäß § 812 Abs. 1 S. 1 Alt. 2 BGB auf Herausgabe des erlangten Besitzes haben. Dieser Anspruch wäre gegenüber dem possessorischen Anspruch subsidiär.
+
+
+
+\---
+
+
+
+**### D. Gesamtergebnis zu Teil 1**
+
+
+
+**\*\*A hat gegen B einen Anspruch auf Herausgabe des Buchs aus § 861 Abs. 1 BGB.\*\*** Das Eigentumsrecht der B ist im Rahmen des possessorischen Besitzschutzes nach § 863 BGB unbeachtlich (*\*possessorium absorbet petitorium\**). Weder die einstweilige Verfügung noch ein Selbsthilferecht aus § 859 oder § 229 BGB vermögen die eigenmächtige Wegnahme zu rechtfertigen.
+
+
+
+B ist ihrerseits auf die Durchsetzung ihres Eigentumsrechts auf dem regulären Rechtsweg verwiesen. Sie kann petitorisch aus § 985 BGB oder im Wege einer petitorischen Widerklage (vgl. MüKoBGB/F. L. Schäfer, § 863 Rn. 9 ff.; Baur/Stürner, § 9 Rn. 17 f.) vorgehen, um ihr Eigentum durchzusetzen.
+
+
+
+\---
+
+
+
+\---
+
+
+
+**## Teil 2: Eigentum an der Katze**
+
+
+
+**### Ausgangslage**
+
+
+
+Y ist ursprüngliche Eigentümerin der Katze. X hat die Katze lediglich zur Pflege während der Sommerferien erhalten. X ist demnach Fremdbesitzer und vermittelt Y als Besitzmittler nach § 868 BGB den mittelbaren Besitz.
+
+
+
+Fraglich ist, ob durch die Vereinbarung zwischen X und Z ein Eigentumsübergang an der Katze stattgefunden hat. Im Folgenden ist zu prüfen, ob Z Eigentümer der Katze geworden ist.
+
+
+
+\---
+
+
+
+**### A. Eigentumserwerb des Z von X**
+
+
+
+**#### I. Übereignung nach § 929 S. 1 BGB**
+
+
+
+Z könnte Eigentum an der Katze nach § 929 S. 1 BGB erworben haben. Danach ist zur Übertragung des Eigentums an einer beweglichen Sache erforderlich, dass der Eigentümer die Sache dem Erwerber übergibt und beide darüber einig sind, dass das Eigentum übergehen soll.
+
+
+
+**##### 1. Dingliche Einigung**
+
+
+
+X und Z haben sich geeinigt, dass Z sofort Eigentümer der Katze werden soll. Eine dingliche Einigung über den Eigentumsübergang liegt damit dem Grundsatz nach vor (zur Wirksamkeit sogleich).
+
+
+
+**##### 2. Übergabe**
+
+
+
+Die Übergabe setzt voraus, dass der Veräußerer seinen Besitz oder seine Besitzverschaffungsmacht vollständig aufgibt und zugleich der Erwerber selbst Besitz begründet oder Besitzzuweisungsmacht erwirbt (MüKoBGB/Oechsler, 10. Aufl. 2026, § 933 Rn. 4). X und Z haben jedoch vereinbart, dass die Katze noch eine Woche bei X verbleiben soll und Z sie anschließend abholen soll. Eine tatsächliche Übergabe im Sinne des § 929 S. 1 BGB hat somit nicht stattgefunden.
+
+
+
+**\*\*Ergebnis: Ein Eigentumserwerb nach § 929 S. 1 BGB scheidet mangels Übergabe aus.\*\***
+
+
+
+**#### II. Übereignung nach § 930 BGB (Besitzkonstitut)**
+
+
+
+Z könnte Eigentum nach § 930 BGB erworben haben. Nach § 930 BGB kann die Übergabe dadurch ersetzt werden, dass zwischen dem Eigentümer und dem Erwerber ein Rechtsverhältnis vereinbart wird, vermöge dessen der Eigentümer fortan als Besitzmittler des Erwerbers die Sache besitzt (Besitzkonstitut).
+
+
+
+X und Z haben vereinbart, dass Z sofort Eigentümer werden soll, die Katze aber noch eine Woche bei X verbleiben soll, während Z verreist, und Z die Katze anschließend abholen soll. Darin liegt die Vereinbarung eines konkreten Besitzmittlungsverhältnisses: X verwahrt die Katze für eine Woche für Z. Es liegt somit ein Besitzkonstitut im Sinne des § 930 BGB vor.
+
+
+
+Die Voraussetzungen des § 930 BGB – dingliche Einigung und Vereinbarung eines konkreten Besitzmittlungsverhältnisses – sind dem Grunde nach erfüllt.
+
+
+
+Der Eigentumsübergang scheitert jedoch aus mehreren Gründen:
+
+
+
+**#### III. Wirksamkeit der dinglichen Einigung – Geschäftsfähigkeit des X**
+
+
+
+Die dingliche Einigung müsste wirksam sein. X ist 12 Jahre alt und damit beschränkt geschäftsfähig (§§ 2, 106 BGB). Willenserklärungen eines beschränkt Geschäftsfähigen bedürfen grundsätzlich der Einwilligung des gesetzlichen Vertreters (§ 107 BGB), es sei denn, der Minderjährige erlangt durch die Erklärung lediglich einen rechtlichen Vorteil.
+
+
+
+Die Verfügung – die Übereignung der Katze – ist für X nicht lediglich rechtlich vorteilhaft. Wäre X Eigentümer der Katze, so verlöre er durch die Übereignung das Eigentum daran. Der Verlust des Eigentums stellt einen rechtlichen Nachteil dar. Zwar ist X tatsächlich nicht Eigentümer, sodass er kein Eigentum verlieren kann. Jedoch ist die rechtliche Vorteilhaftigkeit abstrakt anhand des Rechtsgeschäftstyps zu beurteilen: Eine Verfügung, die typischerweise zum Verlust einer dinglichen Rechtsposition führt, ist nicht lediglich rechtlich vorteilhaft im Sinne des § 107 BGB.
+
+
+
+Die dingliche Einigung bedarf daher der Einwilligung der gesetzlichen Vertreter – hier der Eltern des X – gemäß §§ 107, 108 Abs. 1 BGB. Laut Sachverhalt hat X keine Rücksprache mit seinen Eltern genommen. Eine Einwilligung (§ 183 BGB) liegt nicht vor. Die dingliche Einigung ist somit schwebend unwirksam (§ 108 Abs. 1 BGB).
+
+
+
+Da der Sachverhalt keine nachträgliche Genehmigung der Eltern erkennen lässt – im Gegenteil „fliegt der Sachverhalt auf"" –, ist davon auszugehen, dass eine Genehmigung (§ 108 Abs. 1 BGB) nicht erteilt wird. Die dingliche Einigung ist folglich endgültig unwirksam.
+
+
+
+**\*\*Ergebnis: Bereits mangels wirksamer dinglicher Einigung scheidet ein Eigentumsübergang nach § 930 BGB aus, selbst wenn X Eigentümer der Katze wäre.\*\***
+
+
+
+**#### IV. Berechtigung des X – Verfügung eines Nichtberechtigten**
+
+
+
+Selbst wenn man die dingliche Einigung als wirksam unterstellen wollte, müsste X als Veräußerer auch berechtigt sein, über das Eigentum an der Katze zu verfügen.
+
+
+
+X ist nicht Eigentümer der Katze. Eigentümerin ist Y. X hat die Katze lediglich zur Pflege erhalten und ist Besitzmittler im Sinne des § 868 BGB. Die Verfügung eines Nichtberechtigten ist nach § 185 Abs. 1 BGB nur dann wirksam, wenn sie mit Einwilligung des Berechtigten erfolgt. Y hat X keine Ermächtigung zur Veräußerung der Katze erteilt.
+
+
+
+Auch eine nachträgliche Genehmigung durch Y gemäß § 185 Abs. 2 S. 1 Alt. 1 BGB ist nicht ersichtlich. Im Gegenteil spricht das „Auffliegen"" des Sachverhalts gegen eine solche Genehmigung.
+
+
+
+**\*\*Ergebnis: Auch mangels Berechtigung des X liegt kein wirksamer Eigentumsübergang vor.\*\***
+
+
+
+**#### V. Gutgläubiger Erwerb vom Nichtberechtigten (§§ 929, 930, 932 ff. BGB)**
+
+
+
+Z könnte Eigentum an der Katze trotz fehlender Berechtigung des X im Wege des gutgläubigen Erwerbs nach §§ 929, 930, 932 ff. BGB erlangt haben. Voraussetzung wäre allerdings zunächst eine wirksame dingliche Einigung, die – wie unter III. dargelegt – mangels Geschäftsfähigkeit des X nicht vorliegt. Es fehlt damit bereits an einem wirksamen Rechtsgeschäft als Grundvoraussetzung des gutgläubigen Erwerbs. Der gute Glaube des Erwerbers kann die fehlende Geschäftsfähigkeit des Veräußerers nicht ersetzen, da §§ 932 ff. BGB ausschließlich den guten Glauben an die Berechtigung des Veräußerers schützen, nicht aber an dessen Geschäftsfähigkeit.
+
+
+
+Ungeachtet dessen ist auch bei unterstellter Wirksamkeit der dinglichen Einigung ein gutgläubiger Erwerb im Ergebnis ausgeschlossen:
+
+
+
+**##### 1. Rechtsgeschäft im Sinne eines Verkehrsgeschäfts**
+
+
+
+Es müsste ein Rechtsgeschäft im Sinne eines Verkehrsgeschäfts vorliegen. X und Z sind verschiedene Personen und wirtschaftlich nicht identisch. Ein Verkehrsgeschäft liegt vor.
+
+
+
+**##### 2. Gutgläubigkeit des Z (§ 932 Abs. 2 BGB)**
+
+
+
+Z dürfte hinsichtlich der Eigentümerstellung des X nicht bösgläubig sein. Nach § 932 Abs. 2 BGB ist der Erwerber nicht in gutem Glauben, wenn ihm bekannt oder infolge grober Fahrlässigkeit unbekannt ist, dass die Sache nicht dem Veräußerer gehört.
+
+
+
+X hat Z gegenüber überzeugend geschildert, die Katze von seinen Eltern zum Geburtstag erhalten zu haben. Z hatte keinen Anlass, an der Eigentümerstellung des X zu zweifeln. Anhaltspunkte für grobe Fahrlässigkeit sind nicht ersichtlich.
+
+
+
+Z war gutgläubig im Sinne des § 932 Abs. 2 BGB.
+
+
+
+**##### 3. Kein Abhandenkommen (§ 935 Abs. 1 BGB)**
+
+
+
+Der gutgläubige Erwerb ist nach § 935 Abs. 1 BGB ausgeschlossen, wenn die Sache dem Eigentümer abhandengekommen ist. Abhandenkommen liegt vor, wenn die Sache dem Eigentümer ohne oder gegen seinen Willen aus dem unmittelbaren Besitz gekommen ist.
+
+
+
+Y hat die Katze freiwillig an X zur Pflege übergeben. Die Katze ist Y daher nicht abhandengekommen. § 935 BGB steht einem gutgläubigen Erwerb nicht entgegen.
+
+
+
+**##### 4. Scheitern des gutgläubigen Erwerbs an § 933 BGB**
+
+
+
+Allerdings erfolgte die Übereignung vorliegend nach § 930 BGB mittels Besitzkonstituts. Für den gutgläubigen Erwerb bei Übereignung durch Besitzkonstitut bestimmt § 933 BGB, dass der gutgläubige Erwerb erst eintritt, wenn die Sache dem Erwerber vom Veräußerer übergeben wird.
+
+
+
+§ 933 BGB bestimmt damit, dass ein gutgläubiger Erwerb in den Formen des § 930 BGB nicht möglich ist, sondern zusätzlich eine Übergabe durch den Veräußerer an den Erwerber voraussetzt (MüKoBGB/Oechsler, § 933 Rn. 1). Die Ratio dieser Norm liegt darin, dass der Erwerber, der den unmittelbaren Besitz an der Sache beim Veräußerer belässt, diesem ein ebenso großes Vertrauen erweist wie der wahre Eigentümer. Das Vertrauen des Erwerbsinteressenten überwiegt in dieser Situation nicht das Vertrauen des Eigentümers, weshalb der gutgläubige Erwerb scheitern muss (MüKoBGB/Oechsler, § 933 Rn. 1; vgl. Mot. III 345). Der Eigentumserwerb tritt nach dem Normwortlaut im Zeitpunkt der Übergabe ein; eine Rückwirkung auf den Zeitpunkt der Einigung scheidet aus (MüKoBGB/Oechsler, § 933 Rn. 10).
+
+
+
+Die Übergabe setzt den vollständigen Besitzverlust auf der Veräußererseite voraus (MüKoBGB/Oechsler, § 933 Rn. 5, 7). Die Katze befindet sich noch bei X. Z hat die Katze nicht abgeholt; eine Übergabe an Z hat nicht stattgefunden. X übt nach wie vor unverändert die tatsächliche Sachherrschaft über die Katze aus. Die Voraussetzung des § 933 BGB ist damit nicht erfüllt.
+
+
+
+**\*\*Ergebnis: Ein gutgläubiger Erwerb nach § 933 BGB scheitert mangels Übergabe der Katze an Z.\*\***
+
+
+
+\---
+
+
+
+**### B. Gesamtergebnis zu Teil 2**
+
+
+
+**\*\*Y ist weiterhin Eigentümerin der Katze.\*\***
+
+
+
+Der Eigentumsübergang von X an Z scheitert aus drei voneinander unabhängigen Gründen:
+
+
+
+1. **\*\*Fehlende Geschäftsfähigkeit des X\*\*** (§§ 106, 107, 108 Abs. 1 BGB): Die dingliche Einigung ist mangels Einwilligung der gesetzlichen Vertreter schwebend unwirksam und wird bei ausbleibender Genehmigung endgültig unwirksam.
+
+
+
+2. **\*\*Fehlende Berechtigung des X\*\*** (§ 185 Abs. 1 BGB): X ist nicht Eigentümer der Katze und hat keine Ermächtigung von Y zur Veräußerung erhalten.
+
+
+
+3. **\*\*Kein gutgläubiger Erwerb\*\*** (§ 933 BGB): Bei einer Übereignung mittels Besitzkonstituts nach § 930 BGB ist der gutgläubige Erwerb erst mit tatsächlicher Übergabe der Sache an den Erwerber vollendet. Da Z die Katze noch nicht abgeholt hat, fehlt es an der erforderlichen Übergabe.
+
+
+
+Z ist daher nicht Eigentümer der Katze geworden. Y ist und bleibt Eigentümerin.
+"
+A024,P06,2,Herausgabe Buch,Zivilrecht,Schwer,llm,creator,false,creator,2136,"
+
+**Lösung**
+
+**A. Teil 1: Anspruch der A gegen B auf Herausgabe des Buchs**
+
+**I. Anwendbares Rechtsgrundlagenprogramm**  
+Für einen Herausgabeanspruch der A gegen B kommen im Wesentlichen in Betracht:  
+- **§ 985 BGB** (Eigentümer-Herausgabeanspruch),  
+- **§ 861 BGB** (Besitzdiener-Herausgabeanspruch).  
+
+Da A nicht Eigentümerin des Buchs ist (vgl. Sachverhalt: Buch wurde *verliehen*), scheidet § 985 BGB aus. Es ist daher zu prüfen, ob A gem. **§ 861 BGB** einen Herausgabeanspruch gegen B hat.
+
+---
+
+**II. Voraussetzungen des § 861 BGB**  
+§ 861 BGB setzt voraus:  
+1. A war Besitzdienerin der Sache,  
+2. Der Besitz wurde durch B gestört,  
+3. Die Störung war rechtswidrig.
+
+**1. Besitzdienerschaft der A (§ 855 Abs. 2 BGB)**  
+A hatte das Buch aufgrund der **Leihvereinbarung** (§ 598 BGB) in **rechtlichem Gewahrsam**. Die vereinbarte Leihefrist von zwei Wochen war zwar abgelaufen, als B das Buch zurückverlangte, jedoch erst **nach Ablauf dieser Frist** erwirkte B die einstweilige Verfügung. Bis zum Erlas der Verfügung blieb A aufgrund der **rechtsgeschäftlichen Berechtigung** (Leihvertrag) Besitzdienerin (vgl. *Palandt/Ellenberger*, § 855 Rn. 11). Die **rechtswidrige Hinterziehung** durch A nach Fristende begründet zwar einen Eigentümeranspruch B gegen A (§ 985 BGB), berührt aber nicht die **Tatsache des Besitzes** der A bis zur rechtmäßigen Herausgabe (vgl. *BGH NJW 1999, 2369*).  
+→ **A war Besitzdienerin**.
+
+**2. Störung des Besitzes durch B**  
+B entnahm das Buch aus der Tasche der A, ohne deren Einwilligung. Dies stellt eine **Entziehung des Besitzes** (§ 855 Abs. 1 BGB) durch B dar.  
+→ **Störung liegt vor**.
+
+**3. Rechtswidrigkeit der Störung**  
+Die Störung ist rechtswidrig, wenn B **kein Recht zur Selbsthilfe** hatte.  
+- **a) Grundsatz der Unzulässigkeit rechtswidriger Eigenmacht**  
+  Selbsthilfe bei Beweglichkeiten ist nach **§ 858 Abs. 1 BGB** nur zulässig, wenn sie „nicht gegen das Gesetz oder gute Sitten“ verstößt. Nach ständiger Rechtsprechung (*BGH NJW 2005, 2865*) ist Selbsthilfe **unzulässig**, sobald ein **gerichtlicher Rechtsschutz beantragt wurde** (hier: einstweilige Verfügung).  
+  - Die einstweilige Verfügung wurde bereits **erlassen** („Das Gericht gibt dem Antrag statt“), obwohl sie noch nicht vollzogen war.  
+  - B hätte die **vollstreckungsweise Durchsetzung** (§ 885 ZPO) abwarten müssen (vgl. *OLG Düsseldorf, OLGR 2010, 112*).  
+  - Durch die **vorzeitige Selbsthilfe** umging B das gesetzliche Vollstreckungsverfahren, was gegen **§ 858 Abs. 1 BGB** verstößt.  
+- **b) Eigentümerstellung der B als Rechtfertigungsgrund?**  
+  B als Eigentümerin könnte grundsätzlich gem. **§ 985 BGB** das Buch zurückverlangen. Allerdings:  
+  - Der **Anspruch auf Herausgabe** war bereits **gerichtlich gesichert** (einstweilige Verfügung).  
+  - Die Selbsthilfe **nach Erlass der Verfügung**, aber vor Vollzug, ist **rechtswidrig**, da das Gesetz die **staatliche Vollstreckung** vorschreibt (vgl. *Palandt/Grüneberg*, § 858 Rn. 15).  
+  - Eine Ausnahme zugunsten der Eigentümerin greift nicht, da die **Dringlichkeit** (§ 916 ZPO) nicht gegeben war (B nahm das Buch in ruhiger Lage an, ohne Gefahr der sofortigen Vernichtung).  
+→ **Störung durch B ist rechtswidrig**.
+
+**III. Ergebnis**  
+A hat gegen B einen Herausgabeanspruch aus **§ 861 BGB**.  
+→ **Bejahung des Anspruchs**.
+
+---
+
+**B. Teil 2: Eigentumsverhältnis an der Katze**
+
+**I. Grundsatz: Eigentumsübergang bei Beweglichkeiten (§ 929 BGB)**  
+Der Eigentumsübergang setzt voraus:  
+1. **Einigung** (Auflassung) zwischen Veräußerer und Erwerber,  
+2. **Übergabe** der Sache (§ 929 Satz 1 BGB).  
+Da die Katze bei X verblieb, kommt nur **konstitutum possessorium** (§ 930 BGB) in Betracht.
+
+---
+
+**II. Verfügungsbefugnis des X**  
+X ist **12 Jahre alt** und damit **beschränkt geschäftsfähig** (§ 104 Nr. 1 BGB).  
+- **Verfügungsgeschäft** (Eigentumsübergang) bedarf der **Elterngenehmigung** (§ 107 BGB).  
+- X handelte **ohne Rücksprache mit Eltern oder Tante Y**.  
+- Die Katze stammt von Y, sodass X **nicht Verfügungsberechtigter** war (§ 185 Abs. 1 BGB).  
+→ **Verfügungsgeschäft mangels Verfügungsbefugnis nichtig** (§ 104, 107 BGB).
+
+---
+
+**III. Gutgläubiger Erwerb durch Z (§ 932 BGB)?**  
+Selbst bei Nichtigkeit des Verfügungsgeschäfts könnte Z Eigentümer werden, wenn **gutgläubiger Erwerb** vorliegt.
+
+**1. Voraussetzungen des § 932 BGB**  
+- **a) Erwerb von einem Nichtberechtigten** (§ 932 Abs. 1 BGB)  
+  X war nicht Verfügungsberechtigter (vgl. Rn. II).  
+  → **Erfüllt**.  
+- **b) Gutgläubigkeit des Z** (§ 932 Abs. 1 BGB)  
+  Z glaubte, X sei Eigentümer („X überzeugend schildert, die Katze von seinen Eltern zum Geburtstag erhalten zu haben“).  
+  - **Fahrlässigkeit des Z?**  
+    Ein 12-Jähriger, der eine Katze verkauft, könnte Zweifel an der Verfügungsbefugnis wecken. Allerdings:  
+    - X handelte **überzeugend** (Sachverhalt),  
+    - Z als „volljähriger Mannschaftskollege“ durfte auf die **Glaubwürdigkeit** von X vertrauen (*BGH NJW 1997, 2012*).  
+    → **Z war gutgläubig**.  
+- **c) Unmittelbarer Besitz des X bei Übergabe** (§ 932 Abs. 2 BGB)  
+  X hatte die Katze **tatsächlich in Gewahrsam** (Pflegeauftrag der Y).  
+  → **Erfüllt**.  
+- **d) Rechtsgeschäftliche Grundlage des Erwerbs** (§ 929 Satz 1 BGB)  
+  Problematisch ist, ob das **nichtige Verfügungsgeschäft** eine Grundlage für § 932 BGB bildet.  
+  - **Streitstand**:  
+    - **h.M.** (*Palandt/Grüneberg*, § 932 Rn. 25): Gutgläubiger Erwerb setzt **keine Wirksamkeit des Verfügungsgeschäfts** voraus, sondern nur **gutgläubigen Vertrauensschutz**.  
+    - **Gegenansicht**: Nichtiges Verfügungsgeschäft schließt gutgläubigen Erwerb aus.  
+  - **Beachtung**: Die **h.M. ist vorzugswürdig**, da § 932 BGB gerade den **Schutz des gutgläubigen Dritten** priorisiert (vgl. *BGH NJW 2008, 1234*).  
+  → **Voraussetzung erfüllt**.
+
+**2. Einschränkung durch fehlende Übergabe**  
+- **Konstitutum possessorium** (§ 930 BGB) setzt voraus, dass X **für Z in Besitz verbleibt**.  
+- Dies erfordert eine **rechtliche Grundlage** (z. B. Miete, Leihvertrag), die X und Z vereinbarten („Katze soll noch eine Woche bei X bleiben“).  
+- **Problem**: Das **Verpflichtungsgeschäft** (Kaufvertrag) ist **wirksam**, da X für **schuldmäßige Verpflichtungsgeschäfte** (§ 104 Nr. 1 BGB) **beschränkt geschäftsfähig** ist, sofern es sich nicht um **Kleingeldgeschäfte** (§ 110 BGB) handelt.  
+  - Der Katzenverkauf ist **kein Kleingeldgeschäft** (kein geringer Wert, kein alltäglicher Bedarf).  
+  → **Kaufvertrag nichtig** (§ 107 BGB), sodass **keine rechtliche Grundlage** für das konstitutum possessorium besteht.  
+- **Folge**: § 930 BGB **scheidet aus**, sodass **keine Übergabe** vorliegt.  
+→ **Gutgläubiger Erwerb scheitert**.
+
+---
+
+**IV. Ergebnis**  
+- **Eigentum bleibt bei Y**, da weder ein wirksamer Eigentumsübergang (§ 929 BGB) noch gutgläubiger Erwerb (§ 932 BGB) vorliegt.  
+- X war **nicht Verfügungsberechtigter**, und Z konnte mangels rechtlicher Grundlage für das konstitutum possessorium **kein Eigentum erwerben**.  
+→ **Y ist weiterhin Eigentümerin**."
+A028,P07,3,Bürobedarf,Zivilrecht,Mittel,classic,creator,false,creator,1705,"## A. Anspruch des L gegen J aus § 433 Abs. 2 BGB
+
+L könnte gegen J einen Anspruch auf Zahlung von 350 € aus § 433 Abs. 2 BGB haben.\
+Voraussetzung ist ein wirksamer Kaufvertrag zwischen L und J über Kopierpapier und Toner.
+
+## I. Zustandekommen eines Kaufvertrags zwischen L und J
+
+Ein Kaufvertrag setzt zwei inhaltlich übereinstimmende Willenserklärungen voraus, Angebot und Annahme.
+
+## 1. Angebot des J durch G als Vertreter
+
+Das Bestellformular wurde von G unterzeichnet. J selbst hat keine Erklärung abgegeben, daher kommt ein Handeln des G als Vertreter des J nach §§ 164 ff. BGB in Betracht.​
+
+a) Eigene Willenserklärung des G
+
+G hat eine eigene Willenserklärung abgegeben, indem er das Bestellformular unterschrieben und an L gesendet hat. Er entschied selbst über den Abschluss des Geschäfts und war damit nicht bloß Bote.\
+Damit liegt eine eigene Willenserklärung des G vor.​
+
+b) Handeln im Namen des J (Offenkundigkeitsprinzip)
+
+G verwendete das offizielle Briefpapier des Repetitoriums des J und unterschrieb mit „i.V. G“. Damit brachte er nach außen hin zum Ausdruck, dass er nicht im eigenen, sondern im Namen des J handeln wollte. Für L war erkennbar, dass J Vertragspartner sein soll.\
+Das Offenkundigkeitsprinzip des § 164 Abs. 1 S. 2 BGB ist gewahrt.​
+
+c) Vertretungsmacht des G
+
+G müsste Vertretungsmacht gehabt haben.
+
+aa) Innenverhältnis: Vereinbarung zwischen J und G
+
+J und G vereinbarten, dass G „alle Geschäfte der Organisation und Verwaltung des Repetitoriums tätigen darf“. Ausdrücklich genannt war darunter auch die Beschaffung von Kopierpapier und Toner für den Drucker des J.\
+Damit erteilte J dem G eine Innenvollmacht, Bestellungen für Büromaterial des Repetitoriums vorzunehmen.​
+
+bb) Außenverhältnis: Missbrauch der Vertretungsmacht
+
+Problematisch ist, dass G die Bestellung tatsächlich für seinen privaten Drucker tätigen wollte. Im Innenverhältnis überschreitet er damit die Grenzen der ihm eingeräumten Befugnis. Dies wirft die Frage nach dem Missbrauch der Vertretungsmacht auf.​
+
+Beim Missbrauch der Vertretungsmacht ist zwischen Innen‑ und Außenverhältnis zu unterscheiden. Überschreitet der Vertreter im Innenverhältnis Weisungen des Vertretenen, während nach außen eine wirksame Vollmacht besteht, ist die Erklärung im Außenverhältnis grundsätzlich dennoch dem Vertretenen zuzurechnen. Der Missbrauch wirkt zunächst nur im Verhältnis zwischen Vertretenem und Vertreter.\
+Der Vertretene bleibt daher an das Geschäft gebunden, solange der Dritte den Missbrauch nicht kennt und er sich ihm auch nicht aufdrängen musste.​
+
+Etwas anderes gilt ausnahmsweise, wenn Vertreter und Dritter kollusiv zusammenwirken, um den Vertretenen zu schädigen, oder wenn der Missbrauch der Vertretungsmacht für den Dritten evident ist. In diesen Fällen entfällt der Schutz des gutgläubigen Dritten, und die Erklärung wird dem Vertretenen nicht zugerechnet.​
+
+G hat zwar im Innenverhältnis pflichtwidrig gehandelt, weil er die Vollmacht für eigene Zwecke nutzt. Anhaltspunkte für eine bewusste Zusammenarbeit zwischen G und L zu Lasten des J (Kollusion) sind jedoch nicht ersichtlich.​\
+Ein evidenter Missbrauch liegt ebenfalls nicht vor. L erhält eine Bestellung über Kopierpapier und Toner auf offiziellem Briefpapier des Repetitoriums, unterschrieben mit „i.V. G“, und liefert in die Geschäftsräume des Repetitoriums. Für L gibt es keinen klaren Hinweis darauf, dass die Bestellung nicht für das Repetitorium, sondern für den privaten Drucker des G bestimmt ist. Dass die Bestellung aus Sicht des J „nicht so recht zu Verbrauch und Gerätetypen“ passt, fällt nach Sachverhalt erst J bei der späteren Buchhaltung auf, nicht aber L.\
+Aus der Perspektive des L durfte die Bestellung als übliches Geschäft im Rahmen der Büroorganisation erscheinen. Der Missbrauch der Vertretungsmacht war für L weder erkennbar noch musste er sich ihm aufdrängen.​
+
+ Ergebnis zur Vertretungsmacht
+
+Die Innenvollmacht des G bestand. Der Verstoß gegen interne Weisungen bleibt im Außenverhältnis ohne Auswirkung, da weder Kollusion noch evidenter Missbrauch gegenüber L vorliegen. G handelte damit im Rahmen seiner Vertretungsmacht.​
+
+d) Zwischenergebnis
+
+G hat mit Vertretungsmacht und im Namen des J ein Angebot an L abgegeben. Dieses Angebot ist J nach § 164 Abs. 1 BGB zuzurechnen.​
+
+## 2. Annahme durch L
+
+L hat die Bestellung ausgeführt und die Ware in die Räume des Repetitoriums geliefert. Darin liegt die Annahme des Angebots.​\
+Ein Kaufvertrag zwischen L und J über Kopierpapier und Toner zum Gesamtpreis von 350 € ist damit zustande gekommen.
+
+***
+
+## II. Einwendungen des J
+
+J könnte sich gleichwohl mit Erfolg gegen den Anspruch verteidigen, insbesondere durch Anfechtung oder sonstige Gestaltungsrechte.
+
+## 1. „Täuschung über die Person“ – Anfechtung der Vollmacht?
+
+J erklärt, er habe sich „in der Person des G getäuscht“. Darin könnte eine Anfechtung der dem G erteilten Vollmacht nach §§ 119 ff. BGB liegen.​
+
+a) Anfechtungsgrund
+
+Eine Anfechtung wegen Eigenschaftsirrtums nach § 119 Abs. 2 BGB setzt einen Irrtum über verkehrswesentliche Eigenschaften der Person voraus. Eigenschaften sind hierfür alle tatsächlichen oder rechtlichen Merkmale, die einer Person auf gewisse Dauer anhaften und für das konkrete Rechtsgeschäft von Bedeutung sind, etwa Qualifikation oder Zuverlässigkeit.​\
+J hat sich jedoch nicht über eine konkrete, feststehende Eigenschaft des G geirrt, sondern über dessen künftiges Verhalten, nämlich darüber, ob G das in ihn gesetzte Vertrauen nicht missbrauchen werde. Dies betrifft lediglich die Motivation des J bei der Vollmachtserteilung und stellt eine bloße Fehlprognose dar.\
+Eine solche Fehlprognose ist ein Motivirrtum, der grundsätzlich keinen Anfechtungsgrund begründet.​
+
+b) Ergebnis
+
+Ein beachtlicher Anfechtungsgrund liegt damit nicht vor. Die Vollmacht ist nicht wirksam angefochten worden.
+
+## 2. Zeitlicher Aspekt
+
+Selbst wenn man zugunsten des J eine Anfechtung in Betracht zöge, würde sie die Vollmacht grundsätzlich ex tunc beseitigen. Der Vertragsschluss zwischen L und J erfolgte jedoch zu einem Zeitpunkt, zu dem die Vollmacht noch unangefochten bestand. Die spätere Erklärung des J gegenüber L kann die bereits wirksam begründete Verpflichtung nicht mehr rückwirkend entfallen lassen.​
+
+## 3. „Ich will mit dem Vertrag nichts zu tun haben“
+
+Die bloße Weigerung des J, zahlen zu wollen, ist rechtlich ohne Wirkung. Von einem wirksam zustande gekommenen Vertrag kann sich eine Partei nur durch ein gesetzlich vorgesehenes Gestaltungsrecht (Anfechtung, Rücktritt, Kündigung etc.) lösen. Ein solches Gestaltungsrecht ist hier und wie gezeigt nicht ersichtlich.​
+
+***
+
+## III. Ergebnis
+
+Zwischen L und J ist durch wirksame Stellvertretung des G ein Kaufvertrag über Kopierpapier und Toner im Wert von 350 € zustande gekommen. G handelte im Namen und mit Vertretungsmacht des J; der Missbrauch seiner Stellung betrifft lediglich das Innenverhältnis zwischen J und G. Ein wirksamer Anfechtungsgrund oder sonstiges Gestaltungsrecht des J ist nicht gegeben.\
+L hat daher gegen J einen Anspruch auf Zahlung von 350 € aus § 433 Abs. 2 BGB.
+"
+A032,P08,3,Bürobedarf,Zivilrecht,Mittel,co_creation,creator,false,creator,8673,"***
+
+### A. Anspruch des L gegen J auf Zahlung von 350 € aus § 433 Abs. 2 BGB
+
+L könnte gegen J einen Anspruch auf Zahlung des Kaufpreises in Höhe von 350 € aus § 433 Abs. 2 BGB haben. Dies setzt voraus, dass zwischen L und J ein wirksamer Kaufvertrag zustande gekommen ist und dieser nicht nachträglich erloschen ist.
+
+#### I. Wirksamer Kaufvertrag zwischen L und J
+
+Ein Kaufvertrag kommt durch zwei übereinstimmende in Bezug aufeinander abgegebene Willenserklärungen – Angebot und Annahme – zustande, §§ 145, 147 BGB. Da G die Bestellung vorgenommen hat, kommt ein Vertrag zwischen L und J nur zustande, wenn die Willenserklärung des G dem J nach den Regeln der Stellvertretung zuzurechnen ist.
+
+##### 1. Angebot
+
+**Fraglich ist**, ob dem L ein wirksames Angebot auf Abschluss eines Kaufvertrags zugegangen ist.
+
+###### a) Begriff des Angebots
+
+Ein Angebot (Antrag) im Sinne des § 145 BGB ist eine empfangsbedürftige Willenserklärung, die alle wesentlichen Vertragsbestandteile (essentialia negotii) enthält und durch die der Vertragsschluss einem anderen so angetragen wird, dass dessen Zustandekommen nur noch von dessen Einverständnis abhängt.
+
+Bei einem Kaufvertrag sind wesentliche Bestandteile gemäß § 433 Abs. 1 S. 1, Abs. 2 BGB die Kaufsache und der Kaufpreis.
+
+###### b) Abgabe einer Willenserklärung
+
+**Fraglich ist**, wer vorliegend die Willenserklärung abgegeben hat.
+
+Eine Willenserklärung ist abgegeben, wenn der Erklärende sie willentlich in Richtung auf den Empfänger entäußert hat, sodass bei Zugrundelegung normaler Umstände mit dem Zugang zu rechnen ist.
+
+**Vorliegend** hat G „bei L drei Kartons Kopierpapier sowie Toner zum Gesamtpreis von 350 €"" bestellt. Er hat dabei „das übliche, für Bestellungen vorgesehene Briefpapier des J"" verwendet und „das Bestellformular"" ausgefüllt sowie unterschrieben. In dieser Bestellung liegt eine auf Abschluss eines Kaufvertrags gerichtete Willenserklärung mit bestimmtem Vertragsgegenstand (Kopierpapier, Toner) und Kaufpreis (350 €).
+
+Die Willenserklärung wurde von G selbst formuliert und abgesandt. Er hat damit eine **eigene** Willenserklärung abgegeben. Dies unterscheidet ihn vom bloßen Boten, der lediglich eine fremde, bereits fertig formulierte Willenserklärung übermittelt. G hat eigenverantwortlich über Art, Umfang und Inhalt der Bestellung entschieden und ist daher als **Stellvertreter** und nicht als Bote anzusehen.
+
+###### c) Zugang der Willenserklärung
+
+Die Willenserklärung müsste dem L zugegangen sein. Eine verkörperte Willenserklärung unter Abwesenden geht gemäß § 130 Abs. 1 S. 1 BGB zu, wenn sie so in den Machtbereich des Empfängers gelangt ist, dass dieser unter gewöhnlichen Umständen von ihr Kenntnis nehmen kann.
+
+**Vorliegend** wurde die Bestellung auf dem üblichen Briefpapier des J an L übersandt. Mit dem Eingang der Bestellung bei L ist die Willenserklärung diesem zugegangen.
+
+###### d) Wirksamkeit für und gegen J, § 164 Abs. 1 S. 1 BGB
+
+Da G die Willenserklärung abgegeben hat, der Kaufvertrag aber zwischen L und J zustande kommen soll, müsste die Willenserklärung des G unmittelbar für und gegen J wirken.
+
+Nach § 164 Abs. 1 S. 1 BGB wirkt eine Willenserklärung, die jemand innerhalb der ihm zustehenden Vertretungsmacht im Namen des Vertretenen abgibt, unmittelbar für und gegen den Vertretenen. Die Vorschrift ermöglicht es, durch das Handeln eines anderen – des Stellvertreters – selbst berechtigt und verpflichtet zu werden, ohne an dem Rechtsgeschäft persönlich mitzuwirken.
+
+Die Stellvertretung setzt drei Voraussetzungen voraus: (1) Der Vertreter muss eine eigene Willenserklärung abgeben, (2) er muss im Namen des Vertretenen handeln (Offenkundigkeitsprinzip), und (3) er muss innerhalb der ihm zustehenden Vertretungsmacht handeln.
+
+**(1) Eigene Willenserklärung des Vertreters**
+
+G müsste eine eigene Willenserklärung abgegeben haben.
+
+Wie bereits festgestellt, hat G die Bestellung eigenverantwortlich vorgenommen. Er hat selbständig über Art und Umfang der bestellten Waren entschieden, das Bestellformular ausgefüllt und unterzeichnet. Er war damit nicht bloßes Werkzeug der Willensübermittlung, sondern hat einen eigenen rechtsgeschäftlichen Willen gebildet und geäußert.
+
+**Mithin** liegt eine eigene Willenserklärung des G vor.
+
+**(2) Handeln im Namen des J (Offenkundigkeitsprinzip)**
+
+G müsste im Namen des J gehandelt haben.
+
+Nach § 164 Abs. 1 S. 1 BGB muss die Willenserklärung „im Namen des Vertretenen"" abgegeben werden. Das sogenannte Offenkundigkeitsprinzip verlangt, dass der Wille, für einen anderen zu handeln, bei Abgabe der Willenserklärung erkennbar hervortritt. Handelt jemand, ohne dies zu offenbaren, im eigenen Namen, wird er selbst berechtigt und verpflichtet, auch wenn er einen anderen vertreten wollte, § 164 Abs. 2 BGB. Die Offenkundigkeit kann sich aus einer ausdrücklichen Erklärung oder aus den Umständen ergeben, § 164 Abs. 1 S. 2 BGB.
+
+**Vorliegend** hat G „das übliche, für Bestellungen vorgesehene Briefpapier des J"" verwendet. Bereits hierdurch wird nach außen erkennbar, dass die Bestellung dem Geschäftsbetrieb des J zuzuordnen ist. Zudem hat G das Bestellformular „mit ‚i.V. G'"" unterschrieben. Der Zusatz „i.V."" (in Vertretung) ist ein im Rechtsverkehr allgemein anerkanntes Kürzel, das nach der Verkehrsanschauung eindeutig zum Ausdruck bringt, dass der Unterzeichnende nicht im eigenen Namen, sondern als Vertreter eines anderen handelt. In Verbindung mit dem Briefpapier des J war für L ohne Weiteres erkennbar, dass G als Vertreter des J handelte.
+
+**Mithin** hat G offenkundig im Namen des J gehandelt.
+
+**(3) Innerhalb der Vertretungsmacht**
+
+G müsste innerhalb der ihm zustehenden Vertretungsmacht gehandelt haben.
+
+**(a) Begriff der Vertretungsmacht**
+
+Die Vertretungsmacht ist die rechtliche Befugnis, im Namen eines anderen mit Wirkung für und gegen diesen zu handeln. Sie kann sich aus Gesetz ergeben (gesetzliche Vertretungsmacht, z. B. § 1629 Abs. 1 S. 1 BGB für Eltern, § 26 Abs. 1 S. 2 BGB für den Vereinsvorstand) oder durch Rechtsgeschäft eingeräumt werden (rechtsgeschäftliche Vertretungsmacht = Vollmacht).
+
+**(b) Erteilung der Vollmacht**
+
+**Fraglich ist**, ob J dem G wirksam Vollmacht erteilt hat.
+
+Die Vollmacht wird nach § 167 Abs. 1 BGB durch Erklärung gegenüber dem zu Bevollmächtigenden (Innenvollmacht, § 167 Abs. 1 Alt. 1 BGB) oder gegenüber dem Dritten, dem gegenüber die Vertretung stattfinden soll (Außenvollmacht, § 167 Abs. 1 Alt. 2 BGB), erteilt.
+
+Die Vollmachtserteilung ist ein einseitiges, empfangsbedürftiges Rechtsgeschäft. Sie bedarf nach § 167 Abs. 2 BGB grundsätzlich nicht der Form, die für das Rechtsgeschäft bestimmt ist, auf das sich die Vollmacht bezieht. Die Vollmacht ist ein abstraktes Rechtsgeschäft; ihre Wirksamkeit ist vom Grundverhältnis (z. B. Arbeitsvertrag, Auftrag) unabhängig (Abstraktionsprinzip).
+
+**Vorliegend** haben „J und G vereinbart, dass G alle Geschäfte der Organisation und Verwaltung des Repetitoriums tätigen darf"". In dieser Vereinbarung liegt eine Vollmachtserteilung durch J gegenüber G als Innenvollmacht im Sinne des § 167 Abs. 1 Alt. 1 BGB. Die Vollmacht wurde formfrei erteilt, was nach § 167 Abs. 2 BGB zulässig ist, da auch der Kaufvertrag keiner Form bedarf.
+
+**Mithin** hat J dem G wirksam Vollmacht erteilt.
+
+**(c) Umfang der Vollmacht**
+
+**Fraglich ist**, ob die konkrete Bestellung vom Umfang der erteilten Vollmacht gedeckt ist.
+
+Der Umfang der Vollmacht richtet sich nach dem Inhalt der Bevollmächtigungserklärung, die nach den allgemeinen Regeln der §§ 133, 157 BGB auszulegen ist. Maßgeblich ist der objektive Empfängerhorizont eines verständigen Dritten in der Lage des Erklärungsempfängers.
+
+**Vorliegend** hat J dem G gestattet, „alle Geschäfte der Organisation und Verwaltung des Repetitoriums"" zu tätigen. Der Sachverhalt konkretisiert: „Darunter fällt unter anderem die Beschaffung von Kopierpapier sowie Toner für den Drucker des J."" Die Bestellung von drei Kartons Kopierpapier und Toner ist damit ihrem Gegenstand nach vom Umfang der Vollmacht erfasst.
+
+**Mithin** ist die Bestellung ihrem Gegenstand nach vom Umfang der Vollmacht gedeckt.
+
+**(d) Missbrauch der Vertretungsmacht**
+
+**Fraglich ist**, ob die Vertretungsmacht auch dann wirksam bleibt, wenn der Vertreter sie zu eigenen, dem Vertretenen nachteiligen Zwecken missbraucht.
+
+**(aa) Problemaufriss**
+
+G hat nach dem Sachverhalt die Materialien nicht für das Repetitorium, sondern für sich privat bestellt. Er wollte „zum ‚Arbeitgeber-Rabatt' für sich einkaufen"" und die Waren „für seinen eigenen heimischen Drucker"" verwenden. Damit handelte G zwar im Rahmen des ihm eingeräumten rechtlichen **Könnens** (Außenverhältnis), jedoch entgegen dem ihm im Innenverhältnis **Erlaubten** (Dürfen). Es liegt ein Fall des Missbrauchs der Vertretungsmacht vor.
+
+Das Problem liegt darin, dass das Vollmachtsrecht vom Grundsatz der Abstraktion geprägt ist: Die Vollmacht ist von dem ihr zugrunde liegenden Rechtsverhältnis (Grundverhältnis) zu trennen. Die Frage ist, ob und unter welchen Voraussetzungen ein Missbrauch der Vollmacht im Innenverhältnis auf die Wirksamkeit des Vertretergeschäfts im Außenverhältnis durchschlägt.
+
+**(bb) Meinungsstand**
+
+Nach dem **Grundsatz der Abstraktion** zwischen Innen- und Außenverhältnis bleibt das Vertretergeschäft grundsätzlich auch dann wirksam, wenn der Vertreter im Innenverhältnis seine Befugnisse überschreitet oder die Vollmacht zu eigenen Zwecken missbraucht. Die Vollmacht begründet ein rechtliches Können, das vom rechtlichen Dürfen zu unterscheiden ist. Der Geschäftspartner kann das Innenverhältnis regelmäßig nicht überblicken und darf auf die ihm gegenüber kundgegebene Vollmacht vertrauen (Verkehrsschutz).
+
+Nach **herrschender Meinung** in Rechtsprechung und Literatur gilt dieser Grundsatz jedoch nicht uneingeschränkt. Eine **Ausnahme** wird in zwei Fallgruppen anerkannt:
+
+**Erstens** bei **Kollusion**: Wenn der Vertreter und der Geschäftspartner bewusst zum Nachteil des Vertretenen zusammenwirken, ist das Geschäft nach § 138 Abs. 1 BGB wegen Sittenwidrigkeit nichtig. Es liegt ein bewusstes Zusammenwirken gegen die Interessen des Vertretenen vor.
+
+**Zweitens** bei **Evidenz**: Wenn der Missbrauch der Vertretungsmacht für den Geschäftspartner objektiv evident war, d. h. sich ihm geradezu aufdrängen musste, ist es dem Geschäftspartner nach dem Grundsatz von Treu und Glauben (§ 242 BGB) verwehrt, sich auf die formal bestehende Vertretungsmacht zu berufen. Der Vertretene wird dann so behandelt, als habe der Vertreter ohne Vertretungsmacht gehandelt (§ 177 Abs. 1 BGB analog).
+
+**(cc) Stellungnahme**
+
+Der herrschenden Meinung ist aus teleologischen Gründen zuzustimmen.
+
+Der Grundsatz der Abstraktion dient dem Schutz des Rechtsverkehrs und dem berechtigten Vertrauen des Geschäftspartners darauf, dass er sich auf eine ihm gegenüber kundgegebene Vollmacht verlassen kann. Dieses Vertrauen verdient jedoch keinen Schutz, wenn der Geschäftspartner selbst am Missbrauch beteiligt ist (Kollusion) oder wenn der Missbrauch für ihn offensichtlich war (Evidenz). In diesen Fällen besteht kein schützenswertes Vertrauen, und es wäre unbillig, den gutgläubigen Vertretenen an ein Geschäft zu binden, dessen missbräuchlichen Charakter der Geschäftspartner erkannte oder erkennen musste.
+
+**(dd) Subsumtion**
+
+**Vorliegend** liegen weder Kollusion noch Evidenz vor.
+
+Eine **Kollusion** scheidet aus. L hat die Bestellung gutgläubig als regulären Geschäftsvorgang entgegengenommen. Es gibt keine Anhaltspunkte dafür, dass L von den Eigenbedarfsabsichten des G wusste oder gar mit ihm zum Nachteil des J zusammenwirkte.
+
+Auch **Evidenz** liegt nicht vor. Aus der maßgeblichen Sicht des L stellte sich die Bestellung als gewöhnlicher Geschäftsvorgang dar: Sie erfolgte auf dem üblichen Briefpapier des J, wurde mit dem üblichen Vertretungszusatz „i.V. G"" unterschrieben und betraf Materialien (Kopierpapier, Toner), die typischerweise für den Betrieb eines Repetitoriums benötigt werden. Dass G die Materialien tatsächlich für seinen „eigenen heimischen Drucker"" und nicht für das Repetitorium verwenden wollte, war für L nicht erkennbar. Die Lieferung „in die Räumlichkeiten des Repetitoriums"" bestätigte vielmehr den äußeren Anschein eines regulären Geschäftsvorgangs. Der Missbrauch war objektiv nicht evident.
+
+**Mithin** wirkt sich der Missbrauch der Vertretungsmacht nicht auf die Wirksamkeit des Vertretergeschäfts aus. G handelte mit wirksamer Vertretungsmacht im Sinne des § 164 Abs. 1 S. 1 BGB.
+
+###### e) Zwischenergebnis zum Angebot
+
+Die von G abgegebene Willenserklärung wirkt gemäß § 164 Abs. 1 S. 1 BGB unmittelbar für und gegen J. Ein wirksames Angebot auf Abschluss eines Kaufvertrags über Kopierpapier und Toner zum Preis von 350 € liegt vor. Das Angebot ist dem L zugegangen und damit gemäß § 130 Abs. 1 S. 1 BGB wirksam geworden.
+
+##### 2. Annahme
+
+L müsste das Angebot angenommen haben.
+
+###### a) Begriff der Annahme
+
+Die Annahme ist eine empfangsbedürftige Willenserklärung, durch die der Antragsempfänger sein Einverständnis mit dem angetragenen Vertrag zum Ausdruck bringt. Sie muss inhaltlich mit dem Angebot übereinstimmen und innerhalb der Annahmefrist (§§ 147, 148 BGB) zugehen.
+
+###### b) Annahmeerklärung des L
+
+Der Sachverhalt gibt keine ausdrückliche Annahmeerklärung des L wieder. Jedoch ist nach der Verkehrsanschauung bei Warenbestellungen davon auszugehen, dass der Lieferant das Angebot durch Zusendung der Ware konkludent annimmt. In der Lieferung liegt zugleich die schlüssige Erklärung, den Vertragsschluss zu den angebotenen Bedingungen zu akzeptieren.
+
+**Vorliegend** hat L die bestellten „Materialien"" – drei Kartons Kopierpapier und Toner – „in die Räumlichkeiten des Repetitoriums"" geliefert. In dieser Lieferung liegt eine konkludente Annahme des Angebots.
+
+###### c) Zugang der Annahme
+
+Nach § 151 S. 1 BGB ist der Zugang der Annahme entbehrlich, wenn ein solcher nach der Verkehrssitte nicht zu erwarten ist oder der Antragende auf ihn verzichtet hat. Bei Warenbestellungen ist es verkehrsüblich, dass der Lieferant nicht gesondert sein Einverständnis erklärt, sondern unmittelbar liefert. Die Annahme wird hier mit der Lieferung vollzogen und bedarf keines gesonderten Zugangs beim Antragenden.
+
+###### d) Zwischenergebnis zur Annahme
+
+L hat das Angebot des J (vertreten durch G) durch Lieferung der Waren konkludent angenommen. Ein Zugang der Annahmeerklärung war gemäß § 151 S. 1 BGB entbehrlich.
+
+##### 3. Einigung
+
+Angebot und Annahme stimmen inhaltlich überein. Eine Einigung über die essentialia negotii – Kaufsache (drei Kartons Kopierpapier, Toner) und Kaufpreis (350 €) – liegt vor.
+
+##### 4. Wirksamkeit
+
+Wirksamkeitshindernisse sind nicht ersichtlich. Insbesondere liegt kein Verstoß gegen ein gesetzliches Verbot (§ 134 BGB) oder gegen die guten Sitten (§ 138 Abs. 1 BGB) vor.
+
+##### 5. Zwischenergebnis
+
+Zwischen L als Verkäufer und J als Käufer ist ein wirksamer Kaufvertrag über Kopierpapier und Toner zum Preis von 350 € gemäß § 433 BGB zustande gekommen. Die Willenserklärung des G wirkt gemäß § 164 Abs. 1 S. 1 BGB unmittelbar für und gegen J, da G als sein Vertreter mit der ihm gemäß § 167 Abs. 1 Alt. 1 BGB erteilten Vollmacht im Namen des J gehandelt hat.
+
+***
+
+***
+
+#### II. Kein Erlöschen des Anspruchs durch Anfechtung
+
+Der Anspruch könnte erloschen sein, wenn der Kaufvertrag infolge einer wirksamen Anfechtung als von Anfang an nichtig anzusehen ist, § 142 Abs. 1 BGB.
+
+##### 1. Anfechtung des Kaufvertrags
+
+J könnte den Kaufvertrag selbst angefochten haben.
+
+###### a) Anfechtungserklärung, § 143 Abs. 1 BGB
+
+Die Anfechtung erfolgt durch empfangsbedürftige Willenserklärung gegenüber dem Anfechtungsgegner, § 143 Abs. 1 BGB. Bei Verträgen ist Anfechtungsgegner der andere Teil, § 143 Abs. 2 BGB. Das Wort „Anfechtung"" muss nicht verwendet werden; es genügt, wenn der Wille, das Rechtsgeschäft rückwirkend zu vernichten, hinreichend deutlich zum Ausdruck kommt.
+
+**Vorliegend** hat J gegenüber L telefonisch erklärt, „mit dem Liefervertrag nichts zu tun haben zu wollen"". Darin kommt hinreichend deutlich der Wille zum Ausdruck, den Vertrag nicht gelten lassen zu wollen.
+
+**Mithin** liegt eine Anfechtungserklärung gemäß § 143 Abs. 1 BGB vor.
+
+###### b) Anfechtungsgrund
+
+Die Anfechtung setzt einen gesetzlich anerkannten Anfechtungsgrund voraus. Die Anfechtungsgründe sind in §§ 119, 120, 123 BGB abschließend geregelt.
+
+**(1) Eigenschaftsirrtum bezüglich des Vertragspartners, § 119 Abs. 2 BGB**
+
+**Fraglich ist**, ob J sich auf einen Eigenschaftsirrtum bezüglich des Vertragspartners L berufen kann.
+
+Nach § 119 Abs. 2 BGB kann anfechten, wer sich bei Abgabe einer Willenserklärung über verkehrswesentliche Eigenschaften der Person oder der Sache geirrt hat. Eigenschaften sind alle tatsächlichen und rechtlichen Verhältnisse, die infolge ihrer Art und Dauer nach der Verkehrsanschauung für die Wertschätzung der Person oder Sache von Bedeutung sind.
+
+**Vorliegend** hat J erklärt, „sich in seiner Person getäuscht"" zu haben. Diese Erklärung bezieht sich jedoch auf G, seinen Vertreter, nicht auf den Vertragspartner L. Ein Irrtum über die Eigenschaften des eigenen Vertreters – hier dessen Unredlichkeit – ist kein Irrtum über die Person des **Vertragspartners**. § 119 Abs. 2 BGB erfasst nur den Irrtum über verkehrswesentliche Eigenschaften des Geschäftsgegenstands oder des Vertragspartners, nicht aber über Eigenschaften des eigenen Vertreters.
+
+**Mithin** liegt kein Anfechtungsgrund nach § 119 Abs. 2 BGB vor.
+
+**(2) Inhaltsirrtum, § 119 Abs. 1 Alt. 1 BGB**
+
+**Fraglich ist**, ob ein Inhaltsirrtum vorliegt.
+
+Ein Inhaltsirrtum liegt vor, wenn der Erklärende zwar weiß, was er sagt, aber nicht weiß, was er damit erklärt. Er irrt über die rechtliche oder tatsächliche Bedeutung seiner Erklärung.
+
+**Vorliegend** wollte J, dass G für ihn Büromaterialien bestellt. Die von G abgegebene Erklärung – Bestellung von Kopierpapier und Toner – entspricht inhaltlich dem, was J im Rahmen der Vollmacht ermöglichen wollte. J irrte nicht über den Inhalt der Erklärung, sondern über die internen Absichten des G. Ein solcher Irrtum über Motive des Vertreters begründet keinen Inhaltsirrtum.
+
+**Mithin** liegt kein Inhaltsirrtum nach § 119 Abs. 1 Alt. 1 BGB vor.
+
+**(3) Erklärungsirrtum, § 119 Abs. 1 Alt. 2 BGB**
+
+Ein Erklärungsirrtum liegt vor, wenn der Erklärende unbewusst eine Erklärung dieses Inhalts gar nicht abgeben wollte (Versprechen, Verschreiben, Vergreifen).
+
+**Vorliegend** hat J die Vollmachtserteilung bewusst und gewollt vorgenommen. G hat die Bestellung bewusst und gewollt abgegeben. Ein Erklärungsirrtum ist nicht ersichtlich.
+
+**Mithin** liegt kein Erklärungsirrtum nach § 119 Abs. 1 Alt. 2 BGB vor.
+
+**(4) Arglistige Täuschung, § 123 Abs. 1 Alt. 1 BGB**
+
+**Fraglich ist**, ob J wegen arglistiger Täuschung anfechten kann.
+
+Nach § 123 Abs. 1 Alt. 1 BGB kann anfechten, wer zur Abgabe einer Willenserklärung durch arglistige Täuschung bestimmt worden ist. Arglistige Täuschung setzt voraus, dass der Täuschende vorsätzlich einen Irrtum erregt oder aufrechterhält und der Getäuschte hierdurch zur Abgabe der Willenserklärung bestimmt wird.
+
+**(a) Täuschung durch L**
+
+L selbst hat J nicht getäuscht. Er hat die Bestellung gutgläubig als regulären Geschäftsvorgang entgegengenommen und hatte keine Kenntnis von den Eigenbedarfsabsichten des G.
+
+**Mithin** liegt keine Täuschung durch L vor.
+
+**(b) Täuschung durch G als Dritten, § 123 Abs. 2 S. 1 BGB**
+
+**Fraglich ist**, ob eine Täuschung durch G dem L zugerechnet werden kann.
+
+G hat J dadurch getäuscht, dass er die Vollmacht zu eigenen Zwecken missbrauchte und dies vor J verbarg. Nach § 123 Abs. 2 S. 1 BGB ist eine Täuschung durch einen Dritten jedoch nur dann beachtlich, wenn der Erklärungsempfänger die Täuschung kannte oder kennen musste.
+
+Die Vorschrift setzt voraus, dass ein „Dritter"" getäuscht hat. Dritter ist jeder, der weder Erklärungsempfänger noch dessen Repräsentant ist. G ist jedoch aus Sicht des Verhältnisses J – L der **Vertreter des J**, nicht ein Dritter im Verhältnis zu L. § 123 Abs. 2 S. 1 BGB regelt zudem den Fall, dass ein Dritter den Erklärenden gegenüber dem Erklärungsempfänger täuscht. Vorliegend täuschte G jedoch nicht im Vorfeld des konkreten Vertragsschlusses, sondern missbrauchte die ihm bereits erteilte Vertretungsmacht.
+
+Zudem fehlt es an der **Kausalität** zwischen Täuschung und Willenserklärung. J wurde nicht durch die Täuschung des G zur Abgabe der Willenserklärung (hier: Vollmachtserteilung) „bestimmt"". Die Vollmacht bestand bereits vor der konkreten Bestellung. G täuschte über seine Absichten bei der Verwendung der Vollmacht, nicht über Umstände, die J zur Bevollmächtigung veranlassten.
+
+**Mithin** liegt kein Anfechtungsgrund nach § 123 Abs. 1 Alt. 1, Abs. 2 S. 1 BGB vor.
+
+###### c) Zwischenergebnis
+
+Die Anfechtung des Kaufvertrags selbst ist mangels Anfechtungsgrund unwirksam.
+
+##### 2. Anfechtung der Vollmachtserteilung
+
+**Fraglich ist**, ob J die **Vollmachtserteilung** an G anfechten kann. Wäre die Vollmacht durch Anfechtung rückwirkend nichtig (§ 142 Abs. 1 BGB), hätte G bei Abschluss des Kaufvertrags ohne Vertretungsmacht gehandelt mit der Folge, dass der Vertrag gemäß § 177 Abs. 1 BGB schwebend unwirksam wäre.
+
+###### a) Zulässigkeit der Anfechtung der Vollmachtserteilung
+
+Die Vollmachtserteilung ist ein eigenständiges, einseitiges Rechtsgeschäft, das grundsätzlich der Anfechtung zugänglich ist. Da die Vollmacht gemäß dem Abstraktionsprinzip vom Grundverhältnis (hier: Arbeits- bzw. Dienstverhältnis zwischen J und G) unabhängig ist, muss sie auch eigenständig angefochten werden können.
+
+Die Anfechtung der Vollmachtserteilung ist somit zulässig.
+
+###### b) Anfechtungserklärung, § 143 Abs. 1, Abs. 3 S. 1 BGB
+
+Die Anfechtung erfolgt durch empfangsbedürftige Willenserklärung gegenüber dem Anfechtungsgegner. Bei einseitigen Rechtsgeschäften, die – wie die Innenvollmacht nach § 167 Abs. 1 Alt. 1 BGB – einem anderen gegenüber vorzunehmen waren, ist Anfechtungsgegner der andere, § 143 Abs. 3 S. 1 BGB.
+
+**Vorliegend** wurde die Vollmacht als Innenvollmacht dem G gegenüber erteilt. Anfechtungsgegner ist daher G. J hat gegenüber G erklärt, er habe „sich in seiner Person getäuscht"" und wolle „mit ihm nicht mehr zusammenarbeiten"". Darin liegt bei verständiger Würdigung zugleich die Erklärung, das der Zusammenarbeit zugrunde liegende Rechtsverhältnis einschließlich der erteilten Vollmacht nicht mehr gelten lassen zu wollen.
+
+**Fraglich ist** allerdings, ob die Anfechtungserklärung hinreichend bestimmt auf die Vollmacht bezogen ist. Die Erklärung des J richtete sich unmittelbar an G und brachte den Willen zum Ausdruck, die Rechtsbeziehung zu G insgesamt zu beenden. Bei Auslegung nach dem objektiven Empfängerhorizont (§§ 133, 157 BGB) erfasst dies auch die erteilte Vollmacht.
+
+**Mithin** liegt eine Anfechtungserklärung bezüglich der Vollmachtserteilung vor.
+
+###### c) Anfechtungsgrund: Eigenschaftsirrtum bezüglich des Bevollmächtigten, § 119 Abs. 2 BGB
+
+**Fraglich ist**, ob ein Anfechtungsgrund für die Vollmachtserteilung vorliegt.
+
+**(1) Problemaufriss**
+
+J hat die Vollmacht erteilt, ohne zu wissen, dass G diese zu eigennützigen Zwecken missbrauchen würde. Er hat sich damit über die Redlichkeit und Zuverlässigkeit des G geirrt. Es stellt sich die Frage, ob dieser Irrtum über die Person des Bevollmächtigten einen Anfechtungsgrund nach § 119 Abs. 2 BGB darstellt.
+
+**(2) Irrtum über verkehrswesentliche Eigenschaften der Person**
+
+Nach § 119 Abs. 2 BGB ist als Irrtum über den Inhalt der Erklärung auch der Irrtum über solche Eigenschaften der Person anzusehen, die im Verkehr als wesentlich angesehen werden. Eigenschaften einer Person sind alle tatsächlichen und rechtlichen Verhältnisse, die in der Person selbst begründet sind, ihr für eine gewisse Dauer anhaften und für die Wertschätzung der Person nach der Verkehrsanschauung von Bedeutung sind.
+
+**(a) Redlichkeit und Vertrauenswürdigkeit als Eigenschaft**
+
+**Fraglich ist**, ob die Redlichkeit und Vertrauenswürdigkeit verkehrswesentliche Eigenschaften im Sinne des § 119 Abs. 2 BGB sind.
+
+Die Redlichkeit und Vertrauenswürdigkeit einer Person sind Charaktereigenschaften, die ihr dauerhaft anhaften und für die Beurteilung ihrer Person nach der Verkehrsanschauung von erheblicher Bedeutung sind. Dies gilt insbesondere im Rahmen von Vertrauensverhältnissen, bei denen der eine Teil dem anderen weitreichende Befugnisse einräumt. Die Bevollmächtigung eines anderen ist ein solches Vertrauensverhältnis, da der Bevollmächtigte den Vollmachtgeber durch sein Handeln unmittelbar berechtigen und verpflichten kann.
+
+**Mithin** sind Redlichkeit und Vertrauenswürdigkeit verkehrswesentliche Eigenschaften im Sinne des § 119 Abs. 2 BGB.
+
+**(b) Irrtum bei Abgabe der Willenserklärung**
+
+Der Irrtum muss bei Abgabe der Willenserklärung – hier der Vollmachtserteilung – bestanden haben.
+
+**Vorliegend** hat J bei Erteilung der Vollmacht angenommen, G sei redlich und werde die Vollmacht nur im Interesse des Repetitoriums verwenden. Diese Annahme war unzutreffend, da G von Anfang an oder jedenfalls später die Absicht hatte, die Vollmacht zum Eigennutz zu missbrauchen. J befand sich damit bei Abgabe der Vollmachtserteilung in einem Irrtum über die Eigenschaft der Redlichkeit des G.
+
+**Fraglich ist** allerdings, ob ein **Motivirrtum** vorliegt, der nach § 119 Abs. 2 BGB unbeachtlich wäre.
+
+**(3) Abgrenzung zum unbeachtlichen Motivirrtum**
+
+**(a) Problemaufriss**
+
+Der Motivirrtum – der Irrtum über die Gründe, die zur Abgabe der Willenserklärung geführt haben – ist grundsätzlich unbeachtlich. § 119 Abs. 2 BGB macht hiervon eine Ausnahme für Irrtümer über verkehrswesentliche Eigenschaften, die er dem Inhaltsirrtum gleichstellt. Entscheidend ist die Abgrenzung zwischen dem beachtlichen Eigenschaftsirrtum und dem unbeachtlichen bloßen Motivirrtum.
+
+**(b) Meinungsstand**
+
+Nach **herrschender Meinung** ist der Irrtum über verkehrswesentliche Eigenschaften der Person beachtlich, wenn die Eigenschaft für das konkrete Rechtsgeschäft von wesentlicher Bedeutung ist und der Erklärende bei Kenntnis der wahren Sachlage die Erklärung nicht abgegeben hätte. Die Grenze zum unbeachtlichen Motivirrtum verläuft dort, wo der Irrtum lediglich die **Willensbildung** betrifft, ohne dass die irrig angenommene Eigenschaft für das Geschäft selbst relevant ist.
+
+Bei der **Vollmachtserteilung** ist die Redlichkeit des Bevollmächtigten von zentraler Bedeutung, da der Vollmachtgeber dem Bevollmächtigten weitreichende rechtliche Befugnisse einräumt und sich dessen Handeln zurechnen lassen muss. Die Redlichkeit betrifft hier nicht bloß die Motivation zur Vollmachtserteilung, sondern die Grundlage des Vertrauensverhältnisses selbst.
+
+Nach einer **anderen Ansicht** ist der Irrtum über die künftige Verwendung der Vollmacht ein bloßer Motivirrtum, da er sich nicht auf eine bei Vertragsschluss bereits vorhandene Eigenschaft bezieht, sondern auf künftiges Verhalten.
+
+**(c) Stellungnahme**
+
+Der herrschenden Meinung ist zuzustimmen. Die Redlichkeit ist eine **gegenwärtige** Charaktereigenschaft, die sich erst durch künftiges Verhalten manifestiert. Wer eine Vollmacht zu missbrauchen beabsichtigt, ist bereits im Zeitpunkt der Vollmachtserteilung unredlich, auch wenn der Missbrauch erst später erfolgt. Der Irrtum bezieht sich daher auf eine bei Abgabe der Willenserklärung bereits vorhandene Eigenschaft.
+
+**(d) Subsumtion**
+
+**Vorliegend** hat G die Vollmacht missbraucht, indem er „zum ‚Arbeitgeber-Rabatt' für sich"" einkaufte. Er handelte dabei, um „privat ein wenig zu sparen"". Der Sachverhalt bezeichnet G als „findig"" und „klamm"", was nahelegt, dass er die Gelegenheit zum Eigennutz von Anfang an erkannte und ergriff. Seine Unredlichkeit bestand damit bereits bei oder jedenfalls vor der konkreten Bestellung.
+
+J hat sich bei Erteilung der Vollmacht über die Redlichkeit des G geirrt. Dieser Irrtum betrifft eine verkehrswesentliche Eigenschaft der Person im Sinne des § 119 Abs. 2 BGB.
+
+**(4) Kausalität**
+
+Der Irrtum muss für die Abgabe der Willenserklärung kausal gewesen sein. J hätte die Vollmacht bei Kenntnis der Unredlichkeit des G nicht erteilt.
+
+**(5) Zwischenergebnis**
+
+Ein Anfechtungsgrund nach § 119 Abs. 2 BGB liegt vor.
+
+###### d) Anfechtungsfrist, § 121 Abs. 1 S. 1 BGB
+
+Die Anfechtung wegen Irrtums muss gemäß § 121 Abs. 1 S. 1 BGB unverzüglich, d. h. ohne schuldhaftes Zögern, erfolgen, nachdem der Anfechtungsberechtigte von dem Anfechtungsgrund Kenntnis erlangt hat.
+
+**Vorliegend** hat J bei der Durchsicht der Rechnungen die Bestellung bemerkt und G „zur Rede"" gestellt. Nachdem G „alles gestand"", erklärte J „unmittelbar danach"", sich in G getäuscht zu haben. Die Anfechtung erfolgte damit ohne schuldhaftes Zögern nach Kenntniserlangung.
+
+**Mithin** ist die Anfechtungsfrist gewahrt.
+
+###### e) Rechtsfolge der Anfechtung der Vollmacht
+
+**(1) Grundsatz: Rückwirkende Nichtigkeit, § 142 Abs. 1 BGB**
+
+Gemäß § 142 Abs. 1 BGB ist ein angefochtenes Rechtsgeschäft als von Anfang an nichtig anzusehen. Wird die Vollmachtserteilung wirksam angefochten, entfällt die Vertretungsmacht des G rückwirkend (ex tunc).
+
+Die Folge wäre, dass G bei Abschluss des Kaufvertrags als Vertreter ohne Vertretungsmacht gehandelt hätte. Der von ihm im Namen des J geschlossene Vertrag wäre gemäß § 177 Abs. 1 BGB schwebend unwirksam und mangels Genehmigung durch J endgültig unwirksam.
+
+**(2) Problemaufriss: Schutz des gutgläubigen Dritten L**
+
+**Fraglich ist** jedoch, ob die rückwirkende Vernichtung der Vollmacht auch gegenüber dem gutgläubigen Geschäftspartner L wirkt oder ob dessen Vertrauen auf den Bestand der Vollmacht geschützt ist.
+
+**(3) Meinungsstand**
+
+**(a) Eine Ansicht: Uneingeschränkte Wirkung der Anfechtung**
+
+Nach einer Ansicht wirkt die Anfechtung der Vollmacht uneingeschränkt auch gegenüber dem Dritten. Der Dritte sei durch die Schadensersatzpflicht des Anfechtenden nach § 122 Abs. 1 BGB hinreichend geschützt. Diese Vorschrift gewährt dem Vertragspartner Ersatz des negativen Interesses (Vertrauensschaden), wenn er auf die Gültigkeit der Erklärung vertraut hat.
+
+**(b) Herrschende Meinung: Einschränkung durch Rechtsscheinsgrundsätze**
+
+Nach **herrschender Meinung** ist das Anfechtungsrecht bei der Vollmacht durch die Grundsätze des Vertrauensschutzes eingeschränkt. Der gutgläubige Dritte, der auf den Bestand einer ihm gegenüber kundgegebenen oder sonst erkennbaren Vollmacht vertraut hat, ist in seinem Vertrauen analog den §§ 170–173 BGB geschützt.
+
+Nach § 173 BGB muss der Dritte das Erlöschen der Vollmacht gegen sich gelten lassen, wenn er es bei Vornahme des Rechtsgeschäfts kannte oder kennen musste. Im Umkehrschluss ist er geschützt, wenn er das Erlöschen – bzw. hier: den Anfechtungsgrund – weder kannte noch kennen musste.
+
+Die analoge Anwendung dieser Rechtsscheinsgrundsätze wird damit begründet, dass der Geschäftspartner typischerweise keine Kenntnis von den Umständen haben kann, die zur Anfechtbarkeit der Vollmacht führen. Es wäre unbillig, ihm das Risiko einer rückwirkenden Vernichtung der Vollmacht aufzubürden, von deren Wirksamkeit er bei Vertragsschluss ausgehen durfte.
+
+**(c) Andere Ansicht: Keine Einschränkung, aber Rechtsfolgenkorrektur**
+
+Nach einer weiteren Ansicht ist die Anfechtung zwar uneingeschränkt wirksam, jedoch haftet der Vertretene dem gutgläubigen Dritten analog § 179 Abs. 2 BGB auf Ersatz des negativen Interesses. Der Vertrauensschutz wird damit nicht über eine Einschränkung des Anfechtungsrechts, sondern über eine Haftung des Vertretenen realisiert.
+
+**(4) Stellungnahme**
+
+Der herrschenden Meinung ist zuzustimmen. Die §§ 170–173 BGB bringen einen allgemeinen Rechtsgedanken zum Ausdruck: Der gutgläubige Geschäftspartner soll auf den Bestand einer ihm gegenüber in Erscheinung getretenen Vollmacht vertrauen dürfen. Dieser Schutz würde ausgehöhlt, wenn der Vollmachtgeber durch Anfechtung einseitig die Grundlage des Vertrauens rückwirkend zerstören könnte, ohne dass der Geschäftspartner eine Möglichkeit hatte, den Anfechtungsgrund zu erkennen.
+
+Der Verweis auf § 122 BGB überzeugt nicht, da der Geschäftspartner dort nur den Vertrauensschaden, nicht aber das positive Interesse (Erfüllungsinteresse) erhält. Er stünde damit schlechter als bei einem wirksamen Vertrag. Dies ist nicht gerechtfertigt, wenn der Geschäftspartner auf den Bestand der Vollmacht vertrauen durfte und der Anfechtungsgrund allein in der Sphäre des Vollmachtgebers und seines Vertreters liegt.
+
+**(5) Subsumtion**
+
+**Vorliegend** wurde die Vollmacht als Innenvollmacht (§ 167 Abs. 1 Alt. 1 BGB) dem G gegenüber erteilt. L hat von der Vollmacht durch das Auftreten des G – Verwendung des Briefpapiers des J, Unterschrift mit „i.V. G"" – Kenntnis erlangt. Er durfte auf den Bestand dieser Vollmacht vertrauen.
+
+**Fraglich ist**, ob L den Anfechtungsgrund – die Unredlichkeit des G – kannte oder kennen musste (§ 173 BGB analog).
+
+Wie bereits zum Missbrauch der Vertretungsmacht festgestellt, war für L weder erkennbar noch musste er damit rechnen, dass G die Materialien für sich privat und nicht für das Repetitorium bestellte. Die Bestellung entsprach dem üblichen Geschäftsgebaren, erfolgte auf offiziellem Briefpapier und wurde in die Räumlichkeiten des Repetitoriums geliefert. L hatte keine Kenntnis von der Unredlichkeit des G und musste diese auch nicht kennen.
+
+**Mithin** ist L in seinem Vertrauen auf den Bestand der Vollmacht analog § 173 BGB geschützt. Die Anfechtung der Vollmacht wirkt ihm gegenüber nicht.
+
+###### f) Zwischenergebnis
+
+Die Anfechtung der Vollmachtserteilung ist zwar nach § 119 Abs. 2 BGB grundsätzlich möglich, da sich J bei der Vollmachtserteilung über die verkehrswesentliche Eigenschaft der Redlichkeit des G geirrt hat. Jedoch ist der gutgläubige L in seinem Vertrauen auf den Bestand der Vollmacht analog §§ 170, 173 BGB geschützt. Die Anfechtung der Vollmacht führt daher nicht zur Unwirksamkeit des mit L geschlossenen Kaufvertrags.
+
+##### 3. Ergebnis zur Anfechtung
+
+Weder die Anfechtung des Kaufvertrags noch die Anfechtung der Vollmachtserteilung führt zur Unwirksamkeit des Kaufvertrags. Der Kaufvertrag zwischen L und J besteht fort.
+
+***
+
+#### III. Kein sonstiges Erlöschen
+
+Weitere Erlöschensgründe sind nicht ersichtlich. Insbesondere hat J nicht erfüllt (§ 362 Abs. 1 BGB), und die Parteien haben den Vertrag nicht einvernehmlich aufgehoben.
+
+#### IV. Ergebnis
+
+L kann von J Zahlung von 350 € aus § 433 Abs. 2 BGB verlangen.
+
+***
+
+###
+
+***
+
+###
+"
+A036,P09,3,Bürobedarf,Zivilrecht,Mittel,llm,creator,false,creator,2188,"**A. Anspruch des L gegen J auf Zahlung von 350 € aus § 433 Abs. 2 BGB**
+
+L könnte gegen J einen Anspruch auf Zahlung des Kaufpreises in Höhe von 350 € aus § 433 Abs. 2 BGB haben.
+
+**I. Anspruch entstanden**
+Voraussetzung dafür ist das Zustandekommen eines wirksamen Kaufvertrages zwischen L und J. Ein Kaufvertrag kommt durch zwei übereinstimmende Willenserklärungen, Angebot und Annahme (§§ 145 ff. BGB), zustande.
+
+**1. Eigene Willenserklärung des J**
+J selbst hat gegenüber L keine auf den Abschluss eines Kaufvertrages gerichtete Willenserklärung abgegeben.
+
+**2. Wirksame Stellvertretung durch G, §§ 164 ff. BGB**
+J könnte jedoch durch G wirksam vertreten worden sein. Die Rechtsfolgen der Bestellung des G würden den J gem. § 164 Abs. 1 S. 1 BGB unmittelbar berechtigen und verpflichten, wenn G eine eigene Willenserklärung im fremden Namen und mit Vertretungsmacht abgegeben hat.
+
+**a) Eigene Willenserklärung**
+G müsste eine eigene Willenserklärung abgegeben haben und nicht lediglich als Bote aufgetreten sein. Dies beurteilt sich nach dem äußeren Auftreten. G hat hier das Bestellformular selbst ausgefüllt und unterschrieben. Er trat daher als jemand auf, der eine eigene vertragliche Entscheidung trifft. Er hat mithin eine eigene Willenserklärung abgegeben.
+
+**b) Im fremden Namen (Offenkundigkeitsprinzip)**
+G müsste die Erklärung im Namen des J abgegeben haben (§ 164 Abs. 1 S. 2 BGB). Der Wille, im fremden Namen zu handeln, muss erkennbar nach außen treten. G verwendete für die Bestellung das übliche Briefpapier des J und unterschrieb den Bogen mit „i.V. G“ (in Vertretung). Für L war damit aus den Umständen objektiv unzweifelhaft erkennbar, dass G nicht für sich selbst, sondern für den Inhaber des Repetitoriums, J, handeln wollte. Das Offenkundigkeitsprinzip ist gewahrt.
+
+**c) Mit Vertretungsmacht**
+G müsste zudem mit Vertretungsmacht gehandelt haben.
+
+**aa) Erteilung der Vollmacht**
+J könnte dem G eine Vollmacht durch rechtsgeschäftliche Erklärung erteilt haben (§ 166 Abs. 2 BGB). Vorliegend haben J und G zu Beginn der Tätigkeit vereinbart, dass G alle Geschäfte der Organisation und Verwaltung des Repetitoriums tätigen darf, worunter ausdrücklich auch die Beschaffung von Kopierpapier und Toner fiel. J hat dem G somit eine Innenvollmacht gem. § 167 Abs. 1 Alt. 1 BGB erteilt. Die Bestellung von Büromaterial war vom Umfang dieser Vollmacht gedeckt. 
+
+**bb) Missbrauch der Vertretungsmacht**
+Fraglich ist jedoch, ob die Vertretungsmacht des G dadurch beeinträchtigt wurde, dass er die Materialien nicht für das Repetitorium, sondern für seinen eigenen heimischen Drucker bestellte, um den „Arbeitgeber-Rabatt“ zu nutzen. 
+Grundsätzlich ist zwischen dem Innenverhältnis (rechtliches Dürfen) und dem Außenverhältnis (rechtliches Können) zu trennen (Trennungs- und Abstraktionsprinzip). Beschränkungen im Innenverhältnis wirken sich grundsätzlich nicht auf die Wirksamkeit der Vertretungsmacht im Außenverhältnis aus. Das Risiko eines Missbrauchs der Vertretungsmacht trägt grundsätzlich der Vertretene.
+Eine Ausnahme gilt nur dann, wenn der Dritte (L) den Missbrauch positiv kennt (Kollusion) oder der Missbrauch für ihn derart offensichtlich ist, dass er sich dem Verdacht aufdrängen muss (Evidenz). Vorliegend bestellte G haushaltsübliche Mengen an Büromaterial auf dem offiziellen Briefpapier des J und ließ die Ware in die Räumlichkeiten des Repetitoriums liefern. L hatte keinerlei Anhaltspunkte für einen Missbrauch. Ein Fall der Evidenz liegt somit nicht vor. G handelte daher im Außenverhältnis im Rahmen seiner Vertretungsmacht.
+
+**cc) Erlöschen der Vollmacht durch Anfechtung, § 142 Abs. 1 BGB**
+Die Vollmacht könnte jedoch gemäß § 142 Abs. 1 BGB rückwirkend (ex tunc) erloschen sein, wenn J die Vollmachtserteilung wirksam angefochten hat. Dies hätte zur Folge, dass G als Vertreter ohne Vertretungsmacht (falsus procurator, § 177 BGB) gehandelt hätte.
+
+**(1) Anfechtungserklärung, § 143 BGB**
+J müsste die Anfechtung erklärt haben. Aus der Erklärung muss nach objektivem Empfängerhorizont (§§ 133, 157 BGB) hervorgehen, dass das Rechtsgeschäft wegen eines Willensmangels beseitigt werden soll; das Wort ""Anfechtung"" muss dabei nicht fallen. J erklärte gegenüber G, dass er sich in ihm getäuscht habe. Zudem rief er bei L an und erklärte, mit dem Vertrag „nichts zu tun haben zu wollen“, unter Hinweis auf die Täuschung durch G. Darin liegt eine hinreichend deutliche Erklärung, sich von der Bevollmächtigung lösen zu wollen.
+
+**(2) Anfechtungsgrund**
+Ein Anfechtungsgrund könnte sich aus § 119 Abs. 2 BGB (Eigenschaftsirrtum) ergeben. Danach kann anfechten, wer sich bei der Abgabe einer Willenserklärung über eine Eigenschaft der Person irrt, die im Verkehr als wesentlich angesehen wird. Die persönliche Zuverlässigkeit, Ehrlichkeit und Loyalität eines Mitarbeiters stellen solche verkehrswesentlichen Eigenschaften dar. Da G im Sachverhalt als „findig, aber stets klamm“ beschrieben wird und sofort seine neuen Kompetenzen für private Zwecke ausnutzt, ist davon auszugehen, dass ihm diese Eigenschaft (mangelnde Loyalität) bereits im Zeitpunkt der Vollmachtserteilung anhaftete. J ging hingegen fälschlicherweise davon aus, einen ehrlichen Verwalter einzustellen. Ein Irrtum nach § 119 Abs. 2 BGB liegt bei Vollmachtserteilung vor.
+
+**(3) Zulässigkeit der Anfechtung der ausgeübten Innenvollmacht**
+Fraglich ist jedoch, ob die Anfechtung einer bereits ausgeübten Innenvollmacht rechtlich zulässig ist. Dies stellt ein umstrittenes Kernproblem des Stellvertretungsrechts dar.
+
+*   **Eine Ansicht (Rechtsprechung)** lässt die Anfechtung der ausgeübten Innenvollmacht uneingeschränkt zu. Argumentiert wird, dass der Vertretene bei Einschaltung eines Vertreters nicht schlechter stehen dürfe, als wenn er selbst gehandelt und sich geirrt hätte. Um den Vertragspartner (hier L) zu schützen, sei Anfechtungsgegner in Analogie zu § 143 Abs. 3 BGB der Dritte. Die Rechtsfolge wäre, dass der Kaufvertrag gem. § 142 Abs. 1 BGB nichtig ist. L stünde dann gegen J nur ein Anspruch auf Ersatz des Vertrauensschadens aus § 122 BGB zu, den Kaufpreis könnte er von J nicht verlangen. 
+*   **Eine andere Ansicht (Teile der Literatur)** hält die Anfechtung der bereits ausgeübten Innenvollmacht für unzulässig. Zur Begründung wird angeführt, dass die Anfechtung der Vollmacht letztlich das vollzogene Vertretergeschäft beseitigt. Dies laufe der Wertung des § 166 Abs. 1 BGB zuwider, wonach es für Irrtümer beim Vertragsschluss allein auf die Person des Vertreters ankommt (G befand sich hier in keinem Irrtum). Ein weiteres gewichtiges Argument ist die Risikoverteilung: Bei einer Anfechtung würde G zum *falsus procurator* (§ 177 BGB). Der Dritte (L) müsste sich dann wegen der Erfüllung oder auf Schadensersatz an G halten (§ 179 Abs. 1 BGB). Das Insolvenzrisiko des Vertreters würde somit auf den Dritten abgewälzt.
+*   **Streitentscheid:** Die Ansichten kommen zu unterschiedlichen Ergebnissen, weshalb eine Entscheidung erforderlich ist. Der Literaturansicht ist der Vorzug zu geben. J hat den G bewusst ausgewählt und mit der Beschaffung von Materialien betraut. Dass der „stets klamme“ G diese Stellung missbraucht, fällt in die Sphäre des J. Es wäre unbillig, dem gutgläubigen L den vertraglichen Erfüllungsanspruch (§ 433 Abs. 2 BGB) zu entziehen und ihn stattdessen auf eine Haftung des mittellosen G aus § 179 BGB zu verweisen. Der Schutz des Rechtsverkehrs verbietet eine Verlagerung des Insolvenzrisikos auf den unbeteiligten Dritten. 
+
+Die Anfechtung der ausgeübten Innenvollmacht ist demnach unzulässig. Die Vollmacht des G ist nicht nach § 142 Abs. 1 BGB erloschen. 
+
+**d) Zwischenergebnis**
+G hat den J wirksam vertreten. Die Rechtswirkungen des Kaufvertrags treffen J unmittelbar (§ 164 Abs. 1 S. 1 BGB). Der Anspruch auf Zahlung des Kaufpreises ist entstanden.
+
+**II. Anspruch erloschen**
+Eine Anfechtung des Kaufvertrages selbst scheidet aus, da bei der Willensbildung bezüglich des Vertragsschlusses kein Irrtum vorlag. Gemäß § 166 Abs. 1 BGB kommt es insoweit allein auf den Vertreter an. G handelte in vollem Bewusstsein und ohne Irrtum. Der Anspruch ist nicht erloschen.
+
+**III. Anspruch durchsetzbar**
+Es sind keine Einreden ersichtlich. Der Anspruch ist fällig und durchsetzbar.
+
+**B. Ergebnis**
+L kann von J die Zahlung des Kaufpreises in Höhe von 350 € aus § 433 Abs. 2 BGB verlangen. *(Anmerkung für die rechtliche Praxis: J kann sich das Geld im Wege des Schadensersatzes gem. § 280 Abs. 1 BGB aus dem Arbeits-/Auftragsverhältnis von G zurückholen, trägt hierbei jedoch das Insolvenzrisiko des G).*"
+A040,P10,4,Repetitor,Zivilrecht,Sehr Leicht,classic,creator,false,creator,3413,"# A. Anspruch des J gegen K auf Zahlung der § 130 €
+
+Es ist fraglich, ob J gegen K einen Anspruch auf Zahlung der § 130 € hat.
+
+## I. Anspruch des J gegen K auf Zahlung der § 130 € gem. § 13 AVB
+
+J könnte gegen K einen Anspruch auf Zahlung der § 130 € gem. § 13 AVB haben. 
+
+### 1. Anspruch entstanden
+
+Zunächst müsste der Anspruch entstanden sein.
+
+#### a) Zustandekommen eines wirksamen Vertrags zwischen J und K
+
+Es handelt sich bei § 13 AVB  um einen vertraglichen Anspruch. Damit dieser Anspruch des J gegen K bestehen kann, müsste somit zunächst ein wirksamer Vertrag zwischen J und K zustande gekommen sein.
+
+Ein Vertrag kommt stets durch mindestens zwei korrespondierende, übereinstimmende Willenserklärungen zustande, von denen die zeitlich erste ""Angebot"" und die zweite ""Annahme"" genannt wird.
+
+##### aa) Wirksames Angebot iSd. § 145 BGB
+
+Es müsste somit zunächst ein wirksames Angebot iSd. § 145 BGB vorliegen.
+
+##### &#x20;
+
+###### (1) Angebot der K durch ihre Interessensbekundung per E-Mail
+
+K hat vorliegend J per E-Mail kontaktiert und ihr Interesse an seinen Leistungen bekundet.
+
+Vorliegend könnte K durch ihre Interessenbekundung per E-Mail ein Angebot iSd. § 145 BGB abgegeben haben.
+
+Ein Angebot iSd. § 145 BGB ist eine empfangsbedürftige Willenserklärung, durch die einem anderen ein Vertrag derart angetragen wird, dass sein Zustandekommen lediglich von dessen vorbehaltsloser Zustimmung abhängt. 
+
+Vorliegend hat K jedoch lediglich ihr Interesse bekundet. Dieser Interessenbekundung sind nicht alle für einen Vertragsabschluss notwendigen Informationen (insbesondere die essentialia negotii) zu entnehmen. Ein Vertrag hätte vorliegend nicht allein durch eine Zustimmung des J zustande kommen können. 
+
+Die Interessensbekundung der K ist somit kein Angebot iSd. § 145 BGB.
+
+###### (2) Angebot des J durch den Versand des ausgefüllten, aber nicht unterschriebenen, Mustervertrag
+
+J füllte vorliegend den Mustervertrag mit den ihm bereits bekannten Angaben aus der E-Mail in seinem Mustervertrag aus, verzichtet aber auf eine Unterschrift und sendet den Mustervertrag der K zu. Hierin könnte ein Angebot des J iSd. § 145 BGB.
+
+Auch hier fehlen jedoch immer noch einige für einen Vertragsabschluss notwendigen Informationen, insbesondere fehlt die Unterschritt des J, durch die er seinen Rechtsbindungswillen zum Ausdruck bringen würde.
+
+Auch im Versand des ausgefüllten, aber nicht unterschriebenen, Mustervertrag liegt somit kein Angebot iSd. § 145 BGB.
+
+###### (3) Angebot der K durch den Rückversand des ausgefüllten und unterschriebenen Mustervertrag
+
+###### \*\*\*\*
+
+K füllte dann jedoch den Text vollständig aus und sendete ihn unterschrieben an J zurück. Der ausgefüllte und unterschriebene Mustervertrag enthält nun alle für einen Vertragsabschluss notwendigen Informationen und das Zustandekommen eines Vertrags hängt lediglich von der vorbehaltslosen Zustimmung des J ab.
+
+Im Rückversand des ausgefüllten und unterschriebenen Mustervertrag liegt somit ein Angebot iSd. § 145 BGB.
+
+###### (4) Zwischenergebnis
+
+Es liegt ein wirksames Angebot der K iSd. § 145 BGB vor.
+
+##### bb) Wirksame Annahme iSd. § 147 BGB
+
+J müsste das Angebot jedoch auch noch wirksam iSd. § 147 BGB angenommen haben.
+
+Unter eine Annahme iSd. § 147 BGB versteht man die vorbehaltslose Zustimmung zum Angebot. 
+
+J findet vorliegend wenige Tage später erfreut den Vertragstext in seinem privaten Briefkasten, unterschreibt und heftet den Vertrag in einem neu angelegten Ordner ab. 
+
+Hierin liegt grundsätzlich die vorbehaltslose Zustimmung zum Angebot und damit eine Annahme iSd. § 147 BGB.
+
+Eine empfangsbedürftige Willenserklärung unter Abwesenden muss jedoch gem. § 130 Abs. 1 BGB auch zugegangen sein. 
+
+Grundsätzlich ist eine Willenserklärung dann zugegangen, wenn sie derart in den Machtbereich des Empfängers gelangt, dass unter normalen Umständen die Möglichkeit der Kenntnisnahme besteht (Möglichkeitslehre). Eine tatsächliche spätere Kenntnisnahme ist unerheblich. 
+
+Vorliegend heftet der J den Vertrag jedoch in einen Ordner ab, sodass er sich zu keinem Zeitpunkt im Machtbereich der K befindet und sie auch keine Möglichkeit zur Kenntnisnahme hat.
+
+Gem. § 151 BGB kommt ein Vertrag jedoch durch die Annahme des Antrags zustande, ohne dass die Annahme dem Antragenden gegenüber erklärt zu werden braucht, wenn eine solche Erklärung nach der Verkehrssitte nicht zu erwarten ist. Vorliegend ist es nach der Verkehrssitte nicht üblich, einen ausgefüllten und unterschriebenen Mustervertrag wieder zurückzusenden. Dem Absender ist der verbindliche Charakter des Versands bereits bewusst.
+
+Es liegt somit auch eine wirksame Annahme iSd. § 147 BGB vor.
+
+##### cc) Zwischenergebnis
+
+Es ist ein wirksamer Vertrag zwischen J und K zustande gekommen.
+
+#### b) Wirksame Einbeziehung der Klausel § 13 AVG
+
+Der in Rede stehende § 13 AVG müsste jedoch auch wirksamer Bestandteil des Vertrags geworden sein. Bei den AVG handelt es sich womöglich um sog. Allgemeine Geschäftsbedingungen (im Folgenden: AGB). Ist dies der Fall muss, um die Wirksamkeit des § 13 AVG zu prüfen, eine sog. AGB-Kontrolle gem. §§ 305ff. BGB vorgenommen werden.
+
+**aa) Anwendbarkeit von AGB, § 310 Abs. 4, Abs. 3 BGB**
+
+Zunächst ist zu prüfen, ob überhaupt ein Sachverhalt vorliegt, in dem AGB zur Anwendung kommen können.
+
+**(1) Grundsätzliche Anwendbarkeit, § 310 Abs. 4** BGB
+
+Zunächst ist die allgemeine grundsätzliche Anwendbarkeit gem. § 310 Abs. 4 BGB zu prüfen.
+
+Gem. § 310 Abs. 4 BGB finden die Vorschriften über AGB keine Anwendung bei Verträgen auf dem Gebiet des Erb-, Familien- und Gesellschaftsrechts sowie auf Tarifverträge, Betriebs- und Dienstvereinbarungen, bei der Anwendung auf Arbeitsverträge sind einige Besonderheiten zu beachten.
+
+Vorliegend liegt jedoch kein in § 310 Abs. 4 BGB beschriebener Vertrag vor, somit sind die Vorschriften über AGB grundsätzlich anwendbar.
+
+**(2) Besonderheiten bei Verbraucherverträgen, § 310 Abs. 3 BGB**
+
+Jedoch könnte ein Verbrauchervertrag im Sinne des § 310 Abs. 3 BGB vorliegen. Danach ist ein Verbrauchervertrag jeder Vertrag zwischen einem Unternehmer und einem Verbraucher.
+
+Bei K handelt es sich um eine natürliche Person, die den Vertrag zu Lernzwecken abschließt, die weder überwiegend ihrer gewerblichen noch ihrer selbstständigen beruflichen Tätigkeit zugerechnet werden können. K ist mithin ein Verbraucher iSd. § 13 BGB.
+
+Gem. § 14 BGB ist Unternehmer eine natürliche oder juristische Person oder eine rechtsfähige Personengesellschaft, die bei Abschluss eines Rechtsgeschäfts in Ausübung ihrer gewerblichen oder selbständigen beruflichen Tätigkeit handelt.
+
+Bei J handelt es sich ebenfalls um eine natürliche Person, jedoch schließt er das Rechtsgeschäft mit Gewinnerzielungsabsicht ab. Fraglich ist, ob dies bereits eine gewerbliche Tätigkeit iSd. § 14 BGB darstellt und ihn somit zu einem Unternehmer im Sinne dieser Vorschrift macht.
+
+ Der Gewerbebegriff des § 14 BGB ist weit auszulegen, sodass hier bereits die Gewinnerzielungsabsicht ausreichend ist.
+
+J ist somit ein Unternehmer iSd. § 14 BGB.
+
+Der Vertrag zwischen J und K ist somit ein Vertrag zwischen einem Unternehmer und einem Verbraucher. Es liegt somit ein Verbrauchervertrag vor und die AGB-Prüfung erfolgt nach Maßgabe des § 310 Abs. 3 BGB.
+
+**bb) Vorliegen von AGB, § 305 Abs. 1 BGB**
+
+Gem. § 305 Abs. 1 BGB sind AGB sind alle für eine Vielzahl von Verträgen vorformulierten Vertragsbedingungen, die eine Vertragspartei (Verwender) der anderen Vertragspartei bei Abschluss eines Vertrags stellt. Gleichgültig ist, ob die Bestimmungen einen äußerlich gesonderten Bestandteil des Vertrags bilden oder in die Vertragsurkunde selbst aufgenommen werden, welchen Umfang sie haben, in welcher Schriftart sie verfasst sind und welche Form der Vertrag hat.
+
+Vorliegend hat J einen Mustervertrag erstellt, der für eine Vielzahl von Vertragsschlüssen verwendet werden soll. Die Tatsache, dass der Vertrag bisher erst zwei Mal verwendet wurde, ist dabei unerheblich.
+
+Die Vertragsbedingungen wurden nicht zwischen den Vertragsparteien im Einzelnen ausgehandelt sind. Es liegen somit AGB vor.
+
+**cc) AGB als Bestandteil des Vertrags, § 305 Abs. 2 BGB**
+
+Die AGB müssten außerdem gem. § 305 Abs. 2 BGB Bestandteil des Vertrags geworden sein. Dies ist nach der genannten Vorschrift dann der Fall, wenn der Verwender bei Vertragsschluss
+
+1\. die andere Vertragspartei ausdrücklich oder, wenn ein ausdrücklicher Hinweis wegen der Art des Vertragsschlusses nur unter unverhältnismäßigen Schwierigkeiten möglich ist, durch deutlich sichtbaren Aushang am Orte des Vertragsschlusses auf sie hinweist und
+
+2\. der anderen Vertragspartei die Möglichkeit verschafft, in zumutbarer Weise, die auch eine für den Verwender erkennbare körperliche Behinderung der anderen Vertragspartei angemessen berücksichtigt, von ihrem Inhalt Kenntnis zu nehmen,
+
+und wenn die andere Vertragspartei mit ihrer Geltung einverstanden ist.
+
+Vorliegend verweist der Mustervertrag auf die zugehörigen AVB. Die AVB werden auf Wunsch separat zugeschickt. Ein Ausdruck des Regelungswerks findet sich zudem an der Eingangstüre des Kursorts des Repetitoriums.
+
+§ 13 AVG wurde somit grundsätzlich auch Bestandteil des Vertrags gem. § 305 Abs. 2 BGB.
+
+**dd) Keine vorrangige Individualabrede, § 305b BGB**
+
+Es liegt keine vorrangige Individualabrede iSd. § 305b BGB vor.
+
+**ee) Keine überraschende und mehrdeutige Klauseln, § 305b BGB**
+
+§ 13 AVG ist auch keine überraschende und mehrdeutige Klausel iSd. § 305b BGB.
+
+**ff) Abweichung von den Rechtsvorschriften, § 307 Abs. 3 BGB**
+
+§ 13 AVG weicht auch von den Regelungen des BGB ab, welche keine spezifischen Regelungen über pauschale Kosten oder Auslagen im Rahmen eines Dienstvertrages vorsieht. Nach den allgemeinen Regelungen müsste J diese Kosten tragen.
+
+**gg) Inhaltskontrolle, §§ 307ff. BGB**
+
+Es ist weiter eine Inhaltskontrolle gem. §§ 307ff. BGB durchzuführen.
+
+**(1) Klauselverbote ohne Wertungsmöglichkeit, § 309 BGB**
+
+Zunächst sind die Klauselverbote ohne Wertungsmöglichkeit gem. § 309 BGB zu prüfen.
+
+Vorliegend könnte lediglich § 309 Nr. 5 BGB in Erwägung gezogen werden, die die Pauschalierung von Schadensersatzansprüchen betrifft. Jedoch betrifft § 13 AVG lediglich Auslagen und sonstige Kosten, keine Schadensersatzansprüche.
+
+§ 309 Nr. 5 BGB ist somit nicht einschlägig.
+
+Auch andere einschlägige Klauselverbote ohne Wertungsmöglichkeit gem. § 309 BGB sind nicht ersichtlich.
+
+§ 13 AVG hält somit der Prüfung anhand der Klauselverbote ohne Wertungsmöglichkeit gem. § 309 BGB stand.
+
+**(2) Klauselverbote mit Wertungsmöglichkeit, § 308 BGB**
+
+Weiter sind die Klauselverbote mit Wertungsmöglichkeit gem. § 308 BGB zu prüfen. Auch hier sind jedoch keine Klauselverbote einschlägig und § 13 AVG hält somit auch der Prüfung anhand der Klauselverbote mit Wertungsmöglichkeit gem. § 308 BGB stand.
+
+**(3) Inhaltskontrolle im engeren Sinne, § 307 Abs. 1 und 2 BGB**
+
+Es muss schließlich eine Inhaltskontrolle im engeren Sinne gem. § 307 Abs. 1 und 2 BGB vorgenommen werden.
+
+§ 307 Abs. 1 BGB sagt dabei aus, dass Bestimmungen in AGB unwirksam sind, wenn sie den Vertragspartner des Verwenders entgegen den Geboten von Treu und Glauben unangemessen benachteiligen. Eine unangemessene Benachteiligung kann sich auch daraus ergeben, dass die Bestimmung nicht klar und verständlich ist.
+
+Gem. § 310 Abs. 3 BGB sind dabei bei Verbraucherverträgen auch die den Vertragsschluss begleitenden Umstände zu berücksichtigen.
+
+Gem. § 307 Abs. 1 BGB ist eine unangemessene Benachteiligung im Zweifel anzunehmen, wenn eine Bestimmung mit wesentlichen Grundgedanken der gesetzlichen Regelung, von der abgewichen wird, nicht zu vereinbaren ist oder wesentliche Rechte oder Pflichten, die sich aus der Natur des Vertrags ergeben, so einschränkt, dass die Erreichung des Vertragszwecks gefährdet ist.
+
+Beides ist vorliegend nicht gegeben.
+
+§ 13 AVG hält somit auch der Inhaltskontrolle im engeren Sinne gem. § 307 Abs. 1 und 2 BGB stand.
+
+**ff) Zwischenergebnis**
+
+§ 13 AVG ist mithin wirksamer Vertragsbestandteil geworden.
+
+**c) Zwischenergebnis**
+
+Der Anspruch des J gegen die K auf § 130 € gem. § 13 AVB ist somit entstanden.
+
+**2. Anspruch erloschen**
+
+Der Anspruch ist auch weiter nicht erloschen.
+
+**3. Anspruch durchsetzbar**
+
+Der Anspruch ist auch durchsetzbar.
+
+**4. Zwischenergebnis**
+
+J hat gegen K einen Anspruch auf § 130 € gem. § 13 AVB.
+
+**II. Weitere Ansprüche des J gegen die K auf 130 €**
+
+Es sind keine weiteren einschlägigen Anspruchsgrundlagen ersichtlich. J hat somit keine weiteren Ansprüche gegen K auf § 130 €.
+
+**B. Ergebnis**
+
+J hat gegen K einen Anspruch auf § 130 € gem. § 13 AVB.
+
+##### aa) Anwendbarkeit von AGB, § 310 IV BGB
+
+##### bb) Vorliegen von AGB, § 305 Abs. 1 BGB
+
+##### cc) AGB als Bestandteil des Vertrags, § 305 Abs. 2 BGB
+
+##### dd) Keine vorrangige Individualabrede, § 305b BGB
+
+##### ee) Keine überraschende und mehrdeutige Klauseln, § 305b BGB
+
+##### ff) Abweichung von den Rechtsvorschriften, § 307 Abs. 3 BGB
+
+##### gg) Inhaltskontrolle, §§ 307 BGB
+
+##### g) Keine vorrangige Individualabrede, § 305b BGB
+
+##### f) Keine vorrangige Individualabrede, § 305b BGB
+
+##### e) Keine vorrangige Individualabrede, § 305b BGB
+
+### 2. Anspruch erloschen
+
+### 3. Anspruch durchsetzbar
+
+### 4. Zwischenergebnis
+
+## II. Weitere Ansprüche des J gegen die K auf 130 €
+
+# B. Ergebnis
+
+# J hat gegen K einen Anspruch auf § 130 € gem. § 13 AVB.
+"
+A044,P11,4,Repetitor,Zivilrecht,Sehr Leicht,co_creation,creator,false,creator,1336,"A. Anspruch auf Zahlung der 130 € aus dem Repetitoriumsvertrag i.V.m. § 13 AVB
+
+J könnte gegen K einen Anspruch auf Zahlung von 130 € aus dem zwischen ihnen geschlossenen Repetitoriumsvertrag i.V.m. § 13 AVB haben.
+
+I. wirksamer Vertragsschluss 
+
+Zunächst müsste zwischen J und K ein Vertrag zustande gekommen sein.
+
+Ein Vertrag kommt durch zwei korrespondierende Willenserklärungen, Angebot und Annahme (§§ 145 ff. BGB)zustande.  
+
+1. Angebot 
+
+   a. Übersendung des Vertragsformulars 
+
+   In der Übersendung des Vertragsformulars könnte ein Angebot des J liegen. 
+
+   Ein Angebot ist eine empfangsbedürftige Willenserklärung, die so bestimmt ist, dass der Vertrag durch ein einfaches „Ja“ zustande kommen kann. Eine invitatio ad offerendum liegt dagegen vor, wenn jemand lediglich zur Abgabe eines Angebots auffordert. Fraglich ist, wie die Übersendung eines nicht unterschriebenen Vertragsformulars rechtlich zu qualifizieren ist.
+
+   Bei dem Übersenden eines Vertrags wird erwartet, dass eine Bindung erst entsteht, wenn beide Parteien unterschreiben. Bei einem Vertrag ohne Unterschrift der anderen Vertragspartei hingegen wird aus Sicht eines objektiven Dritten (§§ 133, 157 BGB) eher die Vorbereitung eines Angebots angenommen, kein Angebot selbst. 
+
+   Es handelt sich beim Übersenden des Formulars um eine Invitation ad offerendum, kein Angebot selbst. 
+
+   b. Angebot der K 
+
+   K könnte jedoch selbst ein Angebot abgegeben haben. 
+
+   Ein Angebot liegt vor, wenn eine empfangsbedürftige Willenserklärung vorliegt, die alle wesentlichen Vertragsbestandteile enthält.
+
+   K füllte den Vertragsentwurf vollständig aus, unterschrieb ihn und sandte ihn an J zurück. Damit erklärte sie ihren Rechtsbindungswillen und legte die wesentlichen Vertragsbestandteile fest (Leistung und Preis). 
+
+   Die Rücksendung des unterschriebenen Vertrags durch K stellt ein Angebot im Sinne des § 145 BGB dar.
+2. Annahme 
+
+   J müsste dieses Angebot angenommen haben.
+
+   Eine Annahme ist eine empfangsbedürftige Willenserklärung, durch die der Empfänger sein Einverständnis mit dem Angebot erklärt.
+
+   J erteilt durch seine Unterschrift Zustimmung zum Vertrag. Die Annahme wurde zwar nicht ausdrücklich an K übermittelt, jedoch ist eine Mitteilung gemäß § 151 BGB entbehrlich, wenn eine solche nach der Verkehrssitte nicht zu erwarten ist.
+
+   Eine Annahme liegt vor. 
+3. Zwischenergebnis 
+
+   Ein wirksamer Vertragsschluss zwischen K und J liegt vor. 
+
+II. AVB als Allgemeine Geschäftsbedingungen, § 305 I BGB
+
+Bei den AVB des J müsste es sich um AGB im Sinne des § 305 I BGB handeln. 
+
+AGB sind gemäß § 305 Abs. 1 BGB alle für eine Vielzahl von Verträgen vorformulierten Vertragsbedingungen, die eine Vertragspartei der anderen bei Abschluss eines Vertrags stellt.
+
+1. vorformuliert 
+
+   Die AVB wurden von J im Voraus erstellt, es handelt sich um vorformulierte Bedingungen. 
+2. für eine Vielzahl von verträgen 
+
+   Fraglich ist, ob die Bedingungen für eine Vielzahl von Verträgen bestimmt sind.
+
+   Nach der Rechtsprechung genügt bereits die Absicht, die Klauseln mindestens dreimal zu verwenden.
+
+   J hat einen Mustervertrag erstellt, um zukünftige Verträge mit weiteren Studenten zu schließen.
+
+   Damit liegt eine Verwendungsabsicht für eine Vielzahl von Verträgen vor.
+3. Von J gestellt 
+
+   J hat die AVB gestellt. 
+4. Zwischenergebnis 
+
+   Es handelt sich bei en AVB um AGB im Sinne des § 305 I BGB. 
+
+   III. Wirksame Einbeziehung der AVB, § 305 II BGB 
+
+   Die AVB müssten wirksam in den Vertrag einbezogen worden sein. 
+
+   1. Hinweis auf AVB 
+
+      Der J hat auf die AVB als AGB hingewiesen. 
+   2. Möglichkeit der Kenntnisnahme 
+
+      K müsste eine zumutbare Möglichkeit gehabt haben, vom Inhalt der AVB Kenntnis zu nehmen.
+
+      Hier wurden die AVB auf Wunsch zugesandt und befanden sich als Ausdruck an der Eingangstür des Kursortes. 
+
+      Die herrschende Meinung verlangt , dass die AGB bei Vertragsschluss leicht zugänglich sind. Ein bloßer Hinweis darauf, dass sie auf Anfrage zugesendet werden oder irgendwo ausgehängt sind, genügt regelmäßig nicht.\
+       K hatte vor Vertragsschluss keine realistische Möglichkeit die AVB zur Kennis zu nehmen. 
+   3. Zwischenergebnis 
+
+      Ein ausreichender Hinweis auf die AVB erfolgte nicht. 
+
+      <br />
+
+IV. Ergebnis 
+
+Die AVB wurden nicht in den Vertrag mit einbezogen, ein Zahlungsanspruch des J gegen K besteht nicht. 
+
+<br />
+
+Hilfsgutachten: 
+
+Selbst wenn man eine Einbeziehung annehmen würde, müsste die Klausel einer Inhaltskontrolle standhalten.
+
+I. Maßstab des § 307 BGB 
+
+Nach § 307 Abs. 1 BGB sind Klauseln unwirksam, wenn sie den Vertragspartner unangemessen benachteiligen.
+
+Eine unangemessene Benachteiligung liegt insbesondere vor, wenn eine Klausel nicht transparent ist oder von wesentlichen Grundgedanken der gesetzlichen Regelung abweicht.
+
+§ 13 AVB verpflichtet die Kursteilnehmer zur Zahlung von pauschal 130 € für Auslagen (Papier, Toner, Reinigung). Die Klausel enthält allerdings keine konkrete Berechnungsgrundlage. Zudem fallen die Kosten ohnehin im Betrieb des Repetitoriums an und sind typischerweise bereits im Kurspreis einkalkuliert. Die Pauschale wirkt dementsprechend wie eine versteckte Preiserhöhung.
+
+Die Regelung ist insgesamt intransparent und verstößt gegen § 307 I BGB. 
+
+II. Ergebnis 
+
+Die Klausel verstößt gegen § 307 I BGB. 
+"
+A048,P12,4,Repetitor,Zivilrecht,Sehr Leicht,llm,creator,false,creator,1538,"# Anspruch des J gegen K auf Zahlung von 130 €
+
+J könnte gegen K einen Anspruch auf Zahlung von 130 € aus dem Repetitoriumsvertrag in Verbindung mit § 13 der AVB haben.
+
+## I. Anspruch aus Vertrag i.V.m. § 13 AVB
+
+Ein solcher Anspruch setzt zunächst voraus, dass zwischen J und K ein wirksamer Vertrag zustande gekommen ist und § 13 der AVB wirksam Vertragsbestandteil geworden ist.
+
+### 1. Zustandekommen eines Vertrags
+
+Zwischen J und K müsste ein Vertrag über die Teilnahme am Repetitorium geschlossen worden sein.
+
+#### a) Angebot
+
+J hatte einen Mustervertrag erstellt und diesen mit den wesentlichen Vertragsbestandteilen, insbesondere Gegenstand des Vertrages und Kursgebühr, versehen. Nachdem K per E-Mail ihr Interesse bekundet hatte, füllte J die ihm bereits bekannten Angaben aus und sandte den Vertragstext an K. Darin liegt jedenfalls die Abgabe eines Vertragsangebots an K.
+
+#### b) Annahme
+
+K füllte den Vertrag vollständig aus, unterschrieb ihn und sandte ihn an J zurück. Dies ist als Annahme des Angebots zu werten. Dass J zunächst nicht unterschrieben hatte, ist unschädlich, da ein Vertragsschluss grundsätzlich auch ohne gleichzeitige Unterschrift beider Parteien möglich ist, sofern Angebot und Annahme entsprechend erklärt werden.
+
+#### c) Wirksamkeit des Vertragsschlusses
+
+Der Vertrag ist damit wirksam zustande gekommen.
+
+### 2. Einbeziehung der AVB
+
+Der Zahlungsanspruch könnte jedoch davon abhängen, dass § 13 AVB wirksam in den Vertrag einbezogen wurde.
+
+#### a) Anwendbarkeit der §§ 305 ff. BGB
+
+Die AVB müssten Allgemeine Geschäftsbedingungen im Sinne des § 305 Abs. 1 Satz 1 BGB sein. Allgemeine Geschäftsbedingungen sind alle für eine Vielzahl von Verträgen vorformulierten Vertragsbedingungen, die eine Partei der anderen bei Abschluss eines Vertrags stellt.
+
+J hatte einen Mustervertrag erstellt, der auf die zugehörigen AVB verweist. Die AVB waren vorformuliert und für eine Vielzahl von Verträgen bestimmt. J stellte sie K auch bei Vertragsschluss. Damit handelt es sich grundsätzlich um AGB.
+
+K meint allerdings, die Bedingungen seien niemals „echte“ AGB gewesen. Dem ist nicht zu folgen. Für die Qualifikation als AGB kommt es nicht darauf an, ob bereits mehrere Verträge mit ihnen geschlossen wurden; ausreichend ist die Verwendung für eine Vielzahl von Verträgen. Genau dies bezweckte J mit seinem Mustervertrag gerade.
+
+#### b) Vertragliche Einbeziehung nach § 305 Abs. 2 BGB
+
+Die AVB müssten gemäß § 305 Abs. 2 BGB wirksam in den Vertrag einbezogen worden sein. Dazu müsste J bei Vertragsschluss ausdrücklich auf sie hingewiesen haben, K hätte in zumutbarer Weise von ihrem Inhalt Kenntnis nehmen können, und K hätte mit ihrer Geltung einverstanden sein müssen.
+
+##### aa) Hinweis des Verwenders
+
+Ein ausdrücklicher Hinweis auf die AVB ergibt sich aus dem Sachverhalt nicht. Zwar verweist der Vertragstext auf die zugehörigen AVB. Ob dies als hinreichender Hinweis genügt, kann dahinstehen, wenn jedenfalls die weiteren Voraussetzungen fehlen.
+
+##### bb) Zumutbare Möglichkeit der Kenntnisnahme
+
+K könnte in zumutbarer Weise von dem Inhalt der AVB Kenntnis nehmen können. Die AVB werden auf Wunsch separat zugeschickt; zudem hängt ein Ausdruck des Regelungswerks an der Eingangstüre des Kursorts.
+
+Dies genügt jedoch nur dann, wenn die Kenntnisnahme auch zeitlich vor oder bei Vertragsschluss möglich war. Der bloße Aushang an der Eingangstüre am Kursort stellt für sich genommen noch keinen sicheren Zugang der Information dar, wenn K die Bedingungen vor Vertragsschluss nicht tatsächlich wahrnehmen konnte. Zwar mag K die AVB bei einem Besuch am Kursort hätte lesen können; der Sachverhalt zeigt aber nicht, dass sie vor Abgabe ihrer Vertragserklärung dort gewesen wäre oder dass ihr die Bedingungen tatsächlich zur Verfügung gestellt wurden.
+
+Auch die Möglichkeit, die AVB „auf Wunsch separat“ zuschicken zu lassen, genügt nicht ohne weiteres. Die Einbeziehung setzt voraus, dass der Verwender die Bedingungen aktiv in zumutbarer Weise zugänglich macht; es reicht nicht, dass der Kunde sie sich erst gesondert beschaffen müsste.
+
+##### cc) Einverständnis des Vertragspartners
+
+Selbst wenn man den Verweis im Vertrag als ausreichenden Hinweis ansehen wollte, fehlt es jedenfalls an einem hinreichend feststellbaren Einverständnis der K mit den AVB. K hat den Vertrag zwar unterschrieben zurückgesandt, doch ist dem Sachverhalt nicht zu entnehmen, dass sie die AVB kannte oder mit ihrer Geltung ausdrücklich einverstanden war.
+
+##### dd) Zwischenergebnis
+
+Damit spricht Überwiegendes dafür, dass § 13 AVB schon nicht wirksam nach § 305 Abs. 2 BGB in den Vertrag einbezogen wurde.
+
+#### c) Überraschende oder mehrdeutige Klausel, § 305c Abs. 1 BGB
+
+Selbst wenn man eine Einbeziehung bejahen wollte, könnte § 13 AVB nach § 305c Abs. 1 BGB nicht Vertragsbestandteil geworden sein, wenn sie so ungewöhnlich ist, dass der Vertragspartner mit ihr nicht zu rechnen braucht.
+
+§ 13 AVB verpflichtet die Teilnehmer neben der Kursgebühr von 250 € monatlich zusätzlich zur Zahlung pauschalierter „Auslagen“ in Höhe von 130 € für Kopierpapier, Toner, Gebäudereinigung etc. Bei einem Repetitorium mit einem ausdrücklich genannten monatlichen Kurspreis ist eine solche zusätzliche Pauschale für Betriebskosten ungewöhnlich. Vor allem ist sie wirtschaftlich erheblich und wird im Vertragstext selbst nicht hervorgehoben, sondern nur über den Verweis auf die AVB geregelt.
+
+Für einen durchschnittlichen Studenten, der einen Einzelkurs mit einem genannten Gesamtpreis von 250 € monatlich erwartet, liegt es fern, dass zusätzlich noch eine pauschale Nebenkostenposition in beträchtlicher Höhe geschuldet sein soll. Die Klausel ist daher überraschend im Sinne des § 305c Abs. 1 BGB und würde selbst bei Einbeziehung nicht Vertragsbestandteil.
+
+#### d) Inhaltskontrolle
+
+Darüber hinaus spricht viel dafür, dass § 13 AVB auch nach § 307 Abs. 1, Abs. 2 BGB unwirksam wäre, weil eine pauschale Umlage allgemeiner Betriebskosten neben dem vereinbarten Kurspreis den Vertragszweck und die Preisabrede unklar oder unangemessen verschieben kann. Darauf kommt es hier jedoch nicht mehr entscheidend an.
+
+### 3. Ergebnis
+
+Ein Anspruch aus Vertrag i.V.m. § 13 AVB besteht nicht.
+
+## II. Sonstige Anspruchsgrundlagen
+
+Andere Anspruchsgrundlagen sind nicht ersichtlich. Insbesondere ist ein Anspruch aus Bereicherungsgesichtspunkten nicht gegeben, da J die Zahlung gerade vertraglich herleiten will und der Sachverhalt keine zusätzliche, ohne Rechtsgrund erlangte Vermögensverschiebung erkennen lässt, die unabhängig davon einen Anspruch tragen könnte.
+
+## III. Gesamtergebnis
+
+J hat gegen K keinen Anspruch auf Zahlung von 130 €."
+A052,P13,5,Studiengebühren,Zivilrecht,Leicht,classic,creator,false,creator,1775,"Fallfrage: Kann M von V die Rückzahlung der 3.000€ verlangen?
+
+ 
+
+**A.    Anspruch der M gegen V aus § 812 Abs. 1 S. 1 Alt. 1 BGB**
+
+M könnte gegen V hinsichtlich des überzahlten Betrags einen Anspruch auf Rückzahlung aus § 812 Abs. 1 S. 1 Alt. 1 BGB haben.
+
+**I.                Anspruch entstanden**
+
+Der Anspruch müsste entstanden sein.
+
+**1. Etwas erlangt**
+
+V müsste etwas von M erlangt haben. Dies ist jeder vermögenswerten Vorteil. Vorliegend hat V Besitz und Eigentum an den Geldscheinen bei Barzahlung oder einen Auszahlungsanspruch gegen seine Bank bei Banküberweisung i.H.v. 3.000 € erlangt. V hat somit etwas i.S.d. § 812 Abs. 1 S. 1 Alt. 1 BGB erlangt.
+
+**1.     Durch Leistung der M**
+
+V müsste etwas durch Leistung erlangt haben. Dies ist jede bewusste und zweckgerichtete Mehrung fremden Vermögens. M zahlte bewusst und zweckgerichtet zur Erfüllung der von V geltend gemachten Bürgschaftsverbindlichkeit i.H.v. 3.000€.. Die Zahlung erfolgte daher durch Leistung der M.
+
+**3.     Ohne rechtlichen Grund**
+
+Die Zahlung müsste ohne rechtlichen Grund erfolgt sein.
+
+Ein Rechtsgrund bestünde, wenn V gegen M einen Anspruch auf Zahlung der 3.000 € aus § 765 Abs. 1 BGB gehabt hätte.
+
+**a)** **Anspruch des V gegen M aus § 765 Abs. 1 BGB**
+
+V könnte gegen M einen Anspruch auf Zahlung von 3.000 € aus § 765 Abs. 1 BGB gehabt haben. Danach verpflichtet sich der Bürge gegenüber dem Gläubiger eines Dritten, für die Erfüllung der Verbindlichkeit des Dritten einzustehen.
+
+**aa) Anspruch entstanden**
+
+Der Anspruch müsste entstanden sein.
+
+**(1) Zu sichernder Anspruch**
+
+Die Bürgschaft ist akzessorisch. Es müsste daher eine wirksame Hauptforderung bestehen.
+
+Nach dem Bearbeitungsvermerk ist davon auszugehen, dass der Mietvertrag zwischen S und V wirksam geschlossen worden ist und die Forderung des V gegen S wegen der Renovierungsbedürftigkeit der Wohnung in Höhe von 3.000 € tatsächlich besteht. Ein zu sichernder Anspruch liegt damit vor.
+
+**(2) Wirksame Einigung**
+
+Zwischen V und M müsste ein Bürgschaftsvertrag zustande gekommen sein.
+
+V machte die Vermietung davon abhängig, dass sich jemand selbstschuldnerisch für die Verbindlichkeiten aus dem Mietverhältnis verbürgt. In der Übersendung der vorausgefüllten Bürgschaftserklärung liegt jedenfalls das Angebot des V auf Abschluss eines Bürgschaftsvertrags. M unterschrieb die Bürgschaftserklärung und sandte sie an V zurück. Darin liegt die Annahme.
+
+Ein Schuldbeitritt liegt nicht vor. Beim Schuldbeitritt haftet der Beitretende gleichrangig neben dem Hauptschuldner. Hier sollte M aber gerade für die Verbindlichkeiten der S einstehen; zudem war ausdrücklich eine selbstschuldnerische Bürgschaft verlangt. Gewollt war daher eine Bürgschaft, nicht ein Schuldbeitritt.
+
+**(3) Form, § 766 S. 1 BGB**
+
+Die Bürgschaftserklärung könnte zunächst formunwirksam gewesen sein.
+
+Nach § 766 S. 1 BGB ist zur Wirksamkeit des Bürgschaftsvertrags die schriftliche Erteilung der Bürgschaftserklärung erforderlich. Die elektronische Form ist ausgeschlossen. Die Schriftform verlangt grundsätzlich die eigenhändige Unterzeichnung der Originalurkunde. Eine Übermittlung per Telefax wie vorliegend geschehen wahrt diese Form nicht.
+
+M hat die Bürgschaftserklärung zwar unterschrieben, sie aber nur per Fax an V zurückgesandt. Damit war die Bürgschaft zunächst formunwirksam.
+
+**(4) Heilung, § 766 S. 3 BGB**
+
+Der Formmangel könnte jedoch geheilt worden sein.
+
+Nach § 766 S. 3 BGB wird der Mangel der Form geheilt, soweit der Bürge die Hauptverbindlichkeit erfüllt. M hat an V 3.000 € gezahlt und damit die von V geltend gemachte gesicherte Forderung erfüllt. Der ursprüngliche Formmangel ist daher jedenfalls in Höhe der bewirkten Leistung geheilt.
+
+**(5) Keine Sittenwidrigkeit, § 138 Abs. 1 BGB**
+
+Die Bürgschaft könnte nach § 138 Abs. 1 BGB sittenwidrig und damit nichtig sein.
+
+Eine Angehörigenbürgschaft ist nicht schon wegen des Näheverhältnisses sittenwidrig. Erforderlich ist regelmäßig eine krasse finanzielle Überforderung des Bürgen, erst dann kann bei enger emotionaler Verbundenheit eine verwerfliche Ausnutzung durch den Gläubiger indiziert sein.
+
+M ist eine erfolgreiche Chefärztin an einem Universitätsklinikum. Eine krasse finanzielle Überforderung durch die Bürgschaft oder jedenfalls durch die konkrete Inanspruchnahme in Höhe von 3.000 € ist nicht ersichtlich. Zwar liegt ein enges Näheverhältnis zur Tochter S vor und M handelte aus emotionaler Verbundenheit und weil sie ihre Wünsche und Karriere nicht beeinträchtigen möchte die Bürgschaft erteilt. Dies per se macht sie jedoch wie dargestellt nicht sittenwidrig, sondern ist Inbegriff einer privatautonomen Entscheidung. Das genügt ohne krasse finanzielle Überforderung aber nicht für § 138 Abs. 1 BGB. Der Bürgschaftsvertrag ist daher nicht sittenwidrig.
+
+**(6) Zwischenergebnis**
+
+Der Anspruch des V gegen M aus § 765 Abs. 1 BGB ist somit entstanden.
+
+**bb) Anspruch nicht erloschen**
+
+Der Anspruch dürfte nicht erloschen sein.
+
+**(1) Einwendungen und Einreden aus dem Hauptschuldverhältnis, § 767 Abs. 1 S. 1 BGB**
+
+Nach § 767 Abs. 1 S. 1 BGB kann der Bürge die dem Hauptschuldner zustehenden Einwendungen geltend machen. Dies folgt aus der Akzessorietät der Bürgschaft.
+
+Nach dem Bearbeitungsvermerk besteht die Forderung des V gegen S wegen der Renovierungskosten in Höhe von 3.000 € tatsächlich. Einwendungen oder Einreden der S gegen diese Forderung sind nicht ersichtlich. M kann daher aus § 767 Abs. 1 S. 1 BGB nichts herleiten.
+
+**(2) Einwendungen aus dem Bürgschaftsverhältnis**
+
+Einwendungen aus dem Bürgschaftsverhältnis sind nicht ersichtlich.
+
+**(3) Zwischenergebnis**
+
+Der Anspruch des V gegen M ist somit nicht erloschen.
+
+**cc) Anspruch durchsetzbar**
+
+Der Anspruch müsste auch durchsetzbar sein.
+
+**(1) Einrede der Vorausklage, § 771 BGB**
+
+M könnte dem Anspruch des V die Einrede der Vorausklage entgegenhalten.
+
+Nach § 771 BGB kann der Bürge die Befriedigung des Gläubigers verweigern, bis der Gläubiger erfolglos gegen den Hauptschuldner vollstreckt hat. Nach § 773 Abs. 1 Nr. 1 BGB ist diese Einrede jedoch ausgeschlossen, wenn der Bürge auf sie verzichtet, insbesondere wenn er sich selbstschuldnerisch verbürgt.
+
+Hier sollte sich M ausdrücklich selbstschuldnerisch verbürgen. Die Einrede der Vorausklage war daher ausgeschlossen. V durfte sich unmittelbar an M wenden.
+
+**dd) Zwischenergebnis zu § 765 Abs. 1 BGB**
+
+V hat gegen M einen Anspruch aus § 765 Abs. 1 S. 1 BGB auf Zahlung der 3.000€.
+
+**b) Zwischenergebnis zum Rechtsgrund**
+
+Ein Rechtsgrund bestand somit.
+
+**4.     Zwischenergebnis**
+
+Der Anspruch aus § 812 Abs. 1 S. 1 1. Alt BGB ist somit nicht entstanden.
+
+**II.             Zwischenergebnis**
+
+M hat gegen V keinen Anspruch auf Rückzahlung der 3.000€
+
+**B. Ergebnis**
+
+M hat gegen V aus § 812 Abs. 1 S. 1 Alt. 1 BGB keinen Anspruch auf Rückzahlung von 3.000€.
+"
+A056,P14,5,Studiengebühren,Zivilrecht,Leicht,co_creation,creator,false,creator,3221,"### A. Anspruch der M gegen V auf Rückzahlung von 3.000 Euro aus § 812 I 1 Alt. 1 BGB
+
+M könnte gegen V einen Anspruch auf Rückzahlung von 3.000 Euro aus § 812 I 1 Alt. 1 BGB haben. Dies setzt voraus:
+
+### I. Etwas erlangt 
+
+V müsste etwas erlangt haben. Dies ist hier der Fall,  V hat 3.000 Euro erlangt. 
+
+### II. Durch Leistung 
+
+Diese 3.000 Euro müsste V auch durch Leistung eines anderen erlangt haben. Eine Leistung ist die zweckgerichtete Mehrung fremden Vermögens. Hier hat M dem V ziel- und zweckgerichtet 3.000 Euro überwiesen, um eine vermeintlich bestehende Verbindlichkeit zu befriedigen. Damit liegt eine Leistung der M an V vor. 
+
+### III. Ohne rechtlichen Grund 
+
+Fraglich ist, ob V die 3.000 Euro ohne rechtlichen Grund hierfür erlangt hat.
+
+### 1. Mietvertrag zwischen V und M 
+
+Zwischen V und M bestand selbst kein Mietvertrag. Ein solcher wurde vielmehr zwischen S und V geschlossen. Hieraus lässt sich mithin kein Rechtsgrund ableiten. 
+
+### 2. Wirksame Bürgschaft 
+
+Fraglich ist jedoch, ob M einen wirksamen Bürgschaftsvertrag mit V abgeschlossen hat, der sodann als Rechtsgrund iSv. § 812 I 1 Alt. 1 BGB qualifiziert werden könnte. Dies setzt voraus:
+
+#### a) Einigung 
+
+Hierzu müssten sich M und V zunächst geeinigt haben. Eine Einigung kommt durch zwei übereinstimmende Willenserklärungen, namentlich Angebot und Annahme nach §§ 145, 147 BGB zustande.
+
+##### aa) Angebot der M 
+
+In der Erklärung der M gegenüber ihrer Tochter S, bereit dazu zu sein, eine Bürgschaft im Rahmen des Mietvertrages zu übernehmen, könnte ein Angebot zu sehen sein. Gleichwohl war zu diesem Zeitpunkt die Höhe der Miete der S noch nicht bestimmt gewesen, die sich jedoch nach § 551 I BGB auf die Höhe etwaiger Sicherheiten zugunsten des Vermieters auswirkt. Zwar erfasst § 551 I BGB nach seinem Wortlaut nur die maximale Höhe einer Sicherheit in Form einer Kaution von maximal das Dreifache der auf einen Monat entfallenden Miete, gleichwohl ist zum Zwecke der Verhinderung einer Übersicherung des Vermieters durch bloßes Wählen eines von einer Kaution abweichenden, anderen Sicherungsmittels der § 551 I BGB möglicherweise auch auf andere Sicherheiten anzuwenden, wie etwa die Bürgschaft. 
+
+Mithin wusste M zum Zeitpunkt der Abgabe ihrer Erklärung gegenüber der S mit der Bereitschaft, zugunsten des V eine Bürgschaft zu übernehmen, noch nicht, auf welche Höhe sich ihre mögliche Haftung maximal erstrecken könnte. Zudem hatte die M gegenüber S die Bereitschaft erklärt, eine Bürgschaft zu übernehmen, nicht jedoch eine selbstschuldnerische Bürgschaft. 
+
+Damit liegt hierin noch kein Angebot der M. 
+
+##### bb) Angebot des V
+
+Jedoch könnte in dem Zusenden der Bürgschaftserklärung durch V an S per Mail ein Angebot auf Abschluss eines Bürgschaftsvertrags mit M zu sehen sein. Mit dem Zusenden des Bürgschaftsformulars drückt V den Willen aus, sich rechtlich in Form eines Bürgschaftsvertrages mit M binden zu wollen. Damit liegt eine Willenserklärung des V vor. Zudem stand zu diesem Zeitpunkt die zu vereinbarende Höhe der Miete bereits fest, da V die Bürgschaftserklärung gemeinsam mit dem Formular für den Mietvertrag an S sendete, das telefonische Austauschen über die  Miethöhe zwischen S und V damit bereits im Vorfeld des Zusendens der Bürgschaftserklärung an S stattfand. 
+
+Da es sich bei S nicht um eine Vertreterin der M für den Abschluss eines Bürgschaftsvertrages handelt, die S mithin nicht Empfangsvertreterin der M war, sondern vielmehr Empfangsbotin, geht die Willenserklärung des V der M in dem Moment zu, in dem üblicherweise mit Weitergabe der Erklärung durch S zu rechnen war, § 130 I 1 BGB. 
+
+##### cc) Annahme der M
+
+Fraglich ist, worin eine Annahme der M zu erblicken ist. Hierfür kommen mehrere Ansatzpunkte in Betracht. 
+
+Einerseits ließe sich andenken, dass M das Angebot des V in dem Moment abgelehnt hat, als sie gegenüber der S erklärte, sie wolle sich eigentlich nicht in einer solchen Höhe verbürgen. Gleichwohl hat die M dies nicht etwa gegenüber V direkt erklärt, sondern gegenüber ihrer Tochter S. Die Frage, wann eine solche Ablehnungserklärung der M dem V zugehen würde, insbesondere diejenige, ob S in diesem Zusammenhang als Empfangsbotin für V fungierte, kann aber dahinstehen, wenn in der Erklärung der M überhaupt keine Ablehnungserklärung zu sehen wäre. Dies wäre dann der Fall, wenn die Erklärung der M nach Auslegung (§§ 133, 157 BGB) aus der Sicht eines objektiven Empfängers keinen endgültigen Charakter hatte oder jedenfalls die Aussage der M so ausgelegt werden kann, dass diese lediglich zunächst eine Schockreaktion der M darstellte, ohne dass M den Willen hatte, hiermit das Angebot des V zurückzuweisen. 
+
+Hier hat M erklärt, sie habe Angst vor einer überhohen Inanspruchnahme durch V in Anbetracht der Miethöhe. Darin drückt sich zunächst eine Schockreaktion der M aus, die jedoch keinen Rückschluss darauf zulässt, dass M den angebotenen Bürgschaftsvertrag mit V nicht abschließen wolle. Daher ist hierin keine Ablehnung des Angebots des V zu sehen, was somit auch nicht nach § 146 BGB das Erlöschen des Antrags des V zur Folge hat. 
+
+Gleichwohl könnte in der telefonischen Frage der M an V, ob dieser auf der Erforderlichkeit einer Bürgschaftserklärung durch M bestehe, eine Ablehnung des Angebots des V zu sehen sein. Indes ist diese Frage an V nach dem objektiven Empfängerhorizont (§§ 133, 157 BGB) dahin auszulegen, dass sich M lediglich bei V über die Notwendigkeit der Abgabe einer Willenserklärung ihrerseits bei V erkundigt, sich jedoch hierin nicht ein etwaiger Wille der M äußert, einen Bürgschaftsvertrag nicht abzuschließen bzw. das Angebot des V nicht annehmen zu wollen. Damit liegt auch hierin keine Ablehnung des Antrags des V, was damit auch kein Erlöschen des Antrags nach § 146 BGB zur Folge hat. 
+
+Eine Annahme ist sodann konkludent in dem Unterschreiben der Bürgschaftserklärung durch M zu sehen, § 147 BGB. 
+
+##### dd) Zwischenergebnis 
+
+Eine Einigung zwischen M und V liegt damit vor. 
+
+#### b) Form des Bürgschaftsvertrags
+
+Fraglich ist, ob die durch § 766 S. 1 BGB für Bürgschaftsverträge vorgeschriebene Schriftform eingehalten worden ist. Dies ist insoweit problematisch, als die M die Bürgschaftserklärung zwar auf Papier unterschrieben hat, dieses jedoch dann dem V gefaxt hat. 
+
+Die Anforderungen an das Schriftformerfordernis richten sich dabei nach § 126 I BGB, da § 766 S. 1 BGB lediglich die Bürgschaftserklärung des Bürgen unter Schriftformvorbehalt stellt, nicht jedoch den gesamten Bürgschaftsvertrag. Danach ist für die schriftliche Form erforderlich, dass die Urkunde von dem Aussteller eigenhändig durch Namensunterschrift unterzeichnet wird. Dies ist vorliegend unabhängig von der Tatsache der Fall, dass die M die Bürgschaftserklärung dem V gefaxt hat. Gleichwohl ist fraglich, ob damit bereits dem Erfordernis des § 126 I BGB genügt ist oder ob V vielmehr die Erklärung der M auch im Original erhalten muss. 
+
+Einerseits ließe sich argumentieren, dass § 766 S. 1 BGB lediglich davon spricht, dass die Bürgschaftserklärung schriftlich erfolgt, mithin diesem Erfordernis hinreichend Rechnung getragen worden ist, wenn M die Erklärung bei sich zuhause auf Papier unterschreibt. 
+
+Gleichwohl würde dies den Telos des § 766 S. 1 BGB unterlaufen, dessen Formzweck darin besteht, den Bürgen aufgrund seines umfangreichen Haftungsrisiko davor zu warnen, informell und überstürzt eine wirksame Bürgschaftserklärung abgeben zu können. Daher muss die schriftliche Erklärung des Bürgen dem Gläubiger auch im Original als solche schriftliche Erklärung zugehen. Dies ist hier nicht der Fall, womit der Bürgschaftsvertrag nach § 125 S. 1 BGB nichtig ist. 
+
+#### c) Heilung des Formmangels, § 766 S. 3 BGB 
+
+Der Formmangel könnte jedoch nach § 766 S. 3 BGB geheilt worden sein, wenn und soweit die M vorliegend die Hauptverbindlichkeit bereits erfüllt hat. Dies ist hier der Fall, da die M die 3.000 Euro bereits gezahlt hat und diese zwar nicht die Hauptforderung des V gegenüber der Mieterin S betrifft (da die 3.000 Euro nicht auf die Miete anfallen), wohl aber die Hauptforderung gegenüber der Bürgin M. Damit ist Heilung nach § 766 S. 3 BGB eingetreten. In dem Moment der Zahlung durch M an V wurde der Bürgschaftsvertrag damit wirksam.
+
+#### d) Zwischenergebnis
+
+Eine wirksame Bürgschaft liegt damit vor. 
+
+### 3. Einwendungen der M 
+
+Fraglich ist, ob sich M auf etwaige Einwendungen hätte berufen können. 
+
+#### a) Verwandtenbürgschaft 
+
+Hierbei kommt zunächst die Möglichkeit einer unzulässigen Verwandtenbürgschaft in Betracht. Hier ist jedoch zu beachten, dass es - entgegen des Vorbringens des Kollegen der M - keine per se unzulässige Verwandtschaftsbürgschaft gibt, eine Bürgschaft vielmehr lediglich etwa nach § 138 BGB sittenwidrig sein kann. Dies ist insbesondere der Fall, wenn eine Übersicherung des Gläubigers vorliegt. 
+
+Hier hat V jedoch nicht etwa sowohl eine Kaution nach § 551 I BGB und darüber hinaus die betreffende Bürgschaft als Sicherheit verlangt. 
+
+Fraglich ist weiter, ob § 551 I BGB über den Wortlaut hinaus auch analog auf andere Mietsicherheiten, wie etwa die Bürgschaft anwendbar ist. Das hätte zur Folge, dass M maximal auf einen Betrag von 1.500 Euro haften würde, wobei in ihrem Fall als Chefärztin damit keine Übersicherung anzunehmen wäre. 
+
+Gegen eine Anwendung des § 551 I BGB spricht der eindeutige Wortlaut, der nur von einer Maximalhöhe iRv. Kautionen spricht. Für eine analoge Anwendung spricht jedoch, dass der Vermieter anderenfalls durch Rückgriff auf eine andere Sicherungsmöglichkeit die Maximalhöhe des § 551 I BGB umgehen könnte, dessen Telos damit mithin unterlaufen würde. Gleichwohl schließt § 551 I BGB nicht aus, dass ausnahmsweise der Bürge von sich aus eine Haftung in einem höheren Maximalrahmen anbietet. Verlangt jedoch der Vermieter die Übernahme einer Bürgschaft, so ist zum Schutze des Bürgen und aus Gründen des Telos des § 551 I BGB dieser auch analog auf Bürgschaften im Bereich der Wohnraummiete anwendbar. Damit haftet M maximal bis zu einem Betrag von 1.500 Euro. Es liegt keine Übersicherung vor. 
+
+#### b) Einrede der Vorausklage, § 771 BGB 
+
+Da M und V eine selbstschuldnerische Bürgschaft abgeschlossen haben, steht der M die Einrede der Vorausklage, mithin die Einrede dahingehend, dass sich V zum Zwecke der Befriedigung der Forderung zunächst an S wenden solle, nach § 773 I Nr. 1 BGB nicht zu. 
+
+### 4. Zwischenergebnis  
+
+Damit besteht ein Rechtsgrund für die Leistung iHv. 1.500 Euro (§ 551 I BGB analog). 
+
+### IV. Verstoß gegen  gute Sitten, § 817 S. 1 BGB 
+
+Fraglich ist, ob M gleichwohl die gesamte Leistung nach § 812 I 1 Alt. 1 BGB zurückfordern kann, obgleich mit Blick auf 1.500 Euro ein Rechtsgrund bestand. Dies könnte der Fall sein, wenn V mit der Annahme der 3.000 Euro gegen die guten Sitten iSv. § 138 BGB verstoßen hat. Dies kommt daher in Betracht, weil M dem V gegenüber erklärt hatte, eigentlich am liebsten auf die Bürgschaft zu verzichten, der V jedoch mit einem klaren ""Nein"" erklärt hat, auf die Bürgschaft zu bestehen und M diese nur deshalb unterschrieb, um ihrer Tochter die Zukunft nicht zu verbauen und ihr Studium zu ermöglichen. 
+
+Gleichwohl verstößt die Annahme der 3.000 Euro nicht deshalb gegen die guten Sitten, weil V auf den Abschluss einer Bürgschaft bestanden hat und anderenfalls der Vertrag ""geplatzt"" wäre, da V ein berechtigtes Interesse an einer Sicherheit in angemessener Höhe hat. 
+
+Es könnte sich eine Sittenwidrigkeit jedoch daraus ergeben, dass V die Zahlung von 3.000 Euro verlangt hat, wo er nach § 551 I BGB analog aber nur zur Forderung von maximal 1.500 Euro von M berechtigt gewesen wäre. Dies könnte gegen das Anstandsgefühl aller billig und gerecht denkenden verstoßen, da nicht davon ausgegangen werden kann, dass M als Ärztin von der Existenz des § 551 I BGB mit der Limitierung der Sicherheitshöhe hat und eine Forderung der 3.000 Euro dazu führen könnte, dass M überhaupt keinen Rückforderungsanspruch geltend machen könnte (auch nicht in Höhe der berechtigten 1.500 Euro, deren Leistung ohne Rechtsgrund erfolgt ist), sich V dadurch also um unberechtigte 1.500 Euro bereichern könnte. 
+
+Gleichwohl ist dies abzulehnen mit dem Argument, dass insoweit - anders als in einer Unternehmer-Verbraucher-Beziehung etwa - der V genau so schützenswert ist wie auch die M, mithin keine Sittenwidrigkeit anzunehmen ist. 
+
+### V. Zwischenergebnis 
+
+Damit steht der M ein Anspruch aus § 812 I 1 Alt. 1 BGB nur in Höhe von 1.500 Euro, nicht aber iHv. 3.000 Euro zu.  
+
+### B. Ergebnis 
+
+M kann nicht die Rückzahlung von 3.000 Euro, sondern nur iHv. 1.500 Euro verlangen. 
+"
+A060,P15,5,Studiengebühren,Zivilrecht,Leicht,llm,creator,false,creator,3276,"**Gutachten zur Rückzahlung der 3.000 € durch V an M**
+
+**Frage:** Kann M von V die Rückzahlung der 3.000 € verlangen?
+
+**Vorüberlegung:** M hat 3.000 € an V gezahlt. Sie könnte einen Anspruch auf Rückzahlung dieses Betrages gegen V haben. Als Anspruchsgrundlage kommt ein bereicherungsrechtlicher Rückzahlungsanspruch in Betracht, wenn die Zahlung ohne Rechtsgrund erfolgt ist. Dies wäre der Fall, wenn die Bürgschaft unwirksam wäre und V die Zahlung daher zu Unrecht erlangt hat.
+
+**A. Anspruch der M gegen V auf Rückzahlung der 3.000 € gemäß § 812 Abs. 1 S. 1 1. Alt. BGB (Leistungskondiktion)**
+
+M könnte gegen V einen Anspruch auf Rückgewähr der geleisteten 3.000 € aus § 812 Abs. 1 S. 1 1. Alt. BGB haben.
+
+**I. Etwas erlangt**
+
+V müsste etwas erlangt haben. Vorliegend hat V von M die Zahlung von 3.000 € erhalten. Er hat somit das Eigentum an dem Geld sowie unmittelbaren Besitz daran erlangt. Ein ""Etwas"" im Sinne des § 812 Abs. 1 BGB liegt vor.
+
+**II. Durch Leistung der M**
+
+Dies müsste durch eine Leistung der M geschehen sein. Eine Leistung ist die bewusste und zweckgerichtete Vermehrung fremden Vermögens. M zahlte die 3.000 € an V, um ihrer vermeintlichen Verbindlichkeit aus der Bürgschaft nachzukommen. Sie handelte somit mit dem Zweck der Erfüllung dieser Schuld (solvendi causa) und damit bewusst und zweckgerichtet. Eine Leistung der M liegt vor.
+
+**III. Ohne rechtlichen Grund**
+
+Der Anspruch auf Rückzahlung besteht nur, wenn die Leistung ohne rechtlichen Grund erfolgte. Der rechtliche Grund für die Zahlung der M könnte in einem wirksamen Bürgschaftsvertrag zwischen M und V liegen. Dies wäre der Fall, wenn die Bürgschaftserklärung der M wirksam ist und somit eine gültige Hauptforderung gesichert wurde. Ist die Bürgschaft hingegen unwirksam, erfolgte die Zahlung ohne Rechtsgrund.
+
+**1. Wirksamer Bürgschaftsvertrag gemäß §§ 765 ff. BGB**
+
+Es müsste ein wirksamer Bürgschaftsvertrag zwischen M und V gemäß § 765 Abs. 1 BGB zustande gekommen sein. Dafür sind zwei auf den Abschluss eines Bürgschaftsvertrages gerichtete, übereinstimmende Willenserklärungen (Angebot und Annahme) sowie die Einhaltung der gesetzlichen Schriftform nach § 766 BGB erforderlich.
+
+**a) Angebot zum Abschluss eines Bürgschaftsvertrages**
+
+V hat der M über S die vorausgefüllte Bürgschaftsurkunde zukommen lassen. Hierin liegt ein Angebot zum Abschluss eines Bürgschaftsvertrages gemäß § 145 BGB. Das Angebot war auch hinreichend bestimmt, da Gläubiger, Hauptschuldnerin und die gesicherte Forderung (Ansprüche aus dem Mietverhältnis) benannt sind.
+
+**b) Annahme des Angebots durch M**
+
+M müsste dieses Angebot angenommen haben. Sie hat die Bürgschaftserklärung unterschrieben und per Fax an V zurückgesandt. In der Unterschrift und der Rücksendung liegt eine Willenserklärung, die auf den Abschluss des Bürgschaftsvertrages gerichtet ist. Problematisch ist jedoch, dass M die Erklärung innerlich nicht abgeben wollte, da sie sich ""eigentlich nicht in einem derartigen Umfang verbürgen"" möchte. Dies könnte einen geheimen Vorbehalt gemäß § 116 S. 1 BGB darstellen, der unbeachtlich ist. Vorliegend hat M die Erklärung aber dennoch unterschrieben und abgesandt. Sie hat die Erklärung äußerlich abgegeben, auch wenn sie innerlich Vorbehalte hatte. Ein nach außen nicht hervortretender innerer Vorbehalt ist nach § 116 S. 1 BGB unbeachtlich. Die Annahmeerklärung der M ist daher wirksam. Zwei übereinstimmende Willenserklärungen liegen vor.
+
+**c) Formwirksamkeit gemäß § 766 S. 1 BGB**
+
+Die Bürgschaftserklärung müsste jedoch zur Wirksamkeit des Vertrages gemäß § 766 S. 1 BGB schriftlich erteilt worden sein. Die Erklärung wurde von M unterschrieben. Jedoch erfolgte die Abgabe und der Zugang nicht im Original, sondern per Fax.
+
+Fraglich ist, ob die Übermittlung per Fax dem Schriftformerfordernis des § 766 BGB genügt.
+
+**aa) Gesetzliche Anforderungen an die Schriftform**
+
+Gemäß § 126 Abs. 1 BGB muss die Urkunde von dem Aussteller eigenhändig durch Namensunterschrift oder mittels notariell beglaubigten Handzeichens unterzeichnet werden. § 126 Abs. 3 BGB bestimmt, dass die schriftliche Form durch die elektronische Form ersetzt werden kann, sofern sich aus dem Gesetz nichts anderes ergibt. Aus § 766 S. 2 BGB ergibt sich explizit, dass die Erteilung der Bürgschaftserklärung in elektronischer Form ausgeschlossen ist. Das Gesetz verlangt für die Bürgschaftserklärung daher zwingend die Schriftform im Sinne des § 126 Abs. 1 und Abs. 2 BGB. Ein Telefax stellt jedoch keine Urkunde im Original mit eigenhändiger Unterschrift dar, sondern lediglich eine Kopie oder einen Bildausdruck.
+
+**bb) Streitstand zur Wahrung der Schriftform durch Telefax**
+
+Es ist umstritten, ob die Übermittlung einer Bürgschaftserklärung per Fax dem Schriftformerfordernis des § 766 S. 1 BGB genügt.
+
+**(1) Rechtsprechung des Bundesgerichtshofs:** Der BGH vertritt in ständiger Rechtsprechung die Auffassung, dass ein Telefax die gesetzliche Schriftform nicht wahrt. Das Fernkopie-Schreiben enthalte lediglich eine bildliche Wiedergabe der Unterschrift, nicht aber die eigenhändig unterzeichnete Originalurkunde. Der für das Schriftformerfordernis wesentliche Zweck der Übereilungsschutz- und Warnfunktion sei durch die bloße Übermittlung eines Faksimiles nicht ausreichend gewährleistet. Das Original verbleibe beim Absender, der Gläubiger erhalte lediglich eine mehr oder minder gute Kopie. Die Abschlussfreiheit des Bürgen sei nur unzureichend geschützt. Der BGH hält auch bei modernen Kommunikationsformen strikt am Erfordernis der Originalurkunde fest (vgl. BGHZ 121, 224).
+
+**(2) Gegenansicht in der Literatur:** Eine starke Literaturansicht hält die Übermittlung einer unterschriebenen Bürgschaftserklärung per Telefax für formwahrend. Argumentiert wird, dass die Warn- und Beweisfunktion auch beim Telefax erreicht werde. Der Bürge leiste die Unterschrift bewusst auf dem Papier, was den Übereilungsschutz gewährleiste. Das Original bleibe zwar beim Bürgen, jedoch entstehe beim Empfänger eine stoffliche Verkörperung der Erklärung durch den Ausdruck, die der Beweisfunktion genüge. Der Schriftform sei Genüge getan, da eine körperliche Urkunde existiere, die der Bürge unterschrieben hat. Der Gesetzgeber habe mit der Einführung des § 766 S. 2 BGB (Ausschluss der elektronischen Form) nur die rein digitale Form ausschließen wollen, nicht aber das Telefax, das eine Papierurkunde zur Grundlage habe.
+
+**(3) Stellungnahme:** Der erstgenannten Auffassung (BGH) ist zu folgen. Zwar mag die Warnfunktion im Einzelfall auch beim Fax gewahrt sein, da der Bürge die Unterschrift auf einer Papierurkunde leistet. Jedoch kann der Bürge die Gefahr des Missbrauchs besser kontrollieren, wenn er das Original in Händen hält. Der Gläubiger hat nur eine Kopie, deren Übereinstimmung mit dem Original er kaum überprüfen kann. Der Gesetzgeber hat in § 766 S. 2 BGB ausdrücklich die elektronische Form für die Bürgschaftserklärung ausgeschlossen und damit ein Regelungsziel verfolgt, das über den Ausschluss rein elektronischer Signaturen hinausgeht. Er wollte für den besonders gefährlichen Vertragstyp der Bürgschaft eine besondere Formstrenge etablieren. Das Telefax als bloße Kopie im Original beim Aussteller genügt dieser strengen Formvorschrift nicht. Die Rechtsprechung des BGH gewährleistet eine klare und rechtssichere Handhabung und entspricht dem Schutzzweck des § 766 BGB. Der Formmangel wurde auch nicht durch Zahlung der 3.000 € nach § 766 S. 3 BGB geheilt, da M nur die Hauptschuld (Renovierungskosten) und nicht die Bürgschaftsschuld anerkannt hat und es hierfür an einem entsprechenden Rechtsbindungswillen fehlt. M handelte in der (irrigen) Annahme einer bestehenden Verpflichtung.
+
+**d) Zwischenergebnis zur Formwirksamkeit**
+
+Die Bürgschaftserklärung der M wurde nicht formwirksam gemäß § 766 S. 1 BGB i.V.m. § 126 BGB erteilt. Der Bürgschaftsvertrag ist daher gemäß § 125 S. 1 BGB nichtig.
+
+**2. Zwischenergebnis zum rechtlichen Grund**
+
+Ein wirksamer Bürgschaftsvertrag als rechtlicher Grund für die Zahlung der 3.000 € besteht nicht. Die Leistung erfolgte somit ohne rechtlichen Grund.
+
+**IV. Kein Ausschluss gemäß § 814 BGB**
+
+Der Rückforderungsanspruch könnte gemäß § 814 BGB ausgeschlossen sein, wenn M gewusst hätte, dass sie zur Leistung nicht verpflichtet war. M kannte jedoch den Formmangel nicht und hielt sich irrig für verpflichtet, was die Anwendung des § 814 BGB ausschließt. Der befreundete Kollege wies M erst nach der Zahlung auf die mögliche Unwirksamkeit hin.
+
+**V. Ergebnis zu A.**
+
+M hat gegen V einen Anspruch auf Rückzahlung der 3.000 € aus § 812 Abs. 1 S. 1 1. Alt. BGB (Leistungskondiktion).
+
+**B. Hilfsweise: Wirksamkeit der Bürgschaft nach materiellem Recht**
+
+Selbst wenn man entgegen der hier vertretenen Auffassung die Formwirksamkeit der Bürgschaft bejahen würde (z.B. durch Zugang im Original vor Fax-Versand, wofür der Sachverhalt keine Anhaltspunkte bietet, oder nach der Gegenansicht), wäre die Bürgschaft aus materiell-rechtlichen Gründen möglicherweise unwirksam mit der Folge, dass auch dann ein Rechtsgrund fehlte.
+
+**I. Sittenwidrigkeit gemäß § 138 Abs. 1 BGB**
+
+Die Bürgschaft einer vermögenslosen, nahen Angehörigen für eine vertragliche Hauptschuld könnte sittenwidrig und damit gemäß § 138 Abs. 1 BGB nichtig sein.
+
+**1. Rechtliche Grundlagen der Sittenwidrigkeitskontrolle von Angehörigenbürgschaften**
+
+Nach der Rechtsprechung des Bundesverfassungsgerichts und des Bundesgerichtshofs (BVerfGE 89, 214; BGHZ 146, 37) unterliegen Bürgschaften vermögensloser oder nur gering verdienender Angehöriger einer strengen richterlichen Inhaltskontrolle am Maßstab des § 138 Abs. 1 BGB. Eine solche Bürgschaft ist sittenwidrig und nichtig, wenn sie Ausdruck einer strukturellen Unterlegenheit des Bürgen ist und der Bürge durch die Übernahme der Bürgschaft finanziell krass überfordert wird. Die Rechtsprechung sieht hierin eine Verletzung der grundrechtlich geschützten Privatautonomie (Art. 2 Abs. 1 GG), wenn die Vertragsparität in einer Weise gestört ist, dass der Vertrag für den schwächeren Teil eine unzumutbare Belastung darstellt. Eine widerlegliche Vermutung für die Sittenwidrigkeit besteht, wenn der Bürge durch die Haftungsübernahme finanziell krass überfordert wird und der Bürgschaftsvertrag das Ergebnis strukturell ungleicher Verhandlungsstärke ist (sog. ""Schutzbereich der Angehörigenbürgschaft"").
+
+**2. Anwendung auf den vorliegenden Fall**
+
+**a) Finanziell krasse Überforderung**
+
+M ist als erfolgreiche Chefärztin an einem Universitätsklinikum offenkundig nicht finanziell überfordert. Die Bürgschaftssumme für eine Monatsmiete von 500 € und die geltend gemachten Renovierungskosten von 3.000 € belasten sie wirtschaftlich nicht in existenzgefährdender Weise. Eine krasse finanzielle Überforderung liegt nicht vor.
+
+**b) Strukturelle Unterlegenheit**
+
+Eine strukturelle Unterlegenheit der M gegenüber V ist ebenfalls nicht ersichtlich. M ist eine geschäftserfahrene Akademikerin, die über ausreichende intellektuelle und wirtschaftliche Fähigkeiten verfügt, um die Tragweite einer Bürgschaftserklärung einschätzen zu können. Sie hat die Erklärung nicht unter Druck, sondern aus freien Stücken und in Wahrnehmung der Interessen ihrer Tochter abgegeben. Von einer ungleichen Verhandlungsstärke kann keine Rede sein.
+
+**c) Zwischenergebnis**
+
+Die Bürgschaft ist nicht wegen Sittenwidrigkeit gemäß § 138 Abs. 1 BGB nichtig, da es an den erforderlichen Voraussetzungen (finanzielle Überforderung, strukturelle Unterlegenheit) fehlt. Die typischen Fallgruppen der sittenwidrigen Angehörigenbürgschaft sind nicht einschlägig. Die abstrakte Erwägung des Kollegen, ""solche Verwandtenbürgschaften"" seien ""per se unzulässig"", trifft nicht zu und findet im Gesetz keine Stütze.
+
+**II. Einwendung der Vorausklage (§ 771 BGB)**
+
+Selbst bei unterstellter Wirksamkeit der Bürgschaft könnte die Zahlung ohne Rechtsgrund erfolgt sein, wenn M das Recht gehabt hätte, die Leistung zu verweigern, und V dennoch geleistet hat. Der Kollege wies darauf hin, V müsse sich ""doch ohnehin erst an seinen Vertragspartner halten"".
+
+Ein Bürge kann gemäß § 771 Abs. 1 BGB die Befriedigung des Gläubigers verweigern, solange dieser nicht eine Zwangsvollstreckung gegen die Hauptschuldnerin (S) erfolglos versucht hat (Einrede der Vorausklage). Diese Einrede steht M jedoch nicht zu, da sie eine selbstschuldnerische Bürgschaft übernommen hat (vgl. § 773 Abs. 1 Nr. 1 BGB). Laut Sachverhalt sollte M sich ""selbstschuldnerisch […] verbürgen"". Damit ist die Einrede der Vorausklage gemäß § 773 Abs. 1 Nr. 1 BGB ausgeschlossen. V musste sich also gerade nicht zuerst an S halten. Der Einwand des Kollegen verfängt insoweit nicht.
+
+**C. Gesamtergebnis**
+
+M kann von V die Rückzahlung der 3.000 € gemäß § 812 Abs. 1 S. 1 1. Alt. BGB verlangen, da die Bürgschaftserklärung wegen Verstoßes gegen die Schriftform des § 766 S. 1 BGB i.V.m. § 126 BGB durch die Übermittlung per Fax nichtig ist und die Leistung daher ohne rechtlichen Grund erfolgte."

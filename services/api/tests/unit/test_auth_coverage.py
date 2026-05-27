@@ -6,8 +6,6 @@ Focuses on pure function tests and simple endpoint error paths.
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
-import pytest
-from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 

@@ -9,26 +9,20 @@ Each test hits a real PostgreSQL database via the shared test_db fixture
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List
-from unittest.mock import patch
 
-import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from models import (
-    Generation as DBGeneration,
     Organization,
     ResponseGeneration as DBResponseGeneration,
     User,
 )
 from project_models import (
     Annotation,
-    PostAnnotationResponse,
     Project,
     ProjectMember,
     ProjectOrganization,
     Task,
-    TaskDraft,
 )
 
 BASE = "/api/projects"
@@ -395,7 +389,7 @@ class TestGenerationEndpoints:
         assert resp.status_code == 204
 
         test_db.refresh(project)
-        assert project.generation_config is None
+        assert project.generation_config == None  # noqa: E711
 
     def test_generation_status_no_generations(self, client, test_db, test_users, test_org, auth_headers):
         """Generation status with no generations returns empty list and is_running=False."""
@@ -410,7 +404,7 @@ class TestGenerationEndpoints:
         assert resp.status_code == 200
         body = resp.json()
         assert body["generations"] == []
-        assert body["is_running"] is False
+        assert body["is_running"] == False  # noqa: E712
         assert body["latest_status"] is None
 
     def test_generation_status_with_completed_generation(self, client, test_db, test_users, test_org, auth_headers):
@@ -440,7 +434,7 @@ class TestGenerationEndpoints:
         assert resp.status_code == 200
         body = resp.json()
         assert len(body["generations"]) == 1
-        assert body["is_running"] is False
+        assert body["is_running"] == False  # noqa: E712
         assert body["latest_status"] == "completed"
 
     def test_generation_status_with_running_generation(self, client, test_db, test_users, test_org, auth_headers):
@@ -467,7 +461,7 @@ class TestGenerationEndpoints:
 
         assert resp.status_code == 200
         body = resp.json()
-        assert body["is_running"] is True
+        assert body["is_running"] == True  # noqa: E712
         assert body["latest_status"] == "running"
 
     def test_generation_config_nonexistent_project_returns_404(self, client, test_db, test_users, test_org, auth_headers):
@@ -565,7 +559,7 @@ class TestLabelConfigVersionEndpoints:
         body = resp.json()
         assert body["total_versions"] == 1
         assert body["versions"][0]["version"] == "v1"
-        assert body["versions"][0]["is_current"] is True
+        assert body["versions"][0]["is_current"] == True  # noqa: E712
 
     def test_get_specific_version(self, client, test_db, test_users, test_org, auth_headers):
         """Getting a specific version returns its schema."""
@@ -597,7 +591,7 @@ class TestLabelConfigVersionEndpoints:
         body = resp.json()
         assert body["version"] == "v1"
         assert body["schema"] == old_schema
-        assert body["is_current"] is False
+        assert body["is_current"] == False  # noqa: E712
 
     def test_get_current_version(self, client, test_db, test_users, test_org, auth_headers):
         """Getting the current version returns the project's active label_config."""
@@ -618,7 +612,7 @@ class TestLabelConfigVersionEndpoints:
         assert resp.status_code == 200
         body = resp.json()
         assert body["schema"] == current_schema
-        assert body["is_current"] is True
+        assert body["is_current"] == True  # noqa: E712
 
     def test_get_nonexistent_version_returns_404(self, client, test_db, test_users, test_org, auth_headers):
         """Getting a version that does not exist returns 404."""

@@ -10,7 +10,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from tasks import send_bulk_invitations_task, send_invitation_email_task
+from tasks import send_bulk_invitations_task, send_invitation_email_task  # noqa: E402
 
 
 def _mock_sendgrid_success():

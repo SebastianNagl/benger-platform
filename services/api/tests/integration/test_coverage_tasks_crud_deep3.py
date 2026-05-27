@@ -5,22 +5,14 @@ Targets: routers/projects/tasks.py, crud.py, members.py, reviews.py,
 annotations.py, assignments.py, timer.py, questionnaire.py, helpers.py
 """
 
-import json
 import uuid
-from datetime import datetime, timezone
 
-import pytest
-from sqlalchemy.orm import Session
 
-from models import Organization, OrganizationMembership, User
 from project_models import (
     Annotation,
     Project,
-    ProjectMember,
     ProjectOrganization,
-    SkippedTask,
     Task,
-    TaskAssignment,
 )
 
 
@@ -138,7 +130,7 @@ class TestTaskListing:
     def test_list_tasks_exclude_my_annotations(self, client, test_db, test_users, auth_headers, test_org):
         p = _project(test_db, test_users[0], test_org)
         t1 = _task(test_db, p, test_users[0], inner_id=1)
-        t2 = _task(test_db, p, test_users[0], inner_id=2)
+        t2 = _task(test_db, p, test_users[0], inner_id=2)  # noqa: F841
         _ann(test_db, t1, p, test_users[0])
         test_db.commit()
 
@@ -187,7 +179,7 @@ class TestTaskOperations:
         assert resp.status_code == 200
 
     def test_get_nonexistent_task(self, client, test_db, test_users, auth_headers, test_org):
-        p = _project(test_db, test_users[0], test_org)
+        _project(test_db, test_users[0], test_org)
         test_db.commit()
 
         resp = client.get(
@@ -686,24 +678,24 @@ class TestHelpers:
         from routers.projects.helpers import check_project_accessible
         p = _project(test_db, test_users[0], test_org)
         test_db.commit()
-        assert check_project_accessible(test_db, test_users[0], p.id) is True
+        assert check_project_accessible(test_db, test_users[0], p.id) == True  # noqa: E712
 
     def test_check_project_accessible_nonexistent(self, test_db, test_users):
         from routers.projects.helpers import check_project_accessible
-        assert check_project_accessible(test_db, test_users[1], "nonexistent") is False
+        assert check_project_accessible(test_db, test_users[1], "nonexistent") == False  # noqa: E712
 
     def test_check_project_accessible_private_mode(self, test_db, test_users, test_org):
         from routers.projects.helpers import check_project_accessible
         p = _project(test_db, test_users[0], None, is_private=True)
         test_db.commit()
-        assert check_project_accessible(test_db, test_users[0], p.id, "private") is True
+        assert check_project_accessible(test_db, test_users[0], p.id, "private") == True  # noqa: E712
 
     def test_check_user_can_edit_project_creator(self, test_db, test_users, test_org):
         from routers.projects.helpers import check_user_can_edit_project
         p = _project(test_db, test_users[0], test_org)
         test_db.commit()
         # User[0] is superadmin so always True
-        assert check_user_can_edit_project(test_db, test_users[0], p.id) is True
+        assert check_user_can_edit_project(test_db, test_users[0], p.id) == True  # noqa: E712
 
     def test_calculate_project_stats_batch(self, test_db, test_users, test_org):
         from routers.projects.helpers import calculate_project_stats_batch
@@ -731,7 +723,7 @@ class TestHelpers:
         p = _project(test_db, test_users[0], test_org, assignment_mode="open")
         t = _task(test_db, p, test_users[0])
         test_db.commit()
-        assert check_task_assigned_to_user(test_db, test_users[0], t.id, p) is True
+        assert check_task_assigned_to_user(test_db, test_users[0], t.id, p) == True  # noqa: E712
 
     def test_calculate_generation_stats(self, test_db, test_users, test_org):
         from project_schemas import ProjectResponse
@@ -740,4 +732,4 @@ class TestHelpers:
         test_db.commit()
         resp = ProjectResponse.from_orm(p)
         calculate_generation_stats(test_db, p, resp)
-        assert resp.generation_config_ready is False
+        assert resp.generation_config_ready == False  # noqa: E712

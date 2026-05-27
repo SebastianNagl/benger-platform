@@ -238,8 +238,8 @@ def test_cell_sub_tasks_short_circuit_on_parent_cancel():
                     '"cancelled"' in body_src or "'cancelled'" in body_src
                 ), (
                     f"{fn_name} must read EvaluationRun.status at entry and "
-                    f"short-circuit on cancelled/terminal to avoid burning "
-                    f"LLM quota on already-cancelled evals"
+                    "short-circuit on cancelled/terminal to avoid burning "
+                    "LLM quota on already-cancelled evals"
                 )
                 break
         else:
@@ -609,7 +609,7 @@ def test_sub_tasks_do_not_create_judge_runs():
             body_src = ast.get_source_segment(src, node) or ""
             assert "_create_judge_run" not in body_src, (
                 f"{node.name} must not call _create_judge_run — orchestrator "
-                f"pre-creates all judge_runs to avoid UQ races"
+                "pre-creates all judge_runs to avoid UQ races"
             )
 
 

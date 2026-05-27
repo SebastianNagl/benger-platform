@@ -276,7 +276,7 @@ class TestFeatureFlagService:
             result = service.update_flag("flag-123", updates)
 
             assert result == mock_feature_flag
-            assert mock_feature_flag.is_enabled == False
+            assert mock_feature_flag.is_enabled == False  # noqa: E712
             assert mock_feature_flag.description == "Updated description"
             service.db.commit.assert_called_once()
             mock_invalidate.assert_called_once_with(mock_feature_flag.name)
@@ -300,7 +300,7 @@ class TestFeatureFlagService:
             result = service.update_flag("flag-123", updates)
 
             assert result == mock_feature_flag
-            assert mock_feature_flag.is_enabled == False
+            assert mock_feature_flag.is_enabled == False  # noqa: E712
             # invalid_field should not be set
             assert not hasattr(mock_feature_flag, "invalid_field")
 

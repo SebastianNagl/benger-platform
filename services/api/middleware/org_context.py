@@ -67,7 +67,7 @@ class OrgContextMiddleware(BaseHTTPMiddleware):
             try:
                 result = (
                     db.query(Organization.id)
-                    .filter(Organization.slug == slug, Organization.is_active == True)
+                    .filter(Organization.slug == slug, Organization.is_active == True)  # noqa: E712
                     .first()
                 )
                 if result:

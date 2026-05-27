@@ -29,7 +29,7 @@ def mock_redis():
     Issue #179: Standardized Redis mocking pattern
     """
     fake_redis = fakeredis.FakeStrictRedis(decode_responses=True)
-    fake_async_redis = fakeredis.FakeAsyncRedis(decode_responses=True)
+    fake_async_redis = fakeredis.FakeAsyncRedis(decode_responses=True)  # noqa: F841
 
     # Import the redis_cache module to access the global cache instance
     import redis_cache

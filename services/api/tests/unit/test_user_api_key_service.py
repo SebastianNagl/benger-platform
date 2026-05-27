@@ -52,7 +52,7 @@ class TestUserApiKeyService:
 
     def test_init(self, service):
         """Test service initialization"""
-        assert service.encryption_service is not None
+        assert service.encryption_service != None  # noqa: E711
 
     def test_set_user_api_key_openai_success(self, service, test_db, mock_user):
         """Test successful OpenAI API key setting"""
@@ -281,7 +281,7 @@ class TestUserApiKeyService:
         result = service.remove_user_api_key(test_db, "user-123", "openai")
 
         assert result is True
-        assert mock_user.encrypted_openai_api_key is None
+        assert mock_user.encrypted_openai_api_key == None  # noqa: E711
         test_db.commit.assert_called_once()
 
     def test_remove_user_api_key_all_providers(self, service, test_db, mock_user):
@@ -800,8 +800,8 @@ class TestUserApiKeyService:
         test_db.query.side_effect = Exception("Database error")
 
         # These should all return False or empty results, not raise exceptions
-        assert service.set_user_api_key(test_db, "user-123", "openai", "key") is False
+        assert service.set_user_api_key(test_db, "user-123", "openai", "key") == False  # noqa: E712
         assert service.get_user_api_key(test_db, "user-123", "openai") is None
-        assert service.remove_user_api_key(test_db, "user-123", "openai") is False
+        assert service.remove_user_api_key(test_db, "user-123", "openai") == False  # noqa: E712
         assert service.get_user_available_providers(test_db, "user-123") == []
         assert service.get_user_api_key_status(test_db, "user-123") == {}

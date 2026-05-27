@@ -4,10 +4,8 @@ Covers deep_merge_dicts, project CRUD, visibility, and completion stats.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
-import pytest
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from routers.projects.crud import deep_merge_dicts
@@ -66,7 +64,7 @@ class TestDeepMergeDicts:
         update = {"level1": {"level2": {"level3": {"value": "new", "extra": True}}}}
         result = deep_merge_dicts(base, update)
         assert result["level1"]["level2"]["level3"]["value"] == "new"
-        assert result["level1"]["level2"]["level3"]["extra"] is True
+        assert result["level1"]["level2"]["level3"]["extra"] == True  # noqa: E712
 
     def test_does_not_mutate_input(self):
         base = {"a": {"b": 1}}
@@ -90,9 +88,9 @@ class TestDeepMergeDicts:
 
 # ============= CRUD endpoint tests via TestClient =============
 
-from main import app
-from fastapi.testclient import TestClient
-from auth_module.models import User
+from main import app  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from auth_module.models import User  # noqa: E402
 
 
 def _make_user(is_superadmin=False, user_id="user-123"):

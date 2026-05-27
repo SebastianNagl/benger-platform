@@ -2,10 +2,6 @@
 Unit tests for project_schemas.py, schemas/, and model validation — covers schema creation and validation.
 """
 
-from unittest.mock import Mock
-
-import pytest
-
 
 class TestProjectSchemasValidation:
     """Tests for project_schemas.py validation logic."""
@@ -65,7 +61,7 @@ class TestEvaluationSchemas:
             missing_in_evaluation=[],
             missing_in_generation=[],
         )
-        assert result.valid is True
+        assert result.valid == True  # noqa: E712
 
 
 class TestEvaluationHelpers:
@@ -89,6 +85,7 @@ class TestEvaluationHelpers:
         )
         assert status.status == "completed"
 
+
 class TestOrganizationModels:
     """Tests for organization-related Pydantic models."""
 
@@ -105,7 +102,7 @@ class TestOrganizationModels:
         from routers.organizations import OrganizationUpdate
         update = OrganizationUpdate(name="Updated Name")
         assert update.name == "Updated Name"
-        assert update.description is None
+        assert update.description == None  # noqa: E711
 
     def test_organization_member_response(self):
         from routers.organizations import OrganizationMemberResponse
@@ -161,7 +158,7 @@ class TestOrganizationModels:
     def test_user_superadmin_update(self):
         from routers.organizations import UserSuperadminUpdate
         update = UserSuperadminUpdate(is_superadmin=True)
-        assert update.is_superadmin is True
+        assert update.is_superadmin == True  # noqa: E712
 
 
 class TestStatisticsModels:
@@ -186,7 +183,7 @@ class TestStatisticsModels:
             model_a="gpt-4", model_b="claude-3", metric="accuracy",
             ttest_p=0.03, ttest_significant=True, significant=True,
         )
-        assert comp.significant is True
+        assert comp.significant == True  # noqa: E712
 
     def test_model_statistics(self):
         from routers.evaluations.metadata import ModelStatistics, MetricStatistics

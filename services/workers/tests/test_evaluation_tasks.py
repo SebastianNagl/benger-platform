@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tasks import generate_llm_responses, get_supported_metrics
+from tasks import generate_llm_responses, get_supported_metrics  # noqa: E402
 
 
 class TestSupportedMetricsTask:

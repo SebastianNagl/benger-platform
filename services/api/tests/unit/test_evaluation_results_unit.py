@@ -5,8 +5,6 @@ Targets: routers/evaluations/results.py — 7.37% coverage
 Tests the _extract_primary_score function and request/response models.
 """
 
-import pytest
-
 
 class TestExtractPrimaryScore:
     """Test _extract_primary_score helper."""

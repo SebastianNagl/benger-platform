@@ -17,11 +17,13 @@ from .base_service import BaseAIService, derive_truncated
 from .provider_capabilities import calculate_cost, model_supports_seed
 from .response_validator import ResponseValidator
 
-logger = logging.getLogger(__name__)
 
 
 # Phase 6.2: shared retry-history contextvar (defined in base_service).
 from .base_service import _retry_history_ctx, get_retry_history_snapshot  # noqa: F401
+
+
+logger = logging.getLogger(__name__)
 
 
 def async_retry_with_exponential_backoff(
@@ -85,13 +87,13 @@ class DeepInfraService(BaseAIService):
     def __init__(self, api_key: Optional[str] = None):
         """
         Initialize DeepInfra service.
-        
+
         Args:
             api_key: DeepInfra API key (optional, defaults to DEEPINFRA_API_KEY env var)
         """
         self.api_key = api_key or os.getenv("DEEPINFRA_API_KEY")
         self.base_url = "https://api.deepinfra.com/v1/openai"
-        
+
         # Model name mapping from display names to API names
         self.model_mapping = {
             # DeepSeek models
@@ -126,7 +128,7 @@ class DeepInfraService(BaseAIService):
             "meta-llama/Llama-3.1-70B-Instruct": "meta-llama/Meta-Llama-3.1-70B-Instruct",
             "meta-llama/Llama-3.1-8B-Instruct": "meta-llama/Meta-Llama-3.1-8B-Instruct",
         }
-        
+
         super().__init__(self.api_key)
 
     def _initialize_client(self):
@@ -142,7 +144,7 @@ class DeepInfraService(BaseAIService):
 
     def is_available(self) -> bool:
         """Check if DeepInfra service is available (API key set)"""
-        return self.client is not None
+        return self.client != None
 
     @async_retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
     async def generate(
@@ -380,7 +382,7 @@ class DeepInfraService(BaseAIService):
 
         try:
             # Add format instructions to system prompt
-            format_instructions = f"""
+            format_instructions = """
 
 ## Output Format
 You MUST respond with a valid JSON object matching this schema:
@@ -409,7 +411,7 @@ Your response must be ONLY the JSON object, no other text before or after.
                     attempt_repair=True
                 )
 
-                if validation_result.valid and validation_result.data is not None:
+                if validation_result.valid and validation_result.data != None:
                     result["content"] = json.dumps(validation_result.data, ensure_ascii=False)
                     result["metadata"]["structured_output"] = True
                     result["metadata"]["validation_status"] = "valid"
@@ -494,7 +496,7 @@ Your response must be ONLY the JSON object, no other text before or after.
         """
         Legacy method for backward compatibility.
         Generate a response using DeepInfra API with case data.
-        
+
         Args:
             system_prompt: System-level instructions
             instruction_prompt: Specific task instructions
@@ -503,13 +505,13 @@ Your response must be ONLY the JSON object, no other text before or after.
             max_tokens: Maximum tokens in response
             temperature: Sampling temperature
             **kwargs: Additional parameters
-            
+
         Returns:
             Dictionary with response data and metadata
         """
         # Combine prompts for the user message
         user_message = f"{instruction_prompt}\n\nCase to analyze:\n{case_data}"
-        
+
         # Use the base generate method
         result = await self.generate(
             prompt=user_message,
@@ -519,7 +521,7 @@ Your response must be ONLY the JSON object, no other text before or after.
             temperature=temperature,
             **kwargs
         )
-        
+
         # Map to legacy response format for backward compatibility
         if result["success"]:
             return {

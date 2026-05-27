@@ -550,7 +550,7 @@ class TestEdgeCases:
         db.refresh(project_null)
 
         # Verify null handling
-        assert project_null.generation_config is None
+        assert project_null.generation_config == None  # noqa: E711
 
     def test_conflicting_prompt_types(self, db: Session, test_user: User):
         """Test conflict resolution when prompts have conflicting types"""

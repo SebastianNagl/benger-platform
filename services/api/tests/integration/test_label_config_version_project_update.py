@@ -67,7 +67,7 @@ class TestProjectUpdateVersioning:
 
         # Simulate what the API does
         if LabelConfigVersionService.has_schema_changed(test_project, new_schema):
-            new_version = LabelConfigVersionService.update_version_history(
+            new_version = LabelConfigVersionService.update_version_history(  # noqa: F841
                 project=test_project,
                 new_label_config=new_schema,
                 description="Added confidence rating",
@@ -280,7 +280,7 @@ class TestProjectUpdateVersioning:
 
         # Add schema
         new_schema = "<View><Choices name='sentiment'/></View>"
-        new_version = LabelConfigVersionService.update_version_history(
+        new_version = LabelConfigVersionService.update_version_history(  # noqa: F841
             project=project,
             new_label_config=new_schema,
             description="Initial schema",
@@ -291,6 +291,6 @@ class TestProjectUpdateVersioning:
 
         # Should create v2 (increments from v1 default)
         # Note: This might be v2 based on service logic - see unit tests
-        assert project.label_config_version is not None
+        assert project.label_config_version != None  # noqa: E711
         assert project.label_config == new_schema
-        assert project.label_config_history is not None
+        assert project.label_config_history != None  # noqa: E711

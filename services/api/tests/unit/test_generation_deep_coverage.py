@@ -8,6 +8,7 @@ resume_generation, retry_generation, delete_generation, get_parse_metrics.
 
 import json
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import Mock, MagicMock, patch
 
 import pytest
@@ -898,42 +899,44 @@ class TestParseMetrics:
     async def test_with_data_and_model_filter(self, mock_org, mock_access):
         from routers.generation import get_parse_metrics
 
+        # The route was refactored from 5 separate `query.filter(...).count()`
+        # calls into a single `query.with_entities(SUM CASE ...).one()` row.
+        # Mock the aggregated row directly so each labelled column maps to
+        # the expected total. The metadata + error sub-queries still chain
+        # off the same `query` mock via `.filter(...).with_entities(...).all()`
+        # and `.group_by(...).order_by(...).limit(...).all()`.
         db = _mock_db()
         mock_q = MagicMock()
         mock_q.filter.return_value = mock_q
         mock_q.join.return_value = mock_q
 
-        count_calls = {"n": 0}
+        agg_row = SimpleNamespace(
+            total=10, success=7, failed=2, validation_error=1, max_retries=0
+        )
+        mock_q.with_entities.return_value = mock_q
+        mock_q.one.return_value = agg_row
 
-        def count_side_effect():
-            count_calls["n"] += 1
-            return {1: 10, 2: 7, 3: 2, 4: 1, 5: 0}.get(count_calls["n"], 0)
+        # Metadata rows: 2 success rows; one with retry_count=2, one None.
+        meta_rows = [({"retry_count": 2},), (None,)]
 
-        mock_q.count.side_effect = count_side_effect
-
-        success_gen = Mock()
-        success_gen.parse_metadata = {"retry_count": 2}
-        success_gen2 = Mock()
-        success_gen2.parse_metadata = None
-
-        failed_gen = Mock()
-        failed_gen.parse_error = "JSON decode error"
-        failed_gen2 = Mock()
-        failed_gen2.parse_error = "JSON decode error"
-        failed_gen3 = Mock()
-        failed_gen3.parse_error = None
+        # Error rows: (error_label, count) tuples — the route unpacks each
+        # row via `for e, c in error_rows`.
+        err_rows = [("JSON decode error", 2)]
 
         all_calls = {"n": 0}
 
         def all_side_effect():
             all_calls["n"] += 1
             if all_calls["n"] == 1:
-                return [success_gen, success_gen2]
+                return meta_rows
             elif all_calls["n"] == 2:
-                return [failed_gen, failed_gen2, failed_gen3]
+                return err_rows
             return []
 
         mock_q.all.side_effect = all_side_effect
+        mock_q.group_by.return_value = mock_q
+        mock_q.order_by.return_value = mock_q
+        mock_q.limit.return_value = mock_q
         db.query.return_value = mock_q
 
         result = await get_parse_metrics(
@@ -956,11 +959,15 @@ class TestParseMetrics:
     async def test_total_zero(self, mock_org, mock_access):
         from routers.generation import get_parse_metrics
 
+        # Route uses one aggregated `with_entities(...).one()` row, not .count().
         db = _mock_db()
         mock_q = MagicMock()
         mock_q.filter.return_value = mock_q
         mock_q.join.return_value = mock_q
-        mock_q.count.return_value = 0
+        mock_q.with_entities.return_value = mock_q
+        mock_q.one.return_value = SimpleNamespace(
+            total=0, success=0, failed=0, validation_error=0, max_retries=0
+        )
         db.query.return_value = mock_q
 
         result = await get_parse_metrics(
@@ -982,7 +989,10 @@ class TestParseMetrics:
         mock_q = MagicMock()
         mock_q.filter.return_value = mock_q
         mock_q.join.return_value = mock_q
-        mock_q.count.return_value = 0
+        mock_q.with_entities.return_value = mock_q
+        mock_q.one.return_value = SimpleNamespace(
+            total=0, success=0, failed=0, validation_error=0, max_retries=0
+        )
         db.query.return_value = mock_q
 
         result = await get_parse_metrics(
@@ -1023,7 +1033,10 @@ class TestParseMetrics:
         mock_q = MagicMock()
         mock_q.filter.return_value = mock_q
         mock_q.join.return_value = mock_q
-        mock_q.count.return_value = 0
+        mock_q.with_entities.return_value = mock_q
+        mock_q.one.return_value = SimpleNamespace(
+            total=0, success=0, failed=0, validation_error=0, max_retries=0
+        )
         db.query.return_value = mock_q
 
         result = await get_parse_metrics(

@@ -16,8 +16,8 @@ import redis
 # Add path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tasks import app as celery_app
-from tasks import generate_llm_responses, generate_synthetic_data
+from tasks import app as celery_app  # noqa: E402
+from tasks import generate_llm_responses, generate_synthetic_data  # noqa: E402
 
 
 class TestCompleteEvaluationPipeline:

@@ -275,4 +275,3 @@ class TestPermissionIntegration:
     # they contained only `assert True` placeholders or empty bodies,
     # testing nothing. Real regression tests for Issue #630 should be
     # added to the integration test suite with a real database.
-    pass

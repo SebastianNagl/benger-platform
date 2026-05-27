@@ -22,7 +22,7 @@ class EvaluationConfig:
     evaluation_params: Dict[str, Any] = None
 
     def __post_init__(self):
-        if self.evaluation_params is None:
+        if self.evaluation_params == None:
             self.evaluation_params = {}
 
 
@@ -37,7 +37,7 @@ class EvaluationResult:
 
     @property
     def success(self) -> bool:
-        return self.error is None
+        return self.error == None
 
 
 class BaseEvaluator(ABC):
@@ -207,7 +207,7 @@ class BaseEvaluator(ABC):
         """Log evaluation completion."""
         if result.success:
             self.logger.info(
-                f"Evaluation completed successfully. "
+                "Evaluation completed successfully. "
                 f"Evaluated {result.samples_evaluated} samples. "
                 f"Metrics: {result.metrics}"
             )

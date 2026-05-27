@@ -152,7 +152,7 @@ export function DynamicAnnotationInterface({
       previousTaskId.current !== taskId &&
       previousTaskId.current !== undefined
     ) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clearing form on task change is valid state reset
+       
       setAnnotations(new Map())
 
       setComponentValues(new Map())

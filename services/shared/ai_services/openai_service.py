@@ -15,13 +15,15 @@ from openai import OpenAI
 from .base_service import BaseAIService, derive_truncated
 from .provider_capabilities import model_supports_seed
 
-logger = logging.getLogger(__name__)
 
 
 # Phase 6.2: shared retry-history contextvar lives in base_service so
 # all providers (openai/cohere/mistral/deepinfra) push to the same
 # audit-trail buffer.
 from .base_service import _retry_history_ctx, get_retry_history_snapshot  # noqa: E402,F401
+
+
+logger = logging.getLogger(__name__)
 
 
 def retry_with_exponential_backoff(
@@ -97,7 +99,7 @@ class OpenAIService(BaseAIService):
     def __init__(self, api_key: Optional[str] = None):
         """
         Initialize OpenAI service.
-        
+
         Args:
             api_key: OpenAI API key (optional, defaults to OPENAI_API_KEY env var)
         """
@@ -121,7 +123,7 @@ class OpenAIService(BaseAIService):
 
     def is_available(self) -> bool:
         """Check if OpenAI service is available (API key set)"""
-        return self.client is not None
+        return self.client != None
 
     @staticmethod
     def _is_responses_api_only_model(model_name: str) -> bool:
@@ -600,7 +602,7 @@ class OpenAIService(BaseAIService):
         if not supports_json_schema:
             logger.info(f"⚠️ Model {model_name} doesn't support json_schema, using prompt-based JSON")
             # Fall back to prompt-based JSON generation
-            format_instructions = f"""
+            format_instructions = """
 
 ## Output Format
 You MUST respond with a valid JSON object matching this schema:
@@ -735,7 +737,7 @@ Your response must be ONLY the JSON object, no other text before or after.
         """
         Legacy method for backward compatibility.
         Generate a response using OpenAI API with case data replacement.
-        
+
         Args:
             system_prompt: System message for context
             instruction_prompt: Specific instruction with placeholders
@@ -744,13 +746,13 @@ Your response must be ONLY the JSON object, no other text before or after.
             max_tokens: Maximum response tokens
             temperature: Response creativity (0.0-1.0)
             **kwargs: Additional parameters
-            
+
         Returns:
             Dict with response data including content, metadata, and usage stats
         """
         # Replace placeholder in instruction with actual case data
         user_message = instruction_prompt.replace("[FALL EINFÜGEN]", case_data)
-        
+
         # Use the base generate method
         return self.generate(
             prompt=user_message,

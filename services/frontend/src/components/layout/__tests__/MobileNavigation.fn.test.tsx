@@ -45,6 +45,7 @@ describe('useIsInsideMobileNavigation', () => {
   it('returns false by default (outside provider)', () => {
     let result: boolean = true
     function TestComponent() {
+      // eslint-disable-next-line react-hooks/globals
       result = useIsInsideMobileNavigation()
       return null
     }

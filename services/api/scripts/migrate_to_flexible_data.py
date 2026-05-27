@@ -9,12 +9,14 @@ import json
 import os
 import sys
 
+sys.path.insert(0, "/shared")
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
 
-from database import get_database_url
+from database import get_database_url  # noqa: E402
+from project_models import Project  # noqa: E402
 
 
 def migrate_task_data(db_session):
@@ -28,6 +30,7 @@ def migrate_task_data(db_session):
     """
 
     # Get all projects
+    projects = db_session.query(Project).all()
 
     migrated_count = 0
     skipped_count = 0
@@ -38,7 +41,7 @@ def migrate_task_data(db_session):
     for task in projects:
         try:
             # Skip if already migrated or has no data
-            if task.data is None:
+            if task.data == None:  # noqa: E711
                 skipped_count += 1
                 continue
 
@@ -117,6 +120,9 @@ def add_default_label_configs(db_session):
     }
 
     # Update projects without label_config
+    projects_without_config = (
+        db_session.query(Project).filter(Project.label_config.is_(None)).all()
+    )
 
     updated_count = 0
 

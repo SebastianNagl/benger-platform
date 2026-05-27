@@ -13,10 +13,10 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import relationships properly
-import models  # This ensures all model relationships are loaded
-from database import SessionLocal
-from models import Organization, User
-from project_models import Project, Task
+import models  # This ensures all model relationships are loaded  # noqa: E402,F401
+from database import SessionLocal  # noqa: E402
+from models import Organization, User  # noqa: E402
+from project_models import Project, Task  # noqa: E402
 
 
 def setup_test_annotation_project():
@@ -46,12 +46,12 @@ def setup_test_annotation_project():
         # Define label configuration with radio button (Yes/No) and text area
         label_config = """<View>
   <Text name="document" value="$document_text" showLabel="true"/>
-  
+
   <View style="margin-top: 24px; padding: 16px; background-color: #f7f7f7; border-radius: 8px">
     <Header value="Legal Analysis" level="3"/>
-    
-    <Choices 
-      name="is_relevant" 
+
+    <Choices
+      name="is_relevant"
       toName="document"
       label="Is this document legally relevant?"
       choice="single"
@@ -61,9 +61,9 @@ def setup_test_annotation_project():
       <Choice value="Yes" selected="false"/>
       <Choice value="No" selected="false"/>
     </Choices>
-    
-    <TextArea 
-      name="legal_justification" 
+
+    <TextArea
+      name="legal_justification"
       toName="document"
       label="Legal Justification"
       placeholder="Please explain your decision with reference to applicable legal principles..."
@@ -71,9 +71,9 @@ def setup_test_annotation_project():
       required="true"
       hint="Provide specific legal reasoning for your assessment"
     />
-    
-    <Choices 
-      name="confidence_level" 
+
+    <Choices
+      name="confidence_level"
       toName="document"
       label="How confident are you in this assessment?"
       choice="single"
@@ -84,9 +84,9 @@ def setup_test_annotation_project():
       <Choice value="Somewhat Confident"/>
       <Choice value="Not Confident"/>
     </Choices>
-    
-    <TextArea 
-      name="additional_notes" 
+
+    <TextArea
+      name="additional_notes"
       toName="document"
       label="Additional Notes (Optional)"
       placeholder="Any other observations or considerations..."
@@ -137,27 +137,27 @@ Focus on accuracy and provide concise but thorough legal reasoning.""",
         # Create sample tasks with legal documents
         sample_tasks = [
             {
-                "document_text": """Contract Clause 5.2: The parties agree that any disputes arising from this agreement 
-shall be resolved through binding arbitration in accordance with the rules of the American Arbitration Association. 
+                "document_text": """Contract Clause 5.2: The parties agree that any disputes arising from this agreement
+shall be resolved through binding arbitration in accordance with the rules of the American Arbitration Association.
 The arbitration shall take place in New York, NY, and the arbitrator's decision shall be final and binding upon both parties."""
             },
             {
                 "document_text": """Email from John Smith to Jane Doe (March 15, 2024):
-"Hey Jane, just wanted to remind you about the team lunch tomorrow at 12:30pm. We're going to the Italian place 
+"Hey Jane, just wanted to remind you about the team lunch tomorrow at 12:30pm. We're going to the Italian place
 downtown. Let me know if you can make it!" """
             },
             {
-                "document_text": """Section 12 of the Employment Agreement: The Employee acknowledges that during the term 
-of employment and for a period of two (2) years thereafter, the Employee shall not directly or indirectly engage in 
+                "document_text": """Section 12 of the Employment Agreement: The Employee acknowledges that during the term
+of employment and for a period of two (2) years thereafter, the Employee shall not directly or indirectly engage in
 any business that competes with the Company within a 50-mile radius of any Company location."""
             },
             {
-                "document_text": """Court Opinion Excerpt: "The defendant's motion to dismiss is hereby DENIED. 
-The plaintiff has sufficiently alleged facts that, if proven true, would establish a breach of fiduciary duty. 
+                "document_text": """Court Opinion Excerpt: "The defendant's motion to dismiss is hereby DENIED.
+The plaintiff has sufficiently alleged facts that, if proven true, would establish a breach of fiduciary duty.
 The case shall proceed to discovery." - Judge Patricia Williams, District Court"""
             },
             {
-                "document_text": """Product Review from customer: "This coffee maker works great! Makes coffee quickly 
+                "document_text": """Product Review from customer: "This coffee maker works great! Makes coffee quickly
 and keeps it hot for hours. The timer function is very convenient. Would definitely recommend to others." - 5 stars"""
             },
         ]
@@ -186,12 +186,12 @@ and keeps it hot for hours. The timer function is very convenient. Would definit
         print(f"✅ Created {len(sample_tasks)} sample tasks")
 
         print("\n🎉 Test annotation project setup complete!")
-        print(f"\nProject Details:")
+        print("\nProject Details:")
         print(f"  - Title: {project.title}")
         print(f"  - ID: {project_id}")
         print(f"  - Tasks: {len(sample_tasks)}")
         print(f"  - Organization: {test_org.name}")
-        print(f"\nLabel Configuration Features:")
+        print("\nLabel Configuration Features:")
         print("  - Radio Button (Yes/No) for relevance assessment")
         print("  - Required text area for legal justification")
         print("  - Optional confidence level selection")

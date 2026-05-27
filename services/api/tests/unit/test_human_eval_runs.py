@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from models import EvaluationRun, User
-from project_models import Project, ProjectOrganization
+from project_models import Project
 from services.evaluation.human_eval_runs import (
     HUMAN_GRADED_METRICS,
     get_or_create_human_eval_run,
@@ -74,7 +74,7 @@ class TestGetOrCreateHumanEvalRun:
         )
         test_db.commit()
 
-        assert run.id is not None
+        assert run.id != None  # noqa: E711
         assert run.project_id == project.id
         assert run.model_id == "human"
         assert run.evaluation_type_ids == ["korrektur_falloesung"]

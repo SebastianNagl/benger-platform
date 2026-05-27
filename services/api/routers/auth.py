@@ -43,11 +43,13 @@ from auth_module import (
     authenticate_user,
     create_tokens_with_refresh,
     create_user,
-    logout_user,
     refresh_access_token,
     require_superadmin,
     revoke_refresh_token,
 )
+# Re-exported for tests that patch routers.auth.logout_user — not directly
+# used in this module but must be importable as an attribute.
+from auth_module import logout_user  # noqa: F401
 from auth_module.dependencies import require_user
 from auth_module.email_verification import email_verification_service
 from auth_module.user_service import change_user_password, update_user_profile
@@ -75,7 +77,7 @@ def get_user_primary_role(user: User, db: Session) -> Optional[str]:
     # Get active organization memberships for the user
     memberships = (
         db.query(OrganizationMembership)
-        .filter(OrganizationMembership.user_id == user.id, OrganizationMembership.is_active == True)
+        .filter(OrganizationMembership.user_id == user.id, OrganizationMembership.is_active == True)  # noqa: E712
         .all()
     )
 
@@ -453,7 +455,7 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
                 .filter(
                     Invitation.token == invitation_token,
                     Invitation.email == user_data.email,
-                    Invitation.accepted == False,
+                    Invitation.accepted == False,  # noqa: E712
                 )
                 .first()
             )
@@ -639,14 +641,14 @@ async def get_user_contexts(
 
     # Build organization contexts
     if current_user.is_superadmin:
-        organizations = db.query(Organization).filter(Organization.is_active == True).all()
+        organizations = db.query(Organization).filter(Organization.is_active == True).all()  # noqa: E712
 
         member_counts = dict(
             db.query(
                 OrganizationMembership.organization_id,
                 func.count(OrganizationMembership.id),
             )
-            .filter(OrganizationMembership.is_active == True)
+            .filter(OrganizationMembership.is_active == True)  # noqa: E712
             .group_by(OrganizationMembership.organization_id)
             .all()
         )
@@ -655,7 +657,7 @@ async def get_user_contexts(
             db.query(OrganizationMembership.organization_id, OrganizationMembership.role)
             .filter(
                 OrganizationMembership.user_id == current_user.id,
-                OrganizationMembership.is_active == True,
+                OrganizationMembership.is_active == True,  # noqa: E712
             )
             .all()
         )
@@ -679,8 +681,8 @@ async def get_user_contexts(
             .join(OrganizationMembership, Organization.id == OrganizationMembership.organization_id)
             .filter(
                 OrganizationMembership.user_id == current_user.id,
-                OrganizationMembership.is_active == True,
-                Organization.is_active == True,
+                OrganizationMembership.is_active == True,  # noqa: E712
+                Organization.is_active == True,  # noqa: E712
             )
             .all()
         )
@@ -695,7 +697,7 @@ async def get_user_contexts(
                 )
                 .filter(
                     OrganizationMembership.organization_id.in_(org_ids),
-                    OrganizationMembership.is_active == True,
+                    OrganizationMembership.is_active == True,  # noqa: E712
                 )
                 .group_by(OrganizationMembership.organization_id)
                 .all()

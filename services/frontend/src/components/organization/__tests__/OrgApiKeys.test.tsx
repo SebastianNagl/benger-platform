@@ -11,7 +11,9 @@ jest.mock('@headlessui/react', () => {
     if (!open) return null
     return <div className={className} data-testid="dialog">{children}</div>
   }
+  // eslint-disable-next-line react/display-name
   Dialog.Panel = ({ children, className }: any) => <div className={className}>{children}</div>
+  // eslint-disable-next-line react/display-name
   Dialog.Title = ({ children, className }: any) => <h2 className={className}>{children}</h2>
   return { Dialog }
 })

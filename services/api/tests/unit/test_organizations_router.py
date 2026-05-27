@@ -2,10 +2,8 @@
 Unit tests for routers/organizations.py helper functions and slug validation.
 """
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
-import pytest
 
 from routers.organizations import can_manage_organization, can_create_organization
 
@@ -15,31 +13,31 @@ class TestCanManageOrganization:
 
     def test_none_user(self):
         db = Mock()
-        assert can_manage_organization(None, "org-1", db) is False
+        assert can_manage_organization(None, "org-1", db) == False  # noqa: E712
 
     def test_superadmin_can_manage(self):
         user = Mock(is_superadmin=True)
         db = Mock()
-        assert can_manage_organization(user, "org-1", db) is True
+        assert can_manage_organization(user, "org-1", db) == True  # noqa: E712
 
     def test_org_admin_can_manage(self):
         user = Mock(is_superadmin=False, id="user-1")
         db = MagicMock()
         membership = Mock()
         db.query.return_value.filter.return_value.first.return_value = membership
-        assert can_manage_organization(user, "org-1", db) is True
+        assert can_manage_organization(user, "org-1", db) == True  # noqa: E712
 
     def test_non_admin_cannot_manage(self):
         user = Mock(is_superadmin=False, id="user-1")
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = None
-        assert can_manage_organization(user, "org-1", db) is False
+        assert can_manage_organization(user, "org-1", db) == False  # noqa: E712
 
     def test_inactive_admin_cannot_manage(self):
         user = Mock(is_superadmin=False, id="user-1")
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = None
-        assert can_manage_organization(user, "org-1", db) is False
+        assert can_manage_organization(user, "org-1", db) == False  # noqa: E712
 
 
 class TestCanCreateOrganization:
@@ -47,25 +45,25 @@ class TestCanCreateOrganization:
 
     def test_none_user(self):
         db = Mock()
-        assert can_create_organization(None, db) is False
+        assert can_create_organization(None, db) == False  # noqa: E712
 
     def test_superadmin_can_create(self):
         user = Mock(is_superadmin=True)
         db = Mock()
-        assert can_create_organization(user, db) is True
+        assert can_create_organization(user, db) == True  # noqa: E712
 
     def test_org_admin_can_create(self):
         user = Mock(is_superadmin=False, id="user-1")
         db = MagicMock()
         membership = Mock()
         db.query.return_value.filter.return_value.first.return_value = membership
-        assert can_create_organization(user, db) is True
+        assert can_create_organization(user, db) == True  # noqa: E712
 
     def test_non_admin_cannot_create(self):
         user = Mock(is_superadmin=False, id="user-1")
         db = MagicMock()
         db.query.return_value.filter.return_value.first.return_value = None
-        assert can_create_organization(user, db) is False
+        assert can_create_organization(user, db) == False  # noqa: E712
 
 
 class TestOrganizationSlugValidation:
@@ -125,8 +123,6 @@ class TestOrganizationResponseLogic:
 
     def test_user_orgs_empty(self):
         """Non-superadmin with no org memberships."""
-        user_orgs_with_roles = []
-        member_count_dict = {}
         result = []
         assert result == []
 
