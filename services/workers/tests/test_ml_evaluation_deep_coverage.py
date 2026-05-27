@@ -775,7 +775,7 @@ class TestSampleEvaluatorPureMetrics:
 
     def test_parse_hierarchy_path_plain(self):
         ev = self._make_evaluator()
-        assert ev._parse_hierarchy_path("Lea") == ["Leaf"]
+        assert ev._parse_hierarchy_path("Leaf") == ["Leaf"]
 
     def test_parse_hierarchy_path_none(self):
         ev = self._make_evaluator()
@@ -2155,13 +2155,13 @@ class TestSampleEvaluatorTextSimilarity:
 
     def test_chrf_identical(self):
         ev = self._make_evaluator()
-        score = ev._compute_text_similarity("chr", "hello world", "hello world")
+        score = ev._compute_text_similarity("chrf", "hello world", "hello world")
         assert score > 0.9
 
     def test_chrf_custom_params(self):
         ev = self._make_evaluator()
         score = ev._compute_text_similarity(
-            "chr", "hello world", "hello world",
+            "chrf", "hello world", "hello world",
             parameters={"char_order": 3, "word_order": 1, "beta": 1}
         )
         assert 0.0 < score <= 1.0
