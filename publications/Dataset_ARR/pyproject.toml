@@ -1,0 +1,14 @@
+[project]
+name = "benger-dataset-arr"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "ipykernel>=7.2.0",
+    "matplotlib>=3.10.8",
+    "tiktoken>=0.8.0",
+    "ijson>=3.3.0",
+    "pyyaml>=6.0",
+    "nbformat>=5.0",
+    "nbclient>=0.8",
+]

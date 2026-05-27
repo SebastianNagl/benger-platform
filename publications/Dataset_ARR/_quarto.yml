@@ -1,0 +1,54 @@
+project:
+  type: default
+
+format:
+  acl-pdf:
+    # The consolidated manuscript.qmd carries the full author byline via the
+    # `author-tex` LaTeX block. Set review/anonymous to false so the formatter
+    # doesn't add review marks or try to strip the byline it already has.
+    # CAMERA-READY mode. Set both flags back to `true` for an ARR blind
+    # resubmission; pair that flip with the BLIND-REVIEW SWAP comments
+    # throughout manuscript.qmd.
+    review: false
+    anonymous: false
+    keep-tex: true
+    # lualatex handles the Greek letters (ρ, κ, σ) that appear in stats
+    # prose; pdflatex chokes on them. lualatex's default `TeX Gyre Termes`
+    # is NOT in aclpubcheck's accepted set ({TeXGyreTermesX-Regular,
+    # NimbusRomNo9L-Regu, TimesNewRomanPSMT, STIXGeneral-Regular}). We use
+    # STIX Two Text via fontspec — STIX is on the accepted set and is
+    # bundled with macOS by default; STIX Two Math pairs natively for
+    # the Greek/math symbols.
+    pdf-engine: lualatex
+    include-in-header:
+      text: |
+        \usepackage{afterpage}
+        \usepackage{fontspec}
+        % aclpubcheck whitelists `STIXGeneral-Regular` (the original STIX),
+        % not `STIXTwoText`. Both are installed on macOS by default.
+        \setmainfont{STIXGeneral}
+        \usepackage{unicode-math}
+        \setmathfont{STIX Two Math}
+        % Wrap \maketitle in `NoHyper` so the byline `\thanks` symbols
+        % aren't typeset as hyperlinks. acl.sty resets the footnote
+        % counter after the title page, which causes hyperref's auto-named
+        % anchors `Hfootnote.N` to collide between title-page \thanks
+        % and body \footnote calls. PDF readers then jump from the byline
+        % symbols (*, †, ‡) to wherever the last colliding anchor lives
+        % (often deep in the appendix). Suppressing the link annotations
+        % is the cleanest fix; the footnote *text* still renders at the
+        % bottom of the title page, exactly as ACL papers conventionally
+        % typeset it, and the standard reader convention is to look down
+        % the page for matching symbols.
+        \makeatletter
+        \AtBeginDocument{%
+          \let\acl@orig@maketitle\maketitle
+          \def\maketitle{\begin{NoHyper}\acl@orig@maketitle\end{NoHyper}}%
+        }
+        \makeatother
+
+execute:
+  echo: false
+  warning: false
+
+bibliography: references.bib

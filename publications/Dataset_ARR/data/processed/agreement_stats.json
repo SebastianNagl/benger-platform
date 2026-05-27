@@ -1,0 +1,508 @@
+{
+  "_sources": {
+    "real_export": "Benchathon-tasks-2026-05-23.json",
+    "korrektur_sidecar": "korrektur_grades_sidecar.json",
+    "n_annotations_with_judge": 220,
+    "n_solutions_with_blind_human_grades": 45,
+    "n_canonical_grade_rows": 180
+  },
+  "rq3_metric_correlation": {
+    "bleu": {
+      "n": 208,
+      "pearson_vs_judge_raw": 0.5634786403504647,
+      "spearman_vs_judge_raw": 0.5842424405188397
+    },
+    "meteor": {
+      "n": 208,
+      "pearson_vs_judge_raw": 0.6066150363694481,
+      "spearman_vs_judge_raw": 0.5942260424768305
+    },
+    "rouge": {
+      "n": 149,
+      "pearson_vs_judge_raw": 0.5618585475522403,
+      "spearman_vs_judge_raw": 0.5243868010826821
+    },
+    "semantic_similarity": {
+      "n": 200,
+      "pearson_vs_judge_raw": 0.2833260845736071,
+      "spearman_vs_judge_raw": 0.2954274759685626
+    },
+    "bertscore": {
+      "n": 208,
+      "pearson_vs_judge_raw": 0.3753806340716964,
+      "spearman_vs_judge_raw": 0.37791311070732075
+    },
+    "moverscore": {
+      "n": 208,
+      "pearson_vs_judge_raw": 0.5074238764074179,
+      "spearman_vs_judge_raw": 0.48752467107289427
+    },
+    "coherence": {
+      "n": 180,
+      "pearson_vs_judge_raw": -0.2775229451464717,
+      "spearman_vs_judge_raw": -0.2905746098839467
+    }
+  },
+  "rq3_metric_correlation_humans": {
+    "classic": {
+      "bleu": {
+        "n": 65,
+        "pearson_vs_judge_raw": 0.4207176904456015,
+        "spearman_vs_judge_raw": 0.4631259351863052
+      },
+      "meteor": {
+        "n": 65,
+        "pearson_vs_judge_raw": 0.3864470209158241,
+        "spearman_vs_judge_raw": 0.3369877880999242
+      },
+      "semantic_similarity": {
+        "n": 16,
+        "pearson_vs_judge_raw": 0.7081104705439989,
+        "spearman_vs_judge_raw": 0.3979367329577922
+      },
+      "rouge": {
+        "n": 65,
+        "pearson_vs_judge_raw": 0.6315268492038174,
+        "spearman_vs_judge_raw": 0.5644955344999184
+      },
+      "moverscore": {
+        "n": 16,
+        "pearson_vs_judge_raw": 0.7664806721466056,
+        "spearman_vs_judge_raw": 0.3375093031382756
+      },
+      "coherence": {
+        "n": 65,
+        "pearson_vs_judge_raw": -0.24844419834381065,
+        "spearman_vs_judge_raw": -0.21174594327186932
+      }
+    },
+    "cocreation": {
+      "coherence": {
+        "n": 155,
+        "pearson_vs_judge_raw": -0.3471102836930922,
+        "spearman_vs_judge_raw": -0.3547357112025165
+      },
+      "bleu": {
+        "n": 155,
+        "pearson_vs_judge_raw": 0.5034518052649855,
+        "spearman_vs_judge_raw": 0.4063898814183836
+      },
+      "meteor": {
+        "n": 155,
+        "pearson_vs_judge_raw": 0.64045839877033,
+        "spearman_vs_judge_raw": 0.6071239098328742
+      },
+      "semantic_similarity": {
+        "n": 29,
+        "pearson_vs_judge_raw": 0.2012104414897133,
+        "spearman_vs_judge_raw": 0.42327868493686605
+      },
+      "rouge": {
+        "n": 155,
+        "pearson_vs_judge_raw": 0.3776647470475302,
+        "spearman_vs_judge_raw": 0.19249605800772798
+      },
+      "moverscore": {
+        "n": 28,
+        "pearson_vs_judge_raw": 0.7397677116527177,
+        "spearman_vs_judge_raw": 0.565782238578707
+      }
+    }
+  },
+  "rq4_cocreation": {
+    "n_traditional": 65,
+    "n_co_creation": 155,
+    "mean_traditional": 62.3,
+    "mean_co_creation": 82.2258064516129,
+    "mean_diff_ai_minus_trad": 19.9258064516129,
+    "ci95_lo": 15.17394540942928,
+    "ci95_hi": 24.640694789081884
+  },
+  "rq4_cocreation_by_bereich": {
+    "Zivilrecht": {
+      "n_traditional": 24,
+      "n_co_creation": 51,
+      "mean_traditional": 59.458333333333336,
+      "mean_co_creation": 83.02941176470588,
+      "mean_diff_ai_minus_trad": 23.57107843137255,
+      "ci95_lo": 14.291666666666671,
+      "ci95_hi": 33.24632352941177
+    },
+    "Strafrecht": {
+      "n_traditional": 22,
+      "n_co_creation": 53,
+      "mean_traditional": 63.97727272727273,
+      "mean_co_creation": 78.30188679245283,
+      "mean_diff_ai_minus_trad": 14.324614065180107,
+      "ci95_lo": 8.637221269296731,
+      "ci95_hi": 20.204974271012013
+    },
+    "Öffentliches Recht": {
+      "n_traditional": 19,
+      "n_co_creation": 51,
+      "mean_traditional": 63.94736842105263,
+      "mean_co_creation": 85.5,
+      "mean_diff_ai_minus_trad": 21.55263157894737,
+      "ci95_lo": 14.235810113519094,
+      "ci95_hi": 28.982456140350884
+    }
+  },
+  "rq4_cocreation_blind_human": {
+    "n_traditional": 15,
+    "n_co_creation": 15,
+    "mean_traditional": 51.05555555555556,
+    "mean_co_creation": 64.63333333333333,
+    "mean_diff_ai_minus_trad": 13.577777777777769,
+    "ci95_lo": 0.5333333333333314,
+    "ci95_hi": 26.65555555555555
+  },
+  "rq5_judge_vs_human": {
+    "n_annotations": 30,
+    "pearson_raw": 0.7837420876144792,
+    "spearman_raw": 0.731582479727039,
+    "mae_raw": 14.727777777777778,
+    "mae_grade_points": 3.5444444444444447,
+    "passfail_cohen_kappa": 0.6666666666666666,
+    "mean_judge_raw": 69.51666666666667,
+    "mean_human_raw_mean": 57.84444444444444
+  },
+  "rq5_human_irr": {
+    "n_annotations": 45,
+    "k_raters": 3,
+    "icc_2_1_raw": 0.6326770875030844,
+    "icc_2_k_raw": 0.8378518835819941,
+    "icc_2_1_grade_points": 0.5568295788373031,
+    "icc_2_k_grade_points": 0.7903302339198995,
+    "mean_within_ann_spread_raw": 23.877777777777776,
+    "mean_within_ann_spread_grade_points": 5.2444444444444445,
+    "mean_judge_human_dev_vs_human_human_dev_ratio": 1.2335970218706376,
+    "max_k_subset": {
+      "n_annotations": 45,
+      "k_raters": 3,
+      "icc_2_1_raw": 0.6326770875030844,
+      "icc_2_k_raw": 0.8378518835819941,
+      "icc_2_1_grade_points": 0.5568295788373031,
+      "icc_2_k_grade_points": 0.7903302339198995
+    }
+  },
+  "rq5_dim": {
+    "ergebnisrichtigkeit": {
+      "n": 30,
+      "pearson_judge_vs_mean_human": 0.8096799358206538,
+      "mae_dim_points": 3.022222222222222
+    },
+    "vollstaendigkeit": {
+      "n": 30,
+      "pearson_judge_vs_mean_human": 0.791858208379582,
+      "mae_dim_points": 1.9555555555555557
+    },
+    "rechtsgrundlagen": {
+      "n": 30,
+      "pearson_judge_vs_mean_human": 0.6289014084170484,
+      "mae_dim_points": 2.0
+    },
+    "rechtskenntnis": {
+      "n": 30,
+      "pearson_judge_vs_mean_human": 0.7489073368750448,
+      "mae_dim_points": 2.1888888888888887
+    },
+    "subsumtion": {
+      "n": 30,
+      "pearson_judge_vs_mean_human": 0.7214340929701556,
+      "mae_dim_points": 2.238888888888889
+    },
+    "schwerpunktsetzung": {
+      "n": 30,
+      "pearson_judge_vs_mean_human": 0.6371031834866204,
+      "mae_dim_points": 2.238888888888889
+    },
+    "methodischer_stil": {
+      "n": 30,
+      "pearson_judge_vs_mean_human": 0.6163618782295148,
+      "mae_dim_points": 1.6388888888888888
+    },
+    "gliederung": {
+      "n": 30,
+      "pearson_judge_vs_mean_human": 0.5512886093843804,
+      "mae_dim_points": 0.9444444444444444
+    },
+    "sprache": {
+      "n": 30,
+      "pearson_judge_vs_mean_human": 0.547677388571814,
+      "mae_dim_points": 0.49444444444444446
+    },
+    "formalia": {
+      "n": 30,
+      "pearson_judge_vs_mean_human": 0.4468021933186548,
+      "mae_dim_points": 0.37222222222222223
+    }
+  },
+  "rq5_calderon": {
+    "n_pairs_judge_substituted": 30,
+    "n_pairs_human_leave_one_out": 30,
+    "pearson_judge_substituted_vs_full_human": 0.9637292834514947,
+    "spearman_judge_substituted_vs_full_human": 0.9558349152482949,
+    "pearson_human_LOO_vs_full_human": 0.9574527873385273,
+    "spearman_human_LOO_vs_full_human": 0.9485981308411215,
+    "k_ge_3_subset": {
+      "n_pairs": 30,
+      "pearson_judge_substituted_vs_full_human": 0.9637292834514947,
+      "spearman_judge_substituted_vs_full_human": 0.9558349152482949,
+      "pearson_human_LOO_vs_full_human": 0.9574527873385273,
+      "spearman_human_LOO_vs_full_human": 0.9485981308411215
+    }
+  },
+  "rq5_judge_repeats": {
+    "n_generations_with_repeats": 208,
+    "mean_within_gen_stdev": 2.511572582653149
+  },
+  "rq5_creator_vs_blind": {
+    "n_solutions": 45,
+    "pearson_creator_vs_mean_blind_raw": 0.7630840140535469,
+    "spearman_creator_vs_mean_blind_raw": 0.6747948905915312,
+    "mae_raw": 12.466666666666667,
+    "mae_grade_points": 2.837037037037037,
+    "mean_creator_minus_blind_raw": -1.0074074074074069,
+    "mean_creator_minus_blind_grade_points": -0.0962962962962963
+  },
+  "rq5_judge_on_llm_solutions": {
+    "n_generations": 15,
+    "pearson_raw": 0.6838727027834426,
+    "spearman_raw": 0.481216457960644,
+    "mae_raw": 23.333333333333332,
+    "mae_grade_points": 5.044444444444444,
+    "passfail_cohen_kappa": 0.24999999999999978
+  },
+  "tier_aggregates": {
+    "benchathon": {
+      "by_tier": {
+        "flagship": {
+          "n_systems": 4,
+          "n_generations": 75,
+          "mean_raw": 83.30666666666667,
+          "ci95_lo": 81.11333333333333,
+          "ci95_hi": 85.14666666666666
+        },
+        "open_reference": {
+          "n_systems": 6,
+          "n_generations": 103,
+          "mean_raw": 65.12135922330097,
+          "ci95_lo": 62.54368932038835,
+          "ci95_hi": 67.66990291262135
+        },
+        "efficiency": {
+          "n_systems": 2,
+          "n_generations": 30,
+          "mean_raw": 74.7,
+          "ci95_lo": 70.1,
+          "ci95_hi": 78.7
+        }
+      },
+      "by_provider": {
+        "Google": {
+          "n_systems": 2,
+          "n_generations": 30,
+          "mean_raw": 78.65,
+          "ci95_lo": 74.61666666666666,
+          "ci95_hi": 82.1
+        },
+        "DeepSeek": {
+          "n_systems": 2,
+          "n_generations": 30,
+          "mean_raw": 72.23333333333333,
+          "ci95_lo": 68.26666666666667,
+          "ci95_hi": 75.96666666666667
+        },
+        "Alibaba": {
+          "n_systems": 3,
+          "n_generations": 58,
+          "mean_raw": 64.8103448275862,
+          "ci95_lo": 61.39655172413793,
+          "ci95_hi": 68.08620689655173
+        },
+        "Anthropic": {
+          "n_systems": 2,
+          "n_generations": 30,
+          "mean_raw": 84.66666666666667,
+          "ci95_lo": 81.96666666666667,
+          "ci95_hi": 87.0
+        },
+        "OpenAI": {
+          "n_systems": 2,
+          "n_generations": 45,
+          "mean_raw": 79.76666666666667,
+          "ci95_lo": 75.85555555555555,
+          "ci95_hi": 82.9888888888889
+        },
+        "Meta": {
+          "n_systems": 1,
+          "n_generations": 15,
+          "mean_raw": 52.1,
+          "ci95_lo": 47.7,
+          "ci95_hi": 56.666666666666664
+        }
+      },
+      "by_weights": {
+        "closed": {
+          "n_systems": 6,
+          "n_generations": 105,
+          "mean_raw": 80.84761904761905,
+          "ci95_lo": 78.70476190476191,
+          "ci95_hi": 82.87619047619047
+        },
+        "open": {
+          "n_systems": 6,
+          "n_generations": 103,
+          "mean_raw": 65.12135922330097,
+          "ci95_lo": 62.577669902912625,
+          "ci95_hi": 67.62621359223301
+        }
+      }
+    },
+    "zjs": {
+      "by_tier": {
+        "flagship": {
+          "n_systems": 4,
+          "mean_raw": 80.2925995220073,
+          "min": 75.69319727891157,
+          "max": 84.89032815198618
+        },
+        "efficiency": {
+          "n_systems": 2,
+          "mean_raw": 71.87194055944056,
+          "min": 65.73076923076923,
+          "max": 78.0131118881119
+        },
+        "open_reference": {
+          "n_systems": 6,
+          "mean_raw": 70.82787738908425,
+          "min": 59.649825783972126,
+          "max": 77.63576158940397
+        }
+      },
+      "by_provider": {
+        "OpenAI": {
+          "n_systems": 2,
+          "mean_raw": 81.45172002004904,
+          "min": 78.0131118881119,
+          "max": 84.89032815198618
+        },
+        "Anthropic": {
+          "n_systems": 2,
+          "mean_raw": 80.29343632856572,
+          "min": 79.8943661971831,
+          "max": 80.69250645994832
+        },
+        "DeepSeek": {
+          "n_systems": 2,
+          "mean_raw": 75.75775968743555,
+          "min": 73.87975778546713,
+          "max": 77.63576158940397
+        },
+        "Google": {
+          "n_systems": 2,
+          "mean_raw": 70.71198325484039,
+          "min": 65.73076923076923,
+          "max": 75.69319727891157
+        },
+        "Alibaba": {
+          "n_systems": 3,
+          "mean_raw": 71.26730639188743,
+          "min": 68.91395348837209,
+          "max": 75.33050847457628
+        },
+        "Meta": {
+          "n_systems": 1,
+          "mean_raw": 59.649825783972126,
+          "min": 59.649825783972126,
+          "max": 59.649825783972126
+        }
+      },
+      "by_weights": {
+        "closed": {
+          "n_systems": 6,
+          "mean_raw": 77.48571320115171,
+          "min": 65.73076923076923,
+          "max": 84.89032815198618
+        },
+        "open": {
+          "n_systems": 6,
+          "mean_raw": 70.82787738908425,
+          "min": 59.649825783972126,
+          "max": 77.63576158940397
+        }
+      }
+    }
+  },
+  "rq3_rank_correlation": {
+    "benchathon": {
+      "bleu": {
+        "n_systems": 12,
+        "spearman_metric_vs_judge": 0.8181818181818182,
+        "pearson_metric_vs_judge": 0.8450530070788788
+      },
+      "meteor": {
+        "n_systems": 12,
+        "spearman_metric_vs_judge": 0.8041958041958042,
+        "pearson_metric_vs_judge": 0.8026435044614139
+      },
+      "rouge": {
+        "n_systems": 12,
+        "spearman_metric_vs_judge": 0.7972027972027972,
+        "pearson_metric_vs_judge": 0.7593835369439786
+      },
+      "semantic_similarity": {
+        "n_systems": 12,
+        "spearman_metric_vs_judge": 0.5384615384615384,
+        "pearson_metric_vs_judge": 0.4558796947313631
+      },
+      "bertscore": {
+        "n_systems": 12,
+        "spearman_metric_vs_judge": 0.7062937062937062,
+        "pearson_metric_vs_judge": 0.6114328940292544
+      },
+      "moverscore": {
+        "n_systems": 12,
+        "spearman_metric_vs_judge": 0.8181818181818182,
+        "pearson_metric_vs_judge": 0.7450009945096889
+      },
+      "coherence": {
+        "n_systems": 12,
+        "spearman_metric_vs_judge": -0.7342657342657343,
+        "pearson_metric_vs_judge": -0.7651743995726528
+      }
+    },
+    "zjs": {
+      "bertscore": {
+        "n_systems": 12,
+        "spearman_metric_vs_judge": 0.6713286713286714,
+        "pearson_metric_vs_judge": 0.5750392316370124
+      },
+      "bleu": {
+        "n_systems": 12,
+        "spearman_metric_vs_judge": 0.8251748251748252,
+        "pearson_metric_vs_judge": 0.7974646370118841
+      },
+      "meteor": {
+        "n_systems": 12,
+        "spearman_metric_vs_judge": 0.8391608391608392,
+        "pearson_metric_vs_judge": 0.8085112665561524
+      },
+      "moverscore": {
+        "n_systems": 12,
+        "spearman_metric_vs_judge": 0.7412587412587412,
+        "pearson_metric_vs_judge": 0.7242662786703445
+      },
+      "rouge": {
+        "n_systems": 12,
+        "spearman_metric_vs_judge": 0.7412587412587412,
+        "pearson_metric_vs_judge": 0.789656447531949
+      },
+      "semantic_similarity": {
+        "n_systems": 12,
+        "spearman_metric_vs_judge": 0.26573426573426573,
+        "pearson_metric_vs_judge": 0.23998350050555087
+      }
+    }
+  }
+}

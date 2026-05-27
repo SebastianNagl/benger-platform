@@ -1,0 +1,230 @@
+[
+  {
+    "system": "claude-sonnet-4-6",
+    "n_tasks": 531,
+    "n_generations": 531,
+    "metrics": {
+      "judge_raw_mean": 84.30127041742287,
+      "judge_raw_stdev": 22.361695703741724,
+      "judge_raw_n": 551,
+      "judge_pass_rate": 0.8475499092558983,
+      "accuracy": 0.7382297551789078,
+      "bleu_mean": 0.02848389270017297,
+      "rouge_mean": 0.14662761248525802,
+      "meteor_mean": 0.23315889585295088,
+      "semantic_similarity_mean": 0.7289581571595144,
+      "bertscore_mean": 0.21951729699744793,
+      "moverscore_mean": 0.8430375485184757,
+      "chrf_mean": 0.42474327747104834
+    }
+  },
+  {
+    "system": "gemini-3.1-pro-preview",
+    "n_tasks": 531,
+    "n_generations": 531,
+    "metrics": {
+      "judge_raw_mean": 82.8157894736842,
+      "judge_raw_stdev": 22.367328146675295,
+      "judge_raw_n": 551,
+      "judge_pass_rate": 0.8620689655172413,
+      "accuracy": 0.7664783427495292,
+      "bleu_mean": 0.032635770845744524,
+      "rouge_mean": 0.164390738220948,
+      "meteor_mean": 0.21168560701654537,
+      "semantic_similarity_mean": 0.7447702917226515,
+      "bertscore_mean": 0.2504659119761933,
+      "moverscore_mean": 0.8401304452979347,
+      "chrf_mean": 0.41370748443704825
+    }
+  },
+  {
+    "system": "claude-opus-4-7",
+    "n_tasks": 531,
+    "n_generations": 531,
+    "metrics": {
+      "judge_raw_mean": 82.39201451905626,
+      "judge_raw_stdev": 22.872823288939678,
+      "judge_raw_n": 551,
+      "judge_pass_rate": 0.8493647912885662,
+      "accuracy": 0.7476459510357816,
+      "bleu_mean": 0.029960846184858832,
+      "rouge_mean": 0.15948068934631995,
+      "meteor_mean": 0.20965053533434302,
+      "semantic_similarity_mean": 0.7401280687129206,
+      "bertscore_mean": 0.24709430523567505,
+      "moverscore_mean": 0.8383832748456957,
+      "chrf_mean": 0.4151474506504707
+    }
+  },
+  {
+    "system": "gpt-5.4",
+    "n_tasks": 531,
+    "n_generations": 531,
+    "metrics": {
+      "judge_raw_mean": 81.75952813067151,
+      "judge_raw_stdev": 24.840651707060324,
+      "judge_raw_n": 551,
+      "judge_pass_rate": 0.8148820326678766,
+      "accuracy": 0.7401129943502824,
+      "bleu_mean": 0.03132838892136331,
+      "rouge_mean": 0.16019744147122647,
+      "meteor_mean": 0.2099755675718072,
+      "semantic_similarity_mean": 0.7583703803365064,
+      "bertscore_mean": 0.24931911859668357,
+      "moverscore_mean": 0.8450877008620928,
+      "chrf_mean": 0.4207396983442872
+    }
+  },
+  {
+    "system": "deepseek-ai/DeepSeek-V4-Pro",
+    "n_tasks": 531,
+    "n_generations": 531,
+    "metrics": {
+      "judge_raw_mean": 75.02450090744102,
+      "judge_raw_stdev": 26.230479122153422,
+      "judge_raw_n": 551,
+      "judge_pass_rate": 0.7604355716878403,
+      "accuracy": 0.6666666666666666,
+      "bleu_mean": 0.02988689294065787,
+      "rouge_mean": 0.1612146208910722,
+      "meteor_mean": 0.2095120031899358,
+      "semantic_similarity_mean": 0.7520771393106931,
+      "bertscore_mean": 0.24541659891016065,
+      "moverscore_mean": 0.8429017662849273,
+      "chrf_mean": 0.4188971691682027
+    }
+  },
+  {
+    "system": "gemini-3.1-flash-lite-preview",
+    "n_tasks": 531,
+    "n_generations": 531,
+    "metrics": {
+      "judge_raw_mean": 74.6070780399274,
+      "judge_raw_stdev": 26.34780247506057,
+      "judge_raw_n": 551,
+      "judge_pass_rate": 0.7586206896551724,
+      "accuracy": 0.7062146892655368,
+      "bleu_mean": 0.028877521506623545,
+      "rouge_mean": 0.16185444563033252,
+      "meteor_mean": 0.1871715247793294,
+      "semantic_similarity_mean": 0.7525302744742391,
+      "bertscore_mean": 0.25267121825795164,
+      "moverscore_mean": 0.8382802567665246,
+      "chrf_mean": 0.3936909851959106
+    }
+  },
+  {
+    "system": "gpt-5.4-mini",
+    "n_tasks": 531,
+    "n_generations": 531,
+    "metrics": {
+      "judge_raw_mean": 72.78221415607986,
+      "judge_raw_stdev": 28.23459727158507,
+      "judge_raw_n": 551,
+      "judge_pass_rate": 0.7132486388384754,
+      "accuracy": 0.6572504708097928,
+      "bleu_mean": 0.027882251142878237,
+      "rouge_mean": 0.1623716521344126,
+      "meteor_mean": 0.17723722178458165,
+      "semantic_similarity_mean": 0.7549610181155627,
+      "bertscore_mean": 0.2495874079565207,
+      "moverscore_mean": 0.8391736873470623,
+      "chrf_mean": 0.37986391419218857
+    }
+  },
+  {
+    "system": "Qwen/Qwen3.6-35B-A3B",
+    "n_tasks": 531,
+    "n_generations": 531,
+    "metrics": {
+      "judge_raw_mean": 72.41833030852995,
+      "judge_raw_stdev": 28.27306218305796,
+      "judge_raw_n": 551,
+      "judge_pass_rate": 0.7096188747731398,
+      "accuracy": 0.6760828625235404,
+      "bleu_mean": 0.026584153601062123,
+      "rouge_mean": 0.15435340610201428,
+      "meteor_mean": 0.18079492458974883,
+      "semantic_similarity_mean": 0.7470381625291318,
+      "bertscore_mean": 0.2393144697666505,
+      "moverscore_mean": 0.8341550304243347,
+      "chrf_mean": 0.38691357703942897
+    }
+  },
+  {
+    "system": "Qwen/Qwen3.5-122B-A10B",
+    "n_tasks": 526,
+    "n_generations": 526,
+    "metrics": {
+      "judge_raw_mean": 71.48443223443223,
+      "judge_raw_stdev": 28.209979939892904,
+      "judge_raw_n": 546,
+      "judge_pass_rate": 0.7655677655677655,
+      "accuracy": 0.7338403041825095,
+      "bleu_mean": 0.026487390659200506,
+      "rouge_mean": 0.16459387031825806,
+      "meteor_mean": 0.15714430541632085,
+      "semantic_similarity_mean": 0.7418983980390056,
+      "bertscore_mean": 0.25175226503494463,
+      "moverscore_mean": 0.8266198458642245,
+      "chrf_mean": 0.32643816023193994
+    }
+  },
+  {
+    "system": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "n_tasks": 531,
+    "n_generations": 531,
+    "metrics": {
+      "judge_raw_mean": 71.2940108892922,
+      "judge_raw_stdev": 27.20474123904724,
+      "judge_raw_n": 551,
+      "judge_pass_rate": 0.7568058076225045,
+      "accuracy": 0.6930320150659134,
+      "bleu_mean": 0.03469438706099207,
+      "rouge_mean": 0.17542862738031592,
+      "meteor_mean": 0.1992292325256082,
+      "semantic_similarity_mean": 0.7466283874435389,
+      "bertscore_mean": 0.2543891639494304,
+      "moverscore_mean": 0.8445288682532381,
+      "chrf_mean": 0.3875147531793515
+    }
+  },
+  {
+    "system": "deepseek-ai/DeepSeek-V4-Flash",
+    "n_tasks": 530,
+    "n_generations": 530,
+    "metrics": {
+      "judge_raw_mean": 71.15727272727273,
+      "judge_raw_stdev": 27.443704455197178,
+      "judge_raw_n": 550,
+      "judge_pass_rate": 0.7236363636363636,
+      "accuracy": 0.6433962264150943,
+      "bleu_mean": 0.031316846123776505,
+      "rouge_mean": 0.16363947154842204,
+      "meteor_mean": 0.20945645254358036,
+      "semantic_similarity_mean": 0.7488831066298035,
+      "bertscore_mean": 0.24916874869673883,
+      "moverscore_mean": 0.8407797589477581,
+      "chrf_mean": 0.4119906753040326
+    }
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "n_tasks": 531,
+    "n_generations": 531,
+    "metrics": {
+      "judge_raw_mean": 70.19509981851179,
+      "judge_raw_stdev": 27.573003159200685,
+      "judge_raw_n": 551,
+      "judge_pass_rate": 0.720508166969147,
+      "accuracy": 0.7005649717514124,
+      "bleu_mean": 0.024816540694389943,
+      "rouge_mean": 0.1560667732823917,
+      "meteor_mean": 0.16740161668372147,
+      "semantic_similarity_mean": 0.7403816377600259,
+      "bertscore_mean": 0.2410928577240802,
+      "moverscore_mean": 0.8243429383786375,
+      "chrf_mean": 0.37446447373634945
+    }
+  }
+]
