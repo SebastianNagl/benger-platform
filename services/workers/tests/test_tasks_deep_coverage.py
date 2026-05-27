@@ -977,7 +977,7 @@ class TestRunSingleSampleEvaluation:
                 "reference_fields": ["task.ref"],
             }],
             annotation_results={"other_field": "value"},
-            task_data={"re": "reference text"},
+            task_data={"ref": "reference text"},
         )
         assert result["status"] == "completed"
         assert len(result["results"]) == 0
@@ -1022,7 +1022,7 @@ class TestRunSingleSampleEvaluation:
                         "metric_parameters": {},
                     }],
                     annotation_results={"answer": "my answer"},
-                    task_data={"re": "reference text"},
+                    task_data={"ref": "reference text"},
                     user_id="u1",
                 )
 
@@ -1059,7 +1059,7 @@ class TestRunSingleSampleEvaluation:
                         "metric_parameters": {},
                     }],
                     annotation_results={"answer": "my answer"},
-                    task_data={"re": "reference text"},
+                    task_data={"ref": "reference text"},
                     user_id="u1",
                 )
 
