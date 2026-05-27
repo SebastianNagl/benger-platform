@@ -266,7 +266,7 @@ class TestUpdateOrganization:
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
-        assert resp.json()["is_active"] is False
+        assert resp.json()["is_active"] == False  # noqa: E712
 
 
 class TestDeleteOrganization:

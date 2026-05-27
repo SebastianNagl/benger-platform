@@ -33,17 +33,17 @@ class TestPasswordHashing:
     def test_verify_correct_password(self):
         from user_service import get_password_hash, verify_password
         hashed = get_password_hash("secure_pass_123")
-        assert verify_password("secure_pass_123", hashed) is True
+        assert verify_password("secure_pass_123", hashed) == True  # noqa: E712
 
     def test_verify_wrong_password(self):
         from user_service import get_password_hash, verify_password
         hashed = get_password_hash("correct_password")
-        assert verify_password("wrong_password", hashed) is False
+        assert verify_password("wrong_password", hashed) == False  # noqa: E712
 
     def test_verify_empty_password(self):
         from user_service import get_password_hash, verify_password
         hashed = get_password_hash("notempty")
-        assert verify_password("", hashed) is False
+        assert verify_password("", hashed) == False  # noqa: E712
 
     def test_hash_different_each_time(self):
         from user_service import get_password_hash
@@ -53,23 +53,23 @@ class TestPasswordHashing:
 
     def test_verify_with_invalid_hash(self):
         from user_service import verify_password
-        assert verify_password("anything", "not_a_valid_hash") is False
+        assert verify_password("anything", "not_a_valid_hash") == False  # noqa: E712
 
     def test_aliases_exist(self):
         from user_service import hash_password, check_password
         hashed = hash_password("alias_test")
-        assert check_password("alias_test", hashed) is True
+        assert check_password("alias_test", hashed) == True  # noqa: E712
 
     def test_unicode_password(self):
         from user_service import get_password_hash, verify_password
         hashed = get_password_hash("Passwort123!")
-        assert verify_password("Passwort123!", hashed) is True
+        assert verify_password("Passwort123!", hashed) == True  # noqa: E712
 
     def test_long_password(self):
         from user_service import get_password_hash, verify_password
         long_pw = "a" * 72  # bcrypt truncates at 72 bytes
         hashed = get_password_hash(long_pw)
-        assert verify_password(long_pw, hashed) is True
+        assert verify_password(long_pw, hashed) == True  # noqa: E712
 
 
 class TestSanitizeUserInput:
@@ -124,35 +124,35 @@ class TestIsValidEmail:
 
     def test_valid_email(self):
         from services.email.email_validation import is_valid_email
-        assert is_valid_email("user@university.de") is True
+        assert is_valid_email("user@university.de") == True  # noqa: E712
 
     def test_valid_email_subdomain(self):
         from services.email.email_validation import is_valid_email
-        assert is_valid_email("user@mail.university.de") is True
+        assert is_valid_email("user@mail.university.de") == True  # noqa: E712
 
     def test_invalid_no_at(self):
         from services.email.email_validation import is_valid_email
-        assert is_valid_email("userdomaincom") is False
+        assert is_valid_email("userdomaincom") == False  # noqa: E712
 
     def test_invalid_empty(self):
         from services.email.email_validation import is_valid_email
-        assert is_valid_email("") is False
+        assert is_valid_email("") == False  # noqa: E712
 
     def test_invalid_multiple_at(self):
         from services.email.email_validation import is_valid_email
-        assert is_valid_email("user@@domain.com") is False
+        assert is_valid_email("user@@domain.com") == False  # noqa: E712
 
     def test_invalid_consecutive_dots(self):
         from services.email.email_validation import is_valid_email
-        assert is_valid_email("user..name@domain.com") is False
+        assert is_valid_email("user..name@domain.com") == False  # noqa: E712
 
     def test_invalid_no_domain_dot(self):
         from services.email.email_validation import is_valid_email
-        assert is_valid_email("user@domain") is False
+        assert is_valid_email("user@domain") == False  # noqa: E712
 
     def test_valid_plus_addressing(self):
         from services.email.email_validation import is_valid_email
-        assert is_valid_email("user+tag@domain.com") is True
+        assert is_valid_email("user+tag@domain.com") == True  # noqa: E712
 
 
 class TestValidateEmailWithDetails:
@@ -261,19 +261,19 @@ class TestIsDisposableEmail:
 
     def test_known_disposable(self):
         from services.email.email_validation import is_disposable_email
-        assert is_disposable_email("user@mailinator.com") is True
+        assert is_disposable_email("user@mailinator.com") == True  # noqa: E712
 
     def test_legitimate_email(self):
         from services.email.email_validation import is_disposable_email
-        assert is_disposable_email("user@university.de") is False
+        assert is_disposable_email("user@university.de") == False  # noqa: E712
 
     def test_invalid_email(self):
         from services.email.email_validation import is_disposable_email
-        assert is_disposable_email("notanemail") is False
+        assert is_disposable_email("notanemail") == False  # noqa: E712
 
     def test_guerrillamail(self):
         from services.email.email_validation import is_disposable_email
-        assert is_disposable_email("user@guerrillamail.com") is True
+        assert is_disposable_email("user@guerrillamail.com") == True  # noqa: E712
 
 
 class TestBulkEmailValidation:

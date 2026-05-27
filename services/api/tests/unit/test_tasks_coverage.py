@@ -141,7 +141,7 @@ class TestExtractFieldsFromData:
     def test_boolean_field(self):
         from routers.projects.tasks import extract_fields_from_data
 
-        # Note: In Python, isinstance(True, (int, float)) is True because bool subclasses int.
+        # Note: In Python, isinstance(True, (int, float)) == True because bool subclasses int.
         # The code checks (int, float) before bool, so booleans are classified as "number".
         result = extract_fields_from_data({"is_active": True})
         assert result[0]["data_type"] == "number"
@@ -178,8 +178,8 @@ class TestExtractFieldsFromData:
 
         parent = next(f for f in result if f["path"] == "$context")
         child = next(f for f in result if f["path"] == "$context.inner")
-        assert parent["is_nested"] is False
-        assert child["is_nested"] is True
+        assert parent["is_nested"] == False  # noqa: E712
+        assert child["is_nested"] == True  # noqa: E712
 
 
 # ============= list_project_tasks =============
@@ -946,7 +946,7 @@ class TestBulkArchiveTasks:
         )
 
         assert result["archived"] == 1
-        assert task.meta["is_archived"] is True
+        assert task.meta["is_archived"] == True  # noqa: E712
 
 
 # ============= skip_task =============

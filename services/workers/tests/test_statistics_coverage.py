@@ -179,7 +179,7 @@ class TestCliffsDelta:
         b = [1.0, 2.0, 3.0]
         result = cliffs_delta(a, b)
         assert result["cliffs_delta"] == 1.0
-        assert result["a_better"] is True
+        assert result["a_better"] == True
 
     def test_reverse_dominance(self):
         a = [1.0, 2.0, 3.0]

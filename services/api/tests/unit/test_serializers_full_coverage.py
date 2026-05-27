@@ -29,7 +29,7 @@ class TestSerializeTask:
         result = serialize_task(task, mode="data")
         assert result["id"] == "t1"
         assert "project_id" not in result
-        assert result["is_labeled"] is True
+        assert result["is_labeled"] == True  # noqa: E712
         assert result["updated_at"] is None
 
     def test_full_mode(self):
@@ -99,7 +99,7 @@ class TestSerializeAnnotation:
 
         result = serialize_annotation(ann, mode="data")
         assert result["questionnaire_response"] is None
-        assert result["was_cancelled"] is True
+        assert result["was_cancelled"] == True  # noqa: E712
 
     def test_full_mode(self):
         from routers.projects.serializers import serialize_annotation

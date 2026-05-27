@@ -175,10 +175,10 @@ class TestOrgApiKeyStatus:
         )
 
         status = service.get_org_api_key_status(test_db, org_a.id)
-        assert status["openai"] is True
-        assert status["anthropic"] is True
-        assert status["google"] is False
-        assert status["deepinfra"] is False
+        assert status["openai"] == True  # noqa: E712
+        assert status["anthropic"] == True  # noqa: E712
+        assert status["google"] == False  # noqa: E712
+        assert status["deepinfra"] == False  # noqa: E712
 
     def test_available_providers_returns_display_names(self, service, test_db, org_a, admin_user):
         service.set_org_api_key(

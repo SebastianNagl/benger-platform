@@ -331,59 +331,59 @@ class TestSampleEvaluatorPureMetrics:
 
     def test_is_failure_none_value(self):
         ev = self._make_evaluator()
-        assert ev._is_failure_metric("exact_match", None) is True
+        assert ev._is_failure_metric("exact_match", None) == True
 
     def test_is_failure_exact_match_zero(self):
         ev = self._make_evaluator()
-        assert ev._is_failure_metric("exact_match", 0.0) is True
+        assert ev._is_failure_metric("exact_match", 0.0) == True
 
     def test_is_failure_exact_match_one(self):
         ev = self._make_evaluator()
-        assert ev._is_failure_metric("exact_match", 1.0) is False
+        assert ev._is_failure_metric("exact_match", 1.0) == False
 
     def test_is_failure_bleu_low(self):
         ev = self._make_evaluator()
-        assert ev._is_failure_metric("bleu", 0.3) is True
+        assert ev._is_failure_metric("bleu", 0.3) == True
 
     def test_is_failure_bleu_high(self):
         ev = self._make_evaluator()
-        assert ev._is_failure_metric("bleu", 0.8) is False
+        assert ev._is_failure_metric("bleu", 0.8) == False
 
     def test_is_failure_cohen_kappa_low(self):
         ev = self._make_evaluator()
-        assert ev._is_failure_metric("cohen_kappa", 0.5) is True
+        assert ev._is_failure_metric("cohen_kappa", 0.5) == True
 
     def test_is_failure_cohen_kappa_high(self):
         ev = self._make_evaluator()
-        assert ev._is_failure_metric("cohen_kappa", 0.7) is False
+        assert ev._is_failure_metric("cohen_kappa", 0.7) == False
 
     def test_is_failure_ndcg_low(self):
         ev = self._make_evaluator()
-        assert ev._is_failure_metric("ndcg", 0.3) is True
+        assert ev._is_failure_metric("ndcg", 0.3) == True
 
     def test_is_failure_ndcg_high(self):
         ev = self._make_evaluator()
-        assert ev._is_failure_metric("ndcg", 0.6) is False
+        assert ev._is_failure_metric("ndcg", 0.6) == False
 
     def test_is_failure_schema_validation_partial(self):
         ev = self._make_evaluator()
-        assert ev._is_failure_metric("schema_validation", 0.5) is True
+        assert ev._is_failure_metric("schema_validation", 0.5) == True
 
     def test_is_failure_schema_validation_full(self):
         ev = self._make_evaluator()
-        assert ev._is_failure_metric("schema_validation", 1.0) is False
+        assert ev._is_failure_metric("schema_validation", 1.0) == False
 
     def test_is_failure_mae_high(self):
         ev = self._make_evaluator()
-        assert ev._is_failure_metric("mae", 0.5) is True
+        assert ev._is_failure_metric("mae", 0.5) == True
 
     def test_is_failure_mae_low(self):
         ev = self._make_evaluator()
-        assert ev._is_failure_metric("mae", 0.1) is False
+        assert ev._is_failure_metric("mae", 0.1) == False
 
     def test_is_failure_unknown_metric(self):
         ev = self._make_evaluator()
-        assert ev._is_failure_metric("unknown_thing", 0.5) is False
+        assert ev._is_failure_metric("unknown_thing", 0.5) == False
 
     # ----- calculate_confidence -----
 
@@ -612,21 +612,21 @@ class TestSampleEvaluatorPureMetrics:
 
     def test_spans_label_compatible_no_labels(self):
         ev = self._make_evaluator()
-        assert ev._spans_label_compatible({"start": 0, "end": 5}, {"start": 0, "end": 5}) is True
+        assert ev._spans_label_compatible({"start": 0, "end": 5}, {"start": 0, "end": 5}) == True
 
     def test_spans_label_compatible_matching(self):
         ev = self._make_evaluator()
         assert ev._spans_label_compatible(
             {"start": 0, "end": 5, "labels": ["PER"]},
             {"start": 0, "end": 5, "labels": ["PER"]},
-        ) is True
+        ) == True
 
     def test_spans_label_incompatible(self):
         ev = self._make_evaluator()
         assert ev._spans_label_compatible(
             {"start": 0, "end": 5, "labels": ["PER"]},
             {"start": 0, "end": 5, "labels": ["ORG"]},
-        ) is False
+        ) == False
 
     def test_span_exact_match_metric(self):
         ev = self._make_evaluator()
@@ -887,23 +887,23 @@ class TestSampleEvaluatorPureMetrics:
 
     def test_qags_answers_match_exact(self):
         ev = self._make_evaluator()
-        assert ev._answers_match_qags("Berlin", "Berlin") is True
+        assert ev._answers_match_qags("Berlin", "Berlin") == True
 
     def test_qags_answers_match_case_insensitive(self):
         ev = self._make_evaluator()
-        assert ev._answers_match_qags("Berlin", "berlin") is True
+        assert ev._answers_match_qags("Berlin", "berlin") == True
 
     def test_qags_answers_no_match(self):
         ev = self._make_evaluator()
-        assert ev._answers_match_qags("Berlin", "Paris") is False
+        assert ev._answers_match_qags("Berlin", "Paris") == False
 
     def test_qags_answers_empty(self):
         ev = self._make_evaluator()
-        assert ev._answers_match_qags("Berlin", "") is False
+        assert ev._answers_match_qags("Berlin", "") == False
 
     def test_qags_answers_token_overlap(self):
         ev = self._make_evaluator()
-        assert ev._answers_match_qags("city of Berlin", "Berlin city") is True
+        assert ev._answers_match_qags("city of Berlin", "Berlin city") == True
 
     # ----- validate_text_for_coherence -----
 
@@ -1036,7 +1036,7 @@ class TestSampleEvaluatorPureMetrics:
         )
         # Phase 2 metric registry: results are dict-wrapped {value, method, details}.
         assert result["metrics"]["exact_match"]["value"] == 1.0
-        assert result["passed"] is True
+        assert result["passed"] == True
 
     def test_evaluate_sample_metric_failure(self):
         """When a metric raises, it gets captured as None in metrics."""
@@ -1062,7 +1062,7 @@ class TestSampleEvaluatorPureMetrics:
         # Phase 2 metric registry: results are dict-wrapped {value, method, details}.
         assert result["metrics"]["exact_match"]["value"] == 1.0
         assert result["metrics"]["accuracy"]["value"] == 1.0
-        assert result["passed"] is True
+        assert result["passed"] == True
         assert result["error_message"] is None
         assert "id" in result
         assert "processing_time_ms" in result
@@ -1351,11 +1351,11 @@ class TestLLMJudgeDeepCoverage:
 
     def test_validate_model_config_with_service(self):
         ev = self._make_evaluator()
-        assert ev.validate_model_config({}) is True
+        assert ev.validate_model_config({}) == True
 
     def test_validate_model_config_no_service(self):
         ev = self._make_evaluator(ai_service=None)
-        assert ev.validate_model_config({}) is False
+        assert ev.validate_model_config({}) == False
 
     # ----- get_supported_metrics -----
 
@@ -1625,14 +1625,14 @@ class TestTorchBackendAvailability:
 
         backend = TorchEmbeddingBackend()
         backend._torch_available = True
-        assert backend.is_available() is True
+        assert backend.is_available() == True
 
     def test_torch_embedding_unavailable(self):
         from ml_evaluation.backends.torch_backend import TorchEmbeddingBackend
 
         backend = TorchEmbeddingBackend()
         backend._torch_available = False
-        assert backend.is_available() is False
+        assert backend.is_available() == False
 
     def test_torch_bertscore_available(self):
         from ml_evaluation.backends.torch_backend import TorchBERTScoreBackend
@@ -1647,7 +1647,7 @@ class TestTorchBackendAvailability:
 
         backend = TorchBERTScoreBackend()
         backend._bert_score_available = True
-        assert backend.is_available() is True
+        assert backend.is_available() == True
 
     def test_torch_qags_available(self):
         from ml_evaluation.backends.torch_backend import TorchQAGSBackend
@@ -1662,7 +1662,7 @@ class TestTorchBackendAvailability:
 
         backend = TorchQAGSBackend()
         backend._torch_available = False
-        assert backend.is_available() is False
+        assert backend.is_available() == False
 
     def test_torch_summac_available(self):
         from ml_evaluation.backends.torch_backend import TorchSummaCBackend
@@ -1677,7 +1677,7 @@ class TestTorchBackendAvailability:
 
         backend = TorchSummaCBackend()
         backend._torch_available = True
-        assert backend.is_available() is True
+        assert backend.is_available() == True
 
     def test_torch_embedding_model_name(self):
         from ml_evaluation.backends.torch_backend import TorchEmbeddingBackend
@@ -1763,14 +1763,14 @@ class TestEMDBackend:
 
         backend = POTEMDBackend()
         backend._pot_available = True
-        assert backend.is_available() is True
+        assert backend.is_available() == True
 
     def test_pot_backend_unavailable(self):
         from ml_evaluation.backends.emd_backend import POTEMDBackend
 
         backend = POTEMDBackend()
         backend._pot_available = False
-        assert backend.is_available() is False
+        assert backend.is_available() == False
 
     def test_pot_backend_detects(self):
         from ml_evaluation.backends.emd_backend import POTEMDBackend
@@ -1785,14 +1785,14 @@ class TestEMDBackend:
 
         backend = PyEMDBackend()
         backend._pyemd_available = True
-        assert backend.is_available() is True
+        assert backend.is_available() == True
 
     def test_pyemd_backend_unavailable(self):
         from ml_evaluation.backends.emd_backend import PyEMDBackend
 
         backend = PyEMDBackend()
         backend._pyemd_available = False
-        assert backend.is_available() is False
+        assert backend.is_available() == False
 
     def test_get_emd_backend_pot_available(self):
         """When POT is available, it should be returned."""
@@ -1884,20 +1884,20 @@ class TestBackendSelector:
             with patch.dict(os.environ, {}, clear=False):
                 os.environ.pop("BENGER_USE_PYTORCH", None)
                 os.environ.pop("BENGER_USE_ONNX", None)
-                assert selector._should_use_onnx() is True
+                assert selector._should_use_onnx() == True
 
     def test_should_use_onnx_forced_pytorch(self):
         selector = self._fresh_selector()
         with patch("ml_evaluation.backends.selector.IS_ARM64", True):
             with patch.dict(os.environ, {"BENGER_USE_PYTORCH": "true"}):
-                assert selector._should_use_onnx() is False
+                assert selector._should_use_onnx() == False
 
     def test_should_use_onnx_forced_onnx_on_x86(self):
         selector = self._fresh_selector()
         with patch("ml_evaluation.backends.selector.IS_ARM64", False):
             with patch.dict(os.environ, {"BENGER_USE_ONNX": "true"}):
                 os.environ.pop("BENGER_USE_PYTORCH", None)
-                assert selector._should_use_onnx() is True
+                assert selector._should_use_onnx() == True
 
     def test_should_use_onnx_x86_default(self):
         selector = self._fresh_selector()
@@ -1905,7 +1905,7 @@ class TestBackendSelector:
             with patch.dict(os.environ, {}, clear=False):
                 os.environ.pop("BENGER_USE_PYTORCH", None)
                 os.environ.pop("BENGER_USE_ONNX", None)
-                assert selector._should_use_onnx() is False
+                assert selector._should_use_onnx() == False
 
     def test_get_bertscore_caches(self):
         selector = self._fresh_selector()

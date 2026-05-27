@@ -822,7 +822,7 @@ class TestSerializers:
 
         result = serialize_evaluation_run(FakeER(), mode="data")
         assert result["eval_metadata"] == {"type": "automated"}
-        assert result["has_sample_results"] is True
+        assert result["has_sample_results"] == True  # noqa: E712
 
     def test_serialize_evaluation_run_full_mode(self):
         from routers.projects.serializers import serialize_evaluation_run

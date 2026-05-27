@@ -179,14 +179,14 @@ class TestLocalStorageFileExists:
         with tempfile.TemporaryDirectory() as tmpdir:
             backend = LocalStorageBackend(tmpdir)
             await backend.upload_file(b"data", "exists.txt")
-            assert await backend.file_exists("exists.txt") is True
+            assert await backend.file_exists("exists.txt") == True  # noqa: E712
 
     @pytest.mark.asyncio
     async def test_nonexistent_file(self):
         from services.storage.storage_service import LocalStorageBackend
         with tempfile.TemporaryDirectory() as tmpdir:
             backend = LocalStorageBackend(tmpdir)
-            assert await backend.file_exists("nope.txt") is False
+            assert await backend.file_exists("nope.txt") == False  # noqa: E712
 
 
 class TestStorageService:

@@ -346,7 +346,7 @@ class TestVerifyToken:
         try:
             resp = client.get("/api/auth/verify")
             assert resp.status_code == 200
-            assert resp.json()["valid"] is True
+            assert resp.json()["valid"] == True  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 
@@ -613,7 +613,7 @@ class TestEmailVerification:
                     json={"token": "valid-token"},
                 )
                 assert resp.status_code == 200
-                assert resp.json()["success"] is True
+                assert resp.json()["success"] == True  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 
@@ -740,7 +740,7 @@ class TestEnhancedEmailVerification:
                 resp = client.post("/api/auth/verify-email-enhanced/bad-token")
                 assert resp.status_code == 200
                 data = resp.json()
-                assert data["success"] is False
+                assert data["success"] == False  # noqa: E712
                 assert data["user_type"] == "unknown"
         finally:
             app.dependency_overrides.clear()
@@ -780,7 +780,7 @@ class TestCheckProfileStatus:
             resp = client.get("/api/auth/check-profile-status")
             assert resp.status_code == 200
             data = resp.json()
-            assert data["needs_profile_completion"] is True
+            assert data["needs_profile_completion"] == True  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 
@@ -825,7 +825,7 @@ class TestMandatoryProfileStatus:
                 resp = client.get("/api/auth/mandatory-profile-status")
                 assert resp.status_code == 200
                 data = resp.json()
-                assert data["mandatory_profile_completed"] is False
+                assert data["mandatory_profile_completed"] == False  # noqa: E712
                 assert "gender" in data["missing_fields"]
         finally:
             app.dependency_overrides.clear()
@@ -863,7 +863,7 @@ class TestConfirmProfile:
             with patch("auth_module.user_service.confirm_profile", return_value=updated_user):
                 resp = client.post("/api/auth/confirm-profile")
                 assert resp.status_code == 200
-                assert resp.json()["success"] is True
+                assert resp.json()["success"] == True  # noqa: E712
         finally:
             app.dependency_overrides.clear()
 

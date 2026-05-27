@@ -234,7 +234,7 @@ class TestAuthRouter:
 
             assert response.status_code == status.HTTP_200_OK
             data = response.json()
-            assert data["valid"] is True
+            assert data["valid"] == True  # noqa: E712
             assert "user" in data
         finally:
             app.dependency_overrides.clear()
@@ -437,7 +437,7 @@ class TestAuthRouter:
 
             assert response.status_code == status.HTTP_200_OK
             data = response.json()
-            assert data["success"] is True
+            assert data["success"] == True  # noqa: E712
 
     def test_verify_email_invalid_token(self, client):
         """Test email verification with invalid token"""

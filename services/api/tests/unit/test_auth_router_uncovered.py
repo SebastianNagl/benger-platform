@@ -541,7 +541,7 @@ class TestUserInfoEndpoints:
         db.query.return_value = mock_q
 
         result = await get_user_contexts(current_user=user, db=db)
-        assert result["private_mode_available"] is True
+        assert result["private_mode_available"] == True  # noqa: E712
         assert "organizations" in result
 
     @pytest.mark.asyncio
@@ -573,7 +573,7 @@ class TestUserInfoEndpoints:
         db.query.return_value = mock_q
 
         result = await get_user_contexts(current_user=user, db=db)
-        assert result["private_mode_available"] is True
+        assert result["private_mode_available"] == True  # noqa: E712
 
 
 # ---------------------------------------------------------------------------
@@ -849,7 +849,7 @@ class TestVerifyEmail:
             verification_request=EmailVerificationRequest(token="valid-token"),
             db=db,
         )
-        assert result["success"] is True
+        assert result["success"] == True  # noqa: E712
 
     @pytest.mark.asyncio
     @patch("routers.auth.email_verification_service")
@@ -876,7 +876,7 @@ class TestVerifyEmail:
         db = _mock_db()
 
         result = await verify_email_with_token(token="path-token", db=db)
-        assert result["success"] is True
+        assert result["success"] == True  # noqa: E712
 
     @pytest.mark.asyncio
     @patch("routers.auth.email_verification_service")

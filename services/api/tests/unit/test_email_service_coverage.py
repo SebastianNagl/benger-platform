@@ -175,19 +175,19 @@ class TestIsAvailable:
         """Returns True when both mail_enabled and api_key are set (line 142)."""
         email_svc.mail_enabled = True
         email_svc.mail_client.api_key = "sg-some-key"
-        assert email_svc.is_available() is True
+        assert email_svc.is_available() == True  # noqa: E712
 
     def test_not_available_when_disabled(self, email_svc):
         """Returns False when mail_enabled is False."""
         email_svc.mail_enabled = False
         email_svc.mail_client.api_key = "sg-some-key"
-        assert email_svc.is_available() is False
+        assert email_svc.is_available() == False  # noqa: E712
 
     def test_not_available_when_no_key(self, email_svc):
         """Returns False when api_key is empty."""
         email_svc.mail_enabled = True
         email_svc.mail_client.api_key = ""
-        assert email_svc.is_available() is False
+        assert email_svc.is_available() == False  # noqa: E712
 
 
 # ─────────────────────────────────────────────
@@ -416,7 +416,7 @@ class TestSendInvitationEmail:
         )
         assert result is True
         call_args = email_svc.mail_client.send_message.call_args[1]
-        assert call_args["disable_tracking"] is True
+        assert call_args["disable_tracking"] == True  # noqa: E712
 
 
 # ─────────────────────────────────────────────

@@ -292,7 +292,7 @@ class TestAPIKeyFormatValidation:
         ]
 
         for key in valid_keys:
-            assert encryption_service.is_valid_api_key_format(key, "openai") is True
+            assert encryption_service.is_valid_api_key_format(key, "openai") == True  # noqa: E712
 
     def test_openai_key_validation_invalid(self, encryption_service):
         """Test invalid OpenAI key format"""
@@ -307,7 +307,7 @@ class TestAPIKeyFormatValidation:
         ]
 
         for key in invalid_keys:
-            assert encryption_service.is_valid_api_key_format(key, "openai") is False
+            assert encryption_service.is_valid_api_key_format(key, "openai") == False  # noqa: E712
 
     def test_anthropic_key_validation_valid(self, encryption_service):
         """Test valid Anthropic key format"""
@@ -317,7 +317,7 @@ class TestAPIKeyFormatValidation:
         ]
 
         for key in valid_keys:
-            assert encryption_service.is_valid_api_key_format(key, "anthropic") is True
+            assert encryption_service.is_valid_api_key_format(key, "anthropic") == True  # noqa: E712
 
     def test_anthropic_key_validation_invalid(self, encryption_service):
         """Test invalid Anthropic key format"""
@@ -332,7 +332,7 @@ class TestAPIKeyFormatValidation:
         ]
 
         for key in invalid_keys:
-            assert encryption_service.is_valid_api_key_format(key, "anthropic") is False
+            assert encryption_service.is_valid_api_key_format(key, "anthropic") == False  # noqa: E712
 
     def test_google_key_validation(self, encryption_service):
         """Test Google API key validation"""
@@ -350,10 +350,10 @@ class TestAPIKeyFormatValidation:
         ]
 
         for key in valid_keys:
-            assert encryption_service.is_valid_api_key_format(key, "google") is True
+            assert encryption_service.is_valid_api_key_format(key, "google") == True  # noqa: E712
 
         for key in invalid_keys:
-            assert encryption_service.is_valid_api_key_format(key, "google") is False
+            assert encryption_service.is_valid_api_key_format(key, "google") == False  # noqa: E712
 
     def test_deepinfra_key_validation(self, encryption_service):
         """Test DeepInfra API key validation"""
@@ -370,10 +370,10 @@ class TestAPIKeyFormatValidation:
         ]
 
         for key in valid_keys:
-            assert encryption_service.is_valid_api_key_format(key, "deepinfra") is True
+            assert encryption_service.is_valid_api_key_format(key, "deepinfra") == True  # noqa: E712
 
         for key in invalid_keys:
-            assert encryption_service.is_valid_api_key_format(key, "deepinfra") is False
+            assert encryption_service.is_valid_api_key_format(key, "deepinfra") == False  # noqa: E712
 
     def test_unknown_provider_validation(self, encryption_service):
         """Test validation for unknown providers"""
@@ -390,10 +390,10 @@ class TestAPIKeyFormatValidation:
         ]
 
         for key in valid_keys:
-            assert encryption_service.is_valid_api_key_format(key, "unknown") is True
+            assert encryption_service.is_valid_api_key_format(key, "unknown") == True  # noqa: E712
 
         for key in invalid_keys:
-            assert encryption_service.is_valid_api_key_format(key, "unknown") is False
+            assert encryption_service.is_valid_api_key_format(key, "unknown") == False  # noqa: E712
 
     def test_case_insensitive_provider_names(self, encryption_service):
         """Test that provider names are case insensitive"""
@@ -401,12 +401,12 @@ class TestAPIKeyFormatValidation:
 
         providers = ["OpenAI", "OPENAI", "openai", "Openai"]
         for provider in providers:
-            assert encryption_service.is_valid_api_key_format(test_key, provider) is True
+            assert encryption_service.is_valid_api_key_format(test_key, provider) == True  # noqa: E712
 
     def test_key_validation_with_whitespace(self, encryption_service):
         """Test key validation handles whitespace correctly"""
         key_with_spaces = "  sk-test-key-12345  "
-        assert encryption_service.is_valid_api_key_format(key_with_spaces, "openai") is True
+        assert encryption_service.is_valid_api_key_format(key_with_spaces, "openai") == True  # noqa: E712
 
 
 @pytest.mark.unit

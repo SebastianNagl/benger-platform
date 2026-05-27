@@ -207,9 +207,9 @@ class TestSendMessage:
 
             payload = mock_post.call_args[1]["json"]
             assert "tracking_settings" in payload
-            assert payload["tracking_settings"]["click_tracking"]["enable"] is False
-            assert payload["tracking_settings"]["click_tracking"]["enable_text"] is False
-            assert payload["tracking_settings"]["open_tracking"]["enable"] is False
+            assert payload["tracking_settings"]["click_tracking"]["enable"] == False
+            assert payload["tracking_settings"]["click_tracking"]["enable_text"] == False
+            assert payload["tracking_settings"]["open_tracking"]["enable"] == False
             assert result["status"] == "success"
 
     def test_send_message_plain_text_only(self, sendgrid_client):

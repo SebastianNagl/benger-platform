@@ -102,7 +102,7 @@ class TestPairedBootstrapTest:
         b = [0.3, 0.35, 0.32, 0.28, 0.31]
         result = paired_bootstrap_test(a, b)
         assert result["mean_difference"] > 0
-        assert result["a_better"] is True
+        assert result["a_better"] == True
 
     def test_unequal_length_error(self):
         result = paired_bootstrap_test([1.0, 2.0], [1.0])
@@ -143,7 +143,7 @@ class TestCohensD:
         result = cohens_d(a, b)
         assert abs(result["cohens_d"]) > 0.8
         assert result["interpretation"] == "large"
-        assert result["a_better"] is True
+        assert result["a_better"] == True
 
     def test_small_effect(self):
         a = [1.0, 2.0, 3.0, 4.0, 5.0]
@@ -183,14 +183,14 @@ class TestCliffsDelta:
         result = cliffs_delta(a, b)
         assert result["cliffs_delta"] == 1.0
         assert result["interpretation"] == "large"
-        assert result["a_better"] is True
+        assert result["a_better"] == True
 
     def test_b_dominates(self):
         a = [1.0, 2.0, 3.0]
         b = [10.0, 11.0, 12.0]
         result = cliffs_delta(a, b)
         assert result["cliffs_delta"] == -1.0
-        assert result["a_better"] is False
+        assert result["a_better"] == False
 
     def test_empty_scores(self):
         result = cliffs_delta([], [1.0, 2.0])

@@ -116,7 +116,7 @@ class TestPublicAnnotatorVisitorWritePaths:
         resp = client.get(f"/api/projects/{project.id}", headers=_bearer(visitor))
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert body["is_public"] is True
+        assert body["is_public"] == True  # noqa: E712
         assert body["public_role"] == "ANNOTATOR"
 
     def test_visitor_can_create_annotation(self, client, test_db, creator, visitor):

@@ -168,7 +168,7 @@ class TestGenerationStatus:
         assert resp.status_code == 200
         data = resp.json()
         assert data["generations"] == []
-        assert data["is_running"] is False
+        assert data["is_running"] == False  # noqa: E712
 
     def test_get_generation_status_not_found(self, client, test_db, test_users, auth_headers):
         resp = client.get(

@@ -452,7 +452,7 @@ class TestCheckProjectAccessibleBranches:
         project = Mock(is_private=True, created_by="user-1")
         db.query.return_value.filter.return_value.first.return_value = project
 
-        assert check_project_accessible(db, user, "proj-1", org_context="private") is True
+        assert check_project_accessible(db, user, "proj-1", org_context="private") == True  # noqa: E712
 
     def test_private_context_not_owner(self):
         db = Mock()
@@ -460,7 +460,7 @@ class TestCheckProjectAccessibleBranches:
         project = Mock(is_private=True, created_by="user-2")
         db.query.return_value.filter.return_value.first.return_value = project
 
-        assert check_project_accessible(db, user, "proj-1", org_context="private") is False
+        assert check_project_accessible(db, user, "proj-1", org_context="private") == False  # noqa: E712
 
     def test_org_context_project_not_in_org(self):
         db = Mock()
@@ -493,7 +493,7 @@ class TestCheckProjectAccessibleBranches:
             proj_org_query,
         ]
 
-        assert check_project_accessible(db, user, "proj-1", org_context="org-1") is False
+        assert check_project_accessible(db, user, "proj-1", org_context="org-1") == False  # noqa: E712
 
     def test_org_context_user_not_active_member(self):
         db = Mock()
@@ -521,7 +521,7 @@ class TestCheckProjectAccessibleBranches:
 
         db.query.side_effect = [proj_q, org_q, user_q]
 
-        assert check_project_accessible(db, user, "proj-1", org_context="org-1") is False
+        assert check_project_accessible(db, user, "proj-1", org_context="org-1") == False  # noqa: E712
 
     def test_legacy_private_project_owner(self):
         db = Mock()
@@ -530,7 +530,7 @@ class TestCheckProjectAccessibleBranches:
         db.query.return_value.filter.return_value.first.return_value = project
 
         # No org context
-        assert check_project_accessible(db, user, "proj-1", org_context=None) is True
+        assert check_project_accessible(db, user, "proj-1", org_context=None) == True  # noqa: E712
 
     def test_legacy_private_project_not_owner(self):
         db = Mock()
@@ -538,7 +538,7 @@ class TestCheckProjectAccessibleBranches:
         project = Mock(is_private=True, created_by="user-2")
         db.query.return_value.filter.return_value.first.return_value = project
 
-        assert check_project_accessible(db, user, "proj-1", org_context=None) is False
+        assert check_project_accessible(db, user, "proj-1", org_context=None) == False  # noqa: E712
 
     def test_legacy_no_org_fallback_to_creator(self):
         db = Mock()
@@ -555,7 +555,7 @@ class TestCheckProjectAccessibleBranches:
 
         db.query.side_effect = [proj_q, org_q]
 
-        assert check_project_accessible(db, user, "proj-1", org_context=None) is True
+        assert check_project_accessible(db, user, "proj-1", org_context=None) == True  # noqa: E712
 
     def test_legacy_user_in_project_org(self):
         db = Mock()
@@ -580,7 +580,7 @@ class TestCheckProjectAccessibleBranches:
 
         db.query.side_effect = [proj_q, org_q, user_q]
 
-        assert check_project_accessible(db, user, "proj-1", org_context=None) is True
+        assert check_project_accessible(db, user, "proj-1", org_context=None) == True  # noqa: E712
 
     def test_legacy_user_not_in_project_org(self):
         db = Mock()
@@ -605,7 +605,7 @@ class TestCheckProjectAccessibleBranches:
 
         db.query.side_effect = [proj_q, org_q, user_q]
 
-        assert check_project_accessible(db, user, "proj-1", org_context=None) is False
+        assert check_project_accessible(db, user, "proj-1", org_context=None) == False  # noqa: E712
 
     def test_legacy_user_no_memberships(self):
         db = Mock()
@@ -628,7 +628,7 @@ class TestCheckProjectAccessibleBranches:
 
         db.query.side_effect = [proj_q, org_q, user_q]
 
-        assert check_project_accessible(db, user, "proj-1", org_context=None) is False
+        assert check_project_accessible(db, user, "proj-1", org_context=None) == False  # noqa: E712
 
 
 # ============= check_task_assigned_to_user =============
@@ -642,14 +642,14 @@ class TestCheckTaskAssignedToUser:
         user = Mock(is_superadmin=False, id="user-1")
         project = Mock(assignment_mode="open")
 
-        assert check_task_assigned_to_user(db, user, "task-1", project) is True
+        assert check_task_assigned_to_user(db, user, "task-1", project) == True  # noqa: E712
 
     def test_superadmin_bypass(self):
         db = Mock()
         user = Mock(is_superadmin=True, id="user-1")
         project = Mock(assignment_mode="manual")
 
-        assert check_task_assigned_to_user(db, user, "task-1", project) is True
+        assert check_task_assigned_to_user(db, user, "task-1", project) == True  # noqa: E712
 
     def test_non_annotator_role_bypass(self):
         db = Mock()
@@ -671,7 +671,7 @@ class TestCheckTaskAssignedToUser:
 
         db.query.side_effect = [user_q, org_q]
 
-        assert check_task_assigned_to_user(db, user, "task-1", project) is True
+        assert check_task_assigned_to_user(db, user, "task-1", project) == True  # noqa: E712
 
     def test_annotator_with_assignment(self):
         db = Mock()
@@ -698,7 +698,7 @@ class TestCheckTaskAssignedToUser:
 
         db.query.side_effect = [user_q, org_q, assign_q]
 
-        assert check_task_assigned_to_user(db, user, "task-1", project) is True
+        assert check_task_assigned_to_user(db, user, "task-1", project) == True  # noqa: E712
 
     def test_annotator_without_assignment(self):
         db = Mock()
@@ -724,7 +724,7 @@ class TestCheckTaskAssignedToUser:
 
         db.query.side_effect = [user_q, org_q, assign_q]
 
-        assert check_task_assigned_to_user(db, user, "task-1", project) is False
+        assert check_task_assigned_to_user(db, user, "task-1", project) == False  # noqa: E712
 
     def test_no_memberships(self):
         db = Mock()
@@ -743,7 +743,7 @@ class TestCheckTaskAssignedToUser:
 
         db.query.side_effect = [user_q, assign_q]
 
-        assert check_task_assigned_to_user(db, user, "task-1", project) is False
+        assert check_task_assigned_to_user(db, user, "task-1", project) == False  # noqa: E712
 
 
 # ============= check_user_can_edit_project =============
@@ -755,14 +755,14 @@ class TestCheckUserCanEditProject:
     def test_superadmin(self):
         db = Mock()
         user = Mock(is_superadmin=True, id="user-1")
-        assert check_user_can_edit_project(db, user, "proj-1") is True
+        assert check_user_can_edit_project(db, user, "proj-1") == True  # noqa: E712
 
     def test_project_creator(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
         project = Mock(created_by="user-1")
         db.query.return_value.filter.return_value.first.return_value = project
-        assert check_user_can_edit_project(db, user, "proj-1") is True
+        assert check_user_can_edit_project(db, user, "proj-1") == True  # noqa: E712
 
     def test_org_admin_can_edit(self):
         db = Mock()
@@ -787,7 +787,7 @@ class TestCheckUserCanEditProject:
 
         db.query.side_effect = [proj_q, user_q, org_q]
 
-        assert check_user_can_edit_project(db, user, "proj-1") is True
+        assert check_user_can_edit_project(db, user, "proj-1") == True  # noqa: E712
 
     def test_annotator_cannot_edit(self):
         db = Mock()
@@ -812,7 +812,7 @@ class TestCheckUserCanEditProject:
 
         db.query.side_effect = [proj_q, user_q, org_q]
 
-        assert check_user_can_edit_project(db, user, "proj-1") is False
+        assert check_user_can_edit_project(db, user, "proj-1") == False  # noqa: E712
 
     def test_no_project_found(self):
         db = Mock()
@@ -829,7 +829,7 @@ class TestCheckUserCanEditProject:
 
         db.query.side_effect = [proj_q, user_q]
 
-        assert check_user_can_edit_project(db, user, "proj-1") is False
+        assert check_user_can_edit_project(db, user, "proj-1") == False  # noqa: E712
 
     def test_custom_allowed_roles(self):
         db = Mock()
@@ -856,7 +856,7 @@ class TestCheckUserCanEditProject:
 
         assert check_user_can_edit_project(
             db, user, "proj-1", allowed_roles=("ORG_ADMIN",)
-        ) is False
+        ) == False  # noqa: E712
 
 
 # ============= get_project_organizations =============

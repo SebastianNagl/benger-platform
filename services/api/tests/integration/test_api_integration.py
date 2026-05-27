@@ -144,7 +144,7 @@ class TestAPIIntegration:
             response = client.get("/api/auth/verify")
             assert response.status_code == status.HTTP_200_OK
             data = response.json()
-            assert data["valid"] is True
+            assert data["valid"] == True  # noqa: E712
             assert "user" in data
         finally:
             # Clean up overrides

@@ -431,7 +431,7 @@ class TestGetEvaluationSamples:
         body = resp.json()
         # All returned should be passed
         for item in body["items"]:
-            assert item["passed"] is True
+            assert item["passed"] == True  # noqa: E712
 
     def test_get_samples_filter_by_failed(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org)
@@ -443,7 +443,7 @@ class TestGetEvaluationSamples:
         assert resp.status_code == 200
         body = resp.json()
         for item in body["items"]:
-            assert item["passed"] is False
+            assert item["passed"] == False  # noqa: E712
 
     def test_get_samples_filter_by_field_name(self, client, test_db, test_users, auth_headers, test_org):
         data = _setup(test_db, test_users[0], test_org)
@@ -469,7 +469,7 @@ class TestGetEvaluationSamples:
         assert resp1.status_code == 200
         body1 = resp1.json()
         assert len(body1["items"]) == 3
-        assert body1["has_next"] is True
+        assert body1["has_next"] == True  # noqa: E712
         assert body1["total"] == 10
 
         # Page 2

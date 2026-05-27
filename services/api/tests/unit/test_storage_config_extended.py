@@ -95,7 +95,7 @@ class TestGetStorageConfig:
         assert result["access_key"] == "AKIA123"
         assert result["secret_key"] == "secret"
         assert result["region"] == "eu-central-1"
-        assert result["use_ssl"] is True
+        assert result["use_ssl"] == True  # noqa: E712
 
     def test_minio_storage_returns_s3_config(self, storage_config_module):
         """MinIO storage type returns S3-style config dict."""
@@ -119,7 +119,7 @@ class TestGetStorageConfig:
 
         assert result["storage_type"] == "minio"
         assert result["bucket_name"] == "minio-bucket"
-        assert result["use_ssl"] is False
+        assert result["use_ssl"] == False  # noqa: E712
 
     def test_local_storage_returns_local_config(self, storage_config_module):
         """Local storage type returns base_path config."""

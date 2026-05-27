@@ -38,11 +38,11 @@ class TestPasswordHashingAliases:
         password_hash = get_password_hash(password)
 
         # Both verification functions should work identically
-        assert verify_password(password, password_hash) is True
-        assert check_password(password, password_hash) is True
+        assert verify_password(password, password_hash) == True  # noqa: E712
+        assert check_password(password, password_hash) == True  # noqa: E712
 
-        assert verify_password(wrong_password, password_hash) is False
-        assert check_password(wrong_password, password_hash) is False
+        assert verify_password(wrong_password, password_hash) == False  # noqa: E712
+        assert check_password(wrong_password, password_hash) == False  # noqa: E712
 
     def test_aliases_are_same_function_objects(self):
         """Test that aliases point to the same function objects"""

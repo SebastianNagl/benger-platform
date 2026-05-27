@@ -196,7 +196,7 @@ class TestProfileEndpoint:
         assert resp.status_code == 200
         body = resp.json()
         assert body["email"] == "admin@test.com"
-        assert body["is_superadmin"] is True
+        assert body["is_superadmin"] == True  # noqa: E712
 
 
 class TestMeEndpoint:

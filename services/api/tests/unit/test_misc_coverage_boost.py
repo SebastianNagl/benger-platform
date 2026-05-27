@@ -567,9 +567,9 @@ class TestAuthorizationLegacyOrgMembership:
         db.query.return_value.filter.return_value.all.return_value = []
 
         # Creator can view/edit/delete
-        assert svc.check_project_access(user, project, Permission.PROJECT_VIEW, db) is True
-        assert svc.check_project_access(user, project, Permission.PROJECT_EDIT, db) is True
-        assert svc.check_project_access(user, project, Permission.PROJECT_DELETE, db) is True
+        assert svc.check_project_access(user, project, Permission.PROJECT_VIEW, db) == True  # noqa: E712
+        assert svc.check_project_access(user, project, Permission.PROJECT_EDIT, db) == True  # noqa: E712
+        assert svc.check_project_access(user, project, Permission.PROJECT_DELETE, db) == True  # noqa: E712
 
     def test_legacy_org_member_with_permission(self):
         from app.core.authorization import AuthorizationService, Permission

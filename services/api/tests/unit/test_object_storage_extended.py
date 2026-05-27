@@ -1352,7 +1352,7 @@ class TestHealthCheckS3:
 
         health = service.health_check()
 
-        assert health["healthy"] is True
+        assert health["healthy"] == True  # noqa: E712
         assert health["storage_backend"] == "s3"
         assert health["details"]["bucket"] == "test-bucket"
         assert health["details"]["endpoint"] == "https://s3.example.com"
@@ -1366,7 +1366,7 @@ class TestHealthCheckS3:
 
         health = service.health_check()
 
-        assert health["healthy"] is True
+        assert health["healthy"] == True  # noqa: E712
         assert health["details"]["endpoint"] == "AWS S3"
 
     def test_s3_healthy_with_cdn(self):
@@ -1379,8 +1379,8 @@ class TestHealthCheckS3:
 
         health = service.health_check()
 
-        assert health["healthy"] is True
-        assert health["details"]["cdn_enabled"] is True
+        assert health["healthy"] == True  # noqa: E712
+        assert health["details"]["cdn_enabled"] == True  # noqa: E712
         assert health["details"]["cdn_domain"] == "cdn.example.com"
 
     def test_s3_unhealthy_on_exception(self):
@@ -1391,7 +1391,7 @@ class TestHealthCheckS3:
 
         health = service.health_check()
 
-        assert health["healthy"] is False
+        assert health["healthy"] == False  # noqa: E712
         assert "error" in health
         assert "Connection timeout" in health["error"]
         assert health["details"]["error_type"] == "Exception"

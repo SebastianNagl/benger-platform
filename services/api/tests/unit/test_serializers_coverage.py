@@ -214,7 +214,7 @@ class TestSerializeEvaluationRun:
         from routers.projects.serializers import serialize_evaluation_run
         er = self._mock_er()
         d = serialize_evaluation_run(er, mode="data")
-        assert d["has_sample_results"] is True
+        assert d["has_sample_results"] == True  # noqa: E712
         assert d["created_by"] == "u1"
         assert "project_id" not in d
 

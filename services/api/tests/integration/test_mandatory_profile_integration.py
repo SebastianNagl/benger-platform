@@ -113,7 +113,7 @@ class TestMandatoryProfileStatus:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["mandatory_profile_completed"] is False
+        assert data["mandatory_profile_completed"] == False  # noqa: E712
         assert len(data["missing_fields"]) > 0
         assert "gender" in data["missing_fields"]
         assert "age" in data["missing_fields"]
@@ -125,7 +125,7 @@ class TestMandatoryProfileStatus:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["mandatory_profile_completed"] is True
+        assert data["mandatory_profile_completed"] == True  # noqa: E712
         assert data["missing_fields"] == []
 
     def test_confirmation_due_when_never_confirmed(self, client, incomplete_user):
@@ -134,7 +134,7 @@ class TestMandatoryProfileStatus:
             headers={"Authorization": f"Bearer {incomplete_user.token}"},
         )
         data = response.json()
-        assert data["confirmation_due"] is True
+        assert data["confirmation_due"] == True  # noqa: E712
 
     def test_unauthenticated_returns_401(self, client):
         response = client.get("/api/auth/mandatory-profile-status")
@@ -152,7 +152,7 @@ class TestConfirmProfile:
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["success"] is True
+        assert data["success"] == True  # noqa: E712
         assert "confirmed_at" in data
 
     def test_confirm_incomplete_profile_rejected(self, client, incomplete_user):

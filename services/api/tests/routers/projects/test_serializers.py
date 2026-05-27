@@ -135,7 +135,7 @@ class TestSerializeTask:
         assert result["id"] == "task-1"
         assert result["inner_id"] == 1
         assert result["data"] == {"text": "hello"}
-        assert result["is_labeled"] is True
+        assert result["is_labeled"] == True  # noqa: E712
         assert result["created_at"] == "2026-01-01T12:00:00"
         # Data mode should NOT have FK fields
         assert "project_id" not in result
@@ -245,7 +245,7 @@ class TestSerializeEvaluationRun:
     def test_data_mode(self):
         er = _mock_evaluation_run()
         result = serialize_evaluation_run(er, mode="data")
-        assert result["has_sample_results"] is True
+        assert result["has_sample_results"] == True  # noqa: E712
         assert result["eval_metadata"] == {"judge_models": {"cfg1": "gpt-4o-judge"}}
         assert "project_id" not in result
         assert "task_id" not in result

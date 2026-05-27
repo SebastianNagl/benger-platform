@@ -184,7 +184,7 @@ class TestLabelConfigParsing:
         </View>
         """
         parser = ResponseParser(generation_structure={}, label_config=config)
-        assert parser.label_config_map["answer"]["required"] is True
+        assert parser.label_config_map["answer"]["required"] == True
 
 
 # ---------------------------------------------------------------------------

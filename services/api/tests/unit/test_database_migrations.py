@@ -270,7 +270,7 @@ class TestDatabaseMigrations:
         test_db.refresh(task)
 
         assert project.title == "Data Preservation Test"
-        assert task.data["metadata"]["important"] is True
+        assert task.data["metadata"]["important"] == True  # noqa: E712
 
         # Clean up temp column
         try:

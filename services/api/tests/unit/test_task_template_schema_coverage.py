@@ -71,32 +71,32 @@ class TestConditionType:
 
 class TestHelperFunctions:
     def test_is_choice_field_true(self):
-        assert is_choice_field(FieldType.RADIO) is True
-        assert is_choice_field(FieldType.CHECKBOX) is True
+        assert is_choice_field(FieldType.RADIO) == True  # noqa: E712
+        assert is_choice_field(FieldType.CHECKBOX) == True  # noqa: E712
 
     def test_is_choice_field_false(self):
-        assert is_choice_field(FieldType.TEXT) is False
-        assert is_choice_field(FieldType.NUMBER) is False
-        assert is_choice_field(FieldType.RATING) is False
-        assert is_choice_field(FieldType.HIGHLIGHT) is False
+        assert is_choice_field(FieldType.TEXT) == False  # noqa: E712
+        assert is_choice_field(FieldType.NUMBER) == False  # noqa: E712
+        assert is_choice_field(FieldType.RATING) == False  # noqa: E712
+        assert is_choice_field(FieldType.HIGHLIGHT) == False  # noqa: E712
 
     def test_is_numeric_field_true(self):
-        assert is_numeric_field(FieldType.NUMBER) is True
-        assert is_numeric_field(FieldType.RATING) is True
+        assert is_numeric_field(FieldType.NUMBER) == True  # noqa: E712
+        assert is_numeric_field(FieldType.RATING) == True  # noqa: E712
 
     def test_is_numeric_field_false(self):
-        assert is_numeric_field(FieldType.TEXT) is False
-        assert is_numeric_field(FieldType.RADIO) is False
-        assert is_numeric_field(FieldType.CHECKBOX) is False
+        assert is_numeric_field(FieldType.TEXT) == False  # noqa: E712
+        assert is_numeric_field(FieldType.RADIO) == False  # noqa: E712
+        assert is_numeric_field(FieldType.CHECKBOX) == False  # noqa: E712
 
     def test_is_text_field_true(self):
-        assert is_text_field(FieldType.TEXT) is True
-        assert is_text_field(FieldType.TEXT_AREA) is True
-        assert is_text_field(FieldType.RICH_TEXT) is True
+        assert is_text_field(FieldType.TEXT) == True  # noqa: E712
+        assert is_text_field(FieldType.TEXT_AREA) == True  # noqa: E712
+        assert is_text_field(FieldType.RICH_TEXT) == True  # noqa: E712
 
     def test_is_text_field_false(self):
-        assert is_text_field(FieldType.NUMBER) is False
-        assert is_text_field(FieldType.RADIO) is False
-        assert is_text_field(FieldType.RATING) is False
-        assert is_text_field(FieldType.DATE) is False
-        assert is_text_field(FieldType.HIGHLIGHT) is False
+        assert is_text_field(FieldType.NUMBER) == False  # noqa: E712
+        assert is_text_field(FieldType.RADIO) == False  # noqa: E712
+        assert is_text_field(FieldType.RATING) == False  # noqa: E712
+        assert is_text_field(FieldType.DATE) == False  # noqa: E712
+        assert is_text_field(FieldType.HIGHLIGHT) == False  # noqa: E712

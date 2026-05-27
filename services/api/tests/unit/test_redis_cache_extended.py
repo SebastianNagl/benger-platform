@@ -47,33 +47,33 @@ class TestRedisCacheMethods:
         from services.redis_cache import RedisCache
         instance = RedisCache.__new__(RedisCache)
         instance.is_available = False
-        assert instance.set("key", "value") is False
+        assert instance.set("key", "value") == False  # noqa: E712
 
     def test_set_stores_value(self, cache_instance):
-        assert cache_instance.set("test-key", {"data": "value"}, ttl=60) is True
+        assert cache_instance.set("test-key", {"data": "value"}, ttl=60) == True  # noqa: E712
         stored = cache_instance.redis_client.get("test-key")
         assert json.loads(stored) == {"data": "value"}
 
     def test_set_handles_exception(self, cache_instance):
         cache_instance.redis_client = Mock()
         cache_instance.redis_client.setex.side_effect = Exception("Write error")
-        assert cache_instance.set("key", "value") is False
+        assert cache_instance.set("key", "value") == False  # noqa: E712
 
     def test_delete_returns_false_when_unavailable(self):
         from services.redis_cache import RedisCache
         instance = RedisCache.__new__(RedisCache)
         instance.is_available = False
-        assert instance.delete("key") is False
+        assert instance.delete("key") == False  # noqa: E712
 
     def test_delete_removes_key(self, cache_instance):
         cache_instance.redis_client.set("del-key", "value")
-        assert cache_instance.delete("del-key") is True
+        assert cache_instance.delete("del-key") == True  # noqa: E712
         assert cache_instance.redis_client.get("del-key") is None
 
     def test_delete_handles_exception(self, cache_instance):
         cache_instance.redis_client = Mock()
         cache_instance.redis_client.delete.side_effect = Exception("Delete error")
-        assert cache_instance.delete("key") is False
+        assert cache_instance.delete("key") == False  # noqa: E712
 
     def test_delete_pattern_returns_zero_when_unavailable(self):
         from services.redis_cache import RedisCache
@@ -101,26 +101,26 @@ class TestRedisCacheMethods:
         from services.redis_cache import RedisCache
         instance = RedisCache.__new__(RedisCache)
         instance.is_available = False
-        assert instance.exists("key") is False
+        assert instance.exists("key") == False  # noqa: E712
 
     def test_exists_returns_true_for_existing_key(self, cache_instance):
         cache_instance.redis_client.set("exists-key", "value")
-        assert cache_instance.exists("exists-key") is True
+        assert cache_instance.exists("exists-key") == True  # noqa: E712
 
     def test_exists_returns_false_for_missing_key(self, cache_instance):
-        assert cache_instance.exists("nonexistent") is False
+        assert cache_instance.exists("nonexistent") == False  # noqa: E712
 
     def test_exists_handles_exception(self, cache_instance):
         cache_instance.redis_client = Mock()
         cache_instance.redis_client.exists.side_effect = Exception("Error")
-        assert cache_instance.exists("key") is False
+        assert cache_instance.exists("key") == False  # noqa: E712
 
     def test_get_stats_when_unavailable(self):
         from services.redis_cache import RedisCache
         instance = RedisCache.__new__(RedisCache)
         instance.is_available = False
         stats = instance.get_stats()
-        assert stats["available"] is False
+        assert stats["available"] == False  # noqa: E712
 
     def test_get_stats_success(self, cache_instance):
         # FakeRedis doesn't support info command, so mock it
@@ -132,14 +132,14 @@ class TestRedisCacheMethods:
             "keyspace_misses": 10,
         }
         stats = cache_instance.get_stats()
-        assert stats["available"] is True
+        assert stats["available"] == True  # noqa: E712
         assert stats["connected_clients"] == 1
 
     def test_get_stats_error(self, cache_instance):
         cache_instance.redis_client = Mock()
         cache_instance.redis_client.info.side_effect = Exception("Error")
         stats = cache_instance.get_stats()
-        assert stats["available"] is False
+        assert stats["available"] == False  # noqa: E712
 
     def test_calculate_hit_rate_with_hits(self, cache_instance):
         info = {"keyspace_hits": 80, "keyspace_misses": 20}

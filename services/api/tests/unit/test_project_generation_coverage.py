@@ -183,7 +183,7 @@ class TestGetProjectGenerationStatus:
 
         result = get_project_generation_status("p1", request, mock_db, user)
         assert result["generations"] == []
-        assert result["is_running"] is False
+        assert result["is_running"] == False  # noqa: E712
 
     @patch("routers.projects.generation.check_project_accessible", return_value=True)
     @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
@@ -218,6 +218,6 @@ class TestGetProjectGenerationStatus:
         user = Mock()
 
         result = get_project_generation_status("p1", request, mock_db, user)
-        assert result["is_running"] is True
+        assert result["is_running"] == True  # noqa: E712
         assert result["latest_status"] == "running"
         assert len(result["generations"]) == 1
