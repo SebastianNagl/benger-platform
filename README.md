@@ -2,7 +2,7 @@
 
 [![License: Apache 2.0 (code)](https://img.shields.io/badge/Code-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![License: CC BY 4.0 (data)](https://img.shields.io/badge/Data-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20409635.svg)](https://doi.org/10.5281/zenodo.20409635)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20409635-blue.svg)](https://doi.org/10.5281/zenodo.20409635)
 
 This repository hosts **two distinct projects** under the BenGER name:
 
