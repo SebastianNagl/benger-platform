@@ -1,8 +1,8 @@
-fastapi==0.136.1
-uvicorn[standard]==0.46.0
+fastapi==0.136.3
+uvicorn[standard]==0.48.0
 pydantic>=2.9.0
-python-multipart==0.0.26
-PyJWT[crypto]>=2.8.0,<2.13.0
+python-multipart==0.0.29
+PyJWT[crypto]>=2.8.0,<2.14.0
 # 47.0.0's aarch64 wheel uses ARMv8.2 crypto extensions some Docker Desktop
 # macOS VMs do not expose, causing SIGILL on `import _rust`. Cap below 47 until
 # upstream ships a baseline-compatible aarch64 build.
@@ -23,7 +23,7 @@ email-validator==2.3.0
 # starlette version is managed by fastapi
 anyio==4.13.0
 openai==1.109.1
-anthropic==0.97.0
+anthropic==0.104.1
 google-genai>=1.0.0
 mistralai>=1.2.0  # Mistral AI models
 cohere>=5.11.0  # Cohere models
@@ -46,7 +46,7 @@ scipy>=1.11.0
 tiktoken>=0.5.0
 # Monitoring and testing tools
 psutil>=6.1.0  # For system and memory monitoring
-locust==2.43.4  # For load testing
+locust==2.44.0  # For load testing
 
 # Async testing dependencies
 aiosqlite==0.22.1  # For async SQLite database testing
