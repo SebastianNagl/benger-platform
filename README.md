@@ -3,6 +3,7 @@
 [![License: Apache 2.0 (code)](https://img.shields.io/badge/Code-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![License: CC BY 4.0 (data)](https://img.shields.io/badge/Data-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20409635-blue.svg)](https://doi.org/10.5281/zenodo.20409635)
+[![arXiv](https://img.shields.io/badge/arXiv-2605.28183-b31b1b.svg)](https://arxiv.org/abs/2605.28183)
 
 This repository hosts **two distinct projects** under the BenGER name:
 
@@ -22,7 +23,7 @@ A dataset with three thematic subsets, produced and reviewed by nine co-authors 
 | `grundprinzipien` | Foundational legal-principle multiple-choice items | Knowledge probe across the three branches | (see paper) |
 
 **Zenodo (archival, citable)**: [10.5281/zenodo.20409635](https://doi.org/10.5281/zenodo.20409635) — the full anonymised dataset (`benger-v1.0.zip`) with `benchathon/`, `zjs/`, `grundprinzipien/`, and the small derived `processed/` files used by the manuscript.
-**Paper (preprint)**: t.b.d.
+**Paper (preprint)**: [arXiv:2605.28183](https://arxiv.org/abs/2605.28183)
 **In-repo copies of the derived artefacts** the paper loads (small JSON/CSV files, ~5 MB total): `publications/Dataset_ARR/data/processed/` and `publications/Dataset_ARR/data/interim/`.
 
 The data is licensed CC BY 4.0; the platform code is Apache 2.0. Human-grader identities have been replaced with stable codes (`grader_01..grader_07`).
@@ -139,12 +140,15 @@ The platform and the benchmark are separate publications with different author l
 
 ```bibtex
 @article{nagl2026bengerbench,
-  title   = {{BenGER}: Benchmarking {LLM} Systems on Subsumption-Based Legal Reasoning in German Law},
-  author  = {Nagl, Sebastian and Mayrhofer, Ann-Kristin and Heidebach, Martin
-             and Ko{\c{c}}ak, Aleyna and Zettelmeier, Anne and Breu, Elly
-             and Greiner, Angelina and Milijas, Sofija and Grabmair, Matthias},
-  year    = {2026}
-  % venue + DOI populated with the preprint
+  title         = {{BenGER}: Benchmarking {LLM} Systems on Subsumption-Based Legal Reasoning in German Law},
+  author        = {Nagl, Sebastian and Mayrhofer, Ann-Kristin and Heidebach, Martin
+                   and Ko{\c{c}}ak, Aleyna and Zettelmeier, Anne and Breu, Elly
+                   and Greiner, Angelina and Milijas, Sofija and Grabmair, Matthias},
+  year          = {2026},
+  eprint        = {2605.28183},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CL},
+  doi           = {10.5281/zenodo.20409635}
 }
 ```
 
