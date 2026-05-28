@@ -47,11 +47,6 @@ export default function ImprintPage() {
         {t('legal.imprint.registrationInfo')}
       </p>
 
-      <h2>{t('legal.imprint.vatId')}</h2>
-      <p className="text-zinc-700 dark:text-zinc-200">
-        {t('legal.imprint.vatIdInfo')}
-      </p>
-
       <h2>{t('legal.imprint.responsibleForContent')}</h2>
       <p className="text-zinc-700 dark:text-zinc-200">
         {formatText(t('legal.imprint.responsibleInfo'))}
