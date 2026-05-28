@@ -128,30 +128,29 @@ api:
 workers:
   name: workers
   replicaCount: 1
-  # Default kept at 4 to fit the 12 Gi worker memory limit for evals
-  # that load all three embedding-based evaluators (BERTScore +
-  # MoverScore + sentence-transformers) — each fork's full RSS reaches
-  # ~1.5–2 GB under those workloads (see the resources comment below;
-  # the bare ~600 MB figure is just weights, not tokenizer caches +
-  # SQLAlchemy buffers + Python overhead).
+  # Concurrency=8 (bumped from 4) — sized for the host's free headroom
+  # rather than worst-case three-embedding-metric memory.
   #
-  # The per-cell fan-out (PR #94) parallelizes evaluation across cells
-  # rather than relying on multi-fork concurrency, but for workloads
-  # that *don't* load embedding metrics (e.g. ZJS Fälle: llm_judge_
-  # falloesung only), operators can safely bump this to 16 to saturate
-  # the chord faster:
+  # Memory budget per fork under embedding workloads is ~1.5–2 GB RSS
+  # (BERTScore + MoverScore + sentence-transformers each ~600 MB weights
+  # plus tokenizer caches + SQLAlchemy buffers + Python overhead). At
+  # concurrency=8 that's ~12–16 GB peak when all three embedding metrics
+  # fire on the same cell — accommodated by the 18 Gi memory limit set
+  # below.
   #
-  #   kubectl patch deployment/benger-workers -n benger --type=json \
-  #     -p '[{"op": "replace", "path": "/spec/template/spec/containers/0/command",
-  #          "value": ["celery","-A","tasks","worker","--loglevel=info",
-  #                    "--concurrency=16","-Q",
-  #                    "celery,emails,default,generation,evaluation"]}]'
+  # Host capacity check (22 Gi total / ~14 Gi free + ~11 Gi reclaimable
+  # cache = ~25 Gi practical headroom; 12 cores / ~22% requested = ~9
+  # cores comfortably available). One worker pod at 18 Gi / 6 cores is
+  # well within budget. The other tenants on the node — benger-staging
+  # (~500 MB workers), legalplusplus (trivial), cert-manager + kube-system
+  # (~150 MB total) — are passive and don't compete materially.
   #
-  # A future change can either (a) auto-tune concurrency by inspecting
-  # the config's metric set at orchestrator dispatch, or (b) raise the
-  # memory limit to ~24 Gi if the host has headroom (currently 22 Gi
-  # total / ~17 Gi free, so a 24 Gi pod wouldn't fit).
-  concurrency: 4
+  # For workloads heavier than ZJS Fälle (multiple embedding metrics +
+  # llm_judge in parallel), the operator can bump further via
+  # `kubectl patch deployment/benger-workers …` — but auto-tuning
+  # concurrency by inspecting the metric set at orchestrator dispatch
+  # would be a cleaner long-term fix.
+  concurrency: 8
   deploymentStrategy:
     type: RollingUpdate
     rollingUpdate:
@@ -162,16 +161,15 @@ workers:
     pullPolicy: IfNotPresent
     tag: latest
   resources:
-    # Embedding-based metrics each load their own ~600MB model into the
-    # forked worker process. With BERTScore + MoverScore + semantic
-    # similarity active and `concurrency=4` forks, peak resident memory
-    # easily reaches ~6-8 GB. The 8Gi limit OOM'd in practice; 12Gi
-    # gives headroom for all three loaded simultaneously plus tokenizer
-    # caches and SQLAlchemy buffers. Server has 22 Gi total / ~17 Gi
-    # free, so 12 Gi fits comfortably.
+    # Sized for concurrency=8 (above). Each fork loads its own embedding
+    # models — BERTScore + MoverScore + sentence-transformers — totaling
+    # ~1.5-2 GB RSS per fork when all three are active on a cell.
+    # 8 × 1.5-2 = 12-16 GB peak; 18 Gi leaves comfortable headroom.
+    # Host has 22 Gi total, this pod is the only large memory consumer,
+    # so the 18 Gi cap doesn't squeeze other tenants.
     limits:
-      cpu: 4000m
-      memory: 12Gi
+      cpu: 6000m
+      memory: 18Gi
     requests:
       cpu: 1000m
       memory: 4Gi
