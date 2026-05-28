@@ -10,11 +10,10 @@ jest.mock('@/contexts/I18nContext', () => ({
         'landing.nav.people': 'People & Network',
         'landing.nav.license': 'License & Citation',
         'landing.nav.login': 'Login',
-        'footer.imprint': 'Impressum',
-        'footer.dataProtection': 'Datenschutz',
-        'footer.github': 'GitHub',
-        'footer.copyright': 'Copyright',
-        'footer.allRightsReserved': 'All rights reserved.',
+        'layout.footer.imprint': 'Impressum',
+        'layout.footer.dataProtection': 'Datenschutz',
+        'layout.footer.followGithub': 'Follow us on GitHub',
+        'layout.footer.allRightsReserved': 'All rights reserved.',
       }
       return translations[key] || key
     },
@@ -89,7 +88,7 @@ describe('LandingLayout', () => {
     expect(screen.getByTestId('language-switcher')).toBeInTheDocument()
   })
 
-  it('renders the SiteFooter with legal links and the corrected GitHub URL', () => {
+  it('renders the shared Footer with legal links and the corrected GitHub URL', () => {
     render(
       <LandingLayout>
         <TestContent />
@@ -104,7 +103,9 @@ describe('LandingLayout', () => {
       'href',
       '/about/data-protection'
     )
-    expect(screen.getByRole('link', { name: 'GitHub' })).toHaveAttribute(
+    expect(
+      screen.getByRole('link', { name: /Follow us on GitHub/ })
+    ).toHaveAttribute(
       'href',
       'https://github.com/SebastianNagl/benger-platform'
     )

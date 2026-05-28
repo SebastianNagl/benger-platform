@@ -51,11 +51,10 @@ jest.mock('@/contexts/I18nContext', () => ({
         'landing.nav.people': 'People',
         'landing.nav.license': 'License',
         'landing.nav.login': 'Login',
-        'footer.imprint': 'Imprint',
-        'footer.dataProtection': 'Data Protection',
-        'footer.github': 'GitHub',
-        'footer.copyright': 'Copyright',
-        'footer.allRightsReserved': 'All rights reserved.',
+        'layout.footer.imprint': 'Imprint',
+        'layout.footer.dataProtection': 'Data Protection',
+        'layout.footer.followGithub': 'Follow us on GitHub',
+        'layout.footer.allRightsReserved': 'All rights reserved.',
       }
       return translations[key] || key
     },
@@ -121,7 +120,7 @@ describe('MinimalLayout', () => {
     )
   })
 
-  it('shares the SiteFooter with the landing page (corrected GitHub URL, no Notion)', () => {
+  it('shares the same Footer as authenticated pages (legal links, corrected GitHub URL, no Notion)', () => {
     render(
       <MinimalLayout>
         <div>Content</div>
@@ -135,7 +134,9 @@ describe('MinimalLayout', () => {
     expect(
       screen.getByRole('link', { name: 'Data Protection' })
     ).toHaveAttribute('href', '/about/data-protection')
-    expect(screen.getByRole('link', { name: 'GitHub' })).toHaveAttribute(
+    expect(
+      screen.getByRole('link', { name: /Follow us on GitHub/ })
+    ).toHaveAttribute(
       'href',
       'https://github.com/SebastianNagl/benger-platform'
     )
@@ -171,6 +172,6 @@ describe('MinimalLayout', () => {
     )
 
     const root = container.querySelector('[data-testid="section-provider"] > div')
-    expect(root).toHaveClass('min-h-screen', 'w-full', 'bg-white')
+    expect(root).toHaveClass('min-h-screen', 'w-full', 'flex', 'flex-col', 'bg-white')
   })
 })
