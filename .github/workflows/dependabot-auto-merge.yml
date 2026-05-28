@@ -3,9 +3,16 @@ name: Dependabot Batch
 # 1. Auto-approves eligible dependabot PRs on creation (no CI triggered)
 # 2. Weekly: creates a single batch PR from all approved dependabot PRs
 #    CI runs once on the batch PR — merge manually when ready
+#
+# Trigger: pull_request_target (not pull_request) so the run executes in the
+# base-repo context and reads Actions secrets. Dependabot-triggered pull_request
+# runs only see the separate Dependabot secret store, where the GitHub-App
+# credentials don't live — the approve step would crash with
+# "Input required and not supplied: app-id". Same-repo Dependabot branches make
+# pull_request_target safe here; the approve job never checks out PR code.
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
   schedule:
     - cron: "0 2 * * 2"
@@ -18,7 +25,7 @@ permissions:
 jobs:
   approve:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+    if: github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]'
     steps:
       - name: Generate App Token
         id: app-token
