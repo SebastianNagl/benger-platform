@@ -1,6 +1,6 @@
 'use client'
 
-import { SiteFooter } from '@/components/layout/SiteFooter'
+import { Footer } from '@/components/layout/Footer'
 import { SiteHeader } from '@/components/layout/SiteHeader'
 import { ReactNode } from 'react'
 
@@ -10,10 +10,10 @@ interface LandingLayoutProps {
 
 export function LandingLayout({ children }: LandingLayoutProps) {
   return (
-    <div className="min-h-screen w-full bg-white dark:bg-zinc-900">
+    <div className="flex min-h-screen w-full flex-col bg-white dark:bg-zinc-900">
       <SiteHeader />
-      <main>{children}</main>
-      <SiteFooter />
+      <main className="flex-1">{children}</main>
+      <Footer />
     </div>
   )
 }
