@@ -19,7 +19,7 @@ export function MinimalLayout({ children, sections = [] }: MinimalLayoutProps) {
 
   return (
     <SectionProvider sections={sections}>
-      <div className="min-h-screen bg-white dark:bg-zinc-900">
+      <div className="min-h-screen w-full bg-white dark:bg-zinc-900">
         {/* Header */}
         <header className="relative z-10">
           <nav

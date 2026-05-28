@@ -3205,9 +3205,9 @@
           "description": "Der Quellcode der BenGER-Plattform ist Open Source unter der Apache License 2.0. Sie dürfen ihn -- auch kommerziell -- frei nutzen, anpassen und weiterverbreiten, solange eine angemessene Namensnennung erfolgt."
         },
         {
-          "label": "Benchmark-Datensatz (geplant)",
-          "title": "CC-BY Lizenz",
-          "description": "Der BenGER-Benchmark-Datensatz wird unter Creative Commons Namensnennung (CC-BY) veröffentlicht. Sie werden die Daten für jeden Zweck teilen und anpassen dürfen, solange eine angemessene Namensnennung erfolgt."
+          "label": "Benchmark-Datensatz",
+          "title": "CC BY 4.0 Lizenz",
+          "description": "Der BenGER-Benchmark-Datensatz ist unter Creative Commons Namensnennung 4.0 (CC BY 4.0) veröffentlicht. Sie dürfen die Daten für jeden Zweck teilen und anpassen, solange eine angemessene Namensnennung erfolgt."
         }
       ],
       "citationTitle": "Zitierweise",
@@ -3219,8 +3219,7 @@
         },
         {
           "label": "BenGER Benchmark-Datensatz",
-          "bibtex": "",
-          "tba": true
+          "bibtex": "@article{nagl2026bengerbench,\n  title={{BenGER}: Benchmarking {LLM} Systems on Subsumption-Based Legal Reasoning in German Law},\n  author={Nagl, Sebastian and Mayrhofer, Ann-Kristin and Heidebach, Martin and Ko{\\c{c}}ak, Aleyna and Zettelmeier, Anne and Breu, Elly and Greiner, Angelina and Milijas, Sofija and Grabmair, Matthias},\n  year={2026},\n  eprint={2605.28183},\n  archivePrefix={arXiv},\n  primaryClass={cs.CL},\n  doi={10.5281/zenodo.20409635}\n}"
         }
       ]
     },
