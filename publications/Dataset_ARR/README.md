@@ -4,8 +4,7 @@ Quarto manuscript for the BenGER dataset paper (ACL/ARR target). The dataset is 
 
 ## Public release
 
-When the preprint goes up:
-
+- **Paper (preprint)**: [arXiv:2605.28183](https://arxiv.org/abs/2605.28183)
 - **Zenodo (canonical dataset distribution)**: [10.5281/zenodo.20409635](https://doi.org/10.5281/zenodo.20409635) — `benger-v1.0.zip` with the full anonymised `benchathon/`, `zjs/`, `grundprinzipien/`, and `processed/` subtrees.
 - **GitHub** (this folder): ships the manuscript source, the derived `data/processed/` and `data/interim/` JSONs the paper loads, and the scripts that produced everything. The raw platform exports and the unredacted ZJS source stay out of git.
 

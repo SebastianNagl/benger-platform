@@ -80,6 +80,12 @@ preferred-citation:
       given-names: Sofija
     - family-names: Grabmair
       given-names: Matthias
-  # Year, venue, and DOI fields are populated when the preprint / camera-ready
-  # is finalised.
   year: 2026
+  url: "https://arxiv.org/abs/2605.28183"
+  identifiers:
+    - type: other
+      value: "arXiv:2605.28183"
+      description: "arXiv preprint"
+    - type: doi
+      value: 10.5281/zenodo.20409635
+      description: "Zenodo archival snapshot (BenGER v1.0)"
