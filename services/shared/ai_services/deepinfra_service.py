@@ -315,7 +315,7 @@ class DeepInfraService(BaseAIService):
             return self._create_error_response(e, model_name, "DeepInfra")
 
     @async_retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
-    async def generate_structured(
+    async def _generate_structured_async(
         self,
         prompt: str,
         system_prompt: str,
@@ -439,7 +439,7 @@ Your response must be ONLY the JSON object, no other text before or after.
         except Exception as e:
             return self._create_error_response(e, model_name, "DeepInfra")
 
-    def generate_structured_sync(
+    def generate_structured(
         self,
         prompt: str,
         system_prompt: str,
@@ -449,13 +449,14 @@ Your response must be ONLY the JSON object, no other text before or after.
         temperature: float = 0.0,
         **kwargs
     ) -> Dict[str, Any]:
-        """Synchronous wrapper for generate_structured method."""
-        import asyncio
+        """Sync entry point matching `BaseAIService.generate_structured`. Delegates
+        to the async DeepInfra implementation via a private event loop so callers
+        don't need to know this provider is async under the hood."""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             return loop.run_until_complete(
-                self.generate_structured(prompt, system_prompt, json_schema, model_name, max_tokens, temperature, **kwargs)
+                self._generate_structured_async(prompt, system_prompt, json_schema, model_name, max_tokens, temperature, **kwargs)
             )
         finally:
             loop.close()
