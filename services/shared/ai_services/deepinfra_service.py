@@ -147,7 +147,7 @@ class DeepInfraService(BaseAIService):
         return self.client != None
 
     @async_retry_with_exponential_backoff(max_retries=5, base_delay=2.0)
-    async def generate(
+    async def _generate_async(
         self,
         prompt: str,
         system_prompt: str = "",
@@ -393,7 +393,7 @@ Your response must be ONLY the JSON object, no other text before or after.
             enhanced_system_prompt = system_prompt + format_instructions
 
             # Use the base generate method
-            result = await self.generate(
+            result = await self._generate_async(
                 prompt=prompt,
                 system_prompt=enhanced_system_prompt,
                 model_name=model_name,
@@ -460,8 +460,7 @@ Your response must be ONLY the JSON object, no other text before or after.
         finally:
             loop.close()
 
-    # Non-async wrapper for backward compatibility
-    def generate_sync(
+    def generate(
         self,
         prompt: str,
         system_prompt: str = "",
@@ -470,15 +469,14 @@ Your response must be ONLY the JSON object, no other text before or after.
         temperature: float = 0.0,
         **kwargs
     ) -> Dict[str, Any]:
-        """
-        Synchronous wrapper for generate method.
-        """
-        import asyncio
+        """Sync entry point matching `BaseAIService.generate`. Delegates to the
+        async DeepInfra implementation via a private event loop so callers don't
+        need to know this provider is async under the hood."""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             return loop.run_until_complete(
-                self.generate(prompt, system_prompt, model_name, max_tokens, temperature, **kwargs)
+                self._generate_async(prompt, system_prompt, model_name, max_tokens, temperature, **kwargs)
             )
         finally:
             loop.close()
