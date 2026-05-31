@@ -4,12 +4,13 @@ import csv
 import io
 import json
 import logging
+import os
 import tempfile
+import time
 import uuid
 import zipfile
 from datetime import datetime
-from io import BytesIO
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterator, List, Optional
 
 # Spool incoming import bodies in RAM up to this size; spill to disk above it.
 # Keeps small imports allocation-free (no disk hit, no regression vs the
@@ -18,6 +19,57 @@ from typing import Any, Dict, List
 _IMPORT_SPOOL_THRESHOLD = 4 * 1024 * 1024
 
 logger = logging.getLogger(__name__)
+
+
+def _logged_export_stream(
+    chunk_iter: Iterator[str],
+    *,
+    project_id: str,
+    user_id: str,
+    export_format: str,
+    counts: Optional[dict] = None,
+) -> Iterator[bytes]:
+    """Wrap an export chunk generator to emit start/completion/abort logs.
+
+    Yields UTF-8 *bytes* (encoding once here, so the byte tally is exact and
+    Starlette doesn't re-encode the str). A client disconnect surfaces as
+    GeneratorExit when the response is torn down mid-flight — logged as a
+    distinct WARNING from an internal error so aborted/partial downloads are
+    diagnosable. Before this, the 2026-05-31 Benchathon export OOMKilled the
+    pod and truncated silently with no server-side trace at all.
+    """
+    started = time.monotonic()
+    total_bytes = 0
+    logger.info(
+        "export start project=%s user=%s format=%s counts=%s",
+        project_id, user_id, export_format, counts or {},
+    )
+    try:
+        for chunk in chunk_iter:
+            data = chunk.encode("utf-8")
+            total_bytes += len(data)
+            yield data
+    except GeneratorExit:
+        logger.warning(
+            "export aborted (client disconnect) project=%s user=%s format=%s "
+            "bytes=%d elapsed=%.2fs",
+            project_id, user_id, export_format, total_bytes,
+            time.monotonic() - started,
+        )
+        raise
+    except Exception:
+        logger.exception(
+            "export failed project=%s user=%s format=%s bytes=%d elapsed=%.2fs",
+            project_id, user_id, export_format, total_bytes,
+            time.monotonic() - started,
+        )
+        raise
+    else:
+        logger.info(
+            "export complete project=%s user=%s format=%s bytes=%d elapsed=%.2fs",
+            project_id, user_id, export_format, total_bytes,
+            time.monotonic() - started,
+        )
 
 
 # Issue #964: Span annotation format conversion functions
@@ -133,12 +185,19 @@ def convert_from_label_studio_format(results: List[Dict[str, Any]]) -> List[Dict
 
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile  # noqa: E402
-from fastapi.responses import Response  # noqa: E402
+from fastapi.responses import Response, StreamingResponse  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from auth_module import require_user  # noqa: E402
 from auth_module.models import User as AuthUser  # noqa: E402
 from database import get_db  # noqa: E402
+from routers.projects._export_stream import (  # noqa: E402
+    stream_comprehensive_project_data_json,
+    stream_export_flat_csv,
+    stream_export_json,
+    stream_export_label_studio,
+    stream_export_txt,
+)
 from routers.projects.serializers import _parse_iso  # noqa: E402
 from models import (  # noqa: E402
     EvaluationJudgeRun,
@@ -168,7 +227,6 @@ from project_schemas import ProjectImportData  # noqa: E402
 from routers.projects.helpers import (  # noqa: E402
     check_project_accessible,
     check_project_write_access,
-    get_comprehensive_project_data,
     get_org_context_from_request,
     get_user_with_memberships,
 )
@@ -739,412 +797,143 @@ async def export_project(
     if not check_project_accessible(db, current_user, project_id, org_context):
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Get all tasks with annotations and generations
-    tasks = db.query(Task).filter(Task.project_id == project_id).all()
-
-    # Get all annotations for this project
-    annotations = db.query(Annotation).filter(Annotation.project_id == project_id).all()
-
-    # Get all generations for this project's tasks
-    task_ids = [task.id for task in tasks]
-    generations = (
-        db.query(Generation).filter(Generation.task_id.in_(task_ids)).all() if task_ids else []
-    )
-
-    # Get all questionnaire responses for this project
-    questionnaire_responses = (
-        db.query(PostAnnotationResponse)
-        .filter(PostAnnotationResponse.project_id == project_id)
-        .all()
-    )
-    # Build lookup by annotation_id for O(1) access
-    qr_by_annotation = {qr.annotation_id: qr for qr in questionnaire_responses}
-
-    # Get all evaluation runs and per-task evaluations for this project
-    evaluation_runs = (
-        db.query(EvaluationRun)
-        .filter(EvaluationRun.project_id == project_id)
-        .all()
-    )
-    eval_run_ids = [er.id for er in evaluation_runs]
-    task_evaluations = (
-        db.query(TaskEvaluation)
-        .filter(TaskEvaluation.evaluation_id.in_(eval_run_ids))
-        .all()
-        if eval_run_ids
-        else []
-    )
-
-    from routers.projects.serializers import (
-        build_evaluation_indexes,
-        build_judge_model_lookup,
-        serialize_annotation,
-        serialize_evaluation_run,
-        serialize_generation,
-        serialize_task,
-        serialize_task_evaluation,
-    )
-
-    eval_run_by_id = {er.id: er for er in evaluation_runs}
-    judge_model_lookup = build_judge_model_lookup(evaluation_runs, db)
-    te_by_task, te_by_generation = build_evaluation_indexes(task_evaluations)
-
-    # Build export data
-    export_data = {
-        "project": {
-            "id": project.id,
-            "title": project.title,
-            "description": project.description,
-            "created_at": (project.created_at.isoformat() if project.created_at else None),
-            "task_count": len(tasks),
-            "annotation_count": len(annotations),
-            "generation_count": len(generations),
-            "evaluation_run_count": len(evaluation_runs),
-            "task_evaluation_count": len(task_evaluations),
-            "label_config": project.label_config,
-        },
-        "evaluation_runs": [
-            serialize_evaluation_run(er, mode="data") for er in evaluation_runs
-        ],
-        "tasks": [],
-    }
-
-    # Add tasks with annotations and generations
-    for task in tasks:
-        task_data = serialize_task(task, mode="data")
-        task_data["annotations"] = []
-        task_data["generations"] = []
-        task_data["evaluations"] = []
-
-        # Add annotations for this task
-        task_annotations = [a for a in annotations if a.task_id == task.id]
-        for ann in task_annotations:
-            qr = qr_by_annotation.get(ann.id)
-            task_data["annotations"].append(
-                serialize_annotation(ann, mode="data", questionnaire_response=qr)
-            )
-
-        # Add generations for this task (with nested evaluations)
-        task_generations = [g for g in generations if g.task_id == task.id]
-        for gen in task_generations:
-            gen_evals = te_by_generation.get(gen.id, [])
-            eval_dicts = [
-                serialize_task_evaluation(
-                    te, mode="data",
-                    eval_run=eval_run_by_id.get(te.evaluation_id),
-                    judge_model_lookup=judge_model_lookup,
-                )
-                for te in gen_evals
-            ]
-            task_data["generations"].append(
-                serialize_generation(gen, mode="data", evaluations=eval_dicts)
-            )
-
-        # Add task-level evaluations (annotation/ground-truth evals without a generation)
-        for te in te_by_task.get(task.id, []):
-            if te.generation_id != None:  # noqa: E711
-                continue  # Already nested under the generation above
-            task_data["evaluations"].append(
-                serialize_task_evaluation(
-                    te, mode="data",
-                    eval_run=eval_run_by_id.get(te.evaluation_id),
-                    judge_model_lookup=judge_model_lookup,
-                )
-            )
-
-        export_data["tasks"].append(task_data)
-
-    # Top-level human-evaluation + Korrektur blocks so the data path is
-    # round-trip-complete (was previously a clone-only feature).
-    from routers.projects.serializers import (
-        serialize_human_evaluation_data,
-        serialize_korrektur_comment,
-    )
-    from project_models import KorrekturComment
-
-    export_data.update(
-        serialize_human_evaluation_data(db, project_id, task_ids)
-    )
-    export_data["korrektur_comments"] = [
-        serialize_korrektur_comment(c)
-        for c in db.query(KorrekturComment)
-        .filter(KorrekturComment.project_id == project_id)
-        .all()
-    ]
-
-    # Format the data based on requested format
+    # JSON path streams via the shared helper. The legacy in-memory builder
+    # below loaded the entire project (tasks + annotations + generations +
+    # task_evaluations) into one dict and json.dumps()-ed it, which peaked
+    # past the 3Gi API memory limit on the Benchathon project (~8k
+    # task_evaluations, ~400 MB output) and OOMKilled the pod mid-response.
+    # CSV/TSV/TXT/label_studio still use the legacy path — each has a
+    # per-row shape its own tests assert on and a separate refactor.
     if format == "json":
-        content = json.dumps(export_data, indent=2)
-        media_type = "application/json"
-        filename = f"{project.title.replace(' ', '_')}_export.json"
+        # All count queries pass whole-model classes (not column attributes
+        # or joins) so they stay mockable in the existing unit tests and
+        # issue cheap COUNT(*) round-trips. Task / EvaluationRun rows are
+        # small and we need their IDs for the in_() filters anyway, so we
+        # load them; Annotation / Generation / TaskEvaluation use .count()
+        # to avoid pulling row bodies for what is just a header tally.
+        project_tasks_for_counts = (
+            db.query(Task).filter(Task.project_id == project_id).all()
+        )
+        task_id_list = [t.id for t in project_tasks_for_counts]
+        evaluation_runs_for_counts = (
+            db.query(EvaluationRun)
+            .filter(EvaluationRun.project_id == project_id)
+            .all()
+        )
+        eval_run_ids_for_counts = [er.id for er in evaluation_runs_for_counts]
 
-    elif format == "csv":
-        # Flatten data for CSV
-        output = io.StringIO()
-        writer = csv.writer(output)
+        task_count = len(project_tasks_for_counts)
+        annotation_count = (
+            db.query(Annotation).filter(Annotation.project_id == project_id).count()
+        )
+        generation_count = (
+            db.query(Generation).filter(Generation.task_id.in_(task_id_list)).count()
+            if task_id_list
+            else 0
+        )
+        task_evaluation_count = (
+            db.query(TaskEvaluation)
+            .filter(TaskEvaluation.evaluation_id.in_(eval_run_ids_for_counts))
+            .count()
+            if eval_run_ids_for_counts
+            else 0
+        )
 
-        # Header with generation, questionnaire, and evaluation columns
-        csv_headers = [
-            "task_id",
-            "task_data",
-            "annotation_id",
-            "annotation_result",
-            "annotation_completed_by",
-            "annotation_created_at",
-            "questionnaire_response",
-            "generation_id",
-            "generation_model",
-            "generation_content",
-            "generation_created_at",
-            "evaluation_field",
-            "evaluation_metrics",
-            "evaluation_passed",
-        ]
-        writer.writerow(csv_headers)
+        header_fields = {
+            "project": {
+                "id": project.id,
+                "title": project.title,
+                "description": project.description,
+                "created_at": (
+                    project.created_at.isoformat() if project.created_at else None
+                ),
+                "task_count": task_count,
+                "annotation_count": annotation_count,
+                "generation_count": generation_count,
+                "evaluation_run_count": len(eval_run_ids_for_counts),
+                "task_evaluation_count": task_evaluation_count,
+                "label_config": project.label_config,
+            },
+        }
 
-        # Data rows
-        for task in export_data["tasks"]:
-            has_data = task["annotations"] or task["generations"] or task["evaluations"]
-            if has_data:
-                max_items = max(
-                    len(task["annotations"]),
-                    len(task["generations"]),
-                    len(task["evaluations"]),
-                    1,
-                )
-                for i in range(max_items):
-                    ann = task["annotations"][i] if i < len(task["annotations"]) else None
-                    gen = task["generations"][i] if i < len(task["generations"]) else None
-                    ev = task["evaluations"][i] if i < len(task["evaluations"]) else None
+        headers = {}
+        if download:
+            filename = f"{project.title.replace(' ', '_')}_export.json"
+            headers["Content-Disposition"] = f"attachment; filename={filename}"
 
-                    writer.writerow(
-                        [
-                            task["id"],
-                            json.dumps(task["data"]),
-                            ann["id"] if ann else "",
-                            json.dumps(ann["result"]) if ann else "",
-                            ann["completed_by"] if ann else "",
-                            ann["created_at"] if ann else "",
-                            json.dumps(ann["questionnaire_response"]) if ann and ann.get("questionnaire_response") else "",
-                            gen["id"] if gen else "",
-                            gen["model_id"] if gen else "",
-                            gen["response_content"] if gen else "",
-                            gen["created_at"] if gen else "",
-                            ev["field_name"] if ev else "",
-                            json.dumps(ev["metrics"]) if ev else "",
-                            ev["passed"] if ev else "",
-                        ]
-                    )
-            else:
-                # Task with no data
-                writer.writerow(
-                    [task["id"], json.dumps(task["data"])] + [""] * 12
-                )
+        return StreamingResponse(
+            _logged_export_stream(
+                stream_export_json(
+                    db, project_id, task_ids=None, header_fields=header_fields
+                ),
+                project_id=project_id,
+                user_id=current_user.id,
+                export_format="json",
+                counts={
+                    "tasks": task_count,
+                    "annotations": annotation_count,
+                    "generations": generation_count,
+                    "evaluation_runs": len(eval_run_ids_for_counts),
+                    "task_evaluations": task_evaluation_count,
+                },
+            ),
+            media_type="application/json",
+            headers=headers,
+        )
 
-        content = output.getvalue()
-        media_type = "text/csv"
-        filename = f"{project.title.replace(' ', '_')}_export.csv"
+    if format in ("csv", "tsv"):
+        delimiter = "," if format == "csv" else "\t"
+        media_type = "text/csv" if format == "csv" else "text/tab-separated-values"
+        ext = "csv" if format == "csv" else "tsv"
+        headers = {}
+        if download:
+            filename = f"{project.title.replace(' ', '_')}_export.{ext}"
+            headers["Content-Disposition"] = f"attachment; filename={filename}"
+        return StreamingResponse(
+            _logged_export_stream(
+                stream_export_flat_csv(db, project_id, delimiter=delimiter),
+                project_id=project_id,
+                user_id=current_user.id,
+                export_format=format,
+            ),
+            media_type=media_type,
+            headers=headers,
+        )
 
-    elif format == "tsv":
-        # Similar to CSV but tab-separated
-        output = io.StringIO()
-        writer = csv.writer(output, delimiter="\t")
+    if format == "label_studio":
+        headers = {}
+        if download:
+            filename = f"{project.title.replace(' ', '_')}_label_studio.json"
+            headers["Content-Disposition"] = f"attachment; filename={filename}"
+        return StreamingResponse(
+            _logged_export_stream(
+                stream_export_label_studio(db, project_id),
+                project_id=project_id,
+                user_id=current_user.id,
+                export_format="label_studio",
+            ),
+            media_type="application/json",
+            headers=headers,
+        )
 
-        # Header with generation, questionnaire, and evaluation columns
-        tsv_headers = [
-            "task_id",
-            "task_data",
-            "annotation_id",
-            "annotation_result",
-            "annotation_completed_by",
-            "annotation_created_at",
-            "questionnaire_response",
-            "generation_id",
-            "generation_model",
-            "generation_content",
-            "generation_created_at",
-            "evaluation_field",
-            "evaluation_metrics",
-            "evaluation_passed",
-        ]
-        writer.writerow(tsv_headers)
-
-        # Data rows
-        for task in export_data["tasks"]:
-            has_data = task["annotations"] or task["generations"] or task["evaluations"]
-            if has_data:
-                max_items = max(
-                    len(task["annotations"]),
-                    len(task["generations"]),
-                    len(task["evaluations"]),
-                    1,
-                )
-                for i in range(max_items):
-                    ann = task["annotations"][i] if i < len(task["annotations"]) else None
-                    gen = task["generations"][i] if i < len(task["generations"]) else None
-                    ev = task["evaluations"][i] if i < len(task["evaluations"]) else None
-
-                    writer.writerow(
-                        [
-                            task["id"],
-                            json.dumps(task["data"]),
-                            ann["id"] if ann else "",
-                            json.dumps(ann["result"]) if ann else "",
-                            ann["completed_by"] if ann else "",
-                            ann["created_at"] if ann else "",
-                            json.dumps(ann["questionnaire_response"]) if ann and ann.get("questionnaire_response") else "",
-                            gen["id"] if gen else "",
-                            gen["model_id"] if gen else "",
-                            gen["response_content"] if gen else "",
-                            gen["created_at"] if gen else "",
-                            ev["field_name"] if ev else "",
-                            json.dumps(ev["metrics"]) if ev else "",
-                            ev["passed"] if ev else "",
-                        ]
-                    )
-            else:
-                # Task with no data
-                writer.writerow(
-                    [task["id"], json.dumps(task["data"])] + [""] * 12
-                )
-
-        content = output.getvalue()
-        media_type = "text/tab-separated-values"
-        filename = f"{project.title.replace(' ', '_')}_export.tsv"
-
-    elif format == "label_studio":
-        # Label Studio JSON format with BenGER extensions
-        ls_data = []
-
-        for task in tasks:
-            # Get annotations for this task
-            task_annotations = [a for a in annotations if a.task_id == task.id]
-
-            # Get generations for this task
-            task_generations = [g for g in generations if g.task_id == task.id]
-
-            # Build Label Studio compatible task object
-            ls_task = {
-                "id": task.inner_id or task.id,  # Use inner_id for Label Studio compatibility
-                "data": task.data,
-                "annotations": [],
-                "predictions": [],  # Label Studio predictions field
-                "meta": task.meta or {},  # Include metadata
-                "created_at": task.created_at.isoformat() if task.created_at else None,
-                "updated_at": task.updated_at.isoformat() if task.updated_at else None,
-                "is_labeled": task.is_labeled,
-                "project": project_id,
-            }
-
-            # Add annotations in Label Studio format
-            for ann in task_annotations:
-                # Issue #964: Convert span annotations to Label Studio format
-                converted_result = convert_to_label_studio_format(ann.result)
-                ls_annotation = {
-                    "id": ann.id,
-                    "completed_by": ann.completed_by,
-                    "result": converted_result,
-                    "was_cancelled": ann.was_cancelled,
-                    "ground_truth": ann.ground_truth,
-                    "created_at": ann.created_at.isoformat() if ann.created_at else None,
-                    "updated_at": ann.updated_at.isoformat() if ann.updated_at else None,
-                    "lead_time": ann.lead_time,
-                    "task": task.inner_id or task.id,
-                    "project": project_id,
-                }
-
-                # Add optional fields if present
-                if ann.draft:
-                    ls_annotation["draft"] = ann.draft
-                if ann.prediction_scores:
-                    ls_annotation["prediction"] = ann.prediction_scores
-                # Add questionnaire response if present
-                qr = qr_by_annotation.get(ann.id)
-                if qr:
-                    ls_annotation["questionnaire_response"] = {
-                        "result": qr.result,
-                        "created_at": qr.created_at.isoformat() if qr.created_at else None,
-                    }
-
-                ls_task["annotations"].append(ls_annotation)
-
-            # Add generations as a BenGER-specific extension
-            if task_generations:
-                ls_task["generations"] = []
-                for gen in task_generations:
-                    ls_generation = {
-                        "id": gen.id,
-                        "model_id": gen.model_id,
-                        "response_content": gen.response_content,
-                        # prompt_id removed in issue #759 - prompts now in project.generation_config (issue #817)
-                        "case_data": gen.case_data,
-                        "created_at": gen.created_at.isoformat() if gen.created_at else None,
-                        "response_metadata": gen.response_metadata,
-                    }
-                    ls_task["generations"].append(ls_generation)
-
-            # Add evaluations as a BenGER-specific extension
-            task_evals = te_by_task.get(task.id, [])
-            if task_evals:
-                ls_task["evaluations"] = []
-                for te in task_evals:
-                    ls_task["evaluations"].append(
-                        {
-                            "id": te.id,
-                            "evaluation_id": te.evaluation_id,
-                            "generation_id": te.generation_id,
-                            "field_name": te.field_name,
-                            "answer_type": te.answer_type,
-                            "ground_truth": te.ground_truth,
-                            "prediction": te.prediction,
-                            "metrics": te.metrics,
-                            "passed": te.passed,
-                            "confidence_score": te.confidence_score,
-                            "created_at": te.created_at.isoformat() if te.created_at else None,
-                        }
-                    )
-
-            ls_data.append(ls_task)
-
-        content = json.dumps(ls_data, indent=2, ensure_ascii=False)
-        media_type = "application/json"
-        filename = f"{project.title.replace(' ', '_')}_label_studio.json"
-
-    else:
-        # Plain text format
-        lines = []
-        lines.append(f"Project: {project.title}")
-        lines.append(f"Description: {project.description or 'None'}")
-        lines.append(f"Total Tasks: {len(tasks)}")
-        lines.append(f"Total Annotations: {len(annotations)}")
-        lines.append("-" * 50)
-
-        for task in export_data["tasks"]:
-            lines.append(f"\nTask {task['id']}:")
-            lines.append(f"Data: {json.dumps(task['data'])}")
-            if task["annotations"]:
-                lines.append(f"Annotations ({len(task['annotations'])}):")
-                for ann in task["annotations"]:
-                    lines.append(f"  - {ann['id']}: {json.dumps(ann['result'])}")
-                    if ann.get("questionnaire_response"):
-                        lines.append(f"    Questionnaire: {json.dumps(ann['questionnaire_response']['result'])}")
-            else:
-                lines.append("No annotations")
-            if task["evaluations"]:
-                lines.append(f"Evaluations ({len(task['evaluations'])}):")
-                for ev in task["evaluations"]:
-                    lines.append(f"  - {ev['field_name']}: passed={ev['passed']} metrics={json.dumps(ev['metrics'])}")
-
-        content = "\n".join(lines)
-        media_type = "text/plain"
-        filename = f"{project.title.replace(' ', '_')}_export.txt"
-
-    # Return response
+    # txt — the only remaining format (json/csv/tsv/label_studio short-circuit
+    # above). Streamed too so peak memory stays bounded; the Query() pattern
+    # rejects anything else before we ever reach this point.
     headers = {}
     if download:
+        filename = f"{project.title.replace(' ', '_')}_export.txt"
         headers["Content-Disposition"] = f"attachment; filename={filename}"
+    return StreamingResponse(
+        _logged_export_stream(
+            stream_export_txt(db, project_id, project.title, project.description),
+            project_id=project_id,
+            user_id=current_user.id,
+            export_format="txt",
+        ),
+        media_type="text/plain",
+        headers=headers,
+    )
 
-    return Response(content=content, media_type=media_type, headers=headers)
 
 
 @router.post("/bulk-export")
@@ -1313,66 +1102,91 @@ async def bulk_export_full_projects(
         f"[EXPORT DEBUG] Current user: {current_user.email}, is_superadmin: {current_user.is_superadmin}"
     )
 
-    # Create ZIP archive in memory
-    zip_buffer = BytesIO()
-
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        exported_count = 0
-
-        for project_id in project_ids:
-            try:
-                print(f"[EXPORT DEBUG] Processing project_id: {project_id}")
-
-                # Check if project exists and user has access
-                project = db.query(Project).filter(Project.id == project_id).first()
-                if not project:
-                    print(f"[EXPORT DEBUG] Project {project_id} not found in database")
-                    continue
-
-                # Check access permission via org-context-aware helper
-                if not check_project_accessible(db, current_user, project_id, org_context):
-                    print(f"[EXPORT DEBUG] Access denied for project {project_id}, skipping")
-                    continue
-
-                # Get comprehensive project data
-                print(f"[EXPORT DEBUG] Getting comprehensive data for project {project_id}")
-                project_export_data = get_comprehensive_project_data(db, project_id)
-
-                # Create filename from project title
-                safe_title = "".join(
-                    c for c in project.title if c.isalnum() or c in (' ', '-', '_')
-                ).rstrip()
-                safe_title = safe_title[:50]  # Limit filename length
-                filename = f"{safe_title}_{project_id[:8]}.json"
-
-                # Add to ZIP
-                project_json = json.dumps(project_export_data, indent=2, ensure_ascii=False)
-                zip_file.writestr(filename, project_json)
-
-                exported_count += 1
-
-            except Exception as e:
-                # Log error but continue with other projects
-                print(f"[EXPORT DEBUG] Error exporting project {project_id}: {str(e)}")
-                import traceback
-
-                print(f"[EXPORT DEBUG] Traceback: {traceback.format_exc()}")
-                continue
-
-    if exported_count == 0:
-        raise HTTPException(status_code=404, detail="No projects could be exported")
-
-    # Prepare ZIP for download
-    zip_buffer.seek(0)
-    zip_content = zip_buffer.getvalue()
-
-    # Generate filename
+    # Write the ZIP to a tempfile on disk and stream each project's JSON
+    # directly into its zip entry via `json.dump`, which writes chunks as it
+    # walks the object tree. Previous revisions held the full zip in a
+    # BytesIO AND `json.dumps()`-d each project's dict into a giant string
+    # before adding it — for a Benchathon-sized project that's ~3× the
+    # row-set's RAM and OOMKilled the API pod on 2026-05-31. With the
+    # on-disk zip + incremental writer, peak memory now scales with one
+    # project's Python dict, not with N projects' serialized output.
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     zip_filename = f"benger_projects_export_{timestamp}.zip"
+    zip_fd = tempfile.NamedTemporaryFile(
+        prefix="benger-bulk-export-full-", suffix=".zip", delete=False
+    )
+    zip_path = zip_fd.name
+    zip_fd.close()  # FileResponse opens it; we just needed the path.
 
-    return Response(
-        content=zip_content,
+    exported_count = 0
+    try:
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for project_id in project_ids:
+                try:
+                    print(f"[EXPORT DEBUG] Processing project_id: {project_id}")
+
+                    project = db.query(Project).filter(Project.id == project_id).first()
+                    if not project:
+                        print(f"[EXPORT DEBUG] Project {project_id} not found in database")
+                        continue
+
+                    if not check_project_accessible(db, current_user, project_id, org_context):
+                        print(f"[EXPORT DEBUG] Access denied for project {project_id}, skipping")
+                        continue
+
+                    print(f"[EXPORT DEBUG] Streaming comprehensive data for project {project_id}")
+
+                    safe_title = "".join(
+                        c for c in project.title if c.isalnum() or c in (' ', '-', '_')
+                    ).rstrip()
+                    safe_title = safe_title[:50]
+                    entry_name = f"{safe_title}_{project_id[:8]}.json"
+
+                    # Stream each project's JSON straight into its zip entry
+                    # via `stream_comprehensive_project_data_json` — the helper
+                    # yields chunks with `yield_per` so the full clone payload
+                    # (tasks + annotations + generations + task_evaluations
+                    # in mode="full") never lives in RAM as one dict. zip.open(
+                    # ..., 'w') returns a binary writer; we encode each text
+                    # chunk to UTF-8 and write directly so we don't stack a
+                    # TextIOWrapper buffer on top of zip's deflate stream.
+                    with zip_file.open(entry_name, 'w') as raw_entry:
+                        for chunk in stream_comprehensive_project_data_json(
+                            db, project_id
+                        ):
+                            raw_entry.write(chunk.encode("utf-8"))
+
+                    exported_count += 1
+
+                except Exception as e:
+                    print(f"[EXPORT DEBUG] Error exporting project {project_id}: {str(e)}")
+                    import traceback
+
+                    print(f"[EXPORT DEBUG] Traceback: {traceback.format_exc()}")
+                    continue
+    except BaseException:
+        # If anything blows up mid-build, don't leak the tempfile.
+        try:
+            os.unlink(zip_path)
+        except OSError:
+            pass
+        raise
+
+    if exported_count == 0:
+        try:
+            os.unlink(zip_path)
+        except OSError:
+            pass
+        raise HTTPException(status_code=404, detail="No projects could be exported")
+
+    from fastapi.responses import FileResponse
+    from starlette.background import BackgroundTask
+
+    return FileResponse(
+        path=zip_path,
         media_type="application/zip",
+        filename=zip_filename,
+        background=BackgroundTask(os.unlink, zip_path),
         headers={"Content-Disposition": f"attachment; filename={zip_filename}"},
     )
 
