@@ -250,6 +250,7 @@ export class ApiClient {
     this.put = safeBind(this.authClient, 'put')
     this.patch = safeBind(this.authClient, 'patch')
     this.delete = safeBind(this.authClient, 'delete')
+    this.requestRaw = safeBind(this.authClient, 'requestRaw')
     this.updateUserRole = safeBind(this.usersClient, 'updateUserRole')
     this.updateUserSuperadminStatus = safeBind(
       this.usersClient,
@@ -578,6 +579,9 @@ export class ApiClient {
   put: any
   patch: any
   delete: any
+  // Unbuffered streaming fetch — returns the raw Response (no body buffering,
+  // no 30s timeout, no cache). Used for large file exports.
+  requestRaw: any
 
   // User management methods
   updateUserRole: any

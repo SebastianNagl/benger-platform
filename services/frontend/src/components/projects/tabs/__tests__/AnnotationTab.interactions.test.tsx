@@ -44,6 +44,7 @@ jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
     export: jest.fn(),
     bulkExportTasks: jest.fn(),
+    streamExportTasks: jest.fn(),
     bulkDeleteTasks: jest.fn(),
     bulkArchiveTasks: jest.fn(),
     getMembers: jest.fn(),
@@ -409,6 +410,12 @@ function setupMocks() {
 
   ;(projectsAPI.export as jest.Mock).mockResolvedValue(new Blob(['test']))
   ;(projectsAPI.bulkExportTasks as jest.Mock).mockResolvedValue(new Blob(['test']))
+  ;(projectsAPI.streamExportTasks as jest.Mock).mockImplementation(
+    (_projectId, _taskIds, _name, callbacks) => {
+      callbacks?.onStart?.()
+      return Promise.resolve({ bytesWritten: 4, savedVia: 'blob' })
+    }
+  )
   ;(projectsAPI.bulkDeleteTasks as jest.Mock).mockResolvedValue({ deleted: 1 })
   ;(projectsAPI.bulkArchiveTasks as jest.Mock).mockResolvedValue({ archived: 1 })
   ;(projectsAPI.getMembers as jest.Mock).mockResolvedValue([{ id: 'user-1', username: 'testuser' }])
@@ -452,7 +459,12 @@ describe('AnnotationTab - interaction coverage', () => {
       fireEvent.click(exportBtn)
 
       await waitFor(() => {
-        expect(projectsAPI.bulkExportTasks).toHaveBeenCalledWith('project-1', expect.any(Array), 'json')
+        expect(projectsAPI.streamExportTasks).toHaveBeenCalledWith(
+          'project-1',
+          expect.any(Array),
+          expect.any(String),
+          expect.any(Object)
+        )
       })
       expect(mockStartProgress).toHaveBeenCalled()
       expect(mockCompleteProgress).toHaveBeenCalledWith(expect.any(String), 'success')
@@ -471,7 +483,7 @@ describe('AnnotationTab - interaction coverage', () => {
     })
 
     it('handles export failure', async () => {
-      ;(projectsAPI.bulkExportTasks as jest.Mock).mockRejectedValue(new Error('Network error'))
+      ;(projectsAPI.streamExportTasks as jest.Mock).mockRejectedValue(new Error('Network error'))
       await renderAndWaitForTasks()
 
       fireEvent.click(screen.getByTestId('export-button'))
@@ -494,13 +506,18 @@ describe('AnnotationTab - interaction coverage', () => {
       fireEvent.click(screen.getByTestId('bulk-export'))
 
       await waitFor(() => {
-        expect(projectsAPI.bulkExportTasks).toHaveBeenCalledWith('project-1', expect.any(Array), 'json')
+        expect(projectsAPI.streamExportTasks).toHaveBeenCalledWith(
+          'project-1',
+          expect.any(Array),
+          expect.any(String),
+          expect.any(Object)
+        )
       })
       expect(mockAddToast).toHaveBeenCalledWith(expect.any(String), 'success')
     })
 
     it('handles bulk export failure', async () => {
-      ;(projectsAPI.bulkExportTasks as jest.Mock).mockRejectedValue(new Error('Export failed'))
+      ;(projectsAPI.streamExportTasks as jest.Mock).mockRejectedValue(new Error('Export failed'))
       await renderAndWaitForTasks()
 
       const checkboxes = screen.getAllByRole('checkbox')

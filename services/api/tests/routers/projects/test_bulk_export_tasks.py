@@ -856,3 +856,39 @@ class TestBulkExportTasks:
         assert task_level_eval["evaluation_run_id"] == eval_run.id
         assert task_level_eval["evaluated_model"] == "gpt-4"
         assert task_level_eval["judge_model"] is None  # judge_run points to non-judge EJR
+
+    def test_export_json_ends_with_completeness_sentinel(
+        self, tasks_with_both, test_db_session, test_project
+    ):
+        """A complete export must carry the trailing `export_complete` marker.
+
+        The streaming download client uses this sentinel to tell a clean
+        end-of-stream from a proxy-truncated file — whose tail is an innocuous
+        `"evaluations": []}` that looks just like a valid close. Regressing the
+        marker (or emitting anything after it) would reintroduce the silent
+        truncation the marker exists to catch.
+        """
+        from unittest.mock import Mock
+
+        from routers.projects.tasks import bulk_export_tasks
+
+        session = test_db_session
+        data = tasks_with_both
+        project_id = test_project.id
+        task_ids = [t.id for t in data["tasks"]]
+        request_data = {"task_ids": task_ids, "format": "json"}
+
+        mock_user = Mock()
+        mock_user.id = data["tasks"][0].created_by
+
+        response = bulk_export_tasks(
+            project_id, request_data, request=_make_mock_request(),
+            current_user=mock_user, db=session,
+        )
+        content = _collect_stream(response)
+
+        export_data = json.loads(content)
+        assert export_data.get("export_complete") is True
+        # Must be the very last thing emitted so a client can detect truncation
+        # by inspecting only the tail of the stream.
+        assert content.rstrip().endswith('"export_complete": true}')

@@ -41,6 +41,7 @@ jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
     export: jest.fn(),
     bulkExportTasks: jest.fn(),
+    streamExportTasks: jest.fn(),
     bulkDeleteTasks: jest.fn(),
     bulkArchiveTasks: jest.fn(),
     getMembers: jest.fn(),
@@ -378,6 +379,12 @@ describe('AnnotationTab - Coverage', () => {
 
     ;(projectsAPI.export as jest.Mock).mockResolvedValue(new Blob(['test']))
     ;(projectsAPI.bulkExportTasks as jest.Mock).mockResolvedValue(new Blob(['test']))
+    ;(projectsAPI.streamExportTasks as jest.Mock).mockImplementation(
+      (_projectId, _taskIds, _name, callbacks) => {
+        callbacks?.onStart?.()
+        return Promise.resolve({ bytesWritten: 4, savedVia: 'blob' })
+      }
+    )
     ;(projectsAPI.bulkDeleteTasks as jest.Mock).mockResolvedValue({ deleted: 1 })
     ;(projectsAPI.bulkArchiveTasks as jest.Mock).mockResolvedValue({ archived: 1 })
     ;(projectsAPI.getMembers as jest.Mock).mockResolvedValue([])

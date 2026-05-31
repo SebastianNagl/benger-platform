@@ -232,7 +232,14 @@ def stream_export_json(
         yield ("" if first else ",") + json.dumps(serialize_korrektur_comment(kc))
         first = False
         db.expunge(kc)
-    yield "]}"
+    # `export_complete` is a completeness sentinel, not data. A multi-GB export
+    # that gets cut mid-stream by a proxy/connection drop can be saved by the
+    # browser as a "successful" but truncated file whose tail (a task object's
+    # `"evaluations": []}`) is indistinguishable from a clean end (`]}`). The
+    # download client only treats a file as complete when this trailing marker
+    # is present, so a severed stream is surfaced as an error instead of a
+    # silently-corrupt download. Keep it the LAST thing emitted.
+    yield '], "export_complete": true}'
 
 
 # Per-row column layout used by GET /{project_id}/export?format=csv|tsv.
