@@ -127,31 +127,37 @@ api:
 
 workers:
   name: workers
-  replicaCount: 1
-  # Default kept at 4 to fit the 12 Gi worker memory limit for evals
-  # that load all three embedding-based evaluators (BERTScore +
-  # MoverScore + sentence-transformers) — each fork's full RSS reaches
-  # ~1.5–2 GB under those workloads (see the resources comment below;
-  # the bare ~600 MB figure is just weights, not tokenizer caches +
-  # SQLAlchemy buffers + Python overhead).
+  replicaCount: 2
+  # Concurrency = number of cell-eval forks per worker pod. Each fork that
+  # loads embedding evaluators (BERTScore + MoverScore + sentence-
+  # transformers) reaches ~1.5–2 GB RSS; even an llm_judge-only run grows
+  # well past the bare ~600 MB of weights once tokenizer caches +
+  # SQLAlchemy buffers + Python overhead are counted.
   #
-  # The per-cell fan-out (PR #94) parallelizes evaluation across cells
-  # rather than relying on multi-fork concurrency, but for workloads
-  # that *don't* load embedding metrics (e.g. ZJS Fälle: llm_judge_
-  # falloesung only), operators can safely bump this to 16 to saturate
-  # the chord faster:
+  # The per-cell fan-out (PR #94) already parallelizes evaluation across
+  # cells, so concurrency is NOT the throughput lever it looks like —
+  # raising it only multiplies peak memory.
   #
-  #   kubectl patch deployment/benger-workers -n benger --type=json \
-  #     -p '[{"op": "replace", "path": "/spec/template/spec/containers/0/command",
-  #          "value": ["celery","-A","tasks","worker","--loglevel=info",
-  #                    "--concurrency=16","-Q",
-  #                    "celery,emails,default,generation,evaluation"]}]'
-  #
-  # A future change can either (a) auto-tune concurrency by inspecting
-  # the config's metric set at orchestrator dispatch, or (b) raise the
-  # memory limit to ~24 Gi if the host has headroom (currently 22 Gi
-  # total / ~17 Gi free, so a 24 Gi pod wouldn't fit).
-  concurrency: 4
+  # History on the single 22 Gi node: 2026-05-31 the live deploy was
+  # hand-patched to concurrency=8 / 18Gi and kernel-OOM-cascaded the node,
+  # taking api + redis down with 503s. Reverting to concurrency=4 with a
+  # 6Gi×2 shape STILL OOM-restarted a worker mid-run on an llm_judge-only
+  # ZJS Fälle run, and acks_late requeue fanned that restart into a
+  # cascade across both replicas. concurrency=2 caps one pod's peak
+  # (~3–4 GB under embedding load) safely under the 6Gi limit; 2 replicas
+  # × 6Gi = 12 Gi fits the node with room for api/pg/redis. For more
+  # throughput add a node or replica — never raise concurrency or memory
+  # past what one node's RAM can hold. A future change can auto-tune
+  # concurrency from the config's metric set at orchestrator dispatch.
+  concurrency: 2
+  # Recycle each worker process after this many tasks so leaked memory
+  # (SQLAlchemy sessions, response buffers, per-task allocations that
+  # aren't freed) is reclaimed instead of accumulating until OOM. Before
+  # 2026-05-31 there was no recycling and the worker grew unbounded toward
+  # its limit. 20 keeps recycling aggressive enough to hold the leak well
+  # under the 6Gi limit; raising it lets peak drift back up under embedding
+  # loads.
+  maxTasksPerChild: 20
   deploymentStrategy:
     type: RollingUpdate
     rollingUpdate:
@@ -162,16 +168,17 @@ workers:
     pullPolicy: IfNotPresent
     tag: latest
   resources:
-    # Embedding-based metrics each load their own ~600MB model into the
-    # forked worker process. With BERTScore + MoverScore + semantic
-    # similarity active and `concurrency=4` forks, peak resident memory
-    # easily reaches ~6-8 GB. The 8Gi limit OOM'd in practice; 12Gi
-    # gives headroom for all three loaded simultaneously plus tokenizer
-    # caches and SQLAlchemy buffers. Server has 22 Gi total / ~17 Gi
-    # free, so 12 Gi fits comfortably.
+    # Sized together with `concurrency` above, not independently. Each fork
+    # under embedding load peaks ~1.5–2 GB; with concurrency=2 a pod's worst
+    # case is ~3–4 GB, which sits safely under a 6Gi limit (headroom for
+    # tokenizer caches + SQLAlchemy buffers + Python overhead). Two replicas
+    # × 6Gi = 12 Gi of the 22 Gi node, leaving room for api/pg/redis.
+    # Do NOT raise memory to "buy" more concurrency — a bigger limit just
+    # lets one pod consume more of the shared node and re-opens the
+    # 2026-05-31 OOM-cascade path. Add a node/replica for throughput instead.
     limits:
-      cpu: 4000m
-      memory: 12Gi
+      cpu: 6000m
+      memory: 6Gi
     requests:
       cpu: 1000m
       memory: 4Gi
