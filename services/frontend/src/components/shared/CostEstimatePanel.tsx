@@ -218,10 +218,13 @@ export function CostEstimatePanel({
               // actual cell count; surface that instead of the project-wide
               // task count so the breakdown matches the dollar number.
               if (estimate.subject_count > 0) {
-                const tpl = t('costEstimate.breakdownCells', '{cells} Zellen × {runs} Lauf/Läufe × {models} Modell(e)')
+                // Runs are folded per-judge into the backend's per-model cell
+                // count (issue #132), so we no longer surface a separate
+                // "× runs" multiplier — it would mislead about how the dollar
+                // figure is composed.
+                const tpl = t('costEstimate.breakdownCells', '{cells} Zellen über {models} Judge-Modell(e)')
                 return String(tpl)
                   .replace('{cells}', String(estimate.subject_count))
-                  .replace('{runs}', String(estimate.runs_per_call))
                   .replace('{models}', String(estimate.per_model.length))
               }
               const tpl = t('costEstimate.breakdown', '{tasks} Tasks × {runs} Lauf/Läufe × {models} Modell(e)')

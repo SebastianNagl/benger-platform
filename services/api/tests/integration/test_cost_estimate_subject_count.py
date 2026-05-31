@@ -28,7 +28,15 @@ from typing import Dict, List
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from models import Generation, LLMModel, ResponseGeneration, User
+from models import (
+    EvaluationJudgeRun,
+    EvaluationRun,
+    Generation,
+    LLMModel,
+    ResponseGeneration,
+    TaskEvaluation,
+    User,
+)
 from project_models import Annotation, Project, ProjectOrganization, Task
 
 
@@ -361,6 +369,338 @@ class TestSubjectCount:
             data["expected_generation_count"] + data["expected_annotation_count"]
         )
         assert body["subject_count"] == expected
+
+
+# ---------------------------------------------------------------------------
+# Issue #132 regression helpers and tests
+# ---------------------------------------------------------------------------
+
+
+JUDGE_A = "test-judge-a"
+JUDGE_B = "test-judge-b"
+
+
+def _set_project_judge_configs(
+    test_db: Session, project: Project, configs: List[Dict],
+) -> None:
+    """Set `project.evaluation_config.evaluation_configs` so the cost
+    endpoint's `_load_llm_judge_configs` can find these configs.
+
+    Each config dict needs: id, metric, prediction_fields, judges:[{judge_model_id, runs}].
+    """
+    project.evaluation_config = {"evaluation_configs": configs}
+    test_db.add(project)
+    test_db.commit()
+    test_db.refresh(project)
+
+
+def _seed_scored_cells(
+    test_db: Session,
+    project: Project,
+    judge_model_id: str,
+    *,
+    config_id: str,
+    pred_field: str,
+    reference_field: str = "musterloesung",
+    generation_ids: List[str] = (),
+    annotation_ids: List[str] = (),
+) -> None:
+    """Create EvaluationRun + EvaluationJudgeRun + TaskEvaluation rows
+    that look identical to what the worker writes under
+    `field_name = "{config_id}|{pred_field}|{reference_field}"`.
+
+    The skip-set query in `_already_scored_subjects` filters on this
+    field_name shape, the project_id (via the EvaluationRun join),
+    metrics is not null, and error_message is null.
+    """
+    admin_id = project.created_by
+    eval_run = EvaluationRun(
+        id=str(uuid.uuid4()),
+        project_id=project.id,
+        model_id=judge_model_id,
+        evaluation_type_ids=["llm_judge_falloesung"],
+        metrics={"placeholder": 1.0},
+        status="completed",
+        created_by=admin_id,
+    )
+    test_db.add(eval_run)
+    test_db.flush()
+    judge_run = EvaluationJudgeRun(
+        id=str(uuid.uuid4()),
+        evaluation_id=eval_run.id,
+        judge_model_id=judge_model_id,
+        run_index=0,
+        status="completed",
+    )
+    test_db.add(judge_run)
+    test_db.flush()
+
+    field_name = f"{config_id}|{pred_field}|{reference_field}"
+    # TaskEvaluation has several NOT NULL columns the worker fills in; we
+    # only care that the skip-set query's WHERE clauses are satisfied
+    # (project_id via EvaluationRun join, field_name LIKE pattern, metrics
+    # not null, error_message null, subject_col not null), but the table
+    # constraints still require task_id/answer_type/ground_truth/etc.
+    gen_to_task: Dict[str, str] = dict(
+        test_db.query(Generation.id, Generation.task_id)
+        .filter(Generation.id.in_(list(generation_ids) or ["__none__"]))
+        .all()
+    )
+    ann_to_task: Dict[str, str] = dict(
+        test_db.query(Annotation.id, Annotation.task_id)
+        .filter(Annotation.id.in_(list(annotation_ids) or ["__none__"]))
+        .all()
+    )
+    for gid in generation_ids:
+        test_db.add(TaskEvaluation(
+            id=str(uuid.uuid4()),
+            evaluation_id=eval_run.id,
+            judge_run_id=judge_run.id,
+            task_id=gen_to_task[gid],
+            generation_id=gid,
+            field_name=field_name,
+            answer_type="long_text",
+            ground_truth={},
+            prediction={},
+            passed=True,
+            metrics={"llm_judge_falloesung": {"value": 0.8, "error": None}},
+            error_message=None,
+        ))
+    for aid in annotation_ids:
+        test_db.add(TaskEvaluation(
+            id=str(uuid.uuid4()),
+            evaluation_id=eval_run.id,
+            judge_run_id=judge_run.id,
+            task_id=ann_to_task[aid],
+            annotation_id=aid,
+            field_name=field_name,
+            answer_type="long_text",
+            ground_truth={},
+            prediction={},
+            passed=True,
+            metrics={"llm_judge_falloesung": {"value": 0.7, "error": None}},
+            error_message=None,
+        ))
+    test_db.commit()
+
+
+def _per_model_cells(body: Dict, judge_id: str) -> int:
+    """Pluck the `cells_to_generate` for a specific judge from the response."""
+    rows = [m for m in body["per_model"] if m["model_id"] == judge_id]
+    assert rows, f"judge {judge_id} not in per_model: {body['per_model']}"
+    return rows[0]["cells_to_generate"]
+
+
+class TestEvaluationJudgeCalls:
+    """Issue #132: `_count_evaluation_judge_calls` regression tests.
+
+    These pin the per-judge cell-count behavior that drives the dollar
+    figure. Pre-fix the estimator over-counted by ~63x on partially-
+    covered projects; each test below kills one defect.
+    """
+
+    def test_missing_subtracts_per_config(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        """Defect 3: skip-set must key off `config_id`, not metric prefix.
+        Two configs share the same metric; one is fully covered, the new
+        one is empty. The covered config's cells must NOT be credited to
+        the new config.
+        """
+        _seed_judge_pricing(test_db, JUDGE_A)
+        data = _seed_project_with_subjects(test_db, test_users, test_org)
+        covered_cfg_id = "llm_judge_falloesung-covered-aaa"
+        new_cfg_id = "llm_judge_falloesung-new-bbb"
+        _set_project_judge_configs(test_db, data["project"], [
+            {
+                "id": covered_cfg_id,
+                "enabled": True,
+                "metric": "llm_judge_falloesung",
+                "prediction_fields": ["__all_model__"],
+                "metric_parameters": {"judges": [{"judge_model_id": JUDGE_A, "runs": 1}]},
+            },
+            {
+                "id": new_cfg_id,
+                "enabled": True,
+                "metric": "llm_judge_falloesung",
+                "prediction_fields": ["__all_model__"],
+                "metric_parameters": {"judges": [{"judge_model_id": JUDGE_A, "runs": 1}]},
+            },
+        ])
+        # Cover every generation under the covered config only.
+        all_gen_ids = [g.id for g in test_db.query(Generation).join(
+            Task, Generation.task_id == Task.id
+        ).filter(Task.project_id == data["project"].id).all()]
+        _seed_scored_cells(
+            test_db, data["project"], JUDGE_A,
+            config_id=covered_cfg_id, pred_field="__all_model__",
+            generation_ids=all_gen_ids,
+        )
+
+        body = _post_estimate(
+            client, auth_headers,
+            project_id=data["project"].id,
+            mode="evaluation",
+            judge_models=[JUDGE_A],
+            generation_mode="missing",
+            runs_per_call=1,
+            evaluation_configs=[{
+                "metric": "llm_judge_falloesung",
+                "prediction_fields": ["__all_model__"],
+            }],
+        )
+        # Pre-fix: skip-set matched both configs via metric_id wildcard, so
+        # `new_cfg`'s subjects also looked "done" — missing reported 0,
+        # under-counting. Post-fix: covered_cfg subtracts only its own rows
+        # (0 missing), new_cfg subtracts nothing (full pool missing).
+        # Total cells = 0 (covered) + N_gens (new) = N_gens.
+        assert _per_model_cells(body, JUDGE_A) == data["expected_generation_count"]
+
+    def test_bare_pred_field_subtracts_both_arms(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        """Defect 3 sub: bare prediction_field rows are stored under the
+        same composite for both arms (`{cfg}|loesung|...`), distinguished
+        by which subject_col is populated. Pre-fix the human-arm subquery
+        looked up `human:loesung` which the worker never writes, so
+        annotation rows under bare-field configs never got subtracted.
+        """
+        _seed_judge_pricing(test_db, JUDGE_A)
+        data = _seed_project_with_subjects(test_db, test_users, test_org)
+        cfg_id = "llm_judge_falloesung-bare-ccc"
+        _set_project_judge_configs(test_db, data["project"], [
+            {
+                "id": cfg_id,
+                "enabled": True,
+                "metric": "llm_judge_falloesung",
+                "prediction_fields": ["loesung"],
+                "metric_parameters": {"judges": [{"judge_model_id": JUDGE_A, "runs": 1}]},
+            },
+        ])
+        all_gen_ids = [g.id for g in test_db.query(Generation).join(
+            Task, Generation.task_id == Task.id
+        ).filter(Task.project_id == data["project"].id).all()]
+        all_ann_ids = [
+            a.id for a in test_db.query(Annotation).filter(
+                Annotation.project_id == data["project"].id,
+                Annotation.was_cancelled == False,  # noqa: E712
+            ).all()
+        ]
+        # Bare-field: worker writes both arms under the same field_name shape.
+        _seed_scored_cells(
+            test_db, data["project"], JUDGE_A,
+            config_id=cfg_id, pred_field="loesung",
+            generation_ids=all_gen_ids, annotation_ids=all_ann_ids,
+        )
+
+        body = _post_estimate(
+            client, auth_headers,
+            project_id=data["project"].id,
+            mode="evaluation",
+            judge_models=[JUDGE_A],
+            generation_mode="missing",
+            runs_per_call=1,
+            evaluation_configs=[{
+                "metric": "llm_judge_falloesung",
+                "prediction_fields": ["loesung"],
+            }],
+        )
+        # Both arms covered → missing should be 0.
+        assert _per_model_cells(body, JUDGE_A) == 0
+
+    def test_per_config_runs_not_inflated_by_other_configs(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        """Defect 2: each config's per-judge `runs` is applied locally.
+        Pre-fix the request-level `runs_per_call` (a global max across
+        all selected configs) multiplied every config's per-judge runs,
+        so a `runs:1` config sitting next to a `runs:3` config was billed
+        at 1×3=3.
+        """
+        _seed_judge_pricing(test_db, JUDGE_A)
+        cfg_runs1 = "llm_judge_falloesung-runs1-ddd"
+        cfg_runs3 = "llm_judge_falloesung-runs3-eee"
+        data = _seed_project_with_subjects(test_db, test_users, test_org)
+        _set_project_judge_configs(test_db, data["project"], [
+            {
+                "id": cfg_runs1,
+                "enabled": True,
+                "metric": "llm_judge_falloesung",
+                "prediction_fields": ["__all_model__"],
+                "metric_parameters": {"judges": [{"judge_model_id": JUDGE_A, "runs": 1}]},
+            },
+            {
+                "id": cfg_runs3,
+                "enabled": True,
+                "metric": "llm_judge_falloesung",
+                "prediction_fields": ["__all_model__"],
+                "metric_parameters": {"judges": [{"judge_model_id": JUDGE_A, "runs": 3}]},
+            },
+        ])
+
+        body = _post_estimate(
+            client, auth_headers,
+            project_id=data["project"].id,
+            mode="evaluation",
+            judge_models=[JUDGE_A],
+            # Frontend sends the global max — backend must IGNORE this in
+            # the eval-with-configs branch and use each cfg's own runs.
+            runs_per_call=3,
+            evaluation_configs=[{
+                "metric": "llm_judge_falloesung",
+                "prediction_fields": ["__all_model__"],
+            }],
+        )
+        n = data["expected_generation_count"]
+        # Pre-fix: (cfg_runs1: n × 1 × 3) + (cfg_runs3: n × 3 × 3) = 12n.
+        # Post-fix: (cfg_runs1: n × 1) + (cfg_runs3: n × 3) = 4n.
+        assert _per_model_cells(body, JUDGE_A) == 4 * n
+
+    def test_judge_only_charged_for_configs_naming_it(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        """Defect 1: per-judge dollar math must route through
+        `_count_evaluation_judge_calls`, not `_count_eval_subjects`.
+        Pre-fix every judge was billed for the full subject_count across
+        all configs, regardless of whether the judge appeared in them.
+        """
+        _seed_judge_pricing(test_db, JUDGE_A)
+        _seed_judge_pricing(test_db, JUDGE_B)
+        data = _seed_project_with_subjects(test_db, test_users, test_org)
+        cfg_a = "llm_judge_falloesung-onlyA-fff"
+        cfg_b = "llm_judge_falloesung-onlyB-ggg"
+        _set_project_judge_configs(test_db, data["project"], [
+            {
+                "id": cfg_a,
+                "enabled": True,
+                "metric": "llm_judge_falloesung",
+                "prediction_fields": ["__all_model__"],
+                "metric_parameters": {"judges": [{"judge_model_id": JUDGE_A, "runs": 1}]},
+            },
+            {
+                "id": cfg_b,
+                "enabled": True,
+                "metric": "llm_judge_falloesung",
+                "prediction_fields": ["__all_model__"],
+                "metric_parameters": {"judges": [{"judge_model_id": JUDGE_B, "runs": 1}]},
+            },
+        ])
+        body = _post_estimate(
+            client, auth_headers,
+            project_id=data["project"].id,
+            mode="evaluation",
+            judge_models=[JUDGE_A, JUDGE_B],
+            runs_per_call=1,
+            evaluation_configs=[{
+                "metric": "llm_judge_falloesung",
+                "prediction_fields": ["__all_model__"],
+            }],
+        )
+        n = data["expected_generation_count"]
+        # Each judge appears in exactly one config of size n. Pre-fix both
+        # judges saw 2n (the union). Post-fix each sees n.
+        assert _per_model_cells(body, JUDGE_A) == n
+        assert _per_model_cells(body, JUDGE_B) == n
 
 
 class TestRequestValidation:
