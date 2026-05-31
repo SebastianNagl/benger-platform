@@ -44,6 +44,7 @@ jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
     export: jest.fn(),
     bulkExportTasks: jest.fn(),
+    streamExportTasks: jest.fn(),
     bulkDeleteTasks: jest.fn(),
     bulkArchiveTasks: jest.fn(),
     getMembers: jest.fn(),
@@ -558,6 +559,12 @@ describe('AnnotationTab', () => {
     ;(projectsAPI.bulkExportTasks as jest.Mock).mockResolvedValue(
       new Blob(['test data'])
     )
+    ;(projectsAPI.streamExportTasks as jest.Mock).mockImplementation(
+      (_projectId, _taskIds, _name, callbacks) => {
+        callbacks?.onStart?.()
+        return Promise.resolve({ bytesWritten: 9, savedVia: 'blob' })
+      }
+    )
     ;(projectsAPI.bulkDeleteTasks as jest.Mock).mockResolvedValue({
       deleted: 2,
     })
@@ -793,10 +800,11 @@ describe('AnnotationTab', () => {
       fireEvent.click(exportButton)
 
       await waitFor(() => {
-        expect(projectsAPI.bulkExportTasks).toHaveBeenCalledWith(
+        expect(projectsAPI.streamExportTasks).toHaveBeenCalledWith(
           'project-1',
           ['2'],
-          'json'
+          expect.any(String),
+          expect.any(Object)
         )
       })
     })
@@ -814,7 +822,7 @@ describe('AnnotationTab', () => {
       fireEvent.click(exportButton)
 
       await waitFor(() => {
-        expect(projectsAPI.bulkExportTasks).toHaveBeenCalled()
+        expect(projectsAPI.streamExportTasks).toHaveBeenCalled()
       })
     })
 
@@ -834,7 +842,7 @@ describe('AnnotationTab', () => {
 
   describe('Error Handling', () => {
     it('should handle export errors', async () => {
-      ;(projectsAPI.bulkExportTasks as jest.Mock).mockRejectedValue(
+      ;(projectsAPI.streamExportTasks as jest.Mock).mockRejectedValue(
         new Error('Export failed')
       )
 
@@ -1884,7 +1892,7 @@ describe('AnnotationTab', () => {
 
       // Should not call API with empty selection
       await waitFor(() => {
-        expect(projectsAPI.bulkExportTasks).not.toHaveBeenCalled()
+        expect(projectsAPI.streamExportTasks).not.toHaveBeenCalled()
       })
     })
 
@@ -2517,7 +2525,7 @@ describe('AnnotationTab', () => {
       fireEvent.click(exportButton)
 
       await waitFor(() => {
-        expect(projectsAPI.bulkExportTasks).toHaveBeenCalled()
+        expect(projectsAPI.streamExportTasks).toHaveBeenCalled()
       })
 
       // Reset to default
@@ -2719,7 +2727,7 @@ describe('AnnotationTab', () => {
 
       // Should not call API when no tasks selected
       await waitFor(() => {
-        expect(projectsAPI.bulkExportTasks).not.toHaveBeenCalled()
+        expect(projectsAPI.streamExportTasks).not.toHaveBeenCalled()
       })
     })
 

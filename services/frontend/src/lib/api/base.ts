@@ -766,6 +766,86 @@ export class BaseApiClient {
   }
 
   /**
+   * Raw, unbuffered request that returns the live `Response`.
+   *
+   * Differs from `request` in three ways that matter for large downloads:
+   * - It does NOT call `.blob()` / `.text()`, so the body is never buffered
+   *   into memory — the caller streams `response.body` itself. A multi-GB
+   *   export would otherwise exhaust browser memory.
+   * - It imposes NO `REQUEST_TIMEOUT` abort. A legitimate export can stream
+   *   for minutes; the 30s timeout on `request` would sever it mid-body and
+   *   leave a silently-truncated file.
+   * - It bypasses the response cache entirely.
+   *
+   * Auth (HttpOnly cookies + Bearer fallback) and `X-Organization-Context`
+   * are applied exactly as in `request`. The caller owns the returned stream
+   * and is responsible for consuming or aborting it.
+   */
+  async requestRaw(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<Response> {
+    const url = `${getApiBaseUrl()}${endpoint}`
+    const isFormData = options.body instanceof FormData
+    const headers: Record<string, string> = {}
+
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json'
+    }
+
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('access_token')
+      if (token && !this.isTokenExpired(token)) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+    }
+
+    if (this.organizationContextProvider) {
+      const orgContext = this.organizationContextProvider()
+      if (orgContext) {
+        headers['X-Organization-Context'] = orgContext
+      }
+    }
+
+    const response = await fetch(url, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        ...headers,
+        ...options.headers,
+      },
+    })
+
+    if (!response.ok) {
+      let errorMessage = `HTTP error! status: ${response.status}`
+      try {
+        const errorText = await response.text()
+        if (errorText) {
+          try {
+            const errorData = JSON.parse(errorText)
+            errorMessage =
+              formatErrorDetail(errorData.detail) ||
+              errorData.message ||
+              errorMessage
+          } catch {
+            errorMessage += ` - ${errorText}`
+          }
+        }
+      } catch {
+        logger.debug('Could not read error text from streaming response')
+      }
+      const error = new Error(errorMessage) as any
+      error.response = {
+        status: response.status,
+        statusText: response.statusText,
+      }
+      throw error
+    }
+
+    return response
+  }
+
+  /**
    * HTTP convenience methods for testing and backward compatibility
    */
   async get(endpoint: string, options: RequestInit = {}): Promise<any> {
