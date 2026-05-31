@@ -8285,7 +8285,7 @@
     "loading": "Counting tokens and resolving prices…",
     "totalLabel": "Estimated total cost",
     "breakdown": "{tasks} tasks × {runs} run/runs × {models} model(s)",
-    "breakdownCells": "{cells} cells × {runs} run/runs × {models} model(s)",
+    "breakdownCells": "{cells} cells across {models} judge model(s)",
     "estimatedAt": "Computed at {time}",
     "modelCol": "Model",
     "perCallCol": "Per call",
