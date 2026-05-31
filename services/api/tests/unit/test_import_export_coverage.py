@@ -447,16 +447,22 @@ class TestExportProject:
                 q.filter.return_value.first.return_value = _mock_project()
             elif model == Task:
                 q.filter.return_value.all.return_value = tasks
+                q.filter.return_value.count.return_value = len(tasks)
             elif model == Annotation:
                 q.filter.return_value.all.return_value = annotations
+                q.filter.return_value.count.return_value = len(annotations)
             elif model == Generation:
                 q.filter.return_value.all.return_value = generations
+                q.filter.return_value.count.return_value = len(generations)
             elif model == PostAnnotationResponse:
                 q.filter.return_value.all.return_value = []
+                q.filter.return_value.count.return_value = 0
             elif model == EvaluationRun:
                 q.filter.return_value.all.return_value = []
+                q.filter.return_value.count.return_value = 0
             elif model == TaskEvaluation:
                 q.filter.return_value.all.return_value = []
+                q.filter.return_value.count.return_value = 0
             else:
                 q.filter.return_value.all.return_value = []
                 q.filter.return_value.first.return_value = None
@@ -468,18 +474,18 @@ class TestExportProject:
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.check_project_accessible", return_value=True)
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    @patch("routers.projects.serializers.build_evaluation_indexes", return_value=({}, {}))
-    @patch("routers.projects.serializers.build_judge_model_lookup", return_value={})
-    @patch("routers.projects.serializers.serialize_task")
-    @patch("routers.projects.serializers.serialize_evaluation_run")
-    async def test_export_json_format(self, mock_ser_er, mock_ser_task, mock_judge, mock_eval_idx, mock_org, mock_access, mock_db):
-        """Test JSON format export."""
+    @patch("routers.projects.import_export.stream_export_json")
+    async def test_export_json_format(self, mock_stream, mock_org, mock_access, mock_db):
+        """Test JSON format export. JSON now returns a StreamingResponse so the
+        body must be drained from `body_iterator` rather than read off `.body`,
+        and the helper that emits the per-row JSON is patched in directly —
+        the heavy serialization is exercised by the integration suite at
+        `tests/integration/test_export_formats_coverage.py` instead."""
         from routers.projects.import_export import export_project
 
         task = _mock_task()
         self._setup_export_db(mock_db, tasks=[task])
-
-        mock_ser_task.return_value = {"id": "task-1", "data": {"text": "test"}, "is_labeled": False, "created_at": None}
+        mock_stream.return_value = iter(['{"project": {"id": "x"}, "tasks": []}'])
 
         result = await export_project(
             project_id="project-123",
@@ -491,30 +497,29 @@ class TestExportProject:
         )
 
         assert result.media_type == "application/json"
-        body = json.loads(result.body.decode())
+        chunks = []
+        async for chunk in result.body_iterator:
+            chunks.append(chunk if isinstance(chunk, str) else chunk.decode())
+        body = json.loads("".join(chunks))
         assert "project" in body
         assert "tasks" in body
+        # Streaming helper was actually invoked rather than the legacy
+        # in-memory builder (regression guard for the OOM fix).
+        mock_stream.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.check_project_accessible", return_value=True)
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    @patch("routers.projects.serializers.build_evaluation_indexes", return_value=({}, {}))
-    @patch("routers.projects.serializers.build_judge_model_lookup", return_value={})
-    @patch("routers.projects.serializers.serialize_task")
-    @patch("routers.projects.serializers.serialize_evaluation_run")
-    async def test_export_csv_format(self, mock_ser_er, mock_ser_task, mock_judge, mock_eval_idx, mock_org, mock_access, mock_db):
-        """Test CSV format export."""
+    @patch("routers.projects.import_export.stream_export_flat_csv")
+    async def test_export_csv_format(self, mock_stream, mock_org, mock_access, mock_db):
+        """Test CSV format export. CSV streams via stream_export_flat_csv;
+        body must be drained from the iterator. Real row layout is exercised
+        by tests/integration/test_export_formats_coverage.py."""
         from routers.projects.import_export import export_project
 
         task = _mock_task()
         self._setup_export_db(mock_db, tasks=[task])
-
-        mock_ser_task.return_value = {
-            "id": "task-1",
-            "data": {"text": "test"},
-            "is_labeled": False,
-            "created_at": None,
-        }
+        mock_stream.return_value = iter(["task_id,task_data\n", "t1,\"{}\"\n"])
 
         result = await export_project(
             project_id="project-123",
@@ -526,8 +531,12 @@ class TestExportProject:
         )
 
         assert result.media_type == "text/csv"
-        content = result.body.decode()
+        chunks = []
+        async for chunk in result.body_iterator:
+            chunks.append(chunk if isinstance(chunk, str) else chunk.decode())
+        content = "".join(chunks)
         assert "task_id" in content
+        mock_stream.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.check_project_accessible", return_value=True)
@@ -564,26 +573,16 @@ class TestExportProject:
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.check_project_accessible", return_value=True)
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    @patch("routers.projects.serializers.build_evaluation_indexes", return_value=({}, {}))
-    @patch("routers.projects.serializers.build_judge_model_lookup", return_value={})
-    @patch("routers.projects.serializers.serialize_task")
-    @patch("routers.projects.serializers.serialize_evaluation_run")
-    async def test_export_txt_format(self, mock_ser_er, mock_ser_task, mock_judge, mock_eval_idx, mock_org, mock_access, mock_db):
-        """Test TXT format export."""
+    @patch("routers.projects.import_export.stream_export_txt")
+    async def test_export_txt_format(self, mock_stream, mock_org, mock_access, mock_db):
+        """Test TXT format export. TXT streams via stream_export_txt; body
+        must be drained from the iterator. Real formatting is exercised by
+        tests/integration/test_export_formats_coverage.py."""
         from routers.projects.import_export import export_project
 
         task = _mock_task()
         self._setup_export_db(mock_db, tasks=[task])
-
-        mock_ser_task.return_value = {
-            "id": "task-1",
-            "data": {"text": "test"},
-            "is_labeled": False,
-            "created_at": None,
-            "annotations": [],
-            "generations": [],
-            "evaluations": [],
-        }
+        mock_stream.return_value = iter(["Project: Test Project\n", "Total Tasks: 1\n"])
 
         result = await export_project(
             project_id="project-123",
@@ -595,23 +594,27 @@ class TestExportProject:
         )
 
         assert result.media_type == "text/plain"
-        content = result.body.decode()
+        chunks = []
+        async for chunk in result.body_iterator:
+            chunks.append(chunk if isinstance(chunk, str) else chunk.decode())
+        content = "".join(chunks)
         assert "Test Project" in content
+        mock_stream.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.check_project_accessible", return_value=True)
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    @patch("routers.projects.serializers.build_evaluation_indexes", return_value=({}, {}))
-    @patch("routers.projects.serializers.build_judge_model_lookup", return_value={})
-    @patch("routers.projects.serializers.serialize_evaluation_run")
-    async def test_export_label_studio_format(self, mock_ser_er, mock_judge, mock_eval_idx, mock_org, mock_access, mock_db):
-        """Test Label Studio format export."""
+    @patch("routers.projects.import_export.stream_export_label_studio")
+    async def test_export_label_studio_format(self, mock_stream, mock_org, mock_access, mock_db):
+        """Test Label Studio format export. Now streams via
+        stream_export_label_studio; body must be drained from the iterator.
+        Real LS conversion (including span format) is exercised by
+        tests/unit/test_coverage_push_export_branches.py."""
         from routers.projects.import_export import export_project
 
         task = _mock_task()
-        ann = _mock_annotation()
-        gen = _mock_generation()
-        self._setup_export_db(mock_db, tasks=[task], annotations=[ann], generations=[gen])
+        self._setup_export_db(mock_db, tasks=[task])
+        mock_stream.return_value = iter(["[", "{\"id\": 1, \"data\": {}}", "]"])
 
         result = await export_project(
             project_id="project-123",
@@ -623,8 +626,12 @@ class TestExportProject:
         )
 
         assert result.media_type == "application/json"
-        body = json.loads(result.body.decode())
+        chunks = []
+        async for chunk in result.body_iterator:
+            chunks.append(chunk if isinstance(chunk, str) else chunk.decode())
+        body = json.loads("".join(chunks))
         assert isinstance(body, list)
+        mock_stream.assert_called_once()
 
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.check_project_accessible", return_value=True)
@@ -813,16 +820,23 @@ class TestBulkExportFullProjects:
         assert "No project IDs" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
-    @patch("routers.projects.import_export.get_comprehensive_project_data")
+    @patch("routers.projects.import_export.stream_comprehensive_project_data_json")
     @patch("routers.projects.import_export.check_project_accessible", return_value=True)
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_bulk_export_full_success(self, mock_org, mock_access, mock_comprehensive, mock_db):
-        """Test successful full bulk export produces ZIP."""
+    async def test_bulk_export_full_success(self, mock_org, mock_access, mock_stream, mock_db):
+        """Test successful full bulk export produces ZIP.
+
+        The handler now streams each project's comprehensive JSON straight
+        into the zip entry via stream_comprehensive_project_data_json and
+        returns a FileResponse from a tempfile (zip on disk, not BytesIO)
+        — this test only checks the wiring; the real per-row content is
+        exercised by tests/routers/projects/test_export_import_roundtrip.py.
+        """
         from routers.projects.import_export import bulk_export_full_projects
 
         project = _mock_project()
         mock_db.query.return_value.filter.return_value.first.return_value = project
-        mock_comprehensive.return_value = {"project": {"title": "Test"}, "tasks": []}
+        mock_stream.return_value = iter(['{"project":{"title":"Test"},"tasks":[]}'])
 
         result = await bulk_export_full_projects(
             data={"project_ids": ["project-123"]},
@@ -832,10 +846,15 @@ class TestBulkExportFullProjects:
         )
 
         assert result.media_type == "application/zip"
-        # Verify it's a valid ZIP
-        zip_buffer = BytesIO(result.body)
-        with zipfile.ZipFile(zip_buffer, 'r') as zf:
+        # FileResponse exposes the underlying tempfile path; read it back to
+        # verify the zip is well-formed and contains the streamed entry.
+        with zipfile.ZipFile(result.path, 'r') as zf:
             assert len(zf.namelist()) == 1
+        mock_stream.assert_called_once()
+        # The handler schedules an unlink-after-send background task; run it
+        # ourselves here so the tempfile doesn't linger across tests.
+        if result.background:
+            result.background.func(*result.background.args, **result.background.kwargs)
 
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.check_project_accessible", return_value=True)
@@ -856,17 +875,19 @@ class TestBulkExportFullProjects:
         assert "No projects could be exported" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
-    @patch("routers.projects.import_export.get_comprehensive_project_data", side_effect=Exception("export error"))
+    @patch("routers.projects.import_export.stream_comprehensive_project_data_json", side_effect=Exception("export error"))
     @patch("routers.projects.import_export.check_project_accessible", return_value=True)
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_bulk_export_full_error_handling(self, mock_org, mock_access, mock_comprehensive, mock_db):
+    async def test_bulk_export_full_error_handling(self, mock_org, mock_access, mock_stream, mock_db):
         """Test that errors in individual project exports are handled gracefully."""
         from routers.projects.import_export import bulk_export_full_projects
 
         project = _mock_project()
         mock_db.query.return_value.filter.return_value.first.return_value = project
 
-        # Should raise 404 because the only project failed to export
+        # Should raise 404 because the only project failed to export. The
+        # handler also cleans up its tempfile on the empty-zip path, so no
+        # file is left behind for the test to chase.
         with pytest.raises(Exception) as exc_info:
             await bulk_export_full_projects(
                 data={"project_ids": ["project-123"]},

@@ -1067,90 +1067,17 @@ def bulk_export_tasks(
     exported_at_iso = datetime.now().isoformat()
     filename_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    from project_models import KorrekturComment as _KC
-    from routers.projects.serializers import (
-        build_evaluation_indexes,
-        build_judge_model_lookup,
-        serialize_annotation,
-        serialize_evaluation_run,
-        serialize_generation,
-        serialize_human_evaluation_data,
-        serialize_korrektur_comment,
-        serialize_task,
-        serialize_task_evaluation,
+    from routers.projects._export_stream import (
+        BATCH_SIZE as _BATCH_SIZE,
+        build_batch_objs as _build_batch_objs_shared,
+        stream_export_json,
     )
+    from routers.projects.serializers import build_judge_model_lookup
 
-    _BATCH_SIZE = 50
-
-    def _build_batch_objs(batch: list, eval_run_by_id: dict, judge_model_lookup: dict) -> list:
-        """Build export dicts for a batch of tasks with 4 batched queries
-        (annotations, questionnaire responses, generations, task_evaluations)
-        instead of 4 queries per task. For a 581-task project this collapses
-        ~2,300 round-trips to ~48 — turns multi-minute exports into seconds.
-        """
-        if not batch:
-            return []
-        batch_ids = [t.id for t in batch]
-
-        anns_all = db.query(Annotation).filter(Annotation.task_id.in_(batch_ids)).all()
-        qrs_all = db.query(PostAnnotationResponse).filter(
-            PostAnnotationResponse.task_id.in_(batch_ids)
-        ).all()
-        gens_all = db.query(Generation).filter(Generation.task_id.in_(batch_ids)).all()
-        if eval_run_by_id:
-            te_all = db.query(TaskEvaluation).filter(
-                TaskEvaluation.task_id.in_(batch_ids),
-                TaskEvaluation.evaluation_id.in_(eval_run_by_id.keys()),
-            ).all()
-        else:
-            te_all = []
-
-        anns_by_task: dict = {}
-        for a in anns_all:
-            anns_by_task.setdefault(a.task_id, []).append(a)
-        qr_by_annotation = {qr.annotation_id: qr for qr in qrs_all}
-        gens_by_task: dict = {}
-        for g in gens_all:
-            gens_by_task.setdefault(g.task_id, []).append(g)
-        te_by_task_id, te_by_gen_id = build_evaluation_indexes(te_all)
-
-        out = []
-        for task in batch:
-            task_data = serialize_task(task, mode="data")
-            task_data["annotations"] = [
-                serialize_annotation(
-                    ann, mode="data", questionnaire_response=qr_by_annotation.get(ann.id)
-                )
-                for ann in anns_by_task.get(task.id, [])
-            ]
-            task_data["generations"] = []
-            for gen in gens_by_task.get(task.id, []):
-                gen_evals = te_by_gen_id.get(gen.id, [])
-                eval_dicts = [
-                    serialize_task_evaluation(
-                        te, mode="data",
-                        eval_run=eval_run_by_id.get(te.evaluation_id),
-                        judge_model_lookup=judge_model_lookup,
-                    )
-                    for te in gen_evals
-                ]
-                task_data["generations"].append(
-                    serialize_generation(gen, mode="data", evaluations=eval_dicts)
-                )
-
-            task_data["evaluations"] = []
-            for te in te_by_task_id.get(task.id, []):
-                if te.generation_id != None:  # noqa: E711
-                    continue
-                task_data["evaluations"].append(
-                    serialize_task_evaluation(
-                        te, mode="data",
-                        eval_run=eval_run_by_id.get(te.evaluation_id),
-                        judge_model_lookup=judge_model_lookup,
-                    )
-                )
-            out.append(task_data)
-        return out
+    # Local closure over `db` so the CSV/TSV path below can keep its
+    # existing 2-arg call signature.
+    def _build_batch_objs(batch, eval_run_by_id, judge_model_lookup):
+        return _build_batch_objs_shared(db, batch, eval_run_by_id, judge_model_lookup)
 
     # The streaming generators below capture the request-scoped `db` via
     # closure. FastAPI keeps the Depends(get_db) session open until the
@@ -1160,58 +1087,16 @@ def bulk_export_tasks(
     # short-lived and continuously query the DB, not idle in transaction.
 
     def _json_stream():
-        eval_runs = db.query(EvaluationRun).filter(
-            EvaluationRun.project_id == project_id
-        ).all()
-        eval_run_by_id = {er.id: er for er in eval_runs}
-        judge_model_lookup = build_judge_model_lookup(eval_runs, db)
-
-        header = {
-            "project_id": project_id,
-            "project_title": project_title,
-            "exported_at": exported_at_iso,
-            "evaluation_runs": [serialize_evaluation_run(er, mode="data") for er in eval_runs],
-        }
-        # Compact, no indent — ~30% smaller than indent=2 and faster.
-        prefix = json.dumps(header)[:-1]  # drop closing `}` so we can append more keys
-        yield prefix + ', "tasks": ['
-
-        first = True
-        task_q = db.query(Task).filter(
-            Task.id.in_(task_ids), Task.project_id == project_id
+        yield from stream_export_json(
+            db,
+            project_id,
+            task_ids,
+            header_fields={
+                "project_id": project_id,
+                "project_title": project_title,
+                "exported_at": exported_at_iso,
+            },
         )
-        batch: list = []
-        for task in task_q.yield_per(_BATCH_SIZE):
-            batch.append(task)
-            if len(batch) >= _BATCH_SIZE:
-                for obj in _build_batch_objs(batch, eval_run_by_id, judge_model_lookup):
-                    yield ("" if first else ",") + json.dumps(obj)
-                    first = False
-                batch = []
-        for obj in _build_batch_objs(batch, eval_run_by_id, judge_model_lookup):
-            yield ("" if first else ",") + json.dumps(obj)
-            first = False
-
-        yield "], "
-
-        # Human-eval block. The helper does its own queries and returns a
-        # dict; serialize each top-level key as its own JSON fragment.
-        human_eval = serialize_human_evaluation_data(db, project_id, task_ids) or {}
-        human_eval_items = list(human_eval.items())
-        for idx, (k, v) in enumerate(human_eval_items):
-            yield json.dumps(k) + ":" + json.dumps(v)
-            if idx < len(human_eval_items) - 1:
-                yield ","
-        if human_eval_items:
-            yield ","
-
-        yield '"korrektur_comments": ['
-        first = True
-        kc_q = db.query(_KC).filter(_KC.project_id == project_id)
-        for kc in kc_q.yield_per(100):
-            yield ("" if first else ",") + json.dumps(serialize_korrektur_comment(kc))
-            first = False
-        yield "]}"
 
     def _csv_or_tsv_stream(delimiter: str):
         """Stream CSV/TSV one task at a time. Each row is `task_id, task_data,
