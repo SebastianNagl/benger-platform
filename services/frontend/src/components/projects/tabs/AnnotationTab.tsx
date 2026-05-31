@@ -28,6 +28,7 @@ import {
 } from '@/hooks/useColumnSettings'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { projectsAPI } from '@/lib/api/projects'
+import { TruncatedExportError } from '@/lib/api/streamingExport'
 import { Task } from '@/lib/api/types'
 import { useProjectStore } from '@/stores/projectStore'
 import { Task as LabelStudioTask } from '@/types/labelStudio'
@@ -581,35 +582,26 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
     if (selectedTasks.size === 0) return
 
     const progressId = `bulk-export-${Date.now()}`
+    const taskIds = Array.from(selectedTasks)
+    const suggestedName = `tasks-export-${new Date().toISOString().split('T')[0]}.json`
 
     try {
-      const taskIds = Array.from(selectedTasks)
-
-      // The backend streams a single response; there's no per-row progress
-      // signal to drive a real percentage, so use an indeterminate bar
-      // instead of a fake 30%-jumps-immediately-then-hangs UX.
-      startProgress(progressId, t('annotationTab.buttons.bulkExport'), {
-        sublabel: t('annotationTab.messages.exportingSelected', {
-          count: selectedTasks.size,
-        }),
-        indeterminate: true,
+      // Streams the body straight to disk (File System Access API) and
+      // validates the server's completeness sentinel, so a severed multi-GB
+      // download surfaces as an error rather than a silently-truncated file.
+      // The backend streams a single response with no per-row progress
+      // signal, so the bar stays indeterminate.
+      await projectsAPI.streamExportTasks(projectId, taskIds, suggestedName, {
+        onStart: () =>
+          startProgress(progressId, t('annotationTab.buttons.bulkExport'), {
+            sublabel: t('annotationTab.messages.exportingSelected', {
+              count: selectedTasks.size,
+            }),
+            indeterminate: true,
+          }),
       })
 
-      const blob = await projectsAPI.bulkExportTasks(projectId, taskIds, 'json')
-
-      // Download the exported file
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.style.display = 'none'
-      a.href = url
-      a.download = `tasks-export-${new Date().toISOString().split('T')[0]}.json`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-
       completeProgress(progressId, 'success')
-
       addToast(
         t('annotationTab.messages.exportedTasks', {
           count: selectedTasks.size,
@@ -617,10 +609,19 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
         'success'
       )
     } catch (error) {
-      console.error('Failed to export tasks:', error)
+      // User dismissed the save dialog before any work started — not an error.
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
+      logger.error('Failed to export tasks:', error)
       completeProgress(progressId, 'error')
       addToast(
-        t('annotationTab.messages.exportFailed', { error: 'Unknown error' }),
+        t('annotationTab.messages.exportFailed', {
+          error:
+            error instanceof TruncatedExportError
+              ? error.message
+              : 'Unknown error',
+        }),
         'error'
       )
     }
@@ -651,15 +652,6 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
         }
       )
 
-      // Indeterminate — no real per-row progress signal from the backend
-      // stream; the previous fake 30%→70%→100% was misleading.
-      startProgress(progressId, t('annotationTab.buttons.export'), {
-        sublabel: t('annotationTab.messages.exportingSelected', {
-          count: taskIds.length,
-        }),
-        indeterminate: true,
-      })
-
       if (truncated) {
         addToast(
           `Export capped at ${taskIds.length} tasks; refine filters to export the rest.`,
@@ -667,21 +659,24 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
         )
       }
 
-      const blob = await projectsAPI.bulkExportTasks(projectId, taskIds, 'json')
+      const suggestedName = `${currentProject?.title || 'project'}-tasks-${new Date().toISOString().split('T')[0]}.json`
 
-      // Download the exported file
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.style.display = 'none'
-      a.href = url
-      a.download = `${currentProject?.title || 'project'}-tasks-${new Date().toISOString().split('T')[0]}.json`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      // Stream straight to disk with completeness validation rather than
+      // buffering the whole body via blob(); for the 4.5 GB ZJS project the
+      // old path was severed mid-stream and saved a truncated, invalid file.
+      await projectsAPI.streamExportTasks(projectId, taskIds, suggestedName, {
+        onStart: () =>
+          // Indeterminate — no real per-row progress signal from the backend
+          // stream; the previous fake 30%→70%→100% was misleading.
+          startProgress(progressId, t('annotationTab.buttons.export'), {
+            sublabel: t('annotationTab.messages.exportingSelected', {
+              count: taskIds.length,
+            }),
+            indeterminate: true,
+          }),
+      })
 
       completeProgress(progressId, 'success')
-
       addToast(
         t('annotationTab.messages.exportedTasks', {
           count: taskIds.length,
@@ -689,10 +684,19 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
         'success'
       )
     } catch (error) {
-      console.error('Failed to export tasks:', error)
+      // User dismissed the save dialog before any work started — not an error.
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
+      logger.error('Failed to export tasks:', error)
       completeProgress(progressId, 'error')
       addToast(
-        t('annotationTab.messages.exportFailed', { error: 'Unknown error' }),
+        t('annotationTab.messages.exportFailed', {
+          error:
+            error instanceof TruncatedExportError
+              ? error.message
+              : 'Unknown error',
+        }),
         'error'
       )
     }

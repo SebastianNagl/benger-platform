@@ -66,6 +66,7 @@ jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
     export: jest.fn(),
     bulkExportTasks: jest.fn(),
+    streamExportTasks: jest.fn(),
     bulkDeleteTasks: jest.fn(),
     bulkArchiveTasks: jest.fn(),
     getMembers: jest.fn(),
@@ -465,6 +466,12 @@ describe('AnnotationTab - br5 branch coverage', () => {
     ;(projectsAPI.bulkExportTasks as jest.Mock).mockResolvedValue(
       new Blob(['test data'])
     )
+    ;(projectsAPI.streamExportTasks as jest.Mock).mockImplementation(
+      (_projectId, _taskIds, _name, callbacks) => {
+        callbacks?.onStart?.()
+        return Promise.resolve({ bytesWritten: 9, savedVia: 'blob' })
+      }
+    )
     ;(projectsAPI.bulkDeleteTasks as jest.Mock).mockResolvedValue({
       deleted: 2,
     })
@@ -727,7 +734,7 @@ describe('AnnotationTab - br5 branch coverage', () => {
   })
 
   it('handles export error gracefully', async () => {
-    ;(projectsAPI.bulkExportTasks as jest.Mock).mockRejectedValue(
+    ;(projectsAPI.streamExportTasks as jest.Mock).mockRejectedValue(
       new Error('Export failed')
     )
 
