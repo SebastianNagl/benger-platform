@@ -6,10 +6,11 @@ import json
 import logging
 import os
 import tempfile
+import time
 import uuid
 import zipfile
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterator, List, Optional
 
 # Spool incoming import bodies in RAM up to this size; spill to disk above it.
 # Keeps small imports allocation-free (no disk hit, no regression vs the
@@ -18,6 +19,57 @@ from typing import Any, Dict, List
 _IMPORT_SPOOL_THRESHOLD = 4 * 1024 * 1024
 
 logger = logging.getLogger(__name__)
+
+
+def _logged_export_stream(
+    chunk_iter: Iterator[str],
+    *,
+    project_id: str,
+    user_id: str,
+    export_format: str,
+    counts: Optional[dict] = None,
+) -> Iterator[bytes]:
+    """Wrap an export chunk generator to emit start/completion/abort logs.
+
+    Yields UTF-8 *bytes* (encoding once here, so the byte tally is exact and
+    Starlette doesn't re-encode the str). A client disconnect surfaces as
+    GeneratorExit when the response is torn down mid-flight — logged as a
+    distinct WARNING from an internal error so aborted/partial downloads are
+    diagnosable. Before this, the 2026-05-31 Benchathon export OOMKilled the
+    pod and truncated silently with no server-side trace at all.
+    """
+    started = time.monotonic()
+    total_bytes = 0
+    logger.info(
+        "export start project=%s user=%s format=%s counts=%s",
+        project_id, user_id, export_format, counts or {},
+    )
+    try:
+        for chunk in chunk_iter:
+            data = chunk.encode("utf-8")
+            total_bytes += len(data)
+            yield data
+    except GeneratorExit:
+        logger.warning(
+            "export aborted (client disconnect) project=%s user=%s format=%s "
+            "bytes=%d elapsed=%.2fs",
+            project_id, user_id, export_format, total_bytes,
+            time.monotonic() - started,
+        )
+        raise
+    except Exception:
+        logger.exception(
+            "export failed project=%s user=%s format=%s bytes=%d elapsed=%.2fs",
+            project_id, user_id, export_format, total_bytes,
+            time.monotonic() - started,
+        )
+        raise
+    else:
+        logger.info(
+            "export complete project=%s user=%s format=%s bytes=%d elapsed=%.2fs",
+            project_id, user_id, export_format, total_bytes,
+            time.monotonic() - started,
+        )
 
 
 # Issue #964: Span annotation format conversion functions
@@ -810,7 +862,21 @@ async def export_project(
             headers["Content-Disposition"] = f"attachment; filename={filename}"
 
         return StreamingResponse(
-            stream_export_json(db, project_id, task_ids=None, header_fields=header_fields),
+            _logged_export_stream(
+                stream_export_json(
+                    db, project_id, task_ids=None, header_fields=header_fields
+                ),
+                project_id=project_id,
+                user_id=current_user.id,
+                export_format="json",
+                counts={
+                    "tasks": task_count,
+                    "annotations": annotation_count,
+                    "generations": generation_count,
+                    "evaluation_runs": len(eval_run_ids_for_counts),
+                    "task_evaluations": task_evaluation_count,
+                },
+            ),
             media_type="application/json",
             headers=headers,
         )
@@ -824,7 +890,12 @@ async def export_project(
             filename = f"{project.title.replace(' ', '_')}_export.{ext}"
             headers["Content-Disposition"] = f"attachment; filename={filename}"
         return StreamingResponse(
-            stream_export_flat_csv(db, project_id, delimiter=delimiter),
+            _logged_export_stream(
+                stream_export_flat_csv(db, project_id, delimiter=delimiter),
+                project_id=project_id,
+                user_id=current_user.id,
+                export_format=format,
+            ),
             media_type=media_type,
             headers=headers,
         )
@@ -835,7 +906,12 @@ async def export_project(
             filename = f"{project.title.replace(' ', '_')}_label_studio.json"
             headers["Content-Disposition"] = f"attachment; filename={filename}"
         return StreamingResponse(
-            stream_export_label_studio(db, project_id),
+            _logged_export_stream(
+                stream_export_label_studio(db, project_id),
+                project_id=project_id,
+                user_id=current_user.id,
+                export_format="label_studio",
+            ),
             media_type="application/json",
             headers=headers,
         )
@@ -848,7 +924,12 @@ async def export_project(
         filename = f"{project.title.replace(' ', '_')}_export.txt"
         headers["Content-Disposition"] = f"attachment; filename={filename}"
     return StreamingResponse(
-        stream_export_txt(db, project_id, project.title, project.description),
+        _logged_export_stream(
+            stream_export_txt(db, project_id, project.title, project.description),
+            project_id=project_id,
+            user_id=current_user.id,
+            export_format="txt",
+        ),
         media_type="text/plain",
         headers=headers,
     )
