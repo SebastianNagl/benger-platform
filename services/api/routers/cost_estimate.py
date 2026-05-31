@@ -266,7 +266,6 @@ def _count_evaluation_judge_calls(
     db: Session,
     project_id: str,
     judge_model_id: str,
-    runs_per_call: int,
     generation_mode: Optional[str],
 ) -> int:
     """Count LLM-judge API calls that would actually fire for
@@ -294,10 +293,12 @@ def _count_evaluation_judge_calls(
                                     well, otherwise the human-side bill
                                     is invisible. Returns generations
                                     AND annotations.
-    - Multiply by `runs` from the judge spec.
+    - Multiply by this config's own `runs` for this judge (NOT the
+      request-level `runs_per_call`, which was the global max across all
+      selected configs and double-counted any per-config `runs:1` when
+      another selected config carried `runs:3` — issue #132).
     - For mode='missing', subtract subjects whose `task_evaluations`
-      row is already scored under the matching field_name pattern
-      `<metric>-<config_id>|<pred_field_normalized>|...`.
+      row is already scored under field_name `{config_id}|{pred_field}|...`.
 
     Returns the total API-call count across all judge configs that
     target ``judge_model_id``.
@@ -312,10 +313,12 @@ def _count_evaluation_judge_calls(
 
     total = 0
     for cfg in cfgs:
-        runs = cfg["runs"] * max(runs_per_call, 1)
-        # `runs_per_call` is the modal-level "runs across this trigger";
-        # `cfg["runs"]` is per-judge in this config. Multiply because
-        # each judge invocation is its own API call.
+        # `cfg["runs"]` is this judge's run count in this specific config.
+        # `runs_per_call` from the request was a global "max runs across all
+        # selected configs' judges" and is intentionally not used here — it
+        # would double-count any config whose per-judge runs differs from
+        # the global max (issue #132).
+        runs = cfg["runs"]
         for pf in cfg["prediction_fields"]:
             subj_keys = _subjects_for_pred_field(
                 pf, gen_ids_by_field=gen_ids_by_field,
@@ -323,7 +326,7 @@ def _count_evaluation_judge_calls(
             )
             if generation_mode == "missing":
                 done = _already_scored_subjects(
-                    db, project_id, metric_id=cfg["metric"], pred_field=pf
+                    db, project_id, config_id=cfg["id"], pred_field=pf
                 )
                 missing = [s for s in subj_keys if s not in done]
                 total += len(missing) * runs
@@ -368,8 +371,17 @@ def _load_llm_judge_configs(db: Session, project_id: str, judge_model_id: str) -
             runs_for_this_judge = max(int(params.get("runs_per_judge") or 1), 1)
         if runs_for_this_judge == 0:
             continue
+        config_id = c.get("id")
+        if not config_id:
+            # Configs without an id can't be skip-set matched against
+            # stored task_evaluations rows; the worker writes
+            # `field_name = "{config_id}|{pred_field}|{ref_field}"` and
+            # we need an exact config_id to match. Skip rather than
+            # over-count.
+            continue
         out.append(
             {
+                "id": config_id,
                 "metric": metric,
                 "prediction_fields": list(c.get("prediction_fields") or []),
                 "runs": runs_for_this_judge,
@@ -433,52 +445,53 @@ def _subjects_for_pred_field(
 
 
 def _already_scored_subjects(
-    db: Session, project_id: str, *, metric_id: str, pred_field: str
+    db: Session, project_id: str, *, config_id: str, pred_field: str
 ) -> set:
     """Return subject keys (`(kind, id)`) already scored for this
-    metric+pred_field combination — i.e. what the worker would skip
+    config+pred_field combination — i.e. what the worker would skip
     under `evaluate_missing_only`.
 
-    field_name in `task_evaluations` follows the convention
-    `<metric>-<config_id>|<pred_field_normalized>|<reference>`.
-    The `<config_id>` suffix is unique per metric instance, so we
-    match on prefix `<metric>-`. Per worker logic, plain field names
-    are recorded with the `human:` prefix in annotation context — so a
-    plain pred_field maps to two field_name patterns, one for each
-    subject kind.
+    The worker writes `task_evaluations.field_name = "{config_id}|{pred_field}|{ref_field}"`
+    (see services/workers/tasks.py:4747, 5318). Match on exact
+    `config_id|pred_field|` prefix; using only `metric_id-%` (issue #132)
+    over-attributes across same-metric configs and silently treats one
+    config's rows as another's, masking real missing cells.
+
+    Plain (unprefixed) field names are stored as-is in the field_name's
+    middle slot for BOTH arms — the worker does NOT add a `human:`
+    prefix when writing the annotation-arm row (see worker write sites
+    around services/workers/tasks.py:4747 and 5318 — same composite,
+    distinguished only by whether `generation_id` or `annotation_id` is
+    populated). So a plain pred_field maps to ONE field_name shape but
+    TWO subject_col lookups.
     """
     from models import TaskEvaluation
 
     if pred_field.startswith("human:") or pred_field == "__all_human__":
-        # Annotation-side field. Match the prefixed form on the
-        # annotation_id side only.
-        norm = pred_field
-        subject_col = TaskEvaluation.annotation_id
-    elif pred_field == "__all_model__" or pred_field.startswith("model:"):
-        norm = pred_field
-        subject_col = TaskEvaluation.generation_id
-    else:
-        # Plain — recorded both as `<pf>` (model side) and `human:<pf>`
-        # (annotation side). Run two queries and union.
-        model_done = _scored_for(
-            db, project_id, metric_id=metric_id, pred_field_norm=pred_field,
-            subject_col=TaskEvaluation.generation_id, kind="generation",
-        )
-        human_done = _scored_for(
-            db, project_id, metric_id=metric_id,
-            pred_field_norm=f"human:{pred_field}",
+        return _scored_for(
+            db, project_id, config_id=config_id, pred_field_norm=pred_field,
             subject_col=TaskEvaluation.annotation_id, kind="annotation",
         )
-        return model_done | human_done
-    return _scored_for(
-        db, project_id, metric_id=metric_id, pred_field_norm=norm,
-        subject_col=subject_col,
-        kind="annotation" if subject_col is TaskEvaluation.annotation_id else "generation",
+    if pred_field == "__all_model__" or pred_field.startswith("model:"):
+        return _scored_for(
+            db, project_id, config_id=config_id, pred_field_norm=pred_field,
+            subject_col=TaskEvaluation.generation_id, kind="generation",
+        )
+    # Plain field — stored under the bare name for both arms; distinguish
+    # by which subject_col is populated. Two queries, union.
+    model_done = _scored_for(
+        db, project_id, config_id=config_id, pred_field_norm=pred_field,
+        subject_col=TaskEvaluation.generation_id, kind="generation",
     )
+    human_done = _scored_for(
+        db, project_id, config_id=config_id, pred_field_norm=pred_field,
+        subject_col=TaskEvaluation.annotation_id, kind="annotation",
+    )
+    return model_done | human_done
 
 
 def _scored_for(
-    db: Session, project_id: str, *, metric_id: str, pred_field_norm: str,
+    db: Session, project_id: str, *, config_id: str, pred_field_norm: str,
     subject_col, kind: str,
 ) -> set:
     from models import TaskEvaluation, EvaluationRun
@@ -487,7 +500,7 @@ def _scored_for(
         .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
         .filter(
             EvaluationRun.project_id == project_id,
-            TaskEvaluation.field_name.like(f"{metric_id}-%|{pred_field_norm}|%"),
+            TaskEvaluation.field_name.like(f"{config_id}|{pred_field_norm}|%"),
             TaskEvaluation.metrics.isnot(None),
             TaskEvaluation.error_message.is_(None),
             subject_col.isnot(None),
@@ -676,6 +689,10 @@ def estimate_cost(
     # estimate, so we gate on `evaluation_configs` instead.
     subject_count = 0
     if request.mode == "evaluation":
+        # subject_count is the cell pool across the project for display only.
+        # The per-model dollar math goes through _count_evaluation_judge_calls
+        # below (per-judge, missing-aware). Issue #132: this used to drive
+        # pricing and produced a 63x overshoot on partially-covered projects.
         subject_count = _count_eval_subjects(
             db=db,
             project_id=request.project_id,
@@ -683,9 +700,6 @@ def estimate_cost(
             model_ids=request.model_ids or None,
             annotator_user_ids=request.annotator_user_ids,
         )
-    eval_uses_subject_count = (
-        request.mode == "evaluation" and bool(request.evaluation_configs)
-    )
 
     per_model_costs: List[PerModelCost] = []
     total_usd = 0.0
@@ -723,7 +737,6 @@ def estimate_cost(
                 db=db,
                 project_id=request.project_id,
                 judge_model_id=model_id,
-                runs_per_call=request.runs_per_call,
                 generation_mode=request.generation_mode,
             )
             # The judge-call count already factors run_index, so don't
@@ -771,19 +784,14 @@ def estimate_cost(
             (token_est.input_mean / 1000.0) * pricing["input_per_1k"]
             + (token_est.output_estimate / 1000.0) * pricing["output_per_1k"]
         )
-        # Eval mode with explicit configs (issue #69) prices the actual
-        # (subject × prediction_field) cell count. Otherwise, the legacy
-        # cells-based formula applies — for generation that's
-        # `tasks × structure_keys × samples_per_task` (so structure_keys
-        # multiplication from main is preserved); for eval-without-configs
-        # `cells` is `(tasks × run_index)` and the runs multiplier is
-        # already folded in (`runs_already_counted=True`).
-        if eval_uses_subject_count:
-            per_run = per_call * subject_count * request.samples_per_task
-            model_total = per_run * request.runs_per_call
-        else:
-            per_run = per_call * cells * request.samples_per_task
-            model_total = per_run if runs_already_counted else per_run * request.runs_per_call
+        # Eval mode prices the actual missing-aware per-judge cell count
+        # returned by `_count_evaluation_judge_calls` (issue #132). The
+        # per-judge function already folds in this config's per-judge `runs`,
+        # so `runs_already_counted=True` and no global runs multiplier
+        # applies. The legacy cells-based formula still drives the generation
+        # path (`tasks × structure_keys × samples_per_task`).
+        per_run = per_call * cells * request.samples_per_task
+        model_total = per_run if runs_already_counted else per_run * request.runs_per_call
 
         per_model_costs.append(PerModelCost(
             model_id=model_id,
@@ -831,12 +839,14 @@ def estimate_cost(
         "selected_configuration.model_configs, falling back to the project "
         "default." + utilization_note + mode_note + "."
     )
-    if eval_uses_subject_count:
+    if request.mode == "evaluation" and bool(request.evaluation_configs):
         note += (
-            " Eval-mode estimates assume each generation populates every "
-            "prediction_field and price every judge in the ensemble at the "
-            "maximum runs across that ensemble. Sparse fields or asymmetric "
-            "judge run counts can shift the actual cost by ±20–40%."
+            " Eval-mode estimates count cells per-judge, using each config's "
+            "own per-judge `runs` value, and subtract cells that already have "
+            "a successful task_evaluations row under "
+            "`{config_id}|{prediction_field}|...`. Sparse prediction fields "
+            "or generations missing the parsed field can shift the actual "
+            "cost by ±20%."
         )
 
     from datetime import datetime, timezone
