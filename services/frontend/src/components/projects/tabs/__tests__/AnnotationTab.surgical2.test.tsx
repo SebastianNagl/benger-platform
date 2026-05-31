@@ -43,6 +43,7 @@ jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
     export: jest.fn(),
     bulkExportTasks: jest.fn(),
+    streamExportTasks: jest.fn(),
     bulkDeleteTasks: jest.fn(),
     bulkArchiveTasks: jest.fn(),
     getMembers: jest.fn(),
@@ -690,7 +691,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
       })
 
       await waitFor(() => {
-        expect(projectsAPI.bulkExportTasks).toHaveBeenCalled()
+        expect(projectsAPI.streamExportTasks).toHaveBeenCalled()
         expect(mockAddToast).toHaveBeenCalled()
       })
     })
@@ -725,15 +726,15 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
         fireEvent.click(bulkExportBtn)
       })
 
-      // Should NOT have called bulkExportTasks because no tasks selected
-      expect(projectsAPI.bulkExportTasks).not.toHaveBeenCalled()
+      // Should NOT have called streamExportTasks because no tasks selected
+      expect(projectsAPI.streamExportTasks).not.toHaveBeenCalled()
     })
   })
 
   // Export failure
   describe('Export failure handling', () => {
     it('shows error toast when handleExportTasks fails', async () => {
-      ;(projectsAPI.bulkExportTasks as jest.Mock).mockRejectedValue(
+      ;(projectsAPI.streamExportTasks as jest.Mock).mockRejectedValue(
         new Error('Export failed')
       )
 

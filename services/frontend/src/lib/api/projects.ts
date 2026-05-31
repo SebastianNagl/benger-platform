@@ -7,6 +7,10 @@
 
 import apiClient from '@/lib/api'
 import {
+  StreamExportResult,
+  streamJsonExport,
+} from '@/lib/api/streamingExport'
+import {
   Annotation,
   AnnotationCreate,
   AnnotationResult,
@@ -444,6 +448,31 @@ export const projectsAPI = {
       { task_ids: taskIds, format }
     )
     return response
+  },
+
+  /**
+   * Stream a JSON bulk export straight to disk with completeness validation.
+   *
+   * Prefer this over `bulkExportTasks` for the JSON format: the latter buffers
+   * the entire body via `response.blob()`, which truncates or OOMs on
+   * multi-GB projects (e.g. ZJS). Throws `TruncatedExportError` if the stream
+   * is severed, or a DOMException `AbortError` if the user cancels the save
+   * dialog.
+   */
+  streamExportTasks: async (
+    projectId: string,
+    taskIds: string[],
+    suggestedName: string,
+    callbacks?: { onStart?: () => void; onProgress?: (bytes: number) => void }
+  ): Promise<StreamExportResult> => {
+    return streamJsonExport({
+      endpoint: `/projects/${projectId}/tasks/bulk-export`,
+      method: 'POST',
+      body: { task_ids: taskIds, format: 'json' },
+      suggestedName,
+      onStart: callbacks?.onStart,
+      onProgress: callbacks?.onProgress,
+    })
   },
 
   /**
