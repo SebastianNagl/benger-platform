@@ -8275,7 +8275,7 @@
     "loading": "Tokens zählen und Preise ermitteln…",
     "totalLabel": "Geschätzte Gesamtkosten",
     "breakdown": "{tasks} Tasks × {runs} Lauf/Läufe × {models} Modell(e)",
-    "breakdownCells": "{cells} Zellen × {runs} Lauf/Läufe × {models} Modell(e)",
+    "breakdownCells": "{cells} Zellen über {models} Judge-Modell(e)",
     "estimatedAt": "Berechnet um {time}",
     "modelCol": "Modell",
     "perCallCol": "Pro Aufruf",
