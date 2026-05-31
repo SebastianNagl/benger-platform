@@ -9,12 +9,21 @@ peaked at ~3x the row-set's RAM and OOMKilled the API pod on 2026-05-31
 when the Benchathon project (~8k task_evaluations / 400 MB of JSON) was
 exported.
 
-The generator below streams the same JSON tree out chunk-by-chunk and uses
-`yield_per` + batched IN-queries so peak memory stays bounded by
-BATCH_SIZE regardless of project size. The existing
-POST /tasks/bulk-export already used this pattern (commits 7c61a79,
-0ae2be0); this module extracts it so the single-project GET can share it
-without duplicating the row-fetching, batching, and JSON-splicing logic.
+The generators below stream the same JSON tree out chunk-by-chunk. Two
+things keep peak memory bounded by BATCH_SIZE regardless of project size:
+`yield_per` bounds how many rows the DBAPI cursor buffers, and an explicit
+`Session.expunge` of each batch's ORM rows keeps the Session identity map
+from growing. The expunge is the load-bearing half — `yield_per` alone does
+NOT release rows: every Task / Annotation / Generation / TaskEvaluation
+object stays strongly referenced by the identity map for the life of the
+Session, so without detaching them peak memory scales with the whole
+project, not BATCH_SIZE. That gap OOMKilled the API pod again on the
+581-task ZJS export (2026-05-31) even though this path "already streamed".
+
+The existing POST /tasks/bulk-export uses the same `build_batch_objs`
+helper (commits 7c61a79, 0ae2be0); this module extracts it so the
+single-project GET can share the row-fetching, batching, detaching, and
+JSON-splicing logic without duplication.
 """
 from __future__ import annotations
 
@@ -22,6 +31,7 @@ import csv
 import io
 import json
 from datetime import datetime
+from itertools import chain
 from typing import Iterable, Iterator, Optional
 
 from sqlalchemy.orm import Session
@@ -139,6 +149,16 @@ def build_batch_objs(
                 )
             )
         out.append(task_data)
+
+    # Detach every ORM row this batch pulled in so the Session identity map
+    # doesn't grow across batches — `out` holds only plain dicts now, so the
+    # rows are dead weight. Without this, peak RAM scales with the whole
+    # project (the TaskEvaluation rows carry large legal-text metrics JSON)
+    # rather than BATCH_SIZE, which OOMKilled the API pod on large exports.
+    # The caller's eval_run / judge_model_lookup objects are intentionally
+    # left attached — they're reused on every batch.
+    for obj in chain(batch, anns_all, qrs_all, gens_all, te_all):
+        db.expunge(obj)
     return out
 
 
@@ -211,6 +231,7 @@ def stream_export_json(
     for kc in kc_q.yield_per(100):
         yield ("" if first else ",") + json.dumps(serialize_korrektur_comment(kc))
         first = False
+        db.expunge(kc)
     yield "]}"
 
 
@@ -452,6 +473,12 @@ def stream_export_label_studio(
                     for te in task_evals_list
                 ]
             out.append(json.dumps(ls_task, ensure_ascii=False))
+
+        # Detach this batch's rows — `out` is plain JSON strings now, so the
+        # ORM rows would otherwise pile up in the identity map and defeat the
+        # small-batch memory bound this exporter relies on.
+        for obj in chain(task_batch, anns_all, qrs_all, gens_all, te_all):
+            db.expunge(obj)
         return out
 
     for task in task_q.yield_per(LS_BATCH_SIZE):
@@ -525,12 +552,15 @@ def stream_comprehensive_project_data_json(
     in `mode='full'`) would otherwise OOMKill the API pod the moment the
     helper finished building its dict.
 
-    Heavy sections (tasks / annotations / generations / task_evaluations) use
-    `yield_per` + per-row `json.dumps` so peak RAM scales with one row, not the
-    set. Small sections (configs, sessions, members, etc.) load with `.all()`
-    and serialize once — they're tiny in practice. `users` is computed at the
-    end from refs collected during the stream, and `statistics` is the
-    running counters.
+    Heavy sections (tasks / annotations / generations / task_evaluations) are
+    iterated through `_drain`, which pairs `yield_per` (bounds the cursor
+    buffer) with a per-row `Session.expunge` (bounds the identity map). Both
+    halves are required: `yield_per` alone keeps every row alive in the
+    identity map, so peak RAM would scale with the set, not one row. Small
+    sections (configs, sessions, members, etc.) load with `.all()` and
+    serialize once — they're tiny in practice. `users` is computed at the end
+    from refs collected during the stream, and `statistics` is the running
+    counters.
     """
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -611,6 +641,17 @@ def stream_comprehensive_project_data_json(
     for tid, n in gen_count_rows:
         gen_counts[tid] = n
 
+    def _drain(query, batch_size: int = BATCH_SIZE):
+        """Yield rows under `yield_per`, detaching each once the consumer is
+        done with it. `yield_per` bounds the cursor buffer; the `expunge`
+        bounds the identity map. Without the latter, every row this clone
+        touches stays resident and peak RAM scales with the whole project
+        instead of one batch — the same trap that OOMKilled the data export.
+        """
+        for row in query.yield_per(batch_size):
+            yield row
+            db.expunge(row)
+
     yield '{"format_version": "1.0.0",'
     yield '"exported_at": ' + json.dumps(datetime.utcnow().isoformat()) + ','
     yield '"exported_by": ' + json.dumps(project.created_by) + ','
@@ -620,7 +661,7 @@ def stream_comprehensive_project_data_json(
     yield '"tasks": ['
     first = True
     task_q = db.query(Task).filter(Task.project_id == project_id)
-    for task in task_q.yield_per(BATCH_SIZE):
+    for task in _drain(task_q):
         if task.created_by:
             user_ids.add(task.created_by)
         if task.updated_by:
@@ -637,7 +678,7 @@ def stream_comprehensive_project_data_json(
     yield '"annotations": ['
     first = True
     ann_q = db.query(Annotation).filter(Annotation.project_id == project_id)
-    for ann in ann_q.yield_per(BATCH_SIZE):
+    for ann in _drain(ann_q):
         if ann.completed_by:
             user_ids.add(ann.completed_by)
         yield ("" if first else ",") + json.dumps(
@@ -654,7 +695,7 @@ def stream_comprehensive_project_data_json(
     yield '"generations": ['
     first = True
     gen_q = db.query(Generation).filter(Generation.task_id.in_(task_id_subq))
-    for gen in gen_q.yield_per(BATCH_SIZE):
+    for gen in _drain(gen_q):
         yield ("" if first else ",") + json.dumps(
             serialize_generation(gen, mode="full"), ensure_ascii=False
         )
@@ -668,7 +709,7 @@ def stream_comprehensive_project_data_json(
     rg_q = db.query(ResponseGeneration).filter(
         ResponseGeneration.task_id.in_(task_id_subq)
     )
-    for rg in rg_q.yield_per(BATCH_SIZE):
+    for rg in _drain(rg_q):
         rg_data = {
             "id": rg.id,
             "task_id": rg.task_id,
@@ -761,7 +802,7 @@ def stream_comprehensive_project_data_json(
         em_q = db.query(EvaluationRunMetric).filter(
             EvaluationRunMetric.evaluation_id.in_(eval_run_ids)
         )
-        for m in em_q.yield_per(BATCH_SIZE):
+        for m in _drain(em_q):
             m_data = {
                 "id": m.id,
                 "evaluation_id": m.evaluation_id,
@@ -781,7 +822,7 @@ def stream_comprehensive_project_data_json(
         te_q = db.query(TaskEvaluation).filter(
             TaskEvaluation.evaluation_id.in_(eval_run_ids)
         )
-        for te in te_q.yield_per(BATCH_SIZE):
+        for te in _drain(te_q):
             yield ("" if first else ",") + json.dumps(
                 serialize_task_evaluation(te, mode="full"), ensure_ascii=False
             )
@@ -796,7 +837,7 @@ def stream_comprehensive_project_data_json(
     hec_q = db.query(HumanEvaluationConfig).filter(
         HumanEvaluationConfig.task_id.in_(task_id_subq)
     )
-    for c in hec_q.yield_per(BATCH_SIZE):
+    for c in _drain(hec_q):
         hec_ids.append(c.id)
         c_data = {
             "id": c.id,
@@ -822,7 +863,7 @@ def stream_comprehensive_project_data_json(
     hes_q = db.query(HumanEvaluationSession).filter(
         HumanEvaluationSession.project_id == project_id
     )
-    for s in hes_q.yield_per(BATCH_SIZE):
+    for s in _drain(hes_q):
         hes_ids.append(s.id)
         s_data = {
             "id": s.id,
@@ -849,7 +890,7 @@ def stream_comprehensive_project_data_json(
         her_q = db.query(HumanEvaluationResult).filter(
             HumanEvaluationResult.config_id.in_(hec_ids)
         )
-        for r in her_q.yield_per(BATCH_SIZE):
+        for r in _drain(her_q):
             r_data = {
                 "id": r.id,
                 "config_id": r.config_id,
@@ -876,7 +917,7 @@ def stream_comprehensive_project_data_json(
         pr_q = db.query(PreferenceRanking).filter(
             PreferenceRanking.session_id.in_(hes_ids)
         )
-        for p in pr_q.yield_per(BATCH_SIZE):
+        for p in _drain(pr_q):
             p_data = {
                 "id": p.id,
                 "session_id": p.session_id,
@@ -901,7 +942,7 @@ def stream_comprehensive_project_data_json(
         ls_q = db.query(LikertScaleEvaluation).filter(
             LikertScaleEvaluation.session_id.in_(hes_ids)
         )
-        for lk in ls_q.yield_per(BATCH_SIZE):
+        for lk in _drain(ls_q):
             lk_data = {
                 "id": lk.id,
                 "session_id": lk.session_id,
@@ -922,7 +963,7 @@ def stream_comprehensive_project_data_json(
     yield '"korrektur_comments": ['
     first = True
     kc_q = db.query(KorrekturComment).filter(KorrekturComment.project_id == project_id)
-    for kc in kc_q.yield_per(BATCH_SIZE):
+    for kc in _drain(kc_q):
         yield ("" if first else ",") + json.dumps(
             serialize_korrektur_comment(kc), ensure_ascii=False
         )
@@ -935,7 +976,7 @@ def stream_comprehensive_project_data_json(
     par_q = db.query(PostAnnotationResponse).filter(
         PostAnnotationResponse.project_id == project_id
     )
-    for r in par_q.yield_per(BATCH_SIZE):
+    for r in _drain(par_q):
         if r.user_id:
             user_ids.add(r.user_id)
         r_data = {
