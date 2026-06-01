@@ -10,7 +10,7 @@ pytest-benchmark>=4.0.0
 # Mocking and test utilities
 responses>=0.24.1
 requests-mock>=1.11.0
-factory-boy>=3.3.0
+factory-boy>=3.3.3
 freezegun>=1.2.2
 
 # ML testing specific
