@@ -1084,3 +1084,98 @@ def _format_task_txt(task_obj: dict) -> str:
                 f"  - {ev['field_name']}: passed={ev['passed']} metrics={json.dumps(ev['metrics'])}"
             )
     return "\n".join(lines) + "\n"
+
+
+# Maps an export format to (media_type, file_extension). The async download
+# endpoint reads this to set Content-Type / Content-Disposition; the worker
+# stores the blob opaquely, so it only needs the format string itself.
+EXPORT_FORMAT_MEDIA_TYPES: dict[str, tuple[str, str]] = {
+    "json": ("application/json", "json"),
+    "csv": ("text/csv", "csv"),
+    "tsv": ("text/tab-separated-values", "tsv"),
+    "label_studio": ("application/json", "json"),
+    "txt": ("text/plain", "txt"),
+    "comprehensive": ("application/json", "json"),
+}
+
+
+def build_json_export_header_fields(db: Session, project) -> dict:
+    """Build the top-level ``{"project": {...}}`` header for a JSON export.
+
+    Extracted from ``GET /{project_id}/export?format=json`` so the worker's
+    async export task produces a byte-identical header. The count queries pass
+    whole-model classes (not column attributes) so they stay mockable in unit
+    tests and issue cheap ``COUNT(*)`` round-trips; Task / EvaluationRun rows
+    are loaded because their IDs feed the ``in_()`` filters.
+    """
+    project_id = project.id
+    project_tasks_for_counts = (
+        db.query(Task).filter(Task.project_id == project_id).all()
+    )
+    task_id_list = [t.id for t in project_tasks_for_counts]
+    evaluation_runs_for_counts = (
+        db.query(EvaluationRun)
+        .filter(EvaluationRun.project_id == project_id)
+        .all()
+    )
+    eval_run_ids_for_counts = [er.id for er in evaluation_runs_for_counts]
+
+    task_count = len(project_tasks_for_counts)
+    annotation_count = (
+        db.query(Annotation).filter(Annotation.project_id == project_id).count()
+    )
+    generation_count = (
+        db.query(Generation).filter(Generation.task_id.in_(task_id_list)).count()
+        if task_id_list
+        else 0
+    )
+    task_evaluation_count = (
+        db.query(TaskEvaluation)
+        .filter(TaskEvaluation.evaluation_id.in_(eval_run_ids_for_counts))
+        .count()
+        if eval_run_ids_for_counts
+        else 0
+    )
+
+    return {
+        "project": {
+            "id": project.id,
+            "title": project.title,
+            "description": project.description,
+            "created_at": (
+                project.created_at.isoformat() if project.created_at else None
+            ),
+            "task_count": task_count,
+            "annotation_count": annotation_count,
+            "generation_count": generation_count,
+            "evaluation_run_count": len(eval_run_ids_for_counts),
+            "task_evaluation_count": task_evaluation_count,
+            "label_config": project.label_config,
+        },
+    }
+
+
+def select_export_generator(db: Session, project, fmt: str) -> Iterator[str]:
+    """Return the chunk-yielding generator for ``fmt`` against ``project``.
+
+    Single dispatch point shared by the synchronous endpoint and the async
+    worker task so both emit the same bytes for a given format. ``project`` is
+    a loaded ``Project`` row (the json/txt generators read its title /
+    description / metadata). Raises ``ValueError`` for an unknown format.
+    """
+    project_id = project.id
+    if fmt == "json":
+        header_fields = build_json_export_header_fields(db, project)
+        return stream_export_json(
+            db, project_id, task_ids=None, header_fields=header_fields
+        )
+    if fmt in ("csv", "tsv"):
+        delimiter = "," if fmt == "csv" else "\t"
+        return stream_export_flat_csv(db, project_id, delimiter=delimiter)
+    if fmt == "label_studio":
+        return stream_export_label_studio(db, project_id)
+    if fmt == "txt":
+        return stream_export_txt(db, project_id, project.title, project.description)
+    if fmt == "comprehensive":
+        return stream_comprehensive_project_data_json(db, project_id)
+    raise ValueError(f"Unsupported export format: {fmt!r}")
