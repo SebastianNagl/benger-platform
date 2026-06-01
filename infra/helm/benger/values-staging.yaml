@@ -209,6 +209,16 @@ redis:
   replica:
     replicaCount: 0
 
+# MinIO object storage (issue #158). Deep-merges over values.yaml, so only the
+# staging-specific deltas live here; `enabled` stays false (inherited) until a
+# validation run flips it. Smaller PVC + shorter expiry than prod; staging host
+# is covered by the *.staging.what-a-benger.net wildcard cert.
+minio:
+  publicHost: storage.staging.what-a-benger.net
+  expiryDays: 3
+  persistence:
+    size: 5Gi
+
 # Traefik middleware
 middleware:
   enabled: true
