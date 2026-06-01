@@ -1,7 +1,7 @@
 """Compute all agreement / correlation / reliability statistics for the paper.
 
 Inputs (read-only):
-  data/raw/benchathon/Benchathon-tasks-2026-05-23.json   LLM-judge grades on human annotations
+  data/raw/benchathon/Benchathon-tasks-2026-05-31.json   LLM-judge grades on human annotations
                                                          + on LLM generations (the real export)
   data/processed/benchathon_model_evaluations.json
   data/processed/benchathon_automatic_metrics.json
@@ -33,23 +33,26 @@ Stats produced (all reported as floats, None where not estimable):
   rq5_judge_repeats:         judge stability (between-run stdev) if any
                              generation has >1 judge run; otherwise None
 
-Pure stdlib (statistics.correlation is Pearson in py3.10+, Spearman is
-rank→Pearson). ICC implemented from Shrout & Fleiss 1979.
+Correlation, Cohen's kappa, ICC and bootstrap helpers come from scipy /
+sklearn / pingouin via scripts/_stats.py — see that module for the shared
+contracts. Cluster / paired bootstraps and the TOST equivalence test stay
+local because they encode domain-specific resampling logic.
 """
 
 from __future__ import annotations
 
 import json
 import math
-import random
 import statistics
 import sys
 from collections import defaultdict
 from pathlib import Path
 
-# Isolated bootstrap RNG: reproducible regardless of how many or in what order
-# other random.* calls run in this module.
-_BOOTSTRAP_RNG = random.Random(7)
+import numpy as np
+import pandas as pd
+import pingouin as pg
+from scipy import stats as sp_stats
+from sklearn.metrics import cohen_kappa_score
 
 HERE = Path(__file__).resolve().parent.parent
 RAW       = HERE / "data" / "raw"
@@ -57,10 +60,15 @@ INTERIM   = HERE / "data" / "interim"
 PROCESSED = HERE / "data" / "processed"
 OUT = PROCESSED / "agreement_stats.json"
 
-REAL = RAW / "benchathon" / "Benchathon-tasks-2026-05-23.json"
+REAL = RAW / "benchathon" / "Benchathon_export.json"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from derive_paper_exports import LEGACY_JUDGE_FIELD_PREFIX  # noqa: E402
+from _stats import mae, pearson, spearman  # noqa: E402
+from derive_paper_exports import BASELINE_JUDGE_FIELD_PREFIX  # noqa: E402
+
+# Isolated bootstrap RNG: reproducible regardless of how many or in what order
+# other np.random.* calls run in this module.
+_BOOTSTRAP_RNG = np.random.default_rng(7)
 
 DIMENSIONS = (
     "ergebnisrichtigkeit", "vollstaendigkeit", "rechtsgrundlagen",
@@ -69,75 +77,65 @@ DIMENSIONS = (
 )
 
 
-# ----------------------------- correlation helpers -----------------------------
-
-def _to_floats(xs, ys):
-    pairs = [(x, y) for x, y in zip(xs, ys) if x is not None and y is not None]
-    if len(pairs) < 3:
-        return [], []
-    return [float(x) for x, _ in pairs], [float(y) for _, y in pairs]
-
-
-def pearson(xs, ys):
-    xs, ys = _to_floats(xs, ys)
-    if not xs:
-        return None
-    try:
-        return statistics.correlation(xs, ys)
-    except statistics.StatisticsError:
-        return None
-
-
-def _rank(xs):
-    # Average rank for ties.
-    indexed = sorted(range(len(xs)), key=lambda i: xs[i])
-    ranks = [0.0] * len(xs)
-    i = 0
-    while i < len(xs):
-        j = i
-        while j + 1 < len(xs) and xs[indexed[j + 1]] == xs[indexed[i]]:
-            j += 1
-        avg = (i + j) / 2 + 1.0
-        for k in range(i, j + 1):
-            ranks[indexed[k]] = avg
-        i = j + 1
-    return ranks
-
-
-def spearman(xs, ys):
-    xs, ys = _to_floats(xs, ys)
-    if not xs:
-        return None
-    return pearson(_rank(xs), _rank(ys))
-
-
-def mae(xs, ys):
-    xs, ys = _to_floats(xs, ys)
-    if not xs:
-        return None
-    return statistics.mean(abs(a - b) for a, b in zip(xs, ys))
-
+# ----------------------------- statistical wrappers -----------------------------
 
 def cohen_kappa(xs, ys):
-    """Cohen's kappa for two binary raters."""
+    """Cohen's kappa for two binary raters (sklearn-backed)."""
     pairs = [(bool(x), bool(y)) for x, y in zip(xs, ys) if x is not None and y is not None]
     if len(pairs) < 3:
         return None
-    n = len(pairs)
-    agree = sum(1 for a, b in pairs if a == b)
-    po = agree / n
-    pa1 = sum(1 for a, _ in pairs if a) / n
-    pb1 = sum(1 for _, b in pairs if b) / n
-    pe = pa1 * pb1 + (1 - pa1) * (1 - pb1)
-    return None if pe == 1 else (po - pe) / (1 - pe)
+    a = np.fromiter((p[0] for p in pairs), dtype=bool)
+    b = np.fromiter((p[1] for p in pairs), dtype=bool)
+    k = cohen_kappa_score(a, b)
+    return None if not np.isfinite(k) else float(k)
+
+
+def icc21_and_2k_long(triples):
+    """ICC(2,1) and ICC(2,k) from long-format ratings (pingouin-backed).
+
+    `triples` is an iterable of (target_id, rater_id, rating). Two-way
+    random, absolute agreement — Shrout & Fleiss 1979 ICC(2,1) / ICC(2,k);
+    pingouin labels these `ICC(A,1)` and `ICC(A,k)`. The long form lets
+    callers preserve true rater identity across targets (the n×k matrix
+    form silently aligns columns by position, which only encodes rater
+    identity in fully-balanced designs).
+
+    Returns (icc_2_1, icc_2_k), or (None, None) if the design is unbalanced
+    (pingouin requires every rater to rate every target), too small, or
+    pingouin produces NaN (e.g. zero MSE). For unbalanced (partially-crossed)
+    designs there is no single closed-form ICC(2,*) — the strict number is
+    only defined on a fully-balanced subset; see `_balanced_icc_long` in
+    `rq5_human_irr` for the largest-balanced-subset path used in this paper.
+    """
+    rows = [(t, r, float(v)) for (t, r, v) in triples if v is not None]
+    if not rows:
+        return None, None
+    long_df = pd.DataFrame(rows, columns=["target", "rater", "rating"])
+    if long_df["target"].nunique() < 2 or long_df["rater"].nunique() < 2:
+        return None, None
+    try:
+        icc = pg.intraclass_corr(
+            data=long_df, targets="target", raters="rater", ratings="rating",
+            nan_policy="raise",
+        ).set_index("Type")
+    except (AssertionError, ValueError):
+        return None, None
+
+    def _get(label):
+        if label not in icc.index:
+            return None
+        v = icc.loc[label, "ICC"]
+        return None if pd.isna(v) else float(v)
+
+    return _get("ICC(A,1)"), _get("ICC(A,k)")
 
 
 def icc21_and_2k(matrix):
-    """Shrout & Fleiss (1979) ICC(2,1) and ICC(2,k) on n×k ratings matrix.
+    """ICC(2,1) and ICC(2,k) on an n×k ratings matrix (positional entry point).
 
-    Two-way random, single-rater (consistency-of-mean-rating not strict
-    absolute-agreement variant). Returns (icc_2_1, icc_2_k) or (None, None)
-    if any cell is missing or n<2 / k<2.
+    The matrix form assigns rater identity *by column position*, which is
+    only meaningful when each column is consistently the same rater across
+    rows. Prefer `icc21_and_2k_long` when true rater IDs are available.
     """
     n = len(matrix)
     if n < 2:
@@ -147,48 +145,133 @@ def icc21_and_2k(matrix):
         return None, None
     if any(v is None for row in matrix for v in row):
         return None, None
+    triples = [(i, j, float(matrix[i][j])) for i in range(n) for j in range(k)]
+    return icc21_and_2k_long(triples)
 
-    grand = sum(sum(row) for row in matrix) / (n * k)
-    row_means = [sum(row) / k for row in matrix]
-    col_means = [sum(matrix[i][j] for i in range(n)) / n for j in range(k)]
 
-    ssr = k * sum((rm - grand) ** 2 for rm in row_means)
-    ssc = n * sum((cm - grand) ** 2 for cm in col_means)
-    sst = sum((matrix[i][j] - grand) ** 2 for i in range(n) for j in range(k))
-    sse = sst - ssr - ssc
-    msr = ssr / (n - 1)
-    msc = ssc / (k - 1)
-    mse = sse / ((n - 1) * (k - 1))
-
-    denom_1 = msr + (k - 1) * mse + k * (msc - mse) / n
-    if denom_1 <= 0:
-        return None, None
-    icc_2_1 = (msr - mse) / denom_1
-
-    denom_k = msr + (msc - mse) / n
-    if denom_k <= 0:
-        icc_2_k = None
-    else:
-        icc_2_k = (msr - mse) / denom_k
-    return icc_2_1, icc_2_k
+def _percentile_ci(values, n=2000):
+    """Percentile bootstrap CI on the mean of `values`. Returns (lo, hi)."""
+    arr = np.asarray(values, dtype=float)
+    res = sp_stats.bootstrap(
+        (arr,), np.mean, n_resamples=n, method="percentile",
+        random_state=_BOOTSTRAP_RNG,
+    )
+    return float(res.confidence_interval.low), float(res.confidence_interval.high)
 
 
 def bootstrap_mean_diff(a, b, n=2000):
     """Bootstrap CI on mean(a) - mean(b). Returns (point, lo95, hi95)."""
-    a = [float(x) for x in a if x is not None]
-    b = [float(x) for x in b if x is not None]
+    a = np.asarray([float(x) for x in a if x is not None], dtype=float)
+    b = np.asarray([float(x) for x in b if x is not None], dtype=float)
     if len(a) < 3 or len(b) < 3:
         return None, None, None
-    point = statistics.mean(a) - statistics.mean(b)
+    point = float(a.mean() - b.mean())
+    res = sp_stats.bootstrap(
+        (a, b), lambda x, y, axis=-1: x.mean(axis=axis) - y.mean(axis=axis),
+        n_resamples=n, method="percentile", random_state=_BOOTSTRAP_RNG,
+        vectorized=True, paired=False,
+    )
+    return point, float(res.confidence_interval.low), float(res.confidence_interval.high)
+
+
+def cluster_bootstrap_mean_diff(samples_a, samples_b, n=2000):
+    """Cluster bootstrap on mean(a) - mean(b).
+
+    Inputs are dicts cluster_id -> list[float] of that cluster's scores in
+    arm a / arm b. We resample cluster ids with replacement (separately on
+    each arm), then take all of the resampled cluster's observations.
+    Clusters with no observation in an arm contribute nothing in that arm.
+
+    Kept custom: scipy.stats.bootstrap operates on a flat sample array; it
+    cannot resample cluster keys and expand to the cluster's variable-length
+    observation lists.
+    """
+    cids_a = [c for c, xs in samples_a.items() if xs]
+    cids_b = [c for c, xs in samples_b.items() if xs]
+    if len(cids_a) < 3 or len(cids_b) < 3:
+        return None, None, None
+    flat_a = [v for xs in samples_a.values() for v in xs]
+    flat_b = [v for xs in samples_b.values() for v in xs]
+    if not flat_a or not flat_b:
+        return None, None, None
+    point = statistics.mean(flat_a) - statistics.mean(flat_b)
     diffs = []
-    for _ in range(n):
-        sa = [_BOOTSTRAP_RNG.choice(a) for _ in a]
-        sb = [_BOOTSTRAP_RNG.choice(b) for _ in b]
+    idx_a = _BOOTSTRAP_RNG.integers(0, len(cids_a), size=(n, len(cids_a)))
+    idx_b = _BOOTSTRAP_RNG.integers(0, len(cids_b), size=(n, len(cids_b)))
+    for r in range(n):
+        sa = [v for i in idx_a[r] for v in samples_a[cids_a[i]]]
+        sb = [v for i in idx_b[r] for v in samples_b[cids_b[i]]]
+        if not sa or not sb:
+            continue
         diffs.append(statistics.mean(sa) - statistics.mean(sb))
-    diffs.sort()
-    lo = diffs[int(0.025 * n)]
-    hi = diffs[min(int(0.975 * n), n - 1)]
-    return point, lo, hi
+    if len(diffs) < 3:
+        return point, None, None
+    lo, hi = np.percentile(diffs, [2.5, 97.5])
+    return point, float(lo), float(hi)
+
+
+def paired_within_cluster_bootstrap(samples_a, samples_b, n=2000):
+    """Bootstrap mean of within-cluster Δ = mean(a_c) - mean(b_c) over the
+    subset of clusters that contributed to both arms. Returns
+    (point, lo, hi, n_clusters_paired).
+    """
+    deltas = []
+    for cid in set(samples_a) & set(samples_b):
+        a, b = samples_a[cid], samples_b[cid]
+        if not a or not b:
+            continue
+        deltas.append(statistics.mean(a) - statistics.mean(b))
+    if len(deltas) < 3:
+        return None, None, None, len(deltas)
+    point = statistics.mean(deltas)
+    lo, hi = _percentile_ci(deltas, n=n)
+    return point, lo, hi, len(deltas)
+
+
+def tost_mean_diff(a, b, eq_low=-5.0, eq_high=5.0, n=2000):
+    """Bootstrap two-one-sided-tests (TOST) for equivalence of mean(a) and
+    mean(b) within a band [eq_low, eq_high]. Equivalence claim requires
+    both one-sided 95% bounds to fall inside the band.
+
+    Returns dict with the one-sided bounds and per-hypothesis flags, or
+    None if either arm is too small to bootstrap.
+    """
+    a_arr = np.asarray([float(x) for x in a if x is not None], dtype=float)
+    b_arr = np.asarray([float(x) for x in b if x is not None], dtype=float)
+    if len(a_arr) < 3 or len(b_arr) < 3:
+        return None
+    # One-sided 95% bounds = 5th and 95th percentiles of the bootstrapped diffs.
+    idx_a = _BOOTSTRAP_RNG.integers(0, len(a_arr), size=(n, len(a_arr)))
+    idx_b = _BOOTSTRAP_RNG.integers(0, len(b_arr), size=(n, len(b_arr)))
+    diffs = a_arr[idx_a].mean(axis=1) - b_arr[idx_b].mean(axis=1)
+    lo_one_sided = float(np.percentile(diffs, 5))
+    hi_one_sided = float(np.percentile(diffs, 95))
+    point = float(a_arr.mean() - b_arr.mean())
+    return {
+        "point_estimate": point,
+        "eq_low": eq_low,
+        "eq_high": eq_high,
+        "one_sided_lower_95": lo_one_sided,
+        "one_sided_upper_95": hi_one_sided,
+        "reject_h0_low":  lo_one_sided > eq_low,
+        "reject_h0_high": hi_one_sided < eq_high,
+        "equivalent": (lo_one_sided > eq_low) and (hi_one_sided < eq_high),
+    }
+
+
+def clopper_pearson_ci(k, n, alpha=0.05):
+    """Exact (Clopper--Pearson) two-sided binomial CI on k/n at 1-alpha.
+
+    Returns (lo, hi); endpoints pinned to 0/1 when k=0 / k=n. Returns
+    (None, None) when n=0. Used for the Calderon alt-test winning rate
+    omega = #rejected / m on the small (m=5) reviewer roster.
+    """
+    if not n:
+        return None, None
+    lo, hi = sp_stats.binomtest(int(k), int(n)).proportion_ci(
+        confidence_level=1 - alpha, method="exact",
+    )
+    return float(lo), float(hi)
 
 
 # ----------------------------- data joins -----------------------------
@@ -210,12 +293,12 @@ def index_judge_on_humans(real):
     for task in real["tasks"]:
         for ev in task.get("evaluations") or []:
             fn = ev.get("field_name") or ""
-            # Restrict to the legacy single-pass judge that anchors the RQ1/2/3
+            # Restrict to the baseline single-pass judge that anchors the RQ1/2/3
             # leaderboards. The 2026-05-21 export also carries Config A/B passes
             # (mpe7mkzx-2zp6, mpe7o02k-yrio); without this filter, whichever
             # config appears last per annotation silently wins via out[ann_id]
             # overwrite, contaminating every RQ5 / rq4_cocreation number.
-            if not fn.startswith(LEGACY_JUDGE_FIELD_PREFIX):
+            if not fn.startswith(BASELINE_JUDGE_FIELD_PREFIX):
                 continue
             if "human:loesung" not in fn:
                 continue
@@ -224,11 +307,12 @@ def index_judge_on_humans(real):
 
             # Shape A: nested `llm_judge_falloesung.details.raw_score` on 0-100.
             # Shape B: top-level `raw_score` plus `llm_judge_falloesung_response`.
-            # Backfilled legacy rows wear the Shape A envelope but the `details`
-            # blob is a stub (just `backfilled_legacy: true`) — `judge.get("value")`
-            # is then a 0-1 ratio, the same scale trap fixed in `_legacy_judge_score`.
-            # Gate Shape A on `details.raw_score is not None` and otherwise fall
-            # through to the Shape B branch.
+            # Backfilled rows wear the Shape A envelope but the `details` blob
+            # is a stub (just `{backfilled_legacy: true}` — the DB-side key
+            # name pre-dates this rename and stays). `judge.get("value")` is
+            # then a 0-1 ratio, the same scale trap fixed in
+            # `_baseline_judge_score`. Gate Shape A on `details.raw_score is
+            # not None` and otherwise fall through to the Shape B branch.
             details = {}
             raw = gp = passed = None
             dims_src = {}
@@ -314,6 +398,18 @@ def annotation_to_task(real):
     for task in real["tasks"]:
         for ann in task.get("annotations") or []:
             out[ann["id"]] = task["id"]
+    return out
+
+
+def annotation_to_user(real):
+    """annotation_id -> completed_by (participant id), for clustered RQ4
+    resampling. Missing completed_by stays unmapped."""
+    out = {}
+    for task in real["tasks"]:
+        for ann in task.get("annotations") or []:
+            uid = ann.get("completed_by")
+            if uid is not None:
+                out[ann["id"]] = uid
     return out
 
 
@@ -438,35 +534,82 @@ def rq3_metric_correlations_humans(human_auto_metrics, judge_on_humans):
     return out
 
 
-def rq4_cocreation(judge_on_humans, ann_to_task, variants):
-    """Mean judge raw on traditional vs co-creation human solutions; bootstrap CI."""
+def rq4_cocreation(judge_on_humans, ann_to_task, variants, ann_to_user):
+    """Mean judge raw on traditional vs co-creation human solutions.
+
+    Headline CI is the participant-cluster bootstrap; the i.i.d. bootstrap
+    and a task-cluster variant are also reported as Appendix diagnostics,
+    and the within-participant paired Δ provides a strict robustness check
+    on the subset of participants who appear in both arms.
+    """
     trad, ai = [], []
+    by_user_trad: dict[str, list[float]] = defaultdict(list)
+    by_user_ai:   dict[str, list[float]] = defaultdict(list)
+    by_task_trad: dict[str, list[float]] = defaultdict(list)
+    by_task_ai:   dict[str, list[float]] = defaultdict(list)
     for ann_id, j in judge_on_humans.items():
         v = variants.get(ann_id)
         raw = j.get("raw_score")
         if raw is None:
             continue
+        uid = ann_to_user.get(ann_id)
+        tid = ann_to_task.get(ann_id)
         if v == "ai":
             ai.append(raw)
+            if uid: by_user_ai[uid].append(raw)
+            if tid: by_task_ai[tid].append(raw)
         elif v == "no_ai":
             trad.append(raw)
-    point, lo, hi = bootstrap_mean_diff(ai, trad)
+            if uid: by_user_trad[uid].append(raw)
+            if tid: by_task_trad[tid].append(raw)
+
+    point_iid, lo_iid, hi_iid = bootstrap_mean_diff(ai, trad)
+    point_pc,  lo_pc,  hi_pc  = cluster_bootstrap_mean_diff(by_user_ai, by_user_trad)
+    point_tc,  lo_tc,  hi_tc  = cluster_bootstrap_mean_diff(by_task_ai, by_task_trad)
+    point_pp,  lo_pp,  hi_pp,  n_paired = paired_within_cluster_bootstrap(
+        by_user_ai, by_user_trad)
+
     return {
         "n_traditional": len(trad),
         "n_co_creation": len(ai),
+        "n_participants_paired": n_paired,
+        "n_participants_trad": len(by_user_trad),
+        "n_participants_ai":   len(by_user_ai),
         "mean_traditional": statistics.mean(trad) if trad else None,
         "mean_co_creation": statistics.mean(ai) if ai else None,
-        "mean_diff_ai_minus_trad": point,
-        "ci95_lo": lo,
-        "ci95_hi": hi,
+        # Headline = participant cluster bootstrap. Manuscript prose
+        # already inlines `mean_diff_ai_minus_trad`, `ci95_lo`, `ci95_hi`,
+        # so the names stay; only the resampling unit changes.
+        "mean_diff_ai_minus_trad": point_pc,
+        "ci95_lo": lo_pc,
+        "ci95_hi": hi_pc,
+        # Diagnostics for the methods appendix.
+        "mean_diff_ai_minus_trad_iid": point_iid,
+        "ci95_lo_iid": lo_iid,
+        "ci95_hi_iid": hi_iid,
+        "ci95_lo_cluster_task": lo_tc,
+        "ci95_hi_cluster_task": hi_tc,
+        "mean_diff_cluster_task": point_tc,
+        "mean_diff_paired_within_participant": point_pp,
+        "ci95_lo_paired_within_participant": lo_pp,
+        "ci95_hi_paired_within_participant": hi_pp,
     }
 
 
 def rq5_judge_vs_human(judge_on_humans, humans):
-    """Per-annotation judge vs mean-human; pairs across the expert-graded subset."""
+    """Per-solution judge vs mean-human; pairs across the expert-graded subset.
+
+    `humans` is keyed by solution_id (per humans_by_solution). For human-
+    written Benchathon entries the solution_id and annotation_id coincide,
+    so `judge_on_humans[solution_id]` resolves; on LLM solutions (whose
+    annotation_id is null and whose judge scores live in model_evals via
+    generation_id) the lookup misses and the loop skips them, restricting
+    this function to human-authored solutions. The LLM-side equivalent is
+    rq5_judge_on_llm_solutions.
+    """
     j_raw, h_raw, j_gp, h_gp, j_pass, h_pass = [], [], [], [], [], []
-    for ann_id, graders in humans.items():
-        j = judge_on_humans.get(ann_id)
+    for solution_id, graders in humans.items():
+        j = judge_on_humans.get(solution_id)
         if not j:
             continue
         mean_h_raw = statistics.mean(g["raw_score"] for g in graders if g["raw_score"] is not None)
@@ -481,12 +624,27 @@ def rq5_judge_vs_human(judge_on_humans, humans):
             j_gp.append(j["grade_points"]); h_gp.append(mean_h_gp)
         if j["passed"] is not None and mean_h_pass is not None:
             j_pass.append(j["passed"]); h_pass.append(mean_h_pass)
+    # Bias-corrected residual MAE: subtract the mean systematic offset
+    # before taking |·|, so the calibration shift the judge-calibration
+    # audit documents (~+11.7 raw / ~+27 raw on LLM picks) doesn't
+    # silently dominate what we present as "disagreement".
+    def _bias_corrected_mae(js, hs):
+        if not js or not hs:
+            return None
+        delta = statistics.mean(js) - statistics.mean(hs)
+        return statistics.mean(abs((j - h) - delta) for j, h in zip(js, hs))
     return {
         "n_annotations": len(j_raw),
         "pearson_raw": pearson(j_raw, h_raw),
         "spearman_raw": spearman(j_raw, h_raw),
         "mae_raw": mae(j_raw, h_raw),
         "mae_grade_points": mae(j_gp, h_gp),
+        "mae_raw_bias_corrected": _bias_corrected_mae(j_raw, h_raw),
+        "mae_grade_points_bias_corrected": _bias_corrected_mae(j_gp, h_gp),
+        "judge_minus_pool_mean_raw": (
+            statistics.mean(j_raw) - statistics.mean(h_raw) if j_raw and h_raw else None),
+        "judge_minus_pool_mean_grade_points": (
+            statistics.mean(j_gp) - statistics.mean(h_gp) if j_gp and h_gp else None),
         "passfail_cohen_kappa": cohen_kappa(j_pass, h_pass),
         "mean_judge_raw": statistics.mean(j_raw) if j_raw else None,
         "mean_human_raw_mean": statistics.mean(h_raw) if h_raw else None,
@@ -497,29 +655,67 @@ def rq5_human_irr(humans):
     """ICC(2,1) and ICC(2,k) across solutions graded by k blind raters.
     Also within-solution spread on raw and grade points.
 
-    Real grading coverage is unbalanced (most solutions have 2 or 3 blind
-    raters, a few have 4). We pick the *most common* k for the ICC, which
-    keeps the largest balanced subset rather than the max (which would
-    keep only the handful of solutions with the rare k=4 coverage).
+    Real grading coverage is partially crossed (k=3 blind raters per
+    solution, drawn from a roster of m=5 — so different solutions see
+    different rater triplets). We report two numbers:
+
+    * **Pooled positional ICC** (`icc_2_1_raw` etc.) — the Shrout-Fleiss
+      formula on an n×k matrix where column j is the j-th rater *in source-
+      file order*, so column identity isn't a stable rater identity. The
+      number is well-defined and matches what the manuscript was written
+      against, but it's a conservative approximation: random column-position
+      noise inflates MSC and pulls ICC down relative to the strict version.
+
+    * **Balanced-subset ICC** (`balanced_subset.icc_2_1_raw` etc.) — the
+      strict ICC(2,*) on the largest subset of solutions sharing the same
+      rater triplet, computed in long format with real grader IDs. Smaller
+      n, but the only number that carries a clean ICC(2,*) interpretation.
+
+    The `max_k_subset` field uses the same modal-k logic (modal k among
+    k>=3) as before.
     """
     from collections import Counter as _Counter
     rows_raw_all, rows_gp_all = [], []
+    rows_raw_with_ids, rows_gp_with_ids = [], []   # parallel: (sol_id, [(gid, v), ...])
     spreads_raw, spreads_gp = [], []
-    for ann_id, graders in humans.items():
+    for solution_id, graders in humans.items():
         if len(graders) < 2:
             continue
-        raws = [g["raw_score"] for g in graders]
-        gps = [g["grade_points"] for g in graders]
-        if None not in raws:
-            rows_raw_all.append(raws); spreads_raw.append(max(raws) - min(raws))
-        if None not in gps:
-            rows_gp_all.append(gps); spreads_gp.append(max(gps) - min(gps))
+        raw_pairs = [(g["grader_id"], g["raw_score"]) for g in graders]
+        gp_pairs  = [(g["grader_id"], g["grade_points"]) for g in graders]
+        if all(v is not None for _, v in raw_pairs):
+            rows_raw_all.append([v for _, v in raw_pairs])
+            rows_raw_with_ids.append((solution_id, raw_pairs))
+            spreads_raw.append(max(v for _, v in raw_pairs) - min(v for _, v in raw_pairs))
+        if all(v is not None for _, v in gp_pairs):
+            rows_gp_all.append([v for _, v in gp_pairs])
+            rows_gp_with_ids.append((solution_id, gp_pairs))
+            spreads_gp.append(max(v for _, v in gp_pairs) - min(v for _, v in gp_pairs))
 
     def _icc_at_k(rows, k):
         sub = [r for r in rows if len(r) == k]
         return sub, icc21_and_2k(sub)
 
-    # Modal-k: the dominant rater-count in the data (current behavior).
+    def _balanced_icc_long(rows_with_ids):
+        """ICC(2,*) on the largest subset of solutions sharing one rater set."""
+        if not rows_with_ids:
+            return None, None, [], None
+        triplet_counts = _Counter(
+            frozenset(gid for gid, _ in pairs) for _, pairs in rows_with_ids
+        )
+        if not triplet_counts:
+            return None, None, [], None
+        modal_set, _ = triplet_counts.most_common(1)[0]
+        subset = [(sid, pairs) for sid, pairs in rows_with_ids
+                  if frozenset(gid for gid, _ in pairs) == modal_set]
+        if len(subset) < 2:
+            return None, None, subset, sorted(modal_set)
+        triples = [(sid, gid, v) for sid, pairs in subset for gid, v in pairs]
+        icc_1, icc_k = icc21_and_2k_long(triples)
+        return icc_1, icc_k, subset, sorted(modal_set)
+
+    # Pooled positional ICC (matrix on all multi-graded solutions; column j
+    # is the j-th rater in source-file order, not a stable rater identity).
     if rows_raw_all:
         k_modal_raw = _Counter(len(r) for r in rows_raw_all).most_common(1)[0][0]
     else:
@@ -530,6 +726,10 @@ def rq5_human_irr(humans):
         k_modal_gp = None
     rows_modal_raw, (icc1_raw, iccK_raw) = _icc_at_k(rows_raw_all, k_modal_raw) if k_modal_raw else ([], (None, None))
     rows_modal_gp, (icc1_gp, iccK_gp) = _icc_at_k(rows_gp_all, k_modal_gp) if k_modal_gp else ([], (None, None))
+
+    # Balanced-subset ICC (rater-identity-aware)
+    bal_icc1_raw, bal_iccK_raw, bal_subset_raw, bal_raters_raw = _balanced_icc_long(rows_raw_with_ids)
+    bal_icc1_gp,  bal_iccK_gp,  bal_subset_gp,  bal_raters_gp  = _balanced_icc_long(rows_gp_with_ids)
 
     # k>=3: the tightest-IRR subset that modal-k filtering drops when the mode
     # is k=2. icc21_and_2k requires balanced rows; pick the modal k among k>=3.
@@ -556,6 +756,24 @@ def rq5_human_irr(humans):
         "mean_within_ann_spread_raw": statistics.mean(spreads_raw) if spreads_raw else None,
         "mean_within_ann_spread_grade_points": statistics.mean(spreads_gp) if spreads_gp else None,
         "mean_judge_human_dev_vs_human_human_dev_ratio": None,  # filled in main
+        # Strict ICC(2,*) on the largest rater-triplet-balanced subset.
+        # Smaller n; preserves true rater identity instead of column-position
+        # alignment. Reported alongside the pooled positional value above so
+        # the difference between the two is auditable.
+        "balanced_subset": {
+            "raw": {
+                "n_solutions": len(bal_subset_raw),
+                "rater_ids": bal_raters_raw,
+                "icc_2_1": bal_icc1_raw,
+                "icc_2_k": bal_iccK_raw,
+            },
+            "grade_points": {
+                "n_solutions": len(bal_subset_gp),
+                "rater_ids": bal_raters_gp,
+                "icc_2_1": bal_icc1_gp,
+                "icc_2_k": bal_iccK_gp,
+            },
+        },
         # Tightest-IRR subset (k>=3); reported alongside the modal-k ICC so the
         # reader can see whether agreement holds on the more heavily-graded
         # annotations (which modal-k=2 filtering otherwise drops).
@@ -575,8 +793,8 @@ def rq5_dim_agreement(judge_on_humans, humans):
     out = {}
     for d in DIMENSIONS:
         j_vals, h_vals = [], []
-        for ann_id, graders in humans.items():
-            j = judge_on_humans.get(ann_id)
+        for solution_id, graders in humans.items():
+            j = judge_on_humans.get(solution_id)
             if not j:
                 continue
             jv = j["dimensions"].get(d)
@@ -593,71 +811,331 @@ def rq5_dim_agreement(judge_on_humans, humans):
     return out
 
 
-def rq5_calderon(judge_on_humans, humans):
-    """Alternative-annotator test (Calderon 2025-style).
+# ----------------------------- Calderon alt-test -----------------------------
 
-    Treat each annotation as an item. Compute two scoring rows per annotation:
-      - mean over k human graders                   (full-human pool)
-      - mean over (k-1 human graders + LLM judge)   (judge-substituted pool)
-    Report (a) Pearson + Spearman between the two pooled scores across items,
-    and (b) the analogous "human-only" leave-one-out check where we drop one
-    human at a time from the pool of k and compare against the full mean.
+# Implementation of the Alternative Annotator Test (alt-test) of
+# Calderon, Reichart & Dror, ACL 2025 (arXiv:2501.10970). The §3 procedure
+# tests whether the LLM judge can stand in for a randomly drawn human
+# annotator from the blind-reviewer pool; the §D.2 variant compares against
+# a single expert reference (here: the un-blind creator grade). Both share
+# the per-annotator paired test, Benjamini–Yekutieli FDR, and winning-rate
+# decision rule. See `publications/Dataset_ARR/scripts/test_rq5_calderon.py`
+# for hand-traced regression toys.
 
-    A judge that scores like an additional human grader should show
-    judge-substituted correlation ≈ human-only correlation.
+# Minimum per-annotator instance count before we run a test. Paper §3.3 uses
+# Wilcoxon as the small-n fallback (n<30) but does not give a hard floor;
+# below ~5 the Wilcoxon p-value is too coarse to matter. We drop annotators
+# below this cutoff and surface the count in `m_dropped_low_n`.
+_ALTTEST_MIN_N_J = 5
+
+
+def _by_fdr(pvals, q=0.05):
+    """Benjamini–Yekutieli FDR controller (Calderon Alg. 1, paper p. 24).
+
+    BY (not Benjamini–Hochberg) is required because the m hypotheses are
+    dependent: they all share the per-instance `H_i\\{j}` reference pool.
+    Returns a list of bool — True iff the corresponding p-value is rejected
+    at the BY-adjusted threshold.
     """
-    # Matched sample: both the judge-substituted and the human-LOO comparison
-    # run on the same annotations (those where the legacy judge has data and
-    # k>=2 humans), and both drop the SAME position from the human pool. This
-    # fixes two issues with the prior implementation: (a) the LOO loop also
-    # ran on annotations the judge never graded, mixing pools; (b) the LOO
-    # dropped raws[0] while the judge swap dropped raws[-1], so they weren't
-    # symmetric. With a stable grader_id sort, the chosen position is
-    # deterministic and reproducible across re-runs.
-    full_matched, sub_matched, loh_matched = [], [], []
-    # Rigorous subset: k>=3 only. For k=2, the human-LOO is one rater scored
-    # against the mean of the same two raters; that's a high-correlation
-    # comparison by construction (the LOO is 50% of the full sum). The k>=3
-    # subset breaks that direct overlap so the gap to judge_substituted is
-    # interpretable.
-    full_k3, sub_k3, loh_k3 = [], [], []
-    for ann_id, graders in humans.items():
+    m = len(pvals)
+    if m == 0:
+        return []
+    order = sorted(range(m), key=lambda i: pvals[i])
+    cm = sum(1.0 / k for k in range(1, m + 1))
+    rejected = [False] * m
+    for rank, idx in enumerate(order, start=1):
+        threshold = (rank / m) * (q / cm)
+        if pvals[idx] <= threshold:
+            # Reject p_(1)..p_(rank); later passes only re-mark the same set
+            # or extend it, so the final state reflects the largest rank that
+            # met its threshold.
+            for r in range(rank):
+                rejected[order[r]] = True
+    return rejected
+
+
+def _advantage_test(d, eps):
+    """One-sided paired test of d̄ > ε on the per-instance difference series.
+
+    `d` is the list of W^h_{i,j} - W^f_{i,j} indicators across the instances
+    annotator h_j graded (each entry in {-1, 0, 1}). Paper §3.3:
+      t_j = (d̄_j - ε) / (s_j / sqrt(n_j)), α = 0.05, one-sided.
+    Falls back to Wilcoxon signed-rank when n_j < 30 (paper §3.3).
+    Returns (n_j, test_name, statistic, p_value, d_bar).
+    """
+    from scipy import stats  # local: keeps stdlib-only smoke tests cheap
+
+    n = len(d)
+    if n == 0:
+        return n, "none", None, 1.0, None
+    d_bar = sum(d) / n
+    # H_0j: ρ^f_j ≤ ρ^h_j - ε  <=>  d̄ ≥ ε   (since d = W^h - W^f).
+    # H_1j: ρ^f_j > ρ^h_j - ε   <=>  d̄ < ε.
+    # We reject H_0j when d̄ is significantly LESS than ε (judge wins by more
+    # than the cost-benefit penalty allows for the human alternative).
+    if n >= 30:
+        s = math.sqrt(sum((x - d_bar) ** 2 for x in d) / (n - 1)) if n > 1 else 0.0
+        if s == 0.0:
+            # Degenerate: all d_i identical. Reject iff d̄ < ε.
+            return n, "t", float("-inf") if d_bar < eps else float("inf"), \
+                   (0.0 if d_bar < eps else 1.0), d_bar
+        t_stat = (d_bar - eps) / (s / math.sqrt(n))
+        # Lower-tail p: P(T <= t_stat) under H_0.
+        p = float(stats.t.cdf(t_stat, df=n - 1))
+        return n, "t", float(t_stat), p, d_bar
+
+    # Wilcoxon signed-rank fallback. We test whether d - ε is significantly
+    # LESS than zero (one-sided). scipy.wilcoxon's `alternative='less'` does
+    # exactly this. zero_method='wilcox' drops zero differences (paper's
+    # default convention).
+    shifted = [x - eps for x in d]
+    nonzero = [x for x in shifted if x != 0]
+    if not nonzero:
+        # All instances are ties at d_i = ε; cannot reject.
+        return n, "wilcoxon", None, 1.0, d_bar
+    try:
+        # method="exact" pins the small-n permutation distribution; scipy's
+        # default `method="auto"` switched behaviour between scipy 1.13 and
+        # 1.17 for n in the 7–25 range we hit here, which silently moved
+        # FDR-corrected p-values across the rejection boundary.
+        res = stats.wilcoxon(shifted, alternative="less", zero_method="wilcox",
+                             method="exact")
+        return n, "wilcoxon", float(res.statistic), float(res.pvalue), d_bar
+    except ValueError:
+        # scipy raises if all values are zero or n is too small.
+        return n, "wilcoxon", None, 1.0, d_bar
+
+
+def _alt_test_blind_pool(annotators_with_others, *, eps):
+    """Run the §3 alt-test on the per-annotator instance lists.
+
+    `annotators_with_others` maps grader_id -> list of (judge_score,
+    h_j_score, [other_scores]) tuples — one entry per instance h_j graded
+    where the judge also graded and ≥2 other humans graded (i.e.
+    |H_i| ≥ 3 after excluding h_j).
+    """
+    per_annotator = []
+    p_values = []
+    for grader_id, rows in sorted(annotators_with_others.items()):
+        if len(rows) < _ALTTEST_MIN_N_J:
+            continue
+        w_f, w_h, d = [], [], []
+        for judge_score, hj, others in rows:
+            # -RMSE alignment (paper §3.1, continuous-task variant).
+            s_f = -math.sqrt(sum((judge_score - h_k) ** 2 for h_k in others) / len(others))
+            s_h = -math.sqrt(sum((hj - h_k) ** 2 for h_k in others) / len(others))
+            w_f_i = 1 if s_f >= s_h else 0
+            w_h_i = 1 if s_h >= s_f else 0
+            w_f.append(w_f_i)
+            w_h.append(w_h_i)
+            d.append(w_h_i - w_f_i)
+        rho_f = sum(w_f) / len(w_f)
+        rho_h = sum(w_h) / len(w_h)
+        n_j, test, stat, p, d_bar = _advantage_test(d, eps)
+        per_annotator.append({
+            "grader_id": grader_id,
+            "n_j": n_j,
+            "rho_f": rho_f,
+            "rho_h": rho_h,
+            "d_bar": d_bar,
+            "test": test,
+            "statistic": stat,
+            "p_value": p,
+        })
+        p_values.append(p)
+
+    rejected = _by_fdr(p_values, q=0.05)
+    for entry, rj in zip(per_annotator, rejected):
+        entry["rejected_BY_FDR"] = bool(rj)
+    m = len(per_annotator)
+    n_rej = sum(rejected) if m else None
+    omega = (n_rej / m) if m else None
+    omega_lo, omega_hi = clopper_pearson_ci(n_rej, m) if m else (None, None)
+    rho = (sum(e["rho_f"] for e in per_annotator) / m) if m else None
+    return {
+        "epsilon": eps,
+        "m_annotators": m,
+        "per_annotator": per_annotator,
+        "n_rejected": n_rej,
+        "winning_rate": omega,
+        "winning_rate_ci95_lo_clopper": omega_lo,
+        "winning_rate_ci95_hi_clopper": omega_hi,
+        "avg_advantage_probability": rho,
+        "passes_alt_test": (omega is not None and omega >= 0.5),
+    }
+
+
+def _alt_test_single_expert(annotators_with_expert, *, eps):
+    """Run the §D.2 single-expert variant.
+
+    `annotators_with_expert` maps grader_id -> list of (judge_score,
+    h_j_score, expert_score) tuples — one entry per instance h_j graded
+    where the judge also graded and the expert reference exists.
+    Alignment score is point-wise distance to the expert (paper §D.2).
+    """
+    per_annotator = []
+    p_values = []
+    for grader_id, rows in sorted(annotators_with_expert.items()):
+        if len(rows) < _ALTTEST_MIN_N_J:
+            continue
+        w_f, w_h, d = [], [], []
+        for judge_score, hj, exp in rows:
+            s_f = -abs(judge_score - exp)
+            s_h = -abs(hj - exp)
+            w_f_i = 1 if s_f >= s_h else 0
+            w_h_i = 1 if s_h >= s_f else 0
+            w_f.append(w_f_i)
+            w_h.append(w_h_i)
+            d.append(w_h_i - w_f_i)
+        rho_f = sum(w_f) / len(w_f)
+        rho_h = sum(w_h) / len(w_h)
+        n_j, test, stat, p, d_bar = _advantage_test(d, eps)
+        per_annotator.append({
+            "grader_id": grader_id,
+            "n_j": n_j,
+            "rho_f": rho_f,
+            "rho_h": rho_h,
+            "d_bar": d_bar,
+            "test": test,
+            "statistic": stat,
+            "p_value": p,
+        })
+        p_values.append(p)
+
+    rejected = _by_fdr(p_values, q=0.05)
+    for entry, rj in zip(per_annotator, rejected):
+        entry["rejected_BY_FDR"] = bool(rj)
+    m = len(per_annotator)
+    n_rej = sum(rejected) if m else None
+    omega = (n_rej / m) if m else None
+    omega_lo, omega_hi = clopper_pearson_ci(n_rej, m) if m else (None, None)
+    rho = (sum(e["rho_f"] for e in per_annotator) / m) if m else None
+    return {
+        "epsilon": eps,
+        "m_annotators": m,
+        "per_annotator": per_annotator,
+        "n_rejected": n_rej,
+        "winning_rate": omega,
+        "winning_rate_ci95_lo_clopper": omega_lo,
+        "winning_rate_ci95_hi_clopper": omega_hi,
+        "avg_advantage_probability": rho,
+        "passes_alt_test": (omega is not None and omega >= 0.5),
+    }
+
+
+def _build_blind_pool_inputs(judge_scores_by_solution, humans):
+    """Build per-annotator instance lists for the §3 blind-pool test.
+
+    `judge_scores_by_solution` is a dict solution_id -> float (the LLM
+    judge's raw_score, already filtered to entries that have a score).
+    `humans` is the blind-rater map solution_id -> list[grader_dict].
+    Each instance must have ≥ 3 blind raters AND a judge score (so that
+    excluding h_j still leaves ≥ 2 references for -RMSE).
+    """
+    per_annot = defaultdict(list)
+    total_instances = 0
+    for solution_id, graders in humans.items():
         rated = [(g.get("grader_id") or "", g["raw_score"])
                  for g in graders if g["raw_score"] is not None]
-        if len(rated) < 2:
+        if len(rated) < 3:
             continue
-        j = judge_on_humans.get(ann_id)
-        if not (j and j.get("raw_score") is not None):
+        judge = judge_scores_by_solution.get(solution_id)
+        if judge is None:
             continue
-        rated.sort()
-        raws = [r for _, r in rated]
-        full = statistics.mean(raws)
-        # Drop the last (alphabetically-sorted-by-grader_id) human in both
-        # branches, so the judge takes a fixed seat and the human-LOO drops a
-        # fixed seat.
-        sub = (sum(raws[:-1]) + j["raw_score"]) / len(raws)
-        loh = statistics.mean(raws[:-1])
-        full_matched.append(full); sub_matched.append(sub); loh_matched.append(loh)
-        if len(raws) >= 3:
-            full_k3.append(full); sub_k3.append(sub); loh_k3.append(loh)
+        total_instances += 1
+        for k, (gid, hj) in enumerate(rated):
+            others = [r for i, (_, r) in enumerate(rated) if i != k]
+            per_annot[gid].append((float(judge), float(hj), [float(x) for x in others]))
+    return per_annot, total_instances
+
+
+def _build_single_expert_inputs(judge_scores_by_solution, humans, expert_by_solution):
+    """Build per-annotator instance lists for the §D.2 single-expert variant.
+
+    `expert_by_solution` maps solution_id -> float expert reference grade
+    (mean of creator-role grades). Each instance must have the expert grade,
+    the judge grade, and a blind-rater grade.
+    """
+    per_annot = defaultdict(list)
+    total_instances = 0
+    for solution_id, graders in humans.items():
+        exp = expert_by_solution.get(solution_id)
+        if exp is None:
+            continue
+        judge = judge_scores_by_solution.get(solution_id)
+        if judge is None:
+            continue
+        rated = [(g.get("grader_id") or "", g["raw_score"])
+                 for g in graders if g["raw_score"] is not None]
+        if not rated:
+            continue
+        total_instances += 1
+        for gid, hj in rated:
+            per_annot[gid].append((float(judge), float(hj), float(exp)))
+    return per_annot, total_instances
+
+
+def _expert_grades_by_solution(canonical_grades):
+    """Mean creator-role grade per solution. Returns {} if no creator rows."""
+    by_sol = defaultdict(list)
+    for r in canonical_grades:
+        if r.get("role") != "creator":
+            continue
+        if r.get("raw_score") is None:
+            continue
+        by_sol[r["solution_id"]].append(float(r["raw_score"]))
+    return {s: statistics.mean(vs) for s, vs in by_sol.items() if vs}
+
+
+def rq5_calderon(judge_on_humans, humans, canonical_grades=None, *,
+                 eps_blind_pool=0.15, eps_single_expert_values=(0.15, 0.20)):
+    """Calderon alt-test on human-authored solutions.
+
+    Returns a dict with two sub-payloads:
+      - `blind_pool` : §3 procedure against the m blind reviewers, ε=0.15.
+      - `single_expert` : §D.2 variant against the un-blind creator grade,
+        keyed by ε ∈ {0.15, 0.20} so the headline (user-set ε=0.20) and the
+        Calderon "cost-of-alternative" sensitivity check (ε=0.15) are both
+        visible to the manuscript.
+
+    `canonical_grades` is the schema produced by derive_paper_exports.derive_
+    human_grades. Used to extract the creator reference for §D.2; if missing
+    or empty, the §D.2 payload is None.
+    """
+    judge_by_sol = {sid: float(j["raw_score"]) for sid, j in judge_on_humans.items()
+                    if j.get("raw_score") is not None}
+
+    # §3 — blind-reviewer pool.
+    blind_inputs, n_blind = _build_blind_pool_inputs(judge_by_sol, humans)
+    blind_payload = _alt_test_blind_pool(blind_inputs, eps=eps_blind_pool)
+    blind_payload["variant"] = "calderon_section_3"
+    blind_payload["reference"] = "blind_reviewer_pool"
+    blind_payload["n_instances_total"] = n_blind
+
+    # §D.2 — single expert (creator).
+    single_expert_payload = None
+    if canonical_grades:
+        expert_by_sol = _expert_grades_by_solution(canonical_grades)
+        if expert_by_sol:
+            se_inputs, n_se = _build_single_expert_inputs(
+                judge_by_sol, humans, expert_by_sol)
+            se_by_eps = {}
+            for eps in eps_single_expert_values:
+                payload = _alt_test_single_expert(se_inputs, eps=eps)
+                payload["variant"] = "calderon_section_D2_single_expert"
+                payload["reference"] = "creator_unblind"
+                payload["n_instances_total"] = n_se
+                se_by_eps[f"{eps:.2f}"] = payload
+            single_expert_payload = {
+                "variant": "calderon_section_D2_single_expert",
+                "reference": "creator_unblind",
+                "n_instances_with_creator_and_judge": n_se,
+                "epsilon_results": se_by_eps,
+            }
+
     return {
-        # Matched-sample (k>=2)
-        "n_pairs_judge_substituted": len(full_matched),
-        "n_pairs_human_leave_one_out": len(loh_matched),
-        "pearson_judge_substituted_vs_full_human": pearson(sub_matched, full_matched),
-        "spearman_judge_substituted_vs_full_human": spearman(sub_matched, full_matched),
-        "pearson_human_LOO_vs_full_human": pearson(loh_matched, full_matched),
-        "spearman_human_LOO_vs_full_human": spearman(loh_matched, full_matched),
-        # Rigorous subset (k>=3) — included so the reader can see whether the
-        # judge-substituted vs human-LOO gap survives outside the k=2 regime
-        # where the LOO and full means share 50% of their components.
-        "k_ge_3_subset": {
-            "n_pairs": len(full_k3),
-            "pearson_judge_substituted_vs_full_human": pearson(sub_k3, full_k3),
-            "spearman_judge_substituted_vs_full_human": spearman(sub_k3, full_k3),
-            "pearson_human_LOO_vs_full_human": pearson(loh_k3, full_k3),
-            "spearman_human_LOO_vs_full_human": spearman(loh_k3, full_k3),
-        },
+        "blind_pool": blind_payload,
+        "single_expert": single_expert_payload,
     }
 
 
@@ -768,19 +1246,14 @@ def tier_provider_aggregates(model_evals, zjs_summary, systems_meta):
             sys_by_group[key].add(r["system"])
         out = {}
         for key, vals in by_group.items():
-            point, lo, hi = bootstrap_mean_diff(vals, [0.0] * len(vals))
-            # bootstrap_mean_diff returns mean(a)−mean(b); with b=0s we get mean(a).
-            # Re-derive a proper CI on mean(a) directly:
             mean = statistics.mean(vals)
-            samples = sorted(
-                statistics.mean(_BOOTSTRAP_RNG.choices(vals, k=len(vals))) for _ in range(2000)
-            )
+            lo, hi = _percentile_ci(vals, n=2000)
             out[key] = {
                 "n_systems": len(sys_by_group[key]),
                 "n_generations": len(vals),
                 "mean_raw": mean,
-                "ci95_lo": samples[int(0.025 * 2000)],
-                "ci95_hi": samples[min(int(0.975 * 2000), 2000 - 1)],
+                "ci95_lo": lo,
+                "ci95_hi": hi,
             }
         return out
 
@@ -886,31 +1359,45 @@ def rq4_cocreation_blind_human(canonical_grades):
     `solution_type` ∈ {human_traditional, human_co_creation}.
 
     Returns None when no rows match (e.g. the export covers only LLM
-    generations, or roles aren't yet labelled).
+    generations, or roles aren't yet labelled). Bootstrap CI is clustered
+    on participant (`system_or_user`) — at n=15 per arm this matters less
+    than for the judge-based RQ4 but keeps the inference model consistent.
     """
     blind = humans_by_solution(canonical_grades, role_filter="blind")
     trad, ai = [], []
+    by_user_trad: dict[str, list[float]] = defaultdict(list)
+    by_user_ai:   dict[str, list[float]] = defaultdict(list)
     for sol_id, raters in blind.items():
         raws = [r["raw_score"] for r in raters if r["raw_score"] is not None]
         if not raws:
             continue
         mean_raw = statistics.mean(raws)
         stype = raters[0].get("solution_type")
+        uid = raters[0].get("system_or_user")
         if stype == "human_traditional":
             trad.append(mean_raw)
+            if uid: by_user_trad[uid].append(mean_raw)
         elif stype == "human_co_creation":
             ai.append(mean_raw)
+            if uid: by_user_ai[uid].append(mean_raw)
     if not trad or not ai:
         return None
-    point, lo, hi = bootstrap_mean_diff(ai, trad)
+    point_iid, lo_iid, hi_iid = bootstrap_mean_diff(ai, trad)
+    point_pc,  lo_pc,  hi_pc  = cluster_bootstrap_mean_diff(by_user_ai, by_user_trad)
     return {
         "n_traditional": len(trad),
         "n_co_creation": len(ai),
+        "n_participants_trad": len(by_user_trad),
+        "n_participants_ai":   len(by_user_ai),
         "mean_traditional": statistics.mean(trad),
         "mean_co_creation": statistics.mean(ai),
-        "mean_diff_ai_minus_trad": point,
-        "ci95_lo": lo,
-        "ci95_hi": hi,
+        # Headline = participant cluster bootstrap, like rq4_cocreation.
+        "mean_diff_ai_minus_trad": point_pc if point_pc is not None else point_iid,
+        "ci95_lo": lo_pc if lo_pc is not None else lo_iid,
+        "ci95_hi": hi_pc if hi_pc is not None else hi_iid,
+        "mean_diff_ai_minus_trad_iid": point_iid,
+        "ci95_lo_iid": lo_iid,
+        "ci95_hi_iid": hi_iid,
     }
 
 
@@ -1004,14 +1491,136 @@ def rq5_judge_on_llm_solutions(canonical_grades, model_evals):
             h_pass.append(sum(h_passes) > len(h_passes) / 2)
     if not j_raw:
         return None
+    def _bias_corrected_mae(js, hs):
+        if not js or not hs:
+            return None
+        delta = statistics.mean(js) - statistics.mean(hs)
+        return statistics.mean(abs((j - h) - delta) for j, h in zip(js, hs))
     return {
         "n_generations": len(j_raw),
         "pearson_raw": pearson(j_raw, h_raw),
         "spearman_raw": spearman(j_raw, h_raw),
         "mae_raw": mae(j_raw, h_raw),
         "mae_grade_points": mae(j_gp, h_gp) if j_gp else None,
+        "mae_raw_bias_corrected": _bias_corrected_mae(j_raw, h_raw),
+        "mae_grade_points_bias_corrected": _bias_corrected_mae(j_gp, h_gp) if j_gp else None,
+        "judge_minus_pool_mean_raw": (
+            statistics.mean(j_raw) - statistics.mean(h_raw) if j_raw and h_raw else None),
+        "judge_minus_pool_mean_grade_points": (
+            statistics.mean(j_gp) - statistics.mean(h_gp) if j_gp and h_gp else None),
         "passfail_cohen_kappa": cohen_kappa(j_pass, h_pass) if j_pass else None,
+        "mean_judge_raw": statistics.mean(j_raw) if j_raw else None,
+        "mean_human_raw_mean": statistics.mean(h_raw) if h_raw else None,
     }
+
+
+def rq5_dim_on_llm_solutions(canonical_grades, model_evals):
+    """Per-rubric-dimension judge-vs-blind on LLM-generated solutions.
+
+    Mirror of rq5_dim_agreement but keyed by generation_id, since LLM
+    solutions are generations (not annotations). Requires that model_evals
+    rows carry a `dimensions` dict; derive_paper_exports._baseline_judge_score
+    extracts these alongside raw_score / grade_points / passed.
+    """
+    judge_by_gen = {r["generation_id"]: r for r in model_evals}
+    blind_llm = humans_by_solution(canonical_grades,
+                                   role_filter="blind",
+                                   solution_type_filter="llm_system")
+    if not blind_llm:
+        return None
+    out = {}
+    for d in DIMENSIONS:
+        j_vals, h_vals = [], []
+        for gen_id, raters in blind_llm.items():
+            j = judge_by_gen.get(gen_id)
+            if not j:
+                continue
+            jv = (j.get("dimensions") or {}).get(d)
+            human_dims = [g["dimensions"].get(d) for g in raters
+                          if g.get("dimensions") and g["dimensions"].get(d) is not None]
+            if jv is None or not human_dims:
+                continue
+            j_vals.append(jv)
+            h_vals.append(statistics.mean(human_dims))
+        out[d] = {
+            "n": len(j_vals),
+            "pearson_judge_vs_mean_human": pearson(j_vals, h_vals),
+            "mae_dim_points": mae(j_vals, h_vals),
+        }
+    return out
+
+
+def rq5_calderon_on_llm_solutions(canonical_grades, model_evals,
+                                  *, eps_blind_pool=0.15,
+                                  eps_single_expert_values=(0.15, 0.20)):
+    """Calderon alt-test on LLM-generated solutions.
+
+    Mirrors `rq5_calderon` but is keyed by generation_id rather than
+    annotation_id, because LLM solutions are generations. Returns the same
+    `{"blind_pool": …, "single_expert": …}` shape. `single_expert` is None
+    when the canonical grades carry no creator-role rows on LLM solutions.
+    """
+    judge_by_sol = {r["generation_id"]: float(r["raw_score"]) for r in model_evals
+                    if r.get("raw_score") is not None}
+    blind_llm = humans_by_solution(canonical_grades,
+                                   role_filter="blind",
+                                   solution_type_filter="llm_system")
+    if not blind_llm:
+        return None
+
+    # §3 — blind-reviewer pool.
+    blind_inputs, n_blind = _build_blind_pool_inputs(judge_by_sol, blind_llm)
+    blind_payload = _alt_test_blind_pool(blind_inputs, eps=eps_blind_pool)
+    blind_payload["variant"] = "calderon_section_3"
+    blind_payload["reference"] = "blind_reviewer_pool"
+    blind_payload["n_instances_total"] = n_blind
+
+    # §D.2 — single-expert variant, restricted to LLM-system solutions.
+    single_expert_payload = None
+    expert_by_sol = {sid: v for sid, v in _expert_grades_by_solution(
+        [r for r in canonical_grades
+         if r.get("solution_type") == "llm_system"]).items()}
+    if expert_by_sol:
+        se_inputs, n_se = _build_single_expert_inputs(
+            judge_by_sol, blind_llm, expert_by_sol)
+        se_by_eps = {}
+        for eps in eps_single_expert_values:
+            payload = _alt_test_single_expert(se_inputs, eps=eps)
+            payload["variant"] = "calderon_section_D2_single_expert"
+            payload["reference"] = "creator_unblind"
+            se_by_eps[f"{eps:.2f}"] = payload
+        single_expert_payload = {
+            "variant": "calderon_section_D2_single_expert",
+            "reference": "creator_unblind",
+            "n_instances_with_creator_and_judge": n_se,
+            "epsilon_results": se_by_eps,
+        }
+
+    return {
+        "blind_pool": blind_payload,
+        "single_expert": single_expert_payload,
+    }
+
+
+def rq5_human_irr_by_solution_type(canonical_grades):
+    """Per-solution-type ICC(2,1) / ICC(2,k) breakdown of the blind-rater pool.
+
+    Calls rq5_human_irr three times — once with solution_type filtered to
+    each of human_traditional / human_co_creation / llm_system. Returns a
+    dict keyed by solution_type with the same payload shape as the pooled
+    rq5_human_irr.
+
+    Per-type matrices are small (~15 solutions × 3 raters); the underlying
+    icc21_and_2k returns None for cells where the design isn't balanced
+    enough, so a sparse type just yields None ICCs without crashing.
+    """
+    out = {}
+    for stype in ("human_traditional", "human_co_creation", "llm_system"):
+        humans_type = humans_by_solution(canonical_grades,
+                                         role_filter="blind",
+                                         solution_type_filter=stype)
+        out[stype] = rq5_human_irr(humans_type) if humans_type else None
+    return out
 
 
 # ----------------------------- entry point -----------------------------
@@ -1035,6 +1644,19 @@ def main() -> None:
     # inter-rater statistics (they're used separately in rq5_creator_vs_blind).
     humans = humans_by_solution(canonical_grades, role_filter="blind")
     ann_to_task = annotation_to_task(real)
+    ann_to_user = annotation_to_user(real)
+
+    # Co-creation vs flagship-tier TOST: per-generation flagship raws come from
+    # model_evals, co-creation human raws from the judge-on-humans index.
+    # Equivalence band ±5 raw points (≈ 0.9 grade points, ~half the inter-
+    # human within-solution spread reported in RQ5).
+    _flagship_ids = {s["model_id"] for s in systems_meta if s.get("tier") == "flagship"}
+    _flagship_raws = [r["raw_score"] for r in model_evals
+                      if r.get("raw_score") is not None and r.get("system") in _flagship_ids]
+    _cocreation_raws = [j["raw_score"] for ann_id, j in judge_on_humans.items()
+                        if variants.get(ann_id) == "ai" and j.get("raw_score") is not None]
+    rq4_vs_flagship_tost = tost_mean_diff(_cocreation_raws, _flagship_raws,
+                                          eq_low=-5.0, eq_high=5.0)
 
     payload = {
         "_sources": {
@@ -1049,8 +1671,9 @@ def main() -> None:
         # over human-written Benchathon annotations.
         "rq3_metric_correlation_humans": rq3_metric_correlations_humans(
             human_auto_metrics, judge_on_humans),
-        "rq4_cocreation": rq4_cocreation(judge_on_humans, ann_to_task, variants),
+        "rq4_cocreation": rq4_cocreation(judge_on_humans, ann_to_task, variants, ann_to_user),
         "rq4_cocreation_by_bereich": rq4_cocreation_by_bereich(judge_on_humans, variants, real),
+        "rq4_cocreation_vs_flagship_tost": rq4_vs_flagship_tost,
         # Forward-compatible: same comparison computed against the mean of
         # blind human reviewers. Returns null until canonical grades carry
         # blind-graded human solutions in both variants.
@@ -1058,7 +1681,7 @@ def main() -> None:
         "rq5_judge_vs_human": rq5_judge_vs_human(judge_on_humans, humans),
         "rq5_human_irr": rq5_human_irr(humans),
         "rq5_dim": rq5_dim_agreement(judge_on_humans, humans),
-        "rq5_calderon": rq5_calderon(judge_on_humans, humans),
+        "rq5_calderon": rq5_calderon(judge_on_humans, humans, canonical_grades),
         "rq5_judge_repeats": rq5_judge_repeats(judge_repeats),
         # Activates when the real grading export populates role="creator" via
         # data/processed/grader_roles.json (or its export-native equivalent).
@@ -1066,6 +1689,11 @@ def main() -> None:
         # Activates when the real grading export covers LLM-generated solutions
         # in the 45-solution validation set (solution_type="llm_system").
         "rq5_judge_on_llm_solutions": rq5_judge_on_llm_solutions(canonical_grades, model_evals),
+        "rq5_dim_on_llm_solutions": rq5_dim_on_llm_solutions(canonical_grades, model_evals),
+        "rq5_calderon_on_llm_solutions": rq5_calderon_on_llm_solutions(canonical_grades, model_evals),
+        # Per-solution-type breakdown of the blind-rater IRR — answers "do
+        # reviewers agree more on LLM output than on human-written essays?"
+        "rq5_human_irr_by_solution_type": rq5_human_irr_by_solution_type(canonical_grades),
         # RQ2 quantitative aggregates by tier / provider / weights, on both corpora.
         "tier_aggregates": tier_provider_aggregates(model_evals, zjs_summary, systems_meta),
         # RQ3 system-level rank correlation: do metric-only leaderboards rank systems

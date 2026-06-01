@@ -1,0 +1,878 @@
+{
+  "baseline_human": {
+    "label": "Baseline GPT-5.4-mini  (human picks, \u03b5=0.15)",
+    "payload": {
+      "epsilon": 0.15,
+      "m_annotators": 5,
+      "per_annotator": [
+        {
+          "grader_id": "grader_01@anonymized.benger.invalid",
+          "n_j": 14,
+          "rho_f": 0.5714285714285714,
+          "rho_h": 0.42857142857142855,
+          "d_bar": -0.14285714285714285,
+          "test": "wilcoxon",
+          "statistic": 21.0,
+          "p_value": 0.02471923828125,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_02@anonymized.benger.invalid",
+          "n_j": 19,
+          "rho_f": 0.6842105263157895,
+          "rho_h": 0.3157894736842105,
+          "d_bar": -0.3684210526315789,
+          "test": "wilcoxon",
+          "statistic": 21.0,
+          "p_value": 0.00084686279296875,
+          "rejected_BY_FDR": true
+        },
+        {
+          "grader_id": "grader_04@anonymized.benger.invalid",
+          "n_j": 15,
+          "rho_f": 0.7333333333333333,
+          "rho_h": 0.3333333333333333,
+          "d_bar": -0.4,
+          "test": "wilcoxon",
+          "statistic": 14.0,
+          "p_value": 0.00335693359375,
+          "rejected_BY_FDR": true
+        },
+        {
+          "grader_id": "grader_05@anonymized.benger.invalid",
+          "n_j": 21,
+          "rho_f": 0.6190476190476191,
+          "rho_h": 0.38095238095238093,
+          "d_bar": -0.23809523809523808,
+          "test": "wilcoxon",
+          "statistic": 36.0,
+          "p_value": 0.0021424293518066406,
+          "rejected_BY_FDR": true
+        },
+        {
+          "grader_id": "grader_07@anonymized.benger.invalid",
+          "n_j": 21,
+          "rho_f": 0.47619047619047616,
+          "rho_h": 0.5238095238095238,
+          "d_bar": 0.047619047619047616,
+          "test": "wilcoxon",
+          "statistic": 66.0,
+          "p_value": 0.044399261474609375,
+          "rejected_BY_FDR": false
+        }
+      ],
+      "n_rejected": 3,
+      "winning_rate": 0.6,
+      "winning_rate_ci95_lo_clopper": 0.14663279963467254,
+      "winning_rate_ci95_hi_clopper": 0.9472550494736843,
+      "avg_advantage_probability": 0.6168421052631579,
+      "passes_alt_test": true,
+      "n_instances_total": 30,
+      "pearson_judge_vs_mean_blind": 0.7574369599207644,
+      "n_pearson": 30
+    }
+  },
+  "cfgB_opus_human": {
+    "label": "Config B Opus-4.7  (human picks)",
+    "payload": {
+      "epsilon": 0.15,
+      "m_annotators": 5,
+      "per_annotator": [
+        {
+          "grader_id": "grader_01@anonymized.benger.invalid",
+          "n_j": 13,
+          "rho_f": 0.5384615384615384,
+          "rho_h": 0.46153846153846156,
+          "d_bar": -0.07692307692307693,
+          "test": "wilcoxon",
+          "statistic": 21.0,
+          "p_value": 0.047119140625,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_02@anonymized.benger.invalid",
+          "n_j": 17,
+          "rho_f": 0.5882352941176471,
+          "rho_h": 0.4117647058823529,
+          "d_bar": -0.17647058823529413,
+          "test": "wilcoxon",
+          "statistic": 28.0,
+          "p_value": 0.01007843017578125,
+          "rejected_BY_FDR": true
+        },
+        {
+          "grader_id": "grader_04@anonymized.benger.invalid",
+          "n_j": 15,
+          "rho_f": 0.6,
+          "rho_h": 0.4,
+          "d_bar": -0.2,
+          "test": "wilcoxon",
+          "statistic": 21.0,
+          "p_value": 0.012786865234375,
+          "rejected_BY_FDR": true
+        },
+        {
+          "grader_id": "grader_05@anonymized.benger.invalid",
+          "n_j": 19,
+          "rho_f": 0.5789473684210527,
+          "rho_h": 0.42105263157894735,
+          "d_bar": -0.15789473684210525,
+          "test": "wilcoxon",
+          "statistic": 36.0,
+          "p_value": 0.007986068725585938,
+          "rejected_BY_FDR": true
+        },
+        {
+          "grader_id": "grader_07@anonymized.benger.invalid",
+          "n_j": 20,
+          "rho_f": 0.4,
+          "rho_h": 0.6,
+          "d_bar": 0.2,
+          "test": "wilcoxon",
+          "statistic": 78.0,
+          "p_value": 0.1649913787841797,
+          "rejected_BY_FDR": false
+        }
+      ],
+      "n_rejected": 3,
+      "winning_rate": 0.6,
+      "winning_rate_ci95_lo_clopper": 0.14663279963467254,
+      "winning_rate_ci95_hi_clopper": 0.9472550494736843,
+      "avg_advantage_probability": 0.5411288402000476,
+      "passes_alt_test": true,
+      "n_instances_total": 28,
+      "pearson_judge_vs_mean_blind": 0.8072856753981583,
+      "n_pearson": 28
+    }
+  },
+  "cfgB_gemini_human": {
+    "label": "Config B Gemini-3.1-Pro  (human picks)",
+    "payload": {
+      "epsilon": 0.15,
+      "m_annotators": 5,
+      "per_annotator": [
+        {
+          "grader_id": "grader_01@anonymized.benger.invalid",
+          "n_j": 14,
+          "rho_f": 0.7142857142857143,
+          "rho_h": 0.35714285714285715,
+          "d_bar": -0.35714285714285715,
+          "test": "wilcoxon",
+          "statistic": 14.0,
+          "p_value": 0.0067138671875,
+          "rejected_BY_FDR": true
+        },
+        {
+          "grader_id": "grader_02@anonymized.benger.invalid",
+          "n_j": 19,
+          "rho_f": 0.7368421052631579,
+          "rho_h": 0.2631578947368421,
+          "d_bar": -0.47368421052631576,
+          "test": "wilcoxon",
+          "statistic": 15.0,
+          "p_value": 0.0002613067626953125,
+          "rejected_BY_FDR": true
+        },
+        {
+          "grader_id": "grader_04@anonymized.benger.invalid",
+          "n_j": 15,
+          "rho_f": 0.5333333333333333,
+          "rho_h": 0.5333333333333333,
+          "d_bar": 0.0,
+          "test": "wilcoxon",
+          "statistic": 35.0,
+          "p_value": 0.08441162109375,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_05@anonymized.benger.invalid",
+          "n_j": 21,
+          "rho_f": 0.5238095238095238,
+          "rho_h": 0.5238095238095238,
+          "d_bar": 0.0,
+          "test": "wilcoxon",
+          "statistic": 65.0,
+          "p_value": 0.04109764099121094,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_07@anonymized.benger.invalid",
+          "n_j": 21,
+          "rho_f": 0.38095238095238093,
+          "rho_h": 0.6190476190476191,
+          "d_bar": 0.23809523809523808,
+          "test": "wilcoxon",
+          "statistic": 91.0,
+          "p_value": 0.20599079132080078,
+          "rejected_BY_FDR": false
+        }
+      ],
+      "n_rejected": 2,
+      "winning_rate": 0.4,
+      "winning_rate_ci95_lo_clopper": 0.05274495052631566,
+      "winning_rate_ci95_hi_clopper": 0.8533672003653274,
+      "avg_advantage_probability": 0.577844611528822,
+      "passes_alt_test": false,
+      "n_instances_total": 30,
+      "pearson_judge_vs_mean_blind": 0.8178924154479894,
+      "n_pearson": 30
+    }
+  },
+  "deepseek_human": {
+    "label": "DeepSeek-V4-Pro  (human picks)",
+    "payload": {
+      "epsilon": 0.15,
+      "m_annotators": 5,
+      "per_annotator": [
+        {
+          "grader_id": "grader_01@anonymized.benger.invalid",
+          "n_j": 14,
+          "rho_f": 0.6428571428571429,
+          "rho_h": 0.5,
+          "d_bar": -0.14285714285714285,
+          "test": "wilcoxon",
+          "statistic": 25.0,
+          "p_value": 0.0452880859375,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_02@anonymized.benger.invalid",
+          "n_j": 19,
+          "rho_f": 0.6842105263157895,
+          "rho_h": 0.3157894736842105,
+          "d_bar": -0.3684210526315789,
+          "test": "wilcoxon",
+          "statistic": 21.0,
+          "p_value": 0.00084686279296875,
+          "rejected_BY_FDR": true
+        },
+        {
+          "grader_id": "grader_04@anonymized.benger.invalid",
+          "n_j": 15,
+          "rho_f": 0.5333333333333333,
+          "rho_h": 0.6,
+          "d_bar": 0.06666666666666667,
+          "test": "wilcoxon",
+          "statistic": 42.0,
+          "p_value": 0.165130615234375,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_05@anonymized.benger.invalid",
+          "n_j": 21,
+          "rho_f": 0.5238095238095238,
+          "rho_h": 0.5238095238095238,
+          "d_bar": 0.0,
+          "test": "wilcoxon",
+          "statistic": 65.0,
+          "p_value": 0.04109764099121094,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_07@anonymized.benger.invalid",
+          "n_j": 21,
+          "rho_f": 0.42857142857142855,
+          "rho_h": 0.5714285714285714,
+          "d_bar": 0.14285714285714285,
+          "test": "wilcoxon",
+          "statistic": 78.0,
+          "p_value": 0.10145854949951172,
+          "rejected_BY_FDR": false
+        }
+      ],
+      "n_rejected": 1,
+      "winning_rate": 0.2,
+      "winning_rate_ci95_lo_clopper": 0.005050763379468115,
+      "winning_rate_ci95_hi_clopper": 0.7164179361180895,
+      "avg_advantage_probability": 0.5625563909774436,
+      "passes_alt_test": false,
+      "n_instances_total": 30,
+      "pearson_judge_vs_mean_blind": 0.8203221712466573,
+      "n_pearson": 30
+    }
+  },
+  "qwen_human": {
+    "label": "Qwen3.5-397B-A17B  (human picks)",
+    "payload": {
+      "epsilon": 0.15,
+      "m_annotators": 5,
+      "per_annotator": [
+        {
+          "grader_id": "grader_01@anonymized.benger.invalid",
+          "n_j": 14,
+          "rho_f": 0.5,
+          "rho_h": 0.5714285714285714,
+          "d_bar": 0.07142857142857142,
+          "test": "wilcoxon",
+          "statistic": 35.0,
+          "p_value": 0.14788818359375,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_02@anonymized.benger.invalid",
+          "n_j": 19,
+          "rho_f": 0.47368421052631576,
+          "rho_h": 0.5263157894736842,
+          "d_bar": 0.05263157894736842,
+          "test": "wilcoxon",
+          "statistic": 55.0,
+          "p_value": 0.05668830871582031,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_04@anonymized.benger.invalid",
+          "n_j": 15,
+          "rho_f": 0.4,
+          "rho_h": 0.6,
+          "d_bar": 0.2,
+          "test": "wilcoxon",
+          "statistic": 45.0,
+          "p_value": 0.210601806640625,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_05@anonymized.benger.invalid",
+          "n_j": 21,
+          "rho_f": 0.3333333333333333,
+          "rho_h": 0.6666666666666666,
+          "d_bar": 0.3333333333333333,
+          "test": "wilcoxon",
+          "statistic": 105.0,
+          "p_value": 0.36673498153686523,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_07@anonymized.benger.invalid",
+          "n_j": 21,
+          "rho_f": 0.3333333333333333,
+          "rho_h": 0.6666666666666666,
+          "d_bar": 0.3333333333333333,
+          "test": "wilcoxon",
+          "statistic": 105.0,
+          "p_value": 0.36673498153686523,
+          "rejected_BY_FDR": false
+        }
+      ],
+      "n_rejected": 0,
+      "winning_rate": 0.0,
+      "winning_rate_ci95_lo_clopper": 0.0,
+      "winning_rate_ci95_hi_clopper": 0.5218237501049814,
+      "avg_advantage_probability": 0.40807017543859647,
+      "passes_alt_test": false,
+      "n_instances_total": 30,
+      "pearson_judge_vs_mean_blind": 0.7672420445996535,
+      "n_pearson": 30
+    }
+  },
+  "sonnet_human": {
+    "label": "Sonnet-4.6  (human picks)",
+    "payload": {
+      "epsilon": 0.15,
+      "m_annotators": 5,
+      "per_annotator": [
+        {
+          "grader_id": "grader_01@anonymized.benger.invalid",
+          "n_j": 14,
+          "rho_f": 0.5,
+          "rho_h": 0.5,
+          "d_bar": 0.0,
+          "test": "wilcoxon",
+          "statistic": 28.0,
+          "p_value": 0.067626953125,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_02@anonymized.benger.invalid",
+          "n_j": 19,
+          "rho_f": 0.631578947368421,
+          "rho_h": 0.42105263157894735,
+          "d_bar": -0.21052631578947367,
+          "test": "wilcoxon",
+          "statistic": 35.0,
+          "p_value": 0.0070343017578125,
+          "rejected_BY_FDR": true
+        },
+        {
+          "grader_id": "grader_04@anonymized.benger.invalid",
+          "n_j": 15,
+          "rho_f": 0.5333333333333333,
+          "rho_h": 0.4666666666666667,
+          "d_bar": -0.06666666666666667,
+          "test": "wilcoxon",
+          "statistic": 28.0,
+          "p_value": 0.0364990234375,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_05@anonymized.benger.invalid",
+          "n_j": 21,
+          "rho_f": 0.6666666666666666,
+          "rho_h": 0.3333333333333333,
+          "d_bar": -0.3333333333333333,
+          "test": "wilcoxon",
+          "statistic": 28.0,
+          "p_value": 0.0006871223449707031,
+          "rejected_BY_FDR": true
+        },
+        {
+          "grader_id": "grader_07@anonymized.benger.invalid",
+          "n_j": 21,
+          "rho_f": 0.5238095238095238,
+          "rho_h": 0.47619047619047616,
+          "d_bar": -0.047619047619047616,
+          "test": "wilcoxon",
+          "statistic": 55.0,
+          "p_value": 0.017528057098388672,
+          "rejected_BY_FDR": false
+        }
+      ],
+      "n_rejected": 2,
+      "winning_rate": 0.4,
+      "winning_rate_ci95_lo_clopper": 0.05274495052631566,
+      "winning_rate_ci95_hi_clopper": 0.8533672003653274,
+      "avg_advantage_probability": 0.571077694235589,
+      "passes_alt_test": false,
+      "n_instances_total": 30,
+      "pearson_judge_vs_mean_blind": 0.8123873309355696,
+      "n_pearson": 30
+    }
+  },
+  "baseline_llm": {
+    "label": "Baseline GPT-5.4-mini  (LLM picks, \u03b5=0.15)",
+    "payload": {
+      "epsilon": 0.15,
+      "m_annotators": 5,
+      "per_annotator": [
+        {
+          "grader_id": "grader_01@anonymized.benger.invalid",
+          "n_j": 7,
+          "rho_f": 0.2857142857142857,
+          "rho_h": 0.7142857142857143,
+          "d_bar": 0.42857142857142855,
+          "test": "wilcoxon",
+          "statistic": 15.0,
+          "p_value": 0.59375,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_02@anonymized.benger.invalid",
+          "n_j": 11,
+          "rho_f": 0.09090909090909091,
+          "rho_h": 0.9090909090909091,
+          "d_bar": 0.8181818181818182,
+          "test": "wilcoxon",
+          "statistic": 55.0,
+          "p_value": 0.97900390625,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_04@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.6666666666666666,
+          "rho_h": 0.3333333333333333,
+          "d_bar": -0.3333333333333333,
+          "test": "wilcoxon",
+          "statistic": 6.0,
+          "p_value": 0.02734375,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_05@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.5555555555555556,
+          "rho_h": 0.4444444444444444,
+          "d_bar": -0.1111111111111111,
+          "test": "wilcoxon",
+          "statistic": 10.0,
+          "p_value": 0.08203125,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_07@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.4444444444444444,
+          "rho_h": 0.5555555555555556,
+          "d_bar": 0.1111111111111111,
+          "test": "wilcoxon",
+          "statistic": 15.0,
+          "p_value": 0.212890625,
+          "rejected_BY_FDR": false
+        }
+      ],
+      "n_rejected": 0,
+      "winning_rate": 0.0,
+      "winning_rate_ci95_lo_clopper": 0.0,
+      "winning_rate_ci95_hi_clopper": 0.5218237501049814,
+      "avg_advantage_probability": 0.40865800865800866,
+      "passes_alt_test": false,
+      "n_instances_total": 15,
+      "pearson_judge_vs_mean_blind": 0.6350684965012052,
+      "n_pearson": 15
+    }
+  },
+  "cfgB_opus_llm": {
+    "label": "Config B Opus-4.7  (LLM picks)",
+    "payload": {
+      "epsilon": 0.15,
+      "m_annotators": 5,
+      "per_annotator": [
+        {
+          "grader_id": "grader_01@anonymized.benger.invalid",
+          "n_j": 7,
+          "rho_f": 0.2857142857142857,
+          "rho_h": 0.7142857142857143,
+          "d_bar": 0.42857142857142855,
+          "test": "wilcoxon",
+          "statistic": 15.0,
+          "p_value": 0.59375,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_02@anonymized.benger.invalid",
+          "n_j": 11,
+          "rho_f": 0.5454545454545454,
+          "rho_h": 0.5454545454545454,
+          "d_bar": 0.0,
+          "test": "wilcoxon",
+          "statistic": 20.0,
+          "p_value": 0.13916015625,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_04@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.8888888888888888,
+          "rho_h": 0.1111111111111111,
+          "d_bar": -0.7777777777777778,
+          "test": "wilcoxon",
+          "statistic": 1.0,
+          "p_value": 0.00390625,
+          "rejected_BY_FDR": true
+        },
+        {
+          "grader_id": "grader_05@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.7777777777777778,
+          "rho_h": 0.2222222222222222,
+          "d_bar": -0.5555555555555556,
+          "test": "wilcoxon",
+          "statistic": 3.0,
+          "p_value": 0.009765625,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_07@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.6666666666666666,
+          "rho_h": 0.4444444444444444,
+          "d_bar": -0.2222222222222222,
+          "test": "wilcoxon",
+          "statistic": 9.0,
+          "p_value": 0.064453125,
+          "rejected_BY_FDR": false
+        }
+      ],
+      "n_rejected": 1,
+      "winning_rate": 0.2,
+      "winning_rate_ci95_lo_clopper": 0.005050763379468115,
+      "winning_rate_ci95_hi_clopper": 0.7164179361180895,
+      "avg_advantage_probability": 0.6329004329004329,
+      "passes_alt_test": false,
+      "n_instances_total": 15,
+      "pearson_judge_vs_mean_blind": 0.8513204335923374,
+      "n_pearson": 15
+    }
+  },
+  "cfgB_gemini_llm": {
+    "label": "Config B Gemini-3.1-Pro  (LLM picks)",
+    "payload": {
+      "epsilon": 0.15,
+      "m_annotators": 5,
+      "per_annotator": [
+        {
+          "grader_id": "grader_01@anonymized.benger.invalid",
+          "n_j": 7,
+          "rho_f": 0.14285714285714285,
+          "rho_h": 0.8571428571428571,
+          "d_bar": 0.7142857142857143,
+          "test": "wilcoxon",
+          "statistic": 21.0,
+          "p_value": 0.890625,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_02@anonymized.benger.invalid",
+          "n_j": 11,
+          "rho_f": 0.0,
+          "rho_h": 1.0,
+          "d_bar": 1.0,
+          "test": "wilcoxon",
+          "statistic": 66.0,
+          "p_value": 1.0,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_04@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.5555555555555556,
+          "rho_h": 0.4444444444444444,
+          "d_bar": -0.1111111111111111,
+          "test": "wilcoxon",
+          "statistic": 10.0,
+          "p_value": 0.08203125,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_05@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.2222222222222222,
+          "rho_h": 0.7777777777777778,
+          "d_bar": 0.5555555555555556,
+          "test": "wilcoxon",
+          "statistic": 28.0,
+          "p_value": 0.751953125,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_07@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.4444444444444444,
+          "rho_h": 0.5555555555555556,
+          "d_bar": 0.1111111111111111,
+          "test": "wilcoxon",
+          "statistic": 15.0,
+          "p_value": 0.212890625,
+          "rejected_BY_FDR": false
+        }
+      ],
+      "n_rejected": 0,
+      "winning_rate": 0.0,
+      "winning_rate_ci95_lo_clopper": 0.0,
+      "winning_rate_ci95_hi_clopper": 0.5218237501049814,
+      "avg_advantage_probability": 0.27301587301587305,
+      "passes_alt_test": false,
+      "n_instances_total": 15,
+      "pearson_judge_vs_mean_blind": 0.9180477598811195,
+      "n_pearson": 15
+    }
+  },
+  "deepseek_llm": {
+    "label": "DeepSeek-V4-Pro  (LLM picks)",
+    "payload": {
+      "epsilon": 0.15,
+      "m_annotators": 5,
+      "per_annotator": [
+        {
+          "grader_id": "grader_01@anonymized.benger.invalid",
+          "n_j": 7,
+          "rho_f": 0.0,
+          "rho_h": 1.0,
+          "d_bar": 1.0,
+          "test": "wilcoxon",
+          "statistic": 28.0,
+          "p_value": 1.0,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_02@anonymized.benger.invalid",
+          "n_j": 11,
+          "rho_f": 0.36363636363636365,
+          "rho_h": 0.6363636363636364,
+          "d_bar": 0.2727272727272727,
+          "test": "wilcoxon",
+          "statistic": 28.0,
+          "p_value": 0.35009765625,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_04@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.7777777777777778,
+          "rho_h": 0.2222222222222222,
+          "d_bar": -0.5555555555555556,
+          "test": "wilcoxon",
+          "statistic": 3.0,
+          "p_value": 0.009765625,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_05@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.7777777777777778,
+          "rho_h": 0.4444444444444444,
+          "d_bar": -0.3333333333333333,
+          "test": "wilcoxon",
+          "statistic": 7.0,
+          "p_value": 0.037109375,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_07@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.3333333333333333,
+          "rho_h": 0.6666666666666666,
+          "d_bar": 0.3333333333333333,
+          "test": "wilcoxon",
+          "statistic": 21.0,
+          "p_value": 0.455078125,
+          "rejected_BY_FDR": false
+        }
+      ],
+      "n_rejected": 0,
+      "winning_rate": 0.0,
+      "winning_rate_ci95_lo_clopper": 0.0,
+      "winning_rate_ci95_hi_clopper": 0.5218237501049814,
+      "avg_advantage_probability": 0.4505050505050505,
+      "passes_alt_test": false,
+      "n_instances_total": 15,
+      "pearson_judge_vs_mean_blind": 0.69298701435184,
+      "n_pearson": 15
+    }
+  },
+  "qwen_llm": {
+    "label": "Qwen3.5-397B-A17B  (LLM picks)",
+    "payload": {
+      "epsilon": 0.15,
+      "m_annotators": 5,
+      "per_annotator": [
+        {
+          "grader_id": "grader_01@anonymized.benger.invalid",
+          "n_j": 7,
+          "rho_f": 0.0,
+          "rho_h": 1.0,
+          "d_bar": 1.0,
+          "test": "wilcoxon",
+          "statistic": 28.0,
+          "p_value": 1.0,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_02@anonymized.benger.invalid",
+          "n_j": 11,
+          "rho_f": 0.18181818181818182,
+          "rho_h": 0.9090909090909091,
+          "d_bar": 0.7272727272727273,
+          "test": "wilcoxon",
+          "statistic": 54.0,
+          "p_value": 0.97314453125,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_04@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.5555555555555556,
+          "rho_h": 0.4444444444444444,
+          "d_bar": -0.1111111111111111,
+          "test": "wilcoxon",
+          "statistic": 10.0,
+          "p_value": 0.08203125,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_05@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.3333333333333333,
+          "rho_h": 0.6666666666666666,
+          "d_bar": 0.3333333333333333,
+          "test": "wilcoxon",
+          "statistic": 21.0,
+          "p_value": 0.455078125,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_07@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.3333333333333333,
+          "rho_h": 0.6666666666666666,
+          "d_bar": 0.3333333333333333,
+          "test": "wilcoxon",
+          "statistic": 21.0,
+          "p_value": 0.455078125,
+          "rejected_BY_FDR": false
+        }
+      ],
+      "n_rejected": 0,
+      "winning_rate": 0.0,
+      "winning_rate_ci95_lo_clopper": 0.0,
+      "winning_rate_ci95_hi_clopper": 0.5218237501049814,
+      "avg_advantage_probability": 0.2808080808080808,
+      "passes_alt_test": false,
+      "n_instances_total": 15,
+      "pearson_judge_vs_mean_blind": 0.7698499197794423,
+      "n_pearson": 15
+    }
+  },
+  "sonnet_llm": {
+    "label": "Sonnet-4.6  (LLM picks)",
+    "payload": {
+      "epsilon": 0.15,
+      "m_annotators": 5,
+      "per_annotator": [
+        {
+          "grader_id": "grader_01@anonymized.benger.invalid",
+          "n_j": 7,
+          "rho_f": 0.0,
+          "rho_h": 1.0,
+          "d_bar": 1.0,
+          "test": "wilcoxon",
+          "statistic": 28.0,
+          "p_value": 1.0,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_02@anonymized.benger.invalid",
+          "n_j": 11,
+          "rho_f": 0.36363636363636365,
+          "rho_h": 0.7272727272727273,
+          "d_bar": 0.36363636363636365,
+          "test": "wilcoxon",
+          "statistic": 35.0,
+          "p_value": 0.58447265625,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_04@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.6666666666666666,
+          "rho_h": 0.3333333333333333,
+          "d_bar": -0.3333333333333333,
+          "test": "wilcoxon",
+          "statistic": 6.0,
+          "p_value": 0.02734375,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_05@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.6666666666666666,
+          "rho_h": 0.3333333333333333,
+          "d_bar": -0.3333333333333333,
+          "test": "wilcoxon",
+          "statistic": 6.0,
+          "p_value": 0.02734375,
+          "rejected_BY_FDR": false
+        },
+        {
+          "grader_id": "grader_07@anonymized.benger.invalid",
+          "n_j": 9,
+          "rho_f": 0.5555555555555556,
+          "rho_h": 0.4444444444444444,
+          "d_bar": -0.1111111111111111,
+          "test": "wilcoxon",
+          "statistic": 10.0,
+          "p_value": 0.08203125,
+          "rejected_BY_FDR": false
+        }
+      ],
+      "n_rejected": 0,
+      "winning_rate": 0.0,
+      "winning_rate_ci95_lo_clopper": 0.0,
+      "winning_rate_ci95_hi_clopper": 0.5218237501049814,
+      "avg_advantage_probability": 0.4505050505050505,
+      "passes_alt_test": false,
+      "n_instances_total": 15,
+      "pearson_judge_vs_mean_blind": 0.773447706146992,
+      "n_pearson": 15
+    }
+  }
+}

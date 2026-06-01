@@ -1,0 +1,44 @@
+step,quantity,value,ci95_lo,ci95_hi,n,note
+1.cohort,n_annotations_traditional,65,,,65,judge-based RQ4 pool
+1.cohort,n_annotations_co_creation,155,,,155,
+1.cohort,n_participants_traditional,23,,,,participants who contributed >=1 trad annotation
+1.cohort,n_participants_co_creation,33,,,,
+1.cohort,n_participants_paired_both_arms,23,,,,participants who contributed to both arms
+1.cohort,n_participants_co_creation_only,10,,,,the 10 less-experienced participants who skipped trad
+2.means,mean_judge_raw_traditional,62.3,,,65,LLM-judge raw 0-100
+2.means,mean_judge_raw_co_creation,82.2258064516129,,,155,
+3.delta.iid,mean_diff_ai_minus_trad,19.9258064516129,15.558064516129036,24.663027295285353,220,i.i.d. annotation bootstrap (diagnostic; assumes annotations independent)
+3.delta.cluster_participant,mean_diff_ai_minus_trad,19.9258064516129,12.70525451559935,27.746060654050204,56,HEADLINE: participant-cluster bootstrap (resamples participants)
+3.delta.cluster_task,mean_diff_ai_minus_trad,19.9258064516129,14.775627440044616,25.53846894559461,15,task-cluster bootstrap (resamples Benchathon tasks)
+3.delta.paired_within_participant,mean_diff_ai_minus_trad,16.078621619925965,9.481642512077293,22.473636991028293,23,within-participant paired delta (n=participants in both arms)
+3.delta.grade_points,mean_diff_ai_minus_trad_grade_points,3.5866451612903223,2.286945812807883,4.994290917729037,,headline delta converted to 0-18 grade-points scale
+4.bereich.Zivilrecht,mean_traditional,59.458333333333336,,,24,
+4.bereich.Zivilrecht,mean_co_creation,83.02941176470588,,,51,
+4.bereich.Zivilrecht,mean_diff_ai_minus_trad,23.57107843137255,14.28799019607844,33.40073529411765,,"i.i.d. bootstrap, descriptive only"
+4.bereich.Strafrecht,mean_traditional,63.97727272727273,,,22,
+4.bereich.Strafrecht,mean_co_creation,78.30188679245283,,,53,
+4.bereich.Strafrecht,mean_diff_ai_minus_trad,14.324614065180107,8.531732418524868,20.075471698113205,,"i.i.d. bootstrap, descriptive only"
+4.bereich.Öffentliches Recht,mean_traditional,63.94736842105263,,,19,
+4.bereich.Öffentliches Recht,mean_co_creation,85.5,,,51,
+4.bereich.Öffentliches Recht,mean_diff_ai_minus_trad,21.55263157894737,14.493808049535602,28.94427244582043,,"i.i.d. bootstrap, descriptive only"
+5.tost,co_creation_mean,82.2258064516129,,,,
+5.tost,flagship_tier_mean,83.30666666666667,81.32,85.20666666666666,,per-generation i.i.d. bootstrap on flagship pool
+5.tost,delta_co_creation_minus_flagship,-1.0808602150537752,,,,
+5.tost,tost_eq_band_lo,-5.0,,,,equivalence band lower edge (raw points)
+5.tost,tost_eq_band_hi,5.0,,,,
+5.tost,tost_one_sided_95_lower,-3.27634408602151,,,,reject Δ <= eq_low iff this > eq_low
+5.tost,tost_one_sided_95_upper,1.1799999999999926,,,,reject Δ >= eq_high iff this < eq_high
+5.tost,tost_reject_h0_low,True,,,,
+5.tost,tost_reject_h0_high,True,,,,
+5.tost,tost_equivalent_within_band,True,,,,True iff both rejections fire
+6.blind_human,n_traditional,15,,,,
+6.blind_human,n_co_creation,15,,,,
+6.blind_human,n_participants_trad,10,,,,
+6.blind_human,n_participants_ai,11,,,,
+6.blind_human,mean_traditional,51.05555555555556,,,,
+6.blind_human,mean_co_creation,64.63333333333333,,,,
+6.blind_human,mean_diff_ai_minus_trad,13.577777777777769,-1.5606060606060623,30.49567099567099,,HEADLINE: participant-cluster bootstrap; CI spans zero at this n
+6.blind_human,mean_diff_iid_diagnostic,13.577777777777769,-0.5111111111111128,26.955555555555556,,"i.i.d. bootstrap, diagnostic only"
+7.judge_vs_human_gap,judge_delta,19.9258064516129,,,,from step 3 (participant cluster)
+7.judge_vs_human_gap,blind_human_delta,13.577777777777769,,,,from step 6
+7.judge_vs_human_gap,gap_judge_minus_human,6.348028673835131,,,,empirical bound on judge-style premium on this contrast

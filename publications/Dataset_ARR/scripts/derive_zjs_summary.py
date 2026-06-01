@@ -38,8 +38,16 @@ from pathlib import Path
 
 import ijson
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _stats import pearson as _pearson  # noqa: E402
+from _stats import spearman as _spearman  # noqa: E402
+
 HERE = Path(__file__).resolve().parent.parent
-SRC = HERE / "data" / "raw" / "zjs" / "ZJS Fälle-tasks-2026-05-18.json"
+SRC = HERE / "data" / "raw" / "zjs" / "zjs_faelle_full_export.json"
+# Filter judge evaluations to the GPT-5.4-mini full-corpus run (effective
+# 2026-06-01). The same file also contains a legacy gpt-5-nano run under
+# field-name prefix `llm_judge_falloesung-mp3ud0rq-...`; we ignore it.
+ZJS_PRIMARY_JUDGE_PREFIX = "llm_judge_falloesung-mptrd45m"
 OUT = HERE / "data" / "processed" / "zjs_model_summary.json"
 OUT_CORR = HERE / "data" / "processed" / "zjs_metric_correlation.json"
 
@@ -48,39 +56,6 @@ AUTOMATIC_METRICS = (
     "bertscore", "moverscore", "semantic_similarity",
     "coherence",
 )
-
-
-# Stdlib-only Pearson / Spearman (duplicated from compute_agreement.py to keep
-# this script self-contained; the upstream `statistics.correlation` covers
-# Pearson, and Spearman is just Pearson on ranks).
-import statistics  # noqa: E402
-
-def _pearson(xs, ys):
-    if len(xs) < 3:
-        return None
-    try:
-        return statistics.correlation(xs, ys)
-    except statistics.StatisticsError:
-        return None
-
-def _rank(xs):
-    indexed = sorted(range(len(xs)), key=lambda i: xs[i])
-    ranks = [0.0] * len(xs)
-    i = 0
-    while i < len(xs):
-        j = i
-        while j + 1 < len(xs) and xs[indexed[j + 1]] == xs[indexed[i]]:
-            j += 1
-        avg = (i + j) / 2 + 1.0
-        for k in range(i, j + 1):
-            ranks[indexed[k]] = avg
-        i = j + 1
-    return ranks
-
-def _spearman(xs, ys):
-    if len(xs) < 3:
-        return None
-    return _pearson(_rank(xs), _rank(ys))
 
 
 def _coerce_number(value):
@@ -109,10 +84,12 @@ def _running_mean_update(slot, key, value):
 
 
 def _welford_update(stats, value):
-    """Online mean + sample variance via Welford's algorithm.
-    `stats` is a mutable [n, mean, M2] list. Sample variance is
-    M2/(n-1); sample stdev is sqrt(M2/(n-1)). One-pass over the
-    multi-GB ZJS stream — no per-gen buffer needed."""
+    """Online (n, mean, M2) update; sample variance is M2/(n-1).
+
+    Kept local because it pre-coerces via `_coerce_number` to handle the
+    nested-dict shapes the ZJS judge export produces (e.g. {"value": 0.8}).
+    One-pass over the multi-GB ZJS stream — no per-gen buffer needed.
+    """
     v = _coerce_number(value)
     if v is None:
         return
@@ -168,8 +145,13 @@ def main() -> None:
                 gen_metric_vals: dict[str, float] = {}
                 for ev in gen.get("evaluations") or []:
                     n_evals_seen += 1
+                    fn = ev.get("field_name") or ""
+                    # Only count evals from the GPT-5.4-mini primary-judge run;
+                    # skip the legacy gpt-5-nano scoring also present in this file.
+                    is_judge_ev = "llm_judge_falloesung" in (ev.get("metrics") or {})
+                    is_primary_judge = fn.startswith(ZJS_PRIMARY_JUDGE_PREFIX)
                     m = ev.get("metrics") or {}
-                    if "llm_judge_falloesung" in m:
+                    if "llm_judge_falloesung" in m and is_primary_judge:
                         judge = m["llm_judge_falloesung"]
                         details = judge.get("details") if isinstance(judge, dict) else None
                         raw = (details or {}).get("raw_score") if details else None

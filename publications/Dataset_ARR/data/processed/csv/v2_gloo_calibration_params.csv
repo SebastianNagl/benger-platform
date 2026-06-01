@@ -1,0 +1,81 @@
+judge,judge_label,pool,annotator,n_picks,mean_a_scalar,mean_a_affine,mean_b_affine
+baseline_gpt5,Baseline GPT-5-mini,human,grader_02@anonymized.benger.invalid,19,-0.8553,-8.5871,1.1379
+baseline_gpt5,Baseline GPT-5-mini,human,grader_05@anonymized.benger.invalid,21,-0.8387,-8.3397,1.1335
+baseline_gpt5,Baseline GPT-5-mini,human,grader_07@anonymized.benger.invalid,21,-0.8111,-8.2108,1.1320
+baseline_gpt5,Baseline GPT-5-mini,human,grader_01@anonymized.benger.invalid,14,1.2908,-6.4407,1.1401
+baseline_gpt5,Baseline GPT-5-mini,human,grader_04@anonymized.benger.invalid,15,-0.4149,-3.2108,1.0502
+baseline_gpt5,Baseline GPT-5-mini,llm,grader_01@anonymized.benger.invalid,7,1.4857,-5.9692,1.1351
+baseline_gpt5,Baseline GPT-5-mini,llm,grader_04@anonymized.benger.invalid,9,-0.3231,-2.9047,1.0461
+baseline_gpt5,Baseline GPT-5-mini,llm,grader_07@anonymized.benger.invalid,9,-0.6364,-7.7943,1.1272
+baseline_gpt5,Baseline GPT-5-mini,llm,grader_02@anonymized.benger.invalid,11,-0.6921,-7.7390,1.1254
+baseline_gpt5,Baseline GPT-5-mini,llm,grader_05@anonymized.benger.invalid,9,-0.8018,-7.9880,1.1278
+cfgB_gpt5,Config B GPT-5-mini,human,grader_02@anonymized.benger.invalid,19,-18.4695,-7.0276,0.8447
+cfgB_gpt5,Config B GPT-5-mini,human,grader_05@anonymized.benger.invalid,21,-18.4968,-7.1090,0.8458
+cfgB_gpt5,Config B GPT-5-mini,human,grader_07@anonymized.benger.invalid,21,-18.3988,-6.6853,0.8410
+cfgB_gpt5,Config B GPT-5-mini,human,grader_01@anonymized.benger.invalid,14,-17.1265,-8.4674,0.8823
+cfgB_gpt5,Config B GPT-5-mini,human,grader_04@anonymized.benger.invalid,15,-17.8018,-1.9348,0.7833
+cfgB_gpt5,Config B GPT-5-mini,llm,grader_01@anonymized.benger.invalid,7,-16.5102,-7.6257,0.8786
+cfgB_gpt5,Config B GPT-5-mini,llm,grader_04@anonymized.benger.invalid,9,-17.2705,-1.6348,0.7856
+cfgB_gpt5,Config B GPT-5-mini,llm,grader_07@anonymized.benger.invalid,9,-18.0467,-6.3293,0.8411
+cfgB_gpt5,Config B GPT-5-mini,llm,grader_02@anonymized.benger.invalid,11,-18.1467,-6.3344,0.8397
+cfgB_gpt5,Config B GPT-5-mini,llm,grader_05@anonymized.benger.invalid,9,-18.1944,-6.3485,0.8392
+cfgB_opus,Config B Opus-4.7,human,grader_02@anonymized.benger.invalid,17,0.1583,5.7574,0.8996
+cfgB_opus,Config B Opus-4.7,human,grader_05@anonymized.benger.invalid,19,0.1347,5.7682,0.8994
+cfgB_opus,Config B Opus-4.7,human,grader_07@anonymized.benger.invalid,20,0.2155,5.8482,0.8990
+cfgB_opus,Config B Opus-4.7,human,grader_01@anonymized.benger.invalid,13,0.6212,8.6137,0.8597
+cfgB_opus,Config B Opus-4.7,human,grader_04@anonymized.benger.invalid,15,1.4435,6.6302,0.9056
+cfgB_opus,Config B Opus-4.7,llm,grader_01@anonymized.benger.invalid,7,1.0693,9.3380,0.8540
+cfgB_opus,Config B Opus-4.7,llm,grader_04@anonymized.benger.invalid,9,1.7654,7.2227,0.9004
+cfgB_opus,Config B Opus-4.7,llm,grader_07@anonymized.benger.invalid,9,0.4286,6.6623,0.8888
+cfgB_opus,Config B Opus-4.7,llm,grader_02@anonymized.benger.invalid,11,0.3539,6.5324,0.8897
+cfgB_opus,Config B Opus-4.7,llm,grader_05@anonymized.benger.invalid,9,0.3095,6.5124,0.8892
+cfgB_gemini,Config B Gemini-3.1-Pro,human,grader_02@anonymized.benger.invalid,19,-11.6986,2.6046,0.7862
+cfgB_gemini,Config B Gemini-3.1-Pro,human,grader_05@anonymized.benger.invalid,21,-11.7430,2.6643,0.7853
+cfgB_gemini,Config B Gemini-3.1-Pro,human,grader_07@anonymized.benger.invalid,21,-11.6439,2.8575,0.7833
+cfgB_gemini,Config B Gemini-3.1-Pro,human,grader_01@anonymized.benger.invalid,14,-10.9337,2.1432,0.8060
+cfgB_gemini,Config B Gemini-3.1-Pro,human,grader_04@anonymized.benger.invalid,15,-10.9307,5.2759,0.7558
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,grader_01@anonymized.benger.invalid,7,-10.3306,2.7270,0.8051
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,grader_04@anonymized.benger.invalid,9,-10.4912,5.3932,0.7598
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,grader_07@anonymized.benger.invalid,9,-11.2374,3.3419,0.7822
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,grader_02@anonymized.benger.invalid,11,-11.3667,3.3117,0.7806
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,grader_05@anonymized.benger.invalid,9,-11.3624,3.2955,0.7807
+deepseek,DeepSeek-V4-Pro,human,grader_02@anonymized.benger.invalid,19,-4.3768,9.3473,0.7696
+deepseek,DeepSeek-V4-Pro,human,grader_05@anonymized.benger.invalid,21,-4.4275,9.4358,0.7681
+deepseek,DeepSeek-V4-Pro,human,grader_07@anonymized.benger.invalid,21,-4.2841,9.5786,0.7672
+deepseek,DeepSeek-V4-Pro,human,grader_01@anonymized.benger.invalid,14,-3.9296,11.7364,0.7407
+deepseek,DeepSeek-V4-Pro,human,grader_04@anonymized.benger.invalid,15,-3.3439,11.5573,0.7465
+deepseek,DeepSeek-V4-Pro,llm,grader_01@anonymized.benger.invalid,7,-3.4020,12.1146,0.7416
+deepseek,DeepSeek-V4-Pro,llm,grader_04@anonymized.benger.invalid,9,-2.9327,11.7367,0.7496
+deepseek,DeepSeek-V4-Pro,llm,grader_07@anonymized.benger.invalid,9,-4.2121,9.8003,0.7661
+deepseek,DeepSeek-V4-Pro,llm,grader_02@anonymized.benger.invalid,11,-4.2242,9.9164,0.7634
+deepseek,DeepSeek-V4-Pro,llm,grader_05@anonymized.benger.invalid,9,-4.2753,9.8030,0.7643
+qwen,Qwen3.5-397B-A17B,human,grader_02@anonymized.benger.invalid,19,-12.4629,-3.0277,0.8605
+qwen,Qwen3.5-397B-A17B,human,grader_05@anonymized.benger.invalid,21,-12.4881,-3.0729,0.8612
+qwen,Qwen3.5-397B-A17B,human,grader_07@anonymized.benger.invalid,21,-12.4021,-2.7842,0.8579
+qwen,Qwen3.5-397B-A17B,human,grader_01@anonymized.benger.invalid,14,-12.2990,-7.4745,0.9298
+qwen,Qwen3.5-397B-A17B,human,grader_04@anonymized.benger.invalid,15,-11.5798,2.5752,0.7887
+qwen,Qwen3.5-397B-A17B,llm,grader_01@anonymized.benger.invalid,7,-11.8653,-6.4707,0.9213
+qwen,Qwen3.5-397B-A17B,llm,grader_04@anonymized.benger.invalid,9,-11.2120,2.7583,0.7910
+qwen,Qwen3.5-397B-A17B,llm,grader_07@anonymized.benger.invalid,9,-12.0934,-1.8711,0.8492
+qwen,Qwen3.5-397B-A17B,llm,grader_02@anonymized.benger.invalid,11,-12.1550,-1.8978,0.8485
+qwen,Qwen3.5-397B-A17B,llm,grader_05@anonymized.benger.invalid,9,-12.2033,-1.9596,0.8486
+sonnet,Sonnet-4.6,human,grader_02@anonymized.benger.invalid,19,-3.7303,-2.7210,0.9829
+sonnet,Sonnet-4.6,human,grader_05@anonymized.benger.invalid,21,-3.8014,-2.8999,0.9847
+sonnet,Sonnet-4.6,human,grader_07@anonymized.benger.invalid,21,-3.7002,-2.5431,0.9804
+sonnet,Sonnet-4.6,human,grader_01@anonymized.benger.invalid,14,-3.3837,-0.8464,0.9576
+sonnet,Sonnet-4.6,human,grader_04@anonymized.benger.invalid,15,-2.8605,-0.0322,0.9514
+sonnet,Sonnet-4.6,llm,grader_01@anonymized.benger.invalid,7,-2.8306,0.1433,0.9500
+sonnet,Sonnet-4.6,llm,grader_04@anonymized.benger.invalid,9,-2.4678,0.6252,0.9468
+sonnet,Sonnet-4.6,llm,grader_07@anonymized.benger.invalid,9,-3.4520,-1.9318,0.9744
+sonnet,Sonnet-4.6,llm,grader_02@anonymized.benger.invalid,11,-3.5372,-2.0133,0.9743
+sonnet,Sonnet-4.6,llm,grader_05@anonymized.benger.invalid,9,-3.5985,-2.0187,0.9733
+gpt54mini,GPT-5.4-mini,human,grader_02@anonymized.benger.invalid,19,-0.8553,-8.5871,1.1379
+gpt54mini,GPT-5.4-mini,human,grader_05@anonymized.benger.invalid,21,-0.8387,-8.3397,1.1335
+gpt54mini,GPT-5.4-mini,human,grader_07@anonymized.benger.invalid,21,-0.8111,-8.2108,1.1320
+gpt54mini,GPT-5.4-mini,human,grader_01@anonymized.benger.invalid,14,1.2908,-6.4407,1.1401
+gpt54mini,GPT-5.4-mini,human,grader_04@anonymized.benger.invalid,15,-0.4149,-3.2108,1.0502
+gpt54mini,GPT-5.4-mini,llm,grader_01@anonymized.benger.invalid,7,1.4857,-5.9692,1.1351
+gpt54mini,GPT-5.4-mini,llm,grader_04@anonymized.benger.invalid,9,-0.3231,-2.9047,1.0461
+gpt54mini,GPT-5.4-mini,llm,grader_07@anonymized.benger.invalid,9,-0.6364,-7.7943,1.1272
+gpt54mini,GPT-5.4-mini,llm,grader_02@anonymized.benger.invalid,11,-0.6921,-7.7390,1.1254
+gpt54mini,GPT-5.4-mini,llm,grader_05@anonymized.benger.invalid,9,-0.8018,-7.9880,1.1278

@@ -1,0 +1,241 @@
+judge,judge_label,pool,tier,grader_id,n_j,rho_f,rho_h,d_bar,test,statistic,p_value,rejected_BY_FDR
+baseline_gpt5,Baseline GPT-5-mini,human,raw,grader_01@anonymized.benger.invalid,14,0.571429,0.428571,-0.142857,wilcoxon,21.000000,0.024719,False
+baseline_gpt5,Baseline GPT-5-mini,human,raw,grader_02@anonymized.benger.invalid,19,0.578947,0.421053,-0.157895,wilcoxon,36.000000,0.007986,False
+baseline_gpt5,Baseline GPT-5-mini,human,raw,grader_04@anonymized.benger.invalid,15,0.400000,0.666667,0.266667,wilcoxon,54.000000,0.380768,False
+baseline_gpt5,Baseline GPT-5-mini,human,raw,grader_05@anonymized.benger.invalid,21,0.428571,0.571429,0.142857,wilcoxon,78.000000,0.101459,False
+baseline_gpt5,Baseline GPT-5-mini,human,raw,grader_07@anonymized.benger.invalid,21,0.333333,0.666667,0.333333,wilcoxon,105.000000,0.366735,False
+baseline_gpt5,Baseline GPT-5-mini,human,scalar,grader_01@anonymized.benger.invalid,14,0.714286,0.357143,-0.357143,wilcoxon,14.000000,0.006714,False
+baseline_gpt5,Baseline GPT-5-mini,human,scalar,grader_02@anonymized.benger.invalid,19,0.473684,0.526316,0.052632,wilcoxon,55.000000,0.056688,False
+baseline_gpt5,Baseline GPT-5-mini,human,scalar,grader_04@anonymized.benger.invalid,15,0.666667,0.400000,-0.266667,wilcoxon,20.000000,0.010773,False
+baseline_gpt5,Baseline GPT-5-mini,human,scalar,grader_05@anonymized.benger.invalid,21,0.571429,0.476190,-0.095238,wilcoxon,54.000000,0.015960,False
+baseline_gpt5,Baseline GPT-5-mini,human,scalar,grader_07@anonymized.benger.invalid,21,0.333333,0.666667,0.333333,wilcoxon,105.000000,0.366735,False
+baseline_gpt5,Baseline GPT-5-mini,human,affine,grader_01@anonymized.benger.invalid,14,0.642857,0.357143,-0.285714,wilcoxon,15.000000,0.008301,False
+baseline_gpt5,Baseline GPT-5-mini,human,affine,grader_02@anonymized.benger.invalid,19,0.473684,0.526316,0.052632,wilcoxon,55.000000,0.056688,False
+baseline_gpt5,Baseline GPT-5-mini,human,affine,grader_04@anonymized.benger.invalid,15,0.533333,0.466667,-0.066667,wilcoxon,28.000000,0.036499,False
+baseline_gpt5,Baseline GPT-5-mini,human,affine,grader_05@anonymized.benger.invalid,21,0.523810,0.476190,-0.047619,wilcoxon,55.000000,0.017528,False
+baseline_gpt5,Baseline GPT-5-mini,human,affine,grader_07@anonymized.benger.invalid,21,0.380952,0.619048,0.238095,wilcoxon,91.000000,0.205991,False
+baseline_gpt5,Baseline GPT-5-mini,llm,raw,grader_01@anonymized.benger.invalid,7,0.142857,0.857143,0.714286,wilcoxon,21.000000,0.890625,False
+baseline_gpt5,Baseline GPT-5-mini,llm,raw,grader_02@anonymized.benger.invalid,11,0.181818,0.818182,0.636364,wilcoxon,45.000000,0.860840,False
+baseline_gpt5,Baseline GPT-5-mini,llm,raw,grader_04@anonymized.benger.invalid,9,0.444444,0.555556,0.111111,wilcoxon,15.000000,0.212891,False
+baseline_gpt5,Baseline GPT-5-mini,llm,raw,grader_05@anonymized.benger.invalid,9,0.333333,0.666667,0.333333,wilcoxon,21.000000,0.455078,False
+baseline_gpt5,Baseline GPT-5-mini,llm,raw,grader_07@anonymized.benger.invalid,9,0.333333,0.666667,0.333333,wilcoxon,21.000000,0.455078,False
+baseline_gpt5,Baseline GPT-5-mini,llm,scalar,grader_01@anonymized.benger.invalid,7,0.000000,1.000000,1.000000,wilcoxon,28.000000,1.000000,False
+baseline_gpt5,Baseline GPT-5-mini,llm,scalar,grader_02@anonymized.benger.invalid,11,0.181818,0.818182,0.636364,wilcoxon,45.000000,0.860840,False
+baseline_gpt5,Baseline GPT-5-mini,llm,scalar,grader_04@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+baseline_gpt5,Baseline GPT-5-mini,llm,scalar,grader_05@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+baseline_gpt5,Baseline GPT-5-mini,llm,scalar,grader_07@anonymized.benger.invalid,9,0.444444,0.555556,0.111111,wilcoxon,15.000000,0.212891,False
+baseline_gpt5,Baseline GPT-5-mini,llm,affine,grader_01@anonymized.benger.invalid,7,0.000000,1.000000,1.000000,wilcoxon,28.000000,1.000000,False
+baseline_gpt5,Baseline GPT-5-mini,llm,affine,grader_02@anonymized.benger.invalid,11,0.181818,0.818182,0.636364,wilcoxon,45.000000,0.860840,False
+baseline_gpt5,Baseline GPT-5-mini,llm,affine,grader_04@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+baseline_gpt5,Baseline GPT-5-mini,llm,affine,grader_05@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+baseline_gpt5,Baseline GPT-5-mini,llm,affine,grader_07@anonymized.benger.invalid,9,0.444444,0.555556,0.111111,wilcoxon,15.000000,0.212891,False
+cfgB_gpt5,Config B GPT-5-mini,human,raw,grader_01@anonymized.benger.invalid,14,0.571429,0.428571,-0.142857,wilcoxon,21.000000,0.024719,False
+cfgB_gpt5,Config B GPT-5-mini,human,raw,grader_02@anonymized.benger.invalid,19,0.631579,0.368421,-0.263158,wilcoxon,28.000000,0.002665,True
+cfgB_gpt5,Config B GPT-5-mini,human,raw,grader_04@anonymized.benger.invalid,15,0.466667,0.533333,0.066667,wilcoxon,36.000000,0.093811,False
+cfgB_gpt5,Config B GPT-5-mini,human,raw,grader_05@anonymized.benger.invalid,21,0.428571,0.619048,0.190476,wilcoxon,90.000000,0.196292,False
+cfgB_gpt5,Config B GPT-5-mini,human,raw,grader_07@anonymized.benger.invalid,21,0.285714,0.714286,0.428571,wilcoxon,120.000000,0.567556,False
+cfgB_gpt5,Config B GPT-5-mini,human,scalar,grader_01@anonymized.benger.invalid,14,0.642857,0.428571,-0.214286,wilcoxon,20.000000,0.020935,False
+cfgB_gpt5,Config B GPT-5-mini,human,scalar,grader_02@anonymized.benger.invalid,19,0.473684,0.526316,0.052632,wilcoxon,55.000000,0.056688,False
+cfgB_gpt5,Config B GPT-5-mini,human,scalar,grader_04@anonymized.benger.invalid,15,0.666667,0.400000,-0.266667,wilcoxon,20.000000,0.010773,False
+cfgB_gpt5,Config B GPT-5-mini,human,scalar,grader_05@anonymized.benger.invalid,21,0.571429,0.476190,-0.095238,wilcoxon,54.000000,0.015960,False
+cfgB_gpt5,Config B GPT-5-mini,human,scalar,grader_07@anonymized.benger.invalid,21,0.333333,0.666667,0.333333,wilcoxon,105.000000,0.366735,False
+cfgB_gpt5,Config B GPT-5-mini,human,affine,grader_01@anonymized.benger.invalid,14,0.571429,0.428571,-0.142857,wilcoxon,21.000000,0.024719,False
+cfgB_gpt5,Config B GPT-5-mini,human,affine,grader_02@anonymized.benger.invalid,19,0.421053,0.578947,0.157895,wilcoxon,66.000000,0.128963,False
+cfgB_gpt5,Config B GPT-5-mini,human,affine,grader_04@anonymized.benger.invalid,15,0.666667,0.333333,-0.333333,wilcoxon,15.000000,0.004181,True
+cfgB_gpt5,Config B GPT-5-mini,human,affine,grader_05@anonymized.benger.invalid,21,0.523810,0.476190,-0.047619,wilcoxon,55.000000,0.017528,False
+cfgB_gpt5,Config B GPT-5-mini,human,affine,grader_07@anonymized.benger.invalid,21,0.428571,0.571429,0.142857,wilcoxon,78.000000,0.101459,False
+cfgB_gpt5,Config B GPT-5-mini,llm,raw,grader_01@anonymized.benger.invalid,7,0.142857,0.857143,0.714286,wilcoxon,21.000000,0.890625,False
+cfgB_gpt5,Config B GPT-5-mini,llm,raw,grader_02@anonymized.benger.invalid,11,0.181818,0.818182,0.636364,wilcoxon,45.000000,0.860840,False
+cfgB_gpt5,Config B GPT-5-mini,llm,raw,grader_04@anonymized.benger.invalid,9,0.444444,0.555556,0.111111,wilcoxon,15.000000,0.212891,False
+cfgB_gpt5,Config B GPT-5-mini,llm,raw,grader_05@anonymized.benger.invalid,9,0.444444,0.555556,0.111111,wilcoxon,15.000000,0.212891,False
+cfgB_gpt5,Config B GPT-5-mini,llm,raw,grader_07@anonymized.benger.invalid,9,0.333333,0.666667,0.333333,wilcoxon,21.000000,0.455078,False
+cfgB_gpt5,Config B GPT-5-mini,llm,scalar,grader_01@anonymized.benger.invalid,7,0.142857,0.857143,0.714286,wilcoxon,21.000000,0.890625,False
+cfgB_gpt5,Config B GPT-5-mini,llm,scalar,grader_02@anonymized.benger.invalid,11,0.181818,0.818182,0.636364,wilcoxon,45.000000,0.860840,False
+cfgB_gpt5,Config B GPT-5-mini,llm,scalar,grader_04@anonymized.benger.invalid,9,0.666667,0.333333,-0.333333,wilcoxon,6.000000,0.027344,False
+cfgB_gpt5,Config B GPT-5-mini,llm,scalar,grader_05@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+cfgB_gpt5,Config B GPT-5-mini,llm,scalar,grader_07@anonymized.benger.invalid,9,0.444444,0.555556,0.111111,wilcoxon,15.000000,0.212891,False
+cfgB_gpt5,Config B GPT-5-mini,llm,affine,grader_01@anonymized.benger.invalid,7,0.142857,0.857143,0.714286,wilcoxon,21.000000,0.890625,False
+cfgB_gpt5,Config B GPT-5-mini,llm,affine,grader_02@anonymized.benger.invalid,11,0.181818,0.818182,0.636364,wilcoxon,45.000000,0.860840,False
+cfgB_gpt5,Config B GPT-5-mini,llm,affine,grader_04@anonymized.benger.invalid,9,0.666667,0.333333,-0.333333,wilcoxon,6.000000,0.027344,False
+cfgB_gpt5,Config B GPT-5-mini,llm,affine,grader_05@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+cfgB_gpt5,Config B GPT-5-mini,llm,affine,grader_07@anonymized.benger.invalid,9,0.333333,0.666667,0.333333,wilcoxon,21.000000,0.455078,False
+cfgB_opus,Config B Opus-4.7,human,raw,grader_01@anonymized.benger.invalid,13,0.538462,0.461538,-0.076923,wilcoxon,21.000000,0.047119,False
+cfgB_opus,Config B Opus-4.7,human,raw,grader_02@anonymized.benger.invalid,17,0.588235,0.411765,-0.176471,wilcoxon,28.000000,0.010078,True
+cfgB_opus,Config B Opus-4.7,human,raw,grader_04@anonymized.benger.invalid,15,0.600000,0.400000,-0.200000,wilcoxon,21.000000,0.012787,True
+cfgB_opus,Config B Opus-4.7,human,raw,grader_05@anonymized.benger.invalid,19,0.578947,0.421053,-0.157895,wilcoxon,36.000000,0.007986,True
+cfgB_opus,Config B Opus-4.7,human,raw,grader_07@anonymized.benger.invalid,20,0.400000,0.600000,0.200000,wilcoxon,78.000000,0.164991,False
+cfgB_opus,Config B Opus-4.7,human,scalar,grader_01@anonymized.benger.invalid,13,0.538462,0.461538,-0.076923,wilcoxon,21.000000,0.047119,False
+cfgB_opus,Config B Opus-4.7,human,scalar,grader_02@anonymized.benger.invalid,17,0.588235,0.411765,-0.176471,wilcoxon,28.000000,0.010078,True
+cfgB_opus,Config B Opus-4.7,human,scalar,grader_04@anonymized.benger.invalid,15,0.600000,0.400000,-0.200000,wilcoxon,21.000000,0.012787,True
+cfgB_opus,Config B Opus-4.7,human,scalar,grader_05@anonymized.benger.invalid,19,0.578947,0.421053,-0.157895,wilcoxon,36.000000,0.007986,True
+cfgB_opus,Config B Opus-4.7,human,scalar,grader_07@anonymized.benger.invalid,20,0.400000,0.600000,0.200000,wilcoxon,78.000000,0.164991,False
+cfgB_opus,Config B Opus-4.7,human,affine,grader_01@anonymized.benger.invalid,13,0.538462,0.461538,-0.076923,wilcoxon,21.000000,0.047119,False
+cfgB_opus,Config B Opus-4.7,human,affine,grader_02@anonymized.benger.invalid,17,0.588235,0.411765,-0.176471,wilcoxon,28.000000,0.010078,False
+cfgB_opus,Config B Opus-4.7,human,affine,grader_04@anonymized.benger.invalid,15,0.533333,0.466667,-0.066667,wilcoxon,28.000000,0.036499,False
+cfgB_opus,Config B Opus-4.7,human,affine,grader_05@anonymized.benger.invalid,19,0.578947,0.421053,-0.157895,wilcoxon,36.000000,0.007986,False
+cfgB_opus,Config B Opus-4.7,human,affine,grader_07@anonymized.benger.invalid,20,0.450000,0.550000,0.100000,wilcoxon,66.000000,0.076823,False
+cfgB_opus,Config B Opus-4.7,llm,raw,grader_01@anonymized.benger.invalid,7,0.285714,0.714286,0.428571,wilcoxon,15.000000,0.593750,False
+cfgB_opus,Config B Opus-4.7,llm,raw,grader_02@anonymized.benger.invalid,11,0.545455,0.545455,0.000000,wilcoxon,20.000000,0.139160,False
+cfgB_opus,Config B Opus-4.7,llm,raw,grader_04@anonymized.benger.invalid,9,0.888889,0.111111,-0.777778,wilcoxon,1.000000,0.003906,True
+cfgB_opus,Config B Opus-4.7,llm,raw,grader_05@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+cfgB_opus,Config B Opus-4.7,llm,raw,grader_07@anonymized.benger.invalid,9,0.666667,0.444444,-0.222222,wilcoxon,9.000000,0.064453,False
+cfgB_opus,Config B Opus-4.7,llm,scalar,grader_01@anonymized.benger.invalid,7,0.285714,0.714286,0.428571,wilcoxon,15.000000,0.593750,False
+cfgB_opus,Config B Opus-4.7,llm,scalar,grader_02@anonymized.benger.invalid,11,0.454545,0.545455,0.090909,wilcoxon,21.000000,0.160156,False
+cfgB_opus,Config B Opus-4.7,llm,scalar,grader_04@anonymized.benger.invalid,9,0.888889,0.111111,-0.777778,wilcoxon,1.000000,0.003906,True
+cfgB_opus,Config B Opus-4.7,llm,scalar,grader_05@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+cfgB_opus,Config B Opus-4.7,llm,scalar,grader_07@anonymized.benger.invalid,9,0.666667,0.333333,-0.333333,wilcoxon,6.000000,0.027344,False
+cfgB_opus,Config B Opus-4.7,llm,affine,grader_01@anonymized.benger.invalid,7,0.285714,0.714286,0.428571,wilcoxon,15.000000,0.593750,False
+cfgB_opus,Config B Opus-4.7,llm,affine,grader_02@anonymized.benger.invalid,11,0.363636,0.636364,0.272727,wilcoxon,28.000000,0.350098,False
+cfgB_opus,Config B Opus-4.7,llm,affine,grader_04@anonymized.benger.invalid,9,0.888889,0.111111,-0.777778,wilcoxon,1.000000,0.003906,True
+cfgB_opus,Config B Opus-4.7,llm,affine,grader_05@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+cfgB_opus,Config B Opus-4.7,llm,affine,grader_07@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+cfgB_gemini,Config B Gemini-3.1-Pro,human,raw,grader_01@anonymized.benger.invalid,14,0.714286,0.357143,-0.357143,wilcoxon,14.000000,0.006714,True
+cfgB_gemini,Config B Gemini-3.1-Pro,human,raw,grader_02@anonymized.benger.invalid,19,0.736842,0.263158,-0.473684,wilcoxon,15.000000,0.000261,True
+cfgB_gemini,Config B Gemini-3.1-Pro,human,raw,grader_04@anonymized.benger.invalid,15,0.533333,0.533333,0.000000,wilcoxon,35.000000,0.084412,False
+cfgB_gemini,Config B Gemini-3.1-Pro,human,raw,grader_05@anonymized.benger.invalid,21,0.523810,0.523810,0.000000,wilcoxon,65.000000,0.041098,False
+cfgB_gemini,Config B Gemini-3.1-Pro,human,raw,grader_07@anonymized.benger.invalid,21,0.380952,0.619048,0.238095,wilcoxon,91.000000,0.205991,False
+cfgB_gemini,Config B Gemini-3.1-Pro,human,scalar,grader_01@anonymized.benger.invalid,14,0.642857,0.428571,-0.214286,wilcoxon,20.000000,0.020935,False
+cfgB_gemini,Config B Gemini-3.1-Pro,human,scalar,grader_02@anonymized.benger.invalid,19,0.578947,0.421053,-0.157895,wilcoxon,36.000000,0.007986,False
+cfgB_gemini,Config B Gemini-3.1-Pro,human,scalar,grader_04@anonymized.benger.invalid,15,0.600000,0.466667,-0.133333,wilcoxon,27.000000,0.031860,False
+cfgB_gemini,Config B Gemini-3.1-Pro,human,scalar,grader_05@anonymized.benger.invalid,21,0.571429,0.476190,-0.095238,wilcoxon,54.000000,0.015960,False
+cfgB_gemini,Config B Gemini-3.1-Pro,human,scalar,grader_07@anonymized.benger.invalid,21,0.523810,0.476190,-0.047619,wilcoxon,55.000000,0.017528,False
+cfgB_gemini,Config B Gemini-3.1-Pro,human,affine,grader_01@anonymized.benger.invalid,14,0.714286,0.285714,-0.428571,wilcoxon,10.000000,0.002625,True
+cfgB_gemini,Config B Gemini-3.1-Pro,human,affine,grader_02@anonymized.benger.invalid,19,0.526316,0.473684,-0.052632,wilcoxon,45.000000,0.022280,False
+cfgB_gemini,Config B Gemini-3.1-Pro,human,affine,grader_04@anonymized.benger.invalid,15,0.666667,0.333333,-0.333333,wilcoxon,15.000000,0.004181,True
+cfgB_gemini,Config B Gemini-3.1-Pro,human,affine,grader_05@anonymized.benger.invalid,21,0.523810,0.476190,-0.047619,wilcoxon,55.000000,0.017528,False
+cfgB_gemini,Config B Gemini-3.1-Pro,human,affine,grader_07@anonymized.benger.invalid,21,0.428571,0.571429,0.142857,wilcoxon,78.000000,0.101459,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,raw,grader_01@anonymized.benger.invalid,7,0.142857,0.857143,0.714286,wilcoxon,21.000000,0.890625,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,raw,grader_02@anonymized.benger.invalid,11,0.000000,1.000000,1.000000,wilcoxon,66.000000,1.000000,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,raw,grader_04@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,raw,grader_05@anonymized.benger.invalid,9,0.222222,0.777778,0.555556,wilcoxon,28.000000,0.751953,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,raw,grader_07@anonymized.benger.invalid,9,0.444444,0.555556,0.111111,wilcoxon,15.000000,0.212891,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,scalar,grader_01@anonymized.benger.invalid,7,0.428571,0.571429,0.142857,wilcoxon,10.000000,0.289062,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,scalar,grader_02@anonymized.benger.invalid,11,0.454545,0.545455,0.090909,wilcoxon,21.000000,0.160156,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,scalar,grader_04@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,scalar,grader_05@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,scalar,grader_07@anonymized.benger.invalid,9,0.666667,0.333333,-0.333333,wilcoxon,6.000000,0.027344,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,affine,grader_01@anonymized.benger.invalid,7,0.142857,0.857143,0.714286,wilcoxon,21.000000,0.890625,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,affine,grader_02@anonymized.benger.invalid,11,0.363636,0.636364,0.272727,wilcoxon,28.000000,0.350098,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,affine,grader_04@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,affine,grader_05@anonymized.benger.invalid,9,0.666667,0.333333,-0.333333,wilcoxon,6.000000,0.027344,False
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,affine,grader_07@anonymized.benger.invalid,9,0.666667,0.333333,-0.333333,wilcoxon,6.000000,0.027344,False
+deepseek,DeepSeek-V4-Pro,human,raw,grader_01@anonymized.benger.invalid,14,0.642857,0.500000,-0.142857,wilcoxon,25.000000,0.045288,False
+deepseek,DeepSeek-V4-Pro,human,raw,grader_02@anonymized.benger.invalid,19,0.684211,0.315789,-0.368421,wilcoxon,21.000000,0.000847,True
+deepseek,DeepSeek-V4-Pro,human,raw,grader_04@anonymized.benger.invalid,15,0.533333,0.600000,0.066667,wilcoxon,42.000000,0.165131,False
+deepseek,DeepSeek-V4-Pro,human,raw,grader_05@anonymized.benger.invalid,21,0.523810,0.523810,0.000000,wilcoxon,65.000000,0.041098,False
+deepseek,DeepSeek-V4-Pro,human,raw,grader_07@anonymized.benger.invalid,21,0.428571,0.571429,0.142857,wilcoxon,78.000000,0.101459,False
+deepseek,DeepSeek-V4-Pro,human,scalar,grader_01@anonymized.benger.invalid,14,0.500000,0.571429,0.071429,wilcoxon,35.000000,0.147888,False
+deepseek,DeepSeek-V4-Pro,human,scalar,grader_02@anonymized.benger.invalid,19,0.578947,0.421053,-0.157895,wilcoxon,36.000000,0.007986,True
+deepseek,DeepSeek-V4-Pro,human,scalar,grader_04@anonymized.benger.invalid,15,0.466667,0.600000,0.133333,wilcoxon,44.000000,0.194702,False
+deepseek,DeepSeek-V4-Pro,human,scalar,grader_05@anonymized.benger.invalid,21,0.666667,0.380952,-0.285714,wilcoxon,35.000000,0.001876,True
+deepseek,DeepSeek-V4-Pro,human,scalar,grader_07@anonymized.benger.invalid,21,0.428571,0.571429,0.142857,wilcoxon,78.000000,0.101459,False
+deepseek,DeepSeek-V4-Pro,human,affine,grader_01@anonymized.benger.invalid,14,0.714286,0.285714,-0.428571,wilcoxon,10.000000,0.002625,True
+deepseek,DeepSeek-V4-Pro,human,affine,grader_02@anonymized.benger.invalid,19,0.684211,0.315789,-0.368421,wilcoxon,21.000000,0.000847,True
+deepseek,DeepSeek-V4-Pro,human,affine,grader_04@anonymized.benger.invalid,15,0.666667,0.333333,-0.333333,wilcoxon,15.000000,0.004181,True
+deepseek,DeepSeek-V4-Pro,human,affine,grader_05@anonymized.benger.invalid,21,0.523810,0.476190,-0.047619,wilcoxon,55.000000,0.017528,False
+deepseek,DeepSeek-V4-Pro,human,affine,grader_07@anonymized.benger.invalid,21,0.428571,0.571429,0.142857,wilcoxon,78.000000,0.101459,False
+deepseek,DeepSeek-V4-Pro,llm,raw,grader_01@anonymized.benger.invalid,7,0.000000,1.000000,1.000000,wilcoxon,28.000000,1.000000,False
+deepseek,DeepSeek-V4-Pro,llm,raw,grader_02@anonymized.benger.invalid,11,0.363636,0.636364,0.272727,wilcoxon,28.000000,0.350098,False
+deepseek,DeepSeek-V4-Pro,llm,raw,grader_04@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+deepseek,DeepSeek-V4-Pro,llm,raw,grader_05@anonymized.benger.invalid,9,0.777778,0.444444,-0.333333,wilcoxon,7.000000,0.037109,False
+deepseek,DeepSeek-V4-Pro,llm,raw,grader_07@anonymized.benger.invalid,9,0.333333,0.666667,0.333333,wilcoxon,21.000000,0.455078,False
+deepseek,DeepSeek-V4-Pro,llm,scalar,grader_01@anonymized.benger.invalid,7,0.142857,0.857143,0.714286,wilcoxon,21.000000,0.890625,False
+deepseek,DeepSeek-V4-Pro,llm,scalar,grader_02@anonymized.benger.invalid,11,0.545455,0.454545,-0.090909,wilcoxon,15.000000,0.061523,False
+deepseek,DeepSeek-V4-Pro,llm,scalar,grader_04@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+deepseek,DeepSeek-V4-Pro,llm,scalar,grader_05@anonymized.benger.invalid,9,0.666667,0.333333,-0.333333,wilcoxon,6.000000,0.027344,False
+deepseek,DeepSeek-V4-Pro,llm,scalar,grader_07@anonymized.benger.invalid,9,0.333333,0.666667,0.333333,wilcoxon,21.000000,0.455078,False
+deepseek,DeepSeek-V4-Pro,llm,affine,grader_01@anonymized.benger.invalid,7,0.000000,1.000000,1.000000,wilcoxon,28.000000,1.000000,False
+deepseek,DeepSeek-V4-Pro,llm,affine,grader_02@anonymized.benger.invalid,11,0.363636,0.636364,0.272727,wilcoxon,28.000000,0.350098,False
+deepseek,DeepSeek-V4-Pro,llm,affine,grader_04@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+deepseek,DeepSeek-V4-Pro,llm,affine,grader_05@anonymized.benger.invalid,9,0.666667,0.333333,-0.333333,wilcoxon,6.000000,0.027344,False
+deepseek,DeepSeek-V4-Pro,llm,affine,grader_07@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+qwen,Qwen3.5-397B-A17B,human,raw,grader_01@anonymized.benger.invalid,14,0.500000,0.571429,0.071429,wilcoxon,35.000000,0.147888,False
+qwen,Qwen3.5-397B-A17B,human,raw,grader_02@anonymized.benger.invalid,19,0.473684,0.526316,0.052632,wilcoxon,55.000000,0.056688,False
+qwen,Qwen3.5-397B-A17B,human,raw,grader_04@anonymized.benger.invalid,15,0.400000,0.600000,0.200000,wilcoxon,45.000000,0.210602,False
+qwen,Qwen3.5-397B-A17B,human,raw,grader_05@anonymized.benger.invalid,21,0.333333,0.666667,0.333333,wilcoxon,105.000000,0.366735,False
+qwen,Qwen3.5-397B-A17B,human,raw,grader_07@anonymized.benger.invalid,21,0.333333,0.666667,0.333333,wilcoxon,105.000000,0.366735,False
+qwen,Qwen3.5-397B-A17B,human,scalar,grader_01@anonymized.benger.invalid,14,0.785714,0.285714,-0.500000,wilcoxon,9.000000,0.002014,True
+qwen,Qwen3.5-397B-A17B,human,scalar,grader_02@anonymized.benger.invalid,19,0.421053,0.578947,0.157895,wilcoxon,66.000000,0.128963,False
+qwen,Qwen3.5-397B-A17B,human,scalar,grader_04@anonymized.benger.invalid,15,0.733333,0.333333,-0.400000,wilcoxon,14.000000,0.003357,True
+qwen,Qwen3.5-397B-A17B,human,scalar,grader_05@anonymized.benger.invalid,21,0.619048,0.428571,-0.190476,wilcoxon,44.000000,0.005673,True
+qwen,Qwen3.5-397B-A17B,human,scalar,grader_07@anonymized.benger.invalid,21,0.333333,0.666667,0.333333,wilcoxon,105.000000,0.366735,False
+qwen,Qwen3.5-397B-A17B,human,affine,grader_01@anonymized.benger.invalid,14,0.785714,0.285714,-0.500000,wilcoxon,9.000000,0.002014,True
+qwen,Qwen3.5-397B-A17B,human,affine,grader_02@anonymized.benger.invalid,19,0.473684,0.526316,0.052632,wilcoxon,55.000000,0.056688,False
+qwen,Qwen3.5-397B-A17B,human,affine,grader_04@anonymized.benger.invalid,15,0.800000,0.266667,-0.533333,wilcoxon,9.000000,0.001007,True
+qwen,Qwen3.5-397B-A17B,human,affine,grader_05@anonymized.benger.invalid,21,0.571429,0.476190,-0.095238,wilcoxon,54.000000,0.015960,False
+qwen,Qwen3.5-397B-A17B,human,affine,grader_07@anonymized.benger.invalid,21,0.285714,0.714286,0.428571,wilcoxon,120.000000,0.567556,False
+qwen,Qwen3.5-397B-A17B,llm,raw,grader_01@anonymized.benger.invalid,7,0.000000,1.000000,1.000000,wilcoxon,28.000000,1.000000,False
+qwen,Qwen3.5-397B-A17B,llm,raw,grader_02@anonymized.benger.invalid,11,0.181818,0.909091,0.727273,wilcoxon,54.000000,0.973145,False
+qwen,Qwen3.5-397B-A17B,llm,raw,grader_04@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+qwen,Qwen3.5-397B-A17B,llm,raw,grader_05@anonymized.benger.invalid,9,0.333333,0.666667,0.333333,wilcoxon,21.000000,0.455078,False
+qwen,Qwen3.5-397B-A17B,llm,raw,grader_07@anonymized.benger.invalid,9,0.333333,0.666667,0.333333,wilcoxon,21.000000,0.455078,False
+qwen,Qwen3.5-397B-A17B,llm,scalar,grader_01@anonymized.benger.invalid,7,0.142857,0.857143,0.714286,wilcoxon,21.000000,0.890625,False
+qwen,Qwen3.5-397B-A17B,llm,scalar,grader_02@anonymized.benger.invalid,11,0.272727,0.727273,0.454545,wilcoxon,36.000000,0.617676,False
+qwen,Qwen3.5-397B-A17B,llm,scalar,grader_04@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+qwen,Qwen3.5-397B-A17B,llm,scalar,grader_05@anonymized.benger.invalid,9,0.666667,0.333333,-0.333333,wilcoxon,6.000000,0.027344,False
+qwen,Qwen3.5-397B-A17B,llm,scalar,grader_07@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+qwen,Qwen3.5-397B-A17B,llm,affine,grader_01@anonymized.benger.invalid,7,0.142857,0.857143,0.714286,wilcoxon,21.000000,0.890625,False
+qwen,Qwen3.5-397B-A17B,llm,affine,grader_02@anonymized.benger.invalid,11,0.363636,0.636364,0.272727,wilcoxon,28.000000,0.350098,False
+qwen,Qwen3.5-397B-A17B,llm,affine,grader_04@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+qwen,Qwen3.5-397B-A17B,llm,affine,grader_05@anonymized.benger.invalid,9,0.666667,0.333333,-0.333333,wilcoxon,6.000000,0.027344,False
+qwen,Qwen3.5-397B-A17B,llm,affine,grader_07@anonymized.benger.invalid,9,0.444444,0.555556,0.111111,wilcoxon,15.000000,0.212891,False
+sonnet,Sonnet-4.6,human,raw,grader_01@anonymized.benger.invalid,14,0.500000,0.500000,0.000000,wilcoxon,28.000000,0.067627,False
+sonnet,Sonnet-4.6,human,raw,grader_02@anonymized.benger.invalid,19,0.631579,0.421053,-0.210526,wilcoxon,35.000000,0.007034,True
+sonnet,Sonnet-4.6,human,raw,grader_04@anonymized.benger.invalid,15,0.533333,0.466667,-0.066667,wilcoxon,28.000000,0.036499,False
+sonnet,Sonnet-4.6,human,raw,grader_05@anonymized.benger.invalid,21,0.666667,0.333333,-0.333333,wilcoxon,28.000000,0.000687,True
+sonnet,Sonnet-4.6,human,raw,grader_07@anonymized.benger.invalid,21,0.523810,0.476190,-0.047619,wilcoxon,55.000000,0.017528,False
+sonnet,Sonnet-4.6,human,scalar,grader_01@anonymized.benger.invalid,14,0.714286,0.357143,-0.357143,wilcoxon,14.000000,0.006714,True
+sonnet,Sonnet-4.6,human,scalar,grader_02@anonymized.benger.invalid,19,0.578947,0.421053,-0.157895,wilcoxon,36.000000,0.007986,True
+sonnet,Sonnet-4.6,human,scalar,grader_04@anonymized.benger.invalid,15,0.733333,0.333333,-0.400000,wilcoxon,14.000000,0.003357,True
+sonnet,Sonnet-4.6,human,scalar,grader_05@anonymized.benger.invalid,21,0.666667,0.380952,-0.285714,wilcoxon,35.000000,0.001876,True
+sonnet,Sonnet-4.6,human,scalar,grader_07@anonymized.benger.invalid,21,0.428571,0.571429,0.142857,wilcoxon,78.000000,0.101459,False
+sonnet,Sonnet-4.6,human,affine,grader_01@anonymized.benger.invalid,14,0.714286,0.357143,-0.357143,wilcoxon,14.000000,0.006714,True
+sonnet,Sonnet-4.6,human,affine,grader_02@anonymized.benger.invalid,19,0.526316,0.473684,-0.052632,wilcoxon,45.000000,0.022280,False
+sonnet,Sonnet-4.6,human,affine,grader_04@anonymized.benger.invalid,15,0.733333,0.333333,-0.400000,wilcoxon,14.000000,0.003357,True
+sonnet,Sonnet-4.6,human,affine,grader_05@anonymized.benger.invalid,21,0.666667,0.380952,-0.285714,wilcoxon,35.000000,0.001876,True
+sonnet,Sonnet-4.6,human,affine,grader_07@anonymized.benger.invalid,21,0.428571,0.571429,0.142857,wilcoxon,78.000000,0.101459,False
+sonnet,Sonnet-4.6,llm,raw,grader_01@anonymized.benger.invalid,7,0.000000,1.000000,1.000000,wilcoxon,28.000000,1.000000,False
+sonnet,Sonnet-4.6,llm,raw,grader_02@anonymized.benger.invalid,11,0.363636,0.727273,0.363636,wilcoxon,35.000000,0.584473,False
+sonnet,Sonnet-4.6,llm,raw,grader_04@anonymized.benger.invalid,9,0.666667,0.333333,-0.333333,wilcoxon,6.000000,0.027344,False
+sonnet,Sonnet-4.6,llm,raw,grader_05@anonymized.benger.invalid,9,0.666667,0.333333,-0.333333,wilcoxon,6.000000,0.027344,False
+sonnet,Sonnet-4.6,llm,raw,grader_07@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+sonnet,Sonnet-4.6,llm,scalar,grader_01@anonymized.benger.invalid,7,0.142857,0.857143,0.714286,wilcoxon,21.000000,0.890625,False
+sonnet,Sonnet-4.6,llm,scalar,grader_02@anonymized.benger.invalid,11,0.454545,0.545455,0.090909,wilcoxon,21.000000,0.160156,False
+sonnet,Sonnet-4.6,llm,scalar,grader_04@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+sonnet,Sonnet-4.6,llm,scalar,grader_05@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+sonnet,Sonnet-4.6,llm,scalar,grader_07@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+sonnet,Sonnet-4.6,llm,affine,grader_01@anonymized.benger.invalid,7,0.142857,0.857143,0.714286,wilcoxon,21.000000,0.890625,False
+sonnet,Sonnet-4.6,llm,affine,grader_02@anonymized.benger.invalid,11,0.363636,0.636364,0.272727,wilcoxon,28.000000,0.350098,False
+sonnet,Sonnet-4.6,llm,affine,grader_04@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+sonnet,Sonnet-4.6,llm,affine,grader_05@anonymized.benger.invalid,9,0.666667,0.333333,-0.333333,wilcoxon,6.000000,0.027344,False
+sonnet,Sonnet-4.6,llm,affine,grader_07@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+gpt54mini,GPT-5.4-mini,human,raw,grader_01@anonymized.benger.invalid,14,0.571429,0.428571,-0.142857,wilcoxon,21.000000,0.024719,False
+gpt54mini,GPT-5.4-mini,human,raw,grader_02@anonymized.benger.invalid,19,0.684211,0.315789,-0.368421,wilcoxon,21.000000,0.000847,True
+gpt54mini,GPT-5.4-mini,human,raw,grader_04@anonymized.benger.invalid,15,0.733333,0.333333,-0.400000,wilcoxon,14.000000,0.003357,True
+gpt54mini,GPT-5.4-mini,human,raw,grader_05@anonymized.benger.invalid,21,0.619048,0.380952,-0.238095,wilcoxon,36.000000,0.002142,True
+gpt54mini,GPT-5.4-mini,human,raw,grader_07@anonymized.benger.invalid,21,0.476190,0.523810,0.047619,wilcoxon,66.000000,0.044399,False
+gpt54mini,GPT-5.4-mini,human,scalar,grader_01@anonymized.benger.invalid,14,0.571429,0.428571,-0.142857,wilcoxon,21.000000,0.024719,False
+gpt54mini,GPT-5.4-mini,human,scalar,grader_02@anonymized.benger.invalid,19,0.684211,0.315789,-0.368421,wilcoxon,21.000000,0.000847,True
+gpt54mini,GPT-5.4-mini,human,scalar,grader_04@anonymized.benger.invalid,15,0.733333,0.266667,-0.466667,wilcoxon,10.000000,0.001312,True
+gpt54mini,GPT-5.4-mini,human,scalar,grader_05@anonymized.benger.invalid,21,0.619048,0.380952,-0.238095,wilcoxon,36.000000,0.002142,True
+gpt54mini,GPT-5.4-mini,human,scalar,grader_07@anonymized.benger.invalid,21,0.476190,0.523810,0.047619,wilcoxon,66.000000,0.044399,False
+gpt54mini,GPT-5.4-mini,human,affine,grader_01@anonymized.benger.invalid,14,0.428571,0.571429,0.142857,wilcoxon,36.000000,0.162903,False
+gpt54mini,GPT-5.4-mini,human,affine,grader_02@anonymized.benger.invalid,19,0.684211,0.315789,-0.368421,wilcoxon,21.000000,0.000847,True
+gpt54mini,GPT-5.4-mini,human,affine,grader_04@anonymized.benger.invalid,15,0.666667,0.333333,-0.333333,wilcoxon,15.000000,0.004181,True
+gpt54mini,GPT-5.4-mini,human,affine,grader_05@anonymized.benger.invalid,21,0.619048,0.380952,-0.238095,wilcoxon,36.000000,0.002142,True
+gpt54mini,GPT-5.4-mini,human,affine,grader_07@anonymized.benger.invalid,21,0.380952,0.619048,0.238095,wilcoxon,91.000000,0.205991,False
+gpt54mini,GPT-5.4-mini,llm,raw,grader_01@anonymized.benger.invalid,7,0.285714,0.714286,0.428571,wilcoxon,15.000000,0.593750,False
+gpt54mini,GPT-5.4-mini,llm,raw,grader_02@anonymized.benger.invalid,11,0.090909,0.909091,0.818182,wilcoxon,55.000000,0.979004,False
+gpt54mini,GPT-5.4-mini,llm,raw,grader_04@anonymized.benger.invalid,9,0.666667,0.333333,-0.333333,wilcoxon,6.000000,0.027344,False
+gpt54mini,GPT-5.4-mini,llm,raw,grader_05@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+gpt54mini,GPT-5.4-mini,llm,raw,grader_07@anonymized.benger.invalid,9,0.444444,0.555556,0.111111,wilcoxon,15.000000,0.212891,False
+gpt54mini,GPT-5.4-mini,llm,scalar,grader_01@anonymized.benger.invalid,7,0.285714,0.714286,0.428571,wilcoxon,15.000000,0.593750,False
+gpt54mini,GPT-5.4-mini,llm,scalar,grader_02@anonymized.benger.invalid,11,0.090909,0.909091,0.818182,wilcoxon,55.000000,0.979004,False
+gpt54mini,GPT-5.4-mini,llm,scalar,grader_04@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+gpt54mini,GPT-5.4-mini,llm,scalar,grader_05@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+gpt54mini,GPT-5.4-mini,llm,scalar,grader_07@anonymized.benger.invalid,9,0.444444,0.555556,0.111111,wilcoxon,15.000000,0.212891,False
+gpt54mini,GPT-5.4-mini,llm,affine,grader_01@anonymized.benger.invalid,7,0.285714,0.714286,0.428571,wilcoxon,15.000000,0.593750,False
+gpt54mini,GPT-5.4-mini,llm,affine,grader_02@anonymized.benger.invalid,11,0.090909,0.909091,0.818182,wilcoxon,55.000000,0.979004,False
+gpt54mini,GPT-5.4-mini,llm,affine,grader_04@anonymized.benger.invalid,9,0.777778,0.222222,-0.555556,wilcoxon,3.000000,0.009766,False
+gpt54mini,GPT-5.4-mini,llm,affine,grader_05@anonymized.benger.invalid,9,0.555556,0.444444,-0.111111,wilcoxon,10.000000,0.082031,False
+gpt54mini,GPT-5.4-mini,llm,affine,grader_07@anonymized.benger.invalid,9,0.444444,0.555556,0.111111,wilcoxon,15.000000,0.212891,False

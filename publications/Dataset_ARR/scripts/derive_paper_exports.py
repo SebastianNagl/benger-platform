@@ -1,7 +1,7 @@
 """Derive per-figure JSON exports for manuscript.qmd.
 
 Sources (read-only):
-  - data/raw/benchathon/Benchathon-tasks-2026-05-23.json
+  - data/raw/benchathon/Benchathon-tasks-2026-05-31.json
       Authoritative for tasks, annotations, generations, automatic metrics,
       LLM-judge evaluations.
   - data/raw/benchathon/korrektur_grades_sidecar.json
@@ -45,23 +45,39 @@ HERE = Path(__file__).resolve().parent.parent
 RAW = HERE / "data" / "raw"
 OUT = HERE / "data" / "processed"
 
-REAL_EXPORT = RAW / "benchathon" / "Benchathon-tasks-2026-05-23.json"
+REAL_EXPORT = RAW / "benchathon" / "Benchathon_export.json"
 HUMAN_AUTO_EXPORT = RAW / "benchathon" / "human_automatic_metrics_export.json"
 KORREKTUR_SIDECAR = RAW / "benchathon" / "korrektur_grades_sidecar.json"
 ZJS_SUMMARY = OUT / "zjs_model_summary.json"
 VARIANTS_PATH = OUT / "benchathon_instruction_variants.json"
 
 # Three LLM-judge configurations coexist on each generation in the
-# 2026-05-21 export. Each derivation picks the relevant one by field_name:
-#   - LEGACY  (mmpfzsar-7wb3): single-pass, canonical judge for RQ1/2/3 system
-#     leaderboards. Matches what manuscript.qmd was written against.
-#   - CONFIG_A (mpe7mkzx-2zp6): gpt-5-mini × 3 passes per generation, for
-#     intra-judge stability (derive_judge_repeats).
-#   - CONFIG_B (mpe7o02k-yrio): gpt-5-mini + opus + gemini per generation, for
-#     inter-judge agreement (separate script).
-LEGACY_JUDGE_FIELD_PREFIX  = "llm_judge_falloesung-mmpfzsar-7wb3"
-CONFIG_A_FIELD_PREFIX      = "llm_judge_falloesung-mpe7mkzx-2zp6"
-CONFIG_B_FIELD_PREFIX      = "llm_judge_falloesung-mpe7o02k-yrio"
+# 2026-05-21 / 2026-05-31 / 2026-06-01 exports. Each derivation picks the
+# relevant one by field_name:
+#   - BASELINE (mptmfvee-sqyx): GPT-5.4-mini single-pass, the *current* primary
+#     judge for RQ1/2/3 system leaderboards (effective 2026-06-01). Combined
+#     with the three Config A GPT-5.4-mini passes below for a k=4 within-judge
+#     stochasticity check.
+#   - CONFIG_A_GPT54MINI (mpup3ejd-lp3h): GPT-5.4-mini × 3 intra-judge passes,
+#     landed 2026-06-01. Surfaced in tbl-judge-calibration-detail.
+#   - CONFIG_B (mpe7o02k-yrio): the original three-judge inter-judge cell.
+#     Only Opus-4.7 and Gemini-3.1-Pro from this run are surfaced in the
+#     six-judge cross-validation table; the remaining cross-validation
+#     judges (DeepSeek, Qwen, Sonnet-4.6) live under their own single-judge
+#     config prefixes below.
+BASELINE_JUDGE_FIELD_PREFIX        = "llm_judge_falloesung-mptmfvee-sqyx"
+CONFIG_A_GPT54MINI_FIELD_PREFIX    = "llm_judge_falloesung-mpup3ejd-lp3h"
+CONFIG_B_FIELD_PREFIX              = "llm_judge_falloesung-mpe7o02k-yrio"
+# Additional single-judge follow-up runs added 2026-05-31 to probe whether
+# open-weight judges that fail the Calderon ω ≥ 0.5 substitution bar on the
+# Config B run can pass it when scored on their own.
+CONFIG_DEEPSEEK_FIELD_PREFIX = "llm_judge_falloesung-mpss5bx5-tt9n"
+CONFIG_QWEN_FIELD_PREFIX     = "llm_judge_falloesung-mpss68ie-xip5"
+# Two further single-judge follow-up runs added 2026-05-31 (claude-sonnet-4-6
+# and gpt-5.4-mini as standalone judges on the same Benchathon picks), same
+# Calderon ω-substitution probe as DeepSeek/Qwen above.
+CONFIG_SONNET_FIELD_PREFIX    = "llm_judge_falloesung-mptmf5x5-iynm"
+CONFIG_GPT54MINI_FIELD_PREFIX = "llm_judge_falloesung-mptmfvee-sqyx"
 
 
 def _zjs_model_whitelist() -> set[str]:
@@ -304,10 +320,10 @@ def derive_systems(real, whitelist=None) -> list[dict]:
     return rows
 
 
-def _legacy_judge_score(metrics: dict):
-    """Pull (raw_score, grade_points, passed) from a legacy judge eval row.
+def _baseline_judge_score(metrics: dict):
+    """Pull (raw_score, grade_points, passed, dimensions) from a baseline judge eval row.
 
-    The legacy `mmpfzsar-7wb3` run carries two coexisting metric shapes:
+    The baseline `mmpfzsar-7wb3` run carries two coexisting metric shapes:
 
       Shape B (original, 180/208 rows): top-level `raw_score`, `llm_judge_falloesung`
         as a 0–1 ratio, and `llm_judge_falloesung_response` carrying the rubric.
@@ -315,19 +331,39 @@ def _legacy_judge_score(metrics: dict):
       Shape A (re-run + backfilled, 28/208 rows): nested
         `llm_judge_falloesung.details.raw_score`, matching the Config A/B
         shape. Backfilled rows used to carry only `{backfilled_legacy: true}`
-        in `details`, but platform issue #113's cleanup populated
+        in `details` (this DB-field key is fixed by the production schema and
+        cannot be renamed), but platform issue #113's cleanup populated
         `details.{raw_score, grade_points, passed, judge_response}` from the
         top-level companions, so the Shape A branch returns unconditionally
         when the envelope is a dict.
+
+    Dimensions are extracted as {dim_name: score} mirroring the human-side
+    extraction in compute_agreement.index_judge_on_humans so the LLM-side
+    rq5_dim_on_llm_solutions and human-side rq5_dim_agreement see the same
+    schema.
     """
     m = metrics or {}
     kf = m.get("llm_judge_falloesung")
+    # Shape A: only trust the dict envelope when details.raw_score is actually
+    # populated. Some backfilled rows kept just {backfilled_legacy: true}
+    # (production DB key — left unchanged) in `details` despite the platform-
+    # side cleanup; for those, the real score sits in the Shape B top-level
+    # fields and we must fall through.
     if isinstance(kf, dict):
         details = kf.get("details") or {}
-        return (details.get("raw_score"),
-                details.get("grade_points"),
-                details.get("passed"))
+        if details.get("raw_score") is not None:
+            dims_src = (
+                (details.get("judge_response") or {}).get("dimensions")
+                or (kf.get("judge_response") or {}).get("dimensions")
+                or details.get("dimensions")
+                or {}
+            )
+            return (details.get("raw_score"),
+                    details.get("grade_points"),
+                    details.get("passed"),
+                    _extract_dim_scores(dims_src))
     response = m.get("llm_judge_falloesung_response") or {}
+    details_blob = m.get("llm_judge_falloesung_details") or {}
     raw = m.get("raw_score")
     if raw is None and isinstance(response, dict):
         raw = response.get("score")
@@ -335,13 +371,31 @@ def _legacy_judge_score(metrics: dict):
     passed_v = m.get("llm_judge_falloesung_passed")
     passed = bool(passed_v) if passed_v is not None else (
         response.get("passed") if isinstance(response, dict) else None)
-    return raw, grade_points, passed
+    dims_src = (
+        (response.get("dimensions") if isinstance(response, dict) else None)
+        or details_blob.get("dimensions")
+        or {}
+    )
+    return raw, grade_points, passed, _extract_dim_scores(dims_src)
+
+
+def _extract_dim_scores(dims_src: dict) -> dict:
+    """Normalise a judge `dimensions` payload to {dim_name: float score}."""
+    if not isinstance(dims_src, dict):
+        return {}
+    out = {}
+    for name, info in dims_src.items():
+        if isinstance(info, dict):
+            s = info.get("score")
+            if s is not None:
+                out[name] = float(s)
+    return out
 
 
 def derive_model_evaluations(real, whitelist=None) -> list[dict]:
-    """One row per generation, scored by the legacy single-pass judge.
+    """One row per generation, scored by the baseline single-pass judge.
 
-    Restricted to the legacy `mmpfzsar-7wb3` field so RQ1/2/3 system rankings
+    Restricted to the baseline `mmpfzsar-7wb3` field so RQ1/2/3 system rankings
     stay on the canonical judge the manuscript was written against.
     Config A/B passes flow through their own derive scripts.
     """
@@ -350,9 +404,9 @@ def derive_model_evaluations(real, whitelist=None) -> list[dict]:
         mid = canonical_model_id(gen["model_id"])
         if whitelist is not None and mid not in whitelist:
             continue
-        if not str(ev.get("field_name") or "").startswith(LEGACY_JUDGE_FIELD_PREFIX):
+        if not str(ev.get("field_name") or "").startswith(BASELINE_JUDGE_FIELD_PREFIX):
             continue
-        raw, grade_points, passed = _legacy_judge_score(ev.get("metrics"))
+        raw, grade_points, passed, dimensions = _baseline_judge_score(ev.get("metrics"))
         if raw is None:
             continue
         rows.append({
@@ -362,6 +416,7 @@ def derive_model_evaluations(real, whitelist=None) -> list[dict]:
             "raw_score": raw,
             "grade_points": grade_points,
             "passed": passed,
+            "dimensions": dimensions,
             "output_tokens": count_tokens(_response_text(gen)),
         })
     return rows
@@ -513,18 +568,19 @@ def derive_human_grades(sidecar, real=None, variants=None) -> list[dict]:
 
 
 def derive_judge_repeats(real, whitelist=None) -> list[dict]:
-    """Per-generation stdev of the Config A intra-run (gpt-5-mini × 3 passes).
+    """Per-generation stdev of the Config A intra-run (GPT-5.4-mini × 3 passes,
+    landed 2026-06-01).
 
-    Filters by `field_name.startswith(CONFIG_A_FIELD_PREFIX)` so the result
+    Filters by `field_name.startswith(CONFIG_A_GPT54MINI_FIELD_PREFIX)` so the result
     measures within-cell stability of a single judge model rather than mixing
-    in Config B's three different judges or the legacy single-pass run.
+    in Config B's three different judges or the baseline single-pass run.
     """
     by_gen: dict[str, list[float]] = defaultdict(list)
     for _task_id, gen, ev in iter_gen_evals(real):
         mid = canonical_model_id(gen["model_id"])
         if whitelist is not None and mid not in whitelist:
             continue
-        if not str(ev.get("field_name") or "").startswith(CONFIG_A_FIELD_PREFIX):
+        if not str(ev.get("field_name") or "").startswith(CONFIG_A_GPT54MINI_FIELD_PREFIX):
             continue
         kf = (ev.get("metrics") or {}).get("llm_judge_falloesung")
         if not isinstance(kf, dict):

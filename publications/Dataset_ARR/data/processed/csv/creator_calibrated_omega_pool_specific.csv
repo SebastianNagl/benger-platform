@@ -1,0 +1,33 @@
+judge,judge_label,pool,tier,omega,omega_lo_clopper,omega_hi_clopper,omega_lo_boot,omega_hi_boot,passes_point,passes_boot_lo,n_instances,n_anchor_same_pool
+baseline_gpt5,Baseline GPT-5-mini,human,scalar,0.4000,0.0527,0.8534,0.0000,1.0000,False,False,30,30
+baseline_gpt5,Baseline GPT-5-mini,human,affine,0.6000,0.1466,0.9473,0.0000,1.0000,True,False,30,30
+baseline_gpt5,Baseline GPT-5-mini,llm,scalar,0.0000,0.0000,0.5218,0.0000,0.5000,False,False,15,15
+baseline_gpt5,Baseline GPT-5-mini,llm,affine,0.0000,0.0000,0.5218,0.0000,0.5000,False,False,15,15
+cfgB_gpt5,Config B GPT-5-mini,human,scalar,0.4000,0.0527,0.8534,0.0000,1.0000,False,False,30,30
+cfgB_gpt5,Config B GPT-5-mini,human,affine,0.8000,0.2836,0.9949,0.2000,0.8000,True,False,30,30
+cfgB_gpt5,Config B GPT-5-mini,llm,scalar,0.0000,0.0000,0.5218,0.0000,0.6000,False,False,15,15
+cfgB_gpt5,Config B GPT-5-mini,llm,affine,0.0000,0.0000,0.5218,0.0000,0.4000,False,False,15,15
+cfgB_opus,Config B Opus-4.7,human,scalar,0.0000,0.0000,0.5218,0.0000,0.8000,False,False,28,28
+cfgB_opus,Config B Opus-4.7,human,affine,0.6000,0.1466,0.9473,0.0000,1.0000,True,False,28,28
+cfgB_opus,Config B Opus-4.7,llm,scalar,0.2000,0.0051,0.7164,0.0000,0.6000,False,False,15,15
+cfgB_opus,Config B Opus-4.7,llm,affine,0.2000,0.0051,0.7164,0.0000,0.6000,False,False,15,15
+cfgB_gemini,Config B Gemini-3.1-Pro,human,scalar,0.4000,0.0527,0.8534,0.0000,1.0000,False,False,30,30
+cfgB_gemini,Config B Gemini-3.1-Pro,human,affine,0.8000,0.2836,0.9949,0.2000,1.0000,True,False,30,30
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,scalar,0.0000,0.0000,0.5218,0.0000,0.5525,False,False,15,15
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,affine,0.0000,0.0000,0.5218,0.0000,0.6000,False,False,15,15
+deepseek,DeepSeek-V4-Pro,human,scalar,0.2000,0.0051,0.7164,0.0000,0.6000,False,False,30,30
+deepseek,DeepSeek-V4-Pro,human,affine,1.0000,0.4782,1.0000,0.2000,1.0000,True,False,30,30
+deepseek,DeepSeek-V4-Pro,llm,scalar,0.0000,0.0000,0.5218,0.0000,0.7500,False,False,15,15
+deepseek,DeepSeek-V4-Pro,llm,affine,0.0000,0.0000,0.5218,0.0000,0.6000,False,False,15,15
+qwen,Qwen3.5-397B-A17B,human,scalar,0.6000,0.1466,0.9473,0.0000,0.9050,True,False,30,30
+qwen,Qwen3.5-397B-A17B,human,affine,0.6000,0.1466,0.9473,0.0000,1.0000,True,False,30,30
+qwen,Qwen3.5-397B-A17B,llm,scalar,0.2000,0.0051,0.7164,0.0000,0.6000,False,False,15,15
+qwen,Qwen3.5-397B-A17B,llm,affine,0.2000,0.0051,0.7164,0.0000,0.6000,False,False,15,15
+sonnet,Sonnet-4.6,human,scalar,0.4000,0.0527,0.8534,0.0000,1.0000,False,False,30,30
+sonnet,Sonnet-4.6,human,affine,0.4000,0.0527,0.8534,0.2000,1.0000,False,False,30,30
+sonnet,Sonnet-4.6,llm,scalar,0.0000,0.0000,0.5218,0.0000,0.5000,False,False,15,15
+sonnet,Sonnet-4.6,llm,affine,0.2000,0.0051,0.7164,0.0000,0.5000,False,False,15,15
+gpt54mini,GPT-5.4-mini,human,scalar,0.6000,0.1466,0.9473,0.2000,1.0000,True,False,30,30
+gpt54mini,GPT-5.4-mini,human,affine,0.6000,0.1466,0.9473,0.0000,1.0000,True,False,30,30
+gpt54mini,GPT-5.4-mini,llm,scalar,0.0000,0.0000,0.5218,0.0000,0.2500,False,False,15,15
+gpt54mini,GPT-5.4-mini,llm,affine,0.0000,0.0000,0.5218,0.0000,0.5000,False,False,15,15
