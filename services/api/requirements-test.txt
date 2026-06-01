@@ -25,4 +25,4 @@ anthropic>=0.21.0
 openai>=1.0.0
 google-generativeai>=0.8.6
 email-validator>=2.0.0
-psutil>=5.9.0
+psutil>=6.1.1

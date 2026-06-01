@@ -45,7 +45,7 @@ scipy>=1.11.0
 # service to keep the wheel pinning consistent.
 tiktoken>=0.5.0
 # Monitoring and testing tools
-psutil>=6.1.0  # For system and memory monitoring
+psutil>=6.1.1  # For system and memory monitoring
 locust==2.44.0  # For load testing
 
 # Async testing dependencies
