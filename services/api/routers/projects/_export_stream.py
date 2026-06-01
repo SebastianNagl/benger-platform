@@ -75,6 +75,61 @@ from sqlalchemy import select
 
 BATCH_SIZE = 50
 
+# Cap a batch by how many task_evaluations it pulls, not just how many tasks.
+# `build_batch_objs` loads a batch's entire task_evaluation set as ORM rows AND
+# materializes their serialized dicts at the same time, so peak RAM scales with
+# evals-per-batch, not task count. On eval-dense projects (the Benchathon export
+# is 15 tasks but ~10.5k task_evaluations — ~700/task — each carrying large
+# legal-text metrics JSON) a 50-task batch is a single batch that peaks ~1.7 GB
+# and OOMKills the 3Gi API pod mid-stream, severing the download (surfaced to
+# the client as TruncatedExportError). Bounding by eval volume keeps the peak
+# flat regardless of how evals are distributed across tasks. ~1000 evals/batch
+# measured at ~0.5 GB peak; eval-light projects still form full BATCH_SIZE
+# batches, preserving the batched-IN-query round-trip savings.
+MAX_BATCH_TASK_EVALS = 1000
+
+
+def iter_eval_bounded_batches(
+    db: Session,
+    task_q,
+    eval_run_ids,
+) -> Iterator[list]:
+    """Yield task batches bounded by BOTH BATCH_SIZE tasks and
+    MAX_BATCH_TASK_EVALS task_evaluations.
+
+    A cheap GROUP BY prepass counts each task's evaluations (over the same
+    `evaluation_id IN (...)` filter `build_batch_objs` applies), then tasks are
+    accumulated until either cap is hit. A single task whose eval count already
+    exceeds the cap still gets its own batch so the stream always makes
+    progress. When `eval_run_ids` is empty the eval cap is inert and batching
+    falls back to pure BATCH_SIZE behaviour.
+    """
+    eval_counts: dict = {}
+    if eval_run_ids:
+        for tid, n in (
+            db.query(TaskEvaluation.task_id, sa_func.count(TaskEvaluation.id))
+            .filter(TaskEvaluation.evaluation_id.in_(eval_run_ids))
+            .group_by(TaskEvaluation.task_id)
+            .all()
+        ):
+            eval_counts[tid] = n
+
+    batch: list = []
+    batch_evals = 0
+    for task in task_q.yield_per(BATCH_SIZE):
+        t_evals = eval_counts.get(task.id, 0)
+        if batch and (
+            len(batch) >= BATCH_SIZE
+            or batch_evals + t_evals > MAX_BATCH_TASK_EVALS
+        ):
+            yield batch
+            batch = []
+            batch_evals = 0
+        batch.append(task)
+        batch_evals += t_evals
+    if batch:
+        yield batch
+
 
 def build_batch_objs(
     db: Session,
@@ -200,19 +255,13 @@ def stream_export_json(
     if task_ids is not None:
         task_q = task_q.filter(Task.id.in_(list(task_ids)))
 
-    batch: list = []
     streamed_task_ids: list = []
-    for task in task_q.yield_per(BATCH_SIZE):
-        batch.append(task)
-        streamed_task_ids.append(task.id)
-        if len(batch) >= BATCH_SIZE:
-            for obj in build_batch_objs(db, batch, eval_run_by_id, judge_model_lookup):
-                yield ("" if first else ",") + json.dumps(obj)
-                first = False
-            batch = []
-    for obj in build_batch_objs(db, batch, eval_run_by_id, judge_model_lookup):
-        yield ("" if first else ",") + json.dumps(obj)
-        first = False
+    eval_run_ids = list(eval_run_by_id.keys())
+    for batch in iter_eval_bounded_batches(db, task_q, eval_run_ids):
+        streamed_task_ids.extend(t.id for t in batch)
+        for obj in build_batch_objs(db, batch, eval_run_by_id, judge_model_lookup):
+            yield ("" if first else ",") + json.dumps(obj)
+            first = False
 
     yield "], "
 
@@ -275,8 +324,9 @@ def stream_export_flat_csv(
     Mirrors the legacy `GET /{project_id}/export?format=csv|tsv` shape:
     one header row, then max(N_anns, N_gens, N_evals, 1) rows per task,
     columns lined up positionally so each row carries at most one of each
-    sub-entity. Uses the same batched IN-queries as the JSON stream so
-    peak memory stays bounded by BATCH_SIZE regardless of project size.
+    sub-entity. Uses the same batched IN-queries and eval-bounded batching
+    (`iter_eval_bounded_batches`) as the JSON stream so peak memory stays
+    bounded regardless of project size or eval density.
     """
     eval_runs = db.query(EvaluationRun).filter(
         EvaluationRun.project_id == project_id
@@ -324,15 +374,10 @@ def stream_export_flat_csv(
         return chunk
 
     task_q = db.query(Task).filter(Task.project_id == project_id)
-    batch: list = []
-    for task in task_q.yield_per(BATCH_SIZE):
-        batch.append(task)
-        if len(batch) >= BATCH_SIZE:
-            for obj in build_batch_objs(db, batch, eval_run_by_id, judge_model_lookup):
-                yield _emit_rows(obj)
-            batch = []
-    for obj in build_batch_objs(db, batch, eval_run_by_id, judge_model_lookup):
-        yield _emit_rows(obj)
+    eval_run_ids = list(eval_run_by_id.keys())
+    for batch in iter_eval_bounded_batches(db, task_q, eval_run_ids):
+        for obj in build_batch_objs(db, batch, eval_run_by_id, judge_model_lookup):
+            yield _emit_rows(obj)
 
 
 def stream_export_label_studio(
@@ -535,15 +580,10 @@ def stream_export_txt(
     yield "-" * 50 + "\n"
 
     task_q = db.query(Task).filter(Task.project_id == project_id)
-    batch: list = []
-    for task in task_q.yield_per(BATCH_SIZE):
-        batch.append(task)
-        if len(batch) >= BATCH_SIZE:
-            for obj in build_batch_objs(db, batch, eval_run_by_id, judge_model_lookup):
-                yield _format_task_txt(obj)
-            batch = []
-    for obj in build_batch_objs(db, batch, eval_run_by_id, judge_model_lookup):
-        yield _format_task_txt(obj)
+    eval_run_ids = list(eval_run_by_id.keys())
+    for batch in iter_eval_bounded_batches(db, task_q, eval_run_ids):
+        for obj in build_batch_objs(db, batch, eval_run_by_id, judge_model_lookup):
+            yield _format_task_txt(obj)
 
 
 def stream_comprehensive_project_data_json(
