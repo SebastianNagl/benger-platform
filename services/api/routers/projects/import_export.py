@@ -10,7 +10,7 @@ import tempfile
 import time
 import uuid
 import zipfile
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterator, List, Optional
 
 import ijson
@@ -226,13 +226,21 @@ def convert_from_label_studio_format(results: List[Dict[str, Any]]) -> List[Dict
 
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile  # noqa: E402
-from fastapi.responses import Response, StreamingResponse  # noqa: E402
+from fastapi.responses import (  # noqa: E402
+    JSONResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from sqlalchemy.orm import Session  # noqa: E402
 
 from auth_module import require_user  # noqa: E402
 from auth_module.models import User as AuthUser  # noqa: E402
+from celery_client import send_task_safe  # noqa: E402
 from database import get_db  # noqa: E402
+from object_storage import object_storage  # noqa: E402
 from routers.projects._export_stream import (  # noqa: E402
+    EXPORT_FORMAT_MEDIA_TYPES,
     build_json_export_header_fields,
     stream_comprehensive_project_data_json,
     stream_export_flat_csv,
@@ -249,10 +257,12 @@ from models import (  # noqa: E402
     EvaluationJudgeRun,
     EvaluationRun,
     EvaluationRunMetric,
+    ExportJob,
     Generation,
     HumanEvaluationConfig,
     HumanEvaluationResult,
     HumanEvaluationSession,
+    JobStatus,
     LikertScaleEvaluation,
     PreferenceRanking,
     ResponseGeneration,
@@ -974,6 +984,166 @@ async def export_project(
         headers=headers,
     )
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Async export jobs (issue #158)
+#
+# The synchronous GET /export above streams the whole project through the API
+# request thread — fine for small projects, but it OOMKilled the pod on the
+# Benchathon export. These endpoints move the bulk data plane off the request
+# path: POST enqueues a worker that streams the export into object storage; the
+# client polls GET .../{job_id} and then downloads via a short-lived presigned
+# URL (GET .../{job_id}/download), so the bytes never transit the API or the
+# browser-RAM Blob. The legacy GET /export stays as the small-export fallback.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _serialize_export_job(job: ExportJob) -> dict:
+    return {
+        "job_id": job.id,
+        "project_id": job.project_id,
+        "format": job.format,
+        "status": job.status,
+        "progress": job.progress,
+        "byte_size": job.byte_size,
+        "error_message": job.error_message,
+        "created_at": job.created_at.isoformat() if job.created_at else None,
+        "updated_at": job.updated_at.isoformat() if job.updated_at else None,
+        "expires_at": job.expires_at.isoformat() if job.expires_at else None,
+    }
+
+
+def _load_export_job_for_read(
+    db: Session, request: Request, current_user: AuthUser, project_id: str, job_id: str
+) -> ExportJob:
+    """Fetch an ExportJob enforcing scope + authz, or raise the right HTTP error.
+
+    A job is readable by its requester or by anyone with write access to the
+    project (so an admin can see a colleague's export). 404 (not 403) when the
+    job belongs to a different project so we don't leak job-id existence across
+    projects.
+    """
+    job = db.query(ExportJob).filter(ExportJob.id == job_id).first()
+    if job is None or job.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Export job not found")
+    if str(job.requested_by) != str(current_user.id) and not check_project_write_access(
+        db, current_user, project_id
+    ):
+        raise HTTPException(status_code=403, detail="Access denied")
+    return job
+
+
+@router.post("/{project_id}/exports", status_code=202)
+async def create_export_job(
+    project_id: str,
+    request: Request,
+    format: str = Query(
+        "json", pattern="^(json|csv|tsv|txt|label_studio|comprehensive)$"
+    ),
+    current_user: AuthUser = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """Create an async export job and enqueue the worker that streams it.
+
+    Access mirrors the synchronous GET /export (read access to the project).
+    Returns 202 with the job id; the client polls GET .../{job_id} for status.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    org_context = get_org_context_from_request(request)
+    if not check_project_accessible(db, current_user, project_id, org_context):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    job = ExportJob(
+        id=str(uuid.uuid4()),
+        project_id=project_id,
+        requested_by=current_user.id,
+        format=format,
+        status=JobStatus.PENDING.value,
+        progress=0,
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    try:
+        result = send_task_safe(
+            "tasks.export_project", args=[job.id], queue="default"
+        )
+        job.celery_task_id = getattr(result, "id", None)
+        db.commit()
+    except Exception as exc:
+        # Enqueue failed even after the client's reconnect retry — mark the job
+        # failed so it isn't left pending forever, and surface 503.
+        logger.error("Failed to enqueue export job %s: %s", job.id, exc)
+        job.status = JobStatus.FAILED.value
+        job.error_message = f"Failed to enqueue export: {exc}"
+        db.commit()
+        raise HTTPException(
+            status_code=503, detail="Export queue unavailable, please retry"
+        )
+
+    return JSONResponse(
+        status_code=202,
+        content={"job_id": job.id, "status": job.status},
+    )
+
+
+@router.get("/{project_id}/exports/{job_id}")
+async def get_export_job(
+    project_id: str,
+    job_id: str,
+    request: Request,
+    current_user: AuthUser = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """Return the status of an export job (poll target for the client)."""
+    job = _load_export_job_for_read(db, request, current_user, project_id, job_id)
+    return _serialize_export_job(job)
+
+
+@router.get("/{project_id}/exports/{job_id}/download")
+async def download_export_job(
+    project_id: str,
+    job_id: str,
+    request: Request,
+    json: bool = Query(False),
+    current_user: AuthUser = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """Redirect to a short-lived presigned download URL for a finished export.
+
+    The object key is read from the DB row, never from the client. Responds 404
+    until the job is completed, 410 once the stored artifact has expired. With
+    ``?json=1`` the presigned URL is returned in the body instead of a 302 (lets
+    the frontend trigger an anchor download without following the redirect).
+    """
+    job = _load_export_job_for_read(db, request, current_user, project_id, job_id)
+
+    if job.status != JobStatus.COMPLETED.value or not job.object_key:
+        raise HTTPException(status_code=404, detail="Export not ready")
+    if job.expires_at is not None and job.expires_at <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=410, detail="Export has expired; re-export")
+
+    _media_type, ext = EXPORT_FORMAT_MEDIA_TYPES.get(
+        job.format or "json", ("application/octet-stream", "dat")
+    )
+    project = db.query(Project).filter(Project.id == project_id).first()
+    safe_title = ((project.title if project else None) or "project").replace(" ", "_")
+    filename = f"{safe_title}_export.{ext}"
+
+    url = object_storage.get_download_url(
+        job.object_key,
+        expires_in=300,
+        response_content_type=_media_type,
+        response_content_disposition=f'attachment; filename="{filename}"',
+    )
+
+    if json:
+        return {"url": url, "expires_in": 300}
+    return RedirectResponse(url=url, status_code=302)
 
 
 @router.post("/bulk-export")
