@@ -23,6 +23,7 @@ format:
     include-in-header:
       text: |
         \usepackage{afterpage}
+        \usepackage{colortbl}  % adds \cellcolor / \rowcolor for table highlights
         \usepackage{fontspec}
         % aclpubcheck whitelists `STIXGeneral-Regular` (the original STIX),
         % not `STIXTwoText`. Both are installed on macOS by default.

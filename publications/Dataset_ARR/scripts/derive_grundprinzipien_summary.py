@@ -53,8 +53,17 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _stats import pearson as _pearson  # noqa: E402
+from _stats import spearman as _spearman  # noqa: E402
+from _stats import welford_update as _welford_update  # noqa: E402
+
 HERE = Path(__file__).resolve().parent.parent
-SRC = HERE / "data" / "raw" / "grundprinzipien" / "Grundprinzipien-tasks-2026-05-20.json"
+SRC = HERE / "data" / "raw" / "grundprinzipien" / "grundprinzipien_Grundprinzipien_full_export.json"
+# Filter judge evaluations to the GPT-5.4-mini full-corpus run (effective
+# 2026-06-01). The same file also contains a legacy gpt-5-mini run under
+# field-name prefix `llm_judge_custom-mpd6eyw4-...`; we ignore it.
+GP_PRIMARY_JUDGE_PREFIX = "llm_judge_custom-mpu1cuad"
 SYSTEMS = HERE / "data" / "processed" / "systems.json"
 OUT_DIR = HERE / "data" / "processed"
 OUT_SUMMARY = OUT_DIR / "grundprinzipien_model_summary.json"
@@ -67,55 +76,12 @@ AUTOMATIC_METRICS = (
 )
 
 
-def _pearson(xs, ys):
-    if len(xs) < 3:
-        return None
-    try:
-        return statistics.correlation(xs, ys)
-    except statistics.StatisticsError:
-        return None
-
-
-def _rank(xs):
-    indexed = sorted(range(len(xs)), key=lambda i: xs[i])
-    ranks = [0.0] * len(xs)
-    i = 0
-    while i < len(xs):
-        j = i
-        while j + 1 < len(xs) and xs[indexed[j + 1]] == xs[indexed[i]]:
-            j += 1
-        avg = (i + j) / 2 + 1.0
-        for k in range(i, j + 1):
-            ranks[indexed[k]] = avg
-        i = j + 1
-    return ranks
-
-
-def _spearman(xs, ys):
-    if len(xs) < 3:
-        return None
-    return _pearson(_rank(xs), _rank(ys))
-
-
 def _running_mean_update(slot, key, value):
     if value is None:
         return
     pair = slot.setdefault(key, [0.0, 0])
     pair[0] += float(value)
     pair[1] += 1
-
-
-def _welford_update(stats, value):
-    """Online mean + sample variance via Welford's algorithm.
-    `stats` is a mutable [n, mean, M2] list. Sample stdev is
-    sqrt(M2 / (n - 1)) at the end of the stream."""
-    if value is None:
-        return
-    v = float(value)
-    stats[0] += 1
-    delta = v - stats[1]
-    stats[1] += delta / stats[0]
-    stats[2] += delta * (v - stats[1])
 
 
 def main() -> None:
@@ -158,6 +124,12 @@ def main() -> None:
 
             for ev in gen.get("evaluations") or []:
                 m = ev.get("metrics") or {}
+                fn = ev.get("field_name") or ""
+                # Only count evals from the GPT-5.4-mini primary-judge run;
+                # the legacy gpt-5-mini scoring under llm_judge_custom-mpd6eyw4
+                # is ignored.
+                if "llm_judge_custom" in m and not fn.startswith(GP_PRIMARY_JUDGE_PREFIX):
+                    continue
 
                 # Custom LLM judge: normalised raw in [0,1] -> scale *100
                 if "raw_score" in m and "llm_judge_custom" in m:

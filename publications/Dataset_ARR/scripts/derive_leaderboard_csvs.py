@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import csv
 import json
-import random
 import statistics
 import sys
 import time
@@ -30,14 +29,16 @@ from collections import defaultdict
 from pathlib import Path
 
 import ijson
+import numpy as np
+from scipy import stats as sp_stats
 
 HERE = Path(__file__).resolve().parent.parent
 RAW = HERE / "data" / "raw"
 PROCESSED = HERE / "data" / "processed"
 
-BENCHATHON_SRC = RAW / "benchathon" / "Benchathon-tasks-2026-05-23.json"
-ZJS_SRC = RAW / "zjs" / "ZJS Fälle-tasks-2026-05-18.json"
-GP_SRC = RAW / "grundprinzipien" / "Grundprinzipien-tasks-2026-05-20.json"
+BENCHATHON_SRC = RAW / "benchathon" / "Benchathon_export.json"
+ZJS_SRC = RAW / "zjs" / "zjs_faelle_full_export.json"
+GP_SRC = RAW / "grundprinzipien" / "grundprinzipien_Grundprinzipien_full_export.json"
 VARIANTS = PROCESSED / "benchathon_instruction_variants.json"
 MODEL_EVALS = PROCESSED / "benchathon_model_evaluations.json"
 AUTO_METRICS = PROCESSED / "benchathon_automatic_metrics.json"
@@ -95,24 +96,19 @@ def _to_float(v):
 
 def bootstrap_ci(values, b=BOOTSTRAP_B, seed=BOOTSTRAP_SEED):
     """Bootstrap percentile 95% CI on the mean. Returns (mean, lo, hi, n)."""
-    xs = [v for v in values if v is not None]
-    n = len(xs)
+    xs = np.asarray([v for v in values if v is not None], dtype=float)
+    n = int(xs.size)
     if n == 0:
         return (None, None, None, 0)
-    mean = statistics.fmean(xs)
+    mean = float(xs.mean())
     if n < 2:
         return (mean, mean, mean, n)
-    rng = random.Random(seed)
-    boot_means = []
-    for _ in range(b):
-        s = 0.0
-        for _ in range(n):
-            s += xs[rng.randrange(n)]
-        boot_means.append(s / n)
-    boot_means.sort()
-    lo = boot_means[int(0.025 * b)]
-    hi = boot_means[min(int(0.975 * b), b - 1)]
-    return (mean, lo, hi, n)
+    res = sp_stats.bootstrap(
+        (xs,), np.mean, n_resamples=b, method="percentile",
+        random_state=np.random.default_rng(seed),
+    )
+    return (mean, float(res.confidence_interval.low),
+            float(res.confidence_interval.high), n)
 
 
 # Per-metric formatting: width controls how many decimals appear in
@@ -239,6 +235,10 @@ def build_benchathon():
     # judge runs don't double-count.
     seen = {"no_ai": defaultdict(set), "ai": defaultdict(set)}
 
+    # Filter to GPT-5.4-mini primary single-pass run only; other
+    # llm_judge_falloesung prefixes are cross-validation / intra-judge runs
+    # that would average over multiple judges if included.
+    PRIMARY_JUDGE_PREFIX = "llm_judge_falloesung-mptmfvee"
     for t in tasks:
         for ev in t.get("evaluations") or []:
             fn = ev.get("field_name") or ""
@@ -251,8 +251,8 @@ def build_benchathon():
             m = ev.get("metrics") or {}
             human_anns[v].add(ann_id)
 
-            # Judge: pull raw, grade points, pass.
-            if "llm_judge_falloesung" in m:
+            # Judge: pull raw, grade points, pass. Restrict to primary judge.
+            if "llm_judge_falloesung" in m and fn.startswith(PRIMARY_JUDGE_PREFIX):
                 details = m.get("llm_judge_falloesung_details") or {}
                 if isinstance(m.get("llm_judge_falloesung"), dict):
                     details = (m["llm_judge_falloesung"].get("details") or details)
@@ -260,8 +260,15 @@ def build_benchathon():
                        if isinstance(details, dict) else None)
                 if raw is None:
                     raw = m.get("llm_judge_falloesung_raw")
-                gp = m.get("llm_judge_falloesung_grade_points")
-                passed = m.get("llm_judge_falloesung_passed")
+                # The new primary-judge run puts grade_points and passed
+                # under nested details too; fall back to flat keys for
+                # legacy runs.
+                gp = (details.get("grade_points") if isinstance(details, dict) else None)
+                if gp is None:
+                    gp = m.get("llm_judge_falloesung_grade_points")
+                passed = (details.get("passed") if isinstance(details, dict) else None)
+                if passed is None:
+                    passed = m.get("llm_judge_falloesung_passed")
                 if raw is not None and "judge_raw" not in seen[v][ann_id]:
                     human_vals[v]["judge_raw"].append(_to_float(raw))
                     seen[v][ann_id].add("judge_raw")

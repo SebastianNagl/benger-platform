@@ -1,0 +1,49 @@
+judge,judge_label,pool,tier,omega,omega_lo_clopper,omega_hi_clopper,omega_lo_boot,omega_hi_boot,passes_point,passes_boot_lo,n_instances,pearson_vs_mean_blind,n_anchor
+baseline_gpt5,Baseline GPT-5-mini,human,raw,0.0000,0.0000,0.5218,0.0000,0.6000,False,False,30,0.7859,45
+baseline_gpt5,Baseline GPT-5-mini,human,scalar,0.0000,0.0000,0.5218,0.0000,0.8000,False,False,30,0.7767,45
+baseline_gpt5,Baseline GPT-5-mini,human,affine,0.0000,0.0000,0.5218,0.0000,0.8000,False,False,30,0.7740,45
+baseline_gpt5,Baseline GPT-5-mini,llm,raw,0.0000,0.0000,0.5218,0.0000,0.0000,False,False,15,0.6839,45
+baseline_gpt5,Baseline GPT-5-mini,llm,scalar,0.0000,0.0000,0.5218,0.0000,0.4000,False,False,15,0.6693,45
+baseline_gpt5,Baseline GPT-5-mini,llm,affine,0.0000,0.0000,0.5218,0.0000,0.4000,False,False,15,0.6636,45
+cfgB_gpt5,Config B GPT-5-mini,human,raw,0.2000,0.0051,0.7164,0.0000,0.6000,False,False,30,0.7788,45
+cfgB_gpt5,Config B GPT-5-mini,human,scalar,0.0000,0.0000,0.5218,0.0000,0.8000,False,False,30,0.7636,45
+cfgB_gpt5,Config B GPT-5-mini,human,affine,0.2000,0.0051,0.7164,0.0000,0.8000,False,False,30,0.7667,45
+cfgB_gpt5,Config B GPT-5-mini,llm,raw,0.0000,0.0000,0.5218,0.0000,0.0000,False,False,15,0.6826,45
+cfgB_gpt5,Config B GPT-5-mini,llm,scalar,0.0000,0.0000,0.5218,0.0000,0.4000,False,False,15,0.6651,45
+cfgB_gpt5,Config B GPT-5-mini,llm,affine,0.0000,0.0000,0.5218,0.0000,0.2500,False,False,15,0.6594,45
+cfgB_opus,Config B Opus-4.7,human,raw,0.6000,0.1466,0.9473,0.0000,1.0000,True,False,28,0.8073,43
+cfgB_opus,Config B Opus-4.7,human,scalar,0.6000,0.1466,0.9473,0.0000,1.0000,True,False,28,0.8040,43
+cfgB_opus,Config B Opus-4.7,human,affine,0.0000,0.0000,0.5218,0.0000,1.0000,False,False,28,0.7954,43
+cfgB_opus,Config B Opus-4.7,llm,raw,0.2000,0.0051,0.7164,0.0000,0.8000,False,False,15,0.8513,43
+cfgB_opus,Config B Opus-4.7,llm,scalar,0.2000,0.0051,0.7164,0.0000,0.8000,False,False,15,0.8505,43
+cfgB_opus,Config B Opus-4.7,llm,affine,0.2000,0.0051,0.7164,0.0000,0.6000,False,False,15,0.8506,43
+cfgB_gemini,Config B Gemini-3.1-Pro,human,raw,0.4000,0.0527,0.8534,0.0000,0.8000,False,False,30,0.8179,45
+cfgB_gemini,Config B Gemini-3.1-Pro,human,scalar,0.0000,0.0000,0.5218,0.0000,1.0000,False,False,30,0.8007,45
+cfgB_gemini,Config B Gemini-3.1-Pro,human,affine,0.4000,0.0527,0.8534,0.0000,1.0000,False,False,30,0.8123,45
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,raw,0.0000,0.0000,0.5218,0.0000,0.2000,False,False,15,0.9180,45
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,scalar,0.0000,0.0000,0.5218,0.0000,0.8000,False,False,15,0.9178,45
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,affine,0.0000,0.0000,0.5218,0.0000,0.7500,False,False,15,0.9186,45
+deepseek,DeepSeek-V4-Pro,human,raw,0.2000,0.0051,0.7164,0.0000,0.8000,False,False,30,0.8203,45
+deepseek,DeepSeek-V4-Pro,human,scalar,0.4000,0.0527,0.8534,0.0000,0.8000,False,False,30,0.8120,45
+deepseek,DeepSeek-V4-Pro,human,affine,0.6000,0.1466,0.9473,0.0000,1.0000,True,False,30,0.8109,45
+deepseek,DeepSeek-V4-Pro,llm,raw,0.0000,0.0000,0.5218,0.0000,0.5000,False,False,15,0.6930,45
+deepseek,DeepSeek-V4-Pro,llm,scalar,0.0000,0.0000,0.5218,0.0000,0.6000,False,False,15,0.6868,45
+deepseek,DeepSeek-V4-Pro,llm,affine,0.0000,0.0000,0.5218,0.0000,0.5000,False,False,15,0.6796,45
+qwen,Qwen3.5-397B-A17B,human,raw,0.0000,0.0000,0.5218,0.0000,0.4000,False,False,30,0.7672,45
+qwen,Qwen3.5-397B-A17B,human,scalar,0.6000,0.1466,0.9473,0.0000,0.8000,True,False,30,0.7479,45
+qwen,Qwen3.5-397B-A17B,human,affine,0.4000,0.0527,0.8534,0.0000,0.8000,False,False,30,0.7534,45
+qwen,Qwen3.5-397B-A17B,llm,raw,0.0000,0.0000,0.5218,0.0000,0.2000,False,False,15,0.7698,45
+qwen,Qwen3.5-397B-A17B,llm,scalar,0.0000,0.0000,0.5218,0.0000,0.5000,False,False,15,0.7647,45
+qwen,Qwen3.5-397B-A17B,llm,affine,0.0000,0.0000,0.5218,0.0000,0.5525,False,False,15,0.7612,45
+sonnet,Sonnet-4.6,human,raw,0.4000,0.0527,0.8534,0.0000,1.0000,False,False,30,0.8124,45
+sonnet,Sonnet-4.6,human,scalar,0.8000,0.2836,0.9949,0.0000,1.0000,True,False,30,0.8064,45
+sonnet,Sonnet-4.6,human,affine,0.6000,0.1466,0.9473,0.0000,1.0000,True,False,30,0.8026,45
+sonnet,Sonnet-4.6,llm,raw,0.0000,0.0000,0.5218,0.0000,0.5000,False,False,15,0.7734,45
+sonnet,Sonnet-4.6,llm,scalar,0.0000,0.0000,0.5218,0.0000,0.6000,False,False,15,0.7697,45
+sonnet,Sonnet-4.6,llm,affine,0.0000,0.0000,0.5218,0.0000,0.5000,False,False,15,0.7686,45
+gpt54mini,GPT-5.4-mini,human,raw,0.6000,0.1466,0.9473,0.0000,1.0000,True,False,30,0.7574,45
+gpt54mini,GPT-5.4-mini,human,scalar,0.6000,0.1466,0.9473,0.0000,1.0000,True,False,30,0.7510,45
+gpt54mini,GPT-5.4-mini,human,affine,0.6000,0.1466,0.9473,0.0000,1.0000,True,False,30,0.7386,45
+gpt54mini,GPT-5.4-mini,llm,raw,0.0000,0.0000,0.5218,0.0000,0.4000,False,False,15,0.6351,45
+gpt54mini,GPT-5.4-mini,llm,scalar,0.0000,0.0000,0.5218,0.0000,0.4000,False,False,15,0.6168,45
+gpt54mini,GPT-5.4-mini,llm,affine,0.0000,0.0000,0.5218,0.0000,0.4000,False,False,15,0.6121,45

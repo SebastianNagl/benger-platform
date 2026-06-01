@@ -1,0 +1,3 @@
+condition,mean_raw_0_100,mean_grade_points_0_18,stdev_raw,n_annotations,n_participants,note
+traditional,62.3,11.214,17.58,65,23,no AI tools allowed; books and statutes only
+co_creation,82.226,14.801,11.409,155,33,any LLM(s) of participant's choosing

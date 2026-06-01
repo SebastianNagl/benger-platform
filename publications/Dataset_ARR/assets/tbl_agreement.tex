@@ -1,0 +1,24 @@
+\begin{table*}[p]
+\centering\footnotesize
+\caption{Agreement statistics on the Benchathon human-grading validation subset (design: three blind reviewers per solution with one author-informed creator review reported separately). Judge-vs-human rows report Pearson $r$, Spearman $\rho$, MAE, and pass/fail Cohen's $\kappa$, split by solution provenance (human-authored vs.\ LLM-generated). Human IRR rows report ICC(2,1) raw, ICC(2,$k$) raw, and ICC(2,$k$) grade-points; the pooled row covers all 45 picks, the indented rows are per-solution-type sub-pools (15 picks each). Calderon alt-test rows report the per-annotator winning rate $\omega$ and average advantage probability $\rho$ at the stated $\varepsilon$, with Benjamini-Yekutieli FDR at $q=0.05$ across the $m$ blind reviewers; $\omega \geq 0.5$ is the alt-test pass criterion. Blind-pool rows use the three blind reviewers as reference; creator-reference rows use the un-blind creator grade as a single-expert reference.}
+\label{tbl-agreement}
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+Comparison & Sample & Stat 1 & Stat 2 & Stat 3 \\
+\midrule
+Judge vs.~mean-human (human sol.) & $n=30$ & $r=0.76$, $\rho=0.76$ & MAE raw 10.8, MAE gp 2.69 & $\kappa=0.60$ \\
+Judge vs.~mean-human (LLM sol.) & $n=15$ & $r=0.64$, $\rho=0.49$ & MAE raw 13.1, MAE gp 2.87 & $\kappa=0.40$ \\
+Human IRR pooled ($k$=3 blind, all 45) & $n=45\times3$ & ICC(2,1) raw 0.63 & ICC(2,$k$) raw 0.84 & ICC(2,$k$) gp 0.79 \\
+\quad traditional human & $n=15\times3$ & ICC(2,1) raw 0.71 & ICC(2,$k$) raw 0.88 & ICC(2,$k$) gp 0.83 \\
+\quad co-creation human & $n=15\times3$ & ICC(2,1) raw 0.46 & ICC(2,$k$) raw 0.71 & ICC(2,$k$) gp 0.65 \\
+\quad LLM-generated & $n=15\times3$ & ICC(2,1) raw 0.69 & ICC(2,$k$) raw 0.87 & ICC(2,$k$) gp 0.83 \\
+Calderon blind-pool alt-test (human sol.) & $m=5\times n=30$ & $\omega=0.60$ ($\varepsilon=0.15$) & $\rho=0.62$ & passes \\
+Calderon blind-pool alt-test (LLM sol.) & $m=5\times n=15$ & $\omega=0.00$ ($\varepsilon=0.15$) & $\rho=0.41$ & fails \\
+Calderon creator-reference alt-test (human sol., $\varepsilon=0.20$) & $m=5\times n=30$ & $\omega=0.60$ ($\varepsilon=0.20$) & $\rho=0.55$ & passes \\
+Calderon creator-reference alt-test (LLM sol., $\varepsilon=0.20$) & $m=5\times n=---$ & $\omega=0.00$ ($\varepsilon=0.20$) & $\rho=0.47$ & fails \\
+\bottomrule
+\end{tabular}
+}%  end \resizebox
+\end{table*}

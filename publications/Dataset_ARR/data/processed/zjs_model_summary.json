@@ -4,89 +4,17 @@
     "n_tasks": 581,
     "n_generations": 586,
     "metrics": {
-      "llm_judge_falloesung_raw_mean": 84.89032815198618,
-      "llm_judge_falloesung_raw_stdev": 11.520613827904953,
-      "llm_judge_falloesung_raw_n": 579,
-      "grade_points_mean": 14.089810017271157,
-      "pass_rate": 0.9913644214162349,
-      "moverscore_mean": 0.9193298078093651,
+      "llm_judge_falloesung_raw_mean": 60.35726495726496,
+      "llm_judge_falloesung_raw_stdev": 13.33889356535346,
+      "llm_judge_falloesung_raw_n": 585,
+      "grade_points_mean": 6.97948717948718,
+      "pass_rate": 0.7829059829059829,
       "bleu_mean": 0.07788087351088531,
-      "rouge_mean": 0.1651182640857508,
-      "meteor_mean": 0.2189860305986992,
+      "rouge_mean": 0.16513077421248026,
+      "moverscore_mean": 0.9193394244819902,
+      "meteor_mean": 0.21906921662071607,
       "semantic_similarity_mean": 0.7668770475912903,
       "bertscore_mean": 0.3494328904491501
-    }
-  },
-  {
-    "system": "claude-sonnet-4-6",
-    "n_tasks": 581,
-    "n_generations": 782,
-    "metrics": {
-      "llm_judge_falloesung_raw_mean": 80.69250645994832,
-      "llm_judge_falloesung_raw_stdev": 13.163334379101125,
-      "llm_judge_falloesung_raw_n": 774,
-      "grade_points_mean": 12.843669250645995,
-      "pass_rate": 0.9832041343669251,
-      "bleu_mean": 0.07966366783928754,
-      "rouge_mean": 0.1625681495077462,
-      "meteor_mean": 0.22281705632501284,
-      "semantic_similarity_mean": 0.7433550497931174,
-      "bertscore_mean": 0.3318665656463091,
-      "moverscore_mean": 0.9178032582070889
-    }
-  },
-  {
-    "system": "claude-opus-4-7",
-    "n_tasks": 581,
-    "n_generations": 652,
-    "metrics": {
-      "llm_judge_falloesung_raw_mean": 79.8943661971831,
-      "llm_judge_falloesung_raw_stdev": 13.700022865591404,
-      "llm_judge_falloesung_raw_n": 639,
-      "grade_points_mean": 12.629107981220658,
-      "pass_rate": 0.9812206572769953,
-      "bleu_mean": 0.041839526803858176,
-      "rouge_mean": 0.1577415507830255,
-      "meteor_mean": 0.15623354861205327,
-      "semantic_similarity_mean": 0.7682499068721038,
-      "bertscore_mean": 0.3529293449725158,
-      "moverscore_mean": 0.9135271641722791
-    }
-  },
-  {
-    "system": "gpt-5.4-mini",
-    "n_tasks": 581,
-    "n_generations": 581,
-    "metrics": {
-      "llm_judge_falloesung_raw_mean": 78.0131118881119,
-      "llm_judge_falloesung_raw_stdev": 14.919788553271275,
-      "llm_judge_falloesung_raw_n": 572,
-      "grade_points_mean": 12.08041958041958,
-      "pass_rate": 0.965034965034965,
-      "bleu_mean": 0.030695482881129728,
-      "rouge_mean": 0.14057670139237355,
-      "meteor_mean": 0.14575826256509813,
-      "semantic_similarity_mean": 0.7504346728834331,
-      "bertscore_mean": 0.323378105824877,
-      "moverscore_mean": 0.9072151356147485
-    }
-  },
-  {
-    "system": "deepseek-ai/DeepSeek-V4-Pro",
-    "n_tasks": 581,
-    "n_generations": 609,
-    "metrics": {
-      "llm_judge_falloesung_raw_mean": 77.63576158940397,
-      "llm_judge_falloesung_raw_stdev": 14.788916536419284,
-      "llm_judge_falloesung_raw_n": 604,
-      "grade_points_mean": 11.95364238410596,
-      "pass_rate": 0.9685430463576159,
-      "bleu_mean": 0.07166949562120158,
-      "rouge_mean": 0.16454968694366934,
-      "meteor_mean": 0.21083564581225353,
-      "semantic_similarity_mean": 0.760508364934098,
-      "bertscore_mean": 0.3386470567672811,
-      "moverscore_mean": 0.9203224326378349
     }
   },
   {
@@ -94,35 +22,89 @@
     "n_tasks": 579,
     "n_generations": 740,
     "metrics": {
-      "llm_judge_falloesung_raw_mean": 75.69319727891157,
-      "llm_judge_falloesung_raw_stdev": 15.229178665156285,
-      "llm_judge_falloesung_raw_n": 735,
-      "grade_points_mean": 11.393197278911565,
-      "pass_rate": 0.9414965986394558,
-      "bleu_mean": 0.034753423351709556,
+      "llm_judge_falloesung_raw_mean": 58.84573748308525,
+      "llm_judge_falloesung_raw_stdev": 13.912955986146686,
+      "llm_judge_falloesung_raw_n": 739,
+      "grade_points_mean": 6.673883626522327,
+      "pass_rate": 0.7713125845737483,
       "rouge_mean": 0.1585006333350262,
+      "bleu_mean": 0.034753423351709556,
       "meteor_mean": 0.14332149383252626,
       "semantic_similarity_mean": 0.7781498643459492,
       "bertscore_mean": 0.36477952711234024,
-      "moverscore_mean": 0.9168969519592559
+      "moverscore_mean": 0.9169109611839807
     }
   },
   {
-    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "system": "claude-opus-4-7",
     "n_tasks": 581,
-    "n_generations": 656,
+    "n_generations": 652,
     "metrics": {
-      "llm_judge_falloesung_raw_mean": 75.33050847457628,
-      "llm_judge_falloesung_raw_stdev": 15.263192832789969,
-      "llm_judge_falloesung_raw_n": 649,
-      "grade_points_mean": 11.254237288135593,
-      "pass_rate": 0.9399075500770416,
-      "bleu_mean": 0.005918134239742228,
-      "moverscore_mean": 0.8812236999070773,
-      "rouge_mean": 0.10606378590061849,
-      "meteor_mean": 0.07840461115595815,
-      "semantic_similarity_mean": 0.7220729044363827,
-      "bertscore_mean": 0.26745384864113997
+      "llm_judge_falloesung_raw_mean": 58.0284178187404,
+      "llm_judge_falloesung_raw_stdev": 13.181205983716314,
+      "llm_judge_falloesung_raw_n": 651,
+      "grade_points_mean": 6.376344086021505,
+      "pass_rate": 0.738863287250384,
+      "bleu_mean": 0.041839526803858176,
+      "rouge_mean": 0.1577415507830255,
+      "bertscore_mean": 0.3529293449725158,
+      "meteor_mean": 0.15623354861205327,
+      "semantic_similarity_mean": 0.7682499068721038,
+      "moverscore_mean": 0.9135278681128541
+    }
+  },
+  {
+    "system": "claude-sonnet-4-6",
+    "n_tasks": 581,
+    "n_generations": 782,
+    "metrics": {
+      "llm_judge_falloesung_raw_mean": 49.93405889884763,
+      "llm_judge_falloesung_raw_stdev": 12.106173146284029,
+      "llm_judge_falloesung_raw_n": 781,
+      "grade_points_mean": 4.49167733674776,
+      "pass_rate": 0.4558258642765685,
+      "bleu_mean": 0.07966366783928754,
+      "rouge_mean": 0.1625681495077462,
+      "meteor_mean": 0.22281705632501284,
+      "semantic_similarity_mean": 0.7433550497931174,
+      "bertscore_mean": 0.3318665656463091,
+      "moverscore_mean": 0.9178272137236745
+    }
+  },
+  {
+    "system": "deepseek-ai/DeepSeek-V4-Pro",
+    "n_tasks": 581,
+    "n_generations": 609,
+    "metrics": {
+      "llm_judge_falloesung_raw_mean": 49.75657894736842,
+      "llm_judge_falloesung_raw_stdev": 12.378634785397969,
+      "llm_judge_falloesung_raw_n": 608,
+      "grade_points_mean": 4.4819078947368425,
+      "pass_rate": 0.4375,
+      "bleu_mean": 0.07166949562120158,
+      "rouge_mean": 0.16454968694366934,
+      "bertscore_mean": 0.3386470567672811,
+      "meteor_mean": 0.21083564581225353,
+      "semantic_similarity_mean": 0.760508364934098,
+      "moverscore_mean": 0.920299913403651
+    }
+  },
+  {
+    "system": "gpt-5.4-mini",
+    "n_tasks": 581,
+    "n_generations": 581,
+    "metrics": {
+      "llm_judge_falloesung_raw_mean": 49.74268502581756,
+      "llm_judge_falloesung_raw_stdev": 11.636319584295617,
+      "llm_judge_falloesung_raw_n": 581,
+      "grade_points_mean": 4.433734939759036,
+      "pass_rate": 0.4612736660929432,
+      "bleu_mean": 0.030695482881129728,
+      "rouge_mean": 0.14057670139237355,
+      "meteor_mean": 0.14575826256509813,
+      "semantic_similarity_mean": 0.7504346728834331,
+      "bertscore_mean": 0.323378105824877,
+      "moverscore_mean": 0.9072479402819824
     }
   },
   {
@@ -130,53 +112,17 @@
     "n_tasks": 581,
     "n_generations": 582,
     "metrics": {
-      "llm_judge_falloesung_raw_mean": 73.87975778546713,
-      "llm_judge_falloesung_raw_stdev": 14.589554510257715,
-      "llm_judge_falloesung_raw_n": 578,
-      "grade_points_mean": 10.80795847750865,
-      "pass_rate": 0.9377162629757786,
+      "llm_judge_falloesung_raw_mean": 45.88793103448276,
+      "llm_judge_falloesung_raw_stdev": 10.402372480590277,
+      "llm_judge_falloesung_raw_n": 580,
+      "grade_points_mean": 3.6413793103448278,
+      "pass_rate": 0.2982758620689655,
       "bleu_mean": 0.04748180996886907,
-      "rouge_mean": 0.15540112212112503,
-      "meteor_mean": 0.16934150417904553,
+      "rouge_mean": 0.15535752495066205,
+      "meteor_mean": 0.16933405306666616,
       "semantic_similarity_mean": 0.7450496079876968,
       "bertscore_mean": 0.33022855862987877,
-      "moverscore_mean": 0.9093566539867133
-    }
-  },
-  {
-    "system": "Qwen/Qwen3.6-35B-A3B",
-    "n_tasks": 581,
-    "n_generations": 829,
-    "metrics": {
-      "llm_judge_falloesung_raw_mean": 69.55745721271394,
-      "llm_judge_falloesung_raw_stdev": 17.085546853237595,
-      "llm_judge_falloesung_raw_n": 818,
-      "grade_points_mean": 9.667481662591687,
-      "pass_rate": 0.8838630806845966,
-      "bleu_mean": 0.008311115137229935,
-      "rouge_mean": 0.1076888747903819,
-      "meteor_mean": 0.08904055708390837,
-      "semantic_similarity_mean": 0.715061134428715,
-      "bertscore_mean": 0.2767524002175935,
-      "moverscore_mean": 0.8950629384899441
-    }
-  },
-  {
-    "system": "Qwen/Qwen3.5-122B-A10B",
-    "n_tasks": 581,
-    "n_generations": 863,
-    "metrics": {
-      "llm_judge_falloesung_raw_mean": 68.91395348837209,
-      "llm_judge_falloesung_raw_stdev": 16.52484750459805,
-      "llm_judge_falloesung_raw_n": 860,
-      "grade_points_mean": 9.472093023255814,
-      "pass_rate": 0.8802325581395349,
-      "bleu_mean": 0.014252497869518299,
-      "rouge_mean": 0.12046284456188738,
-      "meteor_mean": 0.1085997571442492,
-      "semantic_similarity_mean": 0.7556095841224841,
-      "bertscore_mean": 0.312740059412822,
-      "moverscore_mean": 0.9000048683847127
+      "moverscore_mean": 0.9093240074956744
     }
   },
   {
@@ -184,17 +130,53 @@
     "n_tasks": 579,
     "n_generations": 579,
     "metrics": {
-      "llm_judge_falloesung_raw_mean": 65.73076923076923,
-      "llm_judge_falloesung_raw_stdev": 15.059400102802396,
-      "llm_judge_falloesung_raw_n": 572,
-      "grade_points_mean": 8.475524475524475,
-      "pass_rate": 0.8461538461538461,
+      "llm_judge_falloesung_raw_mean": 44.56574394463668,
+      "llm_judge_falloesung_raw_stdev": 10.398140225836496,
+      "llm_judge_falloesung_raw_n": 578,
+      "grade_points_mean": 3.4775086505190314,
+      "pass_rate": 0.2629757785467128,
       "bleu_mean": 0.00355274818241173,
       "rouge_mean": 0.10790972401407849,
       "meteor_mean": 0.07266649419936574,
       "semantic_similarity_mean": 0.7619258115774158,
       "bertscore_mean": 0.30779768668652807,
-      "moverscore_mean": 0.8958540121669797
+      "moverscore_mean": 0.8958483439523907
+    }
+  },
+  {
+    "system": "Qwen/Qwen3.5-122B-A10B",
+    "n_tasks": 581,
+    "n_generations": 863,
+    "metrics": {
+      "llm_judge_falloesung_raw_mean": 41.31981460023175,
+      "llm_judge_falloesung_raw_stdev": 10.839031641532554,
+      "llm_judge_falloesung_raw_n": 863,
+      "grade_points_mean": 3.0718424101969872,
+      "pass_rate": 0.19119351100811124,
+      "rouge_mean": 0.12050835838656895,
+      "bleu_mean": 0.014252497869518299,
+      "meteor_mean": 0.10861884563834846,
+      "semantic_similarity_mean": 0.7556095841224841,
+      "bertscore_mean": 0.312740059412822,
+      "moverscore_mean": 0.9000285072983621
+    }
+  },
+  {
+    "system": "Qwen/Qwen3.6-35B-A3B",
+    "n_tasks": 581,
+    "n_generations": 829,
+    "metrics": {
+      "llm_judge_falloesung_raw_mean": 37.91787439613527,
+      "llm_judge_falloesung_raw_stdev": 10.541930755871649,
+      "llm_judge_falloesung_raw_n": 828,
+      "grade_points_mean": 2.646135265700483,
+      "pass_rate": 0.1111111111111111,
+      "bleu_mean": 0.008311115137229935,
+      "rouge_mean": 0.1076888747903819,
+      "meteor_mean": 0.08904055708390837,
+      "semantic_similarity_mean": 0.715061134428715,
+      "bertscore_mean": 0.2767524002175935,
+      "moverscore_mean": 0.8948815740132738
     }
   },
   {
@@ -202,17 +184,35 @@
     "n_tasks": 581,
     "n_generations": 581,
     "metrics": {
-      "llm_judge_falloesung_raw_mean": 59.649825783972126,
-      "llm_judge_falloesung_raw_stdev": 14.385166333442243,
-      "llm_judge_falloesung_raw_n": 574,
-      "grade_points_mean": 6.822299651567945,
-      "pass_rate": 0.759581881533101,
+      "llm_judge_falloesung_raw_mean": 36.09552495697074,
+      "llm_judge_falloesung_raw_stdev": 7.91102987812369,
+      "llm_judge_falloesung_raw_n": 581,
+      "grade_points_mean": 2.3545611015490535,
+      "pass_rate": 0.04475043029259897,
+      "rouge_mean": 0.10807555740881984,
       "bleu_mean": 0.004065859092013365,
-      "rouge_mean": 0.1081297865519129,
-      "meteor_mean": 0.07642071764060436,
+      "meteor_mean": 0.07636020460663857,
       "semantic_similarity_mean": 0.7485062583389446,
       "bertscore_mean": 0.2964248153738269,
       "moverscore_mean": 0.8868155528040731
+    }
+  },
+  {
+    "system": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    "n_tasks": 581,
+    "n_generations": 656,
+    "metrics": {
+      "llm_judge_falloesung_raw_mean": 35.329268292682926,
+      "llm_judge_falloesung_raw_stdev": 9.010839786737979,
+      "llm_judge_falloesung_raw_n": 656,
+      "grade_points_mean": 2.3521341463414633,
+      "pass_rate": 0.054878048780487805,
+      "moverscore_mean": 0.8811816257362394,
+      "rouge_mean": 0.10606378590061849,
+      "bleu_mean": 0.005918134239742228,
+      "meteor_mean": 0.07840461115595815,
+      "semantic_similarity_mean": 0.7220729044363827,
+      "bertscore_mean": 0.26745384864113997
     }
   }
 ]

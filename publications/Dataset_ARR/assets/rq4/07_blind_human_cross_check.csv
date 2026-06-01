@@ -1,0 +1,13 @@
+quantity,value,note
+n_traditional,15,validation subset solutions written traditional-style
+n_co_creation,15,validation subset solutions written co-creation-style
+n_participants_traditional,10,
+n_participants_co_creation,11,
+mean_traditional_raw_blind_human,51.056,blind-reviewer pool average
+mean_co_creation_raw_blind_human,64.633,
+delta_ai_minus_trad_raw_blind_human,13.578,"HEADLINE: sign matches the judge result, but the CI spans zero at this n"
+delta_grade_points_blind_human,2.444,
+ci95_lo_raw_participant_cluster,-1.44,HEADLINE CI — crosses zero at n=15 per arm
+ci95_hi_raw_participant_cluster,30.531,
+ci95_lo_raw_iid_diagnostic,0.433,diagnostic only
+ci95_hi_raw_iid_diagnostic,27.27,

@@ -1,0 +1,26 @@
+\begin{table*}[t]
+\centering\footnotesize
+\caption{Rubric-based results on the \textbf{Benchathon} corpus: per-system bootstrap 95\% CIs ($B=2000$, seed $42$) on the LLM-judge raw / grade-points / pass rate columns plus the parallel human-grader rubric columns (\texttt{H.}-prefixed). Each cell shows the mean stacked above $\pm$ half the width of the 95\% CI. $n$ is the per-system generation count; $n_H$ is the per-system human-grader row count. The two human-baseline rows (traditional, co-creation) sit at the top.}
+\label{tbl-full-results-rubric-benchathon}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lrrrrrrrr@{}}
+\toprule
+System & $n$ & $n_H$ & Judge raw & Gr.\,pts & Pass & H.\,raw & H.\,Gr.pts & H.\,pass \\
+\midrule
+\textit{Human (traditional)} & 65 & 60 & \shortstack[r]{50.0\\{\scriptsize $\pm$3.7}} & \shortstack[r]{4.72\\{\scriptsize $\pm$0.76}} & \shortstack[r]{52.3\%\\{\scriptsize $\pm$11.5}} & \shortstack[r]{50.7\\{\scriptsize $\pm$5.6}} & \shortstack[r]{5.67\\{\scriptsize $\pm$1.04}} & \shortstack[r]{63.3\%\\{\scriptsize $\pm$11.6}} \\
+\textit{Human (co-creation)} & 155 & 60 & \shortstack[r]{65.7\\{\scriptsize $\pm$2.2}} & \shortstack[r]{8.50\\{\scriptsize $\pm$0.58}} & \shortstack[r]{87.7\%\\{\scriptsize $\pm$5.2}} & \shortstack[r]{65.4\\{\scriptsize $\pm$5.7}} & \shortstack[r]{9.08\\{\scriptsize $\pm$1.25}} & \shortstack[r]{86.7\%\\{\scriptsize $\pm$8.4}} \\
+Opus-4.7 & 15 & 8 & \shortstack[r]{69.3\\{\scriptsize $\pm$5.7}} & \shortstack[r]{9.47\\{\scriptsize $\pm$1.80}} & \shortstack[r]{93.3\%\\{\scriptsize $\pm$10.0}} & \shortstack[r]{62.7\\{\scriptsize $\pm$7.2}} & \shortstack[r]{7.62\\{\scriptsize $\pm$1.75}} & \shortstack[r]{87.5\%\\{\scriptsize $\pm$18.8}} \\
+Gemini-3.1-Pro & 15 & 8 & \shortstack[r]{68.3\\{\scriptsize $\pm$8.4}} & \shortstack[r]{9.60\\{\scriptsize $\pm$1.83}} & \shortstack[r]{93.3\%\\{\scriptsize $\pm$10.0}} & \shortstack[r]{76.2\\{\scriptsize $\pm$6.4}} & \shortstack[r]{11.62\\{\scriptsize $\pm$1.88}} & \shortstack[r]{100.0\%\\{\scriptsize $\pm$0.0}} \\
+GPT-5.4 & 30 & 4 & \shortstack[r]{68.2\\{\scriptsize $\pm$3.5}} & \shortstack[r]{9.00\\{\scriptsize $\pm$1.04}} & \shortstack[r]{96.7\%\\{\scriptsize $\pm$5.0}} & \shortstack[r]{61.1\\{\scriptsize $\pm$16.3}} & \shortstack[r]{7.50\\{\scriptsize $\pm$4.25}} & \shortstack[r]{75.0\%\\{\scriptsize $\pm$37.5}} \\
+Gemini-3.1-Flash-Lite & 15 & 4 & \shortstack[r]{63.5\\{\scriptsize $\pm$6.1}} & \shortstack[r]{7.73\\{\scriptsize $\pm$1.80}} & \shortstack[r]{86.7\%\\{\scriptsize $\pm$16.6}} & \shortstack[r]{67.0\\{\scriptsize $\pm$14.1}} & \shortstack[r]{9.25\\{\scriptsize $\pm$3.38}} & \shortstack[r]{75.0\%\\{\scriptsize $\pm$37.5}} \\
+Sonnet-4.6 & 15 & 4 & \shortstack[r]{58.9\\{\scriptsize $\pm$6.0}} & \shortstack[r]{6.47\\{\scriptsize $\pm$1.66}} & \shortstack[r]{73.3\%\\{\scriptsize $\pm$23.3}} & \shortstack[r]{53.8\\{\scriptsize $\pm$6.5}} & \shortstack[r]{5.25\\{\scriptsize $\pm$1.75}} & \shortstack[r]{75.0\%\\{\scriptsize $\pm$37.5}} \\
+GPT-5.4-mini & 15 & 4 & \shortstack[r]{58.6\\{\scriptsize $\pm$5.7}} & \shortstack[r]{6.27\\{\scriptsize $\pm$1.53}} & \shortstack[r]{73.3\%\\{\scriptsize $\pm$23.3}} & \shortstack[r]{54.6\\{\scriptsize $\pm$10.6}} & \shortstack[r]{5.50\\{\scriptsize $\pm$2.25}} & \shortstack[r]{75.0\%\\{\scriptsize $\pm$37.5}} \\
+DeepSeek-V4-Pro & 15 & 4 & \shortstack[r]{56.1\\{\scriptsize $\pm$5.8}} & \shortstack[r]{5.73\\{\scriptsize $\pm$1.47}} & \shortstack[r]{66.7\%\\{\scriptsize $\pm$23.4}} & \shortstack[r]{77.6\\{\scriptsize $\pm$6.1}} & \shortstack[r]{11.75\\{\scriptsize $\pm$1.75}} & \shortstack[r]{100.0\%\\{\scriptsize $\pm$0.0}} \\
+Qwen3.5-122B & 15 & 4 & \shortstack[r]{49.4\\{\scriptsize $\pm$4.9}} & \shortstack[r]{4.33\\{\scriptsize $\pm$1.07}} & \shortstack[r]{40.0\%\\{\scriptsize $\pm$23.4}} & \shortstack[r]{47.1\\{\scriptsize $\pm$6.9}} & \shortstack[r]{3.75\\{\scriptsize $\pm$1.12}} & \shortstack[r]{25.0\%\\{\scriptsize $\pm$37.5}} \\
+DeepSeek-V4-Flash & 15 & 4 & \shortstack[r]{49.3\\{\scriptsize $\pm$3.6}} & \shortstack[r]{4.00\\{\scriptsize $\pm$0.73}} & \shortstack[r]{46.7\%\\{\scriptsize $\pm$26.6}} & \shortstack[r]{52.4\\{\scriptsize $\pm$16.8}} & \shortstack[r]{5.75\\{\scriptsize $\pm$3.38}} & \shortstack[r]{75.0\%\\{\scriptsize $\pm$37.5}} \\
+Qwen3.6-35B & 15 & 0 & \shortstack[r]{42.4\\{\scriptsize $\pm$7.2}} & \shortstack[r]{3.60\\{\scriptsize $\pm$1.20}} & \shortstack[r]{26.7\%\\{\scriptsize $\pm$20.0}} & --- & --- & --- \\
+Qwen3-235B & 28 & 8 & \shortstack[r]{41.3\\{\scriptsize $\pm$4.3}} & \shortstack[r]{3.07\\{\scriptsize $\pm$0.68}} & \shortstack[r]{17.9\%\\{\scriptsize $\pm$12.5}} & \shortstack[r]{25.5\\{\scriptsize $\pm$9.5}} & \shortstack[r]{1.50\\{\scriptsize $\pm$0.69}} & \shortstack[r]{0.0\%\\{\scriptsize $\pm$0.0}} \\
+Llama-4 & 15 & 8 & \shortstack[r]{37.8\\{\scriptsize $\pm$4.4}} & \shortstack[r]{2.60\\{\scriptsize $\pm$0.40}} & \shortstack[r]{20.0\%\\{\scriptsize $\pm$20.0}} & \shortstack[r]{19.9\\{\scriptsize $\pm$5.1}} & \shortstack[r]{0.88\\{\scriptsize $\pm$0.50}} & \shortstack[r]{0.0\%\\{\scriptsize $\pm$0.0}} \\
+\bottomrule
+\end{tabular*}
+\end{table*}
