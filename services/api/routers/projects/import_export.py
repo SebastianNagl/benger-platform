@@ -233,6 +233,7 @@ from auth_module import require_user  # noqa: E402
 from auth_module.models import User as AuthUser  # noqa: E402
 from database import get_db  # noqa: E402
 from routers.projects._export_stream import (  # noqa: E402
+    build_json_export_header_fields,
     stream_comprehensive_project_data_json,
     stream_export_flat_csv,
     stream_export_json,
@@ -890,56 +891,10 @@ async def export_project(
     # CSV/TSV/TXT/label_studio still use the legacy path — each has a
     # per-row shape its own tests assert on and a separate refactor.
     if format == "json":
-        # All count queries pass whole-model classes (not column attributes
-        # or joins) so they stay mockable in the existing unit tests and
-        # issue cheap COUNT(*) round-trips. Task / EvaluationRun rows are
-        # small and we need their IDs for the in_() filters anyway, so we
-        # load them; Annotation / Generation / TaskEvaluation use .count()
-        # to avoid pulling row bodies for what is just a header tally.
-        project_tasks_for_counts = (
-            db.query(Task).filter(Task.project_id == project_id).all()
-        )
-        task_id_list = [t.id for t in project_tasks_for_counts]
-        evaluation_runs_for_counts = (
-            db.query(EvaluationRun)
-            .filter(EvaluationRun.project_id == project_id)
-            .all()
-        )
-        eval_run_ids_for_counts = [er.id for er in evaluation_runs_for_counts]
-
-        task_count = len(project_tasks_for_counts)
-        annotation_count = (
-            db.query(Annotation).filter(Annotation.project_id == project_id).count()
-        )
-        generation_count = (
-            db.query(Generation).filter(Generation.task_id.in_(task_id_list)).count()
-            if task_id_list
-            else 0
-        )
-        task_evaluation_count = (
-            db.query(TaskEvaluation)
-            .filter(TaskEvaluation.evaluation_id.in_(eval_run_ids_for_counts))
-            .count()
-            if eval_run_ids_for_counts
-            else 0
-        )
-
-        header_fields = {
-            "project": {
-                "id": project.id,
-                "title": project.title,
-                "description": project.description,
-                "created_at": (
-                    project.created_at.isoformat() if project.created_at else None
-                ),
-                "task_count": task_count,
-                "annotation_count": annotation_count,
-                "generation_count": generation_count,
-                "evaluation_run_count": len(eval_run_ids_for_counts),
-                "task_evaluation_count": task_evaluation_count,
-                "label_config": project.label_config,
-            },
-        }
+        # Header (project metadata + count tallies) is built by the shared
+        # helper so the async worker export emits a byte-identical header.
+        header_fields = build_json_export_header_fields(db, project)
+        project_header = header_fields["project"]
 
         headers = {}
         if download:
@@ -955,11 +910,11 @@ async def export_project(
                 user_id=current_user.id,
                 export_format="json",
                 counts={
-                    "tasks": task_count,
-                    "annotations": annotation_count,
-                    "generations": generation_count,
-                    "evaluation_runs": len(eval_run_ids_for_counts),
-                    "task_evaluations": task_evaluation_count,
+                    "tasks": project_header["task_count"],
+                    "annotations": project_header["annotation_count"],
+                    "generations": project_header["generation_count"],
+                    "evaluation_runs": project_header["evaluation_run_count"],
+                    "task_evaluations": project_header["task_evaluation_count"],
                 },
             ),
             media_type="application/json",

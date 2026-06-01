@@ -6155,3 +6155,207 @@ def update_report_annotations_async(self, project_id: str):
                 )
 
     return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Async project export → object storage (issue #158)
+#
+# The synchronous GET /export streamed the whole project through the API
+# request thread; on the Benchathon project (~400MB of JSON) that OOMKilled
+# the benger-api pod (exit 137, both replicas). This task moves the bulk data
+# plane off the request path: it streams the same export generator
+# chunk-by-chunk into object storage as a multipart upload, so worker peak RAM
+# is bounded by one ~8MB part plus one generator batch regardless of project
+# size. The client later downloads via a presigned URL (see the
+# /exports/{job_id}/download endpoint), bypassing the API and the browser-RAM
+# Blob entirely.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# S3/MinIO require every multipart part EXCEPT the last to be >= 5MB. We buffer
+# to 8MB before flushing a part; 8MB x 10_000 parts (the S3 part-count ceiling)
+# = 80GB, far beyond any realistic export.
+_EXPORT_PART_SIZE = 8 * 1024 * 1024
+
+
+@app.task(
+    name="tasks.export_project",
+    bind=True,
+    acks_late=True,
+    max_retries=0,
+)
+def export_project(self, job_id: str) -> Dict[str, Any]:
+    """Stream a project export into object storage as a multipart upload.
+
+    Reads the ExportJob row, picks the streaming generator for its format, and
+    pushes the bytes to storage in ~8MB parts. On success the row is marked
+    completed with the object_key, byte_size, and a 7-day expiry; on failure
+    the in-flight multipart upload is aborted and the row marked failed.
+
+    Idempotent: a job already past `running` (completed/failed) is skipped, so
+    an acks_late redelivery of a finished job is a no-op. A job left `running`
+    by a crashed worker IS re-run — that's the crash-recovery path.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from export_stream import EXPORT_FORMAT_MEDIA_TYPES, select_export_generator
+    from models import ExportJob, JobStatus
+    from project_models import Project
+    from storage.object_storage import object_storage
+
+    db = SessionLocal()
+    upload_id = None
+    file_key = None
+    try:
+        job = db.query(ExportJob).filter(ExportJob.id == job_id).first()
+        if job is None:
+            logger.error("export_project: job %s not found", job_id)
+            return {"status": "error", "error": "job_not_found", "job_id": job_id}
+
+        if job.status not in (JobStatus.PENDING.value, JobStatus.RUNNING.value):
+            logger.info(
+                "export_project: job %s already in status %s; skipping",
+                job_id,
+                job.status,
+            )
+            return {"status": "skipped", "job_id": job_id, "job_status": job.status}
+
+        project = (
+            db.query(Project).filter(Project.id == job.project_id).first()
+        )
+        if project is None:
+            job.status = JobStatus.FAILED.value
+            job.error_message = "project_not_found"
+            db.commit()
+            return {"status": "error", "error": "project_not_found", "job_id": job_id}
+
+        fmt = job.format or "json"
+        channel = f"export:progress:{job.project_id}"
+
+        job.status = JobStatus.RUNNING.value
+        db.commit()
+        _publish_progress(
+            channel,
+            {"job_id": job_id, "status": "running", "progress": 0, "bytes": 0},
+        )
+
+        media_type, ext = EXPORT_FORMAT_MEDIA_TYPES.get(
+            fmt, ("application/octet-stream", "dat")
+        )
+        safe_title = (project.title or "project").replace(" ", "_")
+        filename = f"{safe_title}_export.{ext}"
+
+        upload = object_storage.create_multipart_upload(
+            filename=filename,
+            file_type="exports",
+            user_id=job.requested_by,
+            content_type=media_type,
+        )
+        upload_id = upload["upload_id"]
+        file_key = upload["file_key"]
+
+        generator = select_export_generator(db, project, fmt)
+
+        buffer = bytearray()
+        parts: List[Dict[str, Any]] = []
+        part_number = 1
+        total_bytes = 0
+
+        def _flush_part() -> None:
+            nonlocal buffer, part_number
+            if not buffer:
+                return
+            etag = object_storage.upload_part(
+                file_key, upload_id, part_number, bytes(buffer)
+            )
+            parts.append({"PartNumber": part_number, "ETag": etag})
+            part_number += 1
+            buffer = bytearray()
+
+        for chunk in generator:
+            if not chunk:
+                continue
+            data = chunk.encode("utf-8") if isinstance(chunk, str) else chunk
+            buffer.extend(data)
+            total_bytes += len(data)
+            if len(buffer) >= _EXPORT_PART_SIZE:
+                _flush_part()
+                _publish_progress(
+                    channel,
+                    {
+                        "job_id": job_id,
+                        "status": "running",
+                        "progress": 0,
+                        "bytes": total_bytes,
+                    },
+                )
+
+        # Final flush — the last part may be < 5MB (S3 only constrains
+        # non-final parts), so a small export ends up as a single short part.
+        _flush_part()
+
+        result_info = object_storage.complete_multipart_upload(
+            file_key, upload_id, parts
+        )
+        byte_size = result_info.get("size", total_bytes)
+
+        job.status = JobStatus.COMPLETED.value
+        job.object_key = file_key
+        job.byte_size = byte_size
+        job.progress = 100
+        job.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        job.error_message = None
+        db.commit()
+
+        _publish_progress(
+            channel,
+            {
+                "job_id": job_id,
+                "status": "completed",
+                "progress": 100,
+                "bytes": byte_size,
+            },
+        )
+        logger.info(
+            "export_project: job %s completed (%s bytes, key=%s)",
+            job_id,
+            byte_size,
+            file_key,
+        )
+        return {
+            "status": "completed",
+            "job_id": job_id,
+            "object_key": file_key,
+            "byte_size": byte_size,
+        }
+
+    except Exception as exc:
+        logger.error(
+            "export_project: job %s failed: %s", job_id, exc, exc_info=True
+        )
+        # Abort the in-flight upload so no orphaned parts accrue storage cost.
+        if upload_id and file_key:
+            object_storage.abort_multipart_upload(file_key, upload_id)
+        try:
+            db.rollback()
+            from models import ExportJob, JobStatus
+
+            job = db.query(ExportJob).filter(ExportJob.id == job_id).first()
+            if job is not None:
+                job.status = JobStatus.FAILED.value
+                job.error_message = str(exc)[:2000]
+                db.commit()
+                _publish_progress(
+                    f"export:progress:{job.project_id}",
+                    {
+                        "job_id": job_id,
+                        "status": "failed",
+                        "progress": job.progress or 0,
+                    },
+                )
+        except Exception as inner:
+            logger.error(
+                "export_project: failed to mark job %s failed: %s", job_id, inner
+            )
+        return {"status": "error", "job_id": job_id, "error": str(exc)}
+    finally:
+        db.close()
