@@ -5,6 +5,7 @@ import io
 import json
 import logging
 import os
+import shutil
 import tempfile
 import time
 import uuid
@@ -12,13 +13,53 @@ import zipfile
 from datetime import datetime
 from typing import Any, Dict, Iterator, List, Optional
 
+import ijson
+
 # Spool incoming import bodies in RAM up to this size; spill to disk above it.
 # Keeps small imports allocation-free (no disk hit, no regression vs the
 # previous Pydantic auto-parse path) while bounding peak heap on multi-MB
 # imports — the API-side mirror of the proxy's response-streaming fix (GH #68).
 _IMPORT_SPOOL_THRESHOLD = 4 * 1024 * 1024
 
+# Flush + expunge inserted rows every N tasks so the SQLAlchemy identity map
+# (and thus peak heap) stays O(batch) instead of O(file) during a large import.
+_IMPORT_BATCH = 200
+
+# Small top-level keys of the nested (Label-Studio) import payload that are safe
+# to fully materialize. The big `data` array is streamed separately via
+# iter_array, never built into RAM. Mirrors ProjectImportData's optional fields.
+_NESTED_SMALL_KEYS = frozenset({
+    "meta",
+    "evaluation_runs",
+    "human_evaluation_configs",
+    "human_evaluation_sessions",
+    "human_evaluation_results",
+    "preference_rankings",
+    "likert_scale_evaluations",
+    "korrektur_comments",
+})
+
 logger = logging.getLogger(__name__)
+
+
+def _stream_rows(db, spooled, path: str, batch: int = _IMPORT_BATCH):
+    """Yield each element of a top-level array in the spooled JSON one at a time.
+
+    Every ``batch`` rows the session is flushed then expunged so the SQLAlchemy
+    identity map (and thus peak heap) stays O(batch) rather than O(file) on a
+    multi-GB import. Flushing *before* expunging is load-bearing: it guarantees
+    any rows still pending from an earlier entity loop are INSERTed (rather than
+    silently dropped by ``expunge_all``) before a later loop's children
+    FK-reference them. Cross-references travel via string id maps, never live
+    ORM objects, so detaching the just-inserted rows is safe.
+    """
+    n = 0
+    for row in iter_array(spooled, path):
+        yield row
+        n += 1
+        if n % batch == 0:
+            db.flush()
+            db.expunge_all()
 
 
 def _logged_export_stream(
@@ -198,6 +239,10 @@ from routers.projects._export_stream import (  # noqa: E402
     stream_export_label_studio,
     stream_export_txt,
 )
+from routers.projects._import_stream import (  # noqa: E402
+    iter_array,
+    read_top_object,
+)
 from routers.projects.serializers import _parse_iso  # noqa: E402
 from models import (  # noqa: E402
     EvaluationJudgeRun,
@@ -246,43 +291,14 @@ async def import_project_data(
 
     Supports Label Studio format with BenGER extensions.
     """
-    # Stream the request body to a SpooledTemporaryFile instead of letting
-    # Pydantic auto-parse buffer the whole payload in memory. Small imports
-    # stay in RAM (under the spool threshold); large ones spill to disk so
-    # peak heap is bounded by the parsed object graph, not the raw bytes too.
-    with tempfile.SpooledTemporaryFile(max_size=_IMPORT_SPOOL_THRESHOLD) as spooled:
-        async for chunk in request.stream():
-            spooled.write(chunk)
-        spooled.seek(0)
-        try:
-            raw_payload = json.load(spooled)
-        except json.JSONDecodeError as exc:
-            # Match FastAPI's Pydantic-body behaviour (422 for unprocessable
-            # body) so existing clients and tests don't observe a behaviour
-            # change just because the parse path moved into the handler.
-            raise HTTPException(status_code=422, detail=f"Invalid JSON body: {exc}")
-
-    try:
-        data = ProjectImportData.model_validate(raw_payload)
-    except Exception as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-
-    # Verify project exists
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, project_id, org_context):
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    # Importing tasks is a write/contribute action — require ORG_ADMIN or
-    # CONTRIBUTOR effective role. Public-tier ANNOTATOR visitors are blocked.
-    if not check_project_write_access(db, current_user, project_id):
-        raise HTTPException(
-            status_code=403,
-            detail="Only contributors or admins can import tasks into this project",
-        )
+    # Stream the request body to a SpooledTemporaryFile and parse it
+    # *incrementally* with ijson instead of json.load-ing the whole payload —
+    # a 583MB export balloons to 2-4GB resident and OOM-kills the pod
+    # (issue #158). One cheap pass (read_top_object) materializes only the
+    # small top-level fields; the big `data` array is streamed task-by-task
+    # via iter_array below, so peak heap stays O(batch) not O(file). The spool
+    # outlives the parse passes and is closed in the import block's finally.
+    spooled = tempfile.SpooledTemporaryFile(max_size=_IMPORT_SPOOL_THRESHOLD)
 
     created_tasks = 0
     created_annotations = 0
@@ -290,11 +306,55 @@ async def import_project_data(
     created_questionnaire_responses = 0
     created_evaluation_runs = 0
     created_task_evaluations = 0
+    total_items = 0
     task_id_mapping = {}
     generation_id_mapping = {}  # old generation id -> new generation id
     annotation_id_mapping: Dict[str, str] = {}  # old annotation id -> new annotation id
 
     try:
+        async for chunk in request.stream():
+            spooled.write(chunk)
+
+        # Build the small top-level fields (meta, evaluation_runs, the human-eval
+        # arrays, korrektur_comments); the big `data` array is parsed-through and
+        # discarded here, then streamed below. Malformed JSON → 422 (matches the
+        # old json.load behaviour); `data` missing / not a list → 422 (matches
+        # the old Pydantic List[...] requirement).
+        try:
+            top_obj, kinds = read_top_object(spooled, _NESTED_SMALL_KEYS)
+        except ijson.JSONError as exc:
+            raise HTTPException(status_code=422, detail=f"Invalid JSON body: {exc}")
+        if kinds.get("data") != "start_array":
+            raise HTTPException(
+                status_code=422,
+                detail="Field 'data' is required and must be a list",
+            )
+        # Validate the small fields' types exactly as ProjectImportData did
+        # (the streamed `data` items are dict-checked per row below).
+        try:
+            data = ProjectImportData.model_validate({**top_obj, "data": []})
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+
+        # Verify project exists
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        org_context = get_org_context_from_request(request)
+        if not check_project_accessible(db, current_user, project_id, org_context):
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        # Importing tasks is a write/contribute action — require ORG_ADMIN or
+        # CONTRIBUTOR effective role. Public-tier ANNOTATOR visitors are blocked.
+        if not check_project_write_access(db, current_user, project_id):
+            raise HTTPException(
+                status_code=403,
+                detail="Only contributors or admins can import tasks into this project",
+            )
+
         # Import evaluation runs first so task evaluations can reference them
         evaluation_run_id_mapping = {}  # old er id -> new er id
         # Migration 043: TaskEvaluation.judge_run_id is NOT NULL. Legacy
@@ -331,10 +391,11 @@ async def import_project_data(
                     evaluation_run_id_mapping[old_er_id] = new_er_id
 
         # Create stub users for any referenced user IDs that don't exist locally
-        # This preserves original annotator IDs from the export
+        # This preserves original annotator IDs from the export. Cheap streaming
+        # pre-pass over `data` reading only annotator ids (one task at a time).
         from models import User as DBUser
         import_user_ids = set()
-        for item in data.data:
+        for item in iter_array(spooled, "data.item"):
             if isinstance(item, dict):
                 for ann in item.get("annotations", []):
                     if ann.get("completed_by"):
@@ -357,7 +418,15 @@ async def import_project_data(
                 db.flush()
                 logger.info(f"Created {len(missing_ids)} stub users for imported annotations")
 
-        for item in data.data:
+        for item in iter_array(spooled, "data.item"):
+            # The old Pydantic List[Dict] rejected non-dict items with a 422;
+            # preserve that now that items are validated one-at-a-time.
+            if not isinstance(item, dict):
+                raise HTTPException(
+                    status_code=422,
+                    detail="Each entry in 'data' must be an object",
+                )
+            total_items += 1
             # Handle Label Studio format
             task_data = item
             task_meta = data.meta or {}
@@ -619,6 +688,15 @@ async def import_project_data(
                 db.add(te)
                 created_task_evaluations += 1
 
+            # Bound peak heap: once a batch of tasks is inserted, flush so the
+            # rows hit the DB, then drop them from the session identity map.
+            # Everything downstream cross-references via string id maps (not ORM
+            # objects), so detaching is safe and keeps memory O(batch), not
+            # O(file), for a multi-GB import.
+            if created_tasks % _IMPORT_BATCH == 0:
+                db.flush()
+                db.expunge_all()
+
         # Top-level human-evaluation import (mirrors clone path).
         # Skip silently if the payload doesn't carry any of these arrays —
         # backward-compatible with older exports.
@@ -766,15 +844,22 @@ async def import_project_data(
             "created_questionnaire_responses": created_questionnaire_responses,
             "created_evaluation_runs": created_evaluation_runs,
             "created_task_evaluations": created_task_evaluations,
-            "total_items": len(data.data),
+            "total_items": total_items,
             "project_id": project_id,
             "task_id_mapping": task_id_mapping,  # Return mapping for debugging/reference
         }
 
+    except HTTPException:
+        # Validation / access / per-item errors keep their status code; roll
+        # back any rows flushed before the failure so nothing partial commits.
+        db.rollback()
+        raise
     except Exception as e:
         # Rollback on any error
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to import data: {str(e)}")
+    finally:
+        spooled.close()
 
 
 @router.get("/{project_id}/export")
@@ -1217,13 +1302,17 @@ async def import_full_project(
     Returns: Created project information with import statistics
     """
     get_org_context_from_request(request)
+    # Extract the upload into a seekable spool, then parse it *incrementally*
+    # with ijson instead of json.load-ing the whole document — a 583MB
+    # comprehensive export balloons to 2-4GB resident and OOM-kills the pod
+    # (issue #158). read_top_object materializes only the small top-level
+    # `project`/`format_version`; every big array (tasks, annotations,
+    # generations, evaluations, …) is streamed row-by-row via _stream_rows in
+    # FK-dependency order, so peak heap stays O(batch) not O(file). zip inner
+    # streams are non-seekable, so we copy the inner JSON into the spool with a
+    # bounded buffer (shutil.copyfileobj) rather than reading it whole.
+    spooled = tempfile.SpooledTemporaryFile(max_size=_IMPORT_SPOOL_THRESHOLD)
     try:
-        # Parse the upload directly off the SpooledTemporaryFile that Starlette
-        # gives us via UploadFile.file — Starlette already spills past ~1 MB to
-        # disk, so calling `await file.read()` would re-buffer the whole thing
-        # back into RAM as a `bytes` object (and then `.decode()` would make a
-        # second string copy). Reading file-like preserves the disk spillover
-        # and keeps peak heap to roughly the parsed dict graph alone.
         if file.filename.endswith('.zip'):
             try:
                 with zipfile.ZipFile(file.file, 'r') as zip_file:
@@ -1234,29 +1323,29 @@ async def import_full_project(
                         )
                     # Use first JSON file found (for single project import)
                     with zip_file.open(json_files[0]) as inner_json:
-                        try:
-                            import_data = json.load(inner_json)
-                        except json.JSONDecodeError:
-                            raise HTTPException(
-                                status_code=400, detail="Invalid JSON format"
-                            )
+                        shutil.copyfileobj(inner_json, spooled)
             except zipfile.BadZipFile:
                 raise HTTPException(status_code=400, detail="Invalid ZIP file format")
         elif file.filename.endswith('.json'):
-            try:
-                import_data = json.load(file.file)
-            except json.JSONDecodeError:
-                raise HTTPException(status_code=400, detail="Invalid JSON format")
+            shutil.copyfileobj(file.file, spooled)
         else:
             raise HTTPException(status_code=400, detail="Only JSON and ZIP files are supported")
 
+        # One streaming pass builds only the small top-level fields; malformed
+        # JSON surfaces here (read_top_object parses through the whole document)
+        # and maps to the same 400 the old json.load raised.
+        try:
+            top_obj, _kinds = read_top_object(spooled, {"format_version", "project"})
+        except ijson.JSONError:
+            raise HTTPException(status_code=400, detail="Invalid JSON format")
+
         # Validate format version
-        format_version = import_data.get("format_version", "1.0.0")
+        format_version = top_obj.get("format_version", "1.0.0")
         if not format_version.startswith("1."):
             raise HTTPException(status_code=400, detail="Unsupported export format version")
 
         # Extract project data
-        project_data = import_data.get("project", {})
+        project_data = top_obj.get("project", {})
         if not project_data:
             raise HTTPException(status_code=400, detail="No project data found in export")
 
@@ -1292,10 +1381,9 @@ async def import_full_project(
         }
 
         # Map users to existing users or create placeholder mappings
-        users_data = import_data.get("users", [])
         user_email_to_id = {}
 
-        for user_data in users_data:
+        for user_data in _stream_rows(db, spooled, "users.item"):
             old_user_id = user_data.get("id", str(uuid.uuid4()))
             email = user_data.get("email")
 
@@ -1391,10 +1479,9 @@ async def import_full_project(
         db.add(project_org)
 
         # Import tasks
-        tasks_data = import_data.get("tasks", [])
         task_counter = 1
 
-        for task_data in tasks_data:
+        for task_data in _stream_rows(db, spooled, "tasks.item"):
             old_task_id = task_data.get("id", str(uuid.uuid4()))
             new_task_id = str(uuid.uuid4())
             id_mappings["tasks"][old_task_id] = new_task_id
@@ -1424,8 +1511,7 @@ async def import_full_project(
             task_counter += 1
 
         # Import annotations
-        annotations_data = import_data.get("annotations", [])
-        for annotation_data in annotations_data:
+        for annotation_data in _stream_rows(db, spooled, "annotations.item"):
             old_annotation_id = annotation_data.get("id", str(uuid.uuid4()))
             new_annotation_id = str(uuid.uuid4())
             id_mappings["annotations"][old_annotation_id] = new_annotation_id
@@ -1478,8 +1564,7 @@ async def import_full_project(
         # Prompt functionality now handled by generation_structure field
 
         # Import response generations
-        response_generations_data = import_data.get("response_generations", [])
-        for resp_gen_data in response_generations_data:
+        for resp_gen_data in _stream_rows(db, spooled, "response_generations.item"):
             old_resp_gen_id = resp_gen_data.get("id", str(uuid.uuid4()))
             new_resp_gen_id = str(uuid.uuid4())
             id_mappings["response_generations"][old_resp_gen_id] = new_resp_gen_id
@@ -1503,8 +1588,7 @@ async def import_full_project(
                 db.add(new_resp_gen)
 
         # Import generations
-        generations_data = import_data.get("generations", [])
-        for generation_data in generations_data:
+        for generation_data in _stream_rows(db, spooled, "generations.item"):
             old_generation_id = generation_data.get("id", str(uuid.uuid4()))
             new_generation_id = str(uuid.uuid4())
             id_mappings["generations"][old_generation_id] = new_generation_id
@@ -1540,8 +1624,7 @@ async def import_full_project(
                 db.add(new_generation)
 
         # Import evaluations (evaluation runs are project-level)
-        evaluations_data = import_data.get("evaluations", [])
-        for evaluation_data in evaluations_data:
+        for evaluation_data in _stream_rows(db, spooled, "evaluations.item"):
             old_evaluation_id = evaluation_data.get("id", str(uuid.uuid4()))
             new_evaluation_id = str(uuid.uuid4())
             id_mappings["evaluations"][old_evaluation_id] = new_evaluation_id
@@ -1567,8 +1650,7 @@ async def import_full_project(
             db.add(new_evaluation)
 
         # Import evaluation metrics
-        evaluation_metrics_data = import_data.get("evaluation_metrics", [])
-        for metric_data in evaluation_metrics_data:
+        for metric_data in _stream_rows(db, spooled, "evaluation_metrics.item"):
             old_metric_id = metric_data.get("id", str(uuid.uuid4()))
             new_metric_id = str(uuid.uuid4())
             id_mappings["evaluation_metrics"][old_metric_id] = new_metric_id
@@ -1585,9 +1667,12 @@ async def import_full_project(
 
                 db.add(new_metric)
 
-        # Import task evaluations (per-task evaluation results)
-        task_evaluations_data = import_data.get("task_evaluations", [])
-        for te_data in task_evaluations_data:
+        # Import task evaluations (per-task evaluation results). te_seen counts
+        # every row in the payload (imported or skipped) to reproduce the old
+        # len(import_data["task_evaluations"]) stat without holding the array.
+        te_seen = 0
+        for te_data in _stream_rows(db, spooled, "task_evaluations.item"):
+            te_seen += 1
             te_data.get("id", str(uuid.uuid4()))
             new_te_id = str(uuid.uuid4())
 
@@ -1625,8 +1710,7 @@ async def import_full_project(
                 db.add(new_te)
 
         # Import human evaluation configs
-        human_evaluation_configs_data = import_data.get("human_evaluation_configs", [])
-        for config_data in human_evaluation_configs_data:
+        for config_data in _stream_rows(db, spooled, "human_evaluation_configs.item"):
             old_config_id = config_data.get("id", str(uuid.uuid4()))
             new_config_id = str(uuid.uuid4())
             id_mappings["human_evaluation_configs"][old_config_id] = new_config_id
@@ -1648,8 +1732,7 @@ async def import_full_project(
                 db.add(new_config)
 
         # Import human evaluation sessions
-        human_evaluation_sessions_data = import_data.get("human_evaluation_sessions", [])
-        for session_data in human_evaluation_sessions_data:
+        for session_data in _stream_rows(db, spooled, "human_evaluation_sessions.item"):
             old_session_id = session_data.get("id", str(uuid.uuid4()))
             new_session_id = str(uuid.uuid4())
             id_mappings["human_evaluation_sessions"][old_session_id] = new_session_id
@@ -1672,8 +1755,7 @@ async def import_full_project(
             db.add(new_session)
 
         # Import human evaluation results
-        human_evaluation_results_data = import_data.get("human_evaluation_results", [])
-        for result_data in human_evaluation_results_data:
+        for result_data in _stream_rows(db, spooled, "human_evaluation_results.item"):
             old_result_id = result_data.get("id", str(uuid.uuid4()))
             new_result_id = str(uuid.uuid4())
             id_mappings["human_evaluation_results"][old_result_id] = new_result_id
@@ -1699,8 +1781,7 @@ async def import_full_project(
                 db.add(new_result)
 
         # Import preference rankings
-        preference_rankings_data = import_data.get("preference_rankings", [])
-        for ranking_data in preference_rankings_data:
+        for ranking_data in _stream_rows(db, spooled, "preference_rankings.item"):
             old_ranking_id = ranking_data.get("id", str(uuid.uuid4()))
             new_ranking_id = str(uuid.uuid4())
             id_mappings["preference_rankings"][old_ranking_id] = new_ranking_id
@@ -1726,8 +1807,7 @@ async def import_full_project(
                 db.add(new_ranking)
 
         # Import likert scale evaluations
-        likert_scale_evaluations_data = import_data.get("likert_scale_evaluations", [])
-        for likert_data in likert_scale_evaluations_data:
+        for likert_data in _stream_rows(db, spooled, "likert_scale_evaluations.item"):
             old_likert_id = likert_data.get("id", str(uuid.uuid4()))
             new_likert_id = str(uuid.uuid4())
             id_mappings["likert_scale_evaluations"][old_likert_id] = new_likert_id
@@ -1750,12 +1830,21 @@ async def import_full_project(
                 db.add(new_likert)
 
         # Import Korrektur threaded comments. Parents first, then replies, so
-        # parent_id can be remapped without forward references.
+        # parent_id can be remapped without forward references. Two streaming
+        # passes (roots, then replies) replace the old in-memory list+sort,
+        # which couldn't scale to a huge comment array.
         from project_models import KorrekturComment
-        korrektur_comments_data = list(import_data.get("korrektur_comments", []) or [])
-        korrektur_comments_data.sort(key=lambda c: 1 if c.get("parent_id") else 0)
         comment_id_mapping: Dict[str, str] = {}
-        for c in korrektur_comments_data:
+
+        def _korrektur_parents_then_replies():
+            for c in _stream_rows(db, spooled, "korrektur_comments.item"):
+                if not c.get("parent_id"):
+                    yield c
+            for c in _stream_rows(db, spooled, "korrektur_comments.item"):
+                if c.get("parent_id"):
+                    yield c
+
+        for c in _korrektur_parents_then_replies():
             target_type = c.get("target_type")
             old_target_id = c.get("target_id")
             new_target_id: Any = old_target_id
@@ -1796,8 +1885,7 @@ async def import_full_project(
             ))
 
         # Import project members (map to existing users)
-        project_members_data = import_data.get("project_members", [])
-        for member_data in project_members_data:
+        for member_data in _stream_rows(db, spooled, "project_members.item"):
             old_member_id = member_data.get("id", str(uuid.uuid4()))
             new_member_id = str(uuid.uuid4())
             id_mappings["project_members"][old_member_id] = new_member_id
@@ -1826,8 +1914,7 @@ async def import_full_project(
                     db.add(new_member)
 
         # Import task assignments
-        task_assignments_data = import_data.get("task_assignments", [])
-        for assignment_data in task_assignments_data:
+        for assignment_data in _stream_rows(db, spooled, "task_assignments.item"):
             old_assignment_id = assignment_data.get("id", str(uuid.uuid4()))
             new_assignment_id = str(uuid.uuid4())
             id_mappings["task_assignments"][old_assignment_id] = new_assignment_id
@@ -1851,8 +1938,7 @@ async def import_full_project(
                 db.add(new_assignment)
 
         # Import post-annotation questionnaire responses (Issue #1208)
-        post_annotation_responses_data = import_data.get("post_annotation_responses", [])
-        for par_data in post_annotation_responses_data:
+        for par_data in _stream_rows(db, spooled, "post_annotation_responses.item"):
             old_par_id = par_data.get("id", str(uuid.uuid4()))
             new_par_id = str(uuid.uuid4())
             id_mappings["post_annotation_responses"][old_par_id] = new_par_id
@@ -1898,7 +1984,7 @@ async def import_full_project(
                 "response_generations": len(id_mappings["response_generations"]),
                 "evaluations": len(id_mappings["evaluations"]),
                 "evaluation_metrics": len(id_mappings["evaluation_metrics"]),
-                "task_evaluations": len(import_data.get("task_evaluations", [])),
+                "task_evaluations": te_seen,
                 "human_evaluation_configs": len(id_mappings["human_evaluation_configs"]),
                 "human_evaluation_sessions": len(id_mappings["human_evaluation_sessions"]),
                 "human_evaluation_results": len(id_mappings["human_evaluation_results"]),
@@ -1920,7 +2006,12 @@ async def import_full_project(
         }
 
     except HTTPException:
+        # Validation / access errors keep their status; roll back any rows
+        # flushed by an earlier batch so a partial project can't persist.
+        db.rollback()
         raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
+    finally:
+        spooled.close()
