@@ -50,6 +50,12 @@ dependencies = [
     # (see the tiktoken note above) — keep this in sync with requirements.txt or
     # the streaming import silently fails to import ijson.
     "ijson>=3.2.0",
+    # boto3/botocore back the S3-compatible object storage singleton (presigned
+    # URLs, multipart upload). The api Dockerfile installs from pyproject.toml, so
+    # these MUST live here (not only requirements.txt) or the storage service
+    # silently falls back to local filesystem even when STORAGE_TYPE=minio (#158).
+    "boto3>=1.35.0",
+    "botocore>=1.43.11",
     # Statistical computing for confidence intervals and significance testing
     "numpy>=1.24.0",
     "scipy>=1.11.0",
