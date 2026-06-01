@@ -24,6 +24,23 @@ import {
   TaskAssignment,
 } from '@/types/labelStudio'
 
+export type ExportJobState = 'pending' | 'running' | 'completed' | 'failed'
+
+export interface ExportJobStatus {
+  job_id: string
+  project_id: string
+  format: string
+  status: ExportJobState
+  progress: number
+  byte_size: number | null
+  error_message: string | null
+  created_at: string | null
+  updated_at: string | null
+  expires_at: string | null
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
 export const projectsAPI = {
   /**
    * List all projects
@@ -476,6 +493,88 @@ export const projectsAPI = {
   },
 
   /**
+   * Create an async whole-project export job. The worker streams the export to
+   * object storage; the client polls status and downloads via a presigned URL.
+   */
+  createExportJob: async (
+    projectId: string,
+    format: 'json' | 'csv' | 'tsv' | 'txt' | 'label_studio' | 'comprehensive' = 'json'
+  ): Promise<{ job_id: string; status: ExportJobState }> => {
+    return apiClient.post(
+      `/projects/${projectId}/exports?format=${encodeURIComponent(format)}`
+    )
+  },
+
+  /** Poll the status of an export job. */
+  getExportJob: async (
+    projectId: string,
+    jobId: string
+  ): Promise<ExportJobStatus> => {
+    return apiClient.get(`/projects/${projectId}/exports/${jobId}`)
+  },
+
+  /**
+   * Resolve a short-lived presigned download URL for a completed export job.
+   * The URL points straight at object storage, so the actual bytes never pass
+   * through the Next.js proxy or the browser's JS heap.
+   */
+  getExportDownloadUrl: async (
+    projectId: string,
+    jobId: string
+  ): Promise<{ url: string; expires_in: number }> => {
+    return apiClient.get(
+      `/projects/${projectId}/exports/${jobId}/download?json=1`
+    )
+  },
+
+  /**
+   * Drive a whole-project export through the async job flow: enqueue, poll to
+   * completion, then trigger a direct browser download from the presigned URL.
+   *
+   * Use this for full-project exports — it moves the bulk data plane off the
+   * request path, so it can't OOM the API or truncate a multi-GB download the
+   * way the synchronous streaming path could. For filtered/selected subsets,
+   * keep using {@link streamExportTasks} (the async endpoint exports the whole
+   * project, not an arbitrary task subset).
+   *
+   * Throws an Error if the job fails (message = the worker's error_message),
+   * or a DOMException `AbortError` if the caller's signal is aborted while
+   * polling.
+   */
+  runProjectExportJob: async (
+    projectId: string,
+    format: 'json' | 'csv' | 'tsv' | 'txt' | 'label_studio' | 'comprehensive',
+    callbacks?: { onStatus?: (status: ExportJobStatus) => void },
+    options?: { pollIntervalMs?: number; signal?: AbortSignal }
+  ): Promise<void> => {
+    const pollIntervalMs = options?.pollIntervalMs ?? 2000
+    const { job_id } = await projectsAPI.createExportJob(projectId, format)
+
+    for (;;) {
+      if (options?.signal?.aborted) {
+        throw new DOMException('Export polling aborted', 'AbortError')
+      }
+      const status = await projectsAPI.getExportJob(projectId, job_id)
+      callbacks?.onStatus?.(status)
+      if (status.status === 'completed') break
+      if (status.status === 'failed') {
+        throw new Error(status.error_message || 'Export job failed')
+      }
+      await sleep(pollIntervalMs)
+    }
+
+    const { url } = await projectsAPI.getExportDownloadUrl(projectId, job_id)
+    const link = document.createElement('a')
+    link.href = url
+    // The server sets Content-Disposition: attachment with the filename, so an
+    // empty download attribute is enough to keep the browser from navigating.
+    link.download = ''
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  },
+
+  /**
    * Bulk archive tasks
    */
   bulkArchiveTasks: async (
@@ -602,7 +701,7 @@ export const projectsAPI = {
   },
 
   /**
-   * Update task data (Superadmin only)
+   * Update task data (superadmins and organization admins)
    */
   updateTaskData: async (
     projectId: string,

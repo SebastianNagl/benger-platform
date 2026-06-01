@@ -85,6 +85,8 @@ class TestCreateExportJob:
         fake_result = MagicMock()
         fake_result.id = "celery-task-xyz"
         with patch(
+            "routers.projects.import_export.object_storage.storage_backend", "minio"
+        ), patch(
             "routers.projects.import_export.send_task_safe", return_value=fake_result
         ) as mock_send:
             resp = client.post(
@@ -113,6 +115,32 @@ class TestCreateExportJob:
         assert job.requested_by == _ADMIN_ID
         assert job.celery_task_id == "celery-task-xyz"
 
+    def test_post_409_when_storage_is_local(
+        self, client, test_db, export_project_row, auth_headers, test_org
+    ):
+        # With the local backend there's no object storage to stage the export
+        # in, so the endpoint refuses (409) and the client falls back to the
+        # synchronous streaming export. No job row should be created.
+        project = export_project_row
+        with patch(
+            "routers.projects.import_export.object_storage.storage_backend", "local"
+        ), patch("routers.projects.import_export.send_task_safe") as mock_send:
+            resp = client.post(
+                f"/api/projects/{project.id}/exports?format=json",
+                headers={
+                    **auth_headers["admin"],
+                    "X-Organization-Context": test_org.id,
+                },
+            )
+        assert resp.status_code == 409
+        mock_send.assert_not_called()
+        assert (
+            test_db.query(ExportJob)
+            .filter(ExportJob.project_id == project.id)
+            .first()
+            is None
+        )
+
     def test_post_unknown_project_404(self, client, auth_headers, test_org):
         with patch("routers.projects.import_export.send_task_safe"):
             resp = client.post(
@@ -138,6 +166,8 @@ class TestCreateExportJob:
     ):
         project = export_project_row
         with patch(
+            "routers.projects.import_export.object_storage.storage_backend", "minio"
+        ), patch(
             "routers.projects.import_export.send_task_safe",
             side_effect=RuntimeError("broker down"),
         ):

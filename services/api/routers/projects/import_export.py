@@ -1056,6 +1056,17 @@ async def create_export_job(
     if not check_project_accessible(db, current_user, project_id, org_context):
         raise HTTPException(status_code=403, detail="Access denied")
 
+    # Async export needs object storage to hand the client a presigned download
+    # URL. With the local backend the worker writes to its own pod's disk, which
+    # the API can't serve cross-pod — so refuse here (409) and let the client
+    # fall back to the synchronous streaming export. This keeps the whole async
+    # path inert until MinIO is enabled (STORAGE_TYPE set).
+    if object_storage.storage_backend == "local":
+        raise HTTPException(
+            status_code=409,
+            detail="Async export unavailable: object storage is not configured.",
+        )
+
     job = ExportJob(
         id=str(uuid.uuid4()),
         project_id=project_id,
