@@ -732,3 +732,102 @@ def test_orchestrator_short_circuits_on_zero_cells():
             )
             return
     raise AssertionError("run_evaluation function not found")
+
+
+def test_finalizer_judges_children_by_produced_rows_not_stale_status():
+    """Regression: a missing-only resume into the SAME EvaluationRun (the
+    supported way to continue a cancelled run) reuses the cancelled
+    attempt's EvaluationJudgeRun — which the cancel left marked 'failed'
+    ('Parent EvaluationRun cancelled') — and grades EVERY cell under that
+    very row. The old finalizer did `if child.status == "failed": continue`,
+    so it stranded that judge_run as failed without ever re-checking the
+    rows it produced, set any_child_completed=False, and flipped the parent
+    to 'failed'/'all judge_runs failed' despite a complete, valid grade.
+    That forced a manual prod status flip (Grundprinzipien run 792a006e,
+    every one of 6365 cells scored cleanly).
+
+    Pin the fix: the finalizer's child loop must NOT branch on a child's
+    (possibly stale) status field. It must count the TaskEvaluation rows
+    each child actually produced and derive completed/failed from that count
+    (rows>0 ⇒ completed; rows==0 ⇒ failed, which still covers the legitimate
+    up-front 'no AI service' failure that writes no rows)."""
+    src = _tasks_source()
+    import ast
+    tree = ast.parse(src)
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.FunctionDef)
+                and node.name == "finalize_evaluation_run"):
+            for sub in ast.walk(node):
+                if (isinstance(sub, ast.For)
+                        and isinstance(sub.target, ast.Name)
+                        and sub.target.id == "child"
+                        and isinstance(sub.iter, ast.Name)
+                        and sub.iter.id == "child_runs"):
+                    loop_src = ast.get_source_segment(src, sub) or ""
+                    # The bug was a read of the child's stale status to decide
+                    # the branch. The fix only *writes* child.status (from the
+                    # row count) — it never *compares* it. Assert no comparison.
+                    assert not re.search(r"child\.status\s*==", loop_src), (
+                        "finalize_evaluation_run must not branch on a child's "
+                        "stale status field — a reused-but-graded judge_run is "
+                        "left 'failed' by the cancel, and an early skip here "
+                        "flips the parent to failed despite valid grades"
+                    )
+                    assert (
+                        "TaskEvaluation.judge_run_id == child.id" in loop_src
+                    ), (
+                        "finalizer must count each child's produced rows "
+                        "(TaskEvaluation.judge_run_id == child.id)"
+                    )
+                    assert "if child_rows > 0:" in loop_src, (
+                        "finalizer must derive completed/failed from the "
+                        "produced-row count, not the stale status field"
+                    )
+                    return
+            raise AssertionError(
+                "`for child in child_runs:` loop not found in "
+                "finalize_evaluation_run"
+            )
+    raise AssertionError("finalize_evaluation_run function not found")
+
+
+def test_judge_run_reuse_revives_terminal_rows_for_resume():
+    """Root-cause companion to the finalizer fix. When a missing-only resume
+    reuses an EvaluationJudgeRun a prior cancel left terminal
+    ('failed'/'cancelled'), the reuse helpers must revive it to 'running'
+    (clear error_message/completed_at, reset started_at) so the in-progress
+    regrade isn't represented by a stale terminal row mid-run. Both judge_run
+    reuse sites must do this, since a resume can dispatch through either:
+      - `_create_judge_run` — the orchestrator (run_evaluation) path
+      - `_get_or_create_judge_run_for_config` — the single-sample /
+        immediate-eval dispatch path
+    Without the revival, the finalizer's row-count reconciliation still
+    rescues the run, but the judge_run sits 'failed' for the whole regrade
+    and the Judges tab / inflight banner misreport it as failed."""
+    src = _tasks_source()
+    import ast
+    tree = ast.parse(src)
+    found = set()
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.FunctionDef) and node.name in (
+                "_create_judge_run", "_get_or_create_judge_run_for_config")):
+            body_src = ast.get_source_segment(src, node) or ""
+            assert re.search(
+                r"existing\.status\s+in\s*\(\s*['\"]failed['\"]\s*,\s*"
+                r"['\"]cancelled['\"]\s*\)",
+                body_src,
+            ), (
+                f"{node.name} must detect a reused terminal judge_run "
+                "(status in failed/cancelled) left behind by a prior cancel"
+            )
+            assert re.search(
+                r"existing\.status\s*=\s*['\"]running['\"]", body_src
+            ), (
+                f"{node.name} must revive a reused terminal judge_run to "
+                "'running' so it reflects the in-progress regrade"
+            )
+            found.add(node.name)
+    missing = {
+        "_create_judge_run", "_get_or_create_judge_run_for_config"
+    } - found
+    assert not missing, f"judge_run reuse helper(s) not found: {missing}"
