@@ -21,6 +21,7 @@ de-core-news-md @ https://github.com/explosion/spacy-models/releases/download/de
 rouge-score>=0.1.2
 sacrebleu>=2.4.0
 jsonschema==4.26.0
+ijson>=3.2.0  # Streaming JSON parser for memory-bounded import worker (issue #158)
 pytest==8.4.2
 pytest-asyncio==0.26.0
 # AI service dependencies
