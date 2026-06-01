@@ -870,7 +870,23 @@ class ObjectStorageService:
             Dict with file information
         """
         if self.storage_backend == "local":
-            # Local storage doesn't support multipart
+            # Local backend spools all parts into one staging file (see
+            # upload_part); completing the upload atomically renames that staging
+            # file to the final key. This keeps the worker's multipart export path
+            # working in dev/test without a real S3 endpoint (issue #158).
+            staging_path = self._local_multipart_staging_path(file_key, upload_id)
+            final_path = os.path.join(self.local_storage_path, file_key)
+            if os.path.exists(staging_path):
+                os.makedirs(os.path.dirname(final_path), exist_ok=True)
+                os.replace(staging_path, final_path)
+                size = os.path.getsize(final_path)
+                return {
+                    "file_key": file_key,
+                    "storage_backend": "local",
+                    "size": size,
+                }
+            # No staging file (legacy callers that never streamed parts) — keep
+            # the previous no-op contract.
             return {"file_key": file_key, "storage_backend": "local"}
 
         try:
@@ -895,6 +911,80 @@ class ObjectStorageService:
         except Exception as e:
             logger.error(f"Failed to complete multipart upload: {e}")
             raise
+
+    def _local_multipart_staging_path(self, file_key: str, upload_id: str) -> str:
+        """Staging path the local backend spools multipart parts into.
+
+        Sits next to the final key (same directory tree) so completing the upload
+        is a same-filesystem ``os.replace`` rather than a cross-device copy.
+        """
+        return os.path.join(
+            self.local_storage_path, f"{file_key}.multipart-{upload_id}"
+        )
+
+    def upload_part(
+        self,
+        file_key: str,
+        upload_id: str,
+        part_number: int,
+        body: bytes,
+    ) -> str:
+        """Upload one part of a multipart upload; returns the part's ETag.
+
+        The worker export task streams the artifact in ~8MB parts (issue #158).
+        On S3/MinIO this is a real ``UploadPart`` call. On the local backend the
+        part is appended to a single staging file (``complete_multipart_upload``
+        then renames it to the final key) — local mode therefore assumes parts
+        are submitted in ascending ``part_number`` order, which the worker does.
+        """
+        if self.storage_backend == "local":
+            staging_path = self._local_multipart_staging_path(file_key, upload_id)
+            os.makedirs(os.path.dirname(staging_path), exist_ok=True)
+            # First part truncates any stale staging file; later parts append.
+            mode = "wb" if part_number <= 1 else "ab"
+            with open(staging_path, mode) as f:
+                f.write(body)
+            # Synthetic ETag — local complete ignores the parts list.
+            return f"local-part-{part_number}"
+
+        try:
+            response = self.s3_client.upload_part(
+                Bucket=self.bucket_name,
+                Key=file_key,
+                UploadId=upload_id,
+                PartNumber=part_number,
+                Body=body,
+            )
+            return response["ETag"]
+        except Exception as e:
+            logger.error(f"Failed to upload part {part_number} for {file_key}: {e}")
+            raise
+
+    def abort_multipart_upload(self, file_key: str, upload_id: str) -> None:
+        """Abort an in-flight multipart upload, discarding any uploaded parts.
+
+        Called on the worker's failure path so a half-streamed export doesn't
+        leave orphaned parts accruing storage cost (S3) or a stale staging file
+        (local). Best-effort: never raises, since it runs inside exception
+        handling.
+        """
+        if self.storage_backend == "local":
+            staging_path = self._local_multipart_staging_path(file_key, upload_id)
+            try:
+                if os.path.exists(staging_path):
+                    os.remove(staging_path)
+            except OSError as e:
+                logger.warning(f"Failed to remove local staging file: {e}")
+            return
+
+        try:
+            self.s3_client.abort_multipart_upload(
+                Bucket=self.bucket_name,
+                Key=file_key,
+                UploadId=upload_id,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to abort multipart upload for {file_key}: {e}")
 
     def health_check(self) -> Dict[str, Any]:
         """

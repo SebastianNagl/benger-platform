@@ -1588,3 +1588,119 @@ class TestPublicEndpointSigning:
         url = service.get_download_url("exports/2026/06/x.json")
         assert url == "http://internal/signed"
         mock_client.generate_presigned_url.assert_called_once()
+
+
+def _make_local_service(tmp_dir):
+    """Create an ObjectStorageService backed by the local filesystem (issue #158).
+
+    STORAGE_TYPE unset → the default-OFF local backend; LOCAL_STORAGE_PATH points
+    at the test's temp dir so multipart staging files stay isolated.
+    """
+    env = {
+        "STORAGE_TYPE": "local",
+        "LOCAL_STORAGE_PATH": tmp_dir,
+        "CDN_ENABLED": "false",
+    }
+    with patch.dict(os.environ, env, clear=False):
+        from services.storage.object_storage import ObjectStorageService
+
+        return ObjectStorageService()
+
+
+class TestMultipartHelpers:
+    """upload_part / abort_multipart_upload + the local staging/rename path (#158)."""
+
+    def test_local_multipart_round_trip_concatenates_parts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = _make_local_service(tmp)
+            key = "exports/proj-1/job-1.json"
+            upload_id = "local-upload"
+
+            service.upload_part(key, upload_id, 1, b"hello ")
+            service.upload_part(key, upload_id, 2, b"world")
+            # Staging file exists before completion; final does not.
+            staging = service._local_multipart_staging_path(key, upload_id)
+            assert os.path.exists(staging)
+            assert not os.path.exists(os.path.join(tmp, key))
+
+            result = service.complete_multipart_upload(key, upload_id, parts=[])
+
+            final_path = os.path.join(tmp, key)
+            assert os.path.exists(final_path)
+            assert not os.path.exists(staging)  # renamed, not copied
+            with open(final_path, "rb") as f:
+                assert f.read() == b"hello world"
+            assert result["file_key"] == key
+            assert result["size"] == len(b"hello world")
+
+    def test_local_first_part_truncates_stale_staging(self):
+        # A new upload reusing the same key must not append onto a stale file.
+        with tempfile.TemporaryDirectory() as tmp:
+            service = _make_local_service(tmp)
+            key = "exports/proj-1/job-1.json"
+            upload_id = "local-upload"
+            staging = service._local_multipart_staging_path(key, upload_id)
+            os.makedirs(os.path.dirname(staging), exist_ok=True)
+            with open(staging, "wb") as f:
+                f.write(b"GARBAGE-FROM-PREVIOUS-RUN")
+
+            service.upload_part(key, upload_id, 1, b"fresh")
+            with open(staging, "rb") as f:
+                assert f.read() == b"fresh"
+
+    def test_local_abort_removes_staging_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = _make_local_service(tmp)
+            key = "exports/proj-1/job-1.json"
+            upload_id = "local-upload"
+            service.upload_part(key, upload_id, 1, b"partial")
+            staging = service._local_multipart_staging_path(key, upload_id)
+            assert os.path.exists(staging)
+
+            service.abort_multipart_upload(key, upload_id)
+            assert not os.path.exists(staging)
+
+    def test_local_abort_is_noop_when_nothing_staged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = _make_local_service(tmp)
+            # Should not raise even though no part was ever uploaded.
+            service.abort_multipart_upload("exports/x.json", "local-upload")
+
+    def test_local_complete_without_staging_keeps_legacy_contract(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = _make_local_service(tmp)
+            result = service.complete_multipart_upload(
+                "exports/never-streamed.json", "local-upload", parts=[]
+            )
+            assert result == {
+                "file_key": "exports/never-streamed.json",
+                "storage_backend": "local",
+            }
+
+    def test_s3_upload_part_calls_boto3_and_returns_etag(self):
+        service, mock_client = _make_s3_service()
+        mock_client.upload_part.return_value = {"ETag": '"abc123"'}
+
+        etag = service.upload_part("exports/x.json", "uid-1", 3, b"chunk-bytes")
+
+        assert etag == '"abc123"'
+        _, kwargs = mock_client.upload_part.call_args
+        assert kwargs["Bucket"] == "test-bucket"
+        assert kwargs["Key"] == "exports/x.json"
+        assert kwargs["UploadId"] == "uid-1"
+        assert kwargs["PartNumber"] == 3
+        assert kwargs["Body"] == b"chunk-bytes"
+
+    def test_s3_abort_calls_boto3(self):
+        service, mock_client = _make_s3_service()
+        service.abort_multipart_upload("exports/x.json", "uid-1")
+        _, kwargs = mock_client.abort_multipart_upload.call_args
+        assert kwargs["Bucket"] == "test-bucket"
+        assert kwargs["Key"] == "exports/x.json"
+        assert kwargs["UploadId"] == "uid-1"
+
+    def test_s3_abort_swallows_errors(self):
+        # abort runs inside the worker's failure handler — it must never raise.
+        service, mock_client = _make_s3_service()
+        mock_client.abort_multipart_upload.side_effect = RuntimeError("boom")
+        service.abort_multipart_upload("exports/x.json", "uid-1")  # no exception
