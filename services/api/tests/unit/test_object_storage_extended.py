@@ -1443,3 +1443,148 @@ class TestUploadFileLocalContentType:
                 metadata = json.load(f)
             assert metadata["custom_key"] == "custom_val"
             assert metadata["original_filename"] == "test.txt"
+
+
+# ===========================================================================
+# Env-var reconciliation + public-endpoint presigned signing (issue #158)
+# ===========================================================================
+
+class TestEnvVarReconciliation:
+    """STORAGE_TYPE / S3_ACCESS_KEY / S3_SECRET_KEY are the canonical names
+    (matching storage_config.py + the Helm values); the legacy STORAGE_BACKEND /
+    S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY forms remain as fallbacks."""
+
+    def test_storage_type_canonical_name(self):
+        # Inline env with STORAGE_TYPE only (no STORAGE_BACKEND present at all).
+        mock_client = MagicMock()
+        mock_client.head_bucket.return_value = {}
+        mock_boto3 = MagicMock()
+        mock_boto3.client.return_value = mock_client
+        env = {
+            "STORAGE_TYPE": "s3",
+            "S3_ENDPOINT_URL": "https://s3.example.com",
+            "S3_ACCESS_KEY": "k",
+            "S3_SECRET_KEY": "s",
+            "S3_BUCKET_NAME": "b",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            with patch("services.storage.object_storage.BOTO3_AVAILABLE", True), \
+                 patch("services.storage.object_storage.boto3", mock_boto3), \
+                 patch("services.storage.object_storage.Config", MagicMock()):
+                from services.storage.object_storage import ObjectStorageService
+                service = ObjectStorageService()
+        assert service.storage_backend == "s3"
+
+    def test_storage_backend_legacy_alias_still_works(self):
+        # Helper sets STORAGE_BACKEND=s3 and no STORAGE_TYPE.
+        service, _ = _make_s3_service()
+        assert service.storage_backend == "s3"
+
+    def test_storage_type_takes_precedence_over_legacy(self):
+        # Helper already sets STORAGE_BACKEND=s3; STORAGE_TYPE=minio must win.
+        service, _ = _make_s3_service(env_overrides={"STORAGE_TYPE": "minio"})
+        assert service.storage_backend == "minio"
+
+    def test_canonical_credentials_take_precedence(self):
+        # Helper sets the legacy *_ID / *_ACCESS_KEY names; canonical names win.
+        service, _ = _make_s3_service(
+            env_overrides={
+                "S3_ACCESS_KEY": "canonical-key",
+                "S3_SECRET_KEY": "canonical-secret",
+            }
+        )
+        assert service.access_key == "canonical-key"
+        assert service.secret_key == "canonical-secret"
+
+    def test_legacy_credentials_fallback(self):
+        # Helper sets the *_ID / *_ACCESS_KEY (legacy) names.
+        service, _ = _make_s3_service()
+        assert service.access_key == "test-key"
+        assert service.secret_key == "test-secret"
+
+    def test_use_ssl_defaults_true(self):
+        service, _ = _make_s3_service()
+        assert service.use_ssl is True
+
+    def test_use_ssl_false_parsed_and_passed_to_client(self):
+        mock_client = MagicMock()
+        mock_client.head_bucket.return_value = {}
+        mock_boto3 = MagicMock()
+        mock_boto3.client.return_value = mock_client
+
+        env = {
+            "STORAGE_TYPE": "minio",
+            "S3_ENDPOINT_URL": "http://benger-minio:9000",
+            "S3_ACCESS_KEY": "k",
+            "S3_SECRET_KEY": "s",
+            "S3_USE_SSL": "false",
+            "S3_BUCKET_NAME": "b",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            with patch("services.storage.object_storage.BOTO3_AVAILABLE", True), \
+                 patch("services.storage.object_storage.boto3", mock_boto3), \
+                 patch("services.storage.object_storage.Config", MagicMock()):
+                from services.storage.object_storage import ObjectStorageService
+                service = ObjectStorageService()
+
+        assert service.use_ssl is False
+        # boto3.client called with use_ssl=False for the internal client.
+        _, kwargs = mock_boto3.client.call_args_list[0]
+        assert kwargs["use_ssl"] is False
+
+
+class TestPublicEndpointSigning:
+    """When STORAGE_BASE_URL is set, presigned download URLs must be signed by a
+    second client bound to the public endpoint (SigV4 binds the request host)."""
+
+    def test_public_client_built_and_signs_download(self):
+        internal_client = MagicMock()
+        internal_client.head_bucket.return_value = {}
+        public_client = MagicMock()
+        public_client.generate_presigned_url.return_value = (
+            "https://storage.what-a-benger.net/signed"
+        )
+        internal_client.generate_presigned_url.return_value = (
+            "http://benger-minio:9000/signed"
+        )
+
+        mock_boto3 = MagicMock()
+        # First boto3.client() → internal, second → public-endpoint client.
+        mock_boto3.client.side_effect = [internal_client, public_client]
+
+        env = {
+            "STORAGE_TYPE": "minio",
+            "S3_ENDPOINT_URL": "http://benger-minio:9000",
+            "S3_ACCESS_KEY": "k",
+            "S3_SECRET_KEY": "s",
+            "S3_BUCKET_NAME": "benger-exports",
+            "STORAGE_BASE_URL": "https://storage.what-a-benger.net",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            with patch("services.storage.object_storage.BOTO3_AVAILABLE", True), \
+                 patch("services.storage.object_storage.boto3", mock_boto3), \
+                 patch("services.storage.object_storage.Config", MagicMock()):
+                from services.storage.object_storage import ObjectStorageService
+                service = ObjectStorageService()
+
+        # A public client distinct from the internal one was built.
+        assert service.public_s3_client is public_client
+        assert service.s3_client is internal_client
+        # Second boto3.client call targets the public endpoint.
+        _, public_kwargs = mock_boto3.client.call_args_list[1]
+        assert public_kwargs["endpoint_url"] == "https://storage.what-a-benger.net"
+
+        url = service.get_download_url("exports/2026/06/x.json")
+        assert url == "https://storage.what-a-benger.net/signed"
+        public_client.generate_presigned_url.assert_called_once()
+        internal_client.generate_presigned_url.assert_not_called()
+
+    def test_no_public_base_url_signs_with_internal_client(self):
+        # Helper sets no STORAGE_BASE_URL → public client falls back to internal.
+        service, mock_client = _make_s3_service()
+        mock_client.generate_presigned_url.return_value = "http://internal/signed"
+        assert service.public_s3_client is mock_client
+
+        url = service.get_download_url("exports/2026/06/x.json")
+        assert url == "http://internal/signed"
+        mock_client.generate_presigned_url.assert_called_once()
