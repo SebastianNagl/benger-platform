@@ -11,6 +11,16 @@
 
 import { NextRequest } from 'next/server'
 import { GET, POST } from '../route'
+import { fetch as undiciFetch } from 'undici'
+
+// Export/download paths in the proxy fetch through undici's own `fetch` (with a
+// no-body-timeout dispatcher), not Node's global fetch. Mock it and delegate to
+// the same global-fetch mock queue so a single `mockResolvedValueOnce(upstream)`
+// per test covers whichever implementation the path selects.
+jest.mock('undici', () => ({
+  Agent: jest.fn(),
+  fetch: jest.fn(),
+}))
 
 global.fetch = jest.fn()
 
@@ -54,6 +64,11 @@ describe('catch-all proxy: streaming attachment responses (GH #68)', () => {
   beforeEach(() => {
     mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
     mockFetch.mockClear()
+    const mockUndiciFetch = undiciFetch as unknown as jest.Mock
+    mockUndiciFetch.mockReset()
+    mockUndiciFetch.mockImplementation((...args: unknown[]) =>
+      (mockFetch as unknown as (...a: unknown[]) => unknown)(...args)
+    )
     jest.spyOn(console, 'error').mockImplementation()
   })
 
