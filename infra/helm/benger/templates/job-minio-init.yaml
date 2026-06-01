@@ -1,0 +1,86 @@
+{{- if .Values.minio.enabled }}
+# One-shot bucket + lifecycle bootstrap for MinIO (issue #158).
+#
+# Runs as a post-install/post-upgrade hook (after the MinIO Deployment is
+# applied), waits for the server to come up, then creates the exports bucket and
+# imports two lifecycle rules: expire finished export artifacts, and abort
+# dangling multipart uploads. Both guard the shared node disk against unbounded
+# growth. Idempotent: `mc mb --ignore-existing` + `mc ilm import` re-apply
+# cleanly on every upgrade.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-minio-init
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}-minio-init
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: object-storage-init
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    # Run after the MinIO Deployment/Service exist (positive weight = later).
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 5
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Release.Name }}-minio-init
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: object-storage-init
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: "{{ .Values.minio.mcImage.repository }}@{{ .Values.minio.mcImage.digest }}"
+          imagePullPolicy: {{ .Values.minio.mcImage.pullPolicy | default "IfNotPresent" }}
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.minio.credentialsSecret | default "benger-minio-credentials" }}
+                  key: {{ .Values.minio.accessKeySecretKey | default "access-key" }}
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.minio.credentialsSecret | default "benger-minio-credentials" }}
+                  key: {{ .Values.minio.secretKeySecretKey | default "secret-key" }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              ENDPOINT="{{ .Values.minio.internalEndpoint | default (printf "http://%s-minio:9000" .Release.Name) }}"
+              BUCKET="{{ .Values.minio.bucket | default "benger-exports" }}"
+              echo "Waiting for MinIO at $ENDPOINT ..."
+              i=0
+              while [ "$i" -lt 60 ]; do
+                if mc alias set local "$ENDPOINT" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1 && mc ready local >/dev/null 2>&1; then
+                  echo "MinIO is ready."
+                  break
+                fi
+                i=$((i + 1))
+                echo "  ... not ready yet ($i)"
+                sleep 3
+              done
+              mc mb --ignore-existing "local/$BUCKET"
+              echo "Applying lifecycle rules (expire {{ .Values.minio.expiryDays | default 7 }}d, abort incomplete MPU {{ .Values.minio.abortIncompleteMultipartDays | default 1 }}d) ..."
+              echo '{"Rules":[{"ID":"expire-exports","Status":"Enabled","Filter":{},"Expiration":{"Days":{{ .Values.minio.expiryDays | default 7 }}}},{"ID":"abort-incomplete-multipart","Status":"Enabled","Filter":{},"AbortIncompleteMultipartUpload":{"DaysAfterInitiation":{{ .Values.minio.abortIncompleteMultipartDays | default 1 }}}}]}' | mc ilm import "local/$BUCKET"
+              echo "MinIO bucket + lifecycle initialized."
+              mc ilm rule ls "local/$BUCKET" || true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+{{- end }}
