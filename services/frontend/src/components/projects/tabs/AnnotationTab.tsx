@@ -42,7 +42,10 @@ import {
   formatNestedCellValue,
   getTaskNestedValue,
 } from '@/utils/nestedDataColumnHelpers'
-import { canAccessProjectData } from '@/utils/permissions'
+import {
+  canAccessProjectData,
+  getEffectiveProjectRole,
+} from '@/utils/permissions'
 import { labelStudioTaskToApi } from '@/utils/taskTypeAdapter'
 import {
   CheckIcon,
@@ -50,6 +53,7 @@ import {
   DocumentMagnifyingGlassIcon,
   EyeIcon,
   MagnifyingGlassIcon,
+  PencilSquareIcon,
   PlayIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
@@ -155,6 +159,14 @@ const defaultColumns: TableColumn[] = [
   {
     id: 'view_data',
     label: 'annotationTab.columns.view',
+    visible: true,
+    sortable: false,
+    width: 'w-16',
+    type: 'system',
+  },
+  {
+    id: 'edit_data',
+    label: 'annotationTab.columns.edit',
     visible: true,
     sortable: false,
     width: 'w-16',
@@ -640,66 +652,134 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
 
     const progressId = `export-tasks-${Date.now()}`
 
-    try {
-      const { ids: taskIds, truncated } = await projectsAPI.getTaskIds(
-        projectId,
-        {
-          search: debouncedSearch || undefined,
-          dateFrom: filterDateRange.start || undefined,
-          dateTo: filterDateRange.end || undefined,
-          onlyLabeled: filterStatus === 'completed' ? true : undefined,
-          onlyUnlabeled: filterStatus === 'incomplete' ? true : undefined,
-        }
-      )
+    // A full-project export (no active filters) goes through the async job
+    // flow: a worker streams the export to object storage and the browser
+    // downloads it via a presigned URL. This moves the bulk data plane off the
+    // request path, so it can't OOM the API or truncate a multi-GB download the
+    // way the synchronous stream could (e.g. the 4.5 GB ZJS project). Filtered
+    // subsets stay on the synchronous path below — the async endpoint exports
+    // the whole project, not an arbitrary task subset.
+    const isFullExport =
+      !debouncedSearch &&
+      !filterDateRange.start &&
+      !filterDateRange.end &&
+      filterStatus === 'all'
 
-      if (truncated) {
+    // Synchronous streaming export of the current task set. Used directly for
+    // filtered subsets, and as the transparent fallback when async export is
+    // unavailable (object storage not configured → the create endpoint 409s).
+    const runStreamingExport = async () => {
+      try {
+        const { ids: taskIds, truncated } = await projectsAPI.getTaskIds(
+          projectId,
+          {
+            search: debouncedSearch || undefined,
+            dateFrom: filterDateRange.start || undefined,
+            dateTo: filterDateRange.end || undefined,
+            onlyLabeled: filterStatus === 'completed' ? true : undefined,
+            onlyUnlabeled: filterStatus === 'incomplete' ? true : undefined,
+          }
+        )
+
+        if (truncated) {
+          addToast(
+            `Export capped at ${taskIds.length} tasks; refine filters to export the rest.`,
+            'warning'
+          )
+        }
+
+        const suggestedName = `${currentProject?.title || 'project'}-tasks-${new Date().toISOString().split('T')[0]}.json`
+
+        // Stream straight to disk with completeness validation rather than
+        // buffering the whole body via blob(); for the 4.5 GB ZJS project the
+        // old path was severed mid-stream and saved a truncated, invalid file.
+        await projectsAPI.streamExportTasks(projectId, taskIds, suggestedName, {
+          onStart: () =>
+            // Indeterminate — no real per-row progress signal from the backend
+            // stream; the previous fake 30%→70%→100% was misleading.
+            startProgress(progressId, t('annotationTab.buttons.export'), {
+              sublabel: t('annotationTab.messages.exportingSelected', {
+                count: taskIds.length,
+              }),
+              indeterminate: true,
+            }),
+        })
+
+        completeProgress(progressId, 'success')
         addToast(
-          `Export capped at ${taskIds.length} tasks; refine filters to export the rest.`,
-          'warning'
+          t('annotationTab.messages.exportedTasks', {
+            count: taskIds.length,
+          }),
+          'success'
+        )
+      } catch (error) {
+        // User dismissed the save dialog before any work started — not an error.
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return
+        }
+        logger.error('Failed to export tasks:', error)
+        completeProgress(progressId, 'error')
+        addToast(
+          t('annotationTab.messages.exportFailed', {
+            error:
+              error instanceof TruncatedExportError
+                ? error.message
+                : 'Unknown error',
+          }),
+          'error'
         )
       }
-
-      const suggestedName = `${currentProject?.title || 'project'}-tasks-${new Date().toISOString().split('T')[0]}.json`
-
-      // Stream straight to disk with completeness validation rather than
-      // buffering the whole body via blob(); for the 4.5 GB ZJS project the
-      // old path was severed mid-stream and saved a truncated, invalid file.
-      await projectsAPI.streamExportTasks(projectId, taskIds, suggestedName, {
-        onStart: () =>
-          // Indeterminate — no real per-row progress signal from the backend
-          // stream; the previous fake 30%→70%→100% was misleading.
-          startProgress(progressId, t('annotationTab.buttons.export'), {
-            sublabel: t('annotationTab.messages.exportingSelected', {
-              count: taskIds.length,
-            }),
-            indeterminate: true,
-          }),
-      })
-
-      completeProgress(progressId, 'success')
-      addToast(
-        t('annotationTab.messages.exportedTasks', {
-          count: taskIds.length,
-        }),
-        'success'
-      )
-    } catch (error) {
-      // User dismissed the save dialog before any work started — not an error.
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        return
-      }
-      logger.error('Failed to export tasks:', error)
-      completeProgress(progressId, 'error')
-      addToast(
-        t('annotationTab.messages.exportFailed', {
-          error:
-            error instanceof TruncatedExportError
-              ? error.message
-              : 'Unknown error',
-        }),
-        'error'
-      )
     }
+
+    if (isFullExport) {
+      try {
+        startProgress(progressId, t('annotationTab.buttons.export'), {
+          sublabel: t('annotationTab.messages.exportingSelected', {
+            count: totalTasks,
+          }),
+          indeterminate: true,
+        })
+
+        await projectsAPI.runProjectExportJob(projectId, 'json', {
+          onStatus: (status) => {
+            // The worker reports bytes-so-far but the total size is unknown, so
+            // we keep the bar indeterminate and just reflect the job state.
+            if (status.status === 'running' || status.status === 'pending') {
+              updateProgress(
+                progressId,
+                0,
+                t('annotationTab.messages.exporting')
+              )
+            }
+          },
+        })
+
+        completeProgress(progressId, 'success')
+        addToast(
+          t('annotationTab.messages.exportedTasks', { count: totalTasks }),
+          'success'
+        )
+      } catch (error) {
+        // 409 = async export unavailable (object storage not configured). Fall
+        // back to the synchronous streaming path so export still works while
+        // the MinIO infra is OFF (default until staging-validated promotion).
+        if ((error as any)?.response?.status === 409) {
+          await runStreamingExport()
+          return
+        }
+        logger.error('Failed to export project:', error)
+        completeProgress(progressId, 'error')
+        addToast(
+          t('annotationTab.messages.exportFailed', {
+            error: (error as any)?.message || 'Unknown error',
+          }),
+          'error'
+        )
+      }
+      return
+    }
+
+    await runStreamingExport()
   }
 
   const handleBulkArchive = async () => {
@@ -758,6 +838,13 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
   // Modal state for viewing complete task data
   const [viewDataTask, setViewDataTask] = useState<Task | null>(null)
   const [showDataModal, setShowDataModal] = useState(false)
+  const [dataModalMode, setDataModalMode] = useState<'view' | 'edit'>('view')
+
+  // Per-project edit gate: superadmins, the project creator, and ORG_ADMINs of
+  // the project's org. The backend re-checks and returns 403 if not allowed.
+  const canEditTasks =
+    getEffectiveProjectRole(user, currentProject ?? null, user?.role ?? null) ===
+    'ORG_ADMIN'
 
   // State for annotation comparison modal
   const [selectedTaskForComparison, setSelectedTaskForComparison] =
@@ -837,6 +924,7 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
       // Find insertion points
       const assignedIndex = baseColumns.findIndex((c) => c.id === 'assigned')
       const viewDataIndex = baseColumns.findIndex((c) => c.id === 'view_data')
+      const editDataIndex = baseColumns.findIndex((c) => c.id === 'edit_data')
 
       let newColumns: TableColumn[] = []
 
@@ -858,9 +946,12 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
         // Add data columns
         newColumns = [...newColumns, ...dataColumnDefs]
 
-        // Add view_data button at the end
+        // Add view_data then edit_data buttons at the end
         if (viewDataIndex > -1) {
           newColumns = [...newColumns, baseColumns[viewDataIndex]]
+        }
+        if (editDataIndex > -1) {
+          newColumns = [...newColumns, baseColumns[editDataIndex]]
         }
       } else {
         // Fallback: just append in order
@@ -883,6 +974,15 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
   const handleViewTaskData = (task: LabelStudioTask) => {
     const apiTask = labelStudioTaskToApi(task)
     setViewDataTask(apiTask)
+    setDataModalMode('view')
+    setShowDataModal(true)
+  }
+
+  // Handle editing complete task data (opens the same modal in edit mode)
+  const handleEditTaskData = (task: LabelStudioTask) => {
+    const apiTask = labelStudioTaskToApi(task)
+    setViewDataTask(apiTask)
+    setDataModalMode('edit')
     setShowDataModal(true)
   }
 
@@ -1200,7 +1300,11 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
                 <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800">
                   <tr>
                     {columns
-                      .filter((col) => col.visible)
+                      .filter(
+                        (col) =>
+                          col.visible &&
+                          (col.id !== 'edit_data' || canEditTasks)
+                      )
                       .map((column) => {
                         // Handle dynamic data columns
                         if (column.id.startsWith('data_')) {
@@ -1298,7 +1402,11 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
                         }}
                       >
                         {columns
-                          .filter((col) => col.visible)
+                          .filter(
+                            (col) =>
+                              col.visible &&
+                              (col.id !== 'edit_data' || canEditTasks)
+                          )
                           .map((column) => {
                             // Handle dynamic metadata columns
                             if (column.id.startsWith('meta_')) {
@@ -1556,6 +1664,24 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
                                     </button>
                                   </td>
                                 )
+                              case 'edit_data':
+                                return (
+                                  <td
+                                    key={column.id}
+                                    className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {canEditTasks && (
+                                      <button
+                                        onClick={() => handleEditTaskData(task)}
+                                        className="rounded p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                                        title={t('annotation.editTaskData')}
+                                      >
+                                        <PencilSquareIcon className="h-4 w-4" />
+                                      </button>
+                                    )}
+                                  </td>
+                                )
                               case 'reviewers':
                                 return (
                                   <td
@@ -1676,7 +1802,7 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
         />
       )}
 
-      {/* Task Data View Modal */}
+      {/* Task Data View / Edit Modal */}
       <TaskDataViewModal
         task={viewDataTask}
         isOpen={showDataModal}
@@ -1684,6 +1810,11 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
           setShowDataModal(false)
           setViewDataTask(null)
         }}
+        projectId={projectId}
+        taskId={viewDataTask?.id ? String(viewDataTask.id) : undefined}
+        initialMode={dataModalMode}
+        canEdit={canEditTasks}
+        onSaved={() => reloadCurrentPage()}
       />
 
       {/* Task Annotation Comparison Modal */}
