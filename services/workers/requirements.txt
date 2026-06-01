@@ -45,7 +45,7 @@ POT>=0.9.6  # Earth Mover Distance (works on ARM64, replaces pyemd)
 statsmodels>=0.14.0
 # Testing dependencies
 psutil>=6.1.0
-fakeredis>=2.20.0
+fakeredis>=2.36.0
 memory-profiler>=0.61.0
 pytest-cov>=4.1.0
 pytest-timeout>=2.3.1  # Prevent tests from hanging indefinitely
