@@ -2791,6 +2791,18 @@ def run_evaluation(
                     EvaluationJudgeRun.run_index == run_index,
                 ).first()
                 if existing:
+                    # Reusing a judge_run a prior cancel left terminal
+                    # (status='failed'/'cancelled') — e.g. a missing-only resume
+                    # into the same EvaluationRun. Revive it to 'running' so it
+                    # reflects the in-progress regrade and the finalizer
+                    # reconciles it from produced rows rather than carrying a
+                    # stale terminal status into this run.
+                    if existing.status in ("failed", "cancelled"):
+                        existing.status = "running"
+                        existing.error_message = None
+                        existing.completed_at = None
+                        existing.started_at = datetime.now()
+                        db.commit()
                     _judge_run_cache[cache_key] = existing.id
                     return existing.id
                 jr_id = str(_uuid_judge.uuid4())
@@ -3591,6 +3603,15 @@ def run_single_sample_evaluation(
                 EvaluationJudgeRun.run_index == 0,
             ).first()
             if existing:
+                # See _create_judge_run: revive a judge_run a prior cancel left
+                # terminal so a resume regrades into a 'running' row, not a stale
+                # 'failed'/'cancelled' one the finalizer would misread.
+                if existing.status in ("failed", "cancelled"):
+                    existing.status = "running"
+                    existing.error_message = None
+                    existing.completed_at = None
+                    existing.started_at = datetime.now()
+                    db.commit()
                 _dispatch_judge_run_cache[cache_key] = existing.id
                 per_config_judge_run_id[cid] = existing.id
                 return existing.id
@@ -5761,9 +5782,18 @@ def finalize_evaluation_run(
         any_child_failed = False
         any_child_completed = False
         for child in child_runs:
-            if child.status == "failed":
-                any_child_failed = True
-                continue
+            # Derive each judge_run's terminal status from the rows it actually
+            # produced, never from its current status field — that field can be
+            # stale. A missing-only resume into the SAME EvaluationRun (the
+            # supported way to continue a cancelled run) reuses the cancelled
+            # attempt's judge_run, which the cancel left marked 'failed'. The
+            # resume then grades every cell under that very row. An early skip on
+            # status=='failed' here would strand it as failed and flip the whole
+            # parent to 'failed'/'all judge_runs failed' despite a complete,
+            # valid grade — which is exactly the bug that forced a manual status
+            # fix. Row count is authoritative: rows>0 means it graded; rows==0
+            # means it produced nothing (covers the legitimate up-front "no AI
+            # service" failure, which never writes any rows).
             child_rows = db.query(TaskEvaluation).filter(
                 TaskEvaluation.judge_run_id == child.id
             ).count()
@@ -5771,6 +5801,7 @@ def finalize_evaluation_run(
             child.completed_at = _dt.now()
             if child_rows > 0:
                 child.status = "completed"
+                child.error_message = None
                 any_child_completed = True
             else:
                 child.status = "failed"
