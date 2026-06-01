@@ -40,7 +40,7 @@ moverscore>=1.0.3
 # ARM64-compatible alternatives
 onnxruntime>=1.25.1  # Native ARM64 support
 optimum[onnxruntime]>=1.21.0  # HuggingFace ONNX export/inference
-POT>=0.9.6  # Earth Mover Distance (works on ARM64, replaces pyemd)
+POT>=0.9.6.post1  # Earth Mover Distance (works on ARM64, replaces pyemd)
 # Statistics
 statsmodels>=0.14.0
 # Testing dependencies
