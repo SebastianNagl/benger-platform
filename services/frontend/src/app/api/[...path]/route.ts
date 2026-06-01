@@ -6,6 +6,45 @@ import { getInternalApiUrl, getExternalHost } from '@/lib/utils/apiUrl'
 // Development debugging
 const isDevelopment = process.env.NODE_ENV === 'development'
 
+// Node's default fetch dispatcher imposes a 5-minute `bodyTimeout`: if no body
+// bytes are read from the upstream socket for 300s it aborts with
+// UND_ERR_BODY_TIMEOUT. For a multi-GB project export (the ZJS dataset is
+// ~4.5 GB) the browser pulls the streamed body slowly, backpressure stalls the
+// upstream read past 5 minutes, and the download is severed mid-stream — saved
+// as a silently-truncated file before the export-completeness fix, now surfaced
+// as a TruncatedExportError. A reverse proxy must not cap how long a legitimate
+// download streams, so export/download paths fetch through an undici dispatcher
+// with the body timeout disabled. `headersTimeout` is left at its default so a
+// dead upstream still fails fast. Scoped to export paths only — the 99% CRUD
+// path keeps the unchanged global fetch.
+//
+// undici must be passed to its OWN `fetch`, not Node's global fetch: the global
+// fetch's bundled undici rejects a dispatcher built by the npm `undici` package
+// ("invalid onError method" — divergent handler interfaces). It is loaded
+// lazily because undici's modules reference `ReadableStream` at import time,
+// which is absent in the jsdom test environment; deferring the import keeps
+// this route module loadable there and only pulls undici in when an export is
+// actually proxied (always the Node runtime, where ReadableStream exists).
+type UndiciModule = typeof import('undici')
+let exportFetcher: Promise<{
+  fetch: UndiciModule['fetch']
+  dispatcher: InstanceType<UndiciModule['Agent']>
+}> | null = null
+
+function getExportFetcher() {
+  if (!exportFetcher) {
+    exportFetcher = import('undici').then(({ Agent, fetch }) => ({
+      fetch,
+      dispatcher: new Agent({ bodyTimeout: 0 }),
+    }))
+  }
+  return exportFetcher
+}
+
+function isLongLivedDownloadPath(path: string): boolean {
+  return path.includes('export')
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
@@ -181,12 +220,28 @@ async function proxyRequest(
 
     // `duplex: 'half'` is required by undici (Node ≥ 18) whenever the body
     // is a ReadableStream. Buffered ArrayBuffer bodies must NOT pass it.
-    const response = await fetch(url, {
+    const fetchInit = {
       method,
       headers,
       body,
       ...(shouldStream && body ? { duplex: 'half' } : {}),
-    } as RequestInit & { duplex?: 'half' })
+    } as RequestInit & { duplex?: 'half' }
+
+    // Export paths go through undici's own fetch + no-body-timeout dispatcher
+    // (see getExportFetcher); the 99% CRUD path keeps Node's global fetch. Both
+    // return spec Responses, so downstream handling is identical. undici's
+    // `RequestInit` and the DOM lib's diverge on the `body` ReadableStream type,
+    // so the init is cast to the type undici's fetch expects.
+    let response: Response
+    if (isLongLivedDownloadPath(path)) {
+      const { fetch: undiciFetch, dispatcher } = await getExportFetcher()
+      response = (await undiciFetch(url, {
+        ...fetchInit,
+        dispatcher,
+      } as unknown as Parameters<UndiciModule['fetch']>[1])) as unknown as Response
+    } else {
+      response = await fetch(url, fetchInit)
+    }
 
     logger.debug(`✅ API response received:`, {
       status: response.status,
