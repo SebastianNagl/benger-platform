@@ -464,8 +464,14 @@ minio:
   secretKeySecretKey: secret-key
   # Object lifecycle. The PVC shares the node's single physical disk with
   # Postgres/WAL/backups, so disk pressure is the real risk: expire finished
-  # export artifacts and abort dangling multipart uploads to cap growth.
+  # export artifacts to cap growth.
   expiryDays: 7
+  # NOTE: not currently applied. The pinned MinIO release (RELEASE.2025-09-07)
+  # rejects an AbortIncompleteMultipartUpload lifecycle action on
+  # PutBucketLifecycle (InvalidArgument, verified via both mc and boto3), so the
+  # minio-init job ships expiry-only. The export worker aborts its own multipart
+  # upload on failure (Phase 2d), leaving only hard-kill orphans — a bounded
+  # edge case. Kept here so the rule can be re-enabled if MinIO restores support.
   abortIncompleteMultipartDays: 1
   persistence:
     size: 20Gi

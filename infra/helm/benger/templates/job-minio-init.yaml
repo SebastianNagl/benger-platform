@@ -3,10 +3,17 @@
 #
 # Runs as a post-install/post-upgrade hook (after the MinIO Deployment is
 # applied), waits for the server to come up, then creates the exports bucket and
-# imports two lifecycle rules: expire finished export artifacts, and abort
-# dangling multipart uploads. Both guard the shared node disk against unbounded
-# growth. Idempotent: `mc mb --ignore-existing` + `mc ilm import` re-apply
-# cleanly on every upgrade.
+# imports the export-expiry lifecycle rule that guards the shared node disk
+# against unbounded growth. Idempotent: `mc mb --ignore-existing` + `mc ilm
+# import` re-apply cleanly on every upgrade.
+#
+# NOTE: We deliberately do NOT set an AbortIncompleteMultipartUpload lifecycle
+# rule. The pinned MinIO release (RELEASE.2025-09-07) rejects that action on
+# PutBucketLifecycle with InvalidArgument regardless of client (verified against
+# both mc and boto3). The export worker already calls abort_multipart_upload()
+# on its failure path (Phase 2d), so orphaned parts only survive a hard-kill
+# (OOM/SIGKILL) of the worker mid-upload — a bounded, minor storage-cost edge
+# case. Revisit if a future MinIO release restores the action.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -72,8 +79,8 @@ spec:
                 sleep 3
               done
               mc mb --ignore-existing "local/$BUCKET"
-              echo "Applying lifecycle rules (expire {{ .Values.minio.expiryDays | default 7 }}d, abort incomplete MPU {{ .Values.minio.abortIncompleteMultipartDays | default 1 }}d) ..."
-              echo '{"Rules":[{"ID":"expire-exports","Status":"Enabled","Filter":{},"Expiration":{"Days":{{ .Values.minio.expiryDays | default 7 }}}},{"ID":"abort-incomplete-multipart","Status":"Enabled","Filter":{},"AbortIncompleteMultipartUpload":{"DaysAfterInitiation":{{ .Values.minio.abortIncompleteMultipartDays | default 1 }}}}]}' | mc ilm import "local/$BUCKET"
+              echo "Applying lifecycle rule (expire {{ .Values.minio.expiryDays | default 7 }}d) ..."
+              echo '{"Rules":[{"ID":"expire-exports","Status":"Enabled","Filter":{},"Expiration":{"Days":{{ .Values.minio.expiryDays | default 7 }}}}]}' | mc ilm import "local/$BUCKET"
               echo "MinIO bucket + lifecycle initialized."
               mc ilm rule ls "local/$BUCKET" || true
           resources:
