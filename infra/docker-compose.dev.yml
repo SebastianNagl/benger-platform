@@ -29,6 +29,9 @@ services:
       "--reload-delay", "3",
       "--timeout-graceful-shutdown", "3"
     ]
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
     volumes:
       # Override to read-write for development hot reload
       - ../services/api:/app:rw
@@ -38,7 +41,18 @@ services:
       ENVIRONMENT: development
       PYTHONUNBUFFERED: 1
       PYTHONDONTWRITEBYTECODE: 1  # Prevent .pyc files from triggering reloads
-      
+      # Object storage (MinIO) — async export/import (#158). Uploads use the
+      # internal endpoint; browser-bound presigned download URLs are signed for
+      # STORAGE_BASE_URL, the host the browser actually reaches.
+      STORAGE_TYPE: minio
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-bengerdev}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-bengerdevsecret}
+      S3_BUCKET_NAME: benger-exports
+      S3_REGION: us-east-1
+      S3_USE_SSL: "false"
+      STORAGE_BASE_URL: http://localhost:9000
+
   # Frontend Development Configuration  
   frontend-dev:
     build:
@@ -106,14 +120,99 @@ services:
 
   # Worker Development Configuration - Volume mount for source code
   worker:
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
     volumes:
       - ../services/workers:/app:rw
       - ../services/shared:/shared:rw
     environment:
       LOG_LEVEL: DEBUG
       ENVIRONMENT: development
+      # Object storage (MinIO) — the worker streams the multipart upload (#158).
+      STORAGE_TYPE: minio
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-bengerdev}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-bengerdevsecret}
+      S3_BUCKET_NAME: benger-exports
+      S3_REGION: us-east-1
+      S3_USE_SSL: "false"
+      STORAGE_BASE_URL: http://localhost:9000
 
   # Disable production frontend in development to avoid conflicts
   frontend:
     deploy:
       replicas: 0
+
+  # MinIO — S3-compatible object storage for async export/import (#158).
+  # Mirrors the prod Helm deployment (same digest-pinned images, same bucket +
+  # lifecycle rules). Internal S3 endpoint is minio:9000 (uploads); the browser
+  # reaches presigned download URLs via the published localhost:9000.
+  minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e  # RELEASE.2025-09-07T16-13-09Z
+    hostname: minio
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports:
+      - "9000:9000"  # S3 API — published so the browser can fetch presigned URLs
+      - "9001:9001"  # Web console (http://localhost:9001)
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-bengerdev}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-bengerdevsecret}
+      # Public host the browser uses; SigV4 binds the host of presigned URLs.
+      MINIO_SERVER_URL: http://localhost:9000
+    volumes:
+      - minio-data:/data
+    networks:
+      - benger-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  # One-shot bucket + lifecycle bootstrap (mirrors the prod job-minio-init hook).
+  # Waits for the server, creates the exports bucket, imports the 7-day export
+  # expiry rule. Idempotent on re-run (mc ilm import replaces the whole config).
+  #
+  # NOTE: We deliberately do NOT set an AbortIncompleteMultipartUpload lifecycle
+  # rule. The pinned MinIO release (RELEASE.2025-09-07) rejects that action on
+  # PutBucketLifecycle with InvalidArgument regardless of client (verified
+  # against both mc and boto3). The export worker already calls
+  # abort_multipart_upload() on its failure path (#158, Phase 2d), so orphaned
+  # parts only survive a hard-kill (OOM/SIGKILL) of the worker mid-upload — a
+  # bounded, minor storage-cost edge case. Revisit if MinIO restores the action.
+  minio-init:
+    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727  # RELEASE.2025-08-13T08-35-41Z
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-bengerdev}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-bengerdevsecret}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        echo "Waiting for MinIO ..."
+        i=0
+        while [ "$$i" -lt 60 ]; do
+          if mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null 2>&1 && mc ready local >/dev/null 2>&1; then
+            echo "MinIO is ready."
+            break
+          fi
+          i=$$((i + 1))
+          echo "  ... not ready yet ($$i)"
+          sleep 2
+        done
+        mc mb --ignore-existing local/benger-exports
+        echo '{"Rules":[{"ID":"expire-exports","Status":"Enabled","Filter":{},"Expiration":{"Days":7}}]}' | mc ilm import local/benger-exports
+        echo "MinIO bucket + lifecycle initialized."
+        mc ilm rule ls local/benger-exports || true
+    networks:
+      - benger-network
+
+volumes:
+  minio-data:
+    driver: local
