@@ -37,6 +37,7 @@ from typing import Iterable, Iterator, Optional
 from sqlalchemy.orm import Session
 
 from models import (
+    EvaluationJudgeRun,
     EvaluationRun,
     EvaluationRunMetric,
     Generation,
@@ -666,6 +667,7 @@ def stream_comprehensive_project_data_json(
         "total_generations": 0,
         "total_evaluations": 0,
         "total_evaluation_metrics": 0,
+        "total_evaluation_judge_runs": 0,
         "total_task_evaluations": 0,
         "total_human_evaluation_configs": 0,
         "total_human_evaluation_sessions": 0,
@@ -862,6 +864,32 @@ def stream_comprehensive_project_data_json(
             yield ("" if first else ",") + json.dumps(m_data, ensure_ascii=False)
             first = False
             stats["total_evaluation_metrics"] += 1
+    yield "],"
+
+    # --- evaluation_judge_runs (small: one per judge model x run_index) ---
+    # Must precede task_evaluations: TaskEvaluation.judge_run_id is NOT NULL
+    # (migration 043) and FK-references these rows, so the importer needs the
+    # old->new judge-run id map built before it inserts task_evaluations.
+    yield '"evaluation_judge_runs": ['
+    first = True
+    if eval_run_ids:
+        jr_q = db.query(EvaluationJudgeRun).filter(
+            EvaluationJudgeRun.evaluation_id.in_(eval_run_ids)
+        )
+        for jr in _drain(jr_q):
+            jr_data = {
+                "id": jr.id,
+                "evaluation_id": jr.evaluation_id,
+                "judge_model_id": jr.judge_model_id,
+                "run_index": jr.run_index,
+                "status": jr.status,
+                "samples_evaluated": jr.samples_evaluated,
+                "error_message": jr.error_message,
+                "metric_parameters_snapshot": jr.metric_parameters_snapshot,
+            }
+            yield ("" if first else ",") + json.dumps(jr_data, ensure_ascii=False)
+            first = False
+            stats["total_evaluation_judge_runs"] += 1
     yield "],"
 
     # --- task_evaluations (very heavy: thousands of rows) ---
@@ -1062,6 +1090,448 @@ def stream_comprehensive_project_data_json(
     yield '"statistics": ' + json.dumps(stats) + "}"
 
 
+def stream_export_ndjson(
+    db: Session,
+    project_id: str,
+) -> Iterator[str]:
+    """Yield an NDJSON typed-record comprehensive export, one JSON object per line.
+
+    Frames the SAME comprehensive data as ``stream_comprehensive_project_data_json``
+    but as newline-delimited typed records consumable by ``run_ndjson_import`` in
+    a single forward pass: a leading ``{"_type":"meta",...,"project":{...}}``
+    record, then flat entity records in FK-dependency order (users → tasks →
+    annotations → … → post_annotation_responses), then a trailing
+    ``{"_type":"end","statistics":{...},"export_complete":true}`` record. That
+    ``end`` record is the structural completeness marker that replaces the legacy
+    byte-tail ``export_complete`` sentinel.
+
+    Two deliberate ordering differences from the comprehensive generator make the
+    stream single-pass-importable:
+
+    - ``users`` lead the stream (the comprehensive JSON emits them last, computed
+      from refs). The importer builds its old→new user map from these records
+      before any FK-bearing row arrives, so they must come first. The same user
+      set is gathered up front via cheap column-only queries.
+    - ``korrektur_comments`` are emitted roots-first, then replies, so a reply's
+      ``parent_id`` always remaps against an already-seen parent.
+
+    Per-entity record bodies mirror ``stream_comprehensive_project_data_json``
+    exactly (same ``serialize_*`` calls / inline shapes) so the dicts the
+    importer's ``_insert_<entity>`` helpers consume are identical whether they
+    arrive as a JSON array element (legacy multi-pass) or an NDJSON line. Heavy
+    sections stream through ``_drain`` (``yield_per`` + per-row ``expunge``) so
+    peak memory stays O(batch) regardless of project size.
+    """
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise ValueError(f"Project {project_id!r} not found")
+
+    org_row = (
+        db.query(ProjectOrganization.organization_id)
+        .filter(ProjectOrganization.project_id == project.id)
+        .first()
+    )
+    project_data = {
+        "id": project.id,
+        "title": project.title,
+        "description": project.description,
+        "label_config": project.label_config,
+        "expert_instruction": project.expert_instruction,
+        "show_instruction": project.show_instruction,
+        "show_skip_button": project.show_skip_button,
+        "enable_empty_annotation": project.enable_empty_annotation,
+        "created_by": project.created_by,
+        "organization_id": org_row[0] if org_row else None,
+        "min_annotations_per_task": project.min_annotations_per_task,
+        "is_published": project.is_published,
+        "created_at": project.created_at.isoformat() if project.created_at else None,
+        "updated_at": project.updated_at.isoformat() if project.updated_at else None,
+        "generation_config": project.generation_config,
+        "evaluation_config": project.evaluation_config,
+        "label_config_version": project.label_config_version,
+        "label_config_history": project.label_config_history,
+        "maximum_annotations": project.maximum_annotations,
+        "assignment_mode": project.assignment_mode,
+        "show_submit_button": project.show_submit_button,
+        "require_comment_on_skip": project.require_comment_on_skip,
+        "require_confirm_before_submit": project.require_confirm_before_submit,
+        "is_archived": project.is_archived,
+        "questionnaire_enabled": project.questionnaire_enabled,
+        "questionnaire_config": project.questionnaire_config,
+        "randomize_task_order": project.randomize_task_order,
+        "instructions_always_visible": project.instructions_always_visible,
+        "conditional_instructions": project.conditional_instructions,
+        "review_enabled": project.review_enabled,
+        "review_mode": project.review_mode,
+        "allow_self_review": project.allow_self_review,
+        "korrektur_enabled": project.korrektur_enabled,
+        "korrektur_config": project.korrektur_config,
+    }
+
+    stats: dict[str, int] = {
+        "total_tasks": 0,
+        "total_annotations": 0,
+        "total_generations": 0,
+        "total_evaluations": 0,
+        "total_evaluation_metrics": 0,
+        "total_evaluation_judge_runs": 0,
+        "total_task_evaluations": 0,
+        "total_human_evaluation_configs": 0,
+        "total_human_evaluation_sessions": 0,
+        "total_human_evaluation_results": 0,
+        "total_preference_rankings": 0,
+        "total_likert_scale_evaluations": 0,
+        "total_members": 0,
+        "total_assignments": 0,
+        "total_post_annotation_responses": 0,
+    }
+
+    def _emit(record_type: str, payload: dict) -> str:
+        return json.dumps({"_type": record_type, **payload}, ensure_ascii=False) + "\n"
+
+    def _drain(query, batch_size: int = BATCH_SIZE):
+        for row in query.yield_per(batch_size):
+            yield row
+            db.expunge(row)
+
+    # Per-task generation counts for serialize_task(mode="full", total_generations=...).
+    gen_counts: dict[str, int] = {}
+    task_id_subq = select(Task.id).where(Task.project_id == project_id)
+    for tid, n in (
+        db.query(Generation.task_id, sa_func.count(Generation.id))
+        .filter(Generation.task_id.in_(task_id_subq))
+        .group_by(Generation.task_id)
+        .all()
+    ):
+        gen_counts[tid] = n
+
+    # --- meta (project header + version) ---
+    yield _emit("meta", {
+        "format_version": "1.0.0",
+        "exported_at": datetime.utcnow().isoformat(),
+        "exported_by": project.created_by,
+        "project": project_data,
+    })
+
+    # --- users (lead the stream; same id set the comprehensive generator
+    # collects as a side effect, gathered here up front via column-only queries
+    # so the importer has the user map before FK-bearing rows arrive) ---
+    user_ids: set[str] = set()
+    if project.created_by:
+        user_ids.add(project.created_by)
+    for cb, ub in (
+        db.query(Task.created_by, Task.updated_by)
+        .filter(Task.project_id == project_id)
+    ):
+        if cb:
+            user_ids.add(cb)
+        if ub:
+            user_ids.add(ub)
+    for (cb,) in (
+        db.query(Annotation.completed_by)
+        .filter(Annotation.project_id == project_id)
+    ):
+        if cb:
+            user_ids.add(cb)
+    for (uid,) in (
+        db.query(ProjectMember.user_id)
+        .filter(ProjectMember.project_id == project_id)
+    ):
+        if uid:
+            user_ids.add(uid)
+    for uid, ab in (
+        db.query(TaskAssignment.user_id, TaskAssignment.assigned_by)
+        .join(Task)
+        .filter(Task.project_id == project_id)
+    ):
+        if uid:
+            user_ids.add(uid)
+        if ab:
+            user_ids.add(ab)
+    for (uid,) in (
+        db.query(PostAnnotationResponse.user_id)
+        .filter(PostAnnotationResponse.project_id == project_id)
+    ):
+        if uid:
+            user_ids.add(uid)
+
+    if user_ids:
+        for u in db.query(User).filter(User.id.in_(user_ids)).all():
+            yield _emit("user", {
+                "id": u.id,
+                "email": u.email,
+                "username": u.username,
+                "name": u.name,
+                "is_active": u.is_active,
+                "is_superadmin": u.is_superadmin,
+            })
+
+    # --- tasks (heavy) ---
+    for task in _drain(db.query(Task).filter(Task.project_id == project_id)):
+        yield _emit("task", serialize_task(
+            task, mode="full", total_generations=gen_counts.get(task.id, 0),
+        ))
+        stats["total_tasks"] += 1
+
+    # --- annotations (heavy) ---
+    for ann in _drain(db.query(Annotation).filter(Annotation.project_id == project_id)):
+        yield _emit("annotation", serialize_annotation(ann, mode="full"))
+        stats["total_annotations"] += 1
+
+    # --- response_generations (medium) ---
+    for rg in _drain(
+        db.query(ResponseGeneration).filter(ResponseGeneration.task_id.in_(task_id_subq))
+    ):
+        yield _emit("response_generation", {
+            "id": rg.id,
+            "task_id": rg.task_id,
+            "model_id": rg.model_id,
+            "config_id": rg.config_id,
+            "status": rg.status,
+            "responses_generated": rg.responses_generated,
+            "error_message": rg.error_message,
+            "generation_metadata": rg.generation_metadata,
+            "created_by": rg.created_by,
+            "created_at": rg.created_at.isoformat() if rg.created_at else None,
+            "started_at": rg.started_at.isoformat() if rg.started_at else None,
+            "completed_at": rg.completed_at.isoformat() if rg.completed_at else None,
+        })
+
+    # --- generations (very heavy: response_content) ---
+    for gen in _drain(db.query(Generation).filter(Generation.task_id.in_(task_id_subq))):
+        yield _emit("generation", serialize_generation(gen, mode="full"))
+        stats["total_generations"] += 1
+
+    # --- evaluations (small: eval_runs themselves) ---
+    eval_runs = (
+        db.query(EvaluationRun).filter(EvaluationRun.project_id == project_id).all()
+    )
+    eval_run_ids = [er.id for er in eval_runs]
+    for er in eval_runs:
+        yield _emit("evaluation", serialize_evaluation_run(er, mode="full"))
+        stats["total_evaluations"] += 1
+
+    # --- evaluation_metrics (medium) ---
+    if eval_run_ids:
+        for m in _drain(
+            db.query(EvaluationRunMetric).filter(
+                EvaluationRunMetric.evaluation_id.in_(eval_run_ids)
+            )
+        ):
+            yield _emit("evaluation_metric", {
+                "id": m.id,
+                "evaluation_id": m.evaluation_id,
+                "evaluation_type_id": m.evaluation_type_id,
+                "value": m.value,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            })
+            stats["total_evaluation_metrics"] += 1
+
+    # --- evaluation_judge_runs (small) ---
+    # Emitted before task_evaluations so the single-pass importer has the
+    # old->new judge-run id map ready when it inserts task_evaluations
+    # (TaskEvaluation.judge_run_id is NOT NULL, migration 043).
+    if eval_run_ids:
+        for jr in _drain(
+            db.query(EvaluationJudgeRun).filter(
+                EvaluationJudgeRun.evaluation_id.in_(eval_run_ids)
+            )
+        ):
+            yield _emit("evaluation_judge_run", {
+                "id": jr.id,
+                "evaluation_id": jr.evaluation_id,
+                "judge_model_id": jr.judge_model_id,
+                "run_index": jr.run_index,
+                "status": jr.status,
+                "samples_evaluated": jr.samples_evaluated,
+                "error_message": jr.error_message,
+                "metric_parameters_snapshot": jr.metric_parameters_snapshot,
+            })
+            stats["total_evaluation_judge_runs"] += 1
+
+    # --- task_evaluations (very heavy: thousands of rows) ---
+    if eval_run_ids:
+        for te in _drain(
+            db.query(TaskEvaluation).filter(
+                TaskEvaluation.evaluation_id.in_(eval_run_ids)
+            )
+        ):
+            yield _emit("task_evaluation", serialize_task_evaluation(te, mode="full"))
+            stats["total_task_evaluations"] += 1
+
+    # --- human_evaluation_configs (small) ---
+    hec_ids: list[str] = []
+    for c in _drain(
+        db.query(HumanEvaluationConfig).filter(
+            HumanEvaluationConfig.task_id.in_(task_id_subq)
+        )
+    ):
+        hec_ids.append(c.id)
+        yield _emit("human_evaluation_config", {
+            "id": c.id,
+            "task_id": c.task_id,
+            "evaluation_project_id": c.evaluation_project_id,
+            "evaluator_count": c.evaluator_count,
+            "randomization_seed": c.randomization_seed,
+            "blinding_enabled": c.blinding_enabled,
+            "include_human_responses": c.include_human_responses,
+            "status": c.status,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+        })
+        stats["total_human_evaluation_configs"] += 1
+
+    # --- human_evaluation_sessions (small) ---
+    hes_ids: list[str] = []
+    for s in _drain(
+        db.query(HumanEvaluationSession).filter(
+            HumanEvaluationSession.project_id == project_id
+        )
+    ):
+        hes_ids.append(s.id)
+        yield _emit("human_evaluation_session", {
+            "id": s.id,
+            "project_id": s.project_id,
+            "evaluator_id": s.evaluator_id,
+            "session_type": s.session_type,
+            "items_evaluated": s.items_evaluated,
+            "total_items": s.total_items,
+            "status": s.status,
+            "session_config": s.session_config,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+            "completed_at": s.completed_at.isoformat() if s.completed_at else None,
+        })
+        stats["total_human_evaluation_sessions"] += 1
+
+    # --- human_evaluation_results (medium) ---
+    if hec_ids:
+        for r in _drain(
+            db.query(HumanEvaluationResult).filter(
+                HumanEvaluationResult.config_id.in_(hec_ids)
+            )
+        ):
+            yield _emit("human_evaluation_result", {
+                "id": r.id,
+                "config_id": r.config_id,
+                "task_id": r.task_id,
+                "response_id": r.response_id,
+                "evaluator_id": r.evaluator_id,
+                "correctness_score": r.correctness_score,
+                "completeness_score": r.completeness_score,
+                "style_score": r.style_score,
+                "usability_score": r.usability_score,
+                "comments": r.comments,
+                "evaluation_time_seconds": r.evaluation_time_seconds,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            })
+            stats["total_human_evaluation_results"] += 1
+
+    # --- preference_rankings (medium) ---
+    if hes_ids:
+        for p in _drain(
+            db.query(PreferenceRanking).filter(
+                PreferenceRanking.session_id.in_(hes_ids)
+            )
+        ):
+            yield _emit("preference_ranking", {
+                "id": p.id,
+                "session_id": p.session_id,
+                "task_id": p.task_id,
+                "response_a_id": p.response_a_id,
+                "response_b_id": p.response_b_id,
+                "winner": p.winner,
+                "confidence": p.confidence,
+                "reasoning": p.reasoning,
+                "time_spent_seconds": p.time_spent_seconds,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            })
+            stats["total_preference_rankings"] += 1
+
+    # --- likert_scale_evaluations (medium) ---
+    if hes_ids:
+        for lk in _drain(
+            db.query(LikertScaleEvaluation).filter(
+                LikertScaleEvaluation.session_id.in_(hes_ids)
+            )
+        ):
+            yield _emit("likert_scale_evaluation", {
+                "id": lk.id,
+                "session_id": lk.session_id,
+                "task_id": lk.task_id,
+                "response_id": lk.response_id,
+                "dimension": lk.dimension,
+                "rating": lk.rating,
+                "comment": lk.comment,
+                "time_spent_seconds": lk.time_spent_seconds,
+                "created_at": lk.created_at.isoformat() if lk.created_at else None,
+            })
+            stats["total_likert_scale_evaluations"] += 1
+
+    # --- korrektur_comments (roots first, then replies, for single-pass import) ---
+    kc_base = db.query(KorrekturComment).filter(
+        KorrekturComment.project_id == project_id
+    )
+    for kc in _drain(kc_base.filter(KorrekturComment.parent_id.is_(None))):
+        yield _emit("korrektur_comment", serialize_korrektur_comment(kc))
+    for kc in _drain(kc_base.filter(KorrekturComment.parent_id.isnot(None))):
+        yield _emit("korrektur_comment", serialize_korrektur_comment(kc))
+
+    # --- project_members (small) ---
+    for member in (
+        db.query(ProjectMember).filter(ProjectMember.project_id == project_id).all()
+    ):
+        yield _emit("project_member", {
+            "id": member.id,
+            "project_id": member.project_id,
+            "user_id": member.user_id,
+            "role": member.role,
+            "is_active": member.is_active,
+            "created_at": member.created_at.isoformat() if member.created_at else None,
+            "updated_at": member.updated_at.isoformat() if member.updated_at else None,
+        })
+        stats["total_members"] += 1
+
+    # --- task_assignments (medium; join through Task) ---
+    for a in (
+        db.query(TaskAssignment).join(Task).filter(Task.project_id == project_id).all()
+    ):
+        yield _emit("task_assignment", {
+            "id": a.id,
+            "task_id": a.task_id,
+            "user_id": a.user_id,
+            "assigned_by": a.assigned_by,
+            "status": a.status,
+            "priority": a.priority,
+            "due_date": a.due_date.isoformat() if a.due_date else None,
+            "notes": a.notes,
+            "assigned_at": a.assigned_at.isoformat() if a.assigned_at else None,
+            "started_at": a.started_at.isoformat() if a.started_at else None,
+            "completed_at": a.completed_at.isoformat() if a.completed_at else None,
+        })
+        stats["total_assignments"] += 1
+
+    # --- post_annotation_responses (medium) ---
+    for r in _drain(
+        db.query(PostAnnotationResponse).filter(
+            PostAnnotationResponse.project_id == project_id
+        )
+    ):
+        yield _emit("post_annotation_response", {
+            "id": r.id,
+            "annotation_id": r.annotation_id,
+            "task_id": r.task_id,
+            "project_id": r.project_id,
+            "user_id": r.user_id,
+            "result": r.result,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        })
+        stats["total_post_annotation_responses"] += 1
+
+    # --- end (structural completeness marker; replaces the byte-tail sentinel) ---
+    yield _emit("end", {"statistics": stats, "export_complete": True})
+
+
 def _format_task_txt(task_obj: dict) -> str:
     lines: list[str] = []
     lines.append(f"\nTask {task_obj['id']}:")
@@ -1096,7 +1566,23 @@ EXPORT_FORMAT_MEDIA_TYPES: dict[str, tuple[str, str]] = {
     "label_studio": ("application/json", "json"),
     "txt": ("text/plain", "txt"),
     "comprehensive": ("application/json", "json"),
+    "ndjson": ("application/x-ndjson", "ndjson"),
+    # gzip-compressed NDJSON. Stored as an opaque .gz blob (NOT served with
+    # Content-Encoding: gzip — see plan Phase 3b) so the byte stream the client
+    # downloads is exactly what the importer's gzip-magic detection decompresses.
+    "ndjson_gz": ("application/gzip", "ndjson.gz"),
 }
+
+# Formats whose generator emits plain text that the worker must gzip-compress
+# before storing. The generator itself stays format-agnostic (it yields the same
+# NDJSON for "ndjson" and "ndjson_gz"); compression is a transport concern owned
+# by the worker's multipart upload loop.
+GZIPPED_EXPORT_FORMATS: frozenset[str] = frozenset({"ndjson_gz"})
+
+
+def export_format_is_gzipped(fmt: str) -> bool:
+    """True when the worker should gzip the generator output for ``fmt``."""
+    return fmt in GZIPPED_EXPORT_FORMATS
 
 
 def build_json_export_header_fields(db: Session, project) -> dict:
@@ -1178,4 +1664,7 @@ def select_export_generator(db: Session, project, fmt: str) -> Iterator[str]:
         return stream_export_txt(db, project_id, project.title, project.description)
     if fmt == "comprehensive":
         return stream_comprehensive_project_data_json(db, project_id)
+    if fmt in ("ndjson", "ndjson_gz"):
+        # Same text stream for both; the worker compresses when fmt is gzipped.
+        return stream_export_ndjson(db, project_id)
     raise ValueError(f"Unsupported export format: {fmt!r}")
