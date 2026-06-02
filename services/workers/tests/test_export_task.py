@@ -162,6 +162,54 @@ def test_export_multipart_concatenates_parts(_patched):
     assert _stored_bytes(storage, job.object_key) == expected
 
 
+def test_export_gzip_format_stores_decompressible_blob(_patched):
+    """A ``ndjson_gz`` job must store an opaque gzip member (not plain text) whose
+    inflate equals the generator output, with byte_size reflecting the COMPRESSED
+    bytes actually written — the worker side of the .gz round-trip."""
+    import gzip
+
+    workers_tasks, storage, job, project, session, set_generator = _patched
+    job.format = "ndjson_gz"
+    chunks = ['{"_type":"meta"}\n', '{"_type":"task"}\n', '{"_type":"end"}\n']
+    set_generator(chunks)
+
+    result = workers_tasks.export_project("job-1")
+
+    assert result["status"] == "completed"
+    stored = _stored_bytes(storage, job.object_key)
+    assert stored[:2] == b"\x1f\x8b"  # gzip magic — stored compressed, not plain
+    assert gzip.decompress(stored) == "".join(chunks).encode("utf-8")
+    assert job.byte_size == len(stored)
+
+
+def test_export_gzip_multipart_concatenates_parts(_patched):
+    """A gzipped payload whose COMPRESSED output exceeds the part size must span
+    multiple upload parts and still inflate to the exact original — the gzip
+    member is byte-split across parts, so concatenation must be lossless."""
+    import base64
+    import gzip
+    import os
+
+    workers_tasks, storage, job, project, session, set_generator = _patched
+    job.format = "ndjson_gz"
+    # High-entropy (base64 of random bytes) so it barely compresses: ~24MB of
+    # near-incompressible text -> compressed output > the 8MB part size.
+    chunks = [
+        base64.b64encode(os.urandom(8 * 1024 * 1024)).decode("ascii")
+        for _ in range(2)
+    ]
+    set_generator(chunks)
+
+    result = workers_tasks.export_project("job-1")
+
+    assert result["status"] == "completed"
+    stored = _stored_bytes(storage, job.object_key)
+    assert stored[:2] == b"\x1f\x8b"
+    # Compressed output genuinely exceeded one 8MB part.
+    assert len(stored) > 8 * 1024 * 1024
+    assert gzip.decompress(stored) == "".join(chunks).encode("utf-8")
+
+
 def test_export_failure_aborts_and_marks_failed(_patched):
     workers_tasks, storage, job, project, session, set_generator = _patched
 

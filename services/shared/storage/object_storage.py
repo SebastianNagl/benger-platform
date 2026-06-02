@@ -25,6 +25,7 @@ import json
 import logging
 import mimetypes
 import os
+import shutil
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -110,6 +111,7 @@ class ObjectStorageService:
         self.PREFIXES = {
             "uploads": "uploads/{year}/{month}/{day}",
             "exports": "exports/{year}/{month}",
+            "imports": "imports/{year}/{month}",
             "static": "static/assets",
             "temp": "temp",
             "backups": "backups/{year}/{month}",
@@ -985,6 +987,32 @@ class ObjectStorageService:
             )
         except Exception as e:
             logger.warning(f"Failed to abort multipart upload for {file_key}: {e}")
+
+    def download_to_fileobj(self, file_key: str, fileobj) -> None:
+        """Stream a stored object into a seekable binary file object.
+
+        The import worker calls this to pull a client-uploaded artifact into a
+        ``SpooledTemporaryFile`` before stream-parsing it (issue #158) — keeping
+        the download itself O(buffer), not O(file). On S3/MinIO this uses
+        ``download_fileobj`` (chunked GET). On the local backend it copies the
+        staged file with a bounded buffer. Raises ``FileNotFoundError`` if the
+        key doesn't exist so the worker can mark the job failed.
+        """
+        if self.storage_backend == "local":
+            file_path = os.path.join(self.local_storage_path, file_key)
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"Object not found: {file_key}")
+            with open(file_path, "rb") as src:
+                shutil.copyfileobj(src, fileobj)
+            return
+
+        try:
+            self.s3_client.download_fileobj(self.bucket_name, file_key, fileobj)
+        except ClientError as e:
+            if e.response.get("Error", {}).get("Code") in ("404", "NoSuchKey"):
+                raise FileNotFoundError(f"Object not found: {file_key}")
+            logger.error(f"Failed to download {file_key}: {e}")
+            raise
 
     def health_check(self) -> Dict[str, Any]:
         """
