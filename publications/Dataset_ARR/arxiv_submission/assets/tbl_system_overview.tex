@@ -1,0 +1,26 @@
+\begin{table*}[t]
+\centering\footnotesize
+\caption{Evaluated LLM systems with provider family, the short alias used throughout the paper, the full model id, tier (flagship / efficiency-oriented / open-weight reference), weights (open vs.\ closed), observed generation temperature, max-output-tokens setting, total generation count on the Benchathon subset, and the count of truncated generations (truncated flag or finish\_reason in length / max\_tokens) over total. The Google efficiency-tier row aggregates two distinct Google models across corpora -- Gemini-3-Flash on Benchathon and Gemini-3.1-Flash-Lite (a separate product line) on ZJS and Doctrinal Principles; see Limitations \S7.}
+\label{tbl-system-overview}
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccccc}
+\toprule
+Provider & Alias & System & Tier & Weights & $T$ & Max out & Gens & Trunc. \\
+\midrule
+Anthropic & Opus-4.7 & \texttt{claude-opus-4-7} & Flagship & Closed & 1 & 8000 & 15 & 0/15 \\
+Anthropic & Sonnet-4.6 & \texttt{claude-sonnet-4-6} & Flagship & Closed & 1 & 8000 & 15 & 0/15 \\
+Google & Gemini-3.1-Flash-Lite & \texttt{gemini-3.1-flash-lite-preview} & Efficiency & Closed & 1 & 8000 & 15 & 0/15 \\
+Google & Gemini-3.1-Pro & \texttt{gemini-3.1-pro-preview} & Flagship & Closed & 1 & 8000 & 15 & 2/15 \\
+OpenAI & GPT-5.4 & \texttt{gpt-5.4} & Flagship & Closed & 0.5 & 16000 & 30 & 0/30 \\
+OpenAI & GPT-5.4-mini & \texttt{gpt-5.4-mini} & Efficiency & Closed & 1 & 8000 & 15 & 0/15 \\
+Alibaba & Qwen3-235B & \texttt{Qwen3-235B-A22B-Thinking-2507} & Open ref. & Open & 0.6 & 16000 & 28 & 0/28 \\
+Alibaba & Qwen3.5-122B & \texttt{Qwen3.5-122B-A10B} & Open ref. & Open & 0.7 & 8000 & 15 & 6/15 \\
+Alibaba & Qwen3.6-35B & \texttt{Qwen3.6-35B-A3B} & Open ref. & Open & 0.7 & 8000 & 15 & 4/15 \\
+DeepSeek & DeepSeek-V4-Flash & \texttt{DeepSeek-V4-Flash} & Open ref. & Open & 1 & 8000 & 15 & 0/15 \\
+DeepSeek & DeepSeek-V4-Pro & \texttt{DeepSeek-V4-Pro} & Open ref. & Open & 1 & 8000 & 15 & 0/15 \\
+Meta & Llama-4 & \texttt{Llama-4-Maverick-17B-128E-Instruct-FP8} & Open ref. & Open & 0.6 & 8000 & 15 & 0/15 \\
+\bottomrule
+\end{tabular}
+}%  end \resizebox
+\end{table*}

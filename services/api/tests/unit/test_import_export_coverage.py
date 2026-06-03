@@ -935,24 +935,33 @@ class TestImportFullProject:
         return file
 
     @pytest.mark.asyncio
-    @patch("routers.projects.import_export.notify_project_created")
-    @patch("routers.projects.import_export.get_user_with_memberships")
+    @patch("routers.projects.import_export.run_full_project_import")
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_import_full_project_basic(self, mock_org, mock_get_user, mock_notify, mock_db):
-        """Test basic full project import."""
+    async def test_import_full_project_basic(self, mock_org, mock_driver, mock_db):
+        """The endpoint spools the JSON upload and hands it to the streaming driver.
+
+        Entity-insertion behaviour lives in the shared ``run_full_project_import``
+        driver (issue #158) and is covered against a real DB in
+        ``tests/integration/test_import_export_deep2.py::TestImportFullProject``.
+        Here we verify the thin endpoint's own job: parse the upload into a
+        seekable spool and forward it (plus the caller's id) to the driver,
+        returning the driver's result unchanged.
+        """
         from routers.projects.import_export import import_full_project
 
-        # Mock user memberships
-        membership = Mock()
-        membership.organization_id = "org-123"
-        membership.is_active = True
-        user_with_memberships = Mock()
-        user_with_memberships.organization_memberships = [membership]
-        mock_get_user.return_value = user_with_memberships
+        captured = {}
 
-        # Mock db.query(Project).filter(Project.title == ...).first() -> None (no conflict)
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-        mock_db.query.return_value.filter.return_value.count.return_value = 0
+        def fake_driver(db, fileobj, user_id):
+            fileobj.seek(0)
+            captured["body"] = fileobj.read()
+            captured["user_id"] = user_id
+            return {
+                "message": "Project imported successfully",
+                "project_title": "Test Import",
+                "statistics": {"imported_counts": {"tasks": 1}},
+            }
+
+        mock_driver.side_effect = fake_driver
 
         import_data = {
             "format_version": "1.0.0",
@@ -969,17 +978,22 @@ class TestImportFullProject:
         }
 
         file = self._create_upload_file(import_data)
+        user = _mock_user(is_superadmin=True)
 
         result = await import_full_project(
             request=_mock_request(),
             file=file,
-            current_user=_mock_user(is_superadmin=True),
+            current_user=user,
             db=mock_db,
         )
 
+        # Endpoint returns the driver's result unchanged.
         assert result["message"] == "Project imported successfully"
         assert result["project_title"] == "Test Import"
         assert result["statistics"]["imported_counts"]["tasks"] == 1
+        # Driver received the uploaded JSON (seekable spool) and the caller's id.
+        assert json.loads(captured["body"])["project"]["title"] == "Test Import"
+        assert captured["user_id"] == user.id
 
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
@@ -1056,21 +1070,30 @@ class TestImportFullProject:
         assert "Only JSON and ZIP" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
-    @patch("routers.projects.import_export.notify_project_created")
-    @patch("routers.projects.import_export.get_user_with_memberships")
+    @patch("routers.projects.import_export.run_full_project_import")
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_import_full_project_from_zip(self, mock_org, mock_get_user, mock_notify, mock_db):
-        """Test importing from a ZIP file."""
+    async def test_import_full_project_from_zip(self, mock_org, mock_driver, mock_db):
+        """The endpoint extracts the inner JSON from a ZIP into a seekable spool.
+
+        ``zip_file.open()`` yields a non-seekable stream, so the endpoint copies
+        the inner JSON into a ``SpooledTemporaryFile`` before the ijson driver
+        (which seeks for multi-pass parsing) can consume it (issue #158). We
+        assert the driver received the decompressed inner JSON.
+        """
         from routers.projects.import_export import import_full_project
 
-        membership = Mock()
-        membership.organization_id = "org-123"
-        membership.is_active = True
-        user_with_memberships = Mock()
-        user_with_memberships.organization_memberships = [membership]
-        mock_get_user.return_value = user_with_memberships
+        captured = {}
 
-        mock_db.query.return_value.filter.return_value.first.return_value = None
+        def fake_driver(db, fileobj, user_id):
+            fileobj.seek(0)
+            captured["body"] = fileobj.read()
+            return {
+                "message": "Project imported successfully",
+                "project_title": "ZIP Import",
+                "statistics": {"imported_counts": {"tasks": 0}},
+            }
+
+        mock_driver.side_effect = fake_driver
 
         import_data = {
             "format_version": "1.0.0",
@@ -1089,6 +1112,8 @@ class TestImportFullProject:
         )
 
         assert result["project_title"] == "ZIP Import"
+        # The driver saw the inner JSON, proving the zip was extracted into the spool.
+        assert json.loads(captured["body"])["project"]["title"] == "ZIP Import"
 
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
@@ -1134,14 +1159,20 @@ class TestImportFullProject:
         assert "no JSON" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
-    @patch("routers.projects.import_export.get_user_with_memberships")
+    @patch("routers.projects.import_export.run_full_project_import")
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_import_full_project_no_org_membership(self, mock_org, mock_get_user, mock_db):
-        """Test import when user has no organization membership."""
-        from routers.projects.import_export import import_full_project
+    async def test_import_full_project_no_org_membership(self, mock_org, mock_driver, mock_db):
+        """Endpoint surfaces the driver's no-organization-membership error as 400.
 
-        mock_get_user.return_value = Mock(organization_memberships=[])
-        mock_db.query.return_value.filter.return_value.first.return_value = None
+        The driver raises ``ImportValidationError(400, ...)`` when the importing
+        user has no org membership; the endpoint maps it to the same-status
+        HTTPException and rolls back (issue #158).
+        """
+        from routers.projects.import_export import ImportValidationError, import_full_project
+
+        mock_driver.side_effect = ImportValidationError(
+            400, "User must be a member of an organization to import projects"
+        )
 
         data = {"format_version": "1.0.0", "project": {"title": "Test"}}
         file = self._create_upload_file(data)
@@ -1153,24 +1184,34 @@ class TestImportFullProject:
                 current_user=_mock_user(),
                 db=mock_db,
             )
+        assert exc_info.value.status_code == 400
         assert "organization" in str(exc_info.value.detail).lower()
+        mock_db.rollback.assert_called()
 
     @pytest.mark.asyncio
-    @patch("routers.projects.import_export.notify_project_created")
-    @patch("routers.projects.import_export.get_user_with_memberships")
+    @patch("routers.projects.import_export.run_full_project_import")
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_import_full_project_with_all_entity_types(self, mock_org, mock_get_user, mock_notify, mock_db):
-        """Test importing a project with all entity types."""
+    async def test_import_full_project_with_all_entity_types(self, mock_org, mock_driver, mock_db):
+        """The endpoint forwards a multi-entity comprehensive body to the driver intact.
+
+        FK-ordered insertion of every entity type is exercised against a real DB
+        in ``tests/integration/test_import_export_deep2.py``; this unit test
+        guards that the endpoint spools a large body without mangling it.
+        """
         from routers.projects.import_export import import_full_project
 
-        membership = Mock()
-        membership.organization_id = "org-123"
-        membership.is_active = True
-        user_with_memberships = Mock()
-        user_with_memberships.organization_memberships = [membership]
-        mock_get_user.return_value = user_with_memberships
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-        mock_db.query.return_value.filter.return_value.count.return_value = 0
+        captured = {}
+
+        def fake_driver(db, fileobj, user_id):
+            fileobj.seek(0)
+            captured["body"] = json.loads(fileobj.read())
+            return {
+                "message": "Project imported successfully",
+                "project_title": "Full Import",
+                "statistics": {"imported_counts": {"tasks": 1, "annotations": 1}},
+            }
+
+        mock_driver.side_effect = fake_driver
 
         data = {
             "format_version": "1.0.0",
@@ -1226,55 +1267,57 @@ class TestImportFullProject:
         stats = result["statistics"]["imported_counts"]
         assert stats["tasks"] == 1
         assert stats["annotations"] == 1
+        # Body reached the driver intact — every entity array survived spooling.
+        assert captured["body"]["post_annotation_responses"][0]["id"] == "par-1"
+        assert captured["body"]["likert_scale_evaluations"][0]["rating"] == 4
 
     @pytest.mark.asyncio
+    @patch("routers.projects.import_export.run_full_project_import")
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_import_full_project_db_error_rollback(self, mock_org, mock_db):
-        """Test that database errors cause rollback."""
+    async def test_import_full_project_db_error_rollback(self, mock_org, mock_driver, mock_db):
+        """An unexpected driver error rolls back and surfaces as a 500.
+
+        The driver owns the single end-of-import ``db.commit()``; if it (or any
+        insert pass) raises, the endpoint's generic handler rolls back the
+        partially-flushed rows and returns ``Import failed`` (issue #158).
+        """
         from routers.projects.import_export import import_full_project
 
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-        mock_db.commit.side_effect = Exception("DB commit failed")
+        mock_driver.side_effect = Exception("DB commit failed")
 
-        # Need user memberships for the code to get past that check
-        with patch("routers.projects.import_export.get_user_with_memberships") as mock_get_user:
-            membership = Mock()
-            membership.organization_id = "org-123"
-            membership.is_active = True
-            user_with_memberships = Mock()
-            user_with_memberships.organization_memberships = [membership]
-            mock_get_user.return_value = user_with_memberships
+        data = {
+            "format_version": "1.0.0",
+            "project": {"title": "Test"},
+            "tasks": [],
+        }
+        file = self._create_upload_file(data)
 
-            data = {
-                "format_version": "1.0.0",
-                "project": {"title": "Test"},
-                "tasks": [],
-            }
-            file = self._create_upload_file(data)
-
-            with pytest.raises(Exception) as exc_info:
-                await import_full_project(
-                    request=_mock_request(),
-                    file=file,
-                    current_user=_mock_user(is_superadmin=True),
-                    db=mock_db,
-                )
-            assert "Import failed" in str(exc_info.value.detail)
-            mock_db.rollback.assert_called()
+        with pytest.raises(Exception) as exc_info:
+            await import_full_project(
+                request=_mock_request(),
+                file=file,
+                current_user=_mock_user(is_superadmin=True),
+                db=mock_db,
+            )
+        assert exc_info.value.status_code == 500
+        assert "Import failed" in str(exc_info.value.detail)
+        mock_db.rollback.assert_called()
 
     @pytest.mark.asyncio
-    @patch("routers.projects.import_export.get_user_with_memberships")
+    @patch("routers.projects.import_export.run_full_project_import")
     @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_import_full_project_no_active_membership(self, mock_org, mock_get_user, mock_db):
-        """Test import when user has no active organization membership."""
-        from routers.projects.import_export import import_full_project
+    async def test_import_full_project_no_active_membership(self, mock_org, mock_driver, mock_db):
+        """Endpoint surfaces the driver's no-active-membership error as 400.
 
-        inactive_membership = Mock()
-        inactive_membership.is_active = False
-        user_with_memberships = Mock()
-        user_with_memberships.organization_memberships = [inactive_membership]
-        mock_get_user.return_value = user_with_memberships
-        mock_db.query.return_value.filter.return_value.first.return_value = None
+        The driver requires the importing user to have an *active* org
+        membership and otherwise raises ``ImportValidationError(400, ...)``,
+        which the endpoint maps to a same-status HTTPException (issue #158).
+        """
+        from routers.projects.import_export import ImportValidationError, import_full_project
+
+        mock_driver.side_effect = ImportValidationError(
+            400, "User must have an active organization membership"
+        )
 
         data = {"format_version": "1.0.0", "project": {"title": "Test"}}
         file = self._create_upload_file(data)
@@ -1286,4 +1329,6 @@ class TestImportFullProject:
                 current_user=_mock_user(),
                 db=mock_db,
             )
+        assert exc_info.value.status_code == 400
         assert "active organization" in str(exc_info.value.detail).lower()
+        mock_db.rollback.assert_called()

@@ -10,7 +10,7 @@ from uuid import uuid4
 
 
 from fastapi import APIRouter, Depends, HTTPException, status  # noqa: E402
-from pydantic import BaseModel, EmailStr  # noqa: E402
+from pydantic import BaseModel, EmailStr, TypeAdapter, ValidationError  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from auth_module import require_user  # noqa: E402
@@ -61,6 +61,37 @@ class InvitationResponse(BaseModel):
 class InvitationAccept(BaseModel):
     token: str
     user_info: Optional[dict] = None  # For new user registration during acceptance
+
+
+# Bulk invite caps a single request so a pasted blob can't fan out unbounded.
+MAX_BULK_INVITES = 100
+
+
+class BulkInvitationCreate(BaseModel):
+    # List[str] (not List[EmailStr]) on purpose: we validate each address inside
+    # the handler so one malformed entry yields a per-email "invalid" result
+    # instead of 422-ing the whole batch.
+    emails: List[str]
+    role: OrganizationRole
+
+
+class BulkInvitationResultItem(BaseModel):
+    email: str
+    # queued | invalid | already_member | pending | duplicate
+    status: str
+    detail: Optional[str] = None
+
+
+class BulkInvitationResponse(BaseModel):
+    queued: int
+    skipped: int
+    total: int
+    results: List[BulkInvitationResultItem]
+
+
+# Reuses the exact validator behind InvitationCreate.email so single and bulk
+# invites accept the same set of addresses.
+_email_adapter = TypeAdapter(EmailStr)
 
 
 def generate_invitation_token() -> str:
@@ -198,6 +229,167 @@ async def create_invitation(
         created_at=invitation.created_at,
         organization_name=organization.name,
         inviter_name=current_user.name,
+    )
+
+
+@router.post(
+    "/organizations/{organization_id}/invitations/bulk",
+    response_model=BulkInvitationResponse,
+)
+async def create_bulk_invitations(
+    organization_id: str,
+    bulk_data: BulkInvitationCreate,
+    current_user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """Create and send multiple organization invitations in one request.
+
+    Mirrors create_invitation's permission + duplicate guards, but applies them
+    per email so a single bad or duplicate address doesn't reject the whole
+    batch. Each address comes back with an individual status; valid new ones are
+    queued together via the emails.send_bulk_invitations Celery task.
+    """
+    organization = db.query(Organization).filter(Organization.id == organization_id).first()
+    if not organization:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+
+    if not can_manage_organization(current_user, organization_id, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only organization admins or superadmins can send invitations",
+        )
+
+    if len(bulk_data.emails) > MAX_BULK_INVITES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Too many invitations in one request (max {MAX_BULK_INVITES})",
+        )
+
+    results: List[BulkInvitationResultItem] = []
+    created: List[Invitation] = []
+    seen: set[str] = set()
+
+    for raw_email in bulk_data.emails:
+        email = raw_email.strip()
+        if not email:
+            continue
+
+        # Validate with the same rules as the single-invite EmailStr field.
+        try:
+            email = _email_adapter.validate_python(email)
+        except ValidationError:
+            results.append(BulkInvitationResultItem(email=raw_email.strip(), status="invalid"))
+            continue
+
+        # Collapse duplicates within this request (case-insensitive).
+        key = email.lower()
+        if key in seen:
+            results.append(BulkInvitationResultItem(email=email, status="duplicate"))
+            continue
+        seen.add(key)
+
+        # Already an active member of this organization?
+        existing_user = db.query(User).filter(User.email == email).first()
+        if existing_user:
+            existing_membership = (
+                db.query(OrganizationMembership)
+                .filter(
+                    OrganizationMembership.user_id == existing_user.id,
+                    OrganizationMembership.organization_id == organization_id,
+                    OrganizationMembership.is_active == True,  # noqa: E712
+                )
+                .first()
+            )
+            if existing_membership:
+                results.append(BulkInvitationResultItem(email=email, status="already_member"))
+                continue
+
+        # Pending (unaccepted, unexpired) invitation already out?
+        existing_invitation = (
+            db.query(Invitation)
+            .filter(
+                Invitation.organization_id == organization_id,
+                Invitation.email == email,
+                Invitation.accepted == False,  # noqa: E712
+                Invitation.expires_at > datetime.now(timezone.utc),
+            )
+            .first()
+        )
+        if existing_invitation:
+            results.append(BulkInvitationResultItem(email=email, status="pending"))
+            continue
+
+        invitation = Invitation(
+            id=str(uuid4()),
+            organization_id=organization_id,
+            email=email,
+            role=bulk_data.role,
+            token=generate_invitation_token(),
+            invited_by=current_user.id,
+            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+            accepted=False,
+        )
+        db.add(invitation)
+        created.append(invitation)
+        results.append(BulkInvitationResultItem(email=email, status="queued"))
+
+    if created:
+        db.commit()
+        for invitation in created:
+            db.refresh(invitation)
+
+        import os
+
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        payload = [
+            {
+                "invitation_id": inv.id,
+                "to_email": inv.email,
+                "inviter_name": current_user.name,
+                "organization_name": organization.name,
+                "invitation_url": f"{frontend_url}/accept-invitation/{inv.token}",
+                "role": inv.role.value,
+            }
+            for inv in created
+        ]
+        try:
+            celery_app.send_task(
+                "emails.send_bulk_invitations",
+                args=[payload],
+                queue="emails",
+                retry=True,
+                retry_policy={
+                    'max_retries': 3,
+                    'interval_start': 0,
+                    'interval_step': 0.2,
+                    'interval_max': 0.2,
+                },
+            )
+            logger.info(
+                f"📮 Queued {len(payload)} bulk invitations for organization {organization_id}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to queue bulk invitation emails: {e}")
+
+        # Notify org admins per queued invite (best-effort, mirrors single invite).
+        for inv in created:
+            try:
+                notify_organization_invitation_sent(
+                    db=db,
+                    organization_id=organization_id,
+                    organization_name=organization.name,
+                    invitee_email=inv.email,
+                    inviter_name=current_user.name,
+                )
+            except Exception as e:
+                logger.error(f"Failed to send bulk invitation notification: {e}")
+
+    queued = sum(1 for item in results if item.status == "queued")
+    return BulkInvitationResponse(
+        queued=queued,
+        skipped=len(results) - queued,
+        total=len(results),
+        results=results,
     )
 
 

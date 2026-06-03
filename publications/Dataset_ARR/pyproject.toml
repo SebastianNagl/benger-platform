@@ -11,4 +11,14 @@ dependencies = [
     "pyyaml>=6.0",
     "nbformat>=5.0",
     "nbclient>=0.8",
+    "numpy>=2.0",
+    # Upper-bound scipy: scipy 1.17 changed wilcoxon's default `method`
+    # from 'auto' to a different small-n strategy that silently shifts
+    # Calderon FDR p-values. The compute pipeline now passes method='exact'
+    # explicitly (see scripts/compute_agreement.py::_advantage_test), but
+    # we still pin to keep other scipy.stats helpers stable.
+    "scipy>=1.13,<2.0",
+    "scikit-learn>=1.5",
+    "statsmodels>=0.14",
+    "pingouin>=0.5.5",
 ]

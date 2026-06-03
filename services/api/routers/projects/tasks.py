@@ -27,6 +27,7 @@ from routers.projects.helpers import (
     check_project_accessible,
     check_task_assigned_to_user,
     check_user_can_edit_project,
+    check_user_can_edit_task_data,
     get_org_context_from_request,
     get_user_with_memberships,
 )
@@ -852,7 +853,7 @@ async def update_task_data(
     db: Session = Depends(get_db),
 ):
     """
-    Update task data - Superadmin only
+    Update task data - superadmins and organization admins
 
     Request body:
     {
@@ -862,23 +863,29 @@ async def update_task_data(
         }
     }
 
-    This endpoint allows superadmins to edit individual task data fields.
-    It maintains an audit log of all changes.
+    Editing is allowed for superadmins, the project creator, and ORG_ADMIN
+    members of the project's organization. It maintains an audit log of all
+    changes.
     """
     from datetime import datetime
 
-    # Check if user is superadmin
-    if not current_user.is_superadmin:
-        raise HTTPException(status_code=403, detail="Only superadmins can edit task data")
-
-    # Verify project exists and user has access
+    # Verify project exists
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    # Verify the user can access this project in the current org context
     org_context = get_org_context_from_request(request)
     if not check_project_accessible(db, current_user, project_id, org_context):
         raise HTTPException(status_code=403, detail="Access denied")
+
+    # Only superadmins, the project creator, and org admins of the project's
+    # organization may edit task data.
+    if not check_user_can_edit_task_data(db, current_user, project):
+        raise HTTPException(
+            status_code=403,
+            detail="Only superadmins or organization admins can edit task data",
+        )
 
     # Verify task exists and belongs to the project
     task = db.query(Task).filter(Task.id == task_id, Task.project_id == project_id).first()

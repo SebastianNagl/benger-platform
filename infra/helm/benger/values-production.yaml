@@ -9,3 +9,9 @@ postgresql:
 redis:
   enabled: false
 
+# MinIO object storage (issue #158) — intentionally left OFF here so this change
+# rides to prod inert. PROMOTION (only after staging validation + creating the
+# benger-minio-credentials Secret in the `benger` namespace) = uncomment:
+# minio:
+#   enabled: true
+

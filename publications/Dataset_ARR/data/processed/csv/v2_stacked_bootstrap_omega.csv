@@ -1,0 +1,97 @@
+judge,judge_label,pool,tier,epsilon,omega,omega_lo_stacked_boot,omega_hi_stacked_boot,passes_point,passes_stacked_boot_lo,n_instances
+baseline_gpt5,Baseline GPT-5-mini,human,raw,0.1500,0.6000,0.2000,1.0000,True,False,30
+baseline_gpt5,Baseline GPT-5-mini,human,raw,0.2000,0.6000,0.2000,1.0000,True,False,30
+baseline_gpt5,Baseline GPT-5-mini,human,scalar,0.1500,0.6000,0.0000,1.0000,True,False,30
+baseline_gpt5,Baseline GPT-5-mini,human,scalar,0.2000,0.6000,0.0000,1.0000,True,False,30
+baseline_gpt5,Baseline GPT-5-mini,human,affine,0.1500,0.6000,0.0000,1.0000,True,False,30
+baseline_gpt5,Baseline GPT-5-mini,human,affine,0.2000,0.6000,0.0000,1.0000,True,False,30
+baseline_gpt5,Baseline GPT-5-mini,llm,raw,0.1500,0.0000,0.0000,0.4000,False,False,15
+baseline_gpt5,Baseline GPT-5-mini,llm,raw,0.2000,0.0000,0.0000,0.4000,False,False,15
+baseline_gpt5,Baseline GPT-5-mini,llm,scalar,0.1500,0.0000,0.0000,0.4000,False,False,15
+baseline_gpt5,Baseline GPT-5-mini,llm,scalar,0.2000,0.0000,0.0000,0.4000,False,False,15
+baseline_gpt5,Baseline GPT-5-mini,llm,affine,0.1500,0.0000,0.0000,0.4000,False,False,15
+baseline_gpt5,Baseline GPT-5-mini,llm,affine,0.2000,0.0000,0.0000,0.4000,False,False,15
+cfgB_gpt5,Config B GPT-5-mini,human,raw,0.1500,0.2000,0.0000,0.6000,False,False,30
+cfgB_gpt5,Config B GPT-5-mini,human,raw,0.2000,0.2000,0.0000,0.6000,False,False,30
+cfgB_gpt5,Config B GPT-5-mini,human,scalar,0.1500,0.0000,0.0000,0.8000,False,False,30
+cfgB_gpt5,Config B GPT-5-mini,human,scalar,0.2000,0.0000,0.0000,0.8000,False,False,30
+cfgB_gpt5,Config B GPT-5-mini,human,affine,0.1500,0.2000,0.0000,1.0000,False,False,30
+cfgB_gpt5,Config B GPT-5-mini,human,affine,0.2000,0.2000,0.0000,1.0000,False,False,30
+cfgB_gpt5,Config B GPT-5-mini,llm,raw,0.1500,0.0000,0.0000,0.0000,False,False,15
+cfgB_gpt5,Config B GPT-5-mini,llm,raw,0.2000,0.0000,0.0000,0.0000,False,False,15
+cfgB_gpt5,Config B GPT-5-mini,llm,scalar,0.1500,0.0000,0.0000,0.4000,False,False,15
+cfgB_gpt5,Config B GPT-5-mini,llm,scalar,0.2000,0.0000,0.0000,0.4000,False,False,15
+cfgB_gpt5,Config B GPT-5-mini,llm,affine,0.1500,0.0000,0.0000,0.4000,False,False,15
+cfgB_gpt5,Config B GPT-5-mini,llm,affine,0.2000,0.0000,0.0000,0.4000,False,False,15
+cfgB_opus,Config B Opus-4.7,human,raw,0.1500,0.6000,0.0000,1.0000,True,False,28
+cfgB_opus,Config B Opus-4.7,human,raw,0.2000,0.6000,0.0000,1.0000,True,False,28
+cfgB_opus,Config B Opus-4.7,human,scalar,0.1500,0.6000,0.0000,1.0000,True,False,28
+cfgB_opus,Config B Opus-4.7,human,scalar,0.2000,0.6000,0.0000,1.0000,True,False,28
+cfgB_opus,Config B Opus-4.7,human,affine,0.1500,0.0000,0.0000,1.0000,False,False,28
+cfgB_opus,Config B Opus-4.7,human,affine,0.2000,0.0000,0.0000,1.0000,False,False,28
+cfgB_opus,Config B Opus-4.7,llm,raw,0.1500,0.2000,0.0000,0.8000,False,False,15
+cfgB_opus,Config B Opus-4.7,llm,raw,0.2000,0.2000,0.0000,0.8000,False,False,15
+cfgB_opus,Config B Opus-4.7,llm,scalar,0.1500,0.2000,0.0000,0.8000,False,False,15
+cfgB_opus,Config B Opus-4.7,llm,scalar,0.2000,0.2000,0.0000,0.8000,False,False,15
+cfgB_opus,Config B Opus-4.7,llm,affine,0.1500,0.2000,0.0000,0.8000,False,False,15
+cfgB_opus,Config B Opus-4.7,llm,affine,0.2000,0.2000,0.0000,0.8000,False,False,15
+cfgB_gemini,Config B Gemini-3.1-Pro,human,raw,0.1500,0.4000,0.0000,0.8000,False,False,30
+cfgB_gemini,Config B Gemini-3.1-Pro,human,raw,0.2000,0.4000,0.0000,0.8000,False,False,30
+cfgB_gemini,Config B Gemini-3.1-Pro,human,scalar,0.1500,0.0000,0.0000,1.0000,False,False,30
+cfgB_gemini,Config B Gemini-3.1-Pro,human,scalar,0.2000,0.0000,0.0000,1.0000,False,False,30
+cfgB_gemini,Config B Gemini-3.1-Pro,human,affine,0.1500,0.4000,0.0000,1.0000,False,False,30
+cfgB_gemini,Config B Gemini-3.1-Pro,human,affine,0.2000,0.4000,0.0000,1.0000,False,False,30
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,raw,0.1500,0.0000,0.0000,0.2000,False,False,15
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,raw,0.2000,0.0000,0.0000,0.2000,False,False,15
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,scalar,0.1500,0.0000,0.0000,0.8000,False,False,15
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,scalar,0.2000,0.0000,0.0000,0.8000,False,False,15
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,affine,0.1500,0.0000,0.0000,0.6000,False,False,15
+cfgB_gemini,Config B Gemini-3.1-Pro,llm,affine,0.2000,0.0000,0.0000,0.6350,False,False,15
+deepseek,DeepSeek-V4-Pro,human,raw,0.1500,0.2000,0.0000,0.8000,False,False,30
+deepseek,DeepSeek-V4-Pro,human,raw,0.2000,0.2000,0.0000,0.8000,False,False,30
+deepseek,DeepSeek-V4-Pro,human,scalar,0.1500,0.4000,0.0000,0.8000,False,False,30
+deepseek,DeepSeek-V4-Pro,human,scalar,0.2000,0.4000,0.0000,0.8000,False,False,30
+deepseek,DeepSeek-V4-Pro,human,affine,0.1500,0.6000,0.0000,1.0000,True,False,30
+deepseek,DeepSeek-V4-Pro,human,affine,0.2000,0.6000,0.0000,1.0000,True,False,30
+deepseek,DeepSeek-V4-Pro,llm,raw,0.1500,0.0000,0.0000,0.5000,False,False,15
+deepseek,DeepSeek-V4-Pro,llm,raw,0.2000,0.0000,0.0000,0.5000,False,False,15
+deepseek,DeepSeek-V4-Pro,llm,scalar,0.1500,0.0000,0.0000,0.6000,False,False,15
+deepseek,DeepSeek-V4-Pro,llm,scalar,0.2000,0.0000,0.0000,0.6000,False,False,15
+deepseek,DeepSeek-V4-Pro,llm,affine,0.1500,0.0000,0.0000,0.6000,False,False,15
+deepseek,DeepSeek-V4-Pro,llm,affine,0.2000,0.0000,0.0000,0.6000,False,False,15
+qwen,Qwen3.5-397B-A17B,human,raw,0.1500,0.0000,0.0000,0.4000,False,False,30
+qwen,Qwen3.5-397B-A17B,human,raw,0.2000,0.0000,0.0000,0.4000,False,False,30
+qwen,Qwen3.5-397B-A17B,human,scalar,0.1500,0.6000,0.0000,0.8000,True,False,30
+qwen,Qwen3.5-397B-A17B,human,scalar,0.2000,0.6000,0.0000,0.8000,True,False,30
+qwen,Qwen3.5-397B-A17B,human,affine,0.1500,0.4000,0.0000,0.8000,False,False,30
+qwen,Qwen3.5-397B-A17B,human,affine,0.2000,0.4000,0.0000,0.8000,False,False,30
+qwen,Qwen3.5-397B-A17B,llm,raw,0.1500,0.0000,0.0000,0.2000,False,False,15
+qwen,Qwen3.5-397B-A17B,llm,raw,0.2000,0.0000,0.0000,0.2000,False,False,15
+qwen,Qwen3.5-397B-A17B,llm,scalar,0.1500,0.0000,0.0000,0.5000,False,False,15
+qwen,Qwen3.5-397B-A17B,llm,scalar,0.2000,0.0000,0.0000,0.5000,False,False,15
+qwen,Qwen3.5-397B-A17B,llm,affine,0.1500,0.0000,0.0000,0.5000,False,False,15
+qwen,Qwen3.5-397B-A17B,llm,affine,0.2000,0.0000,0.0000,0.5000,False,False,15
+sonnet,Sonnet-4.6,human,raw,0.1500,0.4000,0.0000,1.0000,False,False,30
+sonnet,Sonnet-4.6,human,raw,0.2000,0.4000,0.0000,1.0000,False,False,30
+sonnet,Sonnet-4.6,human,scalar,0.1500,0.8000,0.0000,1.0000,True,False,30
+sonnet,Sonnet-4.6,human,scalar,0.2000,0.8000,0.0000,1.0000,True,False,30
+sonnet,Sonnet-4.6,human,affine,0.1500,0.6000,0.0000,1.0000,True,False,30
+sonnet,Sonnet-4.6,human,affine,0.2000,0.6000,0.0000,1.0000,True,False,30
+sonnet,Sonnet-4.6,llm,raw,0.1500,0.0000,0.0000,0.5000,False,False,15
+sonnet,Sonnet-4.6,llm,raw,0.2000,0.0000,0.0000,0.5000,False,False,15
+sonnet,Sonnet-4.6,llm,scalar,0.1500,0.0000,0.0000,0.6000,False,False,15
+sonnet,Sonnet-4.6,llm,scalar,0.2000,0.0000,0.0000,0.7500,False,False,15
+sonnet,Sonnet-4.6,llm,affine,0.1500,0.0000,0.0000,0.6000,False,False,15
+sonnet,Sonnet-4.6,llm,affine,0.2000,0.0000,0.0000,0.6000,False,False,15
+gpt54mini,GPT-5.4-mini,human,raw,0.1500,0.6000,0.2000,1.0000,True,False,30
+gpt54mini,GPT-5.4-mini,human,raw,0.2000,0.6000,0.2000,1.0000,True,False,30
+gpt54mini,GPT-5.4-mini,human,scalar,0.1500,0.6000,0.0950,1.0000,True,False,30
+gpt54mini,GPT-5.4-mini,human,scalar,0.2000,0.6000,0.0000,1.0000,True,False,30
+gpt54mini,GPT-5.4-mini,human,affine,0.1500,0.6000,0.0000,1.0000,True,False,30
+gpt54mini,GPT-5.4-mini,human,affine,0.2000,0.6000,0.0000,1.0000,True,False,30
+gpt54mini,GPT-5.4-mini,llm,raw,0.1500,0.0000,0.0000,0.4000,False,False,15
+gpt54mini,GPT-5.4-mini,llm,raw,0.2000,0.0000,0.0000,0.4000,False,False,15
+gpt54mini,GPT-5.4-mini,llm,scalar,0.1500,0.0000,0.0000,0.4000,False,False,15
+gpt54mini,GPT-5.4-mini,llm,scalar,0.2000,0.0000,0.0000,0.4000,False,False,15
+gpt54mini,GPT-5.4-mini,llm,affine,0.1500,0.0000,0.0000,0.5000,False,False,15
+gpt54mini,GPT-5.4-mini,llm,affine,0.2000,0.0000,0.0000,0.4525,False,False,15

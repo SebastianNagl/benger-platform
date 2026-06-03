@@ -1,0 +1,359 @@
+judge,judge_label,solution_id,pool,y_judge,y_creator
+baseline_gpt5,Baseline GPT-5-mini,1f5d32cf-d514-490b-b4f8-ec0503dc2476,human,92.5000,80.5000
+baseline_gpt5,Baseline GPT-5-mini,27f1716e-12a3-4885-a748-702378ef0f14,human,60.0000,72.0000
+baseline_gpt5,Baseline GPT-5-mini,21e9a40a-1aaf-4f3b-829c-7de5b1e95d78,human,75.0000,60.5000
+baseline_gpt5,Baseline GPT-5-mini,39ea3926-cfbe-463e-bb8f-768b58e94a4d,human,82.0000,58.5000
+baseline_gpt5,Baseline GPT-5-mini,598b52c2-d1a8-4285-bd50-5d9956e9c072,human,62.0000,21.5000
+baseline_gpt5,Baseline GPT-5-mini,afb1cd6d-de66-48d4-b7f3-5e05ef001fa1,human,93.5000,85.0000
+baseline_gpt5,Baseline GPT-5-mini,1d0c7550-0608-4557-afc6-d9d0811cc70e,human,73.0000,71.0000
+baseline_gpt5,Baseline GPT-5-mini,d2adae25-1d36-44c1-906f-1c098afd2875,human,70.0000,86.5000
+baseline_gpt5,Baseline GPT-5-mini,1187cc8b-e142-4ea1-8ade-4e44448da827,human,39.0000,10.0000
+baseline_gpt5,Baseline GPT-5-mini,d76c0ede-6349-4d54-a168-1184e968b32a,human,69.0000,57.0000
+baseline_gpt5,Baseline GPT-5-mini,08c82c5c-803d-4318-934d-8533250d82a3,human,59.0000,51.0000
+baseline_gpt5,Baseline GPT-5-mini,7062cc8d-f713-4548-b4ed-6fdc14de84f6,human,12.0000,0.0000
+baseline_gpt5,Baseline GPT-5-mini,7667a163-9d3b-4d72-9766-fafdf4751ecb,human,91.0000,78.0000
+baseline_gpt5,Baseline GPT-5-mini,ae6f5d66-3b4b-4344-acd4-e095a58815e8,human,52.0000,29.0000
+baseline_gpt5,Baseline GPT-5-mini,005e23f5-33a8-4c7b-8ed6-b884a1cd0a84,human,86.0000,37.0000
+baseline_gpt5,Baseline GPT-5-mini,10d5bec9-ac08-492a-9b08-0b0331ea31fa,human,50.0000,53.5000
+baseline_gpt5,Baseline GPT-5-mini,9d55127b-8e34-4a59-a649-5c6e5b29931a,human,90.0000,71.0000
+baseline_gpt5,Baseline GPT-5-mini,65df610e-2d47-488f-94ab-9b529e36e777,human,44.0000,49.0000
+baseline_gpt5,Baseline GPT-5-mini,2fa57855-7902-4257-874f-3853edfa04e0,human,94.5000,76.5000
+baseline_gpt5,Baseline GPT-5-mini,16573f16-ca86-43d6-a192-6f3d386d3071,human,85.0000,78.5000
+baseline_gpt5,Baseline GPT-5-mini,4f657002-adc8-4772-9ffb-0947fa54ddc2,human,79.0000,59.0000
+baseline_gpt5,Baseline GPT-5-mini,4241abf8-a838-4f69-a7db-da80de906e50,human,43.0000,61.0000
+baseline_gpt5,Baseline GPT-5-mini,d159d82d-2254-4249-9bd2-17f8f54fa0cd,human,79.0000,94.0000
+baseline_gpt5,Baseline GPT-5-mini,c10794d6-1703-46e3-a2cd-b4aff6654f6e,human,57.0000,51.0000
+baseline_gpt5,Baseline GPT-5-mini,9671ade3-05b4-485c-b9fd-f7704c3827d2,human,89.0000,65.5000
+baseline_gpt5,Baseline GPT-5-mini,6c3ec7a0-705f-4ce1-aaf2-3ad1be9dee36,human,77.5000,67.5000
+baseline_gpt5,Baseline GPT-5-mini,814a45e4-dda9-4590-b3db-e9fb05650243,human,61.0000,58.0000
+baseline_gpt5,Baseline GPT-5-mini,4d02aeef-e084-4c12-b2a1-51b60ba64683,human,89.0000,89.0000
+baseline_gpt5,Baseline GPT-5-mini,34307098-3fb7-4098-b57b-5afd35397be2,human,45.0000,7.5000
+baseline_gpt5,Baseline GPT-5-mini,b18e10d9-3033-4f42-a93c-a4d60b92bf98,human,93.5000,83.0000
+baseline_gpt5,Baseline GPT-5-mini,44c31c28-a304-4b41-ad0a-02771b79aca6,llm,71.0000,71.5000
+baseline_gpt5,Baseline GPT-5-mini,a812d855-e9d8-429f-9f51-b880c1cfdae0,llm,73.5000,40.5000
+baseline_gpt5,Baseline GPT-5-mini,c51f6f54-6e76-4a8b-bf74-fd2d2fc6511d,llm,50.5000,10.0000
+baseline_gpt5,Baseline GPT-5-mini,6d59ea1d-f9e2-4744-9516-b41476b38c7c,llm,76.5000,57.0000
+baseline_gpt5,Baseline GPT-5-mini,e0c02b87-601b-4240-9044-0593c27c0492,llm,88.0000,61.0000
+baseline_gpt5,Baseline GPT-5-mini,870ee789-f294-4dd2-9b94-02d8786d60b6,llm,82.0000,45.0000
+baseline_gpt5,Baseline GPT-5-mini,75ff058f-63a4-4be1-944a-67dc887974b1,llm,79.5000,39.0000
+baseline_gpt5,Baseline GPT-5-mini,7b61a138-45d7-4050-8c80-3f1c217b26db,llm,82.5000,58.5000
+baseline_gpt5,Baseline GPT-5-mini,47bd0b94-d720-4cf5-b9c6-4b0d10dec92d,llm,76.0000,35.5000
+baseline_gpt5,Baseline GPT-5-mini,b1d78e9c-ac68-410f-9f16-972bab083f2a,llm,85.5000,80.5000
+baseline_gpt5,Baseline GPT-5-mini,48e4122b-a225-4229-a043-a11031ce3cea,llm,76.0000,56.0000
+baseline_gpt5,Baseline GPT-5-mini,646e30aa-0f62-4624-9b5d-b4834b432cdc,llm,66.0000,0.0000
+baseline_gpt5,Baseline GPT-5-mini,dee799c9-9a82-4c0c-8ae3-0116fcd50b28,llm,83.0000,73.5000
+baseline_gpt5,Baseline GPT-5-mini,de7c14ff-d707-4ae1-9d8e-8419eb36a1fa,llm,49.0000,29.0000
+baseline_gpt5,Baseline GPT-5-mini,b1261191-e771-4281-be24-f0b0a87b1aec,llm,89.0000,71.5000
+cfgB_gpt5,Config B GPT-5-mini,1f5d32cf-d514-490b-b4f8-ec0503dc2476,human,93.0000,80.5000
+cfgB_gpt5,Config B GPT-5-mini,27f1716e-12a3-4885-a748-702378ef0f14,human,55.5000,72.0000
+cfgB_gpt5,Config B GPT-5-mini,21e9a40a-1aaf-4f3b-829c-7de5b1e95d78,human,79.5000,60.5000
+cfgB_gpt5,Config B GPT-5-mini,39ea3926-cfbe-463e-bb8f-768b58e94a4d,human,75.0000,58.5000
+cfgB_gpt5,Config B GPT-5-mini,598b52c2-d1a8-4285-bd50-5d9956e9c072,human,75.0000,21.5000
+cfgB_gpt5,Config B GPT-5-mini,afb1cd6d-de66-48d4-b7f3-5e05ef001fa1,human,92.5000,85.0000
+cfgB_gpt5,Config B GPT-5-mini,1d0c7550-0608-4557-afc6-d9d0811cc70e,human,73.0000,71.0000
+cfgB_gpt5,Config B GPT-5-mini,d2adae25-1d36-44c1-906f-1c098afd2875,human,73.0000,86.5000
+cfgB_gpt5,Config B GPT-5-mini,1187cc8b-e142-4ea1-8ade-4e44448da827,human,30.5000,10.0000
+cfgB_gpt5,Config B GPT-5-mini,d76c0ede-6349-4d54-a168-1184e968b32a,human,66.0000,57.0000
+cfgB_gpt5,Config B GPT-5-mini,7062cc8d-f713-4548-b4ed-6fdc14de84f6,human,10.0000,0.0000
+cfgB_gpt5,Config B GPT-5-mini,08c82c5c-803d-4318-934d-8533250d82a3,human,61.0000,51.0000
+cfgB_gpt5,Config B GPT-5-mini,ae6f5d66-3b4b-4344-acd4-e095a58815e8,human,62.0000,29.0000
+cfgB_gpt5,Config B GPT-5-mini,7667a163-9d3b-4d72-9766-fafdf4751ecb,human,97.0000,78.0000
+cfgB_gpt5,Config B GPT-5-mini,005e23f5-33a8-4c7b-8ed6-b884a1cd0a84,human,86.5000,37.0000
+cfgB_gpt5,Config B GPT-5-mini,10d5bec9-ac08-492a-9b08-0b0331ea31fa,human,56.5000,53.5000
+cfgB_gpt5,Config B GPT-5-mini,9d55127b-8e34-4a59-a649-5c6e5b29931a,human,98.5000,71.0000
+cfgB_gpt5,Config B GPT-5-mini,65df610e-2d47-488f-94ab-9b529e36e777,human,44.0000,49.0000
+cfgB_gpt5,Config B GPT-5-mini,2fa57855-7902-4257-874f-3853edfa04e0,human,95.5000,76.5000
+cfgB_gpt5,Config B GPT-5-mini,16573f16-ca86-43d6-a192-6f3d386d3071,human,91.0000,78.5000
+cfgB_gpt5,Config B GPT-5-mini,4241abf8-a838-4f69-a7db-da80de906e50,human,50.0000,61.0000
+cfgB_gpt5,Config B GPT-5-mini,4f657002-adc8-4772-9ffb-0947fa54ddc2,human,79.5000,59.0000
+cfgB_gpt5,Config B GPT-5-mini,d159d82d-2254-4249-9bd2-17f8f54fa0cd,human,91.0000,94.0000
+cfgB_gpt5,Config B GPT-5-mini,c10794d6-1703-46e3-a2cd-b4aff6654f6e,human,56.0000,51.0000
+cfgB_gpt5,Config B GPT-5-mini,9671ade3-05b4-485c-b9fd-f7704c3827d2,human,90.0000,65.5000
+cfgB_gpt5,Config B GPT-5-mini,6c3ec7a0-705f-4ce1-aaf2-3ad1be9dee36,human,76.0000,67.5000
+cfgB_gpt5,Config B GPT-5-mini,4d02aeef-e084-4c12-b2a1-51b60ba64683,human,87.5000,89.0000
+cfgB_gpt5,Config B GPT-5-mini,814a45e4-dda9-4590-b3db-e9fb05650243,human,52.5000,58.0000
+cfgB_gpt5,Config B GPT-5-mini,b18e10d9-3033-4f42-a93c-a4d60b92bf98,human,95.5000,83.0000
+cfgB_gpt5,Config B GPT-5-mini,34307098-3fb7-4098-b57b-5afd35397be2,human,57.5000,7.5000
+cfgB_gpt5,Config B GPT-5-mini,44c31c28-a304-4b41-ad0a-02771b79aca6,llm,78.0000,71.5000
+cfgB_gpt5,Config B GPT-5-mini,a812d855-e9d8-429f-9f51-b880c1cfdae0,llm,74.5000,40.5000
+cfgB_gpt5,Config B GPT-5-mini,c51f6f54-6e76-4a8b-bf74-fd2d2fc6511d,llm,49.0000,10.0000
+cfgB_gpt5,Config B GPT-5-mini,6d59ea1d-f9e2-4744-9516-b41476b38c7c,llm,82.5000,57.0000
+cfgB_gpt5,Config B GPT-5-mini,e0c02b87-601b-4240-9044-0593c27c0492,llm,87.5000,61.0000
+cfgB_gpt5,Config B GPT-5-mini,870ee789-f294-4dd2-9b94-02d8786d60b6,llm,86.0000,45.0000
+cfgB_gpt5,Config B GPT-5-mini,75ff058f-63a4-4be1-944a-67dc887974b1,llm,80.0000,39.0000
+cfgB_gpt5,Config B GPT-5-mini,7b61a138-45d7-4050-8c80-3f1c217b26db,llm,85.5000,58.5000
+cfgB_gpt5,Config B GPT-5-mini,47bd0b94-d720-4cf5-b9c6-4b0d10dec92d,llm,80.0000,35.5000
+cfgB_gpt5,Config B GPT-5-mini,b1d78e9c-ac68-410f-9f16-972bab083f2a,llm,86.0000,80.5000
+cfgB_gpt5,Config B GPT-5-mini,48e4122b-a225-4229-a043-a11031ce3cea,llm,76.0000,56.0000
+cfgB_gpt5,Config B GPT-5-mini,646e30aa-0f62-4624-9b5d-b4834b432cdc,llm,72.0000,0.0000
+cfgB_gpt5,Config B GPT-5-mini,dee799c9-9a82-4c0c-8ae3-0116fcd50b28,llm,84.5000,73.5000
+cfgB_gpt5,Config B GPT-5-mini,de7c14ff-d707-4ae1-9d8e-8419eb36a1fa,llm,63.0000,29.0000
+cfgB_gpt5,Config B GPT-5-mini,b1261191-e771-4281-be24-f0b0a87b1aec,llm,83.0000,71.5000
+cfgB_opus,Config B Opus-4.7,1f5d32cf-d514-490b-b4f8-ec0503dc2476,human,82.0000,80.5000
+cfgB_opus,Config B Opus-4.7,27f1716e-12a3-4885-a748-702378ef0f14,human,52.0000,72.0000
+cfgB_opus,Config B Opus-4.7,21e9a40a-1aaf-4f3b-829c-7de5b1e95d78,human,71.5000,60.5000
+cfgB_opus,Config B Opus-4.7,39ea3926-cfbe-463e-bb8f-768b58e94a4d,human,52.0000,58.5000
+cfgB_opus,Config B Opus-4.7,598b52c2-d1a8-4285-bd50-5d9956e9c072,human,41.0000,21.5000
+cfgB_opus,Config B Opus-4.7,afb1cd6d-de66-48d4-b7f3-5e05ef001fa1,human,90.5000,85.0000
+cfgB_opus,Config B Opus-4.7,d2adae25-1d36-44c1-906f-1c098afd2875,human,56.0000,86.5000
+cfgB_opus,Config B Opus-4.7,1187cc8b-e142-4ea1-8ade-4e44448da827,human,22.5000,10.0000
+cfgB_opus,Config B Opus-4.7,d76c0ede-6349-4d54-a168-1184e968b32a,human,45.0000,57.0000
+cfgB_opus,Config B Opus-4.7,08c82c5c-803d-4318-934d-8533250d82a3,human,41.0000,51.0000
+cfgB_opus,Config B Opus-4.7,7062cc8d-f713-4548-b4ed-6fdc14de84f6,human,0.5000,0.0000
+cfgB_opus,Config B Opus-4.7,ae6f5d66-3b4b-4344-acd4-e095a58815e8,human,25.5000,29.0000
+cfgB_opus,Config B Opus-4.7,7667a163-9d3b-4d72-9766-fafdf4751ecb,human,82.0000,78.0000
+cfgB_opus,Config B Opus-4.7,005e23f5-33a8-4c7b-8ed6-b884a1cd0a84,human,57.0000,37.0000
+cfgB_opus,Config B Opus-4.7,10d5bec9-ac08-492a-9b08-0b0331ea31fa,human,38.0000,53.5000
+cfgB_opus,Config B Opus-4.7,9d55127b-8e34-4a59-a649-5c6e5b29931a,human,88.5000,71.0000
+cfgB_opus,Config B Opus-4.7,65df610e-2d47-488f-94ab-9b529e36e777,human,30.0000,49.0000
+cfgB_opus,Config B Opus-4.7,2fa57855-7902-4257-874f-3853edfa04e0,human,89.5000,76.5000
+cfgB_opus,Config B Opus-4.7,16573f16-ca86-43d6-a192-6f3d386d3071,human,72.0000,78.5000
+cfgB_opus,Config B Opus-4.7,4241abf8-a838-4f69-a7db-da80de906e50,human,30.5000,61.0000
+cfgB_opus,Config B Opus-4.7,4f657002-adc8-4772-9ffb-0947fa54ddc2,human,62.5000,59.0000
+cfgB_opus,Config B Opus-4.7,d159d82d-2254-4249-9bd2-17f8f54fa0cd,human,68.5000,94.0000
+cfgB_opus,Config B Opus-4.7,c10794d6-1703-46e3-a2cd-b4aff6654f6e,human,45.5000,51.0000
+cfgB_opus,Config B Opus-4.7,9671ade3-05b4-485c-b9fd-f7704c3827d2,human,88.0000,65.5000
+cfgB_opus,Config B Opus-4.7,6c3ec7a0-705f-4ce1-aaf2-3ad1be9dee36,human,62.5000,67.5000
+cfgB_opus,Config B Opus-4.7,4d02aeef-e084-4c12-b2a1-51b60ba64683,human,66.5000,89.0000
+cfgB_opus,Config B Opus-4.7,814a45e4-dda9-4590-b3db-e9fb05650243,human,44.0000,58.0000
+cfgB_opus,Config B Opus-4.7,b18e10d9-3033-4f42-a93c-a4d60b92bf98,human,78.0000,83.0000
+cfgB_opus,Config B Opus-4.7,44c31c28-a304-4b41-ad0a-02771b79aca6,llm,62.0000,71.5000
+cfgB_opus,Config B Opus-4.7,a812d855-e9d8-429f-9f51-b880c1cfdae0,llm,53.5000,40.5000
+cfgB_opus,Config B Opus-4.7,c51f6f54-6e76-4a8b-bf74-fd2d2fc6511d,llm,14.0000,10.0000
+cfgB_opus,Config B Opus-4.7,6d59ea1d-f9e2-4744-9516-b41476b38c7c,llm,55.0000,57.0000
+cfgB_opus,Config B Opus-4.7,e0c02b87-601b-4240-9044-0593c27c0492,llm,61.0000,61.0000
+cfgB_opus,Config B Opus-4.7,870ee789-f294-4dd2-9b94-02d8786d60b6,llm,58.5000,45.0000
+cfgB_opus,Config B Opus-4.7,75ff058f-63a4-4be1-944a-67dc887974b1,llm,59.0000,39.0000
+cfgB_opus,Config B Opus-4.7,7b61a138-45d7-4050-8c80-3f1c217b26db,llm,63.0000,58.5000
+cfgB_opus,Config B Opus-4.7,47bd0b94-d720-4cf5-b9c6-4b0d10dec92d,llm,38.0000,35.5000
+cfgB_opus,Config B Opus-4.7,b1d78e9c-ac68-410f-9f16-972bab083f2a,llm,81.0000,80.5000
+cfgB_opus,Config B Opus-4.7,48e4122b-a225-4229-a043-a11031ce3cea,llm,65.0000,56.0000
+cfgB_opus,Config B Opus-4.7,646e30aa-0f62-4624-9b5d-b4834b432cdc,llm,27.0000,0.0000
+cfgB_opus,Config B Opus-4.7,dee799c9-9a82-4c0c-8ae3-0116fcd50b28,llm,76.5000,73.5000
+cfgB_opus,Config B Opus-4.7,de7c14ff-d707-4ae1-9d8e-8419eb36a1fa,llm,39.0000,29.0000
+cfgB_opus,Config B Opus-4.7,b1261191-e771-4281-be24-f0b0a87b1aec,llm,68.0000,71.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,1f5d32cf-d514-490b-b4f8-ec0503dc2476,human,92.0000,80.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,27f1716e-12a3-4885-a748-702378ef0f14,human,79.0000,72.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,21e9a40a-1aaf-4f3b-829c-7de5b1e95d78,human,88.0000,60.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,39ea3926-cfbe-463e-bb8f-768b58e94a4d,human,59.5000,58.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,598b52c2-d1a8-4285-bd50-5d9956e9c072,human,35.0000,21.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,afb1cd6d-de66-48d4-b7f3-5e05ef001fa1,human,96.5000,85.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,d2adae25-1d36-44c1-906f-1c098afd2875,human,76.0000,86.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,1d0c7550-0608-4557-afc6-d9d0811cc70e,human,45.0000,71.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,1187cc8b-e142-4ea1-8ade-4e44448da827,human,22.5000,10.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,d76c0ede-6349-4d54-a168-1184e968b32a,human,52.0000,57.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,08c82c5c-803d-4318-934d-8533250d82a3,human,52.5000,51.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,7062cc8d-f713-4548-b4ed-6fdc14de84f6,human,0.0000,0.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,ae6f5d66-3b4b-4344-acd4-e095a58815e8,human,33.0000,29.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,7667a163-9d3b-4d72-9766-fafdf4751ecb,human,99.0000,78.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,005e23f5-33a8-4c7b-8ed6-b884a1cd0a84,human,70.0000,37.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,10d5bec9-ac08-492a-9b08-0b0331ea31fa,human,42.5000,53.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,65df610e-2d47-488f-94ab-9b529e36e777,human,42.0000,49.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,9d55127b-8e34-4a59-a649-5c6e5b29931a,human,85.0000,71.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,2fa57855-7902-4257-874f-3853edfa04e0,human,100.0000,76.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,16573f16-ca86-43d6-a192-6f3d386d3071,human,86.0000,78.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,4241abf8-a838-4f69-a7db-da80de906e50,human,48.0000,61.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,4f657002-adc8-4772-9ffb-0947fa54ddc2,human,82.0000,59.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,d159d82d-2254-4249-9bd2-17f8f54fa0cd,human,85.0000,94.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,c10794d6-1703-46e3-a2cd-b4aff6654f6e,human,42.0000,51.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,9671ade3-05b4-485c-b9fd-f7704c3827d2,human,99.0000,65.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,6c3ec7a0-705f-4ce1-aaf2-3ad1be9dee36,human,76.0000,67.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,4d02aeef-e084-4c12-b2a1-51b60ba64683,human,77.0000,89.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,814a45e4-dda9-4590-b3db-e9fb05650243,human,51.5000,58.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,b18e10d9-3033-4f42-a93c-a4d60b92bf98,human,90.0000,83.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,34307098-3fb7-4098-b57b-5afd35397be2,human,34.0000,7.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,44c31c28-a304-4b41-ad0a-02771b79aca6,llm,84.0000,71.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,a812d855-e9d8-429f-9f51-b880c1cfdae0,llm,82.0000,40.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,c51f6f54-6e76-4a8b-bf74-fd2d2fc6511d,llm,28.5000,10.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,6d59ea1d-f9e2-4744-9516-b41476b38c7c,llm,66.5000,57.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,e0c02b87-601b-4240-9044-0593c27c0492,llm,80.0000,61.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,870ee789-f294-4dd2-9b94-02d8786d60b6,llm,83.5000,45.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,75ff058f-63a4-4be1-944a-67dc887974b1,llm,76.5000,39.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,7b61a138-45d7-4050-8c80-3f1c217b26db,llm,84.0000,58.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,47bd0b94-d720-4cf5-b9c6-4b0d10dec92d,llm,47.5000,35.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,b1d78e9c-ac68-410f-9f16-972bab083f2a,llm,98.5000,80.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,48e4122b-a225-4229-a043-a11031ce3cea,llm,71.5000,56.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,646e30aa-0f62-4624-9b5d-b4834b432cdc,llm,41.0000,0.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,dee799c9-9a82-4c0c-8ae3-0116fcd50b28,llm,91.0000,73.5000
+cfgB_gemini,Config B Gemini-3.1-Pro,de7c14ff-d707-4ae1-9d8e-8419eb36a1fa,llm,49.0000,29.0000
+cfgB_gemini,Config B Gemini-3.1-Pro,b1261191-e771-4281-be24-f0b0a87b1aec,llm,89.0000,71.5000
+deepseek,DeepSeek-V4-Pro,1f5d32cf-d514-490b-b4f8-ec0503dc2476,human,88.0000,80.5000
+deepseek,DeepSeek-V4-Pro,27f1716e-12a3-4885-a748-702378ef0f14,human,50.0000,72.0000
+deepseek,DeepSeek-V4-Pro,21e9a40a-1aaf-4f3b-829c-7de5b1e95d78,human,80.0000,60.5000
+deepseek,DeepSeek-V4-Pro,39ea3926-cfbe-463e-bb8f-768b58e94a4d,human,58.0000,58.5000
+deepseek,DeepSeek-V4-Pro,afb1cd6d-de66-48d4-b7f3-5e05ef001fa1,human,92.0000,85.0000
+deepseek,DeepSeek-V4-Pro,598b52c2-d1a8-4285-bd50-5d9956e9c072,human,45.0000,21.5000
+deepseek,DeepSeek-V4-Pro,d2adae25-1d36-44c1-906f-1c098afd2875,human,64.0000,86.5000
+deepseek,DeepSeek-V4-Pro,1d0c7550-0608-4557-afc6-d9d0811cc70e,human,43.0000,71.0000
+deepseek,DeepSeek-V4-Pro,1187cc8b-e142-4ea1-8ade-4e44448da827,human,16.0000,10.0000
+deepseek,DeepSeek-V4-Pro,d76c0ede-6349-4d54-a168-1184e968b32a,human,60.0000,57.0000
+deepseek,DeepSeek-V4-Pro,08c82c5c-803d-4318-934d-8533250d82a3,human,39.0000,51.0000
+deepseek,DeepSeek-V4-Pro,7062cc8d-f713-4548-b4ed-6fdc14de84f6,human,0.0000,0.0000
+deepseek,DeepSeek-V4-Pro,ae6f5d66-3b4b-4344-acd4-e095a58815e8,human,22.0000,29.0000
+deepseek,DeepSeek-V4-Pro,7667a163-9d3b-4d72-9766-fafdf4751ecb,human,91.0000,78.0000
+deepseek,DeepSeek-V4-Pro,10d5bec9-ac08-492a-9b08-0b0331ea31fa,human,39.0000,53.5000
+deepseek,DeepSeek-V4-Pro,005e23f5-33a8-4c7b-8ed6-b884a1cd0a84,human,65.5000,37.0000
+deepseek,DeepSeek-V4-Pro,9d55127b-8e34-4a59-a649-5c6e5b29931a,human,93.0000,71.0000
+deepseek,DeepSeek-V4-Pro,65df610e-2d47-488f-94ab-9b529e36e777,human,33.0000,49.0000
+deepseek,DeepSeek-V4-Pro,2fa57855-7902-4257-874f-3853edfa04e0,human,92.0000,76.5000
+deepseek,DeepSeek-V4-Pro,16573f16-ca86-43d6-a192-6f3d386d3071,human,79.0000,78.5000
+deepseek,DeepSeek-V4-Pro,4241abf8-a838-4f69-a7db-da80de906e50,human,36.0000,61.0000
+deepseek,DeepSeek-V4-Pro,4f657002-adc8-4772-9ffb-0947fa54ddc2,human,78.5000,59.0000
+deepseek,DeepSeek-V4-Pro,d159d82d-2254-4249-9bd2-17f8f54fa0cd,human,83.0000,94.0000
+deepseek,DeepSeek-V4-Pro,c10794d6-1703-46e3-a2cd-b4aff6654f6e,human,50.0000,51.0000
+deepseek,DeepSeek-V4-Pro,6c3ec7a0-705f-4ce1-aaf2-3ad1be9dee36,human,66.0000,67.5000
+deepseek,DeepSeek-V4-Pro,9671ade3-05b4-485c-b9fd-f7704c3827d2,human,91.0000,65.5000
+deepseek,DeepSeek-V4-Pro,4d02aeef-e084-4c12-b2a1-51b60ba64683,human,77.5000,89.0000
+deepseek,DeepSeek-V4-Pro,814a45e4-dda9-4590-b3db-e9fb05650243,human,39.0000,58.0000
+deepseek,DeepSeek-V4-Pro,34307098-3fb7-4098-b57b-5afd35397be2,human,38.0000,7.5000
+deepseek,DeepSeek-V4-Pro,b18e10d9-3033-4f42-a93c-a4d60b92bf98,human,90.0000,83.0000
+deepseek,DeepSeek-V4-Pro,44c31c28-a304-4b41-ad0a-02771b79aca6,llm,47.0000,71.5000
+deepseek,DeepSeek-V4-Pro,a812d855-e9d8-429f-9f51-b880c1cfdae0,llm,50.0000,40.5000
+deepseek,DeepSeek-V4-Pro,c51f6f54-6e76-4a8b-bf74-fd2d2fc6511d,llm,14.0000,10.0000
+deepseek,DeepSeek-V4-Pro,6d59ea1d-f9e2-4744-9516-b41476b38c7c,llm,70.0000,57.0000
+deepseek,DeepSeek-V4-Pro,e0c02b87-601b-4240-9044-0593c27c0492,llm,72.5000,61.0000
+deepseek,DeepSeek-V4-Pro,870ee789-f294-4dd2-9b94-02d8786d60b6,llm,77.0000,45.0000
+deepseek,DeepSeek-V4-Pro,75ff058f-63a4-4be1-944a-67dc887974b1,llm,66.0000,39.0000
+deepseek,DeepSeek-V4-Pro,7b61a138-45d7-4050-8c80-3f1c217b26db,llm,59.0000,58.5000
+deepseek,DeepSeek-V4-Pro,47bd0b94-d720-4cf5-b9c6-4b0d10dec92d,llm,41.0000,35.5000
+deepseek,DeepSeek-V4-Pro,b1d78e9c-ac68-410f-9f16-972bab083f2a,llm,90.0000,80.5000
+deepseek,DeepSeek-V4-Pro,48e4122b-a225-4229-a043-a11031ce3cea,llm,72.0000,56.0000
+deepseek,DeepSeek-V4-Pro,646e30aa-0f62-4624-9b5d-b4834b432cdc,llm,35.0000,0.0000
+deepseek,DeepSeek-V4-Pro,dee799c9-9a82-4c0c-8ae3-0116fcd50b28,llm,86.0000,73.5000
+deepseek,DeepSeek-V4-Pro,de7c14ff-d707-4ae1-9d8e-8419eb36a1fa,llm,29.0000,29.0000
+deepseek,DeepSeek-V4-Pro,b1261191-e771-4281-be24-f0b0a87b1aec,llm,79.0000,71.5000
+qwen,Qwen3.5-397B-A17B,1f5d32cf-d514-490b-b4f8-ec0503dc2476,human,89.0000,80.5000
+qwen,Qwen3.5-397B-A17B,27f1716e-12a3-4885-a748-702378ef0f14,human,58.0000,72.0000
+qwen,Qwen3.5-397B-A17B,21e9a40a-1aaf-4f3b-829c-7de5b1e95d78,human,75.0000,60.5000
+qwen,Qwen3.5-397B-A17B,39ea3926-cfbe-463e-bb8f-768b58e94a4d,human,63.0000,58.5000
+qwen,Qwen3.5-397B-A17B,afb1cd6d-de66-48d4-b7f3-5e05ef001fa1,human,93.0000,85.0000
+qwen,Qwen3.5-397B-A17B,598b52c2-d1a8-4285-bd50-5d9956e9c072,human,54.0000,21.5000
+qwen,Qwen3.5-397B-A17B,d2adae25-1d36-44c1-906f-1c098afd2875,human,60.0000,86.5000
+qwen,Qwen3.5-397B-A17B,1d0c7550-0608-4557-afc6-d9d0811cc70e,human,55.0000,71.0000
+qwen,Qwen3.5-397B-A17B,1187cc8b-e142-4ea1-8ade-4e44448da827,human,24.0000,10.0000
+qwen,Qwen3.5-397B-A17B,d76c0ede-6349-4d54-a168-1184e968b32a,human,70.0000,57.0000
+qwen,Qwen3.5-397B-A17B,08c82c5c-803d-4318-934d-8533250d82a3,human,72.0000,51.0000
+qwen,Qwen3.5-397B-A17B,7062cc8d-f713-4548-b4ed-6fdc14de84f6,human,1.0000,0.0000
+qwen,Qwen3.5-397B-A17B,ae6f5d66-3b4b-4344-acd4-e095a58815e8,human,49.0000,29.0000
+qwen,Qwen3.5-397B-A17B,7667a163-9d3b-4d72-9766-fafdf4751ecb,human,88.0000,78.0000
+qwen,Qwen3.5-397B-A17B,10d5bec9-ac08-492a-9b08-0b0331ea31fa,human,54.0000,53.5000
+qwen,Qwen3.5-397B-A17B,005e23f5-33a8-4c7b-8ed6-b884a1cd0a84,human,90.0000,37.0000
+qwen,Qwen3.5-397B-A17B,9d55127b-8e34-4a59-a649-5c6e5b29931a,human,90.0000,71.0000
+qwen,Qwen3.5-397B-A17B,65df610e-2d47-488f-94ab-9b529e36e777,human,52.0000,49.0000
+qwen,Qwen3.5-397B-A17B,2fa57855-7902-4257-874f-3853edfa04e0,human,94.0000,76.5000
+qwen,Qwen3.5-397B-A17B,16573f16-ca86-43d6-a192-6f3d386d3071,human,86.0000,78.5000
+qwen,Qwen3.5-397B-A17B,4f657002-adc8-4772-9ffb-0947fa54ddc2,human,78.0000,59.0000
+qwen,Qwen3.5-397B-A17B,4241abf8-a838-4f69-a7db-da80de906e50,human,41.0000,61.0000
+qwen,Qwen3.5-397B-A17B,d159d82d-2254-4249-9bd2-17f8f54fa0cd,human,67.0000,94.0000
+qwen,Qwen3.5-397B-A17B,c10794d6-1703-46e3-a2cd-b4aff6654f6e,human,37.0000,51.0000
+qwen,Qwen3.5-397B-A17B,6c3ec7a0-705f-4ce1-aaf2-3ad1be9dee36,human,71.0000,67.5000
+qwen,Qwen3.5-397B-A17B,9671ade3-05b4-485c-b9fd-f7704c3827d2,human,86.0000,65.5000
+qwen,Qwen3.5-397B-A17B,4d02aeef-e084-4c12-b2a1-51b60ba64683,human,96.0000,89.0000
+qwen,Qwen3.5-397B-A17B,814a45e4-dda9-4590-b3db-e9fb05650243,human,64.0000,58.0000
+qwen,Qwen3.5-397B-A17B,b18e10d9-3033-4f42-a93c-a4d60b92bf98,human,94.0000,83.0000
+qwen,Qwen3.5-397B-A17B,34307098-3fb7-4098-b57b-5afd35397be2,human,46.0000,7.5000
+qwen,Qwen3.5-397B-A17B,44c31c28-a304-4b41-ad0a-02771b79aca6,llm,67.0000,71.5000
+qwen,Qwen3.5-397B-A17B,a812d855-e9d8-429f-9f51-b880c1cfdae0,llm,71.0000,40.5000
+qwen,Qwen3.5-397B-A17B,c51f6f54-6e76-4a8b-bf74-fd2d2fc6511d,llm,44.0000,10.0000
+qwen,Qwen3.5-397B-A17B,6d59ea1d-f9e2-4744-9516-b41476b38c7c,llm,75.0000,57.0000
+qwen,Qwen3.5-397B-A17B,e0c02b87-601b-4240-9044-0593c27c0492,llm,78.0000,61.0000
+qwen,Qwen3.5-397B-A17B,870ee789-f294-4dd2-9b94-02d8786d60b6,llm,72.0000,45.0000
+qwen,Qwen3.5-397B-A17B,75ff058f-63a4-4be1-944a-67dc887974b1,llm,76.0000,39.0000
+qwen,Qwen3.5-397B-A17B,7b61a138-45d7-4050-8c80-3f1c217b26db,llm,73.0000,58.5000
+qwen,Qwen3.5-397B-A17B,47bd0b94-d720-4cf5-b9c6-4b0d10dec92d,llm,58.0000,35.5000
+qwen,Qwen3.5-397B-A17B,b1d78e9c-ac68-410f-9f16-972bab083f2a,llm,93.0000,80.5000
+qwen,Qwen3.5-397B-A17B,48e4122b-a225-4229-a043-a11031ce3cea,llm,68.0000,56.0000
+qwen,Qwen3.5-397B-A17B,646e30aa-0f62-4624-9b5d-b4834b432cdc,llm,47.0000,0.0000
+qwen,Qwen3.5-397B-A17B,dee799c9-9a82-4c0c-8ae3-0116fcd50b28,llm,85.0000,73.5000
+qwen,Qwen3.5-397B-A17B,de7c14ff-d707-4ae1-9d8e-8419eb36a1fa,llm,56.0000,29.0000
+qwen,Qwen3.5-397B-A17B,b1261191-e771-4281-be24-f0b0a87b1aec,llm,87.0000,71.5000
+sonnet,Sonnet-4.6,1f5d32cf-d514-490b-b4f8-ec0503dc2476,human,87.0000,80.5000
+sonnet,Sonnet-4.6,27f1716e-12a3-4885-a748-702378ef0f14,human,54.5000,72.0000
+sonnet,Sonnet-4.6,21e9a40a-1aaf-4f3b-829c-7de5b1e95d78,human,74.0000,60.5000
+sonnet,Sonnet-4.6,39ea3926-cfbe-463e-bb8f-768b58e94a4d,human,62.0000,58.5000
+sonnet,Sonnet-4.6,598b52c2-d1a8-4285-bd50-5d9956e9c072,human,50.5000,21.5000
+sonnet,Sonnet-4.6,afb1cd6d-de66-48d4-b7f3-5e05ef001fa1,human,86.0000,85.0000
+sonnet,Sonnet-4.6,d2adae25-1d36-44c1-906f-1c098afd2875,human,62.5000,86.5000
+sonnet,Sonnet-4.6,1d0c7550-0608-4557-afc6-d9d0811cc70e,human,52.5000,71.0000
+sonnet,Sonnet-4.6,1187cc8b-e142-4ea1-8ade-4e44448da827,human,21.0000,10.0000
+sonnet,Sonnet-4.6,d76c0ede-6349-4d54-a168-1184e968b32a,human,54.0000,57.0000
+sonnet,Sonnet-4.6,08c82c5c-803d-4318-934d-8533250d82a3,human,44.5000,51.0000
+sonnet,Sonnet-4.6,7062cc8d-f713-4548-b4ed-6fdc14de84f6,human,1.0000,0.0000
+sonnet,Sonnet-4.6,ae6f5d66-3b4b-4344-acd4-e095a58815e8,human,29.5000,29.0000
+sonnet,Sonnet-4.6,7667a163-9d3b-4d72-9766-fafdf4751ecb,human,89.0000,78.0000
+sonnet,Sonnet-4.6,005e23f5-33a8-4c7b-8ed6-b884a1cd0a84,human,58.5000,37.0000
+sonnet,Sonnet-4.6,10d5bec9-ac08-492a-9b08-0b0331ea31fa,human,41.5000,53.5000
+sonnet,Sonnet-4.6,9d55127b-8e34-4a59-a649-5c6e5b29931a,human,80.0000,71.0000
+sonnet,Sonnet-4.6,65df610e-2d47-488f-94ab-9b529e36e777,human,30.0000,49.0000
+sonnet,Sonnet-4.6,2fa57855-7902-4257-874f-3853edfa04e0,human,81.0000,76.5000
+sonnet,Sonnet-4.6,16573f16-ca86-43d6-a192-6f3d386d3071,human,79.5000,78.5000
+sonnet,Sonnet-4.6,4241abf8-a838-4f69-a7db-da80de906e50,human,33.0000,61.0000
+sonnet,Sonnet-4.6,4f657002-adc8-4772-9ffb-0947fa54ddc2,human,68.0000,59.0000
+sonnet,Sonnet-4.6,d159d82d-2254-4249-9bd2-17f8f54fa0cd,human,75.0000,94.0000
+sonnet,Sonnet-4.6,c10794d6-1703-46e3-a2cd-b4aff6654f6e,human,41.5000,51.0000
+sonnet,Sonnet-4.6,9671ade3-05b4-485c-b9fd-f7704c3827d2,human,77.5000,65.5000
+sonnet,Sonnet-4.6,6c3ec7a0-705f-4ce1-aaf2-3ad1be9dee36,human,69.0000,67.5000
+sonnet,Sonnet-4.6,4d02aeef-e084-4c12-b2a1-51b60ba64683,human,76.0000,89.0000
+sonnet,Sonnet-4.6,814a45e4-dda9-4590-b3db-e9fb05650243,human,53.0000,58.0000
+sonnet,Sonnet-4.6,b18e10d9-3033-4f42-a93c-a4d60b92bf98,human,75.5000,83.0000
+sonnet,Sonnet-4.6,34307098-3fb7-4098-b57b-5afd35397be2,human,47.0000,7.5000
+sonnet,Sonnet-4.6,44c31c28-a304-4b41-ad0a-02771b79aca6,llm,68.5000,71.5000
+sonnet,Sonnet-4.6,a812d855-e9d8-429f-9f51-b880c1cfdae0,llm,54.0000,40.5000
+sonnet,Sonnet-4.6,c51f6f54-6e76-4a8b-bf74-fd2d2fc6511d,llm,23.5000,10.0000
+sonnet,Sonnet-4.6,6d59ea1d-f9e2-4744-9516-b41476b38c7c,llm,65.5000,57.0000
+sonnet,Sonnet-4.6,e0c02b87-601b-4240-9044-0593c27c0492,llm,60.5000,61.0000
+sonnet,Sonnet-4.6,870ee789-f294-4dd2-9b94-02d8786d60b6,llm,61.0000,45.0000
+sonnet,Sonnet-4.6,75ff058f-63a4-4be1-944a-67dc887974b1,llm,67.0000,39.0000
+sonnet,Sonnet-4.6,7b61a138-45d7-4050-8c80-3f1c217b26db,llm,66.0000,58.5000
+sonnet,Sonnet-4.6,47bd0b94-d720-4cf5-b9c6-4b0d10dec92d,llm,52.5000,35.5000
+sonnet,Sonnet-4.6,b1d78e9c-ac68-410f-9f16-972bab083f2a,llm,77.0000,80.5000
+sonnet,Sonnet-4.6,48e4122b-a225-4229-a043-a11031ce3cea,llm,70.5000,56.0000
+sonnet,Sonnet-4.6,646e30aa-0f62-4624-9b5d-b4834b432cdc,llm,37.0000,0.0000
+sonnet,Sonnet-4.6,dee799c9-9a82-4c0c-8ae3-0116fcd50b28,llm,78.5000,73.5000
+sonnet,Sonnet-4.6,de7c14ff-d707-4ae1-9d8e-8419eb36a1fa,llm,47.5000,29.0000
+sonnet,Sonnet-4.6,b1261191-e771-4281-be24-f0b0a87b1aec,llm,74.0000,71.5000
+gpt54mini,GPT-5.4-mini,1f5d32cf-d514-490b-b4f8-ec0503dc2476,human,82.0000,80.5000
+gpt54mini,GPT-5.4-mini,27f1716e-12a3-4885-a748-702378ef0f14,human,44.0000,72.0000
+gpt54mini,GPT-5.4-mini,21e9a40a-1aaf-4f3b-829c-7de5b1e95d78,human,64.0000,60.5000
+gpt54mini,GPT-5.4-mini,39ea3926-cfbe-463e-bb8f-768b58e94a4d,human,64.0000,58.5000
+gpt54mini,GPT-5.4-mini,afb1cd6d-de66-48d4-b7f3-5e05ef001fa1,human,75.0000,85.0000
+gpt54mini,GPT-5.4-mini,598b52c2-d1a8-4285-bd50-5d9956e9c072,human,45.0000,21.5000
+gpt54mini,GPT-5.4-mini,d2adae25-1d36-44c1-906f-1c098afd2875,human,59.0000,86.5000
+gpt54mini,GPT-5.4-mini,1d0c7550-0608-4557-afc6-d9d0811cc70e,human,37.0000,71.0000
+gpt54mini,GPT-5.4-mini,1187cc8b-e142-4ea1-8ade-4e44448da827,human,26.0000,10.0000
+gpt54mini,GPT-5.4-mini,d76c0ede-6349-4d54-a168-1184e968b32a,human,41.0000,57.0000
+gpt54mini,GPT-5.4-mini,08c82c5c-803d-4318-934d-8533250d82a3,human,51.0000,51.0000
+gpt54mini,GPT-5.4-mini,7062cc8d-f713-4548-b4ed-6fdc14de84f6,human,30.0000,0.0000
+gpt54mini,GPT-5.4-mini,ae6f5d66-3b4b-4344-acd4-e095a58815e8,human,43.0000,29.0000
+gpt54mini,GPT-5.4-mini,7667a163-9d3b-4d72-9766-fafdf4751ecb,human,84.0000,78.0000
+gpt54mini,GPT-5.4-mini,005e23f5-33a8-4c7b-8ed6-b884a1cd0a84,human,69.0000,37.0000
+gpt54mini,GPT-5.4-mini,10d5bec9-ac08-492a-9b08-0b0331ea31fa,human,52.0000,53.5000
+gpt54mini,GPT-5.4-mini,9d55127b-8e34-4a59-a649-5c6e5b29931a,human,66.0000,71.0000
+gpt54mini,GPT-5.4-mini,65df610e-2d47-488f-94ab-9b529e36e777,human,41.0000,49.0000
+gpt54mini,GPT-5.4-mini,2fa57855-7902-4257-874f-3853edfa04e0,human,82.0000,76.5000
+gpt54mini,GPT-5.4-mini,16573f16-ca86-43d6-a192-6f3d386d3071,human,83.0000,78.5000
+gpt54mini,GPT-5.4-mini,4241abf8-a838-4f69-a7db-da80de906e50,human,38.0000,61.0000
+gpt54mini,GPT-5.4-mini,4f657002-adc8-4772-9ffb-0947fa54ddc2,human,52.0000,59.0000
+gpt54mini,GPT-5.4-mini,d159d82d-2254-4249-9bd2-17f8f54fa0cd,human,78.0000,94.0000
+gpt54mini,GPT-5.4-mini,c10794d6-1703-46e3-a2cd-b4aff6654f6e,human,49.0000,51.0000
+gpt54mini,GPT-5.4-mini,9671ade3-05b4-485c-b9fd-f7704c3827d2,human,70.0000,65.5000
+gpt54mini,GPT-5.4-mini,6c3ec7a0-705f-4ce1-aaf2-3ad1be9dee36,human,63.0000,67.5000
+gpt54mini,GPT-5.4-mini,4d02aeef-e084-4c12-b2a1-51b60ba64683,human,77.0000,89.0000
+gpt54mini,GPT-5.4-mini,814a45e4-dda9-4590-b3db-e9fb05650243,human,52.0000,58.0000
+gpt54mini,GPT-5.4-mini,b18e10d9-3033-4f42-a93c-a4d60b92bf98,human,76.0000,83.0000
+gpt54mini,GPT-5.4-mini,34307098-3fb7-4098-b57b-5afd35397be2,human,42.0000,7.5000
+gpt54mini,GPT-5.4-mini,44c31c28-a304-4b41-ad0a-02771b79aca6,llm,48.0000,71.5000
+gpt54mini,GPT-5.4-mini,a812d855-e9d8-429f-9f51-b880c1cfdae0,llm,57.0000,40.5000
+gpt54mini,GPT-5.4-mini,c51f6f54-6e76-4a8b-bf74-fd2d2fc6511d,llm,27.0000,10.0000
+gpt54mini,GPT-5.4-mini,6d59ea1d-f9e2-4744-9516-b41476b38c7c,llm,52.0000,57.0000
+gpt54mini,GPT-5.4-mini,e0c02b87-601b-4240-9044-0593c27c0492,llm,50.0000,61.0000
+gpt54mini,GPT-5.4-mini,870ee789-f294-4dd2-9b94-02d8786d60b6,llm,42.0000,45.0000
+gpt54mini,GPT-5.4-mini,75ff058f-63a4-4be1-944a-67dc887974b1,llm,52.0000,39.0000
+gpt54mini,GPT-5.4-mini,7b61a138-45d7-4050-8c80-3f1c217b26db,llm,65.0000,58.5000
+gpt54mini,GPT-5.4-mini,47bd0b94-d720-4cf5-b9c6-4b0d10dec92d,llm,42.0000,35.5000
+gpt54mini,GPT-5.4-mini,b1d78e9c-ac68-410f-9f16-972bab083f2a,llm,63.0000,80.5000
+gpt54mini,GPT-5.4-mini,48e4122b-a225-4229-a043-a11031ce3cea,llm,62.0000,56.0000
+gpt54mini,GPT-5.4-mini,646e30aa-0f62-4624-9b5d-b4834b432cdc,llm,47.0000,0.0000
+gpt54mini,GPT-5.4-mini,dee799c9-9a82-4c0c-8ae3-0116fcd50b28,llm,68.0000,73.5000
+gpt54mini,GPT-5.4-mini,de7c14ff-d707-4ae1-9d8e-8419eb36a1fa,llm,51.0000,29.0000
+gpt54mini,GPT-5.4-mini,b1261191-e771-4281-be24-f0b0a87b1aec,llm,67.0000,71.5000

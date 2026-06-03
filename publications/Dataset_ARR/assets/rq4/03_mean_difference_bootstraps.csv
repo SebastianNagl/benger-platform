@@ -1,0 +1,5 @@
+method,delta_raw,delta_grade_points,ci95_lo_raw,ci95_hi_raw,ci95_lo_grade_points,ci95_hi_grade_points,n_resample_units,resample_unit,role,note
+iid_annotation_bootstrap,19.926,3.587,15.394,24.482,2.771,4.407,220,annotation,diagnostic_only_assumes_independence,naive bootstrap; fools itself about effective n because same participant contributes many annotations
+participant_cluster_bootstrap,19.926,3.587,12.816,27.783,2.307,5.001,56,participant,HEADLINE,resamples participants with replacement; honest about the per-participant clustering of annotations
+task_cluster_bootstrap,19.926,3.587,14.864,25.679,2.675,4.622,15,task,robustness_check,resamples Benchathon tasks; rules out a particular hard task driving the effect
+paired_within_participant,16.079,2.894,9.801,22.629,1.764,4.073,23,participant_in_both_arms,cleanest_within_subject_test,"compares each participant to themselves; eliminates between-participant covariates (expertise, motivation, etc.)"

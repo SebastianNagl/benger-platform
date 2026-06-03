@@ -9,7 +9,7 @@ from enum import Enum
 import sqlalchemy as sa
 from sqlalchemy import JSON, Boolean, CheckConstraint, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
-from sqlalchemy import Float, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, Float, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy import text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -1765,4 +1765,141 @@ class ProjectSummary(Base):
         return (
             f"<ProjectSummary(project={self.project_id}, period={self.period}, "
             f"tasks={self.total_tasks}, eval_pairs={self.evaluation_pairs_count})>"
+        )
+
+
+class JobStatus(str, Enum):
+    """Lifecycle states for async export/import jobs (issue #158).
+
+    Stored as a plain ``String`` column guarded by a ``CheckConstraint`` rather
+    than a DB-native enum, so adding a state later is a code change, not a
+    fragile ``ALTER TYPE`` migration.
+    """
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class ExportJob(Base):
+    """Async project-export job (issue #158).
+
+    A worker streams the export into S3-compatible object storage via multipart
+    upload; the client polls status and downloads via a presigned URL. Moving the
+    bulk data plane off the API request thread is what lets exports scale past the
+    pod's memory ceiling (the OOMKill incident that motivated this work).
+    """
+
+    __tablename__ = "export_jobs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(
+        String,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Who requested it — used for the status/download authz check.
+    requested_by = Column(
+        String, ForeignKey("users.id"), nullable=False, index=True
+    )
+    # Export format: json | flat_csv | label_studio | txt | comprehensive.
+    format = Column(String, nullable=False)
+    status = Column(String, nullable=False, server_default="pending")
+    # Storage key of the finished artifact; NULL until the upload starts.
+    object_key = Column(String, nullable=True)
+    byte_size = Column(BigInteger, nullable=True)
+    progress = Column(Integer, nullable=False, server_default=text("0"))
+    error_message = Column(Text, nullable=True)
+    celery_task_id = Column(String, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+    # When the stored artifact (and its presigned download) is no longer valid.
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'running', 'completed', 'failed')",
+            name="ck_export_jobs_status",
+        ),
+        CheckConstraint(
+            "progress >= 0 AND progress <= 100",
+            name="ck_export_jobs_progress_range",
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<ExportJob(id={self.id}, project={self.project_id}, "
+            f"format={self.format}, status={self.status})>"
+        )
+
+
+class ImportJob(Base):
+    """Async project-import job (issue #158).
+
+    Inverts ``ExportJob``: the client uploads the artifact to object storage
+    first (so ``object_key`` is set at creation), then a worker downloads it,
+    stream-parses, and batch-inserts — keeping import memory O(batch) instead of
+    O(file). ``project_id`` is nullable because the comprehensive-format import
+    *creates* its target project, so the id isn't known when the job is queued.
+    """
+
+    __tablename__ = "import_jobs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(
+        String,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    requested_by = Column(
+        String, ForeignKey("users.id"), nullable=False, index=True
+    )
+    # Detected during parsing (nested label-studio vs. flat comprehensive).
+    format = Column(String, nullable=True)
+    status = Column(String, nullable=False, server_default="pending")
+    # Client uploads the file before the job row is created, so this is required.
+    object_key = Column(String, nullable=False)
+    byte_size = Column(BigInteger, nullable=True)
+    progress = Column(Integer, nullable=False, server_default=text("0"))
+    error_message = Column(Text, nullable=True)
+    # Statistics summary (created_* counters) returned to the client on success.
+    result = Column(JSONB, nullable=True)
+    celery_task_id = Column(String, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'running', 'completed', 'failed')",
+            name="ck_import_jobs_status",
+        ),
+        CheckConstraint(
+            "progress >= 0 AND progress <= 100",
+            name="ck_import_jobs_progress_range",
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<ImportJob(id={self.id}, project={self.project_id}, "
+            f"status={self.status})>"
         )

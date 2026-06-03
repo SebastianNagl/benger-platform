@@ -82,6 +82,26 @@ export const canAccessProjectData = (
 }
 
 /**
+ * Check if user can edit individual task data.
+ * Allowed: superadmins and organization admins only (not contributors).
+ *
+ * When a `project` is supplied (per-project context), the user's effective
+ * project role must be ORG_ADMIN (covers project creator + superadmin too).
+ * Without a project (the global /data page, which spans orgs), fall back to
+ * the user's org-context role as a UI hint — the backend remains the source
+ * of truth and returns 403 for tasks the user may not edit.
+ */
+export const canEditTaskData = (
+  user: User | null,
+  project?: Pick<Project, 'created_by' | 'is_public' | 'public_role'> | null
+): boolean => {
+  if (!user) return false
+  if (user.is_superadmin) return true
+  if (project) return getEffectiveProjectRole(user, project) === 'ORG_ADMIN'
+  return user.role === 'ORG_ADMIN'
+}
+
+/**
  * Check if user can delete projects
  * Only superadmins can delete projects
  */

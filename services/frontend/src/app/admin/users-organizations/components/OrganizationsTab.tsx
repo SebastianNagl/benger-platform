@@ -91,6 +91,14 @@ export function OrganizationsTab() {
   const [orgUpdateLoading, setOrgUpdateLoading] = useState(false)
   const [inviting, setInviting] = useState(false)
 
+  // Bulk-invite sub-modal
+  const [showBulkInviteModal, setShowBulkInviteModal] = useState(false)
+  const [bulkEmails, setBulkEmails] = useState('')
+  const [bulkRole, setBulkRole] = useState<
+    'ANNOTATOR' | 'CONTRIBUTOR' | 'ORG_ADMIN'
+  >('ANNOTATOR')
+  const [bulkInviting, setBulkInviting] = useState(false)
+
   // Add existing user states
   const [allUsers, setAllUsers] = useState<any[]>([])
   const [userSearchQuery, setUserSearchQuery] = useState('')
@@ -280,6 +288,71 @@ export function OrganizationsTab() {
       )
     } finally {
       setInviting(false)
+    }
+  }
+
+  const handleBulkInvite = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedOrganization) return
+
+    if (
+      !UserOrganizationPermissions.canInviteToOrganization(
+        userWithOrganizations,
+        selectedOrganization.id
+      )
+    ) {
+      showError(t('admin.organizations.errors.noPermissionInvite'), t('admin.organizations.errors.errorTitle'))
+      return
+    }
+
+    // Split on comma / semicolon / newline, trim, drop blanks, dedupe case-insensitively.
+    const seen = new Set<string>()
+    const emails = bulkEmails
+      .split(/[,\n;]/)
+      .map((raw) => raw.trim())
+      .filter((email) => {
+        if (!email) return false
+        const key = email.toLowerCase()
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+
+    if (emails.length === 0) {
+      showError(
+        t('admin.organizations.bulkInviteNoValidEmails'),
+        t('admin.organizations.errors.errorTitle')
+      )
+      return
+    }
+
+    try {
+      setBulkInviting(true)
+      const result = await organizationsAPI.bulkInvite(selectedOrganization.id, {
+        emails,
+        role: bulkRole,
+      })
+
+      await loadOrganizationData()
+      addToast(
+        t('admin.organizations.bulkInviteSummary', {
+          queued: result.queued,
+          skipped: result.skipped,
+        }),
+        'success'
+      )
+      setShowBulkInviteModal(false)
+      setShowInviteModal(false)
+      setBulkEmails('')
+      setBulkRole('ANNOTATOR')
+    } catch (error: any) {
+      console.error('Failed to send bulk invitations:', error)
+      showError(
+        error.response?.data?.detail || t('admin.organizations.bulkInviteFailed'),
+        t('admin.organizations.errors.errorTitle')
+      )
+    } finally {
+      setBulkInviting(false)
     }
   }
 
@@ -1104,16 +1177,94 @@ export function OrganizationsTab() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex items-center justify-between">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setBulkEmails('')
+                      setBulkRole(inviteRole)
+                      setShowBulkInviteModal(true)
+                    }}
+                    variant="text"
+                  >
+                    {t('admin.organizations.inviteMultiple')}
+                  </Button>
+                  <div className="flex justify-end space-x-3">
+                    <Button
+                      type="button"
+                      onClick={() => setShowInviteModal(false)}
+                      variant="outline"
+                    >
+                      {t('admin.organizations.cancel')}
+                    </Button>
+                    <Button type="submit" disabled={inviting} variant="primary">
+                      {inviting ? t('admin.organizations.sending') : t('admin.organizations.sendInvitation')}
+                    </Button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkInviteModal && (
+        <div className="fixed inset-0 z-[60] h-full w-full overflow-y-auto bg-zinc-600 bg-opacity-50 dark:bg-zinc-900 dark:bg-opacity-75">
+          <div className="relative top-20 mx-auto w-96 rounded-md border border-zinc-200 bg-white p-5 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+            <div className="mt-3">
+              <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-zinc-100">
+                {t('admin.organizations.bulkInviteTitle')}
+              </h3>
+              <form onSubmit={handleBulkInvite}>
+                <div className="mb-4">
+                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    {t('admin.organizations.bulkEmailsLabel')}
+                  </label>
+                  <textarea
+                    value={bulkEmails}
+                    onChange={(e) => setBulkEmails(e.target.value)}
+                    rows={5}
+                    placeholder={t('admin.organizations.bulkEmailsPlaceholder')}
+                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+                    required
+                  />
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    {t('admin.organizations.bulkEmailsHelp')}
+                  </p>
+                </div>
+                <div className="mb-4">
+                  <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    {t('admin.organizations.role')}
+                  </label>
+                  <Select
+                    value={bulkRole}
+                    onValueChange={(v) => setBulkRole(v as any)}
+                    displayValue={
+                      bulkRole === 'ANNOTATOR' ? t('admin.organizations.roleAnnotator') :
+                      bulkRole === 'CONTRIBUTOR' ? t('admin.organizations.roleContributor') :
+                      t('admin.organizations.roleAdmin')
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('admin.organizations.roleAnnotator')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ANNOTATOR">{t('admin.organizations.roleAnnotator')}</SelectItem>
+                      <SelectItem value="CONTRIBUTOR">{t('admin.organizations.roleContributor')}</SelectItem>
+                      <SelectItem value="ORG_ADMIN">{t('admin.organizations.roleAdmin')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex justify-end space-x-3">
                   <Button
                     type="button"
-                    onClick={() => setShowInviteModal(false)}
+                    onClick={() => setShowBulkInviteModal(false)}
                     variant="outline"
                   >
                     {t('admin.organizations.cancel')}
                   </Button>
-                  <Button type="submit" disabled={inviting} variant="primary">
-                    {inviting ? t('admin.organizations.sending') : t('admin.organizations.sendInvitation')}
+                  <Button type="submit" disabled={bulkInviting} variant="primary">
+                    {bulkInviting ? t('admin.organizations.bulkInviteSending') : t('admin.organizations.bulkInviteSubmit')}
                   </Button>
                 </div>
               </form>

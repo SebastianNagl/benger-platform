@@ -1,0 +1,6 @@
+pool,n_annotations,n_participants,note
+traditional,65,23,participants who contributed at least one traditional annotation
+co_creation,155,33,participants who contributed at least one co-creation annotation
+participants_in_both_arms,,23,"unit for the within-participant paired test (Step 3, paired row)"
+participants_traditional_only,,0,did trad but skipped co-creation (rare)
+participants_co_creation_only,,10,did co-creation but skipped trad — drives the 155 vs 65 imbalance

@@ -153,6 +153,24 @@ export interface InvitationCreate {
   role: OrganizationRole
 }
 
+export interface BulkInvitationCreate {
+  emails: string[]
+  role: OrganizationRole
+}
+
+export interface BulkInvitationResultItem {
+  email: string
+  status: 'queued' | 'invalid' | 'already_member' | 'pending' | 'duplicate'
+  detail?: string
+}
+
+export interface BulkInvitationResponse {
+  queued: number
+  skipped: number
+  total: number
+  results: BulkInvitationResultItem[]
+}
+
 export interface Task {
   id: string
   name: string

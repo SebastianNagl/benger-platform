@@ -1,0 +1,18 @@
+\begin{table*}[t]
+\centering\footnotesize
+\caption{LLM-judge configuration. Temperature and max output tokens are the values captured in the per-call metadata of the Benchathon evaluation runs (primary 2026-05-31, cross-validation 2026-05-31); the retry budget is the worker-side default of 3, with the observed retry count across each run reported in parentheses. No provider-side snapshot id is returned for these aliases; the model id plus run date pins reproducibility.}
+\label{tbl-judge-config}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lccccc@{}}
+\toprule
+Role & Model & Run date & $T$ & Max tok. & Retry budget \\
+\midrule
+Primary judge & \texttt{gpt-5.4-mini} & 2026-05-31 & $1.0$ & $8000$ & $3$ (obs.\ $0$) \\
+Cross-validation (Anthropic) & \texttt{claude-opus-4-7} & 2026-05-21 & $1.0$ & $8000$ & $3$ (obs.\ $0$) \\
+Cross-validation (Anthropic) & \texttt{claude-sonnet-4-6} & 2026-05-31 & $1.0$ & $8000$ & $3$ (obs.\ $0$) \\
+Cross-validation (Google) & \texttt{gemini-3.1-pro-preview} & 2026-05-21 & $1.0$ & $8000$ & $3$ (obs.\ $0$) \\
+Cross-validation (DeepSeek) & \texttt{deepseek-ai/DeepSeek-V4-Pro} & 2026-05-31 & $1.0$ & $8000$ & $3$ (obs.\ $0$) \\
+Cross-validation (Alibaba) & \texttt{Qwen/Qwen3.5-397B-A17B} & 2026-05-31 & $1.0$ & $8000$ & $3$ (obs.\ $0$) \\
+\bottomrule
+\end{tabular*}
+\end{table*}
