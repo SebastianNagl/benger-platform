@@ -108,7 +108,7 @@ class ProjectReport(Base):
     # Publication status
     is_published = Column(Boolean, default=False, nullable=False, index=True)
     published_at = Column(DateTime(timezone=True), nullable=True)
-    published_by = Column(String, ForeignKey("users.id"), nullable=True)
+    published_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Audit fields
     created_by = Column(String, ForeignKey("users.id"), nullable=False)
