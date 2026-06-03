@@ -403,67 +403,61 @@ class TestUpdateSuperadminStatusSuccess:
 class TestDeleteUserSuccess:
     @pytest.mark.asyncio
     async def test_delete_regular_user(self):
-        """Cover lines 819-909: successful user deletion."""
+        """The endpoint delegates to the canonical user_service.delete_user."""
         from routers.organizations import delete_user
 
         db = MagicMock()
         admin = Mock(is_superadmin=True, id="admin-1")
 
         user_result = Mock(email="target@test.com", is_superadmin=False)
+        db.execute.return_value.first.return_value = user_result
 
-        call_count = [0]
+        with patch(
+            "routers.organizations.delete_user_service", return_value=True
+        ) as svc:
+            result = await delete_user(user_id="user-2", current_user=admin, db=db)
 
-        def execute_side_effect(*args, **kwargs):
-            call_count[0] += 1
-            mock_result = MagicMock()
-            if call_count[0] == 1:
-                # First call: user lookup
-                mock_result.first.return_value = user_result
-            else:
-                mock_result.rowcount = 0
-                arg_str = str(args[0]) if args else ""
-                if "SELECT id FROM users" in arg_str:
-                    mock_result.fetchone.return_value = None  # User is gone
-                else:
-                    mock_result.fetchone.return_value = ("user-2",)
-            return mock_result
-
-        db.execute.side_effect = execute_side_effect
-
-        result = await delete_user(user_id="user-2", current_user=admin, db=db)
+        svc.assert_called_once_with(db, "user-2")
         assert result["message"] == "User deleted successfully"
 
     @pytest.mark.asyncio
-    async def test_delete_user_critical_failure(self):
-        """Cover lines 911-918: critical failure during user deletion."""
+    async def test_delete_user_service_reports_not_found(self):
+        """A False return from the canonical service surfaces as a 404."""
         from routers.organizations import delete_user
 
         db = MagicMock()
         admin = Mock(is_superadmin=True, id="admin-1")
+        db.execute.return_value.first.return_value = Mock(
+            email="target@test.com", is_superadmin=False
+        )
 
-        user_result = Mock(email="target@test.com", is_superadmin=False)
+        with patch("routers.organizations.delete_user_service", return_value=False):
+            with pytest.raises(HTTPException) as exc_info:
+                await delete_user(user_id="user-2", current_user=admin, db=db)
+        assert exc_info.value.status_code == 404
 
-        call_count = [0]
+    @pytest.mark.asyncio
+    async def test_delete_user_critical_failure(self):
+        """An unexpected error inside the service bubbles up as a 500."""
+        from routers.organizations import delete_user
 
-        def execute_side_effect(*args, **kwargs):
-            call_count[0] += 1
-            mock_result = MagicMock()
-            if call_count[0] == 1:
-                mock_result.first.return_value = user_result
-            else:
-                mock_result.rowcount = 0
-                mock_result.fetchone.return_value = None
-            return mock_result
+        db = MagicMock()
+        admin = Mock(is_superadmin=True, id="admin-1")
+        db.execute.return_value.first.return_value = Mock(
+            email="target@test.com", is_superadmin=False
+        )
 
-        db.execute.side_effect = execute_side_effect
-
-        with pytest.raises(HTTPException) as exc_info:
-            await delete_user(user_id="user-2", current_user=admin, db=db)
+        with patch(
+            "routers.organizations.delete_user_service",
+            side_effect=RuntimeError("boom"),
+        ):
+            with pytest.raises(HTTPException) as exc_info:
+                await delete_user(user_id="user-2", current_user=admin, db=db)
         assert exc_info.value.status_code == 500
 
     @pytest.mark.asyncio
     async def test_delete_user_outer_exception(self):
-        """Cover lines 923-929: unexpected outer exception."""
+        """An error during the pre-delegation user lookup surfaces as a 500."""
         from routers.organizations import delete_user
 
         db = MagicMock()
