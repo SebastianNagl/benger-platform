@@ -4,6 +4,8 @@
 
 import { BaseApiClient } from './base'
 import type {
+  BulkInvitationCreate,
+  BulkInvitationResponse,
   Invitation,
   InvitationCreate,
   Organization,
@@ -106,6 +108,20 @@ export class OrganizationsClient extends BaseApiClient {
   ): Promise<Invitation> {
     return this.post(
       `/invitations/organizations/${organizationId}/invitations`,
+      data
+    )
+  }
+
+  /**
+   * Send multiple invitations in one request. Each email is validated and
+   * deduplicated server-side; the response reports a per-email status.
+   */
+  async bulkInvite(
+    organizationId: string,
+    data: BulkInvitationCreate
+  ): Promise<BulkInvitationResponse> {
+    return this.post(
+      `/invitations/organizations/${organizationId}/invitations/bulk`,
       data
     )
   }

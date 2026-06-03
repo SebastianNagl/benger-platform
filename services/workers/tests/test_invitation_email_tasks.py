@@ -49,6 +49,48 @@ class TestInvitationEmailTask:
         assert result["organization"] == organization_name
         mock_client.send_message.assert_called_once()
 
+    def test_invitation_email_body_is_substituted(self):
+        """Regression: the body was once a plain (non-f) string, so the
+        literal tokens {organization_name}, {invitation_url}, etc. shipped to
+        recipients and the accept link was dead. The body is now rendered from
+        the invitation_recipient.html Jinja2 template — assert the real values
+        are present and no unrendered token of either style leaks through."""
+        mock_class, mock_client = _mock_sendgrid_success()
+
+        with patch('sendgrid_client.SendGridClient', mock_class):
+            send_invitation_email_task(
+                "inv-sub",
+                "user@example.com",
+                "Jane Admin",
+                "Göttingen",
+                "https://what-a-benger.net/accept-invitation/tok123",
+                "ANNOTATOR",
+            )
+
+        body = mock_client.send_message.call_args.kwargs["html_body"]
+        subject = mock_client.send_message.call_args.kwargs["subject"]
+
+        # Real values rendered into both subject and body
+        assert "Göttingen" in subject
+        assert "Göttingen" in body
+        assert "Jane Admin" in body
+        assert "ANNOTATOR" in body
+        assert "https://what-a-benger.net/accept-invitation/tok123" in body
+
+        # No unrendered placeholders of either templating style
+        for token in (
+            "{organization_name}",
+            "{inviter_name}",
+            "{role}",
+            "{invitation_url}",
+            "{{ organization_name }}",
+            "{{ inviter_name }}",
+            "{{ role }}",
+            "{{ invitation_url }}",
+        ):
+            assert token not in body
+            assert token not in subject
+
     def test_send_invitation_email_sendgrid_error(self):
         """Test that SendGrid errors raise RuntimeError"""
         mock_client = MagicMock()
