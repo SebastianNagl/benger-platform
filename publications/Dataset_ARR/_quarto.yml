@@ -12,24 +12,32 @@ format:
     review: false
     anonymous: false
     keep-tex: true
-    # lualatex handles the Greek letters (ρ, κ, σ) that appear in stats
-    # prose; pdflatex chokes on them. lualatex's default `TeX Gyre Termes`
-    # is NOT in aclpubcheck's accepted set ({TeXGyreTermesX-Regular,
-    # NimbusRomNo9L-Regu, TimesNewRomanPSMT, STIXGeneral-Regular}). We use
-    # STIX Two Text via fontspec — STIX is on the accepted set and is
-    # bundled with macOS by default; STIX Two Math pairs natively for
-    # the Greek/math symbols.
-    pdf-engine: lualatex
+    # xelatex (an arXiv-supported processor since Nov 2025; lualatex is NOT
+    # yet selectable on arXiv) handles the Greek letters (ρ, κ, σ) that
+    # appear in stats prose via fontspec/unicode-math; pdflatex chokes on
+    # them. The template's default `TeX Gyre Termes` is NOT in aclpubcheck's
+    # accepted set ({TeXGyreTermesX-Regular, NimbusRomNo9L-Regu,
+    # TimesNewRomanPSMT, STIXGeneral-Regular}). We use STIXGeneral via
+    # fontspec — STIX is on the accepted set and is bundled with macOS by
+    # default; STIX Two Math pairs natively for the Greek/math symbols.
+    pdf-engine: xelatex
     include-in-header:
       text: |
         \usepackage{afterpage}
         \usepackage{colortbl}  % adds \cellcolor / \rowcolor for table highlights
         \usepackage{fontspec}
-        % aclpubcheck whitelists `STIXGeneral-Regular` (the original STIX),
-        % not `STIXTwoText`. Both are installed on macOS by default.
-        \setmainfont{STIXGeneral}
+        % Text main font stays TeX Gyre Termes (set portably in the ACL
+        % template's \else branch). aclpubcheck accepts `TeXGyreTermes-Reg`,
+        % and the font carries the Greek text glyphs (ρ κ σ) used in the
+        % stats prose, so no STIXGeneral system-font override is needed —
+        % STIXGeneral is macOS-only and absent from TeX Live, which
+        % would break the build on arXiv.
         \usepackage{unicode-math}
-        \setmathfont{STIX Two Math}
+        % STIX Two Math bundled under fonts/ and loaded by explicit filename +
+        % Path so the build is self-contained on arXiv (no reliance on the TeX
+        % Live font database, which arXiv's source scanner can't see) and the
+        % scanner finds the real file in the upload.
+        \setmathfont{STIXTwoMath-Regular.otf}[Path=fonts/]
         % Wrap \maketitle in `NoHyper` so the byline `\thanks` symbols
         % aren't typeset as hyperlinks. acl.sty resets the footnote
         % counter after the title page, which causes hyperref's auto-named

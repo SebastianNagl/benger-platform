@@ -9,8 +9,18 @@
 import '@testing-library/jest-dom'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { projectsAPI } from '@/lib/api/projects'
 import { TaskDataViewModal } from '../../../components/tasks/TaskDataViewModal'
 import { Task } from '../../../types/labelStudio'
+
+// Mock the projects API so save flows are observable without a network call.
+jest.mock('@/lib/api/projects', () => ({
+  projectsAPI: {
+    updateTaskData: jest.fn(() => Promise.resolve({})),
+  },
+}))
+
+const mockUpdateTaskData = projectsAPI.updateTaskData as jest.Mock
 
 // Mock I18n context
 jest.mock('@/contexts/I18nContext', () => ({
@@ -19,6 +29,7 @@ jest.mock('@/contexts/I18nContext', () => ({
       const translations: Record<string, string> = {
         'tasks.dataView.taskDataId': `Task Data - ID ${params?.id || ''}`,
         'tasks.dataView.taskType': `Task Type: ${params?.type || 'Unknown'}`,
+        'tasks.dataView.unknownType': 'Unknown',
         'tasks.dataView.viewFormatted': 'Formatted',
         'tasks.dataView.viewJson': 'JSON',
         'tasks.dataView.copy': 'Copy',
@@ -29,6 +40,12 @@ jest.mock('@/contexts/I18nContext', () => ({
         'tasks.dataView.fieldsCount': `${params?.count || 0} fields`,
         'tasks.dataView.fieldsCountFiltered': `${params?.count || 0} fields (${params?.filtered || 0} filtered)`,
         'tasks.dataView.created': `Created: ${params?.date || ''}`,
+        'tasks.dataView.edit': 'Edit',
+        'tasks.dataView.save': 'Save',
+        'tasks.dataView.saving': 'Saving...',
+        'tasks.dataView.cancel': 'Cancel',
+        'tasks.dataView.invalidJson': 'Invalid JSON',
+        'tasks.dataView.saveFailed': 'Failed to save task data',
       }
       return translations[key] || key
     },
@@ -87,6 +104,8 @@ describe('TaskDataViewModal', () => {
   beforeEach(() => {
     mockOnClose.mockClear()
     mockWriteText.mockClear()
+    mockUpdateTaskData.mockClear()
+    mockUpdateTaskData.mockResolvedValue({})
   })
 
   it('should not render when task is null', async () => {
@@ -111,6 +130,39 @@ describe('TaskDataViewModal', () => {
     expect(screen.getByText('Task Data - ID 123')).toBeInTheDocument()
     expect(screen.getByText('Formatted')).toBeInTheDocument()
     expect(screen.getByText('JSON')).toBeInTheDocument()
+  })
+
+  it('should fall back to a readable type label instead of a raw placeholder', async () => {
+    // mockTask has neither task_type nor template_id.
+    await act(async () => {
+      render(
+        <TaskDataViewModal
+          task={mockTask}
+          isOpen={true}
+          onClose={mockOnClose}
+        />
+      )
+    })
+
+    // Must not leak the unresolved interpolation placeholder.
+    expect(screen.queryByText(/\{type\}/)).not.toBeInTheDocument()
+    expect(screen.getByText('Task Type: Unknown')).toBeInTheDocument()
+  })
+
+  it('should display the task type when present', async () => {
+    const typedTask: Task = { ...mockTask, task_type: 'qa' }
+
+    await act(async () => {
+      render(
+        <TaskDataViewModal
+          task={typedTask}
+          isOpen={true}
+          onClose={mockOnClose}
+        />
+      )
+    })
+
+    expect(screen.getByText('Task Type: qa')).toBeInTheDocument()
   })
 
   it('should display formatted view by default', async () => {
@@ -459,6 +511,246 @@ describe('TaskDataViewModal', () => {
         screen.getByText(new RegExp(`${fieldCount} fields`))
       ).toBeInTheDocument()
     })
+  })
+
+  // --- Edit mode ---
+
+  it('should not render the Edit button when canEdit is false', async () => {
+    await act(async () => {
+      render(
+        <TaskDataViewModal
+          task={mockTask}
+          isOpen={true}
+          onClose={mockOnClose}
+        />
+      )
+    })
+
+    expect(
+      screen.queryByRole('button', { name: 'Edit' })
+    ).not.toBeInTheDocument()
+  })
+
+  it('should show the Edit button and enter edit mode when canEdit is true', async () => {
+    const user = userEvent.setup()
+    const singleFieldTask: Task = {
+      ...mockTask,
+      id: 123,
+      data: { text: 'hello' },
+    }
+
+    await act(async () => {
+      render(
+        <TaskDataViewModal
+          task={singleFieldTask}
+          isOpen={true}
+          onClose={mockOnClose}
+          projectId="proj-1"
+          canEdit={true}
+        />
+      )
+    })
+
+    // Starts in view mode: search bar present, no Save button.
+    expect(
+      screen.getByPlaceholderText('Search fields and values...')
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Save' })
+    ).not.toBeInTheDocument()
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Edit' }))
+    })
+
+    // Now in edit mode: a textarea seeded with the field value, plus Save/Cancel.
+    const textarea = screen.getByRole('textbox')
+    expect(textarea.tagName).toBe('TEXTAREA')
+    expect(textarea).toHaveValue('hello')
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    // Search bar is hidden in edit mode.
+    expect(
+      screen.queryByPlaceholderText('Search fields and values...')
+    ).not.toBeInTheDocument()
+  })
+
+  it('should open directly in edit mode when initialMode is edit', async () => {
+    const singleFieldTask: Task = {
+      ...mockTask,
+      id: 123,
+      data: { text: 'hello' },
+    }
+
+    await act(async () => {
+      render(
+        <TaskDataViewModal
+          task={singleFieldTask}
+          isOpen={true}
+          onClose={mockOnClose}
+          projectId="proj-1"
+          canEdit={true}
+          initialMode="edit"
+        />
+      )
+    })
+
+    const textarea = screen.getByRole('textbox')
+    expect(textarea.tagName).toBe('TEXTAREA')
+    expect(textarea).toHaveValue('hello')
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+  })
+
+  it('should ignore initialMode=edit when canEdit is false', async () => {
+    const singleFieldTask: Task = {
+      ...mockTask,
+      id: 123,
+      data: { text: 'hello' },
+    }
+
+    await act(async () => {
+      render(
+        <TaskDataViewModal
+          task={singleFieldTask}
+          isOpen={true}
+          onClose={mockOnClose}
+          projectId="proj-1"
+          initialMode="edit"
+        />
+      )
+    })
+
+    // Without canEdit, edit mode must not engage: no textarea, no Save.
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+    expect(
+      screen.getByPlaceholderText('Search fields and values...')
+    ).toBeInTheDocument()
+  })
+
+  it('should persist edits via updateTaskData and fire onSaved', async () => {
+    const user = userEvent.setup()
+    const onSaved = jest.fn()
+    const singleFieldTask: Task = {
+      ...mockTask,
+      id: 123,
+      data: { text: 'hello' },
+    }
+
+    await act(async () => {
+      render(
+        <TaskDataViewModal
+          task={singleFieldTask}
+          isOpen={true}
+          onClose={mockOnClose}
+          projectId="proj-1"
+          canEdit={true}
+          initialMode="edit"
+          onSaved={onSaved}
+        />
+      )
+    })
+
+    const textarea = screen.getByRole('textbox')
+    await act(async () => {
+      await user.clear(textarea)
+      await user.type(textarea, 'updated text')
+    })
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+    })
+
+    await waitFor(() => {
+      expect(mockUpdateTaskData).toHaveBeenCalledWith('proj-1', '123', {
+        text: 'updated text',
+      })
+    })
+    expect(onSaved).toHaveBeenCalledWith({ text: 'updated text' })
+
+    // After a successful save the modal returns to view mode.
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: 'Save' })
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  it('should block save and show an error on invalid JSON for a non-string field', async () => {
+    const user = userEvent.setup()
+    const numberFieldTask: Task = {
+      ...mockTask,
+      id: 123,
+      data: { count: 5 },
+    }
+
+    await act(async () => {
+      render(
+        <TaskDataViewModal
+          task={numberFieldTask}
+          isOpen={true}
+          onClose={mockOnClose}
+          projectId="proj-1"
+          canEdit={true}
+          initialMode="edit"
+        />
+      )
+    })
+
+    const textarea = screen.getByRole('textbox')
+    await act(async () => {
+      await user.clear(textarea)
+      await user.type(textarea, 'not valid json')
+    })
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+    })
+
+    expect(mockUpdateTaskData).not.toHaveBeenCalled()
+    expect(screen.getByText('Invalid JSON')).toBeInTheDocument()
+  })
+
+  it('should surface a server error when the save request fails', async () => {
+    const user = userEvent.setup()
+    mockUpdateTaskData.mockRejectedValueOnce({
+      response: {
+        data: {
+          detail: 'Only superadmins or organization admins can edit task data',
+        },
+      },
+    })
+    const singleFieldTask: Task = {
+      ...mockTask,
+      id: 123,
+      data: { text: 'hello' },
+    }
+
+    await act(async () => {
+      render(
+        <TaskDataViewModal
+          task={singleFieldTask}
+          isOpen={true}
+          onClose={mockOnClose}
+          projectId="proj-1"
+          canEdit={true}
+          initialMode="edit"
+        />
+      )
+    })
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+    })
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          'Only superadmins or organization admins can edit task data'
+        )
+      ).toBeInTheDocument()
+    })
+    // Stays in edit mode so the user can retry.
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
   })
 })
 

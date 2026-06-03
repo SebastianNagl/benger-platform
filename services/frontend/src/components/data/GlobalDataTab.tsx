@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { Task } from '@/lib/api/types'
+import { canEditTaskData } from '@/utils/permissions'
 import {
   ArrowDownTrayIcon,
   CheckIcon,
@@ -25,6 +26,7 @@ import {
   EyeIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
+  PencilSquareIcon,
   ViewColumnsIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
@@ -70,6 +72,11 @@ export function GlobalDataTab() {
   const [showSearch, setShowSearch] = useState(false)
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
   const [viewModalTask, setViewModalTask] = useState<GlobalTask | null>(null)
+  const [modalMode, setModalMode] = useState<'view' | 'edit'>('view')
+
+  // /data spans orgs; this is a UI hint — the backend enforces per-task edit
+  // rights and returns 403 for tasks the user may not edit.
+  const userCanEdit = canEditTaskData(user)
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -106,6 +113,7 @@ export function GlobalDataTab() {
     annotations: true,
     created: true,
     actions: true,
+    edit: true,
   })
 
   // Fetch tasks
@@ -396,22 +404,24 @@ export function GlobalDataTab() {
                         {t('data.management.showHideColumns')}
                       </div>
 
-                      {Object.entries(visibleColumns).map(([key, visible]) => (
-                        <label
-                          key={key}
-                          className="flex items-center rounded px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={visible}
-                            onChange={() => toggleColumn(key)}
-                            className="rounded border-zinc-300"
-                          />
-                          <span className="ml-2 text-sm capitalize">
-                            {key === 'id' ? 'ID' : key}
-                          </span>
-                        </label>
-                      ))}
+                      {Object.entries(visibleColumns)
+                        .filter(([key]) => key !== 'edit' || userCanEdit)
+                        .map(([key, visible]) => (
+                          <label
+                            key={key}
+                            className="flex items-center rounded px-2 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={visible}
+                              onChange={() => toggleColumn(key)}
+                              className="rounded border-zinc-300"
+                            />
+                            <span className="ml-2 text-sm capitalize">
+                              {key === 'id' ? 'ID' : key}
+                            </span>
+                          </label>
+                        ))}
                     </div>
                   </div>
                 )}
@@ -603,6 +613,11 @@ export function GlobalDataTab() {
                   {t('data.management.actions')}
                 </th>
               )}
+              {visibleColumns.edit && userCanEdit && (
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                  {t('data.management.columnEdit')}
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-900">
@@ -673,7 +688,10 @@ export function GlobalDataTab() {
                   <td className="px-6 py-4 text-sm">
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => setViewModalTask(task)}
+                        onClick={() => {
+                          setModalMode('view')
+                          setViewModalTask(task)
+                        }}
                         className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
                       >
                         <EyeIcon className="h-4 w-4" />
@@ -685,6 +703,20 @@ export function GlobalDataTab() {
                         <DocumentMagnifyingGlassIcon className="h-4 w-4" />
                       </button>
                     </div>
+                  </td>
+                )}
+                {visibleColumns.edit && userCanEdit && (
+                  <td className="px-6 py-4 text-sm">
+                    <button
+                      onClick={() => {
+                        setModalMode('edit')
+                        setViewModalTask(task)
+                      }}
+                      title={t('data.management.columnEdit')}
+                      className="text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                    >
+                      <PencilSquareIcon className="h-4 w-4" />
+                    </button>
                   </td>
                 )}
               </tr>
@@ -711,12 +743,17 @@ export function GlobalDataTab() {
         </div>
       )}
 
-      {/* View Modal */}
+      {/* View / Edit Modal */}
       {viewModalTask && (
         <TaskDataViewModal
           isOpen={!!viewModalTask}
           onClose={() => setViewModalTask(null)}
           task={viewModalTask}
+          projectId={viewModalTask.project?.id ?? viewModalTask.project_id}
+          taskId={viewModalTask.id}
+          initialMode={modalMode}
+          canEdit={userCanEdit}
+          onSaved={() => fetchTasks()}
         />
       )}
     </div>

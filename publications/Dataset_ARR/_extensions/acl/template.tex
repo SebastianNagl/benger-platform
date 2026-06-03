@@ -18,11 +18,19 @@ $endif$
   \DeclareUnicodeCharacter{2265}{\ensuremath{\geq}}
 \else
   \usepackage{fontspec}
-  \directlua{luaotfload.add_fallback("emojifallback", { "[TwemojiMozilla.ttf]:mode=harf;" })}
-  \defaultfontfeatures{RawFeature={fallback=emojifallback}}
-  \setmainfont{TeX Gyre Termes}
-  \setsansfont{TeX Gyre Heros}
-  \setmonofont{TeX Gyre Cursor}
+  % Main font: TeX Gyre Termes, bundled under fonts/ and loaded by explicit
+  % filename + Path. This keeps the build self-contained on arXiv (no
+  % reliance on the TeX Live font-name database or fontconfig, neither of
+  % which arXiv's source scanner can see) and lets that scanner find the
+  % real files in the upload. TeXGyreTermes-Reg is on aclpubcheck's accepted
+  % main-font set and carries the Greek text glyphs (ρ κ σ). Sans/mono are
+  % intentionally left at the NFSS defaults — this manuscript embeds no
+  % TeX Gyre Heros/Cursor glyphs, so declaring them only tripped arXiv's
+  % missing-file scan for fonts the output never used.
+  \setmainfont{texgyretermes-regular.otf}[Path=fonts/,
+    BoldFont=texgyretermes-bold.otf,
+    ItalicFont=texgyretermes-italic.otf,
+    BoldItalicFont=texgyretermes-bolditalic.otf]
 \fi
 \usepackage{microtype}
 \usepackage{inconsolata}

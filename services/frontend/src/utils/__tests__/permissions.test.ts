@@ -8,6 +8,7 @@ import {
   canAccessProjectData,
   canCreateProjects,
   canDeleteProjects,
+  canEditTaskData,
   canMakeProjectPublic,
   canStartGeneration,
   getEffectiveProjectRole,
@@ -560,6 +561,64 @@ describe('Public visibility helpers', () => {
     it('legacy user.role still respected when no project supplied', () => {
       expect(canStartGeneration(mkUser({ role: 'ORG_ADMIN' }))).toBe(true)
       expect(canStartGeneration(mkUser({ role: 'ANNOTATOR' }))).toBe(false)
+    })
+  })
+
+  describe('canEditTaskData', () => {
+    it('false for a null user', () => {
+      expect(canEditTaskData(null)).toBe(false)
+      expect(canEditTaskData(null, mkProject())).toBe(false)
+    })
+
+    it('true for superadmins regardless of project', () => {
+      expect(canEditTaskData(mkUser({ is_superadmin: true }))).toBe(true)
+      expect(
+        canEditTaskData(mkUser({ is_superadmin: true }), mkProject())
+      ).toBe(true)
+    })
+
+    describe('with a project (per-project context)', () => {
+      it('true for the project creator', () => {
+        expect(
+          canEditTaskData(
+            mkUser({ id: 'creator-1' }),
+            mkProject({ created_by: 'creator-1' })
+          )
+        ).toBe(true)
+      })
+
+      it('false for a non-creator without an org-admin claim', () => {
+        expect(
+          canEditTaskData(
+            mkUser({ id: 'stranger', role: 'CONTRIBUTOR' }),
+            mkProject({ created_by: 'creator-1' })
+          )
+        ).toBe(false)
+      })
+
+      it('false for a public CONTRIBUTOR visitor (only ORG_ADMIN may edit)', () => {
+        expect(
+          canEditTaskData(
+            mkUser({ id: 'visitor' }),
+            mkProject({
+              created_by: 'someone',
+              is_public: true,
+              public_role: 'CONTRIBUTOR',
+            })
+          )
+        ).toBe(false)
+      })
+    })
+
+    describe('without a project (global /data hint)', () => {
+      it('true only for ORG_ADMIN', () => {
+        expect(canEditTaskData(mkUser({ role: 'ORG_ADMIN' }))).toBe(true)
+      })
+
+      it('false for CONTRIBUTOR and ANNOTATOR', () => {
+        expect(canEditTaskData(mkUser({ role: 'CONTRIBUTOR' }))).toBe(false)
+        expect(canEditTaskData(mkUser({ role: 'ANNOTATOR' }))).toBe(false)
+      })
     })
   })
 })
