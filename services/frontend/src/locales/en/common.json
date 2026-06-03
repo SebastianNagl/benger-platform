@@ -1473,6 +1473,7 @@
       "taskData": "Task Data",
       "taskDataId": "Task Data - ID {id}",
       "taskType": "Type: {type}",
+      "unknownType": "Unknown",
       "viewFormatted": "Formatted",
       "viewJson": "JSON",
       "copy": "Copy",
@@ -1482,7 +1483,13 @@
       "fieldsCountFiltered": "{count} fields ({filtered} filtered)",
       "created": "Created: {date}",
       "noFieldsMatch": "No fields match your search",
-      "noDataAvailable": "No data available"
+      "noDataAvailable": "No data available",
+      "edit": "Edit",
+      "save": "Save",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "invalidJson": "Invalid JSON — fix before saving",
+      "saveFailed": "Failed to save task data"
     },
     "editTitle": {
       "taskNameEmpty": "Task name cannot be empty",
@@ -6342,6 +6349,7 @@
     "taskLoadedFromUrl": "Loaded task {taskNumber} from URL",
     "taskNotFound": "Task {taskNumber} not found (max: {maxTasks}). Loading first task instead.",
     "viewTaskData": "View complete task data",
+    "editTaskData": "Edit task data",
     "numberPlaceholder": "Enter a number...",
     "backToProject": "Back to Project",
     "saved": "Annotation saved",
@@ -6611,7 +6619,8 @@
       "agreement": "Agreement",
       "reviewers": "Reviewers",
       "created": "Created",
-      "view": "View"
+      "view": "View",
+      "edit": "Edit"
     },
     "buttons": {
       "search": "Search",
@@ -8180,6 +8189,7 @@
       "columnProject": "Project",
       "columnAssignedTo": "Assigned To",
       "columnAnnotations": "Annotations",
+      "columnEdit": "Edit",
       "complete": "Complete"
     }
   },

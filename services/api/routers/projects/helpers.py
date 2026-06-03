@@ -24,6 +24,8 @@ from models import (
     HumanEvaluationResult,
     HumanEvaluationSession,
     LikertScaleEvaluation,
+    OrganizationMembership,
+    OrganizationRole,
     PreferenceRanking,
     ResponseGeneration,
     TaskEvaluation,
@@ -728,6 +730,41 @@ def check_project_accessible(
         m.organization_id for m in user_with_memberships.organization_memberships if m.is_active
     }
     return bool(user_org_ids & set(project_org_ids))
+
+
+def check_user_can_edit_task_data(db: Session, user, project: Project) -> bool:
+    """Whether a user may edit the `data` of a task within the given project.
+
+    Allowed: superadmins, the project creator, and active ORG_ADMIN members of
+    any organization the project belongs to. Mirrors the frontend notion of
+    getEffectiveProjectRole(...) == 'ORG_ADMIN'. This governs *who* may edit;
+    callers still verify project/task access separately.
+    """
+    if user.is_superadmin:
+        return True
+    if str(user.id) == str(project.created_by):
+        return True
+
+    project_org_ids = [
+        r.organization_id
+        for r in db.query(ProjectOrganization.organization_id)
+        .filter(ProjectOrganization.project_id == project.id)
+        .all()
+    ]
+    if not project_org_ids:
+        return False
+
+    admin_membership = (
+        db.query(OrganizationMembership.id)
+        .filter(
+            OrganizationMembership.user_id == user.id,
+            OrganizationMembership.organization_id.in_(project_org_ids),
+            OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
+            OrganizationMembership.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+    return admin_membership is not None
 
 
 def check_task_assigned_to_user(

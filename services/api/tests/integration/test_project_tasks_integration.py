@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from models import (
     Organization,
+    OrganizationMembership,
     User,
 )
 from project_models import (
@@ -194,6 +195,102 @@ class TestUpdateTask:
             headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code in (404, 403)
+
+
+@pytest.mark.integration
+class TestUpdateTaskAuthorization:
+    """PUT /api/projects/{project_id}/tasks/{task_id} — who may edit task data.
+
+    Editing is allowed for superadmins, the project creator, and active
+    ORG_ADMIN members of the project's organization. Everyone else gets 403.
+    """
+
+    def test_superadmin_can_edit(self, client, test_db, test_users, auth_headers, test_org):
+        project, tasks = _setup(test_db, test_users[0], test_org)
+        resp = client.put(
+            f"/api/projects/{project.id}/tasks/{tasks[0].id}",
+            json={"data": {"text": "Edited by superadmin"}},
+            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["data"]["text"] == "Edited by superadmin"
+
+    def test_org_admin_member_can_edit(self, client, test_db, test_users, auth_headers, test_org):
+        # Project is created by the superadmin, so org_admin (test_users[3]) is
+        # NOT the creator — this exercises the ORG_ADMIN membership branch.
+        project, tasks = _setup(test_db, test_users[0], test_org)
+        resp = client.put(
+            f"/api/projects/{project.id}/tasks/{tasks[0].id}",
+            json={"data": {"text": "Edited by org admin"}},
+            headers={**auth_headers["org_admin"], "X-Organization-Context": test_org.id},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["data"]["text"] == "Edited by org admin"
+
+    def test_contributor_cannot_edit(self, client, test_db, test_users, auth_headers, test_org):
+        project, tasks = _setup(test_db, test_users[0], test_org)
+        resp = client.put(
+            f"/api/projects/{project.id}/tasks/{tasks[0].id}",
+            json={"data": {"text": "Contributor attempt"}},
+            headers={**auth_headers["contributor"], "X-Organization-Context": test_org.id},
+        )
+        assert resp.status_code == 403
+        assert "organization admins" in resp.json()["detail"]
+
+    def test_annotator_cannot_edit(self, client, test_db, test_users, auth_headers, test_org):
+        project, tasks = _setup(test_db, test_users[0], test_org)
+        resp = client.put(
+            f"/api/projects/{project.id}/tasks/{tasks[0].id}",
+            json={"data": {"text": "Annotator attempt"}},
+            headers={**auth_headers["annotator"], "X-Organization-Context": test_org.id},
+        )
+        assert resp.status_code == 403
+        assert "organization admins" in resp.json()["detail"]
+
+    def test_deactivated_org_admin_cannot_edit(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project, tasks = _setup(test_db, test_users[0], test_org)
+        # Deactivate the org_admin's membership — a deactivated member must lose
+        # edit access entirely.
+        membership = (
+            test_db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == test_users[3].id,
+                OrganizationMembership.organization_id == test_org.id,
+            )
+            .first()
+        )
+        membership.is_active = False
+        test_db.commit()
+
+        resp = client.put(
+            f"/api/projects/{project.id}/tasks/{tasks[0].id}",
+            json={"data": {"text": "Should be blocked"}},
+            headers={**auth_headers["org_admin"], "X-Organization-Context": test_org.id},
+        )
+        assert resp.status_code == 403
+
+    def test_edit_merges_data_and_writes_audit_log(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project, tasks = _setup(test_db, test_users[0], test_org)
+        # Task seeded with {"text": ..., "meta_field": ...}; update only `text`.
+        resp = client.put(
+            f"/api/projects/{project.id}/tasks/{tasks[0].id}",
+            json={"data": {"text": "Merged value"}},
+            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        # Updated field changed, untouched field preserved (merge semantics).
+        assert body["data"]["text"] == "Merged value"
+        assert body["data"]["meta_field"] == "value_0"
+        # An audit entry was recorded.
+        audit_log = body["meta"]["audit_log"]
+        assert isinstance(audit_log, list) and len(audit_log) >= 1
+        assert audit_log[-1]["action"] == "data_update"
+        assert audit_log[-1]["changes"]["after"] == {"text": "Merged value"}
 
 
 @pytest.mark.integration

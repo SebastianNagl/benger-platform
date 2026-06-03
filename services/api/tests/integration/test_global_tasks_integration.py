@@ -166,3 +166,45 @@ class TestGlobalTasksAccessControl:
         # Should not see tasks from isolated org's project
         for task in data.get("items", []):
             assert task["project_id"] != "Isolated Project"
+
+    def test_deactivated_membership_loses_org_visibility(
+        self, client, test_db, test_users, auth_headers
+    ):
+        """A deactivated org membership must not grant continued data access."""
+        admin = test_users[0]
+        contributor = test_users[1]
+
+        org = _make_org(test_db, "Deactivation Org", admin.id)
+
+        # Contributor starts as an ACTIVE member of the org.
+        membership = OrganizationMembership(
+            id=_uid(), user_id=contributor.id,
+            organization_id=org.id, role="CONTRIBUTOR",
+            is_active=True,
+            joined_at=datetime.now(timezone.utc),
+        )
+        test_db.add(membership)
+        proj, _ = _make_project_in_org(test_db, org, admin.id, "Deactivation Project")
+        test_db.commit()
+
+        # While active: the org's project tasks are visible.
+        resp_active = client.get(
+            "/api/data/",
+            headers={**auth_headers["contributor"], "X-Organization-Context": org.id},
+        )
+        assert resp_active.status_code == 200
+        active_ids = {t["project_id"] for t in resp_active.json().get("items", [])}
+        assert proj.id in active_ids
+
+        # Deactivate the membership.
+        membership.is_active = False
+        test_db.commit()
+
+        # After deactivation: the org's project tasks must disappear.
+        resp_inactive = client.get(
+            "/api/data/",
+            headers={**auth_headers["contributor"], "X-Organization-Context": org.id},
+        )
+        assert resp_inactive.status_code == 200
+        inactive_ids = {t["project_id"] for t in resp_inactive.json().get("items", [])}
+        assert proj.id not in inactive_ids
