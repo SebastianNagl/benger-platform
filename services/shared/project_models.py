@@ -273,7 +273,7 @@ class Annotation(Base):
     prediction_scores = Column(JSONB, nullable=True)
 
     # Review
-    reviewed_by = Column(String, ForeignKey("users.id"), nullable=True)
+    reviewed_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
     review_result = Column(String, nullable=True)  # approved, rejected, fixed
     review_annotation = Column(JSONB, nullable=True)  # Reviewer's independent annotation
@@ -750,7 +750,7 @@ class KorrekturComment(Base):
     # Resolution tracking
     is_resolved = Column(Boolean, default=False, nullable=False)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
-    resolved_by = Column(String, ForeignKey("users.id"), nullable=True)
+    resolved_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Audit
     created_by = Column(String, ForeignKey("users.id"), nullable=False)
