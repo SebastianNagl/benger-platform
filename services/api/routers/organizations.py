@@ -12,6 +12,7 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from auth_module import get_current_user, require_user
+from auth_module.user_service import delete_user as delete_user_service
 from database import get_db
 from models import Organization, OrganizationMembership, OrganizationRole, User
 
@@ -822,7 +823,6 @@ async def delete_user(
         if not result:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-        user_email = result.email
         is_superadmin = result.is_superadmin
 
         # Don't allow deleting yourself
@@ -843,108 +843,20 @@ async def delete_user(
                     detail="Cannot delete last superadmin",
                 )
 
-        # Build a list of tables that reference the users table
-        # IMPORTANT: User deletion is handled separately to ensure it succeeds
-        related_deletion_queries = [
-            # Clear email verifier references
-            f"UPDATE users SET email_verified_by_id = NULL WHERE email_verified_by_id = '{user_id}'",
-            # Delete from tables with foreign keys to users
-            f"DELETE FROM annotation_comments WHERE author_id = '{user_id}' OR resolved_by = '{user_id}'",
-            f"DELETE FROM annotation_activities WHERE user_id = '{user_id}'",
-            f"DELETE FROM annotation_assignments WHERE user_id = '{user_id}' OR assigned_by = '{user_id}'",
-            f"DELETE FROM annotation_versions WHERE changed_by = '{user_id}'",
-            f"DELETE FROM annotations WHERE completed_by = '{user_id}'",
-            f"DELETE FROM native_annotations WHERE annotator_id = '{user_id}' OR reviewer_id = '{user_id}'",
-            f"DELETE FROM task_assignments WHERE user_id = '{user_id}' OR assigned_by = '{user_id}'",
-            f"DELETE FROM project_members WHERE user_id = '{user_id}' OR added_by = '{user_id}'",
-            f"DELETE FROM organization_memberships WHERE user_id = '{user_id}'",
-            f"DELETE FROM invitations WHERE invited_by = '{user_id}' OR pending_user_id = '{user_id}' OR email = '{user_email}'",
-            f"DELETE FROM notifications WHERE user_id = '{user_id}'",
-            f"DELETE FROM notification_preferences WHERE user_id = '{user_id}'",
-            f"DELETE FROM user_column_preferences WHERE user_id = '{user_id}'",
-            f"DELETE FROM user_feature_flags WHERE user_id = '{user_id}' OR created_by = '{user_id}'",
-            f"DELETE FROM refresh_tokens WHERE user_id = '{user_id}'",
-            f"DELETE FROM template_ratings WHERE user_id = '{user_id}'",
-            f"DELETE FROM template_sharing WHERE shared_by = '{user_id}'",
-            f"DELETE FROM template_versions WHERE created_by = '{user_id}'",
-            f"DELETE FROM prompts WHERE created_by = '{user_id}'",
-            f"DELETE FROM task_evaluation_configs WHERE created_by = '{user_id}'",
-            f"DELETE FROM task_templates WHERE created_by = '{user_id}'",
-            f"DELETE FROM tags WHERE created_by = '{user_id}'",
-            f"DELETE FROM data_imports WHERE imported_by = '{user_id}'",
-            f"DELETE FROM data_exports WHERE exported_by = '{user_id}'",
-            f"DELETE FROM annotator_agreement_matrix WHERE annotator_1_id = '{user_id}' OR annotator_2_id = '{user_id}'",
-            f"DELETE FROM agreement_thresholds WHERE created_by = '{user_id}'",
-            f"DELETE FROM default_evaluation_configs WHERE updated_by = '{user_id}'",
-            f"DELETE FROM default_config_history WHERE changed_by = '{user_id}'",
-            f"DELETE FROM organization_api_keys WHERE created_by = '{user_id}'",
-            f"DELETE FROM feature_flags WHERE created_by = '{user_id}'",
-            f"DELETE FROM organization_feature_flags WHERE created_by = '{user_id}'",
-            f"DELETE FROM project_organizations WHERE assigned_by = '{user_id}'",
-            f"UPDATE evaluation_runs SET created_by = '{current_user.id}' WHERE created_by = '{user_id}'",
-            f"DELETE FROM projects WHERE created_by = '{user_id}'",
-        ]
+        # Delegate to the canonical cleanup in auth_module.user_service. It is the
+        # single source of truth for user deletion: it reassigns authored content
+        # (projects, korrektur comments, templates, …) to a fallback superadmin
+        # and clears/cascades the per-user rows, covering every users.id FK. The
+        # hand-rolled raw-SQL block that used to live here had drifted out of sync
+        # — it omitted korrektur_comments (the FK that 500'd), destroyed content
+        # instead of reassigning it, and interpolated user_id into SQL strings.
+        if not delete_user_service(db, user_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-        # First, delete from all related tables
-        # Use savepoints to handle failures gracefully without aborting the transaction
         import logging
 
-        for query in related_deletion_queries:
-            try:
-                # Create a savepoint before each query
-                db.execute(text("SAVEPOINT sp_delete"))
-                result = db.execute(text(query))
-                # Release the savepoint if successful
-                db.execute(text("RELEASE SAVEPOINT sp_delete"))
-                if result.rowcount > 0:
-                    logging.debug(f"Deleted {result.rowcount} rows: {query[:50]}...")
-            except Exception as query_error:
-                # Rollback to the savepoint if the query fails
-                db.execute(text("ROLLBACK TO SAVEPOINT sp_delete"))
-                # Release the savepoint
-                db.execute(text("RELEASE SAVEPOINT sp_delete"))
-                # Log but continue - some tables might not exist
-                logging.debug(
-                    f"Non-critical query failed (table may not exist): {query[:50]}... - {str(query_error)}"
-                )
-
-        # Now attempt the critical user deletion
-        # This MUST succeed or we rollback everything
-        try:
-            user_delete_result = db.execute(
-                text("DELETE FROM users WHERE id = :user_id RETURNING id"),
-                {"user_id": user_id},
-            )
-            deleted_user_id = user_delete_result.fetchone()
-
-            if not deleted_user_id:
-                # User was not deleted - this is critical!
-                raise Exception(
-                    f"Failed to delete user {user_id} - user may not exist or deletion was blocked by constraints"
-                )
-
-            # Verify the user is actually gone
-            verification = db.execute(
-                text("SELECT id FROM users WHERE id = :user_id"), {"user_id": user_id}
-            ).fetchone()
-
-            if verification:
-                # User still exists - critical failure!
-                raise Exception(f"User {user_id} still exists after deletion attempt")
-
-            # All good - commit the transaction
-            db.commit()
-            logging.info(f"Successfully deleted user {user_id}")
-            return {"message": "User deleted successfully"}
-
-        except Exception as e:
-            # Critical failure - rollback everything
-            db.rollback()
-            logging.error(f"CRITICAL: Failed to delete user {user_id}: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to delete user: {str(e)}",
-            )
+        logging.info(f"Successfully deleted user {user_id}")
+        return {"message": "User deleted successfully"}
 
     except HTTPException:
         db.rollback()
