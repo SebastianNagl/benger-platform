@@ -250,13 +250,12 @@ async def export_project(
     if not check_project_accessible(db, current_user, project_id, org_context):
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # JSON path streams via the shared helper. The legacy in-memory builder
-    # below loaded the entire project (tasks + annotations + generations +
-    # task_evaluations) into one dict and json.dumps()-ed it, which peaked
-    # past the 3Gi API memory limit on the Benchathon project (~8k
-    # task_evaluations, ~400 MB output) and OOMKilled the pod mid-response.
-    # CSV/TSV/TXT/label_studio still use the legacy path — each has a
-    # per-row shape its own tests assert on and a separate refactor.
+    # Every format streams via a per-format generator in export_stream. The
+    # legacy in-memory builder that loaded the whole project (tasks +
+    # annotations + generations + task_evaluations) into one dict and
+    # json.dumps()-ed it is gone — it peaked past the 3Gi API memory limit on
+    # the Benchathon project (~8k task_evaluations, ~400 MB output) and
+    # OOMKilled the pod mid-response (#158).
     if format == "json":
         # Header (project metadata + count tallies) is built by the shared
         # helper so the async worker export emits a byte-identical header.
@@ -857,9 +856,10 @@ async def bulk_export_full_projects(
 
     org_context = get_org_context_from_request(request)
 
-    print(f"[EXPORT DEBUG] Received project_ids: {project_ids}")
-    print(
-        f"[EXPORT DEBUG] Current user: {current_user.email}, is_superadmin: {current_user.is_superadmin}"
+    logger.info(
+        "bulk-export-full: %d project(s) requested by %s",
+        len(project_ids),
+        current_user.email,
     )
 
     # Write the ZIP to a tempfile on disk and stream each project's JSON
@@ -883,18 +883,20 @@ async def bulk_export_full_projects(
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             for project_id in project_ids:
                 try:
-                    print(f"[EXPORT DEBUG] Processing project_id: {project_id}")
-
                     project = db.query(Project).filter(Project.id == project_id).first()
                     if not project:
-                        print(f"[EXPORT DEBUG] Project {project_id} not found in database")
+                        logger.warning(
+                            "bulk-export-full: project %s not found, skipping",
+                            project_id,
+                        )
                         continue
 
                     if not check_project_accessible(db, current_user, project_id, org_context):
-                        print(f"[EXPORT DEBUG] Access denied for project {project_id}, skipping")
+                        logger.warning(
+                            "bulk-export-full: access denied for project %s, skipping",
+                            project_id,
+                        )
                         continue
-
-                    print(f"[EXPORT DEBUG] Streaming comprehensive data for project {project_id}")
 
                     safe_title = "".join(
                         c for c in project.title if c.isalnum() or c in (' ', '-', '_')
@@ -919,10 +921,12 @@ async def bulk_export_full_projects(
                     exported_count += 1
 
                 except Exception as e:
-                    print(f"[EXPORT DEBUG] Error exporting project {project_id}: {str(e)}")
-                    import traceback
-
-                    print(f"[EXPORT DEBUG] Traceback: {traceback.format_exc()}")
+                    logger.error(
+                        "bulk-export-full: error exporting project %s: %s",
+                        project_id,
+                        e,
+                        exc_info=True,
+                    )
                     continue
     except BaseException:
         # If anything blows up mid-build, don't leak the tempfile.

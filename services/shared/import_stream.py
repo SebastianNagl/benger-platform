@@ -1528,6 +1528,38 @@ def _create_imported_project(
     ctx.new_project_id = new_project_id
 
 
+def _notify_project_imported(ctx: "_FullImportContext", new_title: str) -> None:
+    """Best-effort 'project created' notification for a freshly-imported project.
+
+    Lazy-imports notification_service so a worker that can't import it still
+    finishes the import, and swallows every error so a notification failure can
+    never fail an otherwise-successful import. Resolves the creator name and the
+    owning organization (always set by _create_imported_project) to satisfy the
+    notify_project_created(db, project_id, title, creator_name, org_id) signature
+    — the previous 2-arg call raised TypeError and silently dropped the notice.
+    """
+    try:
+        from notification_service import notify_project_created
+
+        creator = ctx.db.query(User).filter(User.id == ctx.user_id).first()
+        project_org = (
+            ctx.db.query(ProjectOrganization)
+            .filter(ProjectOrganization.project_id == ctx.new_project_id)
+            .first()
+        )
+        if project_org is None:
+            return
+        notify_project_created(
+            db=ctx.db,
+            project_id=ctx.new_project_id,
+            project_title=new_title,
+            creator_name=creator.name if creator else "",
+            organization_id=project_org.organization_id,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to send project import notification: {e}")
+
+
 def _build_full_import_stats(
     ctx: _FullImportContext,
     *,
@@ -1769,14 +1801,7 @@ def run_ndjson_import(db, fileobj, user_id: str) -> dict:
 
     db.commit()
 
-    # Send notification. Best-effort: lazy-import so a worker that can't import
-    # notification_service still finishes the import.
-    try:
-        from notification_service import notify_project_created
-
-        notify_project_created(ctx.new_project_id, user_id)
-    except Exception as e:
-        logger.warning(f"Failed to send project import notification: {e}")
+    _notify_project_imported(ctx, new_title)
 
     import_stats = _build_full_import_stats(
         ctx,
@@ -1934,15 +1959,7 @@ def run_full_project_import(db, fileobj, user_id: str) -> dict:
     # Commit all changes
     db.commit()
 
-    # Send notification. Best-effort: lazy-import so a worker that can't import
-    # notification_service still finishes the import.
-    try:
-        from notification_service import notify_project_created
-
-        notify_project_created(ctx.new_project_id, user_id)
-    except Exception as e:
-        # Don't fail import if notification fails
-        logger.warning(f"Failed to send project import notification: {e}")
+    _notify_project_imported(ctx, new_title)
 
     import_stats = _build_full_import_stats(
         ctx,
