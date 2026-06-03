@@ -1,0 +1,150 @@
+{{- if .Values.minio.enabled }}
+# Standalone MinIO for async export/import object storage (issue #158).
+#
+# First-party templates (NOT a subchart) gated by minio.enabled, so prod can
+# keep this OFF and inert until validated on staging. Single replica with a
+# Recreate strategy because the data PVC is RWO — two pods can't mount it at
+# once, and a rolling update would deadlock on the volume.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-minio-data
+  labels:
+    app: {{ .Release.Name }}-minio
+    app.kubernetes.io/name: {{ .Release.Name }}-minio
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: object-storage
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+  annotations:
+    # Keep the volume on `helm uninstall` — exports are recreatable but losing
+    # the PVC silently on a chart removal would surprise an operator.
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.minio.persistence.storageClass }}
+  storageClassName: {{ .Values.minio.persistence.storageClass | quote }}
+  {{- else }}
+  # "" / unset → cluster default StorageClass (local-path on K3s). NOTE: this
+  # PVC shares the node's single physical disk with Postgres/WAL/backups, so
+  # disk pressure is the real risk — the ILM expiry rule + this capped size are
+  # the guardrails. Pre-check `df -h` / `kubectl get sc` before raising it.
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.minio.persistence.size | default "20Gi" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-minio
+  labels:
+    app: {{ .Release.Name }}-minio
+    app.kubernetes.io/name: {{ .Release.Name }}-minio
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: object-storage
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-minio
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-minio
+        app.kubernetes.io/name: {{ .Release.Name }}-minio
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: object-storage
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: minio
+          image: "{{ .Values.minio.image.repository }}@{{ .Values.minio.image.digest }}"
+          imagePullPolicy: {{ .Values.minio.image.pullPolicy | default "IfNotPresent" }}
+          args:
+            - server
+            - /data
+            - --console-address
+            - ":9001"
+          ports:
+            - name: s3
+              containerPort: 9000
+              protocol: TCP
+            - name: console
+              containerPort: 9001
+              protocol: TCP
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.minio.credentialsSecret | default "benger-minio-credentials" }}
+                  key: {{ .Values.minio.accessKeySecretKey | default "access-key" }}
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.minio.credentialsSecret | default "benger-minio-credentials" }}
+                  key: {{ .Values.minio.secretKeySecretKey | default "secret-key" }}
+            # Public canonical address. SigV4 binds the request host, so MinIO
+            # must know the public host it is reached at for browser-replayed
+            # presigned URLs to validate.
+            - name: MINIO_SERVER_URL
+              value: {{ printf "https://%s" (required "minio.publicHost is required when minio.enabled=true" .Values.minio.publicHost) | quote }}
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: s3
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: s3
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 8
+            failureThreshold: 5
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            {{- toYaml .Values.minio.resources | nindent 12 }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-minio-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-minio
+  labels:
+    app: {{ .Release.Name }}-minio
+    app.kubernetes.io/name: {{ .Release.Name }}-minio
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: object-storage
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: s3
+      port: 9000
+      targetPort: s3
+      protocol: TCP
+    - name: console
+      port: 9001
+      targetPort: console
+      protocol: TCP
+  selector:
+    app: {{ .Release.Name }}-minio
+{{- end }}

@@ -1,0 +1,8 @@
+quantity,value,note
+judge_delta_raw,19.926,Step 3 headline (participant-clustered)
+blind_human_delta_raw,13.578,Step 7 headline
+gap_judge_minus_human_raw,6.348,empirical bound on how much of the headline is judge-style premium on AI-assisted writing
+judge_offset_on_human_content_raw,13.839,"from RQ5 calibration audit (Config B GPT-5-mini, human picks)"
+judge_offset_on_llm_content_raw,24.5,"from RQ5 calibration audit (Config B GPT-5-mini, LLM picks)"
+content_dependent_differential_raw,10.661,judge gives this much extra credit to LLM-styled vs human-styled content
+implied_llm_styled_share_of_co_creation,0.595,the gap (~6.3) divided by the differential (~10.7) ≈ 0.6 — judge sees co-creation as ~60% LLM-styled

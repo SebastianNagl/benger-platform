@@ -45,6 +45,11 @@ jest.mock('@/lib/api/projects', () => ({
     export: jest.fn(),
     bulkExportTasks: jest.fn(),
     streamExportTasks: jest.fn(),
+    // Default: async export unavailable (object storage OFF) → 409, so
+    // handleExportTasks transparently falls back to streamExportTasks.
+    runProjectExportJob: jest.fn(() =>
+      Promise.reject({ response: { status: 409 } })
+    ),
     bulkDeleteTasks: jest.fn(),
     bulkArchiveTasks: jest.fn(),
     getMembers: jest.fn(),

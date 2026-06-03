@@ -45,6 +45,12 @@ jest.mock('@/lib/api/projects', () => ({
     export: jest.fn(),
     bulkExportTasks: jest.fn(),
     streamExportTasks: jest.fn(),
+    // Default: async export unavailable (object storage OFF) → 409, so
+    // handleExportTasks transparently falls back to streamExportTasks. This
+    // keeps the existing full-export assertions exercising the sync path.
+    runProjectExportJob: jest.fn(() =>
+      Promise.reject({ response: { status: 409 } })
+    ),
     bulkDeleteTasks: jest.fn(),
     bulkArchiveTasks: jest.fn(),
     getMembers: jest.fn(),
@@ -811,7 +817,10 @@ describe('AnnotationTab', () => {
   })
 
   describe('Export Functionality', () => {
-    it('should export all tasks', async () => {
+    it('should fall back to streaming export when async export is unavailable (409)', async () => {
+      // Default mock: runProjectExportJob rejects with 409 (object storage
+      // OFF). A full-project export must transparently fall back to the
+      // synchronous streaming path so export still works while MinIO is OFF.
       render(<AnnotationTab projectId="project-1" />)
 
       await waitFor(() => {
@@ -822,8 +831,38 @@ describe('AnnotationTab', () => {
       fireEvent.click(exportButton)
 
       await waitFor(() => {
+        expect(projectsAPI.runProjectExportJob).toHaveBeenCalled()
+      })
+      await waitFor(() => {
         expect(projectsAPI.streamExportTasks).toHaveBeenCalled()
       })
+    })
+
+    it('should use the async job flow for a full export when storage is available', async () => {
+      // Async export available: the job resolves, so the bulk bytes go straight
+      // to storage and the browser never streams through the request path.
+      ;(projectsAPI.runProjectExportJob as jest.Mock).mockResolvedValueOnce(
+        undefined
+      )
+
+      render(<AnnotationTab projectId="project-1" />)
+
+      await waitFor(() => {
+        expect(mockFetchProjectTasks).toHaveBeenCalled()
+      })
+
+      const exportButton = screen.getByTitle(/annotationTab\.buttons\.export/i)
+      fireEvent.click(exportButton)
+
+      await waitFor(() => {
+        expect(projectsAPI.runProjectExportJob).toHaveBeenCalledWith(
+          'project-1',
+          'json',
+          expect.objectContaining({ onStatus: expect.any(Function) })
+        )
+      })
+      // The async path must NOT touch the synchronous streaming export.
+      expect(projectsAPI.streamExportTasks).not.toHaveBeenCalled()
     })
 
     it('should not export when no tasks', async () => {

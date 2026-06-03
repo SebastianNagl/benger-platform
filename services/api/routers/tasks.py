@@ -47,10 +47,14 @@ def get_user_accessible_projects(db: Session, user: AuthUser) -> List[str]:
         projects = db.query(Project.id).all()
         return [p.id for p in projects]
 
-    # Get user's organizations
+    # Get user's organizations (active memberships only — a deactivated
+    # membership must not grant continued access to that org's task data).
     user_orgs = (
         db.query(OrganizationMembership.organization_id)
-        .filter(OrganizationMembership.user_id == user.id)
+        .filter(
+            OrganizationMembership.user_id == user.id,
+            OrganizationMembership.is_active == True,  # noqa: E712
+        )
         .subquery()
     )
 

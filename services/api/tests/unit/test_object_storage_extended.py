@@ -1443,3 +1443,264 @@ class TestUploadFileLocalContentType:
                 metadata = json.load(f)
             assert metadata["custom_key"] == "custom_val"
             assert metadata["original_filename"] == "test.txt"
+
+
+# ===========================================================================
+# Env-var reconciliation + public-endpoint presigned signing (issue #158)
+# ===========================================================================
+
+class TestEnvVarReconciliation:
+    """STORAGE_TYPE / S3_ACCESS_KEY / S3_SECRET_KEY are the canonical names
+    (matching storage_config.py + the Helm values); the legacy STORAGE_BACKEND /
+    S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY forms remain as fallbacks."""
+
+    def test_storage_type_canonical_name(self):
+        # Inline env with STORAGE_TYPE only (no STORAGE_BACKEND present at all).
+        mock_client = MagicMock()
+        mock_client.head_bucket.return_value = {}
+        mock_boto3 = MagicMock()
+        mock_boto3.client.return_value = mock_client
+        env = {
+            "STORAGE_TYPE": "s3",
+            "S3_ENDPOINT_URL": "https://s3.example.com",
+            "S3_ACCESS_KEY": "k",
+            "S3_SECRET_KEY": "s",
+            "S3_BUCKET_NAME": "b",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            with patch("services.storage.object_storage.BOTO3_AVAILABLE", True), \
+                 patch("services.storage.object_storage.boto3", mock_boto3), \
+                 patch("services.storage.object_storage.Config", MagicMock()):
+                from services.storage.object_storage import ObjectStorageService
+                service = ObjectStorageService()
+        assert service.storage_backend == "s3"
+
+    def test_storage_backend_legacy_alias_still_works(self):
+        # Helper sets STORAGE_BACKEND=s3 and no STORAGE_TYPE.
+        service, _ = _make_s3_service()
+        assert service.storage_backend == "s3"
+
+    def test_storage_type_takes_precedence_over_legacy(self):
+        # Helper already sets STORAGE_BACKEND=s3; STORAGE_TYPE=minio must win.
+        service, _ = _make_s3_service(env_overrides={"STORAGE_TYPE": "minio"})
+        assert service.storage_backend == "minio"
+
+    def test_canonical_credentials_take_precedence(self):
+        # Helper sets the legacy *_ID / *_ACCESS_KEY names; canonical names win.
+        service, _ = _make_s3_service(
+            env_overrides={
+                "S3_ACCESS_KEY": "canonical-key",
+                "S3_SECRET_KEY": "canonical-secret",
+            }
+        )
+        assert service.access_key == "canonical-key"
+        assert service.secret_key == "canonical-secret"
+
+    def test_legacy_credentials_fallback(self):
+        # Helper sets the *_ID / *_ACCESS_KEY (legacy) names.
+        service, _ = _make_s3_service()
+        assert service.access_key == "test-key"
+        assert service.secret_key == "test-secret"
+
+    def test_use_ssl_defaults_true(self):
+        service, _ = _make_s3_service()
+        assert service.use_ssl is True
+
+    def test_use_ssl_false_parsed_and_passed_to_client(self):
+        mock_client = MagicMock()
+        mock_client.head_bucket.return_value = {}
+        mock_boto3 = MagicMock()
+        mock_boto3.client.return_value = mock_client
+
+        env = {
+            "STORAGE_TYPE": "minio",
+            "S3_ENDPOINT_URL": "http://benger-minio:9000",
+            "S3_ACCESS_KEY": "k",
+            "S3_SECRET_KEY": "s",
+            "S3_USE_SSL": "false",
+            "S3_BUCKET_NAME": "b",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            with patch("services.storage.object_storage.BOTO3_AVAILABLE", True), \
+                 patch("services.storage.object_storage.boto3", mock_boto3), \
+                 patch("services.storage.object_storage.Config", MagicMock()):
+                from services.storage.object_storage import ObjectStorageService
+                service = ObjectStorageService()
+
+        assert service.use_ssl is False
+        # boto3.client called with use_ssl=False for the internal client.
+        _, kwargs = mock_boto3.client.call_args_list[0]
+        assert kwargs["use_ssl"] is False
+
+
+class TestPublicEndpointSigning:
+    """When STORAGE_BASE_URL is set, presigned download URLs must be signed by a
+    second client bound to the public endpoint (SigV4 binds the request host)."""
+
+    def test_public_client_built_and_signs_download(self):
+        internal_client = MagicMock()
+        internal_client.head_bucket.return_value = {}
+        public_client = MagicMock()
+        public_client.generate_presigned_url.return_value = (
+            "https://storage.what-a-benger.net/signed"
+        )
+        internal_client.generate_presigned_url.return_value = (
+            "http://benger-minio:9000/signed"
+        )
+
+        mock_boto3 = MagicMock()
+        # First boto3.client() → internal, second → public-endpoint client.
+        mock_boto3.client.side_effect = [internal_client, public_client]
+
+        env = {
+            "STORAGE_TYPE": "minio",
+            "S3_ENDPOINT_URL": "http://benger-minio:9000",
+            "S3_ACCESS_KEY": "k",
+            "S3_SECRET_KEY": "s",
+            "S3_BUCKET_NAME": "benger-exports",
+            "STORAGE_BASE_URL": "https://storage.what-a-benger.net",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            with patch("services.storage.object_storage.BOTO3_AVAILABLE", True), \
+                 patch("services.storage.object_storage.boto3", mock_boto3), \
+                 patch("services.storage.object_storage.Config", MagicMock()):
+                from services.storage.object_storage import ObjectStorageService
+                service = ObjectStorageService()
+
+        # A public client distinct from the internal one was built.
+        assert service.public_s3_client is public_client
+        assert service.s3_client is internal_client
+        # Second boto3.client call targets the public endpoint.
+        _, public_kwargs = mock_boto3.client.call_args_list[1]
+        assert public_kwargs["endpoint_url"] == "https://storage.what-a-benger.net"
+
+        url = service.get_download_url("exports/2026/06/x.json")
+        assert url == "https://storage.what-a-benger.net/signed"
+        public_client.generate_presigned_url.assert_called_once()
+        internal_client.generate_presigned_url.assert_not_called()
+
+    def test_no_public_base_url_signs_with_internal_client(self):
+        # Helper sets no STORAGE_BASE_URL → public client falls back to internal.
+        service, mock_client = _make_s3_service()
+        mock_client.generate_presigned_url.return_value = "http://internal/signed"
+        assert service.public_s3_client is mock_client
+
+        url = service.get_download_url("exports/2026/06/x.json")
+        assert url == "http://internal/signed"
+        mock_client.generate_presigned_url.assert_called_once()
+
+
+def _make_local_service(tmp_dir):
+    """Create an ObjectStorageService backed by the local filesystem (issue #158).
+
+    STORAGE_TYPE unset → the default-OFF local backend; LOCAL_STORAGE_PATH points
+    at the test's temp dir so multipart staging files stay isolated.
+    """
+    env = {
+        "STORAGE_TYPE": "local",
+        "LOCAL_STORAGE_PATH": tmp_dir,
+        "CDN_ENABLED": "false",
+    }
+    with patch.dict(os.environ, env, clear=False):
+        from services.storage.object_storage import ObjectStorageService
+
+        return ObjectStorageService()
+
+
+class TestMultipartHelpers:
+    """upload_part / abort_multipart_upload + the local staging/rename path (#158)."""
+
+    def test_local_multipart_round_trip_concatenates_parts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = _make_local_service(tmp)
+            key = "exports/proj-1/job-1.json"
+            upload_id = "local-upload"
+
+            service.upload_part(key, upload_id, 1, b"hello ")
+            service.upload_part(key, upload_id, 2, b"world")
+            # Staging file exists before completion; final does not.
+            staging = service._local_multipart_staging_path(key, upload_id)
+            assert os.path.exists(staging)
+            assert not os.path.exists(os.path.join(tmp, key))
+
+            result = service.complete_multipart_upload(key, upload_id, parts=[])
+
+            final_path = os.path.join(tmp, key)
+            assert os.path.exists(final_path)
+            assert not os.path.exists(staging)  # renamed, not copied
+            with open(final_path, "rb") as f:
+                assert f.read() == b"hello world"
+            assert result["file_key"] == key
+            assert result["size"] == len(b"hello world")
+
+    def test_local_first_part_truncates_stale_staging(self):
+        # A new upload reusing the same key must not append onto a stale file.
+        with tempfile.TemporaryDirectory() as tmp:
+            service = _make_local_service(tmp)
+            key = "exports/proj-1/job-1.json"
+            upload_id = "local-upload"
+            staging = service._local_multipart_staging_path(key, upload_id)
+            os.makedirs(os.path.dirname(staging), exist_ok=True)
+            with open(staging, "wb") as f:
+                f.write(b"GARBAGE-FROM-PREVIOUS-RUN")
+
+            service.upload_part(key, upload_id, 1, b"fresh")
+            with open(staging, "rb") as f:
+                assert f.read() == b"fresh"
+
+    def test_local_abort_removes_staging_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = _make_local_service(tmp)
+            key = "exports/proj-1/job-1.json"
+            upload_id = "local-upload"
+            service.upload_part(key, upload_id, 1, b"partial")
+            staging = service._local_multipart_staging_path(key, upload_id)
+            assert os.path.exists(staging)
+
+            service.abort_multipart_upload(key, upload_id)
+            assert not os.path.exists(staging)
+
+    def test_local_abort_is_noop_when_nothing_staged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = _make_local_service(tmp)
+            # Should not raise even though no part was ever uploaded.
+            service.abort_multipart_upload("exports/x.json", "local-upload")
+
+    def test_local_complete_without_staging_keeps_legacy_contract(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service = _make_local_service(tmp)
+            result = service.complete_multipart_upload(
+                "exports/never-streamed.json", "local-upload", parts=[]
+            )
+            assert result == {
+                "file_key": "exports/never-streamed.json",
+                "storage_backend": "local",
+            }
+
+    def test_s3_upload_part_calls_boto3_and_returns_etag(self):
+        service, mock_client = _make_s3_service()
+        mock_client.upload_part.return_value = {"ETag": '"abc123"'}
+
+        etag = service.upload_part("exports/x.json", "uid-1", 3, b"chunk-bytes")
+
+        assert etag == '"abc123"'
+        _, kwargs = mock_client.upload_part.call_args
+        assert kwargs["Bucket"] == "test-bucket"
+        assert kwargs["Key"] == "exports/x.json"
+        assert kwargs["UploadId"] == "uid-1"
+        assert kwargs["PartNumber"] == 3
+        assert kwargs["Body"] == b"chunk-bytes"
+
+    def test_s3_abort_calls_boto3(self):
+        service, mock_client = _make_s3_service()
+        service.abort_multipart_upload("exports/x.json", "uid-1")
+        _, kwargs = mock_client.abort_multipart_upload.call_args
+        assert kwargs["Bucket"] == "test-bucket"
+        assert kwargs["Key"] == "exports/x.json"
+        assert kwargs["UploadId"] == "uid-1"
+
+    def test_s3_abort_swallows_errors(self):
+        # abort runs inside the worker's failure handler — it must never raise.
+        service, mock_client = _make_s3_service()
+        mock_client.abort_multipart_upload.side_effect = RuntimeError("boom")
+        service.abort_multipart_upload("exports/x.json", "uid-1")  # no exception

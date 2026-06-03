@@ -83,6 +83,9 @@ spec:
                 {{- toYaml .valueFrom | nindent 16 }}
               {{- end }}
             {{- end }}
+            {{- if .Values.minio.enabled }}
+            {{- include "benger.storageEnv" . | nindent 12 }}
+            {{- end }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
 ---

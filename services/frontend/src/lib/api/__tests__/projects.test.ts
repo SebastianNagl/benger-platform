@@ -955,4 +955,159 @@ describe('projectsAPI', () => {
       )
     })
   })
+
+  describe('async export jobs', () => {
+    it('createExportJob posts to the exports endpoint with the format', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-1',
+        status: 'pending',
+      })
+
+      const res = await projectsAPI.createExportJob('proj-1', 'csv')
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/projects/proj-1/exports?format=csv'
+      )
+      expect(res).toEqual({ job_id: 'job-1', status: 'pending' })
+    })
+
+    it('createExportJob defaults to the json format', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-1',
+        status: 'pending',
+      })
+
+      await projectsAPI.createExportJob('proj-1')
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/projects/proj-1/exports?format=json'
+      )
+    })
+
+    it('getExportJob polls the status endpoint', async () => {
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        job_id: 'job-1',
+        status: 'running',
+      })
+
+      const res = await projectsAPI.getExportJob('proj-1', 'job-1')
+
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/projects/proj-1/exports/job-1'
+      )
+      expect(res.status).toBe('running')
+    })
+
+    it('getExportDownloadUrl requests the presigned URL in json mode', async () => {
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        url: 'https://storage/presigned',
+        expires_in: 300,
+      })
+
+      const res = await projectsAPI.getExportDownloadUrl('proj-1', 'job-1')
+
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/projects/proj-1/exports/job-1/download?json=1'
+      )
+      expect(res).toEqual({ url: 'https://storage/presigned', expires_in: 300 })
+    })
+
+    it('runProjectExportJob enqueues, polls to completion, and triggers a download', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-9',
+        status: 'pending',
+      })
+
+      const statuses = [
+        { job_id: 'job-9', project_id: 'proj-1', status: 'pending', progress: 0 },
+        { job_id: 'job-9', project_id: 'proj-1', status: 'running', progress: 50 },
+        {
+          job_id: 'job-9',
+          project_id: 'proj-1',
+          status: 'completed',
+          progress: 100,
+        },
+      ]
+      let pollCount = 0
+      ;(apiClient.get as jest.Mock).mockImplementation((url: string) => {
+        if (url.endsWith('/download?json=1')) {
+          return Promise.resolve({
+            url: 'https://storage/presigned',
+            expires_in: 300,
+          })
+        }
+        return Promise.resolve(
+          statuses[Math.min(pollCount++, statuses.length - 1)]
+        )
+      })
+
+      const clickSpy = jest.fn()
+      const link = { href: '', download: '', click: clickSpy } as any
+      const createSpy = jest
+        .spyOn(document, 'createElement')
+        .mockReturnValue(link)
+      const appendSpy = jest
+        .spyOn(document.body, 'appendChild')
+        .mockImplementation((node) => node as any)
+      const removeSpy = jest
+        .spyOn(document.body, 'removeChild')
+        .mockImplementation((node) => node as any)
+
+      const onStatus = jest.fn()
+      await projectsAPI.runProjectExportJob(
+        'proj-1',
+        'json',
+        { onStatus },
+        { pollIntervalMs: 1 }
+      )
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/projects/proj-1/exports?format=json'
+      )
+      // pending → running → completed: three status callbacks.
+      expect(onStatus).toHaveBeenCalledTimes(3)
+      // The presigned URL drives a direct browser download (bypasses JS heap).
+      expect(link.href).toBe('https://storage/presigned')
+      expect(clickSpy).toHaveBeenCalledTimes(1)
+
+      createSpy.mockRestore()
+      appendSpy.mockRestore()
+      removeSpy.mockRestore()
+    })
+
+    it('runProjectExportJob throws the worker error message when the job fails', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-x',
+        status: 'pending',
+      })
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        job_id: 'job-x',
+        project_id: 'proj-1',
+        status: 'failed',
+        progress: 0,
+        error_message: 'boom in worker',
+      })
+
+      await expect(
+        projectsAPI.runProjectExportJob('proj-1', 'json', undefined, {
+          pollIntervalMs: 1,
+        })
+      ).rejects.toThrow('boom in worker')
+    })
+
+    it('runProjectExportJob aborts polling when the signal is already aborted', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-a',
+        status: 'pending',
+      })
+      const controller = new AbortController()
+      controller.abort()
+
+      await expect(
+        projectsAPI.runProjectExportJob('proj-1', 'json', undefined, {
+          signal: controller.signal,
+        })
+      ).rejects.toThrow(/abort/i)
+    })
+  })
 })

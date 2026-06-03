@@ -1,0 +1,4 @@
+bereich,mean_traditional_raw,mean_co_creation_raw,delta_raw,delta_grade_points,ci95_lo_raw_iid,ci95_hi_raw_iid,n_traditional,n_co_creation,note
+Zivilrecht,59.458,83.029,23.571,4.243,14.421,33.123,24,51,descriptive only — no inferential per-domain test
+Strafrecht,63.977,78.302,14.325,2.578,8.599,19.948,22,53,descriptive only — no inferential per-domain test
+Öffentliches Recht,63.947,85.5,21.553,3.879,14.465,29.314,19,51,descriptive only — no inferential per-domain test

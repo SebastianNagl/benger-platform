@@ -1,0 +1,48 @@
+\begin{table*}[p]
+\centering\footnotesize
+\caption{Human-authored picks: Calderon \S3 alt-test detail by judge. Each block lists the five blind reviewers in the roster (graders 01, 02, 04, 05, 07) for one judge, with that block's headline $\omega$ stated in its italic header. $\rho^f_j$ = mean over $i \in I_j$ of $\mathbf{1}\{S(f,x_i,j) \geq S(h_j,x_i,j)\}$ (probability the LLM judge aligns with the remaining $H_i\setminus\{j\}$ at least as closely as $h_j$); $\rho^h_j$ symmetrically. $\bar{d}_j = \rho^h_j - \rho^f_j$ is the per-annotator advantage probability gap. $p$-value is one-sided Wilcoxon signed-rank against $\bar{d}_j \geq \varepsilon = 0.15$. $\star$ marks rejection under Benjamini-Yekutieli FDR at $q=0.05$ across $m=5$.}
+\label{tbl-calderon-per-annotator-human}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lccccc@{}}
+\toprule
+ & $n_j$ & $\rho^f / \rho^h$ & $\bar{d}$ & $p$ & rej. \\
+\midrule
+\multicolumn{6}{l}{\textit{Baseline GPT-5.4-mini (primary) ($\omega=0.60$ passes)}} \\
+\quad grader\_01 & $14$ & $0.57$ / $0.43$ & $-0.143$ & $0.0247$ &  \\
+\quad grader\_02 & $19$ & $0.68$ / $0.32$ & $-0.368$ & $0.0008$ & $\star$ \\
+\quad grader\_04 & $15$ & $0.73$ / $0.33$ & $-0.400$ & $0.0034$ & $\star$ \\
+\quad grader\_05 & $21$ & $0.62$ / $0.38$ & $-0.238$ & $0.0021$ & $\star$ \\
+\quad grader\_07 & $21$ & $0.48$ / $0.52$ & $0.048$ & $0.0444$ &  \\
+\multicolumn{6}{l}{\textit{Opus-4.7 ($\omega=0.60$ passes)}} \\
+\quad grader\_01 & $13$ & $0.54$ / $0.46$ & $-0.077$ & $0.0471$ &  \\
+\quad grader\_02 & $17$ & $0.59$ / $0.41$ & $-0.176$ & $0.0101$ & $\star$ \\
+\quad grader\_04 & $15$ & $0.60$ / $0.40$ & $-0.200$ & $0.0128$ & $\star$ \\
+\quad grader\_05 & $19$ & $0.58$ / $0.42$ & $-0.158$ & $0.0080$ & $\star$ \\
+\quad grader\_07 & $20$ & $0.40$ / $0.60$ & $0.200$ & $0.1650$ &  \\
+\multicolumn{6}{l}{\textit{Sonnet-4.6 ($\omega=0.40$)}} \\
+\quad grader\_01 & $14$ & $0.50$ / $0.50$ & $0.000$ & $0.0676$ &  \\
+\quad grader\_02 & $19$ & $0.63$ / $0.42$ & $-0.211$ & $0.0070$ & $\star$ \\
+\quad grader\_04 & $15$ & $0.53$ / $0.47$ & $-0.067$ & $0.0365$ &  \\
+\quad grader\_05 & $21$ & $0.67$ / $0.33$ & $-0.333$ & $0.0007$ & $\star$ \\
+\quad grader\_07 & $21$ & $0.52$ / $0.48$ & $-0.048$ & $0.0175$ &  \\
+\multicolumn{6}{l}{\textit{DeepSeek-V4-Pro ($\omega=0.20$)}} \\
+\quad grader\_01 & $14$ & $0.64$ / $0.50$ & $-0.143$ & $0.0453$ &  \\
+\quad grader\_02 & $19$ & $0.68$ / $0.32$ & $-0.368$ & $0.0008$ & $\star$ \\
+\quad grader\_04 & $15$ & $0.53$ / $0.60$ & $0.067$ & $0.1651$ &  \\
+\quad grader\_05 & $21$ & $0.52$ / $0.52$ & $0.000$ & $0.0411$ &  \\
+\quad grader\_07 & $21$ & $0.43$ / $0.57$ & $0.143$ & $0.1015$ &  \\
+\multicolumn{6}{l}{\textit{Gemini-3.1-Pro ($\omega=0.40$)}} \\
+\quad grader\_01 & $14$ & $0.71$ / $0.36$ & $-0.357$ & $0.0067$ & $\star$ \\
+\quad grader\_02 & $19$ & $0.74$ / $0.26$ & $-0.474$ & $0.0003$ & $\star$ \\
+\quad grader\_04 & $15$ & $0.53$ / $0.53$ & $0.000$ & $0.0844$ &  \\
+\quad grader\_05 & $21$ & $0.52$ / $0.52$ & $0.000$ & $0.0411$ &  \\
+\quad grader\_07 & $21$ & $0.38$ / $0.62$ & $0.238$ & $0.2060$ &  \\
+\multicolumn{6}{l}{\textit{Qwen3.5-397B-A17B ($\omega=0.00$)}} \\
+\quad grader\_01 & $14$ & $0.50$ / $0.57$ & $0.071$ & $0.1479$ &  \\
+\quad grader\_02 & $19$ & $0.47$ / $0.53$ & $0.053$ & $0.0567$ &  \\
+\quad grader\_04 & $15$ & $0.40$ / $0.60$ & $0.200$ & $0.2106$ &  \\
+\quad grader\_05 & $21$ & $0.33$ / $0.67$ & $0.333$ & $0.3667$ &  \\
+\quad grader\_07 & $21$ & $0.33$ / $0.67$ & $0.333$ & $0.3667$ &  \\
+\bottomrule
+\end{tabular*}
+\end{table*}

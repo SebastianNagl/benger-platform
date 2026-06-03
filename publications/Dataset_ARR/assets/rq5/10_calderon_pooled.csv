@@ -1,0 +1,9 @@
+judge,corpus,epsilon,m_annotators,n_instances,winning_rate_omega,avg_advantage_rho,n_rejected_BY_FDR,passes_alt_test,omega_ci95_lo_clopper,omega_ci95_hi_clopper
+GPT-5-mini (baseline),pooled (human + LLM),0.15,5,45,0.0,0.4023809523809524,0,False,0.0,0.5218237501049814
+GPT-5-mini (Config B),pooled (human + LLM),0.15,5,45,0.0,0.4173809523809524,0,False,0.0,0.5218237501049814
+Gemini-3.1-Pro (Config B),pooled (human + LLM),0.15,5,45,0.0,0.4730952380952381,0,False,0.0,0.5218237501049814
+Opus-4.7 (Config B),pooled (human + LLM),0.15,5,43,0.6,0.5710755336617406,3,True,0.14663279963467254,0.9472550494736843
+DeepSeek-V4-Pro,pooled (human + LLM),0.15,5,45,0.0,0.5240476190476191,0,False,0.0,0.5218237501049814
+Qwen3.5-397B-A17B,pooled (human + LLM),0.15,5,45,0.0,0.365,0,False,0.0,0.5218237501049814
+Sonnet-4.6,pooled (human + LLM),0.15,5,45,0.4,0.53,2,False,0.05274495052631566,0.8533672003653274
+GPT-5.4-mini,pooled (human + LLM),0.15,5,45,0.2,0.5435714285714286,1,False,0.005050763379468115,0.7164179361180895

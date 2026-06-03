@@ -1,0 +1,409 @@
+{
+  "tasks": [
+    {
+      "task_id": "39f282c6-8eae-4b90-be83-d37c1928376a",
+      "bereich": "Strafrecht",
+      "label": "S1",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": 0.8333333333333357,
+          "cocre": 9.166666666666671,
+          "llm": 45.0
+        },
+        "claude-opus-4-7": {
+          "trad": -9.666666666666664,
+          "cocre": -13.333333333333329,
+          "llm": 0.0
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": -13.166666666666664,
+          "cocre": 3.1666666666666714,
+          "llm": 14.0
+        }
+      },
+      "mean_blind": {
+        "trad": 55.166666666666664,
+        "cocre": 81.83333333333333,
+        "llm": 27.0
+      }
+    },
+    {
+      "task_id": "762b7db3-6c4f-4e7b-8552-22d91371410f",
+      "bereich": "Strafrecht",
+      "label": "S2",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": 42.0,
+          "cocre": 5.0,
+          "llm": 30.5
+        },
+        "claude-opus-4-7": {
+          "trad": 8.0,
+          "cocre": 3.0,
+          "llm": -4.5
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": 2.0,
+          "cocre": 9.0,
+          "llm": 10.0
+        }
+      },
+      "mean_blind": {
+        "trad": 33.0,
+        "cocre": 87.5,
+        "llm": 18.5
+      }
+    },
+    {
+      "task_id": "c5e7770b-1416-4c7b-994f-7714780f9dcb",
+      "bereich": "Strafrecht",
+      "label": "S3",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": 4.666666666666671,
+          "cocre": -3.0,
+          "llm": -1.3333333333333286
+        },
+        "claude-opus-4-7": {
+          "trad": -18.33333333333333,
+          "cocre": -11.0,
+          "llm": -22.33333333333333
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": -10.833333333333329,
+          "cocre": 5.5,
+          "llm": 6.166666666666671
+        }
+      },
+      "mean_blind": {
+        "trad": 70.33333333333333,
+        "cocre": 82.5,
+        "llm": 75.83333333333333
+      }
+    },
+    {
+      "task_id": "c831f630-b724-4d74-9a97-7cf48edd4cf7",
+      "bereich": "Strafrecht",
+      "label": "S4",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": -13.5,
+          "cocre": 23.833333333333336,
+          "llm": 15.666666666666671
+        },
+        "claude-opus-4-7": {
+          "trad": -32.0,
+          "cocre": -5.666666666666664,
+          "llm": -6.833333333333329
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": -27.5,
+          "cocre": 7.333333333333336,
+          "llm": 14.166666666666671
+        }
+      },
+      "mean_blind": {
+        "trad": 70.0,
+        "cocre": 62.666666666666664,
+        "llm": 69.83333333333333
+      }
+    },
+    {
+      "task_id": "cb1e84ab-a1da-4010-880c-c1f44b0f9e14",
+      "bereich": "Strafrecht",
+      "label": "S5",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": -2.1666666666666714,
+          "cocre": 7.166666666666671,
+          "llm": 8.666666666666671
+        },
+        "claude-opus-4-7": {
+          "trad": -15.666666666666671,
+          "cocre": 5.166666666666671,
+          "llm": 0.6666666666666714
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": -2.1666666666666714,
+          "cocre": 16.16666666666667,
+          "llm": 15.166666666666671
+        }
+      },
+      "mean_blind": {
+        "trad": 78.16666666666667,
+        "cocre": 82.83333333333333,
+        "llm": 75.83333333333333
+      }
+    },
+    {
+      "task_id": "1648d37e-ba60-4797-8c2a-d8648d7b5887",
+      "bereich": "Zivilrecht",
+      "label": "Z1",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": 14.333333333333329,
+          "cocre": 15.166666666666664,
+          "llm": -1.6666666666666714
+        },
+        "claude-opus-4-7": {
+          "trad": 3.3333333333333286,
+          "cocre": 11.666666666666664,
+          "llm": -17.66666666666667
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": 13.333333333333329,
+          "cocre": 38.666666666666664,
+          "llm": 4.333333333333329
+        }
+      },
+      "mean_blind": {
+        "trad": 78.66666666666667,
+        "cocre": 40.333333333333336,
+        "llm": 79.66666666666667
+      }
+    },
+    {
+      "task_id": "242ede8c-5d49-498d-bdd4-75c8275ab557",
+      "bereich": "Zivilrecht",
+      "label": "Z2",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": -5.833333333333336,
+          "cocre": 9.666666666666671,
+          "llm": 21.833333333333336
+        },
+        "claude-opus-4-7": {
+          "trad": -25.333333333333336,
+          "cocre": -7.333333333333329,
+          "llm": 10.833333333333336
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": -7.833333333333336,
+          "cocre": 12.166666666666671,
+          "llm": 17.333333333333336
+        }
+      },
+      "mean_blind": {
+        "trad": 55.833333333333336,
+        "cocre": 69.83333333333333,
+        "llm": 54.166666666666664
+      }
+    },
+    {
+      "task_id": "6471701d-1b21-4fab-8dd2-4460e759eef9",
+      "bereich": "Zivilrecht",
+      "label": "Z3",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": 29.666666666666664,
+          "cocre": 25.16666666666667,
+          "llm": 10.0
+        },
+        "claude-opus-4-7": {
+          "trad": 10.666666666666664,
+          "cocre": 19.16666666666667,
+          "llm": 5.0
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": 24.666666666666664,
+          "cocre": 29.66666666666667,
+          "llm": 22.5
+        }
+      },
+      "mean_blind": {
+        "trad": 61.333333333333336,
+        "cocre": 70.33333333333333,
+        "llm": 76.0
+      }
+    },
+    {
+      "task_id": "883e812d-6f6e-466e-bf8e-313bbdc0604a",
+      "bereich": "Zivilrecht",
+      "label": "Z4",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": 4.0,
+          "cocre": 36.666666666666664,
+          "llm": 50.83333333333333
+        },
+        "claude-opus-4-7": {
+          "trad": -10.0,
+          "cocre": 26.666666666666664,
+          "llm": 8.833333333333332
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": 2.0,
+          "cocre": 23.166666666666664,
+          "llm": 18.333333333333332
+        }
+      },
+      "mean_blind": {
+        "trad": 40.0,
+        "cocre": 61.833333333333336,
+        "llm": 29.166666666666668
+      }
+    },
+    {
+      "task_id": "dfdea348-c434-4fc5-8ab1-e13172226b34",
+      "bereich": "Zivilrecht",
+      "label": "Z5",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": 10.0,
+          "cocre": 0.0,
+          "llm": 29.333333333333336
+        },
+        "claude-opus-4-7": {
+          "trad": 0.5,
+          "cocre": -20.0,
+          "llm": 1.8333333333333357
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": 0.0,
+          "cocre": -8.5,
+          "llm": 26.833333333333336
+        }
+      },
+      "mean_blind": {
+        "trad": 0.0,
+        "cocre": 61.0,
+        "llm": 56.666666666666664
+      }
+    },
+    {
+      "task_id": "0dd46b63-ff6d-4912-b953-777281f8aec8",
+      "bereich": "Öffentliches Recht",
+      "label": "Ö1",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": 32.5,
+          "cocre": 37.5,
+          "llm": 30.166666666666664
+        },
+        "claude-opus-4-7": {
+          "trad": -4.0,
+          "cocre": 22.5,
+          "llm": 9.166666666666664
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": 3.5,
+          "cocre": 39.5,
+          "llm": 26.666666666666664
+        }
+      },
+      "mean_blind": {
+        "trad": 29.5,
+        "cocre": 59.5,
+        "llm": 49.833333333333336
+      }
+    },
+    {
+      "task_id": "11007154-9fd0-420c-9a5c-73d8986fa3d5",
+      "bereich": "Öffentliches Recht",
+      "label": "Ö2",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": 12.666666666666664,
+          "cocre": 17.66666666666667,
+          "llm": 29.0
+        },
+        "claude-opus-4-7": {
+          "trad": null,
+          "cocre": 0.1666666666666714,
+          "llm": 14.0
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": -10.833333333333336,
+          "cocre": 12.166666666666671,
+          "llm": 35.0
+        }
+      },
+      "mean_blind": {
+        "trad": 44.833333333333336,
+        "cocre": 77.83333333333333,
+        "llm": 54.0
+      }
+    },
+    {
+      "task_id": "2c217f68-0dd1-4d34-9a5f-7b99c9fe2b8b",
+      "bereich": "Öffentliches Recht",
+      "label": "Ö3",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": 22.666666666666664,
+          "cocre": 16.5,
+          "llm": 31.666666666666664
+        },
+        "claude-opus-4-7": {
+          "trad": null,
+          "cocre": -0.5,
+          "llm": 4.166666666666664
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": -5.333333333333336,
+          "cocre": 19.5,
+          "llm": 15.666666666666664
+        }
+      },
+      "mean_blind": {
+        "trad": 50.333333333333336,
+        "cocre": 56.5,
+        "llm": 50.833333333333336
+      }
+    },
+    {
+      "task_id": "941f78d7-b26a-463c-b58a-a752d59bc0a5",
+      "bereich": "Öffentliches Recht",
+      "label": "Ö4",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": 19.5,
+          "cocre": 13.5,
+          "llm": 26.333333333333336
+        },
+        "claude-opus-4-7": {
+          "trad": -1.5,
+          "cocre": 5.5,
+          "llm": -0.1666666666666643
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": 5.5,
+          "cocre": 5.5,
+          "llm": 18.833333333333336
+        }
+      },
+      "mean_blind": {
+        "trad": 46.5,
+        "cocre": 17.0,
+        "llm": 61.166666666666664
+      }
+    },
+    {
+      "task_id": "c32ce744-16ca-4fba-ae07-aa79c5e83d1b",
+      "bereich": "Öffentliches Recht",
+      "label": "Ö5",
+      "judge_devs": {
+        "gpt-5-mini": {
+          "trad": 0.3333333333333357,
+          "cocre": 29.5,
+          "llm": 41.5
+        },
+        "claude-opus-4-7": {
+          "trad": -8.166666666666664,
+          "cocre": 8.5,
+          "llm": 17.5
+        },
+        "gemini-3.1-pro-preview": {
+          "trad": -0.6666666666666643,
+          "cocre": 19.0,
+          "llm": 27.5
+        }
+      },
+      "mean_blind": {
+        "trad": 52.166666666666664,
+        "cocre": 58.0,
+        "llm": 21.5
+      }
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+corpus,epsilon,n_picks_with_creator_and_judge,m_annotators,winning_rate_omega,avg_advantage_rho,passes_alt_test
+human-authored,0.15,30,5,0.0,0.4299749373433584,False
+human-authored,0.20,30,5,0.0,0.4299749373433584,False
+LLM-generated,0.15,15,5,0.0,0.2023088023088023,False
+LLM-generated,0.20,15,5,0.0,0.2023088023088023,False

@@ -1,0 +1,8 @@
+metric,scope,n_generations,value,notes
+Mean within-cell stdev across GPT-5-mini ×3,Benchathon LLM generations,208,2.511572582653149,raw points; judge self-consistency
+Δ_dir pass 1 (judge − pool mean),"Config A GPT-5-mini, human-authored",30,13.855555555555556,mean of 3 passes = 13.916666666666668
+Δ_dir pass 2 (judge − pool mean),"Config A GPT-5-mini, human-authored",30,14.055555555555555,mean of 3 passes = 13.916666666666668
+Δ_dir pass 3 (judge − pool mean),"Config A GPT-5-mini, human-authored",30,13.838888888888889,mean of 3 passes = 13.916666666666668
+Δ_dir pass 1 (judge − pool mean),"Config A GPT-5-mini, LLM-generated",15,21.400000000000002,mean of 3 passes = 22.11111111111111
+Δ_dir pass 2 (judge − pool mean),"Config A GPT-5-mini, LLM-generated",15,23.400000000000002,mean of 3 passes = 22.11111111111111
+Δ_dir pass 3 (judge − pool mean),"Config A GPT-5-mini, LLM-generated",15,21.533333333333335,mean of 3 passes = 22.11111111111111

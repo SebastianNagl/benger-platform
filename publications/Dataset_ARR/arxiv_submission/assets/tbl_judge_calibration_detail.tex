@@ -1,0 +1,24 @@
+\begin{table*}[t]
+\centering\footnotesize
+\caption{Within-judge stochasticity detail for the primary GPT-5.4-mini judge. The Baseline row is the single-pass run that anchors RQ1--RQ2; the Config A block adds three intra-judge re-runs ($3\times$) so the four offsets in each block give a $k=4$ within-judge stochasticity check. The per-pass offset $\bar{\Delta}_{\text{dir}}$ stdev across the four passes is $1.53$ raw points on human picks and $1.65$ on LLM picks, with max $|$pass\,$-$\,mean$|$ of $2.23$ (human) and $2.11$ (LLM). Same columns as Table~\ref{tbl-judge-calibration}.}
+\label{tbl-judge-calibration-detail}
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+Configuration & $n$ & $\bar{\Delta}_{\text{dir}}$ (sd) & $t$ ($p$) & $\bar{\Delta}_{\text{sub}}$ (sd) & SW $p$ & $t_{\text{sub}}$ ($p$) \\
+\midrule
+\textit{Human picks:}~Baseline GPT-5.4-mini ($1\times$, primary) & $n=30$ & $-0.01$ (sd $13.43$) & $-0.00$ ($0.9964$) & $0.20$ (sd $4.99$) & $0.02$ & $0.22$ ($0.8279$) \\
+\quad Config A GPT-5.4-mini ($3\times$ mean) & $n=30$ & $-1.68$ (sd $14.43$) & $-0.64$ ($0.5278$) & $-0.36$ (sd $5.41$) & $0.10$ & $-0.36$ ($0.7202$) \\
+\qquad pass 1 & $n=30$ & $-0.88$ (sd $18.22$) & $-0.26$ ($0.7937$) & $-0.09$ (sd $6.62$) & $0.02$ & $-0.07$ ($0.9419$) \\
+\qquad pass 2 & $n=30$ & $-0.68$ (sd $13.82$) & $-0.27$ ($0.7901$) & $-0.02$ (sd $5.31$) & $0.10$ & $-0.02$ ($0.9819$) \\
+\qquad pass 3 & $n=30$ & $-3.49$ (sd $13.57$) & $-1.41$ ($0.1692$) & $-0.96$ (sd $5.00$) & $0.57$ & $-1.05$ ($0.3010$) \\
+\textit{LLM picks:}~Baseline GPT-5.4-mini ($1\times$, primary) & $n=15$ & $-0.47$ (sd $16.24$) & $-0.11$ ($0.9130$) & $0.83$ (sd $7.65$) & $0.33$ & $0.42$ ($0.6795$) \\
+\quad Config A GPT-5.4-mini ($3\times$ mean) & $n=15$ & $2.34$ (sd $14.64$) & $0.62$ ($0.5450$) & $1.77$ (sd $7.05$) & $0.38$ & $0.97$ ($0.3475$) \\
+\qquad pass 1 & $n=15$ & $2.97$ (sd $17.50$) & $0.66$ ($0.5222$) & $1.98$ (sd $7.85$) & $0.45$ & $0.98$ ($0.3455$) \\
+\qquad pass 2 & $n=15$ & $1.13$ (sd $14.89$) & $0.29$ ($0.7724$) & $1.37$ (sd $6.77$) & $0.12$ & $0.78$ ($0.4472$) \\
+\qquad pass 3 & $n=15$ & $2.93$ (sd $14.04$) & $0.81$ ($0.4319$) & $1.97$ (sd $7.15$) & $0.89$ & $1.07$ ($0.3046$) \\
+\bottomrule
+\end{tabular}
+}%  end \resizebox
+\end{table*}

@@ -34,6 +34,10 @@ botocore>=1.43.11
 requests>=2.32.0
 pyopenssl>=23.3.0
 jsonschema==4.26.0
+# Streaming JSON parser for memory-bounded project import (issue #158).
+# ijson.items/kvitems parse large export files incrementally so a 500MB+
+# import doesn't materialize the whole document on the heap.
+ijson>=3.2.0
 # Scientific computing for statistics
 # numpy floor matches workers (>=1.26.4); upper cap kept in sync with workers
 # (see services/workers/requirements.txt for thinc/spacy ABI rationale).

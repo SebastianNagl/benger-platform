@@ -419,6 +419,75 @@ backup:
       memory: "512Mi"
       cpu: "500m"
 
+# MinIO object storage for async exports/imports (issue #158).
+#
+# DEFAULT-OFF (inert): with enabled=false NOTHING in this block renders, and
+# neither the api nor workers receive any S3_* env, so the storage singleton
+# stays on STORAGE_TYPE=local — byte-for-byte today's behavior. That is what lets
+# this chart ride to prod safely before MinIO is validated.
+#
+# To turn it on (do this on benger-staging first via an extended PR ride, then
+# promote prod):
+#   1. Pre-create the credentials Secret in the namespace, e.g.:
+#        kubectl create secret generic benger-minio-credentials -n <ns> \
+#          --from-literal=access-key=<user> --from-literal=secret-key=<pass>
+#      (the same pair is used as the MinIO root user AND the app's S3 creds).
+#   2. Confirm the image digests below still resolve (they are multi-arch
+#      indexes incl. linux/amd64 — verified 2026-06-01).
+#   3. Set enabled=true (in values-staging.yaml / values-production.yaml).
+# Rollback = set enabled=false + `kubectl rollout restart` (safe because the env
+# is gated, so the singleton reverts to local). The PVC is retained on uninstall.
+minio:
+  enabled: false
+  image:
+    repository: minio/minio
+    # RELEASE.2025-09-07T16-13-09Z — pinned by digest (Bitnami/Broadcom drift lesson).
+    digest: "sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e"
+    pullPolicy: IfNotPresent
+  mcImage:
+    repository: minio/mc
+    # RELEASE.2025-08-13T08-35-41Z
+    digest: "sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727"
+    pullPolicy: IfNotPresent
+  storageType: minio
+  # Internal cluster endpoint api+workers connect to for the upload itself.
+  # Empty → http://<release>-minio:9000.
+  internalEndpoint: ""
+  bucket: benger-exports
+  region: us-east-1
+  # Public host that serves browser-bound presigned download URLs. REQUIRED when
+  # enabled — SigV4 binds the host, so this is the host the URL is signed for.
+  # Covered by the existing wildcard cert (*.what-a-benger.net).
+  publicHost: storage.what-a-benger.net
+  credentialsSecret: benger-minio-credentials
+  accessKeySecretKey: access-key
+  secretKeySecretKey: secret-key
+  # Object lifecycle. The PVC shares the node's single physical disk with
+  # Postgres/WAL/backups, so disk pressure is the real risk: expire finished
+  # export artifacts to cap growth.
+  expiryDays: 7
+  # NOTE: not currently applied. The pinned MinIO release (RELEASE.2025-09-07)
+  # rejects an AbortIncompleteMultipartUpload lifecycle action on
+  # PutBucketLifecycle (InvalidArgument, verified via both mc and boto3), so the
+  # minio-init job ships expiry-only. The export worker aborts its own multipart
+  # upload on failure (Phase 2d), leaving only hard-kill orphans — a bounded
+  # edge case. Kept here so the rule can be re-enabled if MinIO restores support.
+  abortIncompleteMultipartDays: 1
+  persistence:
+    size: 20Gi
+    storageClass: ""  # "" = cluster default StorageClass (local-path on K3s)
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  ingress:
+    enabled: true
+    annotations:
+      traefik.ingress.kubernetes.io/router.priority: "200"
+
 # Traefik middleware configuration
 # Creates Middleware CRDs for security headers, compression, etc.
 middleware:

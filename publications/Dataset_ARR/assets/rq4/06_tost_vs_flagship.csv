@@ -1,0 +1,13 @@
+quantity,value,note
+mean_co_creation_raw,82.226,n=155 co-creation annotations
+mean_flagship_tier_raw,83.307,"flagship pool, n_gen=75"
+flagship_ci95_lo_raw,81.247,
+flagship_ci95_hi_raw,85.228,
+delta_co_creation_minus_flagship_raw,-1.081,point estimate; negative means co-creation slightly below flagship
+equivalence_band_lo_raw,-5.0,"we'd call any difference within [-5,+5] practically equivalent"
+equivalence_band_hi_raw,5.0,
+tost_one_sided_95_lower_raw,-3.242,must be > eq_lo to reject 'co-creation is meaningfully worse'
+tost_one_sided_95_upper_raw,1.262,must be < eq_hi to reject 'co-creation is meaningfully better'
+reject_h0_co_creation_meaningfully_worse,True,
+reject_h0_co_creation_meaningfully_better,True,
+equivalent_within_5_raw_points,True,HEADLINE: both rejections fire => statistically equivalent within the band
