@@ -11,7 +11,7 @@ from typing import List, Optional
 
 import bcrypt
 from fastapi import HTTPException, status
-from sqlalchemy import or_
+from sqlalchemy import inspect, or_, text
 from sqlalchemy.orm import Session
 
 from models import User
@@ -517,53 +517,73 @@ def delete_user(db: Session, user_id: str) -> bool:
             {"created_by": FALLBACK_SUPERADMIN_ID}, synchronize_session=False
         )
 
-        try:
-            from project_models import (
-                Annotation,
-                ExportLog,
-                GeneratedResult,
-                ImportJob,
-                Project,
-                ProjectCollaborator,
-                Task,
-                TaskAssignment,
-            )
+        # Cleanup Phase 3: every users.id reference with no ON DELETE rule
+        # (RESTRICT) that the working per-class blocks above don't already cover.
+        # Driven by curated (table, column) lists rather than ORM classes so a
+        # newly added table is one list entry, not another import that can
+        # silently slip through. This previously lived in a
+        # `from project_models import (...)` block guarded by `except ImportError:
+        # pass`; four of the imported names (ExportLog, GeneratedResult, ImportJob,
+        # ProjectCollaborator) no longer exist after the model consolidation, so
+        # the whole block — including the projects.created_by reassignment — was
+        # silently skipped, leaving user deletion broken for anyone who authored a
+        # project. Table and column names are constants (no injection); the user id
+        # is bound. The existence guard covers the test schema, which is built from
+        # /shared models via create_all and omits migration-only tables (prompts,
+        # default_prompts, flexible_annotations).
+        existing_tables = set(inspect(db.get_bind()).get_table_names())
 
-            db.query(Project).filter(Project.created_by == user_id).update(
-                {"created_by": FALLBACK_SUPERADMIN_ID}, synchronize_session=False
-            )
-            db.query(ProjectCollaborator).filter(ProjectCollaborator.user_id == user_id).delete(
-                synchronize_session=False
-            )
-            db.query(TaskAssignment).filter(TaskAssignment.assigned_by == user_id).update(
-                {"assigned_by": FALLBACK_SUPERADMIN_ID}, synchronize_session=False
-            )
-            db.query(TaskAssignment).filter(TaskAssignment.user_id == user_id).delete(
-                synchronize_session=False
-            )
-            db.query(Task).filter(Task.assigned_to == user_id).update(
-                {"assigned_to": None}, synchronize_session=False
-            )
-            db.query(Task).filter(Task.created_by == user_id).update(
-                {"created_by": FALLBACK_SUPERADMIN_ID}, synchronize_session=False
-            )
-            db.query(Task).filter(Task.updated_by == user_id).update(
-                {"updated_by": FALLBACK_SUPERADMIN_ID}, synchronize_session=False
-            )
-            db.query(Annotation).filter(Annotation.completed_by == user_id).update(
-                {"completed_by": FALLBACK_SUPERADMIN_ID}, synchronize_session=False
-            )
-            db.query(GeneratedResult).filter(GeneratedResult.created_by == user_id).update(
-                {"created_by": FALLBACK_SUPERADMIN_ID}, synchronize_session=False
-            )
-            db.query(ExportLog).filter(ExportLog.exported_by == user_id).update(
-                {"exported_by": FALLBACK_SUPERADMIN_ID}, synchronize_session=False
-            )
-            db.query(ImportJob).filter(ImportJob.imported_by == user_id).update(
-                {"imported_by": FALLBACK_SUPERADMIN_ID}, synchronize_session=False
-            )
-        except ImportError:
-            pass
+        reassign_to_fallback = [
+            ("projects", "created_by"),
+            ("annotations", "completed_by"),
+            ("task_assignments", "assigned_by"),
+            ("data_exports", "exported_by"),
+            ("data_imports", "imported_by"),
+            ("default_config_history", "changed_by"),
+            ("export_jobs", "requested_by"),
+            ("flexible_annotations", "created_by"),
+            ("import_jobs", "requested_by"),
+            ("korrektur_comments", "created_by"),
+            ("organization_api_keys", "created_by"),
+            ("project_organizations", "assigned_by"),
+            ("project_reports", "created_by"),
+            ("prompts", "created_by"),
+            ("task_templates", "created_by"),
+            ("template_sharing", "shared_by"),
+            ("template_versions", "created_by"),
+        ]
+        nullify = [
+            ("annotations", "reviewed_by"),
+            ("default_evaluation_configs", "updated_by"),
+            ("default_prompts", "updated_by"),
+            ("korrektur_comments", "resolved_by"),
+            ("project_reports", "published_by"),
+            ("tags", "created_by"),
+            ("users", "email_verified_by_id"),
+        ]
+        delete_rows = [
+            ("notifications", "user_id"),
+            ("user_column_preferences", "user_id"),
+        ]
+
+        for table, column in reassign_to_fallback:
+            if table in existing_tables:
+                db.execute(
+                    text(f"UPDATE {table} SET {column} = :fb WHERE {column} = :uid"),
+                    {"fb": FALLBACK_SUPERADMIN_ID, "uid": user_id},
+                )
+        for table, column in nullify:
+            if table in existing_tables:
+                db.execute(
+                    text(f"UPDATE {table} SET {column} = NULL WHERE {column} = :uid"),
+                    {"uid": user_id},
+                )
+        for table, column in delete_rows:
+            if table in existing_tables:
+                db.execute(
+                    text(f"DELETE FROM {table} WHERE {column} = :uid"),
+                    {"uid": user_id},
+                )
 
         db.flush()
         db.delete(user)

@@ -158,7 +158,7 @@ class User(Base):
 
     # Admin verification tracking fields
     email_verified_by_id = Column(
-        String, ForeignKey("users.id"), nullable=True
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )  # User who verified the email (for admin verification)
     email_verified_at = Column(
         DateTime(timezone=True), nullable=True
@@ -328,7 +328,7 @@ class RefreshToken(Base):
 
     id = Column(String, primary_key=True, index=True)
     token_hash = Column(String, nullable=False, unique=True, index=True)  # Hashed refresh token
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -496,7 +496,7 @@ class Tag(Base):
     usage_count = Column(Integer, default=0, nullable=False)  # Track usage frequency
 
     # Metadata
-    created_by = Column(String, ForeignKey("users.id"), nullable=True)
+    created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -1120,7 +1120,7 @@ class UserColumnPreferences(Base):
     __tablename__ = "user_column_preferences"
 
     id = Column(String, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     task_id = Column(String, nullable=True)
     # JSON object with column visibility settings
     column_settings = Column(JSON, nullable=False)
@@ -1208,7 +1208,7 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id = Column(String, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     organization_id = Column(String, ForeignKey("organizations.id"), nullable=True)
     type = Column(
         SQLEnum(NotificationType, values_callable=lambda obj: [e.value for e in obj]),
@@ -1235,7 +1235,7 @@ class UserNotificationPreference(Base):
     __tablename__ = "notification_preferences"
 
     id = Column(String, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     notification_type = Column(String, nullable=False)
     email_enabled = Column(Boolean, nullable=False, default=False)
     in_app_enabled = Column(Boolean, nullable=False, default=True)
@@ -1558,7 +1558,7 @@ class DefaultEvaluationConfig(Base):
         server_default=func.now(),
         nullable=False,
     )
-    updated_by = Column(String, ForeignKey("users.id"), nullable=True)
+    updated_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Relationships
     updater = relationship("User", foreign_keys=[updated_by])
