@@ -2235,30 +2235,17 @@ def send_invitation_email_task(
     logger.info(f"Sending invitation email to {to_email} for {organization_name}")
 
     try:
+        from email_service import email_service
         from sendgrid_client import SendGridClient
 
         client = SendGridClient()
 
-        subject = f"Invitation to join {organization_name} on BenGER"
-        html_body = """
-        <html>
-        <body style="font-family: Arial, sans-serif; padding: 20px;">
-            <h2>You're invited to join {organization_name}</h2>
-            <p>{inviter_name} has invited you to join {organization_name} as a {role} on BenGER.</p>
-            <p>BenGER is a comprehensive evaluation framework for Large Language Models in the German legal domain.</p>
-            <p style="margin: 30px 0;">
-                <a href="{invitation_url}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
-                    Accept Invitation
-                </a>
-            </p>
-            <p>Or copy and paste this link into your browser:</p>
-            <p style="color: #007bff;">{invitation_url}</p>
-            <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                This invitation will expire in 7 days. If you did not expect this invitation, you can safely ignore this email.
-            </p>
-        </body>
-        </html>
-        """
+        subject, html_body = email_service.build_invitation_email(
+            organization_name=organization_name,
+            inviter_name=inviter_name,
+            role=role,
+            invitation_url=invitation_url,
+        )
 
         result = client.send_message(
             to=[to_email],

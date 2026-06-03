@@ -309,6 +309,30 @@ class EmailService:
             logger.error(f"Error sending test email: {str(e)}")
             return False
 
+    def build_invitation_email(
+        self,
+        *,
+        organization_name: str,
+        inviter_name: str,
+        role: str,
+        invitation_url: str,
+    ) -> tuple[str, str]:
+        """Render the invitee org-invitation email -> (subject, html_body).
+
+        Single source of the invitee HTML: services/shared/email_templates/
+        email/invitation_recipient.html. Not to be confused with
+        organization_invite.html, which is the org-admin notification email.
+        """
+        return self._render_template(
+            "invitation_recipient.html",
+            {
+                "organization_name": organization_name,
+                "inviter_name": inviter_name,
+                "role": role,
+                "invitation_url": invitation_url,
+            },
+        )
+
     async def send_invitation_email(
         self,
         to_email: str,
@@ -334,26 +358,12 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-        subject = f"Invitation to join {organization_name} on BenGER"
-        html_body = f"""
-        <html>
-        <body style="font-family: Arial, sans-serif; padding: 20px;">
-            <h2>You're invited to join {organization_name}</h2>
-            <p>{inviter_name} has invited you to join {organization_name} as a {role} on BenGER.</p>
-            <p>BenGER is a comprehensive evaluation framework for Large Language Models in the German legal domain.</p>
-            <p style="margin: 30px 0;">
-                <a href="{invitation_url}" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
-                    Accept Invitation
-                </a>
-            </p>
-            <p>Or copy and paste this link into your browser:</p>
-            <p style="color: #007bff;">{invitation_url}</p>
-            <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                This invitation will expire in 7 days. If you did not expect this invitation, you can safely ignore this email.
-            </p>
-        </body>
-        </html>
-        """
+        subject, html_body = self.build_invitation_email(
+            organization_name=organization_name,
+            inviter_name=inviter_name,
+            role=role,
+            invitation_url=invitation_url,
+        )
 
         try:
             result = self.mail_client.send_message(

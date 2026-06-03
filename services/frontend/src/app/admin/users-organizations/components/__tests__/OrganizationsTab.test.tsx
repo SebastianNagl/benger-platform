@@ -62,6 +62,7 @@ jest.mock('@/hooks/useDialogs', () => ({
 jest.mock('@/lib/api/organizations', () => ({
   organizationsAPI: {
     sendInvitation: jest.fn(),
+    bulkInvite: jest.fn(),
     removeMember: jest.fn(),
     updateMemberRole: jest.fn(),
     getAllUsers: jest.fn(),
@@ -222,6 +223,16 @@ describe('OrganizationsTab', () => {
           'admin.organizations.sending': 'Sending...',
           'admin.organizations.sendInvitation': 'Send Invitation',
           'admin.organizations.email': 'Email',
+          'admin.organizations.inviteMultiple': 'Invite Multiple',
+          'admin.organizations.bulkInviteTitle': 'Invite Multiple Members',
+          'admin.organizations.bulkEmailsLabel': 'Email Addresses',
+          'admin.organizations.bulkEmailsPlaceholder': 'anna@example.com, max@example.com',
+          'admin.organizations.bulkEmailsHelp': 'Separate multiple addresses with commas, semicolons, or new lines.',
+          'admin.organizations.bulkInviteSending': 'Sending invitations...',
+          'admin.organizations.bulkInviteSubmit': 'Send Invitations',
+          'admin.organizations.bulkInviteSummary': '{queued} invited, {skipped} skipped',
+          'admin.organizations.bulkInviteNoValidEmails': 'No valid email addresses entered',
+          'admin.organizations.bulkInviteFailed': 'Failed to send invitations',
           'admin.organizations.errors.errorTitle': 'Error',
           'admin.organizations.errors.loadFailed': 'Failed to load organization data',
           'admin.organizations.errors.noPermissionCreate': 'You do not have permission to create organizations',
@@ -274,6 +285,12 @@ describe('OrganizationsTab', () => {
     mockApiClient.cancelInvitation.mockResolvedValue({})
 
     organizationsAPI.sendInvitation.mockResolvedValue({})
+    organizationsAPI.bulkInvite.mockResolvedValue({
+      queued: 2,
+      skipped: 1,
+      total: 3,
+      results: [],
+    })
     organizationsAPI.removeMember.mockResolvedValue({})
     organizationsAPI.updateMemberRole.mockResolvedValue({})
     organizationsAPI.getAllUsers.mockResolvedValue(mockAllUsers)
@@ -290,6 +307,12 @@ describe('OrganizationsTab', () => {
     // Reset organizationsAPI mocks after each test
     const { organizationsAPI } = require('@/lib/api/organizations')
     organizationsAPI.sendInvitation.mockResolvedValue({})
+    organizationsAPI.bulkInvite.mockResolvedValue({
+      queued: 2,
+      skipped: 1,
+      total: 3,
+      results: [],
+    })
     organizationsAPI.removeMember.mockResolvedValue({})
     organizationsAPI.updateMemberRole.mockResolvedValue({})
     organizationsAPI.getAllUsers.mockResolvedValue(mockAllUsers)
@@ -1050,6 +1073,98 @@ describe('OrganizationsTab', () => {
           'Error'
         )
       })
+    })
+
+    it('should bulk invite: parse, dedupe, dispatch, and summarize', async () => {
+      const { organizationsAPI } = require('@/lib/api/organizations')
+      const user = userEvent.setup()
+      render(<OrganizationsTab />)
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /Invite Member/i })
+        ).toBeInTheDocument()
+      })
+
+      await user.click(
+        screen.getByRole('button', { name: /Invite Member/i })
+      )
+
+      // Open the bulk sub-modal from inside the invite modal.
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /Invite Multiple/i })
+        ).toBeInTheDocument()
+      })
+      await user.click(
+        screen.getByRole('button', { name: /Invite Multiple/i })
+      )
+
+      await waitFor(() => {
+        expect(getInputByLabel('Email Addresses')).toBeInTheDocument()
+      })
+
+      // Mixed separators (comma, newline, semicolon) + a case-insensitive dup.
+      fireEvent.change(getInputByLabel('Email Addresses'), {
+        target: {
+          value: 'a@example.com, b@example.com\nA@example.com; c@example.com',
+        },
+      })
+
+      // Exact name avoids matching the single-invite "Send Invitation" button.
+      await user.click(
+        screen.getByRole('button', { name: 'Send Invitations' })
+      )
+
+      await waitFor(() => {
+        expect(organizationsAPI.bulkInvite).toHaveBeenCalledWith('org-1', {
+          emails: ['a@example.com', 'b@example.com', 'c@example.com'],
+          role: 'ANNOTATOR',
+        })
+        // Summary toast reflects the server's queued/skipped counts.
+        expect(mockAddToast).toHaveBeenCalledWith(
+          '2 invited, 1 skipped',
+          'success'
+        )
+      })
+    })
+
+    it('should reject bulk invite with no valid emails', async () => {
+      const { organizationsAPI } = require('@/lib/api/organizations')
+      const user = userEvent.setup()
+      render(<OrganizationsTab />)
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /Invite Member/i })
+        ).toBeInTheDocument()
+      })
+
+      await user.click(
+        screen.getByRole('button', { name: /Invite Member/i })
+      )
+      await user.click(
+        screen.getByRole('button', { name: /Invite Multiple/i })
+      )
+
+      await waitFor(() => {
+        expect(getInputByLabel('Email Addresses')).toBeInTheDocument()
+      })
+
+      fireEvent.change(getInputByLabel('Email Addresses'), {
+        target: { value: '  ,  ; \n ' },
+      })
+      await user.click(
+        screen.getByRole('button', { name: 'Send Invitations' })
+      )
+
+      await waitFor(() => {
+        expect(mockShowError).toHaveBeenCalledWith(
+          'No valid email addresses entered',
+          'Error'
+        )
+      })
+      expect(organizationsAPI.bulkInvite).not.toHaveBeenCalled()
     })
 
     it('should cancel pending invitation', async () => {
