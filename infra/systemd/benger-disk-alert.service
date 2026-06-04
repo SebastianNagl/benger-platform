@@ -1,0 +1,11 @@
+# BenGER daily disk-usage alert (emails via SendGrid when / > threshold).
+# Install: cp benger-disk-alert.{service,timer} /etc/systemd/system/ && systemctl daemon-reload
+#          systemctl enable --now benger-disk-alert.timer
+[Unit]
+Description=BenGER disk-usage alert (email via SendGrid when / exceeds threshold)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/benger-disk-alert.sh

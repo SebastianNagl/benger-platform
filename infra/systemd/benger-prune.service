@@ -1,0 +1,13 @@
+# BenGER scheduled container-store prune.
+# Install: cp benger-prune.{service,timer} /etc/systemd/system/ && systemctl daemon-reload
+#          systemctl enable --now benger-prune.timer
+[Unit]
+Description=BenGER scheduled container-store prune (Docker + K3s, keep 7 days)
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/benger-scheduled-prune.sh
+Nice=10
+IOSchedulingClass=idle
