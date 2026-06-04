@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly BenGER container-store prune
+
+[Timer]
+OnCalendar=Sun 04:00
+Persistent=true
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target
