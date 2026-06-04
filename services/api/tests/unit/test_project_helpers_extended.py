@@ -119,6 +119,32 @@ class TestCheckProjectAccessiblePrivateContext:
         assert check_project_accessible(db, user, "proj-1", org_context="private") == False  # noqa: E712
 
 
+class TestCheckProjectAccessibleOrgContextPrivateProject:
+    """Own private project must stay accessible to its creator even when the
+    request carries an org id in X-Organization-Context (e.g. created from an
+    org subdomain). Regression for the prod "Access denied" cascade."""
+
+    def test_org_context_creator_own_private_project_accessible(self):
+        from routers.projects.helpers import check_project_accessible
+
+        db = MagicMock()
+        project = Mock(is_private=True, is_public=False, created_by="user-1", id="proj-1")
+        db.query.return_value.filter.return_value.first.return_value = project
+
+        user = Mock(is_superadmin=False, id="user-1")
+        assert check_project_accessible(db, user, "proj-1", org_context="org-1") == True  # noqa: E712
+
+    def test_org_context_private_project_non_creator_denied(self):
+        from routers.projects.helpers import check_project_accessible
+
+        db = MagicMock()
+        project = Mock(is_private=True, is_public=False, created_by="user-2", id="proj-1")
+        db.query.return_value.filter.return_value.first.return_value = project
+
+        user = Mock(is_superadmin=False, id="user-1")
+        assert check_project_accessible(db, user, "proj-1", org_context="org-1") == False  # noqa: E712
+
+
 class TestCheckProjectAccessibleLegacy:
     """Tests for check_project_accessible - legacy (None context)."""
 

@@ -682,12 +682,17 @@ def check_project_accessible(
 
     # Context-aware mode
     if org_context is not None:
+        # A user's own private project is always accessible to its creator,
+        # regardless of which org context the request carries. On an org
+        # subdomain the frontend always sends X-Organization-Context: <org id>,
+        # so without this a private project becomes unreadable/unconfigurable
+        # by the very user who created it.
+        if getattr(project, "is_private", False):
+            return str(user.id) == str(project.created_by)
+
         if org_context == "private":
-            # Private mode: only user's own private projects
-            return (
-                getattr(project, "is_private", False)
-                and str(user.id) == str(project.created_by)
-            )
+            # Private context but project is not private -> no access
+            return False
 
         # Org mode: project must belong to this specific org
         # AND user must be an active member of this org
