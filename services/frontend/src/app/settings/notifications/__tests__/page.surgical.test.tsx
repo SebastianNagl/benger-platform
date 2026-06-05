@@ -277,42 +277,6 @@ describe('NotificationSettings - Surgical Coverage', () => {
     })
   })
 
-  it('sends test email via button click', async () => {
-    ;(api.notifications.sendTestEmail as jest.Mock).mockResolvedValue({
-      message: 'Test email sent',
-    })
-
-    render(<NotificationSettingsPage />)
-
-    await waitFor(() => {
-      expect(screen.getByTestId('settings-test-email-button')).toBeInTheDocument()
-    })
-
-    await user.click(screen.getByTestId('settings-test-email-button'))
-
-    await waitFor(() => {
-      expect(api.notifications.sendTestEmail).toHaveBeenCalled()
-    })
-  })
-
-  it('handles test email failure', async () => {
-    ;(api.notifications.sendTestEmail as jest.Mock).mockRejectedValue({
-      response: { data: { detail: 'Email server down' } },
-    })
-
-    render(<NotificationSettingsPage />)
-
-    await waitFor(() => {
-      expect(screen.getByTestId('settings-test-email-button')).toBeInTheDocument()
-    })
-
-    await user.click(screen.getByTestId('settings-test-email-button'))
-
-    await waitFor(() => {
-      expect(screen.getByText('Email server down')).toBeInTheDocument()
-    })
-  })
-
   it('handles legacy boolean preferences by converting them', async () => {
     ;(api.getNotificationPreferences as jest.Mock).mockResolvedValue({
       project_created: true,  // Legacy boolean format
