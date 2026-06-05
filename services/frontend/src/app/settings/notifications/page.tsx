@@ -43,6 +43,27 @@ const getNotificationTypes = (t: any) => [
     category: t('settings.notifications.categories.projects'),
   },
   {
+    key: 'project_completed',
+    name: t('settings.notifications.types.projectCompleted'),
+    description: t('settings.notifications.types.projectCompletedDesc'),
+    icon: CheckCircleIcon,
+    category: t('settings.notifications.categories.projects'),
+  },
+  {
+    key: 'project_archived',
+    name: t('settings.notifications.types.projectArchived'),
+    description: t('settings.notifications.types.projectArchivedDesc'),
+    icon: InformationCircleIcon,
+    category: t('settings.notifications.categories.projects'),
+  },
+  {
+    key: 'project_deleted',
+    name: t('settings.notifications.types.projectDeleted'),
+    description: t('settings.notifications.types.projectDeletedDesc'),
+    icon: ExclamationTriangleIcon,
+    category: t('settings.notifications.categories.projects'),
+  },
+  {
     key: 'evaluation_completed',
     name: t('settings.notifications.types.evaluationCompleted'),
     description: t('settings.notifications.types.evaluationCompletedDesc'),
@@ -64,10 +85,24 @@ const getNotificationTypes = (t: any) => [
     category: t('settings.notifications.categories.data'),
   },
   {
+    key: 'data_import_success',
+    name: t('settings.notifications.types.dataImportSuccess'),
+    description: t('settings.notifications.types.dataImportSuccessDesc'),
+    icon: CheckCircleIcon,
+    category: t('settings.notifications.categories.data'),
+  },
+  {
     key: 'llm_generation_completed',
     name: t('settings.notifications.types.llmGenerationCompleted'),
     description: t('settings.notifications.types.llmGenerationCompletedDesc'),
     icon: CheckCircleIcon,
+    category: t('settings.notifications.categories.llm'),
+  },
+  {
+    key: 'llm_generation_failed',
+    name: t('settings.notifications.types.llmGenerationFailed'),
+    description: t('settings.notifications.types.llmGenerationFailedDesc'),
+    icon: ExclamationTriangleIcon,
     category: t('settings.notifications.categories.llm'),
   },
   {
@@ -105,6 +140,20 @@ const getNotificationTypes = (t: any) => [
     category: t('settings.notifications.categories.annotation'),
   },
   {
+    key: 'task_assignment_removed',
+    name: t('settings.notifications.types.taskAssignmentRemoved'),
+    description: t('settings.notifications.types.taskAssignmentRemovedDesc'),
+    icon: InformationCircleIcon,
+    category: t('settings.notifications.categories.annotation'),
+  },
+  {
+    key: 'labeling_config_updated',
+    name: t('settings.notifications.types.labelingConfigUpdated'),
+    description: t('settings.notifications.types.labelingConfigUpdatedDesc'),
+    icon: InformationCircleIcon,
+    category: t('settings.notifications.categories.annotation'),
+  },
+  {
     key: 'organization_invitation_sent',
     name: t('settings.notifications.types.orgInvitationSent'),
     description: t('settings.notifications.types.orgInvitationSentDesc'),
@@ -137,6 +186,48 @@ const getNotificationTypes = (t: any) => [
     name: t('settings.notifications.types.errorOccurred'),
     description: t('settings.notifications.types.errorOccurredDesc'),
     icon: ExclamationTriangleIcon,
+    category: t('settings.notifications.categories.system'),
+  },
+  {
+    key: 'security_alert',
+    name: t('settings.notifications.types.securityAlert'),
+    description: t('settings.notifications.types.securityAlertDesc'),
+    icon: ExclamationTriangleIcon,
+    category: t('settings.notifications.categories.system'),
+  },
+  {
+    key: 'system_maintenance',
+    name: t('settings.notifications.types.systemMaintenance'),
+    description: t('settings.notifications.types.systemMaintenanceDesc'),
+    icon: InformationCircleIcon,
+    category: t('settings.notifications.categories.system'),
+  },
+  {
+    key: 'api_quota_warning',
+    name: t('settings.notifications.types.apiQuotaWarning'),
+    description: t('settings.notifications.types.apiQuotaWarningDesc'),
+    icon: ExclamationTriangleIcon,
+    category: t('settings.notifications.categories.system'),
+  },
+  {
+    key: 'performance_alert',
+    name: t('settings.notifications.types.performanceAlert'),
+    description: t('settings.notifications.types.performanceAlertDesc'),
+    icon: ExclamationTriangleIcon,
+    category: t('settings.notifications.categories.system'),
+  },
+  {
+    key: 'model_api_key_invalid',
+    name: t('settings.notifications.types.modelApiKeyInvalid'),
+    description: t('settings.notifications.types.modelApiKeyInvalidDesc'),
+    icon: ExclamationTriangleIcon,
+    category: t('settings.notifications.categories.system'),
+  },
+  {
+    key: 'long_running_operation_update',
+    name: t('settings.notifications.types.longRunningOperationUpdate'),
+    description: t('settings.notifications.types.longRunningOperationUpdateDesc'),
+    icon: ClockIcon,
     category: t('settings.notifications.categories.system'),
   },
 ]
@@ -194,7 +285,6 @@ function NotificationSettingsContent() {
   const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [testingEmail, setTestingEmail] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [configError, setConfigError] = useState<string | null>(null)
@@ -387,25 +477,6 @@ function NotificationSettingsContent() {
     }
   }
 
-  const handleTestEmail = async () => {
-    try {
-      setTestingEmail(true)
-      setError(null)
-      setSuccess(null)
-
-      const result = await api.notifications.sendTestEmail()
-      setSuccess(result.message || t('settings.notifications.ui.testEmailSent'))
-
-      // Clear success message after 5 seconds
-      setTimeout(() => setSuccess(null), 5000)
-    } catch (err: any) {
-      console.error('Failed to send test email:', err)
-      setError(err.response?.data?.detail || t('settings.notifications.ui.testEmailFailed'))
-    } finally {
-      setTestingEmail(false)
-    }
-  }
-
   const getEnabledCount = (category: string): number => {
     const categoryTypes = notificationTypes.filter(
       (type) => type.category === category
@@ -465,70 +536,6 @@ function NotificationSettingsContent() {
           <div className="flex">
             <CheckCircleIcon className="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-green-400" />
             <div className="text-green-800 dark:text-green-200">{success}</div>
-          </div>
-        </div>
-      )}
-
-      {/* Email Service Status */}
-      {emailStatus && (
-        <div
-          className={`mb-6 rounded-lg border p-4 ${
-            emailStatus.configured
-              ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
-              : 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <EnvelopeIcon
-                className={`mr-2 h-5 w-5 ${
-                  emailStatus.configured ? 'text-green-500' : 'text-yellow-500'
-                }`}
-              />
-              <div>
-                <div
-                  className={`font-medium ${
-                    emailStatus.configured
-                      ? 'text-green-800 dark:text-green-200'
-                      : 'text-yellow-800 dark:text-yellow-200'
-                  }`}
-                >
-                  {emailStatus.configured
-                    ? t('settings.notifications.email.available')
-                    : t('settings.notifications.email.notConfigured')}
-                </div>
-                <div
-                  className={`text-sm ${
-                    emailStatus.configured
-                      ? 'text-green-600 dark:text-green-300'
-                      : 'text-yellow-600 dark:text-yellow-300'
-                  }`}
-                >
-                  {emailStatus.configured
-                    ? t('settings.notifications.email.configuredDesc')
-                    : t('settings.notifications.email.notConfiguredDesc')}
-                </div>
-              </div>
-            </div>
-
-            {emailStatus.configured && (
-              <Button
-                onClick={handleTestEmail}
-                variant="outline"
-                className="text-sm"
-                disabled={testingEmail}
-                data-testid="settings-test-email-button"
-              >
-                {testingEmail ? (
-                  <>
-                    <ArrowPathIcon className="mr-1 h-4 w-4 animate-spin" />
-                    {t('settings.notifications.ui.sending')}
-                  </>
-                ) : (
-                  t('settings.notifications.ui.sendTestEmail')
-                )}
-              </Button>
-            )}
           </div>
         </div>
       )}

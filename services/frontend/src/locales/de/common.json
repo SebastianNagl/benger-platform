@@ -2732,6 +2732,10 @@
         "title": "Aufgabe zugewiesen: {task_name}",
         "message": "Ihnen wurde die Aufgabe '{task_name}' zugewiesen"
       },
+      "korrektur_assigned": {
+        "title": "Korrektur zugewiesen: {project_title}",
+        "message": "{assigned_by} hat Ihnen {count} Korrekturelement(e) im Projekt '{project_title}' zugewiesen"
+      },
       "task_assignment_removed": {
         "title": "Aufgabenzuweisung entfernt: {task_name}",
         "message": "Ihre Zuweisung zur Aufgabe '{task_name}' wurde entfernt"
@@ -3289,7 +3293,33 @@
         "systemAlert": "Systemalarm",
         "systemAlertDesc": "Benachrichtigungen über wichtige Systemankündigungen erhalten",
         "errorOccurred": "Fehler aufgetreten",
-        "errorOccurredDesc": "Benachrichtigungen erhalten, wenn Systemfehler auftreten"
+        "errorOccurredDesc": "Benachrichtigungen erhalten, wenn Systemfehler auftreten",
+        "projectCompleted": "Projekt abgeschlossen",
+        "projectCompletedDesc": "Benachrichtigungen erhalten, wenn Projekte als abgeschlossen markiert werden",
+        "projectArchived": "Projekt archiviert",
+        "projectArchivedDesc": "Benachrichtigungen erhalten, wenn Projekte archiviert werden",
+        "projectDeleted": "Projekt gelöscht",
+        "projectDeletedDesc": "Benachrichtigungen erhalten, wenn Projekte gelöscht werden",
+        "dataImportSuccess": "Datenimport abgeschlossen",
+        "dataImportSuccessDesc": "Benachrichtigungen erhalten, wenn ein Datenimport erfolgreich abgeschlossen wird",
+        "llmGenerationFailed": "LLM-Generierung fehlgeschlagen",
+        "llmGenerationFailedDesc": "Benachrichtigungen erhalten, wenn LLM-Textgenerierungsaufgaben fehlschlagen",
+        "taskAssignmentRemoved": "Aufgabenzuweisung entfernt",
+        "taskAssignmentRemovedDesc": "Benachrichtigungen erhalten, wenn eine Ihrer Aufgabenzuweisungen entfernt wird",
+        "labelingConfigUpdated": "Annotationskonfiguration aktualisiert",
+        "labelingConfigUpdatedDesc": "Benachrichtigungen erhalten, wenn die Annotationskonfiguration eines Projekts geändert wird",
+        "securityAlert": "Sicherheitswarnung",
+        "securityAlertDesc": "Benachrichtigungen über sicherheitsrelevante Ereignisse in Ihrem Konto erhalten",
+        "systemMaintenance": "Systemwartung",
+        "systemMaintenanceDesc": "Benachrichtigungen über geplante Systemwartungen erhalten",
+        "apiQuotaWarning": "API-Kontingentwarnung",
+        "apiQuotaWarningDesc": "Benachrichtigungen erhalten, wenn die Nutzung sich einem API-Kontingentlimit nähert",
+        "performanceAlert": "Leistungswarnung",
+        "performanceAlertDesc": "Benachrichtigungen über Systemleistungsprobleme erhalten",
+        "modelApiKeyInvalid": "Modell-API-Schlüssel ungültig",
+        "modelApiKeyInvalidDesc": "Benachrichtigungen erhalten, wenn ein API-Schlüssel eines Modellanbieters die Validierung nicht besteht",
+        "longRunningOperationUpdate": "Update zu langlaufendem Vorgang",
+        "longRunningOperationUpdateDesc": "Fortschrittsupdates zu langlaufenden Vorgängen erhalten"
       },
       "categories": {
         "projects": "Projekte",
@@ -3301,10 +3331,7 @@
         "system": "System"
       },
       "email": {
-        "available": "E-Mail-Benachrichtigungen verfügbar",
-        "configuredDesc": "E-Mail-Benachrichtigungen sind ordnungsgemäß konfiguriert und funktionieren",
-        "notConfigured": "E-Mail nicht konfiguriert",
-        "notConfiguredDesc": "E-Mail-Benachrichtigungen sind in dieser Instanz nicht verfügbar"
+        "notConfigured": "E-Mail nicht konfiguriert"
       },
       "quietHours": {
         "title": "Ruhezeiten",
@@ -3359,8 +3386,6 @@
         "savePreferences": "Einstellungen speichern",
         "saving": "Speichern...",
         "loading": "Laden...",
-        "sending": "Senden...",
-        "sendTestEmail": "Test-E-Mail senden",
         "authRequired": "Anmeldung erforderlich",
         "authRequiredDesc": "Sie müssen angemeldet sein, um Benachrichtigungseinstellungen zu verwalten",
         "enabledCount": "{enabled} von {total} Benachrichtigungstypen aktiviert",
@@ -3368,9 +3393,7 @@
         "saveFailed": "Speichern der Benachrichtigungseinstellungen fehlgeschlagen",
         "loadFailed": "Laden der Benachrichtigungseinstellungen fehlgeschlagen",
         "initFailed": "Initialisierung der Benachrichtigungseinstellungen fehlgeschlagen",
-        "loadingError": "Fehler beim Laden der Benachrichtigungseinstellungen",
-        "testEmailSent": "Test-E-Mail erfolgreich gesendet!",
-        "testEmailFailed": "Fehler beim Senden der Test-E-Mail"
+        "loadingError": "Fehler beim Laden der Benachrichtigungseinstellungen"
       },
       "breadcrumb": {
         "settings": "Einstellungen",
