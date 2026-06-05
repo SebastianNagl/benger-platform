@@ -452,6 +452,7 @@ def get_provider_from_model(model_id: str) -> str:
     if (
         "deepinfra" in model_lower
         or "llama" in model_lower
+        or "gemma" in model_lower
         or "qwen" in model_lower
         or "qwq" in model_lower
         or "kimi" in model_lower
