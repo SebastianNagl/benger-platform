@@ -1,14 +1,19 @@
 """
 Roundtrip integration tests for export → import → verify.
 
-Tests both roundtrip paths:
-1. Data export (bulk_export_tasks) → data import (import_project_data) → verify
-2. Full project export (get_comprehensive_project_data) → full project import
-   (import_full_project) → verify
+The sync import/export endpoints were removed in the #158 follow-up (object
+storage is the only transport). These fidelity tests now drive the same shared
+streaming drivers the async worker uses, so coverage survives the endpoint
+removal:
+1. Data export (bulk_export_tasks) → nested import (run_nested_import) → verify
+2. Full project export (get_comprehensive_project_data) → field-consistency
+   checks (the full-project import driver is round-tripped in
+   tests/integration/test_ndjson_roundtrip.py).
 
 Uses the shared PostgreSQL test database with per-test transaction rollback.
 """
 
+import io
 import json
 import os
 import sys
@@ -269,7 +274,7 @@ def project_with_full_data(db_session, user):
 
 @pytest.mark.integration
 class TestDataExportImportRoundtrip:
-    """Export via bulk_export_tasks, import via import_project_data, verify."""
+    """Export via bulk_export_tasks, import via run_nested_import, verify."""
 
     def _export(self, db_session, project_id, task_ids, user_id):
         from routers.projects.tasks import bulk_export_tasks
@@ -283,11 +288,9 @@ class TestDataExportImportRoundtrip:
         request_data = {"task_ids": task_ids, "format": "json"}
         # bulk_export_tasks is a sync def returning a StreamingResponse
         # (refactored 2026-05-18 — see the OOMKilled note in the handler
-        # docstring). Test had two stale assumptions: wrapped a sync
-        # call in asyncio.run() and read .body off a streaming response.
-        # The companion `import_project_data` below stays inside run()
-        # because it's still async; the two endpoints just have different
-        # shapes.
+        # docstring), so its body must be consumed through the async
+        # body_iterator below; the companion import drives the shared
+        # run_nested_import driver directly (see _import).
         response = bulk_export_tasks(
             project_id, request_data, request=mock_request, current_user=mock_user, db=db_session
         )
@@ -302,29 +305,19 @@ class TestDataExportImportRoundtrip:
         return json.loads(body.decode("utf-8"))
 
     def _import(self, db_session, target_project_id, export_data, user_id):
-        from routers.projects.import_export import import_project_data
-
-        mock_user = Mock()
-        mock_user.id = user_id
-        mock_user.is_superadmin = True
+        # The sync POST /{id}/import endpoint was removed (#158); drive the same
+        # shared nested-import driver the async worker uses, straight from a
+        # spooled body. Returns the same created_* counts the endpoint did.
+        from routers.projects._import_stream import run_nested_import
 
         body = json.dumps({
             "data": export_data["tasks"],
             "evaluation_runs": export_data.get("evaluation_runs"),
         }).encode("utf-8")
 
-        async def _stream():
-            yield body
-
-        mock_request = Mock()
-        mock_request.headers = {}
-        mock_request.state = Mock(spec=[])
-        mock_request.stream = _stream
-
-        result = run(
-            import_project_data(target_project_id, request=mock_request, current_user=mock_user, db=db_session)
+        return run_nested_import(
+            db_session, target_project_id, io.BytesIO(body), user_id
         )
-        return result
 
     def test_tasks_survive_roundtrip(self, db_session, user, project_with_full_data):
         data = project_with_full_data
@@ -845,26 +838,15 @@ class TestRoundtripExtensions:
         db_session.add(target)
         db_session.commit()
 
-        # The single-project import schema accepts korrektur_comments under the
-        # `data` payload via the extended ProjectImportData fields.
-        from routers.projects.import_export import import_project_data
-        mock_user = Mock()
-        mock_user.id = user.id
-        mock_user.is_superadmin = True
+        # The nested-import driver accepts korrektur_comments alongside the
+        # `data` payload (the extended import fields).
+        from routers.projects._import_stream import run_nested_import
         body = json.dumps({
             "data": export["tasks"],
             "evaluation_runs": export.get("evaluation_runs"),
             "korrektur_comments": export.get("korrektur_comments"),
         }).encode("utf-8")
-
-        async def _stream():
-            yield body
-
-        mock_request = Mock()
-        mock_request.headers = {}
-        mock_request.state = Mock(spec=[])
-        mock_request.stream = _stream
-        run(import_project_data(target.id, request=mock_request, current_user=mock_user, db=db_session))
+        run_nested_import(db_session, target.id, io.BytesIO(body), user.id)
 
         imported = (
             db_session.query(KorrekturComment)

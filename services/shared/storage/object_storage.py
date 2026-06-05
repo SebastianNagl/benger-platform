@@ -59,8 +59,11 @@ class ObjectStorageService:
         """Initialize object storage service with configuration from environment"""
         # Storage backend configuration. ``STORAGE_TYPE`` is the canonical name —
         # it matches storage_config.py and the Helm values (issue #158); the old
-        # ``STORAGE_BACKEND`` is kept as a legacy alias so existing deployments and
-        # tests keep working. Unset on both → "local" (default-OFF, unchanged).
+        # ``STORAGE_BACKEND`` is kept as a legacy alias. Object storage (minio/s3)
+        # is mandatory in every deployed environment — the Helm values always set
+        # STORAGE_TYPE=minio, and _initialize_storage now raises instead of
+        # silently downgrading. ``local`` survives only as the explicit test/dev
+        # double (must be opted into; never set by deployed Helm).
         self.storage_backend = (
             os.getenv("STORAGE_TYPE") or os.getenv("STORAGE_BACKEND") or "local"
         )  # 's3', 'minio', 'local'
@@ -134,11 +137,13 @@ class ObjectStorageService:
         elif self.storage_backend in ["s3", "minio"]:
             # Initialize S3 client
             if not BOTO3_AVAILABLE:
-                logger.error(f"Boto3 not available, cannot use {self.storage_backend} storage")
-                # Fall back to local storage
-                self.storage_backend = "local"
-                self._initialize_storage()
-                return
+                # Object storage is mandatory in deployed environments (issue #158
+                # follow-up). Fail loudly rather than silently writing exports to
+                # the pod's local disk, which the API can't serve cross-pod.
+                raise RuntimeError(
+                    f"{self.storage_backend} storage requested but boto3 is not "
+                    "available; install boto3 or set STORAGE_TYPE=local for tests."
+                )
 
             try:
                 config = Config(
@@ -170,18 +175,17 @@ class ObjectStorageService:
                 )
 
             except Exception as e:
+                # Don't silently downgrade to local on a misconfigured endpoint or
+                # bad credentials — that masked outages before. Crash the pod so
+                # the misconfiguration is visible (issue #158 follow-up).
                 logger.error(f"Failed to initialize {self.storage_backend} storage: {e}")
-                # Fall back to local storage
-                self.storage_backend = "local"
-                self._initialize_storage()
+                raise
 
         else:
-            # Invalid storage backend, fall back to local
-            logger.warning(
-                f"Invalid storage backend '{self.storage_backend}', falling back to local storage"
+            raise RuntimeError(
+                f"Invalid STORAGE_TYPE '{self.storage_backend}'; "
+                "expected one of: local, s3, minio."
             )
-            self.storage_backend = "local"
-            self._initialize_storage()
 
     def _build_public_client(self):
         """Build a second S3 client bound to the public endpoint (STORAGE_BASE_URL).
@@ -442,7 +446,12 @@ class ObjectStorageService:
 
         # Generate presigned POST URL
         try:
-            response = self.s3_client.generate_presigned_post(
+            # Sign against the public endpoint so the browser can POST the upload
+            # (the internal cluster endpoint isn't reachable from a browser, and
+            # SigV4 binds the host). Falls back to the internal client in dev/test
+            # where no public endpoint is configured.
+            signer = self.public_s3_client or self.s3_client
+            response = signer.generate_presigned_post(
                 Bucket=self.bucket_name,
                 Key=file_key,
                 Fields={

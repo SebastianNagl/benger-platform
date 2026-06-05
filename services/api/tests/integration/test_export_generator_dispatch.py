@@ -1,12 +1,11 @@
 """Dispatch + fidelity tests for the shared export-generator selector (issue #158).
 
-The async worker export task (`tasks.export_project`) and the synchronous
-`GET /{project_id}/export` endpoint must emit byte-identical output for a given
-format. Both now go through `select_export_generator` /
-`build_json_export_header_fields` in `export_stream`, so these tests lock that
-contract: the selector's JSON output matches what the legacy endpoint streams,
-every format dispatches to the right generator, and an unknown format fails
-loudly rather than silently producing an empty/wrong artifact.
+The async worker export task (`tasks.export_project`) is now the only export
+path; it streams `select_export_generator` / `build_json_export_header_fields`
+from `export_stream` straight to object storage. These tests lock that
+contract: the selector's JSON output is well-formed and complete, every format
+dispatches to the right generator, and an unknown format fails loudly rather
+than silently producing an empty/wrong artifact.
 """
 
 import json
@@ -86,22 +85,12 @@ def populated_project(test_db, test_users, test_org):
 
 @pytest.mark.integration
 class TestSelectExportGenerator:
-    def test_json_matches_legacy_endpoint_bytes(
-        self, client, test_db, populated_project, auth_headers, test_org
-    ):
+    def test_json_generator_is_complete(self, test_db, populated_project):
         project = populated_project
-        # The endpoint streams _logged_export_stream(stream_export_json(...)),
-        # a byte-faithful UTF-8 passthrough, so its body must equal the joined
-        # selector chunks the worker would upload.
-        resp = client.get(
-            f"/api/projects/{project.id}/export?format=json",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
-        assert resp.status_code == 200
-
+        # The worker joins these selector chunks and uploads them verbatim, so
+        # the generator's JSON must be well-formed and carry the completeness
+        # sentinel — there is no synchronous endpoint to compare against anymore.
         joined = "".join(select_export_generator(test_db, project, "json"))
-        assert joined == resp.text
-        # Sanity: both ends are valid JSON with the completeness sentinel.
         parsed = json.loads(joined)
         assert parsed["export_complete"] is True
         assert parsed["project"]["id"] == project.id

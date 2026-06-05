@@ -42,14 +42,11 @@ jest.mock('@/hooks/useColumnSettings', () => ({
 
 jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
-    export: jest.fn(),
-    bulkExportTasks: jest.fn(),
+    // Legacy sync export is gone; kept as a stub for the regression assertion
+    // that the async path never touches it.
     streamExportTasks: jest.fn(),
-    // Default: async export unavailable (object storage OFF) → 409, so
-    // handleExportTasks transparently falls back to streamExportTasks.
-    runProjectExportJob: jest.fn(() =>
-      Promise.reject({ response: { status: 409 } })
-    ),
+    // Object storage is mandatory: export goes through the async job flow.
+    runProjectExportJob: jest.fn(() => Promise.resolve(undefined)),
     bulkDeleteTasks: jest.fn(),
     bulkArchiveTasks: jest.fn(),
     getMembers: jest.fn(),
@@ -413,14 +410,7 @@ function setupMocks() {
     updatePreference: mockUpdatePreference,
   })
 
-  ;(projectsAPI.export as jest.Mock).mockResolvedValue(new Blob(['test']))
-  ;(projectsAPI.bulkExportTasks as jest.Mock).mockResolvedValue(new Blob(['test']))
-  ;(projectsAPI.streamExportTasks as jest.Mock).mockImplementation(
-    (_projectId, _taskIds, _name, callbacks) => {
-      callbacks?.onStart?.()
-      return Promise.resolve({ bytesWritten: 4, savedVia: 'blob' })
-    }
-  )
+  ;(projectsAPI.runProjectExportJob as jest.Mock).mockResolvedValue(undefined)
   ;(projectsAPI.bulkDeleteTasks as jest.Mock).mockResolvedValue({ deleted: 1 })
   ;(projectsAPI.bulkArchiveTasks as jest.Mock).mockResolvedValue({ archived: 1 })
   ;(projectsAPI.getMembers as jest.Mock).mockResolvedValue([{ id: 'user-1', username: 'testuser' }])
@@ -464,13 +454,14 @@ describe('AnnotationTab - interaction coverage', () => {
       fireEvent.click(exportBtn)
 
       await waitFor(() => {
-        expect(projectsAPI.streamExportTasks).toHaveBeenCalledWith(
+        expect(projectsAPI.runProjectExportJob).toHaveBeenCalledWith(
           'project-1',
-          expect.any(Array),
-          expect.any(String),
+          'json',
+          expect.objectContaining({ onStatus: expect.any(Function) }),
           expect.any(Object)
         )
       })
+      expect(projectsAPI.streamExportTasks).not.toHaveBeenCalled()
       expect(mockStartProgress).toHaveBeenCalled()
       expect(mockCompleteProgress).toHaveBeenCalledWith(expect.any(String), 'success')
       expect(mockAddToast).toHaveBeenCalledWith(expect.any(String), 'success')
@@ -488,7 +479,7 @@ describe('AnnotationTab - interaction coverage', () => {
     })
 
     it('handles export failure', async () => {
-      ;(projectsAPI.streamExportTasks as jest.Mock).mockRejectedValue(new Error('Network error'))
+      ;(projectsAPI.runProjectExportJob as jest.Mock).mockRejectedValueOnce(new Error('Network error'))
       await renderAndWaitForTasks()
 
       fireEvent.click(screen.getByTestId('export-button'))
@@ -511,18 +502,19 @@ describe('AnnotationTab - interaction coverage', () => {
       fireEvent.click(screen.getByTestId('bulk-export'))
 
       await waitFor(() => {
-        expect(projectsAPI.streamExportTasks).toHaveBeenCalledWith(
+        expect(projectsAPI.runProjectExportJob).toHaveBeenCalledWith(
           'project-1',
-          expect.any(Array),
-          expect.any(String),
-          expect.any(Object)
+          'json',
+          expect.objectContaining({ onStatus: expect.any(Function) }),
+          expect.objectContaining({ taskIds: expect.any(Array) })
         )
       })
+      expect(projectsAPI.streamExportTasks).not.toHaveBeenCalled()
       expect(mockAddToast).toHaveBeenCalledWith(expect.any(String), 'success')
     })
 
     it('handles bulk export failure', async () => {
-      ;(projectsAPI.streamExportTasks as jest.Mock).mockRejectedValue(new Error('Export failed'))
+      ;(projectsAPI.runProjectExportJob as jest.Mock).mockRejectedValueOnce(new Error('Export failed'))
       await renderAndWaitForTasks()
 
       const checkboxes = screen.getAllByRole('checkbox')

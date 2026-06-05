@@ -421,24 +421,25 @@ backup:
 
 # MinIO object storage for async exports/imports (issue #158).
 #
-# DEFAULT-OFF (inert): with enabled=false NOTHING in this block renders, and
-# neither the api nor workers receive any S3_* env, so the storage singleton
-# stays on STORAGE_TYPE=local — byte-for-byte today's behavior. That is what lets
-# this chart ride to prod safely before MinIO is validated.
+# REQUIRED — object storage is a hard dependency for BOTH editions. Import and
+# export run exclusively through object storage: there is no synchronous
+# fallback and the storage singleton no longer silently downgrades to a local
+# /tmp backend (a misconfigured S3 endpoint now crashes the pod at startup
+# instead of writing exports to disk). The api+workers receive S3_* env from the
+# "benger.storageEnv" helper whenever enabled=true, which is the default.
 #
-# To turn it on (do this on benger-staging first via an extended PR ride, then
-# promote prod):
-#   1. Pre-create the credentials Secret in the namespace, e.g.:
-#        kubectl create secret generic benger-minio-credentials -n <ns> \
-#          --from-literal=access-key=<user> --from-literal=secret-key=<pass>
-#      (the same pair is used as the MinIO root user AND the app's S3 creds).
-#   2. Confirm the image digests below still resolve (they are multi-arch
-#      indexes incl. linux/amd64 — verified 2026-06-01).
-#   3. Set enabled=true (in values-staging.yaml / values-production.yaml).
-# Rollback = set enabled=false + `kubectl rollout restart` (safe because the env
-# is gated, so the singleton reverts to local). The PVC is retained on uninstall.
+# DEPLOYMENT PRE-REQUISITE: the credentials Secret MUST exist in the target
+# namespace before deploy, or the api/workers pods CrashLoop on the missing
+# secretKeyRef. Create it once per namespace:
+#     kubectl create secret generic benger-minio-credentials -n <ns> \
+#       --from-literal=access-key=<user> --from-literal=secret-key=<pass>
+#   (the same pair is used as the MinIO root user AND the app's S3 creds).
+# The image digests below are multi-arch indexes incl. linux/amd64.
+#
+# enabled=false is intended only for a local test/dev double (STORAGE_TYPE=local
+# reached via tests / bare runs), never for a deployed namespace.
 minio:
-  enabled: false
+  enabled: true
   image:
     repository: minio/minio
     # RELEASE.2025-09-07T16-13-09Z — pinned by digest (Bitnami/Broadcom drift lesson).

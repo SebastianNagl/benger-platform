@@ -230,31 +230,8 @@ class TestGetLabelConfigVersion:
 # ============= projects/import_export.py =============
 
 
-class TestExportProject:
-    @pytest.mark.asyncio
-    async def test_project_not_found(self):
-        from routers.projects.import_export import export_project
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = Mock()
-        request = Mock()
-        request.state.organization_context = None
-        with pytest.raises(HTTPException) as exc_info:
-            await export_project(project_id="proj-1", request=request,
-                               current_user=user, db=db)  # noqa: E128
-        assert exc_info.value.status_code == 404
-
-    @pytest.mark.asyncio
-    async def test_access_denied(self):
-        from routers.projects.import_export import export_project
-        db = Mock()
-        project = Mock()
-        db.query.return_value.filter.return_value.first.return_value = project
-        user = Mock()
-        request = Mock()
-        request.state.organization_context = None
-        with patch("routers.projects.import_export.check_project_accessible", return_value=False):
-            with pytest.raises(HTTPException) as exc_info:
-                await export_project(project_id="proj-1", request=request,
-                                    current_user=user, db=db)  # noqa: E128
-            assert exc_info.value.status_code == 403
+# Note: TestExportProject was removed — the synchronous GET /{id}/export
+# handler (export_project) was deleted in the #158 follow-up. Export now runs
+# only through the async object-storage job flow (POST /{id}/exports); its
+# not-found / access-denied paths are covered in
+# tests/integration/test_export_jobs_api.py.

@@ -342,6 +342,7 @@ class TestPublicProjectHelpers:
         project = Mock(
             is_private=False,
             is_public=True,
+            is_archived=False,
             public_role="ANNOTATOR",
             created_by="creator-1",
             id="proj-pub",

@@ -9,9 +9,11 @@ postgresql:
 redis:
   enabled: false
 
-# MinIO object storage (issue #158) — intentionally left OFF here so this change
-# rides to prod inert. PROMOTION (only after staging validation + creating the
-# benger-minio-credentials Secret in the `benger` namespace) = uncomment:
-# minio:
-#   enabled: true
+# MinIO object storage (issue #158) — REQUIRED. Inherits enabled=true from
+# values.yaml (object storage is the only import/export path; no sync fallback).
+# Prod is already live: the benger-minio-credentials Secret exists in the
+# `benger` namespace and the server-local values-extended.yaml also pins
+# minio.enabled=true. Any prod-specific MinIO overrides would go here; defaults
+# from values.yaml (bucket benger-exports, publicHost storage.what-a-benger.net,
+# digest-pinned images, 20Gi PVC, 7-day expiry) are correct for prod as-is.
 

@@ -32,7 +32,7 @@ import io
 import json
 from datetime import datetime
 from itertools import chain
-from typing import Iterable, Iterator, Optional
+from typing import Iterable, Iterator, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -1641,19 +1641,29 @@ def build_json_export_header_fields(db: Session, project) -> dict:
     }
 
 
-def select_export_generator(db: Session, project, fmt: str) -> Iterator[str]:
+def select_export_generator(
+    db: Session, project, fmt: str, task_ids: Optional[List[str]] = None
+) -> Iterator[str]:
     """Return the chunk-yielding generator for ``fmt`` against ``project``.
 
-    Single dispatch point shared by the synchronous endpoint and the async
-    worker task so both emit the same bytes for a given format. ``project`` is
-    a loaded ``Project`` row (the json/txt generators read its title /
-    description / metadata). Raises ``ValueError`` for an unknown format.
+    Single dispatch point shared by the async worker task so a given format
+    always emits the same bytes. ``project`` is a loaded ``Project`` row (the
+    json/txt generators read its title / description / metadata).
+
+    ``task_ids`` restricts the export to a task subset (selected/filtered
+    export). It is only supported for the ``json`` format — the other formats
+    have no subset path — so a non-empty ``task_ids`` with any other format
+    raises ``ValueError``. Raises ``ValueError`` for an unknown format too.
     """
     project_id = project.id
+    if task_ids and fmt != "json":
+        raise ValueError(
+            f"Subset export (task_ids) is only supported for the json format, not {fmt!r}"
+        )
     if fmt == "json":
         header_fields = build_json_export_header_fields(db, project)
         return stream_export_json(
-            db, project_id, task_ids=None, header_fields=header_fields
+            db, project_id, task_ids=task_ids, header_fields=header_fields
         )
     if fmt in ("csv", "tsv"):
         delimiter = "," if fmt == "csv" else "\t"

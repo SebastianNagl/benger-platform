@@ -6244,7 +6244,10 @@ def export_project(self, job_id: str) -> Dict[str, Any]:
         upload_id = upload["upload_id"]
         file_key = upload["file_key"]
 
-        generator = select_export_generator(db, project, fmt)
+        # task_ids restricts a json export to a selected/filtered subset; NULL is
+        # a whole-project export. select_export_generator rejects a subset for any
+        # non-json format, but create_export_job already guards that at 422.
+        generator = select_export_generator(db, project, fmt, task_ids=job.task_ids)
 
         buffer = bytearray()
         parts: List[Dict[str, Any]] = []

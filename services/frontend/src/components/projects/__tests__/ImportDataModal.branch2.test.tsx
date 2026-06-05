@@ -37,7 +37,7 @@ jest.mock('@/components/shared/Toast', () => ({
 
 jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
-    importData: jest.fn(),
+    runNestedImportJob: jest.fn(),
   },
 }))
 
@@ -95,6 +95,16 @@ jest.mock('@/components/tasks/ImportPreviewWithMapping', () => ({
   ),
 }))
 
+// The async import flow uploads the parsed payload as a File. Read it back
+// to assert on the import envelope the modal produced.
+async function uploadedImportEnvelope(callIndex = 0): Promise<any> {
+  const call = (projectsAPI.runNestedImportJob as jest.Mock).mock.calls[
+    callIndex
+  ]
+  const file = call[1] as File
+  return JSON.parse(await file.text())
+}
+
 describe('ImportDataModal - branch2 coverage', () => {
   const mockOnClose = jest.fn()
   const mockOnImportComplete = jest.fn()
@@ -120,7 +130,7 @@ describe('ImportDataModal - branch2 coverage', () => {
       completeProgress: mockCompleteProgress,
     })
     ;(useProjectStore as jest.Mock).mockReturnValue({ fetchProject: mockFetchProject })
-    ;(projectsAPI.importData as jest.Mock).mockResolvedValue({ created: 5 })
+    ;(projectsAPI.runNestedImportJob as jest.Mock).mockResolvedValue({ job_id: 'job-1', status: 'completed', result: { created_tasks: 5 } })
   })
 
   describe('parseData branches', () => {
@@ -141,13 +151,13 @@ describe('ImportDataModal - branch2 coverage', () => {
       await user.click(screen.getByRole('button', { name: /Import Data/i }))
 
       await waitFor(() => {
-        expect(projectsAPI.importData).toHaveBeenCalledWith(
-          'test-project',
-          expect.objectContaining({
-            data: [{ data: { text: 'single item' } }],
-          })
-        )
+        expect(projectsAPI.runNestedImportJob).toHaveBeenCalled()
       })
+      expect(await uploadedImportEnvelope()).toEqual(
+        expect.objectContaining({
+          data: [{ data: { text: 'single item' } }],
+        })
+      )
     })
 
     it('handles JSON with item.data field (already in Label Studio format)', async () => {
@@ -165,10 +175,10 @@ describe('ImportDataModal - branch2 coverage', () => {
       await user.click(screen.getByRole('button', { name: /Import Data/i }))
 
       await waitFor(() => {
-        expect(projectsAPI.importData).toHaveBeenCalledWith(
-          'test-project',
-          { data: [{ data: { text: 'already wrapped' } }] }
-        )
+        expect(projectsAPI.runNestedImportJob).toHaveBeenCalled()
+      })
+      expect(await uploadedImportEnvelope()).toEqual({
+        data: [{ data: { text: 'already wrapped' } }],
       })
     })
 
@@ -187,21 +197,21 @@ describe('ImportDataModal - branch2 coverage', () => {
       await userEvent.click(screen.getByRole('button', { name: /Import Data/i }))
 
       await waitFor(() => {
-        expect(projectsAPI.importData).toHaveBeenCalledWith(
-          'test-project',
-          expect.objectContaining({
-            data: expect.arrayContaining([
-              expect.objectContaining({ data: expect.objectContaining({ name: 'Alice' }) }),
-            ]),
-          })
-        )
+        expect(projectsAPI.runNestedImportJob).toHaveBeenCalled()
       })
+      expect(await uploadedImportEnvelope()).toEqual(
+        expect.objectContaining({
+          data: expect.arrayContaining([
+            expect.objectContaining({ data: expect.objectContaining({ name: 'Alice' }) }),
+          ]),
+        })
+      )
     })
   })
 
   describe('error handling branches', () => {
     it('handles error with response.data.detail', async () => {
-      ;(projectsAPI.importData as jest.Mock).mockRejectedValue({
+      ;(projectsAPI.runNestedImportJob as jest.Mock).mockRejectedValue({
         response: { status: 500, data: { detail: 'Server-specific error message' } },
       })
 
@@ -224,7 +234,7 @@ describe('ImportDataModal - branch2 coverage', () => {
     })
 
     it('handles error with message containing "Failed to parse"', async () => {
-      ;(projectsAPI.importData as jest.Mock).mockRejectedValue(
+      ;(projectsAPI.runNestedImportJob as jest.Mock).mockRejectedValue(
         new Error('Failed to parse CSV data: invalid format')
       )
 
@@ -268,7 +278,7 @@ describe('ImportDataModal - branch2 coverage', () => {
   describe('import button click prevention', () => {
     it('does nothing when button clicked during loading', async () => {
       // Make import hang
-      ;(projectsAPI.importData as jest.Mock).mockImplementation(
+      ;(projectsAPI.runNestedImportJob as jest.Mock).mockImplementation(
         () => new Promise(() => {})
       )
 
@@ -287,13 +297,13 @@ describe('ImportDataModal - branch2 coverage', () => {
 
       // Wait for the import call to be dispatched and button to become disabled
       await waitFor(() => {
-        expect(projectsAPI.importData).toHaveBeenCalledTimes(1)
+        expect(projectsAPI.runNestedImportJob).toHaveBeenCalledTimes(1)
         expect(importButton).toBeDisabled()
       })
 
       // Click again should not trigger another call
       fireEvent.click(importButton)
-      expect(projectsAPI.importData).toHaveBeenCalledTimes(1)
+      expect(projectsAPI.runNestedImportJob).toHaveBeenCalledTimes(1)
     })
   })
 

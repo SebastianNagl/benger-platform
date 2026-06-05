@@ -42,15 +42,13 @@ jest.mock('@/hooks/useColumnSettings', () => ({
 
 jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
-    export: jest.fn(),
-    bulkExportTasks: jest.fn(),
+    // Legacy sync export methods are gone from production (object storage is
+    // the only transport now). Kept as stubs so the regression assertions that
+    // the async path never touches them still resolve.
     streamExportTasks: jest.fn(),
-    // Default: async export unavailable (object storage OFF) → 409, so
-    // handleExportTasks transparently falls back to streamExportTasks. This
-    // keeps the existing full-export assertions exercising the sync path.
-    runProjectExportJob: jest.fn(() =>
-      Promise.reject({ response: { status: 409 } })
-    ),
+    // Object storage is mandatory: a full/subset export goes through the async
+    // job flow and resolves once the worker has streamed to storage.
+    runProjectExportJob: jest.fn(() => Promise.resolve(undefined)),
     bulkDeleteTasks: jest.fn(),
     bulkArchiveTasks: jest.fn(),
     getMembers: jest.fn(),
@@ -559,18 +557,6 @@ describe('AnnotationTab', () => {
     })
 
     // Setup API mocks
-    ;(projectsAPI.export as jest.Mock).mockResolvedValue(
-      new Blob(['test data'])
-    )
-    ;(projectsAPI.bulkExportTasks as jest.Mock).mockResolvedValue(
-      new Blob(['test data'])
-    )
-    ;(projectsAPI.streamExportTasks as jest.Mock).mockImplementation(
-      (_projectId, _taskIds, _name, callbacks) => {
-        callbacks?.onStart?.()
-        return Promise.resolve({ bytesWritten: 9, savedVia: 'blob' })
-      }
-    )
     ;(projectsAPI.bulkDeleteTasks as jest.Mock).mockResolvedValue({
       deleted: 2,
     })
@@ -806,45 +792,23 @@ describe('AnnotationTab', () => {
       fireEvent.click(exportButton)
 
       await waitFor(() => {
-        expect(projectsAPI.streamExportTasks).toHaveBeenCalledWith(
+        expect(projectsAPI.runProjectExportJob).toHaveBeenCalledWith(
           'project-1',
-          ['2'],
-          expect.any(String),
-          expect.any(Object)
+          'json',
+          expect.objectContaining({ onStatus: expect.any(Function) }),
+          { taskIds: ['2'] }
         )
       })
+      // Selected-subset export uses object storage, never the sync path.
+      expect(projectsAPI.streamExportTasks).not.toHaveBeenCalled()
     })
   })
 
   describe('Export Functionality', () => {
-    it('should fall back to streaming export when async export is unavailable (409)', async () => {
-      // Default mock: runProjectExportJob rejects with 409 (object storage
-      // OFF). A full-project export must transparently fall back to the
-      // synchronous streaming path so export still works while MinIO is OFF.
-      render(<AnnotationTab projectId="project-1" />)
-
-      await waitFor(() => {
-        expect(mockFetchProjectTasks).toHaveBeenCalled()
-      })
-
-      const exportButton = screen.getByTitle(/annotationTab\.buttons\.export/i)
-      fireEvent.click(exportButton)
-
-      await waitFor(() => {
-        expect(projectsAPI.runProjectExportJob).toHaveBeenCalled()
-      })
-      await waitFor(() => {
-        expect(projectsAPI.streamExportTasks).toHaveBeenCalled()
-      })
-    })
-
-    it('should use the async job flow for a full export when storage is available', async () => {
-      // Async export available: the job resolves, so the bulk bytes go straight
-      // to storage and the browser never streams through the request path.
-      ;(projectsAPI.runProjectExportJob as jest.Mock).mockResolvedValueOnce(
-        undefined
-      )
-
+    it('should use the async job flow for a full export', async () => {
+      // Object storage is mandatory: a full-project export goes straight to
+      // storage and the browser downloads via a presigned URL, so the bulk
+      // bytes never stream through the request path. No task_ids → whole project.
       render(<AnnotationTab projectId="project-1" />)
 
       await waitFor(() => {
@@ -858,7 +822,8 @@ describe('AnnotationTab', () => {
         expect(projectsAPI.runProjectExportJob).toHaveBeenCalledWith(
           'project-1',
           'json',
-          expect.objectContaining({ onStatus: expect.any(Function) })
+          expect.objectContaining({ onStatus: expect.any(Function) }),
+          { taskIds: undefined }
         )
       })
       // The async path must NOT touch the synchronous streaming export.
@@ -881,7 +846,7 @@ describe('AnnotationTab', () => {
 
   describe('Error Handling', () => {
     it('should handle export errors', async () => {
-      ;(projectsAPI.streamExportTasks as jest.Mock).mockRejectedValue(
+      ;(projectsAPI.runProjectExportJob as jest.Mock).mockRejectedValueOnce(
         new Error('Export failed')
       )
 
@@ -2542,7 +2507,7 @@ describe('AnnotationTab', () => {
       ).toBeInTheDocument()
     })
 
-    it('should handle export with no project title in fallback', async () => {
+    it('should export via the async job even when the project title is empty', async () => {
       mockUseProjectStore.mockReturnValue({
         currentProject: {
           id: 'project-1',
@@ -2564,7 +2529,7 @@ describe('AnnotationTab', () => {
       fireEvent.click(exportButton)
 
       await waitFor(() => {
-        expect(projectsAPI.streamExportTasks).toHaveBeenCalled()
+        expect(projectsAPI.runProjectExportJob).toHaveBeenCalled()
       })
 
       // Reset to default
@@ -2885,11 +2850,6 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle export with CSV format when selected tasks', async () => {
-      // Mock the handleExport function being called with 'csv' format
-      ;(projectsAPI.bulkExportTasks as jest.Mock).mockResolvedValue(
-        new Blob(['csv data'])
-      )
-
       render(<AnnotationTab projectId="project-1" />)
 
       await waitFor(() => {

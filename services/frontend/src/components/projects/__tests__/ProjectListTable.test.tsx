@@ -51,7 +51,7 @@ jest.mock('@/lib/api/projects', () => ({
     bulkExportFullProjects: jest.fn(),
     bulkArchiveProjects: jest.fn(),
     bulkUnarchiveProjects: jest.fn(),
-    importProject: jest.fn(),
+    runProjectImportJob: jest.fn(),
   },
 }))
 
@@ -960,12 +960,18 @@ describe('ProjectListTable', () => {
 
   describe('Import Project', () => {
     it('should import project from JSON file', async () => {
-      ;(projectsAPI.importProject as jest.Mock).mockResolvedValue({
-        project_title: 'Imported Project',
-        project_url: '/projects/imported-1',
-        statistics: {
-          tasks_imported: 10,
-          annotations_imported: 5,
+      // Async job flow: runProjectImportJob resolves with the completed job;
+      // the created project id + result live on the job.
+      ;(projectsAPI.runProjectImportJob as jest.Mock).mockResolvedValue({
+        job_id: 'job-1',
+        status: 'completed',
+        project_id: 'imported-1',
+        result: {
+          project_title: 'Imported Project',
+          project_url: '/projects/imported-1',
+          statistics: {
+            imported_counts: { tasks: 10, annotations: 5 },
+          },
         },
       })
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
@@ -986,7 +992,7 @@ describe('ProjectListTable', () => {
       await userEvent.upload(fileInput, file)
 
       await waitFor(() => {
-        expect(projectsAPI.importProject).toHaveBeenCalled()
+        expect(projectsAPI.runProjectImportJob).toHaveBeenCalled()
       })
 
       await waitFor(() => {
@@ -1028,11 +1034,11 @@ describe('ProjectListTable', () => {
         )
       })
 
-      expect(projectsAPI.importProject).not.toHaveBeenCalled()
+      expect(projectsAPI.runProjectImportJob).not.toHaveBeenCalled()
     })
 
     it('should handle import error', async () => {
-      ;(projectsAPI.importProject as jest.Mock).mockRejectedValue(
+      ;(projectsAPI.runProjectImportJob as jest.Mock).mockRejectedValue(
         new Error('Invalid JSON format')
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
@@ -1367,7 +1373,7 @@ describe('ProjectListTable', () => {
 
   describe('Import Error Handling', () => {
     it('should handle JSON-specific import errors', async () => {
-      ;(projectsAPI.importProject as jest.Mock).mockRejectedValue(
+      ;(projectsAPI.runProjectImportJob as jest.Mock).mockRejectedValue(
         new Error('Invalid JSON format in file')
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
@@ -1399,7 +1405,7 @@ describe('ProjectListTable', () => {
     })
 
     it('should handle format version errors', async () => {
-      ;(projectsAPI.importProject as jest.Mock).mockRejectedValue(
+      ;(projectsAPI.runProjectImportJob as jest.Mock).mockRejectedValue(
         new Error('Unsupported format_version')
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
@@ -1431,7 +1437,7 @@ describe('ProjectListTable', () => {
     })
 
     it('should handle required fields errors', async () => {
-      ;(projectsAPI.importProject as jest.Mock).mockRejectedValue(
+      ;(projectsAPI.runProjectImportJob as jest.Mock).mockRejectedValue(
         new Error('Missing required fields')
       )
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
@@ -1463,12 +1469,16 @@ describe('ProjectListTable', () => {
     })
 
     it('should clear file input after successful import', async () => {
-      ;(projectsAPI.importProject as jest.Mock).mockResolvedValue({
-        project_title: 'Imported Project',
-        project_url: '/projects/imported-1',
-        statistics: {
-          tasks_imported: 10,
-          annotations_imported: 5,
+      ;(projectsAPI.runProjectImportJob as jest.Mock).mockResolvedValue({
+        job_id: 'job-1',
+        status: 'completed',
+        project_id: 'imported-1',
+        result: {
+          project_title: 'Imported Project',
+          project_url: '/projects/imported-1',
+          statistics: {
+            imported_counts: { tasks: 10, annotations: 5 },
+          },
         },
       })
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({

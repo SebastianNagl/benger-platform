@@ -32,13 +32,14 @@ def _make_local_storage(tmp_path):
         return ObjectStorageService()
 
 
-def _make_job(fmt="json", status="pending"):
+def _make_job(fmt="json", status="pending", task_ids=None):
     return types.SimpleNamespace(
         id="job-1",
         project_id="proj-1",
         requested_by="user-1",
         format=fmt,
         status=status,
+        task_ids=task_ids,
         object_key=None,
         byte_size=None,
         progress=0,
@@ -100,9 +101,12 @@ def _patched(tmp_path):
     project = _make_project()
     session = _FakeSession({ExportJob: job, Project: project})
 
-    gen_holder = {"chunks": [""]}
+    gen_holder = {"chunks": [""], "task_ids": "__unset__"}
 
-    def _fake_select_generator(db, proj, fmt):
+    def _fake_select_generator(db, proj, fmt, task_ids=None):
+        # Record the subset the worker forwarded so tests can assert that
+        # job.task_ids reaches select_export_generator unchanged.
+        gen_holder["task_ids"] = task_ids
         chunks = gen_holder["chunks"]
         if callable(chunks):
             return chunks()
@@ -115,6 +119,10 @@ def _patched(tmp_path):
         with patch("storage.object_storage.object_storage", storage):
             def set_generator(chunks):
                 gen_holder["chunks"] = chunks
+
+            # Lets a test read back the task_ids the worker forwarded to
+            # select_export_generator (whole-project export forwards None).
+            set_generator.forwarded_task_ids = lambda: gen_holder["task_ids"]
 
             yield workers_tasks, storage, job, project, session, set_generator
 
@@ -143,6 +151,22 @@ def test_export_round_trips_small_payload(_patched):
     # 7-day expiry set roughly from now.
     assert job.expires_at is not None
     assert job.expires_at > datetime.now(timezone.utc)
+    # Whole-project export forwards no subset to the generator.
+    assert set_generator.forwarded_task_ids() is None
+
+
+def test_export_forwards_job_task_ids_subset(_patched):
+    """A subset export job carries task_ids; the worker must forward them to
+    select_export_generator unchanged so the stream is restricted to the
+    selected/filtered tasks (issue #158 follow-up, plan §3)."""
+    workers_tasks, storage, job, project, session, set_generator = _patched
+    job.task_ids = ["t-1", "t-2", "t-3"]
+    set_generator(['{"project": {"id": "proj-1"}, "tasks": []}'])
+
+    result = workers_tasks.export_project("job-1")
+
+    assert result["status"] == "completed"
+    assert set_generator.forwarded_task_ids() == ["t-1", "t-2", "t-3"]
 
 
 def test_export_multipart_concatenates_parts(_patched):

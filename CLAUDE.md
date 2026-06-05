@@ -117,3 +117,12 @@ The reasoning: those are dependencies of *features* (notification email, model g
 - `/health/email` exists as a superadmin-only diagnostic — run on demand when investigating a delivery issue.
 - For continuous monitoring, point an external uptime tool (Grafana Synthetic, Better Uptime, the SendGrid status dashboard, etc.) at the provider directly. The result lives outside the API process so a provider outage doesn't change our pod's eviction state.
 - If you ever do add a third-party check to `/health`, cache its result in Redis with a multi-minute TTL so K8s probes don't proxy through to the third party.
+
+## Object storage (MinIO) — required, both editions
+
+Project import and export run **exclusively** through object storage (issue #158 + follow-up). There is no synchronous fallback in either edition:
+
+- **No silent local fallback.** `services/shared/storage/object_storage.py` raises at init if `STORAGE_TYPE` is `s3`/`minio` but boto3 is missing or the backend can't initialize — the pod CrashLoops instead of writing exports to `/tmp`. The filesystem `local` backend survives only as an explicit **test/dev double**, reached when `STORAGE_TYPE=local` (tests, bare runs). Deployed Helm always sets `minio` (`minio.enabled` defaults to `true` in `infra/helm/benger/values.yaml`).
+- **Async-only API surface.** Export: `POST /{id}/exports` (202, optional `{"task_ids":[...]}` for a json-only subset) → worker streams to storage → poll `GET .../{job_id}` → `GET .../download` (presigned 302). Import: `POST /{id}/imports/upload-url` (nested) or `POST /project-imports/upload-url` (create-new) → client uploads straight to storage → `POST .../imports {object_key}` → poll the job. The old `GET /{id}/export`, `POST /{id}/import`, `POST /import-project` are **deleted**.
+- **Bulk bytes never transit the API thread or the Next proxy.** The Next route proxy (`app/api/[...path]/route.ts`) no longer has an export-specific undici long-timeout path; its generic attachment/streamable branch stays for report CSV/zip/PDF downloads.
+- **Deployment pre-requisite:** the `benger-minio-credentials` Secret (`access-key` + `secret-key`) must exist in the target namespace before deploy, or api/workers CrashLoop on the missing `secretKeyRef`. Multi-project admin exports (`POST /bulk-export`, `/bulk-export-full`) are a separate feature and remain synchronous.
