@@ -457,7 +457,7 @@ class TestCheckProjectAccessibleBranches:
     def test_private_context_not_owner(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(is_private=True, created_by="user-2")
+        project = Mock(is_private=True, is_archived=False, created_by="user-2")
         db.query.return_value.filter.return_value.first.return_value = project
 
         assert check_project_accessible(db, user, "proj-1", org_context="private") == False  # noqa: E712
@@ -465,7 +465,7 @@ class TestCheckProjectAccessibleBranches:
     def test_org_context_project_not_in_org(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(is_private=False)
+        project = Mock(is_private=False, is_archived=False)
 
         # First call: get project
         db.query.return_value.filter.return_value.first.return_value = project
@@ -498,7 +498,7 @@ class TestCheckProjectAccessibleBranches:
     def test_org_context_user_not_active_member(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(is_private=False)
+        project = Mock(is_private=False, is_archived=False)
 
         # Project query
         proj_q = MagicMock()
@@ -535,7 +535,7 @@ class TestCheckProjectAccessibleBranches:
     def test_legacy_private_project_not_owner(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(is_private=True, created_by="user-2")
+        project = Mock(is_private=True, is_archived=False, created_by="user-2")
         db.query.return_value.filter.return_value.first.return_value = project
 
         assert check_project_accessible(db, user, "proj-1", org_context=None) == False  # noqa: E712
@@ -560,7 +560,7 @@ class TestCheckProjectAccessibleBranches:
     def test_legacy_user_in_project_org(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(is_private=False, created_by="user-2")
+        project = Mock(is_private=False, is_archived=False, created_by="user-2")
 
         proj_q = MagicMock()
         proj_q.filter.return_value = proj_q
@@ -585,7 +585,7 @@ class TestCheckProjectAccessibleBranches:
     def test_legacy_user_not_in_project_org(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(is_private=False, created_by="user-2")
+        project = Mock(is_private=False, is_archived=False, created_by="user-2")
 
         proj_q = MagicMock()
         proj_q.filter.return_value = proj_q
@@ -610,7 +610,7 @@ class TestCheckProjectAccessibleBranches:
     def test_legacy_user_no_memberships(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(is_private=False, created_by="user-2")
+        project = Mock(is_private=False, is_archived=False, created_by="user-2")
 
         proj_q = MagicMock()
         proj_q.filter.return_value = proj_q

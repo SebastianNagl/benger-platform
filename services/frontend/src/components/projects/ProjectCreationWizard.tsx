@@ -444,7 +444,15 @@ export function ProjectCreationWizard() {
           }
 
           if (data.length > 0) {
-            await projectsAPI.importData(project.id, { data, ...extras })
+            // Async job flow (object storage is the only import path): serialize
+            // the nested envelope to a JSON file, upload it via a presigned URL,
+            // then let a worker stream-import it.
+            const file = new File(
+              [JSON.stringify({ data, ...extras })],
+              `import-${Date.now()}.json`,
+              { type: 'application/json' }
+            )
+            await projectsAPI.runNestedImportJob(project.id, file)
           }
         } catch (importError) {
           addToast(

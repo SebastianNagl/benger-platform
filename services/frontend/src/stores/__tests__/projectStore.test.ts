@@ -873,11 +873,13 @@ describe('ProjectStore', () => {
   describe('importData', () => {
     it('should import data successfully', async () => {
       const importData = [{ text: 'Task 1' }, { text: 'Task 2' }]
-      mockProjectsAPI.importData.mockResolvedValue({
-        created: 2,
-        total: 2,
-        project_id: '1',
-      })
+      // Async job flow: the store serializes the envelope to a File, uploads it
+      // and polls the nested-import job to completion.
+      mockProjectsAPI.runNestedImportJob.mockResolvedValue({
+        job_id: 'job-1',
+        status: 'completed',
+        result: { created_tasks: 2 },
+      } as any)
 
       const project = createMockProject({ id: '1' })
       mockProjectsAPI.get.mockResolvedValue(project)
@@ -890,9 +892,10 @@ describe('ProjectStore', () => {
         await useProjectStore.getState().importData('1', importData)
       })
 
-      expect(mockProjectsAPI.importData).toHaveBeenCalledWith('1', {
-        data: importData,
-      })
+      expect(mockProjectsAPI.runNestedImportJob).toHaveBeenCalledWith(
+        '1',
+        expect.any(File)
+      )
       expect(mockToast.success).toHaveBeenCalledWith(
         'store.project.imported'
       )
@@ -900,11 +903,11 @@ describe('ProjectStore', () => {
     })
 
     it('should refresh projects list if not current project', async () => {
-      mockProjectsAPI.importData.mockResolvedValue({
-        created: 1,
-        total: 1,
-        project_id: '2',
-      })
+      mockProjectsAPI.runNestedImportJob.mockResolvedValue({
+        job_id: 'job-2',
+        status: 'completed',
+        result: { created_tasks: 1 },
+      } as any)
 
       mockProjectsAPI.list.mockResolvedValue({
         items: [],
@@ -928,7 +931,9 @@ describe('ProjectStore', () => {
     })
 
     it('should handle import errors', async () => {
-      mockProjectsAPI.importData.mockRejectedValue(new Error('Import failed'))
+      mockProjectsAPI.runNestedImportJob.mockRejectedValue(
+        new Error('Import failed')
+      )
 
       await act(async () => {
         await useProjectStore.getState().importData('1', [])
@@ -1589,8 +1594,11 @@ describe('ProjectStore', () => {
 
   describe('importData', () => {
     it('should import data and refresh current project', async () => {
-      const mockResult = { created: 5, errors: [] }
-      mockProjectsAPI.importData.mockResolvedValue(mockResult)
+      mockProjectsAPI.runNestedImportJob.mockResolvedValue({
+        job_id: 'job-1',
+        status: 'completed',
+        result: { created_tasks: 5 },
+      } as any)
       // fetchProject internally calls projectsAPI.get
       mockProjectsAPI.get.mockResolvedValue(createMockProject({ id: 'p1' }))
 
@@ -1604,14 +1612,18 @@ describe('ProjectStore', () => {
         await useProjectStore.getState().importData('p1', [{ text: 'test' }])
       })
 
-      expect(mockProjectsAPI.importData).toHaveBeenCalledWith('p1', {
-        data: [{ text: 'test' }],
-      })
+      expect(mockProjectsAPI.runNestedImportJob).toHaveBeenCalledWith(
+        'p1',
+        expect.any(File)
+      )
     })
 
     it('should refresh project list when importing to non-current project', async () => {
-      const mockResult = { created: 3, errors: [] }
-      mockProjectsAPI.importData.mockResolvedValue(mockResult)
+      mockProjectsAPI.runNestedImportJob.mockResolvedValue({
+        job_id: 'job-2',
+        status: 'completed',
+        result: { created_tasks: 3 },
+      } as any)
       mockProjectsAPI.list.mockResolvedValue({
         items: [],
         total: 0,
@@ -1632,7 +1644,7 @@ describe('ProjectStore', () => {
     })
 
     it('should handle import error', async () => {
-      mockProjectsAPI.importData.mockRejectedValue(
+      mockProjectsAPI.runNestedImportJob.mockRejectedValue(
         new Error('Import failed')
       )
 

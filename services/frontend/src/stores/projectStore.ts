@@ -527,12 +527,19 @@ export const useProjectStore = create<ProjectStore>()(
       ) => {
         set({ loading: true, error: null })
         try {
-          const result = await projectsAPI.importData(projectId, {
-            data,
-            ...(extras || {}),
-          })
+          // Async job flow: serialize the nested envelope to a JSON file, upload
+          // it straight to object storage via a presigned URL, then let a worker
+          // stream-import it — keeping the bulk payload off the API request path.
+          const file = new File(
+            [JSON.stringify({ data, ...(extras || {}) })],
+            `import-${Date.now()}.json`,
+            { type: 'application/json' }
+          )
+          const job = await projectsAPI.runNestedImportJob(projectId, file)
+          const created =
+            job.result?.created_tasks ?? job.result?.total_items ?? data.length
           set({ loading: false })
-          toast(t('store.project.imported', { count: result.created }), 'success')
+          toast(t('store.project.imported', { count: created }), 'success')
 
           // Update project task count
           // If this is the current project, fetch its updated data

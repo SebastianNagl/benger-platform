@@ -216,11 +216,14 @@ class TestErrorHandling:
     """Test error handling and edge cases"""
 
     def test_invalid_backend(self):
-        """Test invalid storage backend handling"""
+        """An unrecognized STORAGE_TYPE fails loudly (#158 follow-up).
+
+        Previously this silently fell back to local; now a typo'd backend must
+        crash init rather than mask a misconfiguration.
+        """
         with patch.dict(os.environ, {"STORAGE_BACKEND": "invalid"}):
-            service = ObjectStorageService()
-            # Should fall back to local storage
-            assert service.storage_backend == "local"
+            with pytest.raises(RuntimeError, match="Invalid STORAGE_TYPE"):
+                ObjectStorageService()
 
 
 class TestHealthCheck:

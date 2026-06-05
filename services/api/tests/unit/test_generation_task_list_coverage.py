@@ -99,7 +99,8 @@ class TestGetProjectWithPermissions:
         result = get_project_with_permissions("proj-1", user, db)
         assert result.id == "proj-1"
 
-    def test_private_project_non_owner_denied(self):
+    @patch("routers.generation_task_list.check_project_accessible", return_value=False)
+    def test_private_project_non_owner_denied(self, mock_check):
         from routers.generation_task_list import get_project_with_permissions
 
         db = Mock()
