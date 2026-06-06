@@ -2750,6 +2750,10 @@
         "title": "Task assigned: {task_name}",
         "message": "You have been assigned to task '{task_name}'"
       },
+      "korrektur_assigned": {
+        "title": "Correction Assigned: {project_title}",
+        "message": "{assigned_by} assigned you {count} correction item(s) in project '{project_title}'"
+      },
       "task_assignment_removed": {
         "title": "Task assignment removed: {task_name}",
         "message": "Your assignment to task '{task_name}' has been removed"
@@ -3307,7 +3311,33 @@
         "systemAlert": "System Alert",
         "systemAlertDesc": "Receive notifications about important system announcements",
         "errorOccurred": "Error Occurred",
-        "errorOccurredDesc": "Receive notifications when system errors occur"
+        "errorOccurredDesc": "Receive notifications when system errors occur",
+        "projectCompleted": "Project Completed",
+        "projectCompletedDesc": "Receive notifications when projects are marked as completed",
+        "projectArchived": "Project Archived",
+        "projectArchivedDesc": "Receive notifications when projects are archived",
+        "projectDeleted": "Project Deleted",
+        "projectDeletedDesc": "Receive notifications when projects are deleted",
+        "dataImportSuccess": "Data Import Completed",
+        "dataImportSuccessDesc": "Receive notifications when a data import finishes successfully",
+        "llmGenerationFailed": "LLM Generation Failed",
+        "llmGenerationFailedDesc": "Receive notifications when LLM text generation tasks fail",
+        "taskAssignmentRemoved": "Task Assignment Removed",
+        "taskAssignmentRemovedDesc": "Receive notifications when one of your task assignments is removed",
+        "labelingConfigUpdated": "Labeling Configuration Updated",
+        "labelingConfigUpdatedDesc": "Receive notifications when a project's labeling configuration changes",
+        "securityAlert": "Security Alert",
+        "securityAlertDesc": "Receive notifications about security-related events on your account",
+        "systemMaintenance": "System Maintenance",
+        "systemMaintenanceDesc": "Receive notifications about scheduled system maintenance",
+        "apiQuotaWarning": "API Quota Warning",
+        "apiQuotaWarningDesc": "Receive notifications when usage approaches an API quota limit",
+        "performanceAlert": "Performance Alert",
+        "performanceAlertDesc": "Receive notifications about system performance issues",
+        "modelApiKeyInvalid": "Model API Key Invalid",
+        "modelApiKeyInvalidDesc": "Receive notifications when a model provider API key fails validation",
+        "longRunningOperationUpdate": "Long-Running Operation Update",
+        "longRunningOperationUpdateDesc": "Receive progress updates for long-running operations"
       },
       "categories": {
         "projects": "Projects",
@@ -3319,10 +3349,7 @@
         "system": "System"
       },
       "email": {
-        "available": "Email notifications available",
-        "configuredDesc": "Email notifications are properly configured and working",
-        "notConfigured": "Email not configured",
-        "notConfiguredDesc": "Email notifications are not available on this instance"
+        "notConfigured": "Email not configured"
       },
       "quietHours": {
         "title": "Quiet Hours",
@@ -3377,8 +3404,6 @@
         "savePreferences": "Save Preferences",
         "saving": "Saving...",
         "loading": "Loading...",
-        "sending": "Sending...",
-        "sendTestEmail": "Send Test Email",
         "authRequired": "Authentication Required",
         "authRequiredDesc": "You need to be signed in to manage notification settings",
         "enabledCount": "{enabled} of {total} notification types enabled",
@@ -3386,9 +3411,7 @@
         "saveFailed": "Failed to save notification preferences",
         "loadFailed": "Failed to load notification preferences",
         "initFailed": "Failed to initialize notification settings",
-        "loadingError": "Error loading notification settings",
-        "testEmailSent": "Test email sent successfully!",
-        "testEmailFailed": "Failed to send test email"
+        "loadingError": "Error loading notification settings"
       },
       "breadcrumb": {
         "settings": "Settings",

@@ -41,14 +41,11 @@ jest.mock('@/hooks/useColumnSettings', () => ({
 
 jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
-    export: jest.fn(),
-    bulkExportTasks: jest.fn(),
+    // Legacy sync export is gone; kept as a stub for the regression assertion
+    // that the async path never touches it.
     streamExportTasks: jest.fn(),
-    // Default: async export unavailable (object storage OFF) → 409, so
-    // handleExportTasks transparently falls back to streamExportTasks.
-    runProjectExportJob: jest.fn(() =>
-      Promise.reject({ response: { status: 409 } })
-    ),
+    // Object storage is mandatory: export goes through the async job flow.
+    runProjectExportJob: jest.fn(() => Promise.resolve(undefined)),
     bulkDeleteTasks: jest.fn(),
     bulkArchiveTasks: jest.fn(),
     getMembers: jest.fn(),
@@ -477,12 +474,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
       updatePreference: jest.fn(),
     })
 
-    ;(projectsAPI.export as jest.Mock).mockResolvedValue(
-      new Blob(['test data'])
-    )
-    ;(projectsAPI.bulkExportTasks as jest.Mock).mockResolvedValue(
-      new Blob(['test data'])
-    )
+    ;(projectsAPI.runProjectExportJob as jest.Mock).mockResolvedValue(undefined)
     ;(projectsAPI.bulkDeleteTasks as jest.Mock).mockResolvedValue({
       deleted: 2,
     })
@@ -696,9 +688,10 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
       })
 
       await waitFor(() => {
-        expect(projectsAPI.streamExportTasks).toHaveBeenCalled()
+        expect(projectsAPI.runProjectExportJob).toHaveBeenCalled()
         expect(mockAddToast).toHaveBeenCalled()
       })
+      expect(projectsAPI.streamExportTasks).not.toHaveBeenCalled()
     })
 
     it('shows warning when no filtered tasks to export', async () => {
@@ -739,7 +732,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
   // Export failure
   describe('Export failure handling', () => {
     it('shows error toast when handleExportTasks fails', async () => {
-      ;(projectsAPI.streamExportTasks as jest.Mock).mockRejectedValue(
+      ;(projectsAPI.runProjectExportJob as jest.Mock).mockRejectedValueOnce(
         new Error('Export failed')
       )
 

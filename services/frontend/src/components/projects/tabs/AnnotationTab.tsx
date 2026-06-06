@@ -28,7 +28,6 @@ import {
 } from '@/hooks/useColumnSettings'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { projectsAPI } from '@/lib/api/projects'
-import { TruncatedExportError } from '@/lib/api/streamingExport'
 import { Task } from '@/lib/api/types'
 import { useProjectStore } from '@/stores/projectStore'
 import { Task as LabelStudioTask } from '@/types/labelStudio'
@@ -456,88 +455,6 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
     [columns, sortBy, sortOrder, updatePreference]
   )
 
-  // Handle export
-  const handleExport = async (format: 'json' | 'csv' | 'tsv' = 'json') => {
-    const progressId = `export-${Date.now()}`
-
-    try {
-      let blob: Blob
-      const taskCount =
-        selectedTasks.size > 0 ? selectedTasks.size : tasks.length
-
-      startProgress(progressId, t('annotationTab.messages.exporting'), {
-        sublabel: t('annotationTab.messages.preparingTasks', {
-          count: taskCount,
-        }),
-        indeterminate: false,
-      })
-
-      updateProgress(progressId, 20, t('annotationTab.messages.fetchingData'))
-
-      if (selectedTasks.size > 0) {
-        updateProgress(
-          progressId,
-          40,
-          t('annotationTab.messages.processingSelected', {
-            count: selectedTasks.size,
-          })
-        )
-        blob = await projectsAPI.bulkExportTasks(
-          projectId,
-          Array.from(selectedTasks),
-          format
-        )
-      } else {
-        updateProgress(
-          progressId,
-          40,
-          t('annotationTab.messages.processingSelected', {
-            count: tasks.length,
-          })
-        )
-        blob = await projectsAPI.export(projectId, format)
-      }
-
-      updateProgress(progressId, 80, `Formatting as ${format.toUpperCase()}...`)
-
-      // Create download link
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${currentProject?.title || 'project'}_export.${format}`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-
-      updateProgress(
-        progressId,
-        100,
-        t('annotationTab.messages.exportComplete')
-      )
-      completeProgress(progressId, 'success')
-
-      addToast(
-        selectedTasks.size > 0
-          ? t('annotationTab.messages.exportedTasks', {
-              count: selectedTasks.size,
-            })
-          : t('annotationTab.messages.exportedTasks', {
-              count: tasks.length,
-            }),
-        'success'
-      )
-    } catch (error: any) {
-      completeProgress(progressId, 'error')
-      addToast(
-        t('annotationTab.messages.exportFailed', {
-          error: error.message || 'Unknown error',
-        }),
-        'error'
-      )
-    }
-  }
-
   // Handle bulk actions
   const handleBulkDelete = async () => {
     if (selectedTasks.size === 0) return
@@ -595,23 +512,31 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
 
     const progressId = `bulk-export-${Date.now()}`
     const taskIds = Array.from(selectedTasks)
-    const suggestedName = `tasks-export-${new Date().toISOString().split('T')[0]}.json`
 
     try {
-      // Streams the body straight to disk (File System Access API) and
-      // validates the server's completeness sentinel, so a severed multi-GB
-      // download surfaces as an error rather than a silently-truncated file.
-      // The backend streams a single response with no per-row progress
-      // signal, so the bar stays indeterminate.
-      await projectsAPI.streamExportTasks(projectId, taskIds, suggestedName, {
-        onStart: () =>
-          startProgress(progressId, t('annotationTab.buttons.bulkExport'), {
-            sublabel: t('annotationTab.messages.exportingSelected', {
-              count: selectedTasks.size,
-            }),
-            indeterminate: true,
-          }),
+      // Selected-subset export goes through the async job flow: a worker streams
+      // the export to object storage and the browser downloads it via a
+      // presigned URL, keeping the bulk data plane off the request path. The
+      // worker reports no total size, so the bar stays indeterminate.
+      startProgress(progressId, t('annotationTab.buttons.bulkExport'), {
+        sublabel: t('annotationTab.messages.exportingSelected', {
+          count: selectedTasks.size,
+        }),
+        indeterminate: true,
       })
+
+      await projectsAPI.runProjectExportJob(
+        projectId,
+        'json',
+        {
+          onStatus: (status) => {
+            if (status.status === 'running' || status.status === 'pending') {
+              updateProgress(progressId, 0, t('annotationTab.messages.exporting'))
+            }
+          },
+        },
+        { taskIds }
+      )
 
       completeProgress(progressId, 'success')
       addToast(
@@ -621,29 +546,24 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
         'success'
       )
     } catch (error) {
-      // User dismissed the save dialog before any work started — not an error.
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        return
-      }
       logger.error('Failed to export tasks:', error)
       completeProgress(progressId, 'error')
       addToast(
         t('annotationTab.messages.exportFailed', {
-          error:
-            error instanceof TruncatedExportError
-              ? error.message
-              : 'Unknown error',
+          error: (error as any)?.message || 'Unknown error',
         }),
         'error'
       )
     }
   }
 
-  // Export all filtered tasks — "all" means all rows that match the current
-  // filters, not just the visible page. Fetches the full ID list via the
-  // `ids_only=true` short-circuit, then drives the existing bulk-export
-  // endpoint with that set. Pre-Phase-7.5 this used `filteredTasks.map(...)`
-  // which after the server-side pagination shift meant just 50 rows.
+  // Export tasks — "all" means all rows that match the current filters, not
+  // just the visible page. Everything goes through the async job flow: a worker
+  // streams the export to object storage and the browser downloads it via a
+  // presigned URL, so the bulk data plane never touches the request path and
+  // can't OOM the API or truncate a multi-GB download (e.g. the 4.5 GB ZJS
+  // project). A whole-project export omits task_ids; a filtered export resolves
+  // the matching id list first and passes it as the subset.
   const handleExportTasks = async () => {
     if (totalTasks === 0) {
       addToast(t('annotationTab.empty.noExport'), 'warning')
@@ -652,134 +572,70 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
 
     const progressId = `export-tasks-${Date.now()}`
 
-    // A full-project export (no active filters) goes through the async job
-    // flow: a worker streams the export to object storage and the browser
-    // downloads it via a presigned URL. This moves the bulk data plane off the
-    // request path, so it can't OOM the API or truncate a multi-GB download the
-    // way the synchronous stream could (e.g. the 4.5 GB ZJS project). Filtered
-    // subsets stay on the synchronous path below — the async endpoint exports
-    // the whole project, not an arbitrary task subset.
     const isFullExport =
       !debouncedSearch &&
       !filterDateRange.start &&
       !filterDateRange.end &&
       filterStatus === 'all'
 
-    // Synchronous streaming export of the current task set. Used directly for
-    // filtered subsets, and as the transparent fallback when async export is
-    // unavailable (object storage not configured → the create endpoint 409s).
-    const runStreamingExport = async () => {
-      try {
-        const { ids: taskIds, truncated } = await projectsAPI.getTaskIds(
-          projectId,
-          {
-            search: debouncedSearch || undefined,
-            dateFrom: filterDateRange.start || undefined,
-            dateTo: filterDateRange.end || undefined,
-            onlyLabeled: filterStatus === 'completed' ? true : undefined,
-            onlyUnlabeled: filterStatus === 'incomplete' ? true : undefined,
-          }
-        )
-
+    try {
+      // For a filtered export, resolve the full set of matching ids (not just
+      // the visible page) and pass it as the subset; a full export sends none.
+      let taskIds: string[] | undefined
+      let count = totalTasks
+      if (!isFullExport) {
+        const { ids, truncated } = await projectsAPI.getTaskIds(projectId, {
+          search: debouncedSearch || undefined,
+          dateFrom: filterDateRange.start || undefined,
+          dateTo: filterDateRange.end || undefined,
+          onlyLabeled: filterStatus === 'completed' ? true : undefined,
+          onlyUnlabeled: filterStatus === 'incomplete' ? true : undefined,
+        })
         if (truncated) {
           addToast(
-            `Export capped at ${taskIds.length} tasks; refine filters to export the rest.`,
+            `Export capped at ${ids.length} tasks; refine filters to export the rest.`,
             'warning'
           )
         }
-
-        const suggestedName = `${currentProject?.title || 'project'}-tasks-${new Date().toISOString().split('T')[0]}.json`
-
-        // Stream straight to disk with completeness validation rather than
-        // buffering the whole body via blob(); for the 4.5 GB ZJS project the
-        // old path was severed mid-stream and saved a truncated, invalid file.
-        await projectsAPI.streamExportTasks(projectId, taskIds, suggestedName, {
-          onStart: () =>
-            // Indeterminate — no real per-row progress signal from the backend
-            // stream; the previous fake 30%→70%→100% was misleading.
-            startProgress(progressId, t('annotationTab.buttons.export'), {
-              sublabel: t('annotationTab.messages.exportingSelected', {
-                count: taskIds.length,
-              }),
-              indeterminate: true,
-            }),
-        })
-
-        completeProgress(progressId, 'success')
-        addToast(
-          t('annotationTab.messages.exportedTasks', {
-            count: taskIds.length,
-          }),
-          'success'
-        )
-      } catch (error) {
-        // User dismissed the save dialog before any work started — not an error.
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          return
-        }
-        logger.error('Failed to export tasks:', error)
-        completeProgress(progressId, 'error')
-        addToast(
-          t('annotationTab.messages.exportFailed', {
-            error:
-              error instanceof TruncatedExportError
-                ? error.message
-                : 'Unknown error',
-          }),
-          'error'
-        )
+        taskIds = ids
+        count = ids.length
       }
-    }
 
-    if (isFullExport) {
-      try {
-        startProgress(progressId, t('annotationTab.buttons.export'), {
-          sublabel: t('annotationTab.messages.exportingSelected', {
-            count: totalTasks,
-          }),
-          indeterminate: true,
-        })
+      startProgress(progressId, t('annotationTab.buttons.export'), {
+        sublabel: t('annotationTab.messages.exportingSelected', { count }),
+        indeterminate: true,
+      })
 
-        await projectsAPI.runProjectExportJob(projectId, 'json', {
+      await projectsAPI.runProjectExportJob(
+        projectId,
+        'json',
+        {
           onStatus: (status) => {
             // The worker reports bytes-so-far but the total size is unknown, so
             // we keep the bar indeterminate and just reflect the job state.
             if (status.status === 'running' || status.status === 'pending') {
-              updateProgress(
-                progressId,
-                0,
-                t('annotationTab.messages.exporting')
-              )
+              updateProgress(progressId, 0, t('annotationTab.messages.exporting'))
             }
           },
-        })
+        },
+        { taskIds }
+      )
 
-        completeProgress(progressId, 'success')
-        addToast(
-          t('annotationTab.messages.exportedTasks', { count: totalTasks }),
-          'success'
-        )
-      } catch (error) {
-        // 409 = async export unavailable (object storage not configured). Fall
-        // back to the synchronous streaming path so export still works while
-        // the MinIO infra is OFF (default until staging-validated promotion).
-        if ((error as any)?.response?.status === 409) {
-          await runStreamingExport()
-          return
-        }
-        logger.error('Failed to export project:', error)
-        completeProgress(progressId, 'error')
-        addToast(
-          t('annotationTab.messages.exportFailed', {
-            error: (error as any)?.message || 'Unknown error',
-          }),
-          'error'
-        )
-      }
-      return
+      completeProgress(progressId, 'success')
+      addToast(
+        t('annotationTab.messages.exportedTasks', { count }),
+        'success'
+      )
+    } catch (error) {
+      logger.error('Failed to export tasks:', error)
+      completeProgress(progressId, 'error')
+      addToast(
+        t('annotationTab.messages.exportFailed', {
+          error: (error as any)?.message || 'Unknown error',
+        }),
+        'error'
+      )
     }
-
-    await runStreamingExport()
   }
 
   const handleBulkArchive = async () => {

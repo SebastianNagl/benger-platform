@@ -318,19 +318,27 @@ export function ProjectListTable({
       )
 
       const startTime = Date.now()
-      const result = await projectsAPI.importProject(file)
+      // Async job flow: the file uploads straight to object storage via a
+      // presigned URL, a worker stream-imports it (creating the project), and we
+      // poll to completion. Keeps the multi-GB import off the API request path.
+      const job = await projectsAPI.runProjectImportJob(file)
       const importTime = ((Date.now() - startTime) / 1000).toFixed(1)
 
-      // Show detailed success message with statistics
-      const statsMessage = result.statistics
+      const result = job.result || {}
+      const counts = result.statistics?.imported_counts
+      const statsMessage = counts
         ? t('projects.list.importStats', {
-            tasks: result.statistics.tasks_imported || 0,
-            annotations: result.statistics.annotations_imported || 0,
+            tasks: counts.tasks || 0,
+            annotations: counts.annotations || 0,
           })
         : ''
 
       addToast(
-        t('projects.list.importSuccess', { title: result.project_title, stats: statsMessage, time: importTime }),
+        t('projects.list.importSuccess', {
+          title: result.project_title || '',
+          stats: statsMessage,
+          time: importTime,
+        }),
         'success'
       )
 
@@ -342,8 +350,11 @@ export function ProjectListTable({
       // Refresh projects list
       await fetchProjects(undefined, undefined, showArchivedOnly)
 
-      // Navigate to the imported project
-      router.push(result.project_url)
+      // Navigate to the imported project (worker back-fills the created id).
+      const projectId = job.project_id || result.project_id
+      if (projectId) {
+        router.push(result.project_url || `/projects/${projectId}`)
+      }
     } catch (error) {
       console.error('Failed to import project:', error)
 

@@ -510,57 +510,12 @@ class TestTaskMetadata:
         assert resp.status_code == 200
 
 
-# =================== Import Full Project Tests ===================
-
-class TestImportFullProject:
-    """Test full project import endpoint."""
-
-    def test_import_invalid_file_type(self, client, test_users, test_db, auth_headers):
-        from io import BytesIO
-        resp = client.post(
-            "/api/projects/import-project",
-            files={"file": ("test.txt", BytesIO(b"not json"), "text/plain")},
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 400
-
-    def test_import_invalid_json(self, client, test_users, test_db, auth_headers):
-        from io import BytesIO
-        resp = client.post(
-            "/api/projects/import-project",
-            files={"file": ("test.json", BytesIO(b"not json content"), "application/json")},
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 400
-
-    def test_import_no_project_data(self, client, test_users, test_db, auth_headers):
-        from io import BytesIO
-        data = json.dumps({"format_version": "1.0.0"}).encode()
-        resp = client.post(
-            "/api/projects/import-project",
-            files={"file": ("test.json", BytesIO(data), "application/json")},
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 400
-
-    def test_import_unsupported_version(self, client, test_users, test_db, auth_headers):
-        from io import BytesIO
-        data = json.dumps({"format_version": "2.0.0", "project": {"title": "test"}}).encode()
-        resp = client.post(
-            "/api/projects/import-project",
-            files={"file": ("test.json", BytesIO(data), "application/json")},
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 400
-
-    def test_import_bad_zip(self, client, test_users, test_db, auth_headers):
-        from io import BytesIO
-        resp = client.post(
-            "/api/projects/import-project",
-            files={"file": ("test.zip", BytesIO(b"not a zip file"), "application/zip")},
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 400
+# Note: TestImportFullProject was removed — the synchronous POST /import-project
+# handler was deleted in the #158 follow-up (object storage is now the only
+# transport). Full-project import now runs through the async job flow
+# (POST /project-imports/upload-url → POST /project-imports → poll); its
+# validation/not-found paths are covered in
+# tests/integration/test_import_jobs_api.py.
 
 
 # =================== Review Endpoints Extra Tests ===================

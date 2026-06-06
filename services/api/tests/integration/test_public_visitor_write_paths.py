@@ -15,7 +15,8 @@ Note on PROJECT_EDIT cap:
   layers are exercised by the assertions below.
 
 Note on TASK_CREATE / GENERATION_CREATE:
-  These endpoints (`POST /projects/{id}/import` and
+  These endpoints (`POST /projects/{id}/imports/upload-url` — the async import
+  entry point that replaced the removed sync `POST /{id}/import` in #158 — and
   `POST /projects/{id}/generate`) call `check_project_write_access`, which
   enforces the documented public_role contract: public-tier ANNOTATOR
   visitors are blocked; CONTRIBUTOR visitors are allowed.
@@ -168,9 +169,11 @@ class TestPublicAnnotatorVisitorWritePaths:
         project = _public_project(test_db, creator, "ANNOTATOR")
         test_db.commit()
 
+        # The sync POST /{id}/import was removed (#158); async import now begins
+        # by requesting a presigned upload URL, gated by the same write-access
+        # check. An ANNOTATOR visitor must be rejected before any storage call.
         resp = client.post(
-            f"/api/projects/{project.id}/import",
-            json={"data": [{"text": "new task"}]},
+            f"/api/projects/{project.id}/imports/upload-url",
             headers=_bearer(visitor),
         )
         assert resp.status_code == 403, resp.text
@@ -236,13 +239,13 @@ class TestPublicContributorVisitorWritePaths:
         project = _public_project(test_db, creator, "CONTRIBUTOR")
         test_db.commit()
 
+        # The sync POST /{id}/import was removed (#158); async import now begins
+        # by requesting a presigned upload URL, gated by write access. A public
+        # CONTRIBUTOR must clear that gate (anything except 403).
         resp = client.post(
-            f"/api/projects/{project.id}/import",
-            json={"data": [{"text": "contributed task"}]},
+            f"/api/projects/{project.id}/imports/upload-url",
             headers=_bearer(visitor),
         )
-        # Either accepted (200/201) or fails on validation later — anything
-        # except 403 means the public_role gate let the contributor through.
         assert resp.status_code != 403, resp.text
 
 

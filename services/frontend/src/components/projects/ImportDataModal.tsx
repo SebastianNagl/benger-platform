@@ -327,10 +327,26 @@ export function ImportDataModal({
         | Record<string, unknown>
         | undefined
       ;(parseData as any)._extras = undefined
-      const result = await projectsAPI.importData(projectId, {
-        data,
-        ...(extras || {}),
+
+      // Async job flow: serialize the assembled nested envelope to a JSON file,
+      // upload it straight to object storage via a presigned URL, then let a
+      // worker stream-import it. This keeps the bulk payload off the API request
+      // path (the sync endpoint OOM-killed the pod on large imports). The
+      // client-side parse/validation/field-mapping above is unchanged.
+      const envelope = { data, ...(extras || {}) }
+      const file = new File(
+        [JSON.stringify(envelope)],
+        `import-${Date.now()}.json`,
+        { type: 'application/json' }
+      )
+      const job = await projectsAPI.runNestedImportJob(projectId, file, {
+        onStatus: (status) => {
+          if (status.status === 'running' || status.status === 'pending') {
+            updateProgress(progressId, 80, `Importing ${data.length} tasks...`)
+          }
+        },
       })
+      const result = job.result || {}
 
       logger.debug('[ImportDataModal] Import successful', result)
 

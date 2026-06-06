@@ -1,9 +1,9 @@
 """Integration tests for the async import-job API (issue #158).
 
 The inverse of the async export flow. The synchronous ``POST /{project_id}/import``
-and ``POST /import-project`` stream-parse the uploaded body in the request thread
-(bounded, but still tying up an API worker for the whole parse). The async import
-endpoints move that off the request path:
+and ``POST /import-project`` were removed in the #158 follow-up — object storage is
+the only import transport. The async import endpoints move the parse off the
+request path:
 
   * ``POST /{project_id}/imports/upload-url`` -> presigned upload URL
   * ``POST /{project_id}/imports``            -> create job + enqueue worker (202)
@@ -12,8 +12,7 @@ endpoints move that off the request path:
 These tests lock the HTTP contract: presigned-URL gating + authz, 202/job-creation
 + enqueue, object_key validation (must be under the import prefix AND scoped to
 this project), and status fields + authz (requester vs. write-access vs. forbidden,
-cross-project leak guard). The whole path is inert (409) on the local backend so
-the client falls back to the synchronous import. The worker body is covered in
+cross-project leak guard). The worker body is covered in
 ``services/workers/tests/test_import_task.py``; here ``send_task_safe`` and
 ``object_storage`` are mocked so we exercise only the endpoints.
 """
@@ -113,22 +112,6 @@ class TestCreateImportUploadUrl:
         assert mock_url.call_args.kwargs["user_id"] == project.id
         assert mock_url.call_args.kwargs["max_size"] > 0
 
-    def test_409_when_storage_is_local(
-        self, client, import_project_row, auth_headers, test_org
-    ):
-        project = import_project_row
-        with patch(
-            "routers.projects.import_export.object_storage.storage_backend", "local"
-        ):
-            resp = client.post(
-                f"/api/projects/{project.id}/imports/upload-url",
-                headers={
-                    **auth_headers["admin"],
-                    "X-Organization-Context": test_org.id,
-                },
-            )
-        assert resp.status_code == 409
-
     def test_403_for_non_writer(
         self, client, import_project_row, auth_headers, test_org
     ):
@@ -197,30 +180,6 @@ class TestCreateImportJob:
         assert job.project_id == project.id
         assert job.requested_by == _ADMIN_ID
         assert job.celery_task_id == "celery-import-xyz"
-
-    def test_409_when_storage_is_local(
-        self, client, test_db, import_project_row, auth_headers, test_org
-    ):
-        project = import_project_row
-        with patch(
-            "routers.projects.import_export.object_storage.storage_backend", "local"
-        ), patch("routers.projects.import_export.send_task_safe") as mock_send:
-            resp = client.post(
-                f"/api/projects/{project.id}/imports",
-                json={"object_key": _valid_key(project.id)},
-                headers={
-                    **auth_headers["admin"],
-                    "X-Organization-Context": test_org.id,
-                },
-            )
-        assert resp.status_code == 409
-        mock_send.assert_not_called()
-        assert (
-            test_db.query(ImportJob)
-            .filter(ImportJob.project_id == project.id)
-            .first()
-            is None
-        )
 
     def test_400_missing_object_key(
         self, client, import_project_row, auth_headers, test_org

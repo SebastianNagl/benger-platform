@@ -1806,6 +1806,10 @@ class ExportJob(Base):
     )
     # Export format: json | flat_csv | label_studio | txt | comprehensive.
     format = Column(String, nullable=False)
+    # Optional task-id subset for a selected/filtered export (json only); NULL
+    # means a whole-project export. Lets the async path serve what the old
+    # synchronous /tasks/bulk-export endpoint did.
+    task_ids = Column(JSONB, nullable=True)
     status = Column(String, nullable=False, server_default="pending")
     # Storage key of the finished artifact; NULL until the upload starts.
     object_key = Column(String, nullable=True)

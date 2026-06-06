@@ -1,94 +1,56 @@
-"""
-Test for Issue #581: Fix 500 error on data import
-Tests the fix for redundant ResponseGeneration import and missing project_id field
+"""Test for Issue #581: data import must set ResponseGeneration.project_id and
+avoid redundant in-function model imports.
+
+The sync import endpoint these tests originally drove (``import_project_data`` /
+the old ``import_data`` alias) was removed in the #158 follow-up. The import
+insert logic now lives in the shared streaming driver ``run_nested_import`` — the
+same code the async worker runs — so the #581 regression guard (every imported
+ResponseGeneration carries ``project_id``) is re-pointed at that driver.
 """
 
+import io
 import json
-import os
-import sys
-from unittest.mock import MagicMock, Mock, patch
+import uuid
 
 import pytest
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
-from sqlalchemy.orm import Session  # noqa: E402
-
-
-def _mock_request(body=None):
-    """Mock Request with an async stream() that yields the given body bytes.
-
-    The streaming-import handler reads `request.stream()` directly, so tests
-    must seed it with the JSON bytes the endpoint should parse.
-    """
-    mock_request = Mock()
-    mock_request.headers = {}
-    mock_request.state = Mock(spec=[])
-
-    if body is None:
-        chunks = []
-    elif isinstance(body, bytes):
-        chunks = [body]
-    elif isinstance(body, str):
-        chunks = [body.encode("utf-8")]
-    elif hasattr(body, "model_dump_json"):
-        chunks = [body.model_dump_json().encode("utf-8")]
-    else:
-        chunks = [json.dumps(body).encode("utf-8")]
-
-    async def _stream():
-        for chunk in chunks:
-            yield chunk
-
-    mock_request.stream = _stream
-    return mock_request
+from models import ResponseGeneration
+from project_models import Project, ProjectOrganization, Task
+from routers.projects._import_stream import run_nested_import
 
 
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+def _make_project(db, admin, org, title="Issue 581"):
+    project = Project(
+        id=_uid(),
+        title=title,
+        created_by=admin.id,
+        label_config="<View><Text name='text' value='$text'/></View>",
+    )
+    db.add(project)
+    db.flush()
+    db.add(ProjectOrganization(
+        id=_uid(), project_id=project.id,
+        organization_id=org.id, assigned_by=admin.id,
+    ))
+    db.flush()
+    return project
+
+
+@pytest.mark.integration
 class TestImportFix581:
-    """Test suite for Issue #581 fix - import endpoint working for org_admin users"""
+    """Issue #581 — imported generations must persist with project_id."""
 
-    @pytest.fixture
-    def mock_db(self):
-        """Create a mock database session."""
-        mock = MagicMock(spec=Session)
-        mock.add = MagicMock()
-        mock.commit = MagicMock()
-        mock.rollback = MagicMock()
-        mock.query.return_value.filter.return_value.first.return_value = Mock(
-            id="test-project-id", title="Test Project"
-        )
-        mock.execute.return_value.scalar.return_value = True  # has_project_access
-        return mock
-
-    @pytest.fixture
-    def mock_user_org_admin(self):
-        """Create a mock org_admin user."""
-        user = Mock()
-        user.id = "user-123"
-        user.name = "Test User"
-        user.email = "test@example.com"
-        user.is_superadmin = False
-        user.role = "org_admin"
-        return user
-
-    @pytest.fixture
-    def mock_user_superadmin(self):
-        """Create a mock superadmin user."""
-        user = Mock()
-        user.id = "superadmin-123"
-        user.name = "Super Admin"
-        user.email = "admin@example.com"
-        user.is_superadmin = True
-        user.role = "superadmin"
-        return user
-
-    @pytest.fixture
-    def import_data_with_generations(self):
-        """Create import data that includes generations (triggers ResponseGeneration creation)"""
+    def _payload_with_generations(self):
+        # One task carrying one generation (the BenGER `generations` extension on
+        # a nested Label-Studio item). The driver groups generations by model_id
+        # into a ResponseGeneration, then inserts a Generation per row.
         return {
             "data": [
                 {
-                    "id": "task-001",
                     "data": {"text": "Sample task"},
                     "meta": {"category": "test"},
                     "annotations": [],
@@ -104,158 +66,66 @@ class TestImportFix581:
             "meta": {"source": "test"},
         }
 
-    @pytest.mark.asyncio
-    @patch('routers.projects.import_export.check_project_write_access', return_value=True)
-    @patch('routers.projects.import_export.check_project_accessible', return_value=True)
-    @patch('projects_api.uuid.uuid4')
-    async def test_import_data_with_generations_org_admin(
-        self, mock_uuid, mock_access, mock_write_access, mock_db, mock_user_org_admin, import_data_with_generations
+    def test_import_with_generations_sets_project_id(
+        self, test_db, test_users, test_org
     ):
-        """Test that org_admin users can import data with generations after fix"""
-        from project_schemas import ProjectImportData
-        from projects_api import import_data
+        project = _make_project(test_db, test_users[0], test_org)
+        test_db.commit()
 
-        # Setup UUID mock
-        mock_uuid.side_effect = ["new-task-id", "response-gen-id", "generation-id"]
-
-        # Convert dict to Pydantic model
-        data = ProjectImportData(**import_data_with_generations)
-
-        # Test import as org_admin
-        result = await import_data(
-            project_id="test-project-id", request=_mock_request(body=data), current_user=mock_user_org_admin, db=mock_db
+        body = json.dumps(self._payload_with_generations()).encode("utf-8")
+        result = run_nested_import(
+            test_db, project.id, io.BytesIO(body), test_users[0].id
         )
 
-        # Verify success
         assert result["created_tasks"] == 1
         assert result["created_generations"] == 1
-        assert result["project_id"] == "test-project-id"
 
-        # Verify commit was called (no exception thrown)
-        mock_db.commit.assert_called_once()
-        mock_db.rollback.assert_not_called()
-
-    @pytest.mark.asyncio
-    @patch('projects_api.uuid.uuid4')
-    async def test_import_data_with_generations_superadmin(
-        self, mock_uuid, mock_db, mock_user_superadmin, import_data_with_generations
-    ):
-        """Test that superadmin users can also import data with generations"""
-        from project_schemas import ProjectImportData
-        from projects_api import import_data
-
-        # Setup UUID mock
-        mock_uuid.side_effect = ["new-task-id", "response-gen-id", "generation-id"]
-
-        # Convert dict to Pydantic model
-        data = ProjectImportData(**import_data_with_generations)
-
-        # Test import as superadmin
-        result = await import_data(
-            project_id="test-project-id", request=_mock_request(body=data), current_user=mock_user_superadmin, db=mock_db
+        # #581 core guard: the imported ResponseGeneration must carry project_id
+        # (a NULL would orphan the row and 500 the results view).
+        gens = (
+            test_db.query(ResponseGeneration)
+            .filter(ResponseGeneration.project_id == project.id)
+            .all()
         )
+        assert len(gens) == 1
+        rg = gens[0]
+        assert rg.project_id == project.id
+        assert rg.model_id == "gpt-4"
+        assert rg.status == "completed"
+        assert rg.created_by == test_users[0].id
 
-        # Verify success
-        assert result["created_tasks"] == 1
-        assert result["created_generations"] == 1
-        assert result["project_id"] == "test-project-id"
-
-        # Verify commit was called
-        mock_db.commit.assert_called_once()
-        mock_db.rollback.assert_not_called()
-
-    @pytest.mark.asyncio
-    @patch('routers.projects.import_export.check_project_write_access', return_value=True)
-    @patch('routers.projects.import_export.check_project_accessible', return_value=True)
-    async def test_response_generation_has_correct_fields(
-        self, mock_access, mock_write_access, mock_db, mock_user_org_admin, import_data_with_generations
+    def test_import_without_generations_still_works(
+        self, test_db, test_users, test_org
     ):
-        """Test that ResponseGeneration is created with all required fields including project_id"""
-        from project_schemas import ProjectImportData
-        from projects_api import import_data
+        project = _make_project(test_db, test_users[0], test_org, "Issue 581 no-gen")
+        test_db.commit()
 
-        # Convert dict to Pydantic model
-        data = ProjectImportData(**import_data_with_generations)
-
-        # Capture what's added to the database
-        added_objects = []
-        mock_db.add.side_effect = lambda obj: added_objects.append(obj)
-
-        # Import data
-        with patch('projects_api.uuid.uuid4', side_effect=["task-id", "resp-gen-id", "gen-id"]):
-            await import_data(
-                project_id="test-project-id",
-                request=_mock_request(body=data),
-                current_user=mock_user_org_admin,
-                db=mock_db,
-            )
-
-        # Find ResponseGeneration object in added objects
-        response_gen = None
-        for obj in added_objects:
-            if hasattr(obj, '__class__') and obj.__class__.__name__ == 'ResponseGeneration':
-                response_gen = obj
-                break
-
-        # Verify ResponseGeneration has all required fields
-        assert response_gen is not None, "ResponseGeneration should be created"
-        assert response_gen.id == "resp-gen-id"
-        assert response_gen.task_id == "task-id"
-        assert response_gen.project_id == "test-project-id", "project_id field should be set"
-        assert response_gen.model_id == "gpt-4"
-        assert response_gen.status == "completed"
-        assert response_gen.created_by == mock_user_org_admin.id
-
-    def test_no_redundant_imports_in_function(self):
-        """Test that there are no redundant imports in the import_data function"""
-        import inspect
-
-        from projects_api import import_data
-
-        # Get the source code of the import_data function
-        source = inspect.getsource(import_data)
-
-        # Check that there's no local import of ResponseGeneration
-        # (it should be imported at module level only)
-        assert (
-            "from models import ResponseGeneration" not in source
-        ), "ResponseGeneration should not be imported inside the function"
-
-    def test_calculate_generation_stats_no_redundant_import(self):
-        """Test that calculate_generation_stats has no redundant import"""
-        import inspect
-
-        from projects_api import calculate_generation_stats
-
-        # Get the source code of the function
-        source = inspect.getsource(calculate_generation_stats)
-
-        # Check that there's no local import of ResponseGeneration
-        assert (
-            "from models import ResponseGeneration" not in source
-        ), "ResponseGeneration should not be imported inside calculate_generation_stats"
-
-    @pytest.mark.asyncio
-    @patch('routers.projects.import_export.check_project_write_access', return_value=True)
-    @patch('routers.projects.import_export.check_project_accessible', return_value=True)
-    @patch('projects_api.uuid.uuid4')
-    async def test_import_without_generations_still_works(
-        self, mock_uuid, mock_access, mock_write_access, mock_db, mock_user_org_admin
-    ):
-        """Test that import without generations still works after fix"""
-        from project_schemas import ProjectImportData
-        from projects_api import import_data
-
-        # Data without generations
-        data = ProjectImportData(data=[{"data": {"text": "Task without generation"}, "meta": {}}])
-
-        mock_uuid.return_value = "new-task-id"
-
-        # Import should work without creating ResponseGeneration
-        result = await import_data(
-            project_id="test-project-id", request=_mock_request(body=data), current_user=mock_user_org_admin, db=mock_db
+        body = json.dumps(
+            {"data": [{"data": {"text": "Task without generation"}, "meta": {}}]}
+        ).encode("utf-8")
+        result = run_nested_import(
+            test_db, project.id, io.BytesIO(body), test_users[0].id
         )
 
         assert result["created_tasks"] == 1
         assert result["created_generations"] == 0
-        mock_db.commit.assert_called_once()
+        assert (
+            test_db.query(Task).filter(Task.project_id == project.id).count() == 1
+        )
+        assert (
+            test_db.query(ResponseGeneration)
+            .filter(ResponseGeneration.project_id == project.id)
+            .count()
+            == 0
+        )
+
+    def test_calculate_generation_stats_no_redundant_import(self):
+        """#581 also removed a redundant in-function ResponseGeneration import."""
+        import inspect
+
+        from projects_api import calculate_generation_stats
+
+        source = inspect.getsource(calculate_generation_stats)
+        assert (
+            "from models import ResponseGeneration" not in source
+        ), "ResponseGeneration should not be imported inside calculate_generation_stats"

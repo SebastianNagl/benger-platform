@@ -34,15 +34,6 @@ from routers.projects.helpers import (  # noqa: F401
 )
 
 # ---------------------------------------------------------------------------
-# Re-exported endpoint functions (routers/projects/import_export.py)
-# ---------------------------------------------------------------------------
-from routers.projects.import_export import import_project_data  # noqa: F401
-
-# Alias: the function was renamed from import_data -> import_project_data.
-# Tests still reference the old name.
-import_data = import_project_data
-
-# ---------------------------------------------------------------------------
 # Re-exported endpoint functions (routers/projects/tasks.py)
 # ---------------------------------------------------------------------------
 from routers.projects.tasks import get_next_task  # noqa: F401,E402
