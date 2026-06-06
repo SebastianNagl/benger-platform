@@ -434,11 +434,17 @@ class ObjectStorageService:
         if not expires_in:
             expires_in = self.EXPIRATION_TIMES["upload"]
 
-        # Prepare conditions for the presigned POST
+        # Prepare conditions for the presigned POST. Every form field sent with
+        # the upload must be covered by a policy condition, or S3/MinIO rejects
+        # the POST with AccessDenied ("...not specified in the policy"). The
+        # x-amz-meta-* fields below are echoed back verbatim by the client, so
+        # pin them with exact-match conditions to match the Fields dict.
         conditions = [
             {"bucket": self.bucket_name},
             ["starts-with", "$key", os.path.dirname(file_key)],
             {"Content-Type": content_type},
+            {"x-amz-meta-original-filename": filename},
+            {"x-amz-meta-user-id": user_id or ""},
         ]
 
         if max_size:
