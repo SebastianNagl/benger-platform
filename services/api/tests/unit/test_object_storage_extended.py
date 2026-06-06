@@ -175,8 +175,13 @@ class TestS3Initialization:
         call_kwargs = mock_config_cls.call_args
         assert call_kwargs[1]["s3"]["addressing_style"] == "auto"
 
-    def test_s3_init_falls_back_to_local_when_boto3_unavailable(self):
-        """If BOTO3_AVAILABLE is False, falls back to local storage."""
+    def test_s3_init_raises_when_boto3_unavailable(self):
+        """If BOTO3_AVAILABLE is False, init fails loudly (no silent local fallback).
+
+        Object storage is mandatory in deployed environments (#158 follow-up): a
+        misconfigured s3/minio backend must crash the pod, not silently write to
+        the pod's local disk.
+        """
         env = {
             "STORAGE_BACKEND": "s3",
             "LOCAL_STORAGE_PATH": "/tmp/test-fallback-storage",
@@ -184,13 +189,11 @@ class TestS3Initialization:
         with patch.dict(os.environ, env, clear=False):
             with patch("services.storage.object_storage.BOTO3_AVAILABLE", False):
                 from services.storage.object_storage import ObjectStorageService
-                service = ObjectStorageService()
+                with pytest.raises(RuntimeError, match="boto3 is not"):
+                    ObjectStorageService()
 
-        assert service.storage_backend == "local"
-        assert service.s3_client == None  # noqa: E711
-
-    def test_s3_init_falls_back_to_local_on_exception(self):
-        """If S3 client creation fails, falls back to local storage."""
+    def test_s3_init_raises_on_exception(self):
+        """If S3 client creation fails, the exception propagates (no fallback)."""
         mock_boto3 = MagicMock()
         mock_boto3.client.side_effect = Exception("Connection refused")
         mock_config_cls = MagicMock()
@@ -207,9 +210,8 @@ class TestS3Initialization:
                  patch("services.storage.object_storage.boto3", mock_boto3), \
                  patch("services.storage.object_storage.Config", mock_config_cls):
                 from services.storage.object_storage import ObjectStorageService
-                service = ObjectStorageService()
-
-        assert service.storage_backend == "local"
+                with pytest.raises(Exception, match="Connection refused"):
+                    ObjectStorageService()
 
 
 # ===========================================================================
@@ -297,7 +299,7 @@ class TestEnsureBucketExists:
         )
 
     def test_bucket_create_fails_raises(self):
-        """If create_bucket fails, the exception propagates and fallback to local."""
+        """If create_bucket fails, the exception propagates (no silent fallback)."""
         mock_client = MagicMock()
 
         error_response = {"Error": {"Code": "404"}}
@@ -326,13 +328,11 @@ class TestEnsureBucketExists:
                  patch("services.storage.object_storage.Config", mock_config_cls), \
                  patch("services.storage.object_storage.ClientError", client_error):
                 from services.storage.object_storage import ObjectStorageService
-                # The exception in create_bucket causes fallback to local
-                service = ObjectStorageService()
+                with pytest.raises(Exception, match="Permission denied"):
+                    ObjectStorageService()
 
-        assert service.storage_backend == "local"
-
-    def test_head_bucket_non_404_error_causes_fallback(self):
-        """Non-404 error from head_bucket triggers fallback to local."""
+    def test_head_bucket_non_404_error_raises(self):
+        """Non-404 error from head_bucket propagates (no silent fallback)."""
         mock_client = MagicMock()
 
         error_response = {"Error": {"Code": "403"}}
@@ -359,11 +359,9 @@ class TestEnsureBucketExists:
                  patch("services.storage.object_storage.Config", mock_config_cls), \
                  patch("services.storage.object_storage.ClientError", client_error):
                 from services.storage.object_storage import ObjectStorageService
-                service = ObjectStorageService()
-
-        # The re-raised exception in _ensure_bucket_exists causes the outer
-        # except in _initialize_storage to catch and fall back to local
-        assert service.storage_backend == "local"
+                # _ensure_bucket_exists re-raises; _initialize_storage propagates.
+                with pytest.raises(client_error, match="Access denied"):
+                    ObjectStorageService()
 
     def test_ensure_bucket_no_client_returns_early(self):
         """_ensure_bucket_exists returns immediately if s3_client is None."""

@@ -5,7 +5,6 @@
 import apiClient from '@/lib/api'
 import {
   Annotation,
-  ImportResult,
   PaginatedResponse,
   Project,
   Task,
@@ -208,36 +207,6 @@ describe('projectsAPI', () => {
       await projectsAPI.delete('proj-1')
 
       expect(apiClient.delete).toHaveBeenCalledWith('/projects/proj-1')
-    })
-  })
-
-  describe('importData', () => {
-    it('should import data into a project', async () => {
-      const importData = {
-        data: [{ text: 'Sample text' }],
-        meta: { source: 'test' },
-      }
-
-      const mockResponse: ImportResult = {
-        task_count: 1,
-        annotation_count: 0,
-        prediction_count: 0,
-        duration: 0.5,
-        file_upload_ids: [],
-        could_be_tasks_list: false,
-        found_formats: [],
-        data_columns: [],
-      }
-
-      ;(apiClient.post as jest.Mock).mockResolvedValue(mockResponse)
-
-      const result = await projectsAPI.importData('proj-1', importData)
-
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/projects/proj-1/import',
-        importData
-      )
-      expect(result).toEqual(mockResponse)
     })
   })
 
@@ -591,31 +560,6 @@ describe('projectsAPI', () => {
     })
   })
 
-  describe('export', () => {
-    it('should export project in JSON format', async () => {
-      const mockBlob = new Blob(['test data'], { type: 'application/json' })
-      ;(apiClient.get as jest.Mock).mockResolvedValue(mockBlob)
-
-      const result = await projectsAPI.export('proj-1', 'json', true)
-
-      expect(apiClient.get).toHaveBeenCalledWith(
-        '/projects/proj-1/export?format=json&download=true'
-      )
-      expect(result).toEqual(mockBlob)
-    })
-
-    it('should export project in CSV format', async () => {
-      const mockBlob = new Blob(['test data'], { type: 'text/csv' })
-      ;(apiClient.get as jest.Mock).mockResolvedValue(mockBlob)
-
-      await projectsAPI.export('proj-1', 'csv', false)
-
-      expect(apiClient.get).toHaveBeenCalledWith(
-        '/projects/proj-1/export?format=csv&download=false'
-      )
-    })
-  })
-
   describe('bulk operations on tasks', () => {
     it('should bulk delete tasks', async () => {
       const mockResponse = { deleted: 3 }
@@ -634,26 +578,6 @@ describe('projectsAPI', () => {
         }
       )
       expect(result).toEqual(mockResponse)
-    })
-
-    it('should bulk export tasks', async () => {
-      const mockBlob = new Blob(['test data'], { type: 'application/json' })
-      ;(apiClient.post as jest.Mock).mockResolvedValue(mockBlob)
-
-      const result = await projectsAPI.bulkExportTasks(
-        'proj-1',
-        ['task-1', 'task-2'],
-        'json'
-      )
-
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/projects/proj-1/tasks/bulk-export',
-        {
-          task_ids: ['task-1', 'task-2'],
-          format: 'json',
-        }
-      )
-      expect(result).toEqual(mockBlob)
     })
 
     it('should bulk archive tasks', async () => {
@@ -756,31 +680,217 @@ describe('projectsAPI', () => {
     })
   })
 
-  describe('importProject', () => {
-    it('should import project from file', async () => {
-      const mockFile = new File(['{}'], 'project.json', {
-        type: 'application/json',
-      })
-      const mockResponse = {
-        message: 'Project imported successfully',
-        project_id: 'proj-new',
-        project_title: 'Imported Project',
-        project_url: '/projects/proj-new',
-        statistics: { tasks: 10, annotations: 5 },
-      }
+  describe('async import jobs', () => {
+    // The presigned-POST descriptor the *.../imports/upload-url endpoints return.
+    const presigned = {
+      upload_url: 'https://storage/bucket',
+      method: 'POST',
+      file_key: 'imports/user-1/abc.json',
+      fields: { key: 'imports/user-1/abc.json', policy: 'p' },
+      expires_at: null,
+    }
 
-      ;(apiClient.post as jest.Mock).mockResolvedValue(mockResponse)
+    it('createImportUploadUrl mints a project-scoped upload URL', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue(presigned)
 
-      const result = await projectsAPI.importProject(mockFile)
+      const res = await projectsAPI.createImportUploadUrl('proj-1', 'data.json')
 
       expect(apiClient.post).toHaveBeenCalledWith(
-        '/projects/import-project',
-        expect.any(FormData)
+        '/projects/proj-1/imports/upload-url?filename=data.json'
+      )
+      expect(res).toEqual(presigned)
+    })
+
+    it('createFullImportUploadUrl mints a user-scoped upload URL', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue(presigned)
+
+      await projectsAPI.createFullImportUploadUrl('data.json')
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/projects/project-imports/upload-url?filename=data.json'
+      )
+    })
+
+    it('uploadToPresignedUrl PUTs the file via multipart with fields before file', async () => {
+      const fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue({ ok: true } as Response)
+      const file = new File(['{}'], 'data.json', { type: 'application/json' })
+
+      await projectsAPI.uploadToPresignedUrl(presigned, file)
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      const [url, init] = fetchSpy.mock.calls[0]
+      expect(url).toBe(presigned.upload_url)
+      expect(init?.method).toBe('POST')
+      const sentForm = init?.body as FormData
+      // The presigned fields must precede the file part, and file is last.
+      const keys = Array.from(sentForm.keys())
+      expect(keys).toEqual(['key', 'policy', 'file'])
+      expect(sentForm.get('file')).toBe(file)
+
+      fetchSpy.mockRestore()
+    })
+
+    it('uploadToPresignedUrl throws on a non-ok storage response', async () => {
+      const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: false,
+        status: 403,
+        text: () => Promise.resolve('AccessDenied'),
+      } as Response)
+      const file = new File(['{}'], 'data.json', { type: 'application/json' })
+
+      await expect(
+        projectsAPI.uploadToPresignedUrl(presigned, file)
+      ).rejects.toThrow(/403/)
+
+      fetchSpy.mockRestore()
+    })
+
+    it('createImportJob enqueues a nested import for an uploaded key', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-1',
+        status: 'pending',
+      })
+
+      const res = await projectsAPI.createImportJob('proj-1', 'imports/k.json')
+
+      expect(apiClient.post).toHaveBeenCalledWith('/projects/proj-1/imports', {
+        object_key: 'imports/k.json',
+      })
+      expect(res).toEqual({ job_id: 'job-1', status: 'pending' })
+    })
+
+    it('createFullImportJob enqueues a full-project import', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-2',
+        status: 'pending',
+      })
+
+      await projectsAPI.createFullImportJob('imports/k.json')
+
+      expect(apiClient.post).toHaveBeenCalledWith('/projects/project-imports', {
+        object_key: 'imports/k.json',
+      })
+    })
+
+    it('getImportJob / getFullImportJob poll the right status endpoints', async () => {
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        job_id: 'job-1',
+        status: 'running',
+      })
+
+      await projectsAPI.getImportJob('proj-1', 'job-1')
+      expect(apiClient.get).toHaveBeenCalledWith('/projects/proj-1/imports/job-1')
+
+      await projectsAPI.getFullImportJob('job-2')
+      expect(apiClient.get).toHaveBeenCalledWith('/projects/project-imports/job-2')
+    })
+
+    it('runNestedImportJob presigns, uploads, enqueues, then polls to completion', async () => {
+      const fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue({ ok: true } as Response)
+      ;(apiClient.post as jest.Mock).mockImplementation((url: string) => {
+        if (url.includes('upload-url')) return Promise.resolve(presigned)
+        return Promise.resolve({ job_id: 'job-1', status: 'pending' })
+      })
+      const statuses = [
+        { job_id: 'job-1', status: 'running', result: null },
+        {
+          job_id: 'job-1',
+          status: 'completed',
+          result: { created_tasks: 3, created_annotations: 1 },
+        },
+      ]
+      let poll = 0
+      ;(apiClient.get as jest.Mock).mockImplementation(() =>
+        Promise.resolve(statuses[Math.min(poll++, statuses.length - 1)])
       )
 
-      const formData = (apiClient.post as jest.Mock).mock.calls[0][1]
-      expect(formData.get('file')).toBe(mockFile)
-      expect(result).toEqual(mockResponse)
+      const file = new File(['{}'], 'data.json', { type: 'application/json' })
+      const onStatus = jest.fn()
+      const final = await projectsAPI.runNestedImportJob(
+        'proj-1',
+        file,
+        { onStatus },
+        { pollIntervalMs: 1 }
+      )
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/projects/proj-1/imports/upload-url?filename=data.json'
+      )
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      expect(apiClient.post).toHaveBeenCalledWith('/projects/proj-1/imports', {
+        object_key: presigned.file_key,
+      })
+      expect(onStatus).toHaveBeenCalledTimes(2)
+      expect(final.result?.created_tasks).toBe(3)
+
+      fetchSpy.mockRestore()
+    })
+
+    it('runProjectImportJob creates a project and returns the new id', async () => {
+      const fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue({ ok: true } as Response)
+      ;(apiClient.post as jest.Mock).mockImplementation((url: string) => {
+        if (url.includes('upload-url')) return Promise.resolve(presigned)
+        return Promise.resolve({ job_id: 'job-2', status: 'pending' })
+      })
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        job_id: 'job-2',
+        project_id: 'proj-new',
+        status: 'completed',
+        result: {
+          project_id: 'proj-new',
+          project_title: 'Imported',
+          project_url: '/projects/proj-new',
+        },
+      })
+
+      const file = new File(['{}'], 'project.json', {
+        type: 'application/json',
+      })
+      const final = await projectsAPI.runProjectImportJob(file, undefined, {
+        pollIntervalMs: 1,
+      })
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/projects/project-imports/upload-url?filename=project.json'
+      )
+      expect(apiClient.post).toHaveBeenCalledWith('/projects/project-imports', {
+        object_key: presigned.file_key,
+      })
+      expect(final.project_id).toBe('proj-new')
+      expect(final.result?.project_url).toBe('/projects/proj-new')
+
+      fetchSpy.mockRestore()
+    })
+
+    it('runNestedImportJob throws the worker error message when the job fails', async () => {
+      const fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue({ ok: true } as Response)
+      ;(apiClient.post as jest.Mock).mockImplementation((url: string) => {
+        if (url.includes('upload-url')) return Promise.resolve(presigned)
+        return Promise.resolve({ job_id: 'job-1', status: 'pending' })
+      })
+      ;(apiClient.get as jest.Mock).mockResolvedValue({
+        job_id: 'job-1',
+        status: 'failed',
+        error_message: 'bad payload',
+        result: null,
+      })
+
+      const file = new File(['{}'], 'data.json', { type: 'application/json' })
+      await expect(
+        projectsAPI.runNestedImportJob('proj-1', file, undefined, {
+          pollIntervalMs: 1,
+        })
+      ).rejects.toThrow('bad payload')
+
+      fetchSpy.mockRestore()
     })
   })
 
@@ -965,8 +1075,10 @@ describe('projectsAPI', () => {
 
       const res = await projectsAPI.createExportJob('proj-1', 'csv')
 
+      // No task subset → the body is omitted (whole-project export).
       expect(apiClient.post).toHaveBeenCalledWith(
-        '/projects/proj-1/exports?format=csv'
+        '/projects/proj-1/exports?format=csv',
+        undefined
       )
       expect(res).toEqual({ job_id: 'job-1', status: 'pending' })
     })
@@ -980,7 +1092,22 @@ describe('projectsAPI', () => {
       await projectsAPI.createExportJob('proj-1')
 
       expect(apiClient.post).toHaveBeenCalledWith(
-        '/projects/proj-1/exports?format=json'
+        '/projects/proj-1/exports?format=json',
+        undefined
+      )
+    })
+
+    it('createExportJob passes a task subset in the request body', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-1',
+        status: 'pending',
+      })
+
+      await projectsAPI.createExportJob('proj-1', 'json', ['t-1', 't-2'])
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/projects/proj-1/exports?format=json',
+        { task_ids: ['t-1', 't-2'] }
       )
     })
 
@@ -1062,7 +1189,8 @@ describe('projectsAPI', () => {
       )
 
       expect(apiClient.post).toHaveBeenCalledWith(
-        '/projects/proj-1/exports?format=json'
+        '/projects/proj-1/exports?format=json',
+        undefined
       )
       // pending → running → completed: three status callbacks.
       expect(onStatus).toHaveBeenCalledTimes(3)

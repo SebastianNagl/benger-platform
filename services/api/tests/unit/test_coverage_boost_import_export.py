@@ -2,14 +2,14 @@
 Coverage boost tests for import/export endpoints.
 
 Targets specific branches in routers/projects/import_export.py:
-- export with various data configurations
-- import with different file formats
-- span annotation conversion functions
-- bulk export
+- span annotation conversion functions (convert_to/from_label_studio_format)
+- multi-project bulk export (POST /bulk-export)
+
+The single-project sync export/import endpoints were removed in the #158
+follow-up (object storage is now the only transport); their fidelity is
+covered by the shared-driver round-trip tests and the async job-endpoint tests.
 """
 
-import io
-import json
 import uuid
 from datetime import datetime
 
@@ -22,7 +22,6 @@ from models import (
 )
 from project_models import (
     Annotation,
-    PostAnnotationResponse,
     Project,
     ProjectOrganization,
     Task,
@@ -282,140 +281,8 @@ class TestConvertFromLabelStudioFormat:
         assert output == results
 
 
-class TestExportProject:
-    """Test export endpoint."""
-
-    def test_export_json(self, client, auth_headers, test_db, test_users):
-        p, org, tasks = _setup_export_project(test_db, test_users)
-        resp = client.get(
-            f"/api/projects/{p.id}/export?format=json",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
-        assert resp.status_code == 200
-
-    def test_export_csv(self, client, auth_headers, test_db, test_users):
-        p, org, tasks = _setup_export_project(test_db, test_users)
-        resp = client.get(
-            f"/api/projects/{p.id}/export?format=csv",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
-        assert resp.status_code == 200
-
-    def test_export_empty_project(self, client, auth_headers, test_db, test_users):
-        p, org, tasks = _setup_export_project(test_db, test_users, num_tasks=0)
-        resp = client.get(
-            f"/api/projects/{p.id}/export?format=json",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
-        assert resp.status_code == 200
-
-    def test_export_with_cancelled_annotations(self, client, auth_headers, test_db, test_users):
-        p, org, tasks = _setup_export_project(test_db, test_users, add_annotations=False)
-        # Add a cancelled annotation
-        test_db.add(Annotation(
-            id=str(uuid.uuid4()),
-            task_id=tasks[0].id,
-            project_id=p.id,
-            completed_by=test_users[0].id,
-            result=[{"from_name": "sentiment", "type": "choices", "value": {"choices": ["positive"]}}],
-            was_cancelled=True,
-        ))
-        test_db.commit()
-
-        resp = client.get(
-            f"/api/projects/{p.id}/export?format=json",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
-        assert resp.status_code == 200
-
-    def test_export_with_generations(self, client, auth_headers, test_db, test_users):
-        p, org, tasks = _setup_export_project(
-            test_db, test_users, add_generations=True
-        )
-        resp = client.get(
-            f"/api/projects/{p.id}/export?format=json",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
-        assert resp.status_code == 200
-
-    def test_export_project_not_found(self, client, auth_headers):
-        resp = client.get(
-            "/api/projects/nonexistent/export?format=json",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 404
-
-    def test_export_with_questionnaire_responses(self, client, auth_headers, test_db, test_users):
-        p, org, tasks = _setup_export_project(test_db, test_users, add_annotations=True)
-        # Add questionnaire response
-        ann = test_db.query(Annotation).filter(Annotation.project_id == p.id).first()
-        if ann:
-            test_db.add(PostAnnotationResponse(
-                id=str(uuid.uuid4()),
-                annotation_id=ann.id,
-                task_id=ann.task_id,
-                project_id=p.id,
-                user_id=test_users[0].id,
-                result=[{"from_name": "r", "type": "rating", "value": {"rating": 4}}],
-            ))
-            test_db.commit()
-
-        resp = client.get(
-            f"/api/projects/{p.id}/export?format=json",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
-        assert resp.status_code == 200
-
-
-class TestImportTasks:
-    """Test import endpoint."""
-
-    def test_import_json_tasks(self, client, auth_headers, test_db, test_users):
-        p, org, _ = _setup_export_project(test_db, test_users, num_tasks=0)
-        tasks_data = json.dumps([
-            {"data": {"text": "Imported task 1"}},
-            {"data": {"text": "Imported task 2"}},
-        ]).encode()
-
-        # The import endpoint uses UploadFile with the name 'file'
-        resp = client.post(
-            f"/api/projects/{p.id}/import",
-            files={"file": ("tasks.json", io.BytesIO(tasks_data), "application/json")},
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
-        assert resp.status_code in [200, 201, 400, 422]
-
-    def test_import_csv_tasks(self, client, auth_headers, test_db, test_users):
-        p, org, _ = _setup_export_project(test_db, test_users, num_tasks=0)
-        csv_content = "text\nFirst task text\nSecond task text\n".encode()
-
-        resp = client.post(
-            f"/api/projects/{p.id}/import",
-            files={"file": ("tasks.csv", io.BytesIO(csv_content), "text/csv")},
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
-        assert resp.status_code in [200, 201, 400, 422]
-
-    def test_import_project_not_found(self, client, auth_headers):
-        resp = client.post(
-            "/api/projects/nonexistent/import",
-            files={"file": ("tasks.json", io.BytesIO(b"[]"), "application/json")},
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code in [404, 400, 422]
-
-    def test_import_empty_file(self, client, auth_headers, test_db, test_users):
-        p, org, _ = _setup_export_project(test_db, test_users, num_tasks=0)
-        resp = client.post(
-            f"/api/projects/{p.id}/import",
-            files={"file": ("tasks.json", io.BytesIO(b""), "application/json")},
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
-        assert resp.status_code in [200, 400, 422]
-
-
 class TestBulkExport:
-    """Test bulk export endpoints."""
+    """Test bulk export endpoints (POST /bulk-export)."""
 
     def test_bulk_export(self, client, auth_headers, test_db, test_users):
         p1, org1, _ = _setup_export_project(test_db, test_users, num_tasks=2)
@@ -433,45 +300,3 @@ class TestBulkExport:
             headers=auth_headers["admin"],
         )
         assert resp.status_code in [200, 400]
-
-
-class TestImportProject:
-    """Test full project import endpoint."""
-
-    def test_import_project_basic(self, client, auth_headers, test_db, test_users):
-        org = Organization(
-            id=str(uuid.uuid4()),
-            name="Import Org",
-            slug=f"import-org-{uuid.uuid4().hex[:8]}",
-            display_name="Import Org",
-            created_at=datetime.utcnow(),
-        )
-        test_db.add(org)
-        test_db.commit()
-        test_db.add(OrganizationMembership(
-            id=str(uuid.uuid4()),
-            user_id=test_users[0].id,
-            organization_id=org.id,
-            role="ORG_ADMIN",
-            joined_at=datetime.utcnow(),
-        ))
-        test_db.commit()
-
-        project_data = {
-            "project": {
-                "title": "Imported Project",
-                "description": "An imported project",
-                "label_config": "<View><Text name='text' value='$text'/></View>",
-            },
-            "tasks": [
-                {"data": {"text": "Task 1"}},
-                {"data": {"text": "Task 2"}},
-            ],
-        }
-
-        resp = client.post(
-            "/api/projects/import-project",
-            json=project_data,
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
-        assert resp.status_code in [200, 201, 400, 422]

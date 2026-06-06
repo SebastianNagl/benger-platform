@@ -19,7 +19,7 @@ jest.mock('@/lib/api/projects', () => ({
     getTasks: jest.fn(),
     getNextTask: jest.fn(),
     createAnnotation: jest.fn(),
-    importData: jest.fn(),
+    runNestedImportJob: jest.fn(),
   },
 }))
 
@@ -415,12 +415,16 @@ describe('projectStore br7', () => {
       useProjectStore.setState({
         currentProject: { id: 'p1' } as any,
       })
-      api.importData.mockResolvedValue({ created: 5 })
+      api.runNestedImportJob.mockResolvedValue({
+        job_id: 'job-1',
+        status: 'completed',
+        result: { created_tasks: 5 },
+      } as any)
       api.get.mockResolvedValue({ id: 'p1', task_count: 5 } as any)
 
       await useProjectStore.getState().importData('p1', [{ text: 'test' }])
 
-      expect(api.importData).toHaveBeenCalledWith('p1', { data: [{ text: 'test' }] })
+      expect(api.runNestedImportJob).toHaveBeenCalledWith('p1', expect.any(File))
       expect(toast.success).toHaveBeenCalled()
       // Should refetch the project since it's the current one
       expect(api.get).toHaveBeenCalledWith('p1')
@@ -430,7 +434,11 @@ describe('projectStore br7', () => {
       useProjectStore.setState({
         currentProject: { id: 'p2' } as any,
       })
-      api.importData.mockResolvedValue({ created: 3 })
+      api.runNestedImportJob.mockResolvedValue({
+        job_id: 'job-2',
+        status: 'completed',
+        result: { created_tasks: 3 },
+      } as any)
       api.list.mockResolvedValue({ items: [], total: 0, pages: 1 })
 
       await useProjectStore.getState().importData('p1', [{ text: 'test' }])
@@ -439,7 +447,7 @@ describe('projectStore br7', () => {
     })
 
     it('handles importData error', async () => {
-      api.importData.mockRejectedValue(new Error('Import failed'))
+      api.runNestedImportJob.mockRejectedValue(new Error('Import failed'))
 
       await useProjectStore.getState().importData('p1', [])
 
@@ -447,7 +455,7 @@ describe('projectStore br7', () => {
     })
 
     it('handles importData non-Error', async () => {
-      api.importData.mockRejectedValue(false)
+      api.runNestedImportJob.mockRejectedValue(false)
 
       await useProjectStore.getState().importData('p1', [])
 

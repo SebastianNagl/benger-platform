@@ -16,31 +16,54 @@ def test_import_export_router_exists():
 
 
 def test_import_export_routes_defined():
-    """Test that all import/export routes exist."""
+    """Test that all import/export routes exist.
+
+    The sync GET /{id}/export, POST /{id}/import and POST /import-project routes
+    were removed in the #158 follow-up — object storage is the only transport.
+    The surface is now the async job endpoints plus the (still-sync) multi-project
+    bulk-export admin endpoints.
+    """
     from routers.projects.import_export import router
 
     routes = [r.path for r in router.routes]
 
-    assert "/{project_id}/import" in routes
-    assert "/{project_id}/export" in routes
+    # Async export
+    assert "/{project_id}/exports" in routes
+    assert "/{project_id}/exports/{job_id}" in routes
+    assert "/{project_id}/exports/{job_id}/download" in routes
+    # Async nested import
+    assert "/{project_id}/imports/upload-url" in routes
+    assert "/{project_id}/imports" in routes
+    assert "/{project_id}/imports/{job_id}" in routes
+    # Async full-project (create-new) import
+    assert "/project-imports/upload-url" in routes
+    assert "/project-imports" in routes
+    assert "/project-imports/{job_id}" in routes
+    # Multi-project admin bulk export (still synchronous, out of #158 scope)
     assert "/bulk-export" in routes
     assert "/bulk-export-full" in routes
-    assert "/import-project" in routes
+
+    # The removed sync routes must be gone.
+    assert "/{project_id}/import" not in routes
+    assert "/{project_id}/export" not in routes
+    assert "/import-project" not in routes
 
 
 def test_import_export_route_methods():
-    """Test HTTP methods."""
+    """Test HTTP methods on the async + bulk routes."""
     from routers.projects.import_export import router
 
     route_methods = {}
     for route in router.routes:
         route_methods[route.path] = route.methods
 
-    assert 'POST' in route_methods["/{project_id}/import"]
-    assert 'GET' in route_methods["/{project_id}/export"]
+    assert 'POST' in route_methods["/{project_id}/exports"]
+    assert 'GET' in route_methods["/{project_id}/exports/{job_id}"]
+    assert 'POST' in route_methods["/{project_id}/imports/upload-url"]
+    assert 'POST' in route_methods["/{project_id}/imports"]
+    assert 'POST' in route_methods["/project-imports"]
     assert 'POST' in route_methods["/bulk-export"]
     assert 'POST' in route_methods["/bulk-export-full"]
-    assert 'POST' in route_methods["/import-project"]
 
 
 class TestConfigurationRoundtrip:
@@ -178,9 +201,10 @@ class TestConfigurationRoundtrip:
         assert export_data["project"]["evaluation_config"]["default_temperature"] == 0.3
 
     def test_import_restores_generation_config(self):
-        """Verify import_project_data restores generation_config from export."""
-        # This test verifies the import function signature accepts generation_config
-        # The actual database integration is tested in integration tests
+        """Verify the export payload carries generation_config for import to restore."""
+        # Validates the export data shape the importer consumes. The actual
+        # round-trip through the shared import driver is covered in
+        # tests/routers/projects/test_export_import_roundtrip.py.
 
         # Create mock export data with generation_config
         export_data = {

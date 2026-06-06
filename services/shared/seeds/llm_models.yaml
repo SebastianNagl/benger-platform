@@ -1126,8 +1126,8 @@ models:
     model_type: chat
     capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, advanced-reasoning]
     is_active: true
-    input_cost_per_million: 1.74
-    output_cost_per_million: 3.48
+    input_cost_per_million: 1.3
+    output_cost_per_million: 2.6
     recommended_parameters:
       default:
         max_tokens: 8000
@@ -1145,8 +1145,8 @@ models:
     model_type: chat
     capabilities: [text-generation, reasoning, analysis, coding]
     is_active: true
-    input_cost_per_million: 0.14
-    output_cost_per_million: 0.28
+    input_cost_per_million: 0.1
+    output_cost_per_million: 0.2
     recommended_parameters:
       default:
         max_tokens: 8000
@@ -1313,8 +1313,8 @@ models:
     model_type: chat
     capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
     is_active: true
-    input_cost_per_million: 0.54
-    output_cost_per_million: 3.4
+    input_cost_per_million: 0.45
+    output_cost_per_million: 3.0
     recommended_parameters:
       default:
         max_tokens: 8000
@@ -1351,8 +1351,8 @@ models:
     model_type: chat
     capabilities: [text-generation, reasoning, coding]
     is_active: true
-    input_cost_per_million: 0.19
-    output_cost_per_million: 1.0
+    input_cost_per_million: 0.15
+    output_cost_per_million: 0.95
     recommended_parameters:
       default:
         max_tokens: 8000
@@ -1443,8 +1443,8 @@ models:
     model_type: chat
     capabilities: [text-generation, reasoning, analysis, advanced-reasoning]
     is_active: true
-    input_cost_per_million: 0.2
-    output_cost_per_million: 0.6
+    input_cost_per_million: 0.15
+    output_cost_per_million: 0.4
     default_config:
       reasoning_config:
         parameter: thinking_budget
@@ -1478,8 +1478,8 @@ models:
     model_type: chat
     capabilities: [text-generation, coding, analysis]
     is_active: false
-    input_cost_per_million: 0.2
-    output_cost_per_million: 0.6
+    input_cost_per_million: 0.06
+    output_cost_per_million: 0.15
   - id: meta-llama/Llama-3.3-70B-Instruct-Turbo
     name: Llama 3.3 70B Turbo
     description: FP8 optimized for faster inference (no longer hosted on DeepInfra featured catalog)
@@ -1701,8 +1701,8 @@ models:
     model_type: chat
     capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
     is_active: true
-    input_cost_per_million: 0.8
-    output_cost_per_million: 2.56
+    input_cost_per_million: 0.6
+    output_cost_per_million: 2.08
     recommended_parameters:
       default:
         max_tokens: 8000
@@ -1739,7 +1739,7 @@ models:
     model_type: chat
     capabilities: [text-generation, reasoning, analysis]
     is_active: true
-    input_cost_per_million: 0.1
+    input_cost_per_million: 0.09
     output_cost_per_million: 0.3
     recommended_parameters:
       default:
@@ -1770,6 +1770,120 @@ models:
       provenance:
         source: https://huggingface.co/nvidia/Llama-3.3-Nemotron-Super-49B-v1.5
         retrieved: '2026-05-07'
+  - id: google/gemma-4-31B-it
+    name: Gemma 4 31B
+    description: Google Gemma 4 31B instruct, 256K context, multimodal
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 0.13
+    output_cost_per_million: 0.38
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/google/gemma-4-31B-it
+        retrieved: '2026-06-05'
+  - id: google/gemma-4-31B-it-turbo
+    name: Gemma 4 31B Turbo
+    description: Google Gemma 4 31B instruct (turbo serving), 256K context, multimodal
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 0.12
+    output_cost_per_million: 0.37
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/google/gemma-4-31B-it-turbo
+        retrieved: '2026-06-05'
+  - id: google/gemma-4-26B-A4B-it
+    name: Gemma 4 26B A4B
+    description: Google Gemma 4 26B A4B MoE instruct, 256K context, multimodal
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 0.07
+    output_cost_per_million: 0.34
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/google/gemma-4-26B-A4B-it
+        retrieved: '2026-06-05'
+  - id: google/gemma-3-27b-it
+    name: Gemma 3 27B
+    description: Google Gemma 3 27B instruct, 128K context, multimodal
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 0.08
+    output_cost_per_million: 0.16
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://huggingface.co/google/gemma-3-27b-it
+        retrieved: '2026-06-05'
+  - id: google/gemma-3-12b-it
+    name: Gemma 3 12B
+    description: Google Gemma 3 12B instruct, 128K context, multimodal
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 0.04
+    output_cost_per_million: 0.13
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://huggingface.co/google/gemma-3-12b-it
+        retrieved: '2026-06-05'
+  - id: google/gemma-3-4b-it
+    name: Gemma 3 4B
+    description: Google Gemma 3 4B instruct, 128K context, multimodal
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, multimodal]
+    is_active: true
+    input_cost_per_million: 0.04
+    output_cost_per_million: 0.08
+    recommended_parameters:
+      default:
+        max_tokens: 4000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://huggingface.co/google/gemma-3-4b-it
+        retrieved: '2026-06-05'
   - id: grok-4.3
     name: Grok 4.3
     description: xAI's flagship released 2026-04-30 (1M context)
@@ -1923,8 +2037,8 @@ models:
     model_type: chat
     capabilities: [text-generation, data-synthesis, reasoning, multimodal]
     is_active: true
-    input_cost_per_million: 0.4
-    output_cost_per_million: 2.0
+    input_cost_per_million: 1.5
+    output_cost_per_million: 7.5
     recommended_parameters:
       default:
         max_tokens: 8000
@@ -1942,8 +2056,8 @@ models:
     model_type: chat
     capabilities: [text-generation, reasoning, multimodal]
     is_active: true
-    input_cost_per_million: 0.06
-    output_cost_per_million: 0.18
+    input_cost_per_million: 0.1
+    output_cost_per_million: 0.3
     recommended_parameters:
       default:
         max_tokens: 4000
@@ -1981,7 +2095,7 @@ models:
     capabilities: [coding, text-generation, reasoning]
     is_active: true
     input_cost_per_million: 0.4
-    output_cost_per_million: 0.9
+    output_cost_per_million: 2.0
     recommended_parameters:
       default:
         max_tokens: 4000
@@ -2028,7 +2142,7 @@ models:
     capabilities: [reasoning, text-generation]
     is_active: false
     input_cost_per_million: 0.5
-    output_cost_per_million: 1.0
+    output_cost_per_million: 1.5
     default_config:
       reasoning_config:
         parameter: prompt_mode

@@ -7,15 +7,10 @@
 
 import apiClient from '@/lib/api'
 import {
-  StreamExportResult,
-  streamJsonExport,
-} from '@/lib/api/streamingExport'
-import {
   Annotation,
   AnnotationCreate,
   AnnotationResult,
   AssignTasksRequest,
-  ImportResult,
   PaginatedResponse,
   Project,
   ProjectCreate,
@@ -37,6 +32,46 @@ export interface ExportJobStatus {
   created_at: string | null
   updated_at: string | null
   expires_at: string | null
+}
+
+export type ImportJobState = 'pending' | 'running' | 'completed' | 'failed'
+
+/** Result payload an import worker writes back on completion. */
+export interface ImportJobResult {
+  message?: string
+  // Full-project (create-new) import:
+  project_id?: string
+  project_title?: string
+  project_url?: string
+  statistics?: Record<string, any>
+  // Nested (into-existing-project) import:
+  created_tasks?: number
+  created_annotations?: number
+  total_items?: number
+  [key: string]: any
+}
+
+export interface ImportJobStatus {
+  job_id: string
+  project_id: string | null
+  format: string | null
+  status: ImportJobState
+  progress: number
+  byte_size: number | null
+  error_message: string | null
+  result: ImportJobResult | null
+  created_at: string | null
+  updated_at: string | null
+  expires_at: string | null
+}
+
+/** Presigned-POST descriptor returned by the *.../imports/upload-url endpoints. */
+export interface PresignedUpload {
+  upload_url: string
+  method: string
+  file_key: string
+  fields?: Record<string, string>
+  expires_at?: string
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -137,29 +172,6 @@ export const projectsAPI = {
       `/projects/${projectId}/visibility`,
       payload
     )
-    return response
-  },
-
-  /**
-   * Import data into a project. The payload mirrors `ProjectImportData` on the
-   * backend — `data` is the per-task list; the optional auxiliary arrays carry
-   * the full round-trip shape produced by `bulk_export_tasks` / `export_project`.
-   */
-  importData: async (
-    projectId: string,
-    payload: {
-      data: any[]
-      meta?: any
-      evaluation_runs?: any[]
-      human_evaluation_configs?: any[]
-      human_evaluation_sessions?: any[]
-      human_evaluation_results?: any[]
-      preference_rankings?: any[]
-      likert_scale_evaluations?: any[]
-      korrektur_comments?: any[]
-    }
-  ): Promise<ImportResult> => {
-    const response = await apiClient.post(`/projects/${projectId}/import`, payload)
     return response
   },
 
@@ -418,25 +430,6 @@ export const projectsAPI = {
   },
 
   /**
-   * Export project data
-   */
-  export: async (
-    projectId: string,
-    format: 'json' | 'csv' | 'tsv' | 'txt' | 'label_studio' = 'json',
-    download: boolean = true
-  ): Promise<Blob> => {
-    const params = new URLSearchParams({
-      format,
-      download: download.toString(),
-    })
-
-    const response = await apiClient.get(
-      `/projects/${projectId}/export?${params}`
-    )
-    return response
-  },
-
-  /**
    * Bulk delete tasks
    */
   bulkDeleteTasks: async (
@@ -453,55 +446,20 @@ export const projectsAPI = {
   },
 
   /**
-   * Bulk export tasks
-   */
-  bulkExportTasks: async (
-    projectId: string,
-    taskIds: string[],
-    format: 'json' | 'csv' | 'tsv' = 'json'
-  ): Promise<Blob> => {
-    const response = await apiClient.post(
-      `/projects/${projectId}/tasks/bulk-export`,
-      { task_ids: taskIds, format }
-    )
-    return response
-  },
-
-  /**
-   * Stream a JSON bulk export straight to disk with completeness validation.
+   * Create an async export job. The worker streams the export to object storage;
+   * the client polls status and downloads via a presigned URL.
    *
-   * Prefer this over `bulkExportTasks` for the JSON format: the latter buffers
-   * the entire body via `response.blob()`, which truncates or OOMs on
-   * multi-GB projects (e.g. ZJS). Throws `TruncatedExportError` if the stream
-   * is severed, or a DOMException `AbortError` if the user cancels the save
-   * dialog.
-   */
-  streamExportTasks: async (
-    projectId: string,
-    taskIds: string[],
-    suggestedName: string,
-    callbacks?: { onStart?: () => void; onProgress?: (bytes: number) => void }
-  ): Promise<StreamExportResult> => {
-    return streamJsonExport({
-      endpoint: `/projects/${projectId}/tasks/bulk-export`,
-      method: 'POST',
-      body: { task_ids: taskIds, format: 'json' },
-      suggestedName,
-      onStart: callbacks?.onStart,
-      onProgress: callbacks?.onProgress,
-    })
-  },
-
-  /**
-   * Create an async whole-project export job. The worker streams the export to
-   * object storage; the client polls status and downloads via a presigned URL.
+   * Pass `taskIds` to export only a task subset (selected/filtered export) — the
+   * backend restricts subset export to the json format.
    */
   createExportJob: async (
     projectId: string,
-    format: 'json' | 'csv' | 'tsv' | 'txt' | 'label_studio' | 'comprehensive' = 'json'
+    format: 'json' | 'csv' | 'tsv' | 'txt' | 'label_studio' | 'comprehensive' = 'json',
+    taskIds?: string[]
   ): Promise<{ job_id: string; status: ExportJobState }> => {
     return apiClient.post(
-      `/projects/${projectId}/exports?format=${encodeURIComponent(format)}`
+      `/projects/${projectId}/exports?format=${encodeURIComponent(format)}`,
+      taskIds && taskIds.length > 0 ? { task_ids: taskIds } : undefined
     )
   },
 
@@ -528,14 +486,13 @@ export const projectsAPI = {
   },
 
   /**
-   * Drive a whole-project export through the async job flow: enqueue, poll to
-   * completion, then trigger a direct browser download from the presigned URL.
+   * Drive an export through the async job flow: enqueue, poll to completion,
+   * then trigger a direct browser download from the presigned URL.
    *
-   * Use this for full-project exports — it moves the bulk data plane off the
-   * request path, so it can't OOM the API or truncate a multi-GB download the
-   * way the synchronous streaming path could. For filtered/selected subsets,
-   * keep using {@link streamExportTasks} (the async endpoint exports the whole
-   * project, not an arbitrary task subset).
+   * This is the single export path — it moves the bulk data plane off the
+   * request path, so it can't OOM the API or truncate a multi-GB download. Pass
+   * `taskIds` to export only a selected/filtered subset (json-only on the
+   * backend); omit it for the whole project.
    *
    * Throws an Error if the job fails (message = the worker's error_message),
    * or a DOMException `AbortError` if the caller's signal is aborted while
@@ -545,10 +502,14 @@ export const projectsAPI = {
     projectId: string,
     format: 'json' | 'csv' | 'tsv' | 'txt' | 'label_studio' | 'comprehensive',
     callbacks?: { onStatus?: (status: ExportJobStatus) => void },
-    options?: { pollIntervalMs?: number; signal?: AbortSignal }
+    options?: { pollIntervalMs?: number; signal?: AbortSignal; taskIds?: string[] }
   ): Promise<void> => {
     const pollIntervalMs = options?.pollIntervalMs ?? 2000
-    const { job_id } = await projectsAPI.createExportJob(projectId, format)
+    const { job_id } = await projectsAPI.createExportJob(
+      projectId,
+      format,
+      options?.taskIds
+    )
 
     for (;;) {
       if (options?.signal?.aborted) {
@@ -572,6 +533,156 @@ export const projectsAPI = {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  },
+
+  /**
+   * Mint a presigned upload URL for a NESTED import (into an existing project).
+   * The returned key is scoped to the project.
+   */
+  createImportUploadUrl: async (
+    projectId: string,
+    filename: string
+  ): Promise<PresignedUpload> => {
+    return apiClient.post(
+      `/projects/${projectId}/imports/upload-url?filename=${encodeURIComponent(filename)}`
+    )
+  },
+
+  /**
+   * Mint a presigned upload URL for a FULL-PROJECT import (creates a new
+   * project). The returned key is scoped to the requesting user.
+   */
+  createFullImportUploadUrl: async (
+    filename: string
+  ): Promise<PresignedUpload> => {
+    return apiClient.post(
+      `/projects/project-imports/upload-url?filename=${encodeURIComponent(filename)}`
+    )
+  },
+
+  /**
+   * Upload a file straight to object storage using a presigned-POST descriptor.
+   *
+   * The bytes go directly to storage (not through the API or the Next proxy), so
+   * a multi-GB import never touches a server heap. For a presigned POST the
+   * `fields` must precede the `file` part, and `file` must be the LAST field.
+   */
+  uploadToPresignedUrl: async (
+    upload: PresignedUpload,
+    file: File
+  ): Promise<void> => {
+    const formData = new FormData()
+    for (const [key, value] of Object.entries(upload.fields || {})) {
+      formData.append(key, value)
+    }
+    formData.append('file', file)
+    const res = await fetch(upload.upload_url, {
+      method: 'POST',
+      body: formData,
+    })
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      throw new Error(
+        `Upload to storage failed (${res.status}): ${body.slice(0, 500)}`
+      )
+    }
+  },
+
+  /** Create an async NESTED import job for an already-uploaded artifact. */
+  createImportJob: async (
+    projectId: string,
+    objectKey: string
+  ): Promise<{ job_id: string; status: ImportJobState }> => {
+    return apiClient.post(`/projects/${projectId}/imports`, {
+      object_key: objectKey,
+    })
+  },
+
+  /** Create an async FULL-PROJECT import job for an already-uploaded artifact. */
+  createFullImportJob: async (
+    objectKey: string
+  ): Promise<{ job_id: string; status: ImportJobState }> => {
+    return apiClient.post('/projects/project-imports', { object_key: objectKey })
+  },
+
+  /** Poll the status of a nested import job. */
+  getImportJob: async (
+    projectId: string,
+    jobId: string
+  ): Promise<ImportJobStatus> => {
+    return apiClient.get(`/projects/${projectId}/imports/${jobId}`)
+  },
+
+  /** Poll the status of a full-project import job. */
+  getFullImportJob: async (jobId: string): Promise<ImportJobStatus> => {
+    return apiClient.get(`/projects/project-imports/${jobId}`)
+  },
+
+  /**
+   * Drive a NESTED import through the async job flow: presign → upload → enqueue
+   * → poll. Resolves with the final (completed) job status.
+   *
+   * Throws an Error if the job fails (message = the worker's error_message), or
+   * a DOMException `AbortError` if the caller's signal is aborted while polling.
+   */
+  runNestedImportJob: async (
+    projectId: string,
+    file: File,
+    callbacks?: { onStatus?: (status: ImportJobStatus) => void },
+    options?: { pollIntervalMs?: number; signal?: AbortSignal }
+  ): Promise<ImportJobStatus> => {
+    const pollIntervalMs = options?.pollIntervalMs ?? 2000
+    const upload = await projectsAPI.createImportUploadUrl(projectId, file.name)
+    await projectsAPI.uploadToPresignedUrl(upload, file)
+    const { job_id } = await projectsAPI.createImportJob(
+      projectId,
+      upload.file_key
+    )
+
+    for (;;) {
+      if (options?.signal?.aborted) {
+        throw new DOMException('Import polling aborted', 'AbortError')
+      }
+      const status = await projectsAPI.getImportJob(projectId, job_id)
+      callbacks?.onStatus?.(status)
+      if (status.status === 'completed') return status
+      if (status.status === 'failed') {
+        throw new Error(status.error_message || 'Import job failed')
+      }
+      await sleep(pollIntervalMs)
+    }
+  },
+
+  /**
+   * Drive a FULL-PROJECT import (create-new) through the async job flow: presign
+   * → upload → enqueue → poll. Resolves with the final (completed) job status;
+   * the created project id is on `status.project_id` (and `status.result`).
+   *
+   * Throws an Error if the job fails (message = the worker's error_message), or
+   * a DOMException `AbortError` if the caller's signal is aborted while polling.
+   */
+  runProjectImportJob: async (
+    file: File,
+    callbacks?: { onStatus?: (status: ImportJobStatus) => void },
+    options?: { pollIntervalMs?: number; signal?: AbortSignal }
+  ): Promise<ImportJobStatus> => {
+    const pollIntervalMs = options?.pollIntervalMs ?? 2000
+    const upload = await projectsAPI.createFullImportUploadUrl(file.name)
+    await projectsAPI.uploadToPresignedUrl(upload, file)
+    const { job_id } = await projectsAPI.createFullImportJob(upload.file_key)
+
+    for (;;) {
+      if (options?.signal?.aborted) {
+        throw new DOMException('Import polling aborted', 'AbortError')
+      }
+      const status = await projectsAPI.getFullImportJob(job_id)
+      callbacks?.onStatus?.(status)
+      if (status.status === 'completed') return status
+      if (status.status === 'failed') {
+        throw new Error(status.error_message || 'Import job failed')
+      }
+      await sleep(pollIntervalMs)
+    }
   },
 
   /**
@@ -650,31 +761,6 @@ export const projectsAPI = {
     const response = await apiClient.post('/projects/bulk-export-full', {
       project_ids: projectIds,
     })
-    return response
-  },
-
-  /**
-   * Import a complete project from a JSON file
-   * Creates a new project with all associated data
-   */
-  importProject: async (
-    file: File
-  ): Promise<{
-    message: string
-    project_id: string
-    project_title: string
-    project_url: string
-    statistics: Record<string, any>
-  }> => {
-    const formData = new FormData()
-    formData.append('file', file)
-
-    const response = await apiClient.post(
-      '/projects/import-project',
-      formData
-      // Note: Don't set Content-Type header manually for FormData
-      // The browser automatically sets the correct multipart/form-data with boundary
-    )
     return response
   },
 

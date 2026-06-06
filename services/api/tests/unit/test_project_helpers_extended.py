@@ -169,6 +169,83 @@ class TestCheckProjectAccessibleLegacy:
         assert check_project_accessible(db, user, "proj-1", org_context=None) == False  # noqa: E712
 
 
+class TestCheckProjectAccessibleArchived:
+    """Archived projects are read-only to annotators; higher roles keep access."""
+
+    def test_archived_project_denied_for_annotator(self):
+        from routers.projects.helpers import check_project_accessible
+
+        db = MagicMock()
+        project = Mock(
+            is_archived=True,
+            is_public=False,
+            is_private=False,
+            created_by="other-1",
+            id="proj-1",
+        )
+        db.query.return_value.filter.return_value.first.return_value = project
+
+        user = Mock(is_superadmin=False, id="annotator-1")
+        with patch(
+            "routers.projects.helpers.get_effective_project_role",
+            return_value="ANNOTATOR",
+        ):
+            assert (
+                check_project_accessible(db, user, "proj-1", org_context="org-1")
+                is False
+            )
+
+    def test_archived_project_accessible_to_creator(self):
+        from routers.projects.helpers import check_project_accessible
+
+        db = MagicMock()
+        project = Mock(
+            is_archived=True,
+            is_public=False,
+            is_private=False,
+            created_by="user-1",
+            id="proj-1",
+        )
+        db.query.return_value.filter.return_value.first.return_value = project
+        # Legacy path: project has no org rows -> creator match grants access.
+        db.query.return_value.filter.return_value.all.return_value = []
+
+        # Creator resolves to ORG_ADMIN (not ANNOTATOR), so the archived gate
+        # does not block; the real get_effective_project_role short-circuits.
+        user = Mock(is_superadmin=False, id="user-1")
+        assert check_project_accessible(db, user, "proj-1", org_context=None) is True
+
+    def test_archived_project_accessible_to_superadmin(self):
+        from routers.projects.helpers import check_project_accessible
+
+        db = MagicMock()
+        # Superadmin short-circuits before the archived gate even runs.
+        user = Mock(is_superadmin=True)
+        assert check_project_accessible(db, user, "proj-1") is True
+
+    def test_non_archived_annotator_not_blocked_by_gate(self):
+        from routers.projects.helpers import check_project_accessible
+
+        db = MagicMock()
+        # Public + not archived: annotator visitor still gets access via the
+        # public short-circuit. Proves the gate only fires when is_archived.
+        project = Mock(
+            is_archived=False,
+            is_public=True,
+            is_private=False,
+            public_role="ANNOTATOR",
+            created_by="creator-1",
+            id="proj-1",
+        )
+        db.query.return_value.filter.return_value.first.return_value = project
+
+        user = Mock(is_superadmin=False, id="visitor-1")
+        assert (
+            check_project_accessible(db, user, "proj-1", org_context="other-org")
+            is True
+        )
+
+
 class TestCheckTaskAssignedToUser:
     """Tests for check_task_assigned_to_user."""
 
@@ -265,6 +342,7 @@ class TestPublicProjectHelpers:
         project = Mock(
             is_private=False,
             is_public=True,
+            is_archived=False,
             public_role="ANNOTATOR",
             created_by="creator-1",
             id="proj-pub",

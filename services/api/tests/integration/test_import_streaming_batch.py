@@ -6,8 +6,12 @@ property of that change is correctness *across* a batch boundary: detaching
 just-inserted rows must neither drop nor duplicate them, and a child row whose
 parent was inserted (and expunged) in an earlier batch must still resolve its
 FK. These tests import comfortably more than two batches (with child rows that
-FK-reference parents created in an earlier batch) and assert exact counts for
-both the nested (`/import`) and flat (`/import-project`) endpoints.
+FK-reference parents created in an earlier batch) and assert exact counts.
+
+The sync import endpoints (``POST /{id}/import``, ``POST /import-project``) were
+removed in the #158 follow-up; these tests now drive the same shared streaming
+drivers (``run_nested_import`` / ``run_full_project_import``) the async worker
+runs, so the memory-regression coverage survives the endpoint removal.
 """
 
 import io
@@ -17,6 +21,10 @@ import uuid
 import pytest
 
 from project_models import Annotation, Project, ProjectOrganization, Task
+from routers.projects._import_stream import (
+    run_full_project_import,
+    run_nested_import,
+)
 from routers.projects.import_export import _IMPORT_BATCH
 
 # Cross two full batches plus a partial remainder, so the run hits the
@@ -47,16 +55,12 @@ def _make_project(db, admin, org, title="Batch Boundary"):
     return project
 
 
-def _headers(auth_headers, org):
-    return {**auth_headers["admin"], "X-Organization-Context": org.id}
-
-
 @pytest.mark.integration
 class TestNestedImportBatchBoundary:
-    """POST /api/projects/{id}/import — Label-Studio nested format."""
+    """run_nested_import — Label-Studio nested format into an existing project."""
 
     def test_imports_all_rows_across_batches(
-        self, client, test_db, test_users, auth_headers, test_org
+        self, test_db, test_users, test_org
     ):
         project = _make_project(test_db, test_users[0], test_org, "Nested Batch")
         test_db.commit()
@@ -80,16 +84,13 @@ class TestNestedImportBatchBoundary:
                 for i in range(ROW_COUNT)
             ]
         }
+        json_bytes = json.dumps(import_data).encode("utf-8")
 
-        resp = client.post(
-            f"/api/projects/{project.id}/import",
-            json=import_data,
-            headers=_headers(auth_headers, test_org),
+        result = run_nested_import(
+            test_db, project.id, io.BytesIO(json_bytes), test_users[0].id
         )
-        assert resp.status_code == 200, resp.text
-        body = resp.json()
-        assert body["created_tasks"] == ROW_COUNT
-        assert body["created_annotations"] == ROW_COUNT
+        assert result["created_tasks"] == ROW_COUNT
+        assert result["created_annotations"] == ROW_COUNT
 
         # Source of truth: the DB. No rows dropped or duplicated by expunge_all.
         assert test_db.query(Task).filter(
@@ -102,7 +103,7 @@ class TestNestedImportBatchBoundary:
 
 @pytest.mark.integration
 class TestFlatImportBatchBoundary:
-    """POST /api/projects/import-project — flat comprehensive format."""
+    """run_full_project_import — flat comprehensive format (creates a project)."""
 
     def _export_payload(self, title):
         # Flat export shape: top-level `tasks` and `annotations` arrays, the
@@ -138,23 +139,21 @@ class TestFlatImportBatchBoundary:
         }
 
     def test_imports_all_rows_across_batches(
-        self, client, test_db, test_users, auth_headers, test_org
+        self, test_db, test_users, test_org
     ):
+        # test_org gives test_users[0] an active org membership; the full-project
+        # importer requires one to own the newly-created project.
         payload = self._export_payload("Flat Batch")
         json_bytes = json.dumps(payload).encode("utf-8")
 
-        resp = client.post(
-            "/api/projects/import-project",
-            files={"file": ("export.json", io.BytesIO(json_bytes), "application/json")},
-            headers=_headers(auth_headers, test_org),
+        result = run_full_project_import(
+            test_db, io.BytesIO(json_bytes), test_users[0].id
         )
-        assert resp.status_code in (200, 201), resp.text
-        body = resp.json()
-        counts = body["statistics"]["imported_counts"]
+        counts = result["statistics"]["imported_counts"]
         assert counts["tasks"] == ROW_COUNT
         assert counts["annotations"] == ROW_COUNT
 
-        new_project_id = body["project_id"]
+        new_project_id = result["project_id"]
         assert test_db.query(Task).filter(
             Task.project_id == new_project_id
         ).count() == ROW_COUNT

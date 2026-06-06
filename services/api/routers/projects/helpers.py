@@ -676,6 +676,14 @@ def check_project_accessible(
     if not project:
         return False
 
+    # Archived projects are read-only to annotators: an annotator who is
+    # otherwise a member loses access once a project is archived. Higher roles
+    # (and the creator/superadmin, who already short-circuit above / resolve to
+    # ORG_ADMIN) keep access so they can view and unarchive.
+    if getattr(project, "is_archived", False):
+        if get_effective_project_role(db, user, project) == "ANNOTATOR":
+            return False
+
     # Public projects are readable by every authenticated user regardless of context.
     if getattr(project, "is_public", False) is True:
         return True

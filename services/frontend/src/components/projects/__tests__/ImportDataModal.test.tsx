@@ -21,9 +21,21 @@ jest.mock('@/components/shared/Toast', () => ({
 
 jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
-    importData: jest.fn(),
+    runNestedImportJob: jest.fn(),
   },
 }))
+
+// The modal serializes the assembled nested envelope into a JSON File and hands
+// it to runNestedImportJob. Read that File back to assert on the parsed payload
+// (the client-side parse/validation/field-mapping that used to be asserted via
+// the importData call args).
+async function uploadedImportEnvelope(callIndex = 0): Promise<any> {
+  const call = (projectsAPI.runNestedImportJob as jest.Mock).mock.calls[
+    callIndex
+  ]
+  const file = call[1] as File
+  return JSON.parse(await file.text())
+}
 
 jest.mock('@/stores/projectStore', () => ({
   useProjectStore: jest.fn(),
@@ -124,8 +136,10 @@ describe('ImportDataModal', () => {
     ;(useProjectStore as jest.Mock).mockReturnValue({
       fetchProject: mockFetchProject,
     })
-    ;(projectsAPI.importData as jest.Mock).mockResolvedValue({
-      created: 5,
+    ;(projectsAPI.runNestedImportJob as jest.Mock).mockResolvedValue({
+      job_id: 'job-1',
+      status: 'completed',
+      result: { created_tasks: 5 },
     })
 
     mockFetchProject.mockResolvedValue(mockProject)
@@ -437,12 +451,15 @@ describe('ImportDataModal', () => {
       await user.click(importButton)
 
       await waitFor(() => {
-        expect(projectsAPI.importData).toHaveBeenCalledWith(
+        expect(projectsAPI.runNestedImportJob).toHaveBeenCalledWith(
           'test-project-123',
-          {
-            data: [{ data: { text: 'test' } }],
-          }
+          expect.any(File),
+          expect.objectContaining({ onStatus: expect.any(Function) })
         )
+      })
+      // The serialized envelope carries the parsed task list.
+      expect(await uploadedImportEnvelope()).toEqual({
+        data: [{ data: { text: 'test' } }],
       })
     })
 
@@ -464,15 +481,15 @@ describe('ImportDataModal', () => {
       await user.click(importButton)
 
       await waitFor(() => {
-        expect(projectsAPI.importData).toHaveBeenCalledWith(
-          'test-project-123',
-          expect.objectContaining({
-            data: expect.arrayContaining([
-              expect.objectContaining({ data: expect.any(Object) }),
-            ]),
-          })
-        )
+        expect(projectsAPI.runNestedImportJob).toHaveBeenCalled()
       })
+      expect(await uploadedImportEnvelope()).toEqual(
+        expect.objectContaining({
+          data: expect.arrayContaining([
+            expect.objectContaining({ data: expect.any(Object) }),
+          ]),
+        })
+      )
     })
 
     it('imports plain text successfully', async () => {
@@ -493,7 +510,7 @@ describe('ImportDataModal', () => {
       await user.click(importButton)
 
       await waitFor(() => {
-        expect(projectsAPI.importData).toHaveBeenCalled()
+        expect(projectsAPI.runNestedImportJob).toHaveBeenCalled()
       })
     })
 
@@ -513,15 +530,15 @@ describe('ImportDataModal', () => {
       await user.click(importButton)
 
       await waitFor(() => {
-        expect(projectsAPI.importData).toHaveBeenCalledWith(
-          'test-project-123',
-          expect.objectContaining({
-            data: expect.arrayContaining([
-              expect.objectContaining({ data: { text: 'pasted' } }),
-            ]),
-          })
-        )
+        expect(projectsAPI.runNestedImportJob).toHaveBeenCalled()
       })
+      expect(await uploadedImportEnvelope()).toEqual(
+        expect.objectContaining({
+          data: expect.arrayContaining([
+            expect.objectContaining({ data: { text: 'pasted' } }),
+          ]),
+        })
+      )
     })
 
     it('shows progress indicators during import', async () => {
@@ -654,7 +671,7 @@ describe('ImportDataModal', () => {
     })
 
     it('handles API import failure', async () => {
-      ;(projectsAPI.importData as jest.Mock).mockRejectedValue(
+      ;(projectsAPI.runNestedImportJob as jest.Mock).mockRejectedValue(
         new Error('Import failed')
       )
 
@@ -684,7 +701,7 @@ describe('ImportDataModal', () => {
     })
 
     it('handles authentication errors', async () => {
-      ;(projectsAPI.importData as jest.Mock).mockRejectedValue({
+      ;(projectsAPI.runNestedImportJob as jest.Mock).mockRejectedValue({
         response: { status: 401 },
       })
 
@@ -713,7 +730,7 @@ describe('ImportDataModal', () => {
     })
 
     it('handles permission errors', async () => {
-      ;(projectsAPI.importData as jest.Mock).mockRejectedValue({
+      ;(projectsAPI.runNestedImportJob as jest.Mock).mockRejectedValue({
         response: { status: 403 },
       })
 
@@ -875,10 +892,18 @@ describe('ImportDataModal', () => {
 
     it('prevents closing during import', async () => {
       // Mock a slow import
-      ;(projectsAPI.importData as jest.Mock).mockImplementation(
+      ;(projectsAPI.runNestedImportJob as jest.Mock).mockImplementation(
         () =>
           new Promise((resolve) => {
-            setTimeout(() => resolve({ created: 1 }), 100)
+            setTimeout(
+              () =>
+                resolve({
+                  job_id: 'job-1',
+                  status: 'completed',
+                  result: { created_tasks: 1 },
+                }),
+              100
+            )
           })
       )
 
@@ -926,7 +951,7 @@ describe('ImportDataModal', () => {
       await user.click(importButton)
 
       await waitFor(() => {
-        expect(projectsAPI.importData).toHaveBeenCalled()
+        expect(projectsAPI.runNestedImportJob).toHaveBeenCalled()
       })
     })
 
@@ -944,7 +969,7 @@ describe('ImportDataModal', () => {
       await user.click(importButton)
 
       await waitFor(() => {
-        expect(projectsAPI.importData).toHaveBeenCalled()
+        expect(projectsAPI.runNestedImportJob).toHaveBeenCalled()
       })
     })
 
@@ -964,7 +989,7 @@ describe('ImportDataModal', () => {
       await user.click(importButton)
 
       await waitFor(() => {
-        expect(projectsAPI.importData).toHaveBeenCalled()
+        expect(projectsAPI.runNestedImportJob).toHaveBeenCalled()
       })
     })
   })
