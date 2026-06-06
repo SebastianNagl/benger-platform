@@ -631,6 +631,53 @@ class TestGetUploadUrl:
         call_kwargs = mock_client.generate_presigned_post.call_args[1]
         assert call_kwargs["ExpiresIn"] == 7200
 
+    def test_s3_meta_fields_are_covered_by_policy_conditions(self):
+        """Every form field sent with the POST must be covered by a policy
+        condition, or S3/MinIO rejects the upload with AccessDenied
+        ("...not specified in the policy"). The x-amz-meta-* fields are added to
+        Fields, so a matching exact-match condition must be present for each —
+        regression for the prod import-upload 403 (issue #158 follow-up)."""
+        service, mock_client = _make_s3_service()
+        mock_client.generate_presigned_post.return_value = {
+            "url": "https://s3.example.com",
+            "fields": {},
+        }
+
+        service.get_upload_url("report.json", file_type="imports", user_id="user-42")
+
+        call_kwargs = mock_client.generate_presigned_post.call_args[1]
+        fields = call_kwargs["Fields"]
+        conditions = call_kwargs["Conditions"]
+
+        # Collect the field names the policy pins via exact-match dict conditions.
+        exact_match_keys = {
+            k for c in conditions if isinstance(c, dict) for k in c
+        }
+        starts_with_keys = {
+            c[1].lstrip("$") for c in conditions
+            if isinstance(c, list) and c and c[0] == "starts-with"
+        }
+        covered = exact_match_keys | starts_with_keys
+
+        # Sanity: the meta fields are actually being sent in the form.
+        assert "x-amz-meta-original-filename" in fields
+        assert "x-amz-meta-user-id" in fields
+
+        # Each non-signing form field must be covered by a condition.
+        signing_fields = {"key", "policy", "x-amz-algorithm", "x-amz-credential",
+                          "x-amz-date", "x-amz-signature"}
+        for field_name in fields:
+            if field_name in signing_fields:
+                continue
+            assert field_name in covered, (
+                f"form field {field_name!r} is sent but not covered by any "
+                f"policy condition; S3/MinIO will reject the POST"
+            )
+
+        # And the exact values must match what the client echoes back.
+        assert {"x-amz-meta-original-filename": "report.json"} in conditions
+        assert {"x-amz-meta-user-id": "user-42"} in conditions
+
     def test_s3_default_expires_in(self):
         """Default expiration is used when not specified."""
         service, mock_client = _make_s3_service()
