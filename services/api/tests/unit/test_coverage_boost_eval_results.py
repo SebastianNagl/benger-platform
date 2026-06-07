@@ -17,8 +17,10 @@ from datetime import datetime
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
+    Generation,
     Organization,
     OrganizationMembership,
+    ResponseGeneration,
     TaskEvaluation,
 )
 from project_models import (
@@ -91,6 +93,33 @@ def _make_eval_run(db, project_id, user_id, model_id="gpt-4o", status="completed
     return run
 
 
+def _make_generation(db, task_id):
+    """A minimal, FK-valid generation so each task_evaluation is a distinct cell."""
+    rg = ResponseGeneration(
+        id=str(uuid.uuid4()),
+        task_id=task_id,
+        model_id="gpt-4o",
+        status="completed",
+        created_by="test",
+    )
+    db.add(rg)
+    db.commit()
+    gen = Generation(
+        id=str(uuid.uuid4()),
+        generation_id=rg.id,
+        task_id=task_id,
+        model_id="gpt-4o",
+        run_index=0,
+        case_data="{}",
+        response_content="x",
+        status="completed",
+        parse_status="success",
+    )
+    db.add(gen)
+    db.commit()
+    return gen
+
+
 def _make_task_eval(db, eval_id, task_id, field_name="c", predicted="A", reference="B", metrics=None):
     # Migration 043: judge_run_id is NOT NULL. Reuse the per-eval synthetic
     # judge_run when present, otherwise create one (matches the 043 backfill).
@@ -119,6 +148,7 @@ def _make_task_eval(db, eval_id, task_id, field_name="c", predicted="A", referen
         evaluation_id=eval_id,
         judge_run_id=jr.id,
         task_id=task_id,
+        generation_id=_make_generation(db, task_id).id,
         field_name=field_name,
         answer_type="choice",
         prediction=predicted,
