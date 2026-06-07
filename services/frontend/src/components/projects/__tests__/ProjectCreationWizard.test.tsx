@@ -821,6 +821,52 @@ describe('ProjectCreationWizard', () => {
       })
     })
 
+    it('ignores repeated submit clicks and creates the project only once', async () => {
+      const user = userEvent.setup()
+      // Hold createProject pending so the finish flow stays in flight while we
+      // fire extra clicks — this is the window where the global store `loading`
+      // flag would otherwise have flipped back to false and re-enabled the button.
+      let resolveCreate: (value: { id: string }) => void = () => {}
+      mockCreateProject.mockImplementation(
+        () =>
+          new Promise<{ id: string }>((resolve) => {
+            resolveCreate = resolve
+          })
+      )
+      mockFetchProject.mockResolvedValue({})
+
+      render(<ProjectCreationWizard />)
+
+      await user.type(
+        screen.getByTestId('project-create-name-input'),
+        'Dup Guard'
+      )
+      await user.click(screen.getByTestId('project-create-next-button'))
+      await waitFor(() => {
+        expect(
+          screen.getByTestId('project-create-submit-button')
+        ).toBeInTheDocument()
+      })
+
+      const submit = screen.getByTestId('project-create-submit-button')
+
+      // First click starts the flow; createProject is now pending.
+      await user.click(submit)
+      await waitFor(() => expect(submit).toBeDisabled())
+
+      // Spam more clicks while the flow is mid-flight — these must be no-ops.
+      await user.click(submit)
+      await user.click(submit)
+
+      // Let the in-flight create resolve and the flow run to navigation.
+      resolveCreate({ id: 'project-123' })
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/projects/project-123')
+      })
+
+      expect(mockCreateProject).toHaveBeenCalledTimes(1)
+    })
+
     it('creates project with all configuration when all features are set', async () => {
       const user = userEvent.setup()
       mockCreateProject.mockResolvedValue({ id: 'project-full' })
