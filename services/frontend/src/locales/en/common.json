@@ -2978,6 +2978,13 @@
       "readMore": "Read more",
       "items": [
         {
+          "title": "BenGER: Dataset & Benchmark Released",
+          "description": "Our first open, large-scale benchmark for subsumption-based reasoning in German law — 12 LLM systems, a real human baseline, human-AI co-creation data, and an LLM judge validated against seven human reviewers. Open under CC BY 4.0.",
+          "date": "2026-06-07",
+          "type": "publication",
+          "url": "https://legalplusplus.net/articles/benchmark-release"
+        },
+        {
           "title": "BenGER Platform Release",
           "description": "The BenGER platform is now publicly available. Read the announcement covering the open-core release, what's included, and how to get started running your own legal-AI benchmarks.",
           "date": "2026-05-03",
