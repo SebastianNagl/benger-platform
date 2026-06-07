@@ -11,7 +11,7 @@ dependencies = [
     "fastapi==0.136.3",
     "uvicorn[standard]==0.48.0",
     "pydantic==2.13.4",
-    "python-multipart==0.0.29",
+    "python-multipart==0.0.30",
     "PyJWT[crypto]==2.13.0",
     "cryptography>=43.0.0,<47.0.0",
     "bcrypt==4.3.0",
@@ -30,7 +30,7 @@ dependencies = [
     # starlette version is managed by fastapi
     "anyio==4.13.0",
     "openai==1.109.1",
-    "anthropic==0.104.1",
+    "anthropic==0.105.2",
     "google-genai>=1.0.0",
     # tiktoken powers the prompt-token count in services/api/services/
     # token_estimation.py — without it the cost estimator falls back to
