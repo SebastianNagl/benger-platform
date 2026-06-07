@@ -19,7 +19,7 @@ import { extractFieldsFromLabelConfig } from '@/lib/labelConfig/fieldExtractor'
 import { useProjectStore } from '@/stores/projectStore'
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useToast } from '@/components/shared/Toast'
 import { StepAnnotationInstructions } from './wizard/StepAnnotationInstructions'
 import { StepDataImport } from './wizard/StepDataImport'
@@ -46,6 +46,14 @@ export function ProjectCreationWizard() {
   const [wizardData, setWizardData] = useState<WizardData>(INITIAL_WIZARD_DATA)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // Re-entrancy guard for the final "Create Project" action. The global store
+  // `loading` flag only covers the createProject/fetchProject calls and flips
+  // back to false mid-flight (during import + the settings PATCH/PUTs), which
+  // would otherwise re-enable the button and let a second click create a
+  // duplicate project. The ref blocks re-entry synchronously (state updates are
+  // async); the state drives the disabled UI.
+  const isFinishingRef = useRef(false)
+  const [isFinishing, setIsFinishing] = useState(false)
 
   const nlpTemplates: LabelingTemplate[] = useMemo(
     () => [
@@ -344,7 +352,11 @@ export function ProjectCreationWizard() {
   }
 
   const handleFinish = async () => {
+    if (isFinishingRef.current) return
     if (!validateStep()) return
+
+    isFinishingRef.current = true
+    setIsFinishing(true)
 
     try {
       // 1. Create project with basic info + label config
@@ -614,6 +626,11 @@ export function ProjectCreationWizard() {
           : t('projects.wizard.createFailed'),
         'error'
       )
+      // Re-enable the button so the user can retry. On the success path we
+      // navigate away (router.push) and the component unmounts, so the guard
+      // intentionally stays set there to keep the button disabled.
+      isFinishingRef.current = false
+      setIsFinishing(false)
     }
   }
 
@@ -784,10 +801,10 @@ export function ProjectCreationWizard() {
           {isLastStep ? (
             <Button
               onClick={handleFinish}
-              disabled={loading}
+              disabled={loading || isFinishing}
               data-testid="project-create-submit-button"
             >
-              {loading
+              {loading || isFinishing
                 ? t('projects.creation.wizard.navigation.creating')
                 : t('projects.creation.wizard.navigation.create')}
             </Button>
