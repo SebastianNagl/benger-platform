@@ -1,7 +1,7 @@
 fastapi==0.136.3
 uvicorn[standard]==0.48.0
 pydantic>=2.9.0
-python-multipart==0.0.29
+python-multipart==0.0.30
 PyJWT[crypto]>=2.8.0,<2.14.0
 # 47.0.0's aarch64 wheel uses ARMv8.2 crypto extensions some Docker Desktop
 # macOS VMs do not expose, causing SIGILL on `import _rust`. Cap below 47 until
@@ -23,7 +23,7 @@ email-validator==2.3.0
 # starlette version is managed by fastapi
 anyio==4.13.0
 openai==1.109.1
-anthropic==0.104.1
+anthropic==0.105.2
 google-genai>=1.0.0
 mistralai>=1.2.0  # Mistral AI models
 cohere>=5.21.1  # Cohere models
@@ -31,7 +31,7 @@ aiohttp==3.13.5
 jinja2>=3.1.0
 boto3>=1.35.0
 botocore>=1.43.11
-requests>=2.32.0
+requests>=2.34.2
 pyopenssl>=23.3.0
 jsonschema==4.26.0
 # Streaming JSON parser for memory-bounded project import (issue #158).
@@ -49,7 +49,7 @@ scipy>=1.11.0
 # service to keep the wheel pinning consistent.
 tiktoken>=0.5.0
 # Monitoring and testing tools
-psutil>=6.1.0  # For system and memory monitoring
+psutil>=6.1.1  # For system and memory monitoring
 locust==2.44.0  # For load testing
 
 # Async testing dependencies
