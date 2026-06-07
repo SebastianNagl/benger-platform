@@ -233,14 +233,18 @@ def project_with_full_data(db_session, user):
         gen_evals.append(te)
 
     # --- Task evaluations (task-level, no generation) ---
+    # Each row is an annotation-level eval cell: generation_id stays None (so it
+    # buckets under task_data["evaluations"]) but annotation_id is set per task so
+    # each row is a distinct cell under uq_task_evaluations_cell.
     task_evals = []
-    for t in tasks:
+    for t, ann in zip(tasks, annotations):
         te = TaskEvaluation(
             id=str(uuid.uuid4()),
             evaluation_id=er_ann.id,
             judge_run_id=er_ann._test_judge_run.id,
             task_id=t.id,
             generation_id=None,
+            annotation_id=ann.id,
             field_name="exact_match:answer:reference",
             answer_type="categorical",
             ground_truth="A",
