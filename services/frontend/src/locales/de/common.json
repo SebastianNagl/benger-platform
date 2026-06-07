@@ -2960,6 +2960,13 @@
       "readMore": "Weiterlesen",
       "items": [
         {
+          "title": "BenGER: Datensatz & Benchmark veröffentlicht",
+          "description": "Unser erster offener, großangelegter Benchmark für subsumtionsbasiertes Reasoning im deutschen Recht — 12 LLM-Systeme, echtes Human-Baseline, Co-Creation-Daten und ein gegen sieben menschliche Bewerter validierter LLM-Judge. Offen unter CC BY 4.0.",
+          "date": "2026-06-07",
+          "type": "publication",
+          "url": "https://legalplusplus.net/articles/benchmark-release"
+        },
+        {
           "title": "BenGER Plattform-Release",
           "description": "Die BenGER-Plattform ist nun öffentlich verfügbar. Der Beitrag erläutert das Open-Core-Release, den Funktionsumfang und wie Sie Ihre eigenen Legal-KI-Benchmarks erstellen.",
           "date": "2026-05-03",
