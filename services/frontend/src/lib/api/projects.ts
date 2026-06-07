@@ -76,6 +76,13 @@ export interface PresignedUpload {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
+// Delay before the next job-status poll. Polls fast at first so small jobs feel
+// near-instant, then backs off so long-running jobs don't hammer the status
+// endpoint. An explicit `overrideMs` (passed by some callers/tests) forces a
+// fixed interval instead. Schedule by attempt: 250, 500, 1000, then 1500ms.
+const nextPollDelay = (attempt: number, overrideMs?: number): number =>
+  overrideMs ?? Math.min(1500, 250 * 2 ** Math.min(attempt, 3))
+
 export const projectsAPI = {
   /**
    * List all projects
@@ -504,13 +511,13 @@ export const projectsAPI = {
     callbacks?: { onStatus?: (status: ExportJobStatus) => void },
     options?: { pollIntervalMs?: number; signal?: AbortSignal; taskIds?: string[] }
   ): Promise<void> => {
-    const pollIntervalMs = options?.pollIntervalMs ?? 2000
     const { job_id } = await projectsAPI.createExportJob(
       projectId,
       format,
       options?.taskIds
     )
 
+    let attempt = 0
     for (;;) {
       if (options?.signal?.aborted) {
         throw new DOMException('Export polling aborted', 'AbortError')
@@ -521,7 +528,7 @@ export const projectsAPI = {
       if (status.status === 'failed') {
         throw new Error(status.error_message || 'Export job failed')
       }
-      await sleep(pollIntervalMs)
+      await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
     }
 
     const { url } = await projectsAPI.getExportDownloadUrl(projectId, job_id)
@@ -631,7 +638,6 @@ export const projectsAPI = {
     callbacks?: { onStatus?: (status: ImportJobStatus) => void },
     options?: { pollIntervalMs?: number; signal?: AbortSignal }
   ): Promise<ImportJobStatus> => {
-    const pollIntervalMs = options?.pollIntervalMs ?? 2000
     const upload = await projectsAPI.createImportUploadUrl(projectId, file.name)
     await projectsAPI.uploadToPresignedUrl(upload, file)
     const { job_id } = await projectsAPI.createImportJob(
@@ -639,6 +645,7 @@ export const projectsAPI = {
       upload.file_key
     )
 
+    let attempt = 0
     for (;;) {
       if (options?.signal?.aborted) {
         throw new DOMException('Import polling aborted', 'AbortError')
@@ -649,7 +656,7 @@ export const projectsAPI = {
       if (status.status === 'failed') {
         throw new Error(status.error_message || 'Import job failed')
       }
-      await sleep(pollIntervalMs)
+      await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
     }
   },
 
@@ -666,11 +673,11 @@ export const projectsAPI = {
     callbacks?: { onStatus?: (status: ImportJobStatus) => void },
     options?: { pollIntervalMs?: number; signal?: AbortSignal }
   ): Promise<ImportJobStatus> => {
-    const pollIntervalMs = options?.pollIntervalMs ?? 2000
     const upload = await projectsAPI.createFullImportUploadUrl(file.name)
     await projectsAPI.uploadToPresignedUrl(upload, file)
     const { job_id } = await projectsAPI.createFullImportJob(upload.file_key)
 
+    let attempt = 0
     for (;;) {
       if (options?.signal?.aborted) {
         throw new DOMException('Import polling aborted', 'AbortError')
@@ -681,7 +688,7 @@ export const projectsAPI = {
       if (status.status === 'failed') {
         throw new Error(status.error_message || 'Import job failed')
       }
-      await sleep(pollIntervalMs)
+      await sleep(nextPollDelay(attempt++, options?.pollIntervalMs))
     }
   },
 
