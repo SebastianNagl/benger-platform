@@ -99,9 +99,45 @@ def _make_eval_run(db, project, admin_id="admin-test-id", *, status="completed",
     return er
 
 
+def _make_generation(db, task):
+    """A minimal, FK-valid generation (ResponseGeneration parent + Generation child)."""
+    rg = ResponseGeneration(
+        id=_uid(),
+        project_id=task.project_id,
+        task_id=task.id,
+        model_id="gpt-4",
+        status="completed",
+        created_by=task.created_by,
+    )
+    db.add(rg)
+    db.flush()
+    gen = Generation(
+        id=_uid(),
+        generation_id=rg.id,
+        task_id=task.id,
+        model_id="gpt-4",
+        run_index=0,
+        case_data="{}",
+        response_content="x",
+        status="completed",
+        parse_status="success",
+    )
+    db.add(gen)
+    db.flush()
+    return gen
+
+
 def _make_task_evaluation(db, eval_run, task, *, metrics=None, generation=None,
                           annotation=None, field_name="answer",
                           ground_truth=None, prediction=None, passed=True):
+    # uq_task_evaluations_cell keys a row on its scored subject
+    # (generation_id / annotation_id / created_by), not its task_id. A real
+    # task_evaluation always references a generation (LLM eval) or annotation
+    # (human eval); with all three NULL, every row in the same run+field
+    # collapses to one cell and the second insert collides. Synthesize a
+    # distinct generation when no subject is supplied.
+    if generation is None and annotation is None:
+        generation = _make_generation(db, task)
     te = TaskEvaluation(
         id=_uid(),
         evaluation_id=eval_run.id,
