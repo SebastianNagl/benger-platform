@@ -9,9 +9,9 @@ description = "BenGER API Gateway"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi==0.136.3",
-    "uvicorn[standard]==0.48.0",
+    "uvicorn[standard]==0.49.0",
     "pydantic==2.13.4",
-    "python-multipart==0.0.30",
+    "python-multipart==0.0.32",
     "PyJWT[crypto]==2.13.0",
     "cryptography>=43.0.0,<47.0.0",
     "bcrypt==4.3.0",
@@ -30,7 +30,7 @@ dependencies = [
     # starlette version is managed by fastapi
     "anyio==4.13.0",
     "openai==1.109.1",
-    "anthropic==0.105.2",
+    "anthropic==0.107.1",
     "google-genai>=1.0.0",
     # tiktoken powers the prompt-token count in services/api/services/
     # token_estimation.py — without it the cost estimator falls back to
@@ -39,7 +39,7 @@ dependencies = [
     # listed it but the api Dockerfile installs from pyproject.toml, so
     # prod was running the fallback path silently.
     "tiktoken>=0.5.0",
-    "aiohttp==3.13.5",
+    "aiohttp==3.14.1",
     "python-jose[cryptography]==3.5.0",
     "jinja2==3.1.6",
     "python-dateutil==2.9.0.post0",
