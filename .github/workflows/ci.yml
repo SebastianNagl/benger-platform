@@ -72,21 +72,26 @@ jobs:
     if: github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[hotfix]')
     strategy:
       fail-fast: false
-      # The full api suite alone takes ~80 min on GitHub-hosted runners
-      # (the "~36 min" folklore is stale — the first gate run timed out at
-      # 60 min having reached 37%). Split it into three roughly equal
-      # shards so gate wall-clock stays ~30-40 min. The [a-l]/[m-z] globs
-      # expand inside the test container; new test files land in a shard
-      # automatically. Test counts at the time of the split: a-l ≈ 2.4k,
-      # m-z ≈ 2.3k, rest (integration/routers/migration/...) ≈ 1.7k.
+      # The full api suite alone takes well over an hour on GitHub-hosted
+      # runners (the "~36 min" folklore is stale — an unsharded gate run
+      # timed out at 60 min having reached 37%). Shard it so gate
+      # wall-clock stays ~35 min. Measured 2026-06-10: unit-mz 9m,
+      # unit-al 23m, workers 16m, unsplit "everything else" ~65m — the
+      # integration dir is the slow tail, so it gets its own [a-l]/[m-z]
+      # halves (791/662 tests). Globs expand inside the test container;
+      # new test files land in a shard automatically.
       matrix:
         include:
           - shard: api-unit-al
             cmd: make test-api FILE="tests/unit/test_[a-l]*.py"
           - shard: api-unit-mz
             cmd: make test-api FILE="tests/unit/test_[m-z]*.py"
+          - shard: api-integration-al
+            cmd: make test-api FILE="tests/integration/test_[a-l]*.py"
+          - shard: api-integration-mz
+            cmd: make test-api FILE="tests/integration/test_[m-z]*.py"
           - shard: api-rest
-            cmd: make test-api FILE="tests/ --ignore=tests/unit"
+            cmd: make test-api FILE="tests/ --ignore=tests/unit --ignore=tests/integration"
           - shard: workers
             cmd: make test-workers
     steps:
