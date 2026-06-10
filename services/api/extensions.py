@@ -10,9 +10,9 @@ the community edition.
 import importlib
 import logging
 
-logger = logging.getLogger(__name__)
+from core_version import CORE_API_VERSION, extended_required
 
-CORE_API_VERSION = "2.1"
+logger = logging.getLogger(__name__)
 
 _extended = None
 
@@ -22,22 +22,39 @@ def load_extended():
 
     Performs a version compatibility check: if the extended package declares
     COMPATIBLE_CORE_VERSIONS, the core API version must be in that list.
+
+    With BENGER_REQUIRE_EXTENDED set (prod/staging), an import failure or a
+    handshake mismatch raises instead of degrading to the community edition,
+    so a broken overlay fails the rollout loudly rather than shipping with
+    extended features silently missing.
     """
     global _extended
     try:
         _extended = importlib.import_module("benger_extended")
-    except ImportError:
+    except ImportError as exc:
+        if extended_required():
+            raise RuntimeError(
+                "BENGER_REQUIRE_EXTENDED is set but the benger_extended "
+                f"package failed to import: {exc}. Refusing to start as "
+                "community edition."
+            ) from exc
         logger.info("BenGER community edition (extended package not installed)")
         return False
 
     if hasattr(_extended, "COMPATIBLE_CORE_VERSIONS"):
         if CORE_API_VERSION not in _extended.COMPATIBLE_CORE_VERSIONS:
-            logger.error(
+            message = (
                 "BenGER extended package incompatible: "
                 f"requires core API {_extended.COMPATIBLE_CORE_VERSIONS}, "
-                f"but core is {CORE_API_VERSION}. Extended features disabled."
+                f"but core is {CORE_API_VERSION}."
             )
             _extended = None
+            if extended_required():
+                raise RuntimeError(
+                    f"{message} BENGER_REQUIRE_EXTENDED is set — refusing "
+                    "to start with extended features disabled."
+                )
+            logger.error(f"{message} Extended features disabled.")
             return False
 
     _register_extension_field_types()

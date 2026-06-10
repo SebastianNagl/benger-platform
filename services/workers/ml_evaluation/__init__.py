@@ -31,8 +31,12 @@ from .builtin_handlers import register_builtin_metric_handlers  # noqa: E402
 
 register_builtin_metric_handlers(metric_registry)
 
-# Load extended evaluators if available
-_CORE_API_VERSION = "2.1"  # Must match extensions.py CORE_API_VERSION
+# Load extended evaluators if available. The handshake constant comes from
+# /shared/core_version.py (single source of truth, same module the API's
+# extensions.py imports — /shared is on sys.path in the worker container and
+# in workers/tests/conftest.py).
+from core_version import CORE_API_VERSION as _CORE_API_VERSION  # noqa: E402
+from core_version import extended_required as _extended_required  # noqa: E402
 
 try:
     import benger_extended
@@ -42,11 +46,17 @@ try:
         if _CORE_API_VERSION not in benger_extended.COMPATIBLE_CORE_VERSIONS:
             import logging
 
-            logging.getLogger(__name__).warning(
+            _msg = (
                 "Extended package incompatible with workers "
                 f"(needs {benger_extended.COMPATIBLE_CORE_VERSIONS}, "
                 f"core is {_CORE_API_VERSION})"
             )
+            if _extended_required():
+                raise RuntimeError(
+                    f"{_msg}. BENGER_REQUIRE_EXTENDED is set — refusing to "
+                    "start with extended evaluators disabled."
+                )
+            logging.getLogger(__name__).warning(_msg)
             _compatible = False
 
     if _compatible:
@@ -67,8 +77,13 @@ try:
             # legitimate no-op rather than an error — the platform-side
             # registry just stays unpopulated for extended metrics.
             pass
-except ImportError:
-    pass
+except ImportError as _ext_import_error:
+    if _extended_required():
+        raise RuntimeError(
+            "BENGER_REQUIRE_EXTENDED is set but the benger_extended package "
+            f"failed to import in the worker: {_ext_import_error}. Refusing "
+            "to start as community edition."
+        ) from _ext_import_error
 
 __all__ = [
     "BaseEvaluator",

@@ -23,10 +23,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-{{ .Values.workers.name }}
     spec:
-      {{- with .Values.global.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- include "benger.imagePullSecrets" . | nindent 6 }}
       containers:
         - name: {{ .Values.workers.name }}
           image: "{{ .Values.workers.image.repository }}:{{ .Values.workers.image.tag | default .Chart.AppVersion }}"
@@ -84,6 +81,9 @@ spec:
             {{- end }}
             {{- if .Values.minio.enabled }}
             {{- include "benger.storageEnv" . | nindent 12 }}
+            {{- end }}
+            {{- with .Values.workers.extraEnv }}
+            {{- toYaml . | nindent 12 }}
             {{- end }}
           resources:
             {{- toYaml .Values.workers.resources | nindent 12 }}
