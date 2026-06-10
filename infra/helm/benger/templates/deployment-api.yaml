@@ -23,10 +23,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-{{ .Values.api.name }}
     spec:
-      {{- with .Values.global.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- include "benger.imagePullSecrets" . | nindent 6 }}
       terminationGracePeriodSeconds: 120
       containers:
         - name: {{ .Values.api.name }}
@@ -85,6 +82,9 @@ spec:
             {{- end }}
             {{- if .Values.minio.enabled }}
             {{- include "benger.storageEnv" . | nindent 12 }}
+            {{- end }}
+            {{- with .Values.api.extraEnv }}
+            {{- toYaml . | nindent 12 }}
             {{- end }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}

@@ -1,5 +1,11 @@
 name: CI
 
+# PRs: fast feedback only (Jest + lint). Push to main additionally runs the
+# full API + workers suites and, when everything is green, dispatches the
+# core-updated event that triggers the extended repo's build + prod deploy.
+# Nothing reaches production without passing the heavy suites, except via
+# the two explicit hotfix bypasses (see the notify-extended job comment).
+
 on:
   push:
     branches: [main]
@@ -52,3 +58,156 @@ jobs:
 
       - name: Lint API, Workers, Shared
         run: ruff check --select=F821,F823 --exclude="*/scripts/*" services/api/ services/workers/ services/shared/
+
+  # Full Dockerized suites — the prod gate. Run on push to main (and manual
+  # dispatch), NOT on PRs, so PR iteration stays fast. A commit message
+  # containing [hotfix] skips them; the notify-extended job below treats
+  # skipped gates as passing, so a hotfix dispatches after the fast checks.
+  # Step sequence mirrors nightly-tests.yml, which is the proven recipe for
+  # running these suites on GitHub-hosted runners.
+  integration-tests:
+    name: ${{ matrix.shard }} tests (prod gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    if: github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[hotfix]')
+    strategy:
+      fail-fast: false
+      # The full api suite alone takes well over an hour on GitHub-hosted
+      # runners (the "~36 min" folklore is stale — an unsharded gate run
+      # timed out at 60 min having reached 37%). Shard it so gate
+      # wall-clock stays ~35 min. Measured 2026-06-10: unit-mz 9m,
+      # unit-al 23m, workers 16m, unsplit "everything else" ~65m — the
+      # integration dir is the slow tail, so it gets its own [a-l]/[m-z]
+      # halves (791/662 tests). Globs expand inside the test container;
+      # new test files land in a shard automatically.
+      matrix:
+        include:
+          - shard: api-unit-al
+            cmd: make test-api FILE="tests/unit/test_[a-l]*.py"
+          - shard: api-unit-mz
+            cmd: make test-api FILE="tests/unit/test_[m-z]*.py"
+          - shard: api-integration-al
+            cmd: make test-api FILE="tests/integration/test_[a-l]*.py"
+          - shard: api-integration-mz
+            cmd: make test-api FILE="tests/integration/test_[m-z]*.py"
+          - shard: api-rest
+            cmd: make test-api FILE="tests/ --ignore=tests/unit --ignore=tests/integration"
+          - shard: workers
+            cmd: make test-workers
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/local/share/chromium || true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: services/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 2
+          retry_wait_seconds: 30
+          command: cd services/frontend && npm ci
+
+      - name: Build test infrastructure
+        # `make test-build` swallows docker-build failures (it pipes the
+        # output through `grep -v ... || true`), so wrap with retry to
+        # absorb transient build crashes and re-verify health below.
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 30
+          max_attempts: 2
+          retry_wait_seconds: 30
+          command: make test-build
+
+      - name: Verify test infrastructure is up
+        run: |
+          if ! docker ps --format '{{.Names}}' | grep -q '^benger-test-test-api-1$'; then
+            echo "::error::test-api container did not come up after make test-build"
+            docker compose -f infra/docker-compose.test.yml ps
+            exit 1
+          fi
+
+      - name: Seed test database
+        run: make test-seed
+
+      - name: Run ${{ matrix.shard }} tests
+        run: ${{ matrix.cmd }}
+        timeout-minutes: 80
+
+      - name: Cleanup
+        if: always()
+        run: |
+          make test-stop 2>/dev/null || true
+          docker image prune -f || true
+
+  # Cross-repo dispatch: tells the private extended repo to rebuild against
+  # this commit and deploy to production. Fires only on push to main, and
+  # only when no gate job FAILED — skipped gates (a [hotfix] commit) pass.
+  #
+  # Hotfix bypasses:
+  #   1. "[hotfix]" in the commit message — integration-tests skip
+  #      themselves, dispatch fires after Jest + lint (~10 min).
+  #   2. Manual: `gh workflow run notify-extended.yml` — dispatches
+  #      immediately with no CI at all (emergencies / re-deploys).
+  #
+  # The downstream repo is named via the EXTENDED_REPO secret (owner/repo)
+  # and EXTENDED_REPO_NAME secret (repo name, used as the App token scope)
+  # so the public workflow YAML does not hard-code the private repo path.
+  # Required secrets (org or repo level):
+  #   APP_ID, APP_PRIVATE_KEY     — GitHub App with read+dispatch on the target
+  #   EXTENDED_REPO               — full owner/repo, e.g. "owner/private-edition"
+  #   EXTENDED_REPO_NAME          — just the repo name, e.g. "private-edition"
+  # If any of those secrets is unset, the job no-ops with a warning rather
+  # than failing the run, so a fresh public clone without secrets still
+  # passes CI.
+  notify-extended:
+    name: Trigger downstream rebuild
+    needs: [frontend-tests, python-checks, integration-tests]
+    if: >-
+      always() && github.event_name == 'push' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Skip if downstream not configured
+        id: gate
+        env:
+          EXTENDED_REPO: ${{ secrets.EXTENDED_REPO }}
+        run: |
+          if [ -z "$EXTENDED_REPO" ]; then
+            echo "EXTENDED_REPO secret not set — skipping cross-repo dispatch."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate token
+        if: steps.gate.outputs.configured == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: ${{ secrets.EXTENDED_REPO_NAME }}
+
+      - name: Dispatch rebuild
+        if: steps.gate.outputs.configured == 'true'
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          repository: ${{ secrets.EXTENDED_REPO }}
+          event-type: core-updated
+          # The extended build checks out the platform at exactly this SHA,
+          # so the deployed artifact always matches the commit that passed
+          # the gate — not whatever main happens to be at build time.
+          client-payload: '{"platform_sha": "${{ github.sha }}"}'

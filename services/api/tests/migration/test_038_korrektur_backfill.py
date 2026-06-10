@@ -18,7 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from models import EvaluationRun, TaskEvaluation, User
-from project_models import Project, Task
+from project_models import Annotation, Project, Task
 
 
 MIGRATION_PATH = os.path.normpath(
@@ -185,16 +185,35 @@ def _seed_orphan_run_with_eval(
     # through judge_run_id and wipe the TaskEvaluation before our assertions
     # see it. See _ensure_anchor_judge_run for the full reasoning.
     judge_run_id = _ensure_anchor_judge_run(db, project, grader.id)
+
+    # Each submission grades its OWN annotation. Required since migration 049:
+    # uq_task_evaluations_cell keys on (evaluation_id, judge_run_id,
+    # generation_id, annotation_id, field_name, created_by), and once 038
+    # collapses the orphan runs into one evaluation_id, two same-grader rows
+    # with NULL annotation_id would be exact cell duplicates — the replayed
+    # migration would die on the index. Distinct annotations also match the
+    # real korrektur shape (one grade per annotation).
+    annotation = Annotation(
+        id=str(uuid.uuid4()),
+        task_id=task.id,
+        project_id=project.id,
+        completed_by=grader.id,
+        result=[],
+        was_cancelled=False,
+    )
+    db.add(annotation)
+    db.flush()
+
     eval_id = str(uuid.uuid4())
     db.execute(
         text(
             """
             INSERT INTO task_evaluations
-              (id, evaluation_id, judge_run_id, task_id, field_name, answer_type,
-               ground_truth, prediction, metrics, passed, judge_prompts_used,
-               created_at)
+              (id, evaluation_id, judge_run_id, task_id, annotation_id,
+               field_name, answer_type, ground_truth, prediction, metrics,
+               passed, judge_prompts_used, created_at)
             VALUES
-              (:id, :rid, :jrid, :tid, 'loesung', 'long_text',
+              (:id, :rid, :jrid, :tid, :aid, 'loesung', 'long_text',
                '""'::json, '""'::json,
                (:metrics)::json, :passed,
                (:jpu)::json, now())
@@ -205,6 +224,7 @@ def _seed_orphan_run_with_eval(
             "rid": run_id,
             "jrid": judge_run_id,
             "tid": task.id,
+            "aid": annotation.id,
             "metrics": f'{{"korrektur_falloesung": {score}}}',
             "passed": score >= 50,
             "jpu": f'{{"grader_user_id": "{grader.id}", "source": "human"}}',
