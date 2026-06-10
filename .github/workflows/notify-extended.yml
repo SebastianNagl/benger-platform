@@ -1,10 +1,18 @@
 name: Notify Extended
 
-# Fires repository_dispatch (event-type: core-updated) at the downstream
-# extended-edition repo whenever main moves. The downstream repo's CI/CD
-# rebuilds against the new platform code and deploys to production
-# (the `deploy-prod` job runs on any non-pull_request event, including
-# this dispatch — see extended/.github/workflows/cicd.yml).
+# MANUAL EMERGENCY BYPASS — fires the core-updated dispatch at the
+# downstream extended repo immediately, with no CI gate at all. The normal
+# path is the notify-extended job at the end of ci.yml, which dispatches
+# only after the full API + workers suites pass on main (or after the fast
+# checks for a "[hotfix]"-tagged commit).
+#
+# Use this workflow when:
+#   - a hotfix can't wait even for the fast checks, or
+#   - you need to re-trigger a prod build/deploy without a new commit
+#     (e.g. after a transient build failure).
+#
+# Trigger: gh workflow run notify-extended.yml   (or the Actions UI)
+# It dispatches the platform SHA the workflow runs on (main HEAD).
 #
 # The downstream repo is named via the EXTENDED_REPO secret (owner/repo) and
 # EXTENDED_REPO_NAME secret (just the repo name, used as the App token scope)
@@ -18,13 +26,11 @@ name: Notify Extended
 # passes CI.
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
   notify:
-    name: Trigger downstream rebuild
+    name: Trigger downstream rebuild (no CI gate)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -56,3 +62,4 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           repository: ${{ secrets.EXTENDED_REPO }}
           event-type: core-updated
+          client-payload: '{"platform_sha": "${{ github.sha }}"}'
