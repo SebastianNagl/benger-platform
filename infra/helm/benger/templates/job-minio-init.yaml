@@ -40,10 +40,7 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: object-storage-init
     spec:
-      {{- with .Values.global.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- include "benger.imagePullSecrets" . | nindent 6 }}
       restartPolicy: OnFailure
       containers:
         - name: mc
