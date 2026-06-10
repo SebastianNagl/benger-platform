@@ -4188,13 +4188,22 @@ def _evaluate_llm_judge_single(
 # The version handshake mirrors services/api/extensions.py so a mismatched
 # extended package surfaces loudly at startup, not in a silent dispatch
 # error during evaluation.
+from core_version import CORE_API_VERSION as _WORKER_CORE_API_VERSION  # noqa: E402
+from core_version import extended_required as _extended_required  # noqa: E402
+
 try:
     import benger_extended  # noqa: F401
 
-    _WORKER_CORE_API_VERSION = "2.1"  # keep in sync with services/api/extensions.py
     _ext_compatible = True
     if hasattr(benger_extended, "COMPATIBLE_CORE_VERSIONS"):
         if _WORKER_CORE_API_VERSION not in benger_extended.COMPATIBLE_CORE_VERSIONS:
+            if _extended_required():
+                raise RuntimeError(
+                    "Worker: benger_extended core-version mismatch — needs "
+                    f"{benger_extended.COMPATIBLE_CORE_VERSIONS}, core is "
+                    f"{_WORKER_CORE_API_VERSION}. BENGER_REQUIRE_EXTENDED is "
+                    "set — refusing to start with extended tasks disabled."
+                )
             logger.error(
                 "Worker: benger_extended core-version mismatch — needs %s, "
                 "core is %s. Extended tasks NOT registered.",
@@ -4213,7 +4222,13 @@ try:
         # the registry is already populated by the time the worker
         # starts dispatching. We do NOT re-register here — that would
         # replace the handler with itself and emit a noisy warning.
-except ImportError:
+except ImportError as _ext_import_error:
+    if _extended_required():
+        raise RuntimeError(
+            "BENGER_REQUIRE_EXTENDED is set but the benger_extended package "
+            f"failed to import in the worker: {_ext_import_error}. Refusing "
+            "to start as community edition."
+        ) from _ext_import_error
     logger.info("Worker: community edition (no benger_extended package)")
 
 

@@ -29,6 +29,11 @@ load_dotenv()
 shared_dir = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "shared"
 )
+if not os.path.isdir(shared_dir):
+    # Containers resolve this to /shared (image copy or compose mount). If it
+    # is missing, the very next shared import fails with a bare
+    # ModuleNotFoundError — log the resolved path so the cause is obvious.
+    logger.warning(f"Shared directory not found at {shared_dir}; shared imports will fail")
 if shared_dir not in sys.path:
     sys.path.insert(0, shared_dir)
 
@@ -213,17 +218,6 @@ async def lifespan(app: FastAPI):
             initialize_database(db)
             initialize_task_types_and_evaluation_types(db)
             logger.info("Database initialization complete!")
-
-            # Initialize database performance optimizations
-            try:
-                from database_optimization import DatabaseOptimizer
-
-                from database import engine
-
-                DatabaseOptimizer.create_missing_indexes(engine)
-                logger.info("Database performance optimizations applied")
-            except Exception as opt_error:
-                logger.warning(f"Database optimization warning: {opt_error}")
         except Exception as e:
             logger.error(f"Database initialization error: {e}")
         finally:
