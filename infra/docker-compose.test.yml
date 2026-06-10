@@ -81,6 +81,40 @@ services:
         reservations:
           memory: 256M
 
+  # MinIO Object Storage (Ephemeral) — prod-parity backend so the async
+  # import/export flow (#158, the ONLY import/export transport) is exercised
+  # E2E instead of being mocked. Same digest-pinned image as the Helm chart.
+  # Presigned URLs are signed against benger-test.localhost:9100 (the host
+  # port mapping) so the host browser can replay them; containers talk to
+  # http://test-minio:9000 directly.
+  test-minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    hostname: test-minio
+    restart: unless-stopped
+    ports:
+      - "9100:9000"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: ["server", "/data"]
+    # Ephemeral - no persistent volumes
+    tmpfs:
+      - /data:size=1G
+    networks:
+      - benger-test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
   # ==================== Application Services ====================
 
   # Traefik Reverse Proxy
@@ -146,6 +180,8 @@ services:
         condition: service_healthy
       test-redis:
         condition: service_healthy
+      test-minio:
+        condition: service_healthy
     environment:
       # Database
       POSTGRES_USER: postgres
@@ -163,6 +199,14 @@ services:
       # Celery
       CELERY_BROKER_URL: redis://test-redis:6379/0
       CELERY_RESULT_BACKEND: redis://test-redis:6379/0
+      # Object storage (prod-parity MinIO; presign host = host port mapping)
+      STORAGE_TYPE: minio
+      S3_ENDPOINT_URL: http://test-minio:9000
+      STORAGE_BASE_URL: http://benger-test.localhost:9100
+      S3_BUCKET_NAME: benger-test
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin
+      S3_USE_SSL: "false"
       # JWT
       JWT_SECRET_KEY: test-jwt-secret-key
       # App settings
@@ -222,6 +266,8 @@ services:
         condition: service_healthy
       test-api:
         condition: service_healthy
+      test-minio:
+        condition: service_healthy
     environment:
       # Database
       POSTGRES_USER: postgres
@@ -239,6 +285,15 @@ services:
       # Celery
       CELERY_BROKER_URL: redis://test-redis:6379/0
       CELERY_RESULT_BACKEND: redis://test-redis:6379/0
+      # Object storage (prod-parity MinIO; worker downloads import artifacts
+      # and streams exports through the internal endpoint)
+      STORAGE_TYPE: minio
+      S3_ENDPOINT_URL: http://test-minio:9000
+      STORAGE_BASE_URL: http://benger-test.localhost:9100
+      S3_BUCKET_NAME: benger-test
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin
+      S3_USE_SSL: "false"
       WORKER_CONCURRENCY: 2
       INTERNAL_API_URL: http://test-api:8000
       # JWT

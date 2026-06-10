@@ -11,6 +11,7 @@
  * 6. Page reload preserves task position
  */
 import { expect, Page, test } from '@playwright/test'
+import { importTasksInBrowser } from '../helpers/api-seeding'
 import { TestHelpers } from '../helpers/test-helpers'
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://benger.localhost'
@@ -114,20 +115,6 @@ async function createProjectWithTasks(
         return { error: `Config failed: ${configResp.status}` }
       }
 
-      // Import tasks with unique text per task
-      const tasks = Array.from({ length: taskCount }, (_, i) => ({
-        data: { text: `Task ${i + 1}: Legal analysis question number ${i + 1}` },
-      }))
-      const importResp = await fetch(`/api/projects/${projectId}/import`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ data: tasks }),
-      })
-      if (!importResp.ok) {
-        return { error: `Import failed: ${importResp.status}` }
-      }
-
       return { projectId }
     },
     { name, taskCount }
@@ -136,7 +123,21 @@ async function createProjectWithTasks(
   if ('error' in result) {
     throw new Error(result.error as string)
   }
-  return result.projectId as string
+  const projectId = result.projectId as string
+
+  // Import tasks with unique text per task via the async import flow
+  // (#158 removed the synchronous /import endpoint).
+  const tasks = Array.from({ length: taskCount }, (_, i) => ({
+    data: { text: `Task ${i + 1}: Legal analysis question number ${i + 1}` },
+  }))
+  const importResult = await page.evaluate(importTasksInBrowser, {
+    projectId,
+    tasks,
+  })
+  if (!importResult.success) {
+    throw new Error(`Import failed: ${importResult.error}`)
+  }
+  return projectId
 }
 
 /**
@@ -275,23 +276,20 @@ test.describe('Randomize Task Order', () => {
         })
         if (!configResp.ok) return null
 
-        // Import tasks
-        const tasks = Array.from({ length: taskCount }, (_, i) => ({
-          data: { text: `Task ${i + 1}: Legal analysis question number ${i + 1}` },
-        }))
-        const importResp = await fetch(`/api/projects/${projectId}/import`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ data: tasks }),
-        })
-        if (!importResp.ok) return null
-
         return projectId
       },
       { name: `E2E Multi-User Order ${Date.now()}`, taskCount: 10, orgId }
     )
     expect(testProjectId).toBeTruthy()
+
+    // Import tasks via the async flow (#158 removed the sync endpoint)
+    const multiUserImport = await adminPage.evaluate(importTasksInBrowser, {
+      projectId: testProjectId!,
+      tasks: Array.from({ length: 10 }, (_, i) => ({
+        data: { text: `Task ${i + 1}: Legal analysis question number ${i + 1}` },
+      })),
+    })
+    expect(multiUserImport.success, multiUserImport.error).toBeTruthy()
 
     // Enable randomization
     await updateProjectSettings(adminPage, testProjectId!, {
@@ -406,23 +404,20 @@ test.describe('Randomize Task Order', () => {
         })
         if (!configResp.ok) return null
 
-        // Import tasks
-        const tasks = Array.from({ length: taskCount }, (_, i) => ({
-          data: { text: `Task ${i + 1}: Legal analysis question number ${i + 1}` },
-        }))
-        const importResp = await fetch(`/api/projects/${projectId}/import`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ data: tasks }),
-        })
-        if (!importResp.ok) return null
-
         return projectId
       },
       { name: `E2E Exclude Annotations ${Date.now()}`, taskCount: 5, orgId }
     )
     expect(testProjectId).toBeTruthy()
+
+    // Import tasks via the async flow (#158 removed the sync endpoint)
+    const excludeImport = await adminPage.evaluate(importTasksInBrowser, {
+      projectId: testProjectId!,
+      tasks: Array.from({ length: 5 }, (_, i) => ({
+        data: { text: `Task ${i + 1}: Legal analysis question number ${i + 1}` },
+      })),
+    })
+    expect(excludeImport.success, excludeImport.error).toBeTruthy()
 
     // Get all task IDs before annotation (admin context)
     const allTasks = await getTaskIds(adminPage, testProjectId!)

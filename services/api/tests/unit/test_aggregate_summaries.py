@@ -490,7 +490,22 @@ def seeded_falloesung(test_db: Session):
         status="completed",
         parse_status="success",
     )
-    test_db.add_all([gen_high, gen_low])
+    # Third generation for the grade-points-missing row. It must NOT share
+    # gen_high: uq_task_evaluations_cell (049) keys on (evaluation_id,
+    # judge_run_id, generation_id, annotation_id, field_name, created_by),
+    # and te_missing would otherwise be an exact cell duplicate of te_high.
+    gen_missing = Generation(
+        id=str(uuid.uuid4()),
+        generation_id=rg.id,
+        task_id=task.id,
+        model_id="gpt-4o",
+        run_index=2,
+        response_content="answer C",
+        case_data=json.dumps({}),
+        status="completed",
+        parse_status="success",
+    )
+    test_db.add_all([gen_high, gen_low, gen_missing])
     test_db.flush()
 
     er = EvaluationRun(
@@ -576,7 +591,7 @@ def seeded_falloesung(test_db: Session):
         evaluation_id=er.id,
         judge_run_id=jr.id,
         task_id=task.id,
-        generation_id=gen_high.id,
+        generation_id=gen_missing.id,
         field_name="llm_judge_falloesung",
         answer_type="text",
         ground_truth=None,
@@ -791,14 +806,18 @@ class TestTumScope:
         from project_models import ProjectOrganization
 
         tum_org_id = _TUM_SCOPE_ORG_IDS[0]
-        # Seed the org if a fresh fixture is missing it.
+        # Seed the org if a fresh fixture is missing it. The scope logic keys
+        # on the org ID allowlist, not the slug — and the seeded test DB
+        # (init_complete.py) already contains an org with slug 'tum' under a
+        # DIFFERENT id, so inserting slug='tum' here trips
+        # ix_organizations_slug. Use a unique slug; only the id matters.
         if not test_db.get(Organization, tum_org_id):
             test_db.add(
                 Organization(
                     id=tum_org_id,
-                    name="TUM",
-                    display_name="TUM",
-                    slug="tum",
+                    name="TUM scope test org",
+                    display_name="TUM scope test org",
+                    slug=f"tum-scope-{uuid.uuid4().hex[:8]}",
                     is_active=True,
                 )
             )

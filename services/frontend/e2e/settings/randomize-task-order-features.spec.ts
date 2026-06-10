@@ -7,6 +7,7 @@
  * order-independent - this test confirms that.
  */
 import { expect, Page, test } from '@playwright/test'
+import { importTasksInBrowser } from '../helpers/api-seeding'
 import { TestHelpers } from '../helpers/test-helpers'
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://benger.localhost'
@@ -81,19 +82,6 @@ async function createFullFeaturedProject(
         return { error: `Config: ${configResp.status} ${err}` }
       }
 
-      // Import tasks
-      const tasks = Array.from({ length: taskCount }, (_, i) => ({
-        data: { text: `Legal analysis task ${i + 1}: Evaluate the contractual obligations in this scenario.` },
-      }))
-      const importResp = await fetch(`/api/projects/${projectId}/import`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ data: tasks }),
-      })
-      if (!importResp.ok)
-        return { error: `Import: ${importResp.status}` }
-
       return { projectId }
     },
     { name, taskCount }
@@ -101,7 +89,18 @@ async function createFullFeaturedProject(
 
   if ('error' in result)
     throw new Error(result.error as string)
-  return result.projectId as string
+  const projectId = result.projectId as string
+
+  // Import tasks via the async flow (#158 removed the sync endpoint)
+  const importResult = await page.evaluate(importTasksInBrowser, {
+    projectId,
+    tasks: Array.from({ length: taskCount }, (_, i) => ({
+      data: { text: `Legal analysis task ${i + 1}: Evaluate the contractual obligations in this scenario.` },
+    })),
+  })
+  if (!importResult.success)
+    throw new Error(`Import: ${importResult.error}`)
+  return projectId
 }
 
 /**
@@ -461,22 +460,21 @@ test.describe('Randomized Order with Annotation Features', () => {
       })
       if (!configResp.ok) return { error: `Config: ${configResp.status}` }
 
-      const tasks = Array.from({ length: 3 }, (_, i) => ({
-        data: { text: `Evaluate legal statement ${i + 1}.` },
-      }))
-      const importResp = await fetch(`/api/projects/${projectId}/import`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ data: tasks }),
-      })
-      if (!importResp.ok) return { error: `Import: ${importResp.status}` }
-
       return { projectId }
     }, `E2E Eval+Random ${Date.now()}`)
 
     if ('error' in result) throw new Error(result.error as string)
     testProjectId = result.projectId as string
+
+    // Import tasks via the async flow (#158 removed the sync endpoint)
+    const evalRandomImport = await page.evaluate(importTasksInBrowser, {
+      projectId: testProjectId,
+      tasks: Array.from({ length: 3 }, (_, i) => ({
+        data: { text: `Evaluate legal statement ${i + 1}.` },
+      })),
+    })
+    if (!evalRandomImport.success)
+      throw new Error(`Import: ${evalRandomImport.error}`)
 
     // Navigate to annotation UI
     await page.goto(`${BASE_URL}/projects/${testProjectId}/label`)

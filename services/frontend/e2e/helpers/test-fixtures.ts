@@ -3,6 +3,7 @@
  * Creates projects with specific configurations for testing
  */
 import { Page } from '@playwright/test'
+import { importTasksInBrowser } from './api-seeding'
 import { TestHelpers } from './test-helpers'
 
 // Label config templates
@@ -253,32 +254,12 @@ export class TestFixtures {
       })
     }
 
-    // Import all tasks at once using the import endpoint
-    const result = await this.page.evaluate(
-      async ({ projectId, tasks }) => {
-        try {
-          const response = await fetch(`/api/projects/${projectId}/import`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify({ data: tasks }),
-          })
-          if (!response.ok) {
-            const errorText = await response.text()
-            return {
-              success: false,
-              error: `${response.status}: ${errorText}`,
-            }
-          }
-          return { success: true }
-        } catch (e) {
-          return { success: false, error: String(e) }
-        }
-      },
-      { projectId, tasks }
-    )
+    // Import all tasks at once via the async import flow (#158 removed the
+    // synchronous /import endpoint)
+    const result = await this.page.evaluate(importTasksInBrowser, {
+      projectId,
+      tasks,
+    })
 
     if (!result.success) {
       console.error(`Failed to import tasks:`, result.error)

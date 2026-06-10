@@ -7,6 +7,104 @@
  */
 import { Page } from '@playwright/test'
 
+/**
+ * Browser-side async-import driver (#158): presign → upload to object
+ * storage → create import job → poll until the worker finishes.
+ *
+ * Designed to be passed to `page.evaluate(importTasksInBrowser, {...})` —
+ * it must stay fully self-contained (no outer-scope captures), because
+ * Playwright serializes the function into the browser context.
+ *
+ * Requires the test stack's MinIO (`test-minio` in docker-compose.test.yml):
+ * presigned URLs are signed for benger-test.localhost:9100.
+ */
+export async function importTasksInBrowser({
+  projectId,
+  tasks,
+}: {
+  projectId: string
+  tasks: Array<{ data: Record<string, unknown> }>
+}): Promise<{ success: boolean; taskCount?: number; error?: string }> {
+  try {
+    // 1. Presign
+    const presignRes = await fetch(
+      `/api/projects/${projectId}/imports/upload-url?filename=e2e-import.json`,
+      { method: 'POST', credentials: 'include' }
+    )
+    if (!presignRes.ok) {
+      return {
+        success: false,
+        error: `presign ${presignRes.status}: ${await presignRes.text()}`,
+      }
+    }
+    const presign = await presignRes.json()
+
+    // 2. Upload straight to object storage. Presigned-POST rule: policy
+    // fields first, `file` strictly last.
+    const formData = new FormData()
+    for (const [key, value] of Object.entries(presign.fields || {})) {
+      formData.append(key, String(value))
+    }
+    formData.append(
+      'file',
+      new Blob([JSON.stringify({ data: tasks })], { type: 'application/json' }),
+      'e2e-import.json'
+    )
+    const uploadRes = await fetch(presign.upload_url, {
+      method: presign.method || 'POST',
+      body: formData,
+    })
+    if (!uploadRes.ok) {
+      return {
+        success: false,
+        error: `storage upload ${uploadRes.status}: ${await uploadRes.text()}`,
+      }
+    }
+
+    // 3. Enqueue the import job
+    const jobRes = await fetch(`/api/projects/${projectId}/imports`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ object_key: presign.file_key }),
+    })
+    if (!jobRes.ok) {
+      return {
+        success: false,
+        error: `create job ${jobRes.status}: ${await jobRes.text()}`,
+      }
+    }
+    const job = await jobRes.json()
+
+    // 4. Poll until the worker finishes (60s budget; Docker workers are slow)
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const pollRes = await fetch(
+        `/api/projects/${projectId}/imports/${job.job_id}`,
+        { credentials: 'include' }
+      )
+      if (pollRes.ok) {
+        const status = await pollRes.json()
+        if (status.status === 'completed') {
+          return {
+            success: true,
+            taskCount: status.result?.created_tasks ?? tasks.length,
+          }
+        }
+        if (status.status === 'failed') {
+          return {
+            success: false,
+            error: `import job failed: ${status.error_message || 'unknown'}`,
+          }
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    }
+    return { success: false, error: 'import job timed out after 60s' }
+  } catch (e) {
+    return { success: false, error: String(e) }
+  }
+}
+
 // Test data types
 export interface SeededTask {
   id: string
@@ -144,40 +242,25 @@ export class APISeedingHelper {
   }
 
   /**
-   * Import tasks to a project via API
+   * Import tasks to a project via the async import flow (#158): presign →
+   * upload to object storage → create job → poll. The old synchronous
+   * `POST /{id}/import` endpoint was removed; object storage is the only
+   * import transport in both editions.
    */
   async importTasks(
     projectId: string,
     tasks: Array<{ data: Record<string, unknown> }>
   ): Promise<SeededTask[]> {
-    // Step 1: Import tasks via the import endpoint
-    const importResult = await this.page.evaluate(
-      async ({ projectId, tasks }) => {
-        try {
-          const response = await fetch(`/api/projects/${projectId}/import`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ data: tasks }),
-          })
-          if (!response.ok) {
-            const errorText = await response.text()
-            return { success: false, error: `${response.status}: ${errorText}` }
-          }
-          const data = await response.json()
-          return { success: true, created: data.created_tasks || 0 }
-        } catch (e) {
-          return { success: false, error: String(e) }
-        }
-      },
-      { projectId, tasks }
-    )
+    const importResult = await this.page.evaluate(importTasksInBrowser, {
+      projectId,
+      tasks,
+    })
 
     if (!importResult.success) {
       throw new Error(`Failed to import tasks: ${importResult.error}`)
     }
 
-    // Step 2: Fetch the actual task objects from the project
+    // Fetch the actual task objects from the project
     return this.getTasks(projectId)
   }
 
