@@ -61,10 +61,7 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: object-storage
     spec:
-      {{- with .Values.global.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- include "benger.imagePullSecrets" . | nindent 6 }}
       containers:
         - name: minio
           image: "{{ .Values.minio.image.repository }}@{{ .Values.minio.image.digest }}"

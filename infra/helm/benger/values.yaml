@@ -2,8 +2,13 @@ global:
   environment: production
   # Use specific image tags for production deployments (e.g., commit hash or semantic version)
   # imageTag: "v1.2.3" # Override this value during deployment
+  # Plain strings, NOT {name: ...} maps: the bitnami subcharts (postgresql,
+  # redis) stringify map entries into bogus secret names ("map[name:...]").
+  # That was latent while their images were public; the postgres image now
+  # lives in private GHCR and must authenticate. The platform's own
+  # templates accept both forms (see benger.imagePullSecrets helper).
   imagePullSecrets:
-    - name: ghcr-secret
+    - ghcr-secret
   domain: what-a-benger.net
   tlsSecretName: benger-tls
 
@@ -310,22 +315,25 @@ frontend:
 postgresql:
   enabled: true
   image:
-    # NOTE: the bitnami/postgresql:15.3.0-debian-11-r17 tag was rewritten by
-    # Broadcom post-acquisition to ship Photon OS + PG 18 + FIPS-OpenSSL
-    # under the same label. The cluster's data dir is already in PG 18
-    # format, so reverting to the original PG 15 content is destructive.
-    # See workspace CLAUDE.md → "Postgres image content drift".
-    #
-    # Earlier attempt to pin by digest (PR #16, sha256:e6d86d16…) used a
-    # digest that does not exist on Docker Hub and put prod into
-    # ImagePullBackOff. Until we either (a) discover a valid digest for
-    # the rewritten image, or (b) migrate to bitnamilegacy/postgresql
-    # explicitly, leave the tag floating — it resolves to whatever
-    # Broadcom currently ships under this label, which is the
-    # PG-18+FIPS variant we've already mitigated for in app code
-    # (func.hashtext + pg_dump 18-alpine).
-    repository: bitnami/postgresql
-    tag: "15.3.0-debian-11-r17"
+    # PINNED (2026-06-10): Postgres 18.3 + Photon OS + FIPS-OpenSSL is the
+    # official baseline. History: Broadcom rewrote the
+    # bitnami/postgresql:15.3.0-debian-11-r17 tag post-acquisition to ship
+    # this PG-18 content, the cluster's data dir is in PG 18 format ever
+    # since, and the tag has now been DELETED from Docker Hub entirely —
+    # prod survived only on the node's containerd cache. The running image
+    # (manifest list sha256:d0fd908d…) was copied byte-identical to the
+    # project's own GHCR so it can never be purged or rewritten upstream.
+    # bitnamilegacy/postgresql:15.3.0-… archives the ORIGINAL Debian-11 /
+    # PG 15.3 build — do NOT switch to it, PG 15 binaries cannot open the
+    # PG 18 data dir. App-side FIPS mitigations (func.hashtext, pg_dump
+    # 18-alpine) stay. See workspace CLAUDE.md → "Postgres image content
+    # drift". The earlier pin attempt (PR #16, sha256:e6d86d16…) failed
+    # because that value is the image CONFIG digest (crictl `id`), not the
+    # pullable manifest-list digest.
+    registry: ghcr.io
+    repository: sebastiannagl/benger-extended/postgresql
+    tag: "pg18.3-photon-fips"
+    digest: "sha256:d0fd908dfe8697467f930c1894fcdbbbbd093e3dcf104204a00121ffef017749"
     pullPolicy: IfNotPresent
   auth:
     username: postgres
@@ -386,10 +394,13 @@ migrations:
 
 # Database backup configuration
 # Backups run as a K8s CronJob using pg_dump.
-# Disabled in prod: host-level backups are configured at the server level
-# (178.105.26.90, configured 2026-05-01), which back up the entire data
-# volume rather than just pg_dump. Re-enable here only if you need an
-# in-cluster logical dump on top of the host snapshots.
+# Disabled in prod: disaster recovery is hosting-provider server snapshots
+# of the whole machine, taken every few hours (confirmed 2026-06-10). No
+# host-level cron/systemd backup job exists on the server — the last
+# in-cluster pg_dump under /opt/benger-backups is from 2026-05-01, when this
+# CronJob was switched off. Re-enable here only if you additionally want an
+# in-cluster logical dump (e.g. for point-in-time restores finer than the
+# snapshot cadence, or to migrate data off the box).
 backup:
   enabled: false
   # Cron schedule (default: daily at 02:00 UTC)
