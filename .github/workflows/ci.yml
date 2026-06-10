@@ -68,12 +68,27 @@ jobs:
   integration-tests:
     name: ${{ matrix.shard }} tests (prod gate)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 100
     if: github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[hotfix]')
     strategy:
       fail-fast: false
+      # The full api suite alone takes ~80 min on GitHub-hosted runners
+      # (the "~36 min" folklore is stale — the first gate run timed out at
+      # 60 min having reached 37%). Split it into three roughly equal
+      # shards so gate wall-clock stays ~30-40 min. The [a-l]/[m-z] globs
+      # expand inside the test container; new test files land in a shard
+      # automatically. Test counts at the time of the split: a-l ≈ 2.4k,
+      # m-z ≈ 2.3k, rest (integration/routers/migration/...) ≈ 1.7k.
       matrix:
-        shard: [api, workers]
+        include:
+          - shard: api-unit-al
+            cmd: make test-api FILE="tests/unit/test_[a-l]*.py"
+          - shard: api-unit-mz
+            cmd: make test-api FILE="tests/unit/test_[m-z]*.py"
+          - shard: api-rest
+            cmd: make test-api FILE="tests/ --ignore=tests/unit"
+          - shard: workers
+            cmd: make test-workers
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -120,12 +135,8 @@ jobs:
         run: make test-seed
 
       - name: Run ${{ matrix.shard }} tests
-        run: |
-          case "${{ matrix.shard }}" in
-            api)     make test-api ;;
-            workers) make test-workers ;;
-          esac
-        timeout-minutes: 60
+        run: ${{ matrix.cmd }}
+        timeout-minutes: 80
 
       - name: Cleanup
         if: always()
