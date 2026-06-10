@@ -15,6 +15,7 @@
  * Execute via: make test-e2e
  */
 import { test, expect } from '@playwright/test'
+import { importTasksInBrowser } from '../helpers/api-seeding'
 import { TestHelpers } from '../helpers/test-helpers'
 
 // Test configuration
@@ -140,23 +141,11 @@ test.describe('QA Project Full Workflow (Create-to-Verify) @extended', () => {
 
     test.skip(!projectId, 'Project not found from Step 1')
 
-    // Import tasks
-    const importResult = await page.evaluate(
-      async ({ pid, tasks }) => {
-        const response = await fetch(`/api/projects/${pid}/import`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ data: tasks }),
-        })
-        if (!response.ok) {
-          return { success: false, error: await response.text() }
-        }
-        const data = await response.json()
-        return { success: true, taskCount: data.task_count || tasks.length }
-      },
-      { pid: projectId, tasks: TEST_TASKS }
-    )
+    // Import tasks via the async flow (#158 removed the sync endpoint)
+    const importResult = await page.evaluate(importTasksInBrowser, {
+      projectId,
+      tasks: TEST_TASKS,
+    })
 
     console.log(`[Step 2] Import tasks: ${JSON.stringify(importResult)}`)
     expect(importResult.success).toBeTruthy()

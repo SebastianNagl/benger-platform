@@ -15,6 +15,7 @@
  * Execute via: make test-e2e
  */
 import { test, expect } from '@playwright/test'
+import { importTasksInBrowser } from '../helpers/api-seeding'
 import { TestHelpers } from '../helpers/test-helpers'
 
 // Constants for test data
@@ -138,21 +139,11 @@ test.describe('Span/NER Project Full Workflow (Create-to-Verify) @extended', () 
       data: { text, id: `task-${idx + 1}` },
     }))
 
-    const importResult = await page.evaluate(
-      async ({ pid, taskData }) => {
-        const response = await fetch(`/api/projects/${pid}/import`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ data: taskData }),
-        })
-        if (!response.ok) {
-          return { success: false, error: await response.text() }
-        }
-        return { success: true, taskCount: taskData.length }
-      },
-      { pid: projectId, taskData: tasks }
-    )
+    // Async import flow (#158 removed the sync endpoint)
+    const importResult = await page.evaluate(importTasksInBrowser, {
+      projectId,
+      tasks,
+    })
 
     console.log(`[Step 2] Import tasks: ${JSON.stringify(importResult)}`)
     expect(importResult.success).toBeTruthy()
