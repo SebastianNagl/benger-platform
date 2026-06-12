@@ -379,6 +379,11 @@ services:
       DEEPINFRA_API_KEY: ${DEEPINFRAAI_API_KEY:-}
     volumes:
       - ../services/workers:/app:ro
+      # tasks.py resolves /shared on sys.path for models/core_version —
+      # without this mount (which test-worker has) the early model imports
+      # fail silently in their try-block and the bare core_version import
+      # at the bottom of tasks.py crash-loops beat (issue #183).
+      - ../services/shared:/shared:ro
     tmpfs:
       - /tmp
     networks:
