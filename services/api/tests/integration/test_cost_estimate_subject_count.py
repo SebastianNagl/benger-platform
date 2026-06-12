@@ -702,6 +702,79 @@ class TestEvaluationJudgeCalls:
         assert _per_model_cells(body, JUDGE_A) == n
         assert _per_model_cells(body, JUDGE_B) == n
 
+    def test_rescored_cells_dedup_server_side(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        """Issue #106: the skip-set query must return one row per scored
+        subject, not one per historical TaskEvaluation row. Every re-run of
+        an evaluation used to add a full copy of the result set to the rows
+        the API pulls into Python before deduplicating.
+        """
+        from sqlalchemy import event
+
+        from routers.cost_estimate import _scored_for
+
+        _seed_judge_pricing(test_db, JUDGE_A)
+        data = _seed_project_with_subjects(test_db, test_users, test_org)
+        cfg_id = "llm_judge_falloesung-rescored-ccc"
+        _set_project_judge_configs(test_db, data["project"], [
+            {
+                "id": cfg_id,
+                "enabled": True,
+                "metric": "llm_judge_falloesung",
+                "prediction_fields": ["__all_model__"],
+                "metric_parameters": {"judges": [{"judge_model_id": JUDGE_A, "runs": 1}]},
+            },
+        ])
+        all_gen_ids = [g.id for g in test_db.query(Generation).join(
+            Task, Generation.task_id == Task.id
+        ).filter(Task.project_id == data["project"].id).all()]
+        # Score every cell twice — two historical runs over the same subjects.
+        for _ in range(2):
+            _seed_scored_cells(
+                test_db, data["project"], JUDGE_A,
+                config_id=cfg_id, pred_field="__all_model__",
+                generation_ids=all_gen_ids,
+            )
+
+        captured: List[str] = []
+
+        def _capture(conn, cursor, statement, parameters, context, executemany):
+            captured.append(statement)
+
+        bind = test_db.get_bind()
+        event.listen(bind, "before_cursor_execute", _capture)
+        try:
+            scored = _scored_for(
+                test_db, data["project"].id,
+                config_id=cfg_id, pred_field_norm="__all_model__",
+                subject_col=TaskEvaluation.generation_id, kind="generation",
+            )
+        finally:
+            event.remove(bind, "before_cursor_execute", _capture)
+
+        # Set semantics unchanged: each subject counted once.
+        assert scored == {("generation", gid) for gid in all_gen_ids}
+        # And the dedup happened in SQL, not by fetching duplicate rows.
+        selects = [s for s in captured if s.lstrip().upper().startswith("SELECT")]
+        assert selects, "skip-set query was not captured"
+        assert any("DISTINCT" in s.upper() for s in selects)
+
+        # End-to-end: a fully (re-)covered config reports zero missing cells.
+        body = _post_estimate(
+            client, auth_headers,
+            project_id=data["project"].id,
+            mode="evaluation",
+            judge_models=[JUDGE_A],
+            generation_mode="missing",
+            runs_per_call=1,
+            evaluation_configs=[{
+                "metric": "llm_judge_falloesung",
+                "prediction_fields": ["__all_model__"],
+            }],
+        )
+        assert _per_model_cells(body, JUDGE_A) == 0
+
 
 class TestRequestValidation:
     """B3 cross-mode rejection — validator integration check."""

@@ -4,7 +4,9 @@ version: '3.8'
 services:
   # Traefik Reverse Proxy with modern configuration
   traefik:
-    image: traefik:v3.0
+    # v3.0's docker client is rejected by modern daemons (min API 1.40);
+    # see the matching note in docker-compose.test.yml.
+    image: traefik:v3.6
     restart: unless-stopped
     ports:
       - "80:80"

@@ -390,7 +390,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
             max_retries: Maximum retries for API calls
             custom_prompt_template: Custom prompt template that overrides SINGLE_EVALUATION_PROMPT.
                                    Supports variables: {criterion}, {criterion_name}, {criterion_description},
-                                   {rubric}, {context}, {ground_truth}, {response}
+                                   {rubric}, {context}, {ground_truth}, {prediction}
             answer_type: Answer type for auto-selecting prompts/criteria.
                         Supported: text, short_text, long_text, choices, single_choice, binary,
                         multiple_choice, span_selection, rating, numeric
@@ -699,14 +699,13 @@ class LLMJudgeEvaluator(BaseEvaluator):
         # Use custom prompt template if provided, otherwise use default
         prompt_template = self.custom_prompt_template or SINGLE_EVALUATION_PROMPT
 
-        # Build template variables - support multiple naming conventions for flexibility
+        # Build template variables. Canonical names only — the alias names
+        # ({reference}/{response}/{candidate}) were removed in Issue #107;
+        # unknown placeholders stay literal via the KeyError fallback below.
         template_vars = {
             "context": context or "No additional context provided.",
             "ground_truth": ground_truth,
-            "reference": ground_truth,  # Alias for ground_truth
             "prediction": prediction,
-            "response": prediction,  # Alias for prediction
-            "candidate": prediction,  # Alias for prediction
             "criterion": criterion,
             "criterion_name": criterion_config.get("name", criterion),
             "criterion_description": criterion_config.get("description", ""),
@@ -1116,7 +1115,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
            auto-bind doesn't cover.
 
         No aliases (``{response}``/``{candidate}``/``{reference}``/``{input}``)
-        — Issue #107 tracks the per-criterion path's parallel cleanup.
+        — removed everywhere in Issue #107; unknown placeholders stay
+        literal via the partial-substitution fallback.
 
         Returns a dict::
 
@@ -1465,7 +1465,7 @@ def create_llm_judge_for_user(
         temperature: Temperature for LLM calls (0.0 for reproducibility)
         max_tokens: Maximum tokens for judge response (default 500)
         custom_criteria: Custom criteria with descriptions and rubrics
-        custom_prompt_template: Custom prompt template (supports {candidate}, {reference}, {criterion})
+        custom_prompt_template: Custom prompt template (supports {prediction}, {ground_truth}, {criterion})
         answer_type: Answer type for auto-selecting prompts/criteria (text, choices, span_selection, etc.)
         field_mappings: Custom field mappings that map template variables to task data fields.
                        Uses same syntax as generation prompts: {"variable": "$field.path"}

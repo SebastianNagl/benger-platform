@@ -9,7 +9,6 @@ import os
 # Add path for imports
 import sys
 import uuid
-from unittest.mock import patch
 
 import pytest
 
@@ -38,6 +37,20 @@ from project_models import (  # noqa: E402
     Task,
     TaskAssignment,
 )
+
+
+def _export_project_dict(db, project_id):
+    """Materialize the streamed comprehensive export for assertions.
+
+    The dict-building `get_comprehensive_project_data` helper was removed
+    (issue #106 — it chained a dozen unbounded `.all()` calls); the streaming
+    generator is the production export path, so the round-trip tests assert
+    against exactly what ships.
+    """
+    from routers.projects._export_stream import stream_comprehensive_project_data_json
+
+    return json.loads("".join(stream_comprehensive_project_data_json(db, project_id)))
+
 
 # Prompt model removed in Issue #759
 
@@ -384,13 +397,9 @@ class TestComprehensiveRoundTrip:
 
     def test_export_includes_all_evaluation_data(self, sample_complete_project, test_db_session):
         """Test that export includes all evaluation-related data."""
-        from projects_api import get_comprehensive_project_data
-
         project_id = sample_complete_project["project"].id
 
-        # Mock the database session in the function
-        with patch('projects_api.Session', return_value=test_db_session):
-            export_data = get_comprehensive_project_data(test_db_session, project_id)
+        export_data = _export_project_dict(test_db_session, project_id)
 
         # Verify all evaluation data is present
         assert "evaluations" in export_data
@@ -438,13 +447,9 @@ class TestComprehensiveRoundTrip:
 
     def test_import_handles_all_evaluation_data(self, sample_complete_project, test_db_session):
         """Test that import correctly processes all evaluation data."""
-        from projects_api import get_comprehensive_project_data
-
         project_id = sample_complete_project["project"].id
 
-        # Get export data
-        with patch('projects_api.Session', return_value=test_db_session):
-            export_data = get_comprehensive_project_data(test_db_session, project_id)
+        export_data = _export_project_dict(test_db_session, project_id)
 
         # Simulate import by checking data structure
         # The actual import function would create new database entries
@@ -488,13 +493,9 @@ class TestComprehensiveRoundTrip:
         self, sample_complete_project, test_db_session
     ):
         """Test that foreign key relationships are maintained in round-trip."""
-        from projects_api import get_comprehensive_project_data
-
         project_id = sample_complete_project["project"].id
 
-        # Get export data
-        with patch('projects_api.Session', return_value=test_db_session):
-            export_data = get_comprehensive_project_data(test_db_session, project_id)
+        export_data = _export_project_dict(test_db_session, project_id)
 
         # Create ID mappings (simulating import process)
         id_mappings = {
@@ -555,12 +556,9 @@ class TestComprehensiveRoundTrip:
         self, sample_complete_project, test_db_session
     ):
         """Test that export statistics accurately count all evaluation data."""
-        from projects_api import get_comprehensive_project_data
-
         project_id = sample_complete_project["project"].id
 
-        with patch('projects_api.Session', return_value=test_db_session):
-            export_data = get_comprehensive_project_data(test_db_session, project_id)
+        export_data = _export_project_dict(test_db_session, project_id)
 
         stats = export_data["statistics"]
 
@@ -580,12 +578,9 @@ class TestComprehensiveRoundTrip:
 
     def test_import_with_missing_evaluation_users(self, sample_complete_project, test_db_session):
         """Test that import handles missing evaluator users gracefully."""
-        from projects_api import get_comprehensive_project_data
-
         project_id = sample_complete_project["project"].id
 
-        with patch('projects_api.Session', return_value=test_db_session):
-            export_data = get_comprehensive_project_data(test_db_session, project_id)
+        export_data = _export_project_dict(test_db_session, project_id)
 
         # Remove user data to simulate missing users
         export_data["users"] = []
@@ -618,12 +613,9 @@ class TestComprehensiveRoundTrip:
         self, sample_complete_project, test_db_session, data_type, expected_count
     ):
         """Test that each evaluation data type exports with correct count."""
-        from projects_api import get_comprehensive_project_data
-
         project_id = sample_complete_project["project"].id
 
-        with patch('projects_api.Session', return_value=test_db_session):
-            export_data = get_comprehensive_project_data(test_db_session, project_id)
+        export_data = _export_project_dict(test_db_session, project_id)
 
         assert data_type in export_data
         assert len(export_data[data_type]) == expected_count

@@ -14,7 +14,6 @@ is covered by the shared-driver round-trip tests and the async job endpoints.
 import json
 import uuid
 from datetime import datetime
-from unittest.mock import patch
 
 
 from models import (
@@ -308,24 +307,93 @@ class TestBulkExportCsv:
         assert body["projects"] == []
 
 
+class TestBulkExportSpooledJson:
+    """The bulk-export JSON body is spooled to disk with each project's tasks
+    array spliced in by hand (issue #158 follow-up: O(batch) memory, not
+    O(selection)). Lock that the hand-written JSON stays parseable and complete
+    across multiple projects, a zero-task project, and more tasks than one
+    yield_per batch."""
+
+    def test_multi_project_cross_batch_body_parses_complete(
+        self, client, test_users, test_db, auth_headers
+    ):
+        from routers.projects.import_export import _BULK_EXPORT_TASK_BATCH
+
+        data = _setup_project_with_data(
+            test_db, test_users, add_generations=False, add_evaluations=False
+        )
+        full = data["project"]
+        # Top up past one task batch so the comma logic crosses a
+        # yield_per boundary mid-array.
+        task_total = _BULK_EXPORT_TASK_BATCH + 7
+        for i in range(len(data["tasks"]), task_total):
+            test_db.add(Task(
+                id=str(uuid.uuid4()),
+                project_id=full.id,
+                inner_id=i + 1,
+                data={"text": f"bulk {i}"},
+            ))
+        test_db.commit()
+
+        empty = Project(
+            id=str(uuid.uuid4()),
+            title="Spool Empty Project",
+            created_by=test_users[0].id,
+            label_config="<View/>",
+        )
+        test_db.add(empty)
+        test_db.flush()
+        test_db.add(ProjectOrganization(
+            id=str(uuid.uuid4()),
+            project_id=empty.id,
+            organization_id=data["org"].id,
+            assigned_by=test_users[0].id,
+        ))
+        test_db.commit()
+
+        resp = client.post(
+            "/api/projects/bulk-export",
+            json={
+                "project_ids": [full.id, empty.id],
+                "format": "json",
+                "include_data": True,
+            },
+            headers=auth_headers["admin"],
+        )
+        assert resp.status_code == 200
+        assert "attachment" in resp.headers.get("content-disposition", "")
+
+        body = json.loads(resp.text)  # would raise if the splice broke the JSON
+        assert body["format"] == "json"
+        assert {p["id"] for p in body["projects"]} == {full.id, empty.id}
+
+        by_id = {p["id"]: p for p in body["projects"]}
+        assert len(by_id[full.id]["tasks"]) == task_total
+        assert by_id[full.id]["task_count"] == task_total
+        assert by_id[empty.id]["tasks"] == []
+        # Per-task shape is unchanged from the legacy builder.
+        sample = by_id[full.id]["tasks"][0]
+        assert set(sample) == {
+            "id", "data", "meta", "is_labeled", "created_at", "annotations"
+        }
+        assert sample["annotations"] == []
+
+
 class TestBulkExportFull:
     """Test full project export (ZIP format)."""
 
     def test_bulk_export_full_zip(self, client, test_users, test_db, auth_headers):
+        # No mock: the route streams the real comprehensive export
+        # (the dict-building helper this test used to patch was removed
+        # in issue #106 and the patch had been a no-op since #158).
         data = _setup_project_with_data(test_db, test_users)
         pid = data["project"].id
 
-        with patch("routers.projects.helpers.get_comprehensive_project_data") as mock_export:
-            mock_export.return_value = {
-                "format_version": "2.0.0",
-                "project": {"id": pid, "title": "Test"},
-                "tasks": [],
-            }
-            resp = client.post(
-                "/api/projects/bulk-export-full",
-                json={"project_ids": [pid]},
-                headers=auth_headers["admin"],
-            )
+        resp = client.post(
+            "/api/projects/bulk-export-full",
+            json={"project_ids": [pid]},
+            headers=auth_headers["admin"],
+        )
         assert resp.status_code == 200
         assert "application/zip" in resp.headers.get("content-type", "")
 

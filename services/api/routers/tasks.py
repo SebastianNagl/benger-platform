@@ -58,7 +58,6 @@ def get_user_accessible_projects(db: Session, user: AuthUser) -> List[str]:
         .subquery()
     )
 
-    # Get projects from user's organizations (private projects)
     # Get projects linked to user's organizations (private projects)
     org_projects = (
         db.query(Project.id)

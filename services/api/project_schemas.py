@@ -54,7 +54,7 @@ class PromptStructureBase(BaseModel):
     )
     judge_instruction_prompt: Optional[str] = Field(
         None,
-        description="Instruction prompt for LLM judge. Supports {candidate}, {reference}, {criterion} variables",
+        description="Instruction prompt for LLM judge. Supports {prediction}, {ground_truth}, {criterion} variables",
     )
     judge_criteria: Optional[List[str]] = Field(
         None,

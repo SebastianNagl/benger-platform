@@ -593,10 +593,12 @@ def stream_comprehensive_project_data_json(
     db: Session,
     project_id: str,
 ) -> Iterator[str]:
-    """Streaming sibling of `routers.projects.helpers.get_comprehensive_project_data`.
+    """Stream the comprehensive (clone-format) project export as JSON chunks.
 
-    Yields the same JSON shape the helper returns (same top-level keys, same
-    per-row field structure) but in chunks, so the full clone payload never
+    Yields the same JSON shape the old dict-building
+    `get_comprehensive_project_data` helper returned (removed in issue #106;
+    this generator is the only producer now) — same top-level keys, same
+    per-row field structure — but in chunks, so the full clone payload never
     lives in RAM simultaneously. Used by POST /bulk-export-full to keep the
     per-project peak bounded — Benchathon-sized projects (~11k task_evaluations
     in `mode='full'`) would otherwise OOMKill the API pod the moment the

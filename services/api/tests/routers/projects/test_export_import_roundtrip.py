@@ -6,7 +6,7 @@ storage is the only transport). These fidelity tests now drive the same shared
 streaming drivers the async worker uses, so coverage survives the endpoint
 removal:
 1. Data export (bulk_export_tasks) → nested import (run_nested_import) → verify
-2. Full project export (get_comprehensive_project_data) → field-consistency
+2. Full project export (stream_comprehensive_project_data_json) → field-consistency
    checks (the full-project import driver is round-tripped in
    tests/integration/test_ndjson_roundtrip.py).
 
@@ -39,6 +39,19 @@ from project_models import (  # noqa: E402
     Project,
     Task,
 )
+
+
+def _export_project_dict(db, project_id):
+    """Materialize the streamed comprehensive export for assertions.
+
+    The dict-building `get_comprehensive_project_data` helper was removed
+    (issue #106 — it chained a dozen unbounded `.all()` calls); the streaming
+    generator is the production export path, so these tests assert against
+    exactly what ships.
+    """
+    from routers.projects._export_stream import stream_comprehensive_project_data_json
+
+    return json.loads("".join(stream_comprehensive_project_data_json(db, project_id)))
 
 
 @pytest.fixture
@@ -560,14 +573,13 @@ class TestDataExportImportRoundtrip:
 
 @pytest.mark.integration
 class TestFullProjectExportRoundtrip:
-    """Export via get_comprehensive_project_data, verify field consistency
-    with shared serializers."""
+    """Export via the streaming comprehensive generator, verify field
+    consistency with shared serializers."""
 
     def test_export_uses_shared_serializers(
         self, db_session, user, project_with_full_data
     ):
         """Verify full export produces fields matching serializer output."""
-        from routers.projects.helpers import get_comprehensive_project_data
         from routers.projects.serializers import (
             serialize_annotation,
             serialize_evaluation_run,
@@ -579,7 +591,7 @@ class TestFullProjectExportRoundtrip:
         data = project_with_full_data
         project = data["project"]
 
-        export = get_comprehensive_project_data(db_session, project.id)
+        export = _export_project_dict(db_session, project.id)
 
         # Verify tasks match serializer output
         assert len(export["tasks"]) == 3
@@ -617,10 +629,8 @@ class TestFullProjectExportRoundtrip:
             assert key in exported_te, f"TaskEvaluation missing key: {key}"
 
     def test_export_task_counts(self, db_session, user, project_with_full_data):
-        from routers.projects.helpers import get_comprehensive_project_data
-
         data = project_with_full_data
-        export = get_comprehensive_project_data(db_session, data["project"].id)
+        export = _export_project_dict(db_session, data["project"].id)
 
         stats = export["statistics"]
         assert stats["total_tasks"] == 3
@@ -634,10 +644,8 @@ class TestFullProjectExportRoundtrip:
         self, db_session, user, project_with_full_data
     ):
         """Verify actual field values, not just key presence."""
-        from routers.projects.helpers import get_comprehensive_project_data
-
         data = project_with_full_data
-        export = get_comprehensive_project_data(db_session, data["project"].id)
+        export = _export_project_dict(db_session, data["project"].id)
 
         # Tasks have FK fields in full mode
         task = export["tasks"][0]
@@ -916,8 +924,7 @@ class TestRoundtripExtensions:
         gen.label_config_snapshot = "<View>v3</View>"
         db_session.commit()
 
-        from routers.projects.helpers import get_comprehensive_project_data
-        export = get_comprehensive_project_data(db_session, data["project"].id)
+        export = _export_project_dict(db_session, data["project"].id)
         gen_data = next(g for g in export["generations"] if g["id"] == gen.id)
         assert gen_data["parse_status"] == "success"
         assert gen_data["parsed_annotation"] == [
@@ -944,8 +951,7 @@ class TestRoundtripExtensions:
         project.korrektur_config = [{"value": "✓", "background": "#dff"}]
         db_session.commit()
 
-        from routers.projects.helpers import get_comprehensive_project_data
-        export = get_comprehensive_project_data(db_session, project.id)
+        export = _export_project_dict(db_session, project.id)
         proj = export["project"]
         assert proj["conditional_instructions"][0]["id"] == "var-A"
         assert proj["instructions_always_visible"] == True  # noqa: E712
