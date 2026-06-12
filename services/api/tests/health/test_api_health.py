@@ -275,6 +275,131 @@ class TestAPIHealth:
 
 
 @pytest.mark.health
+@pytest.mark.integration
+class TestHealthDegradedContract:
+    """Dependency-matrix tests for GET /health (extended#33).
+
+    Contract as implemented in services/api/routers/health.py:
+
+      - Postgres is REQUIRED: DB failure -> 503 + status="unhealthy"
+        (K8s evicts the pod). The DB check short-circuits before the
+        Celery probe, so celery_workers stays "unknown".
+      - Celery is SOFT: workers unreachable -> 200 + status="degraded".
+        The API still serves sync traffic; async tasks just queue, so
+        operators alert on the body field instead of K8s evicting.
+      - Redis is REQUIRED: unavailable -> 503 + status="unhealthy".
+      - Everything up -> 200 + status="healthy".
+
+    DB and Celery are mocked via dependency override / patch (same
+    pattern as test_unauthenticated_health_endpoints above); Redis comes
+    from the real test container except in the explicit Redis-down test.
+    """
+
+    @pytest.mark.parametrize(
+        "db_up,celery_up,expected_http,expected_status",
+        [
+            (True, True, 200, "healthy"),
+            (True, False, 200, "degraded"),
+            (False, True, 503, "unhealthy"),
+            (False, False, 503, "unhealthy"),
+        ],
+        ids=["all-up", "celery-down", "db-down", "db-and-celery-down"],
+    )
+    def test_health_dependency_matrix(
+        self,
+        client: TestClient,
+        db_up: bool,
+        celery_up: bool,
+        expected_http: int,
+        expected_status: str,
+    ):
+        from unittest.mock import AsyncMock, Mock, patch
+
+        from database import get_async_db
+        from main import app
+
+        async def override_async_db():
+            mock_db = AsyncMock()
+            if db_up:
+                mock_db.execute = AsyncMock(return_value=Mock())
+            else:
+                mock_db.execute = AsyncMock(side_effect=Exception("DB unreachable"))
+            yield mock_db
+
+        app.dependency_overrides[get_async_db] = override_async_db
+        try:
+            with patch("celery_client.get_celery_app") as mock_get_app:
+                ping = mock_get_app.return_value.control.inspect.return_value.ping
+                ping.return_value = (
+                    {"celery@worker1": {"ok": "pong"}} if celery_up else None
+                )
+                response = client.get("/health")
+        finally:
+            app.dependency_overrides.pop(get_async_db, None)
+
+        assert response.status_code == expected_http
+        data = response.json()
+        assert data["status"] == expected_status
+
+        if db_up:
+            assert data["redis"] == "connected"
+            assert data["database"] == "connected"
+            if celery_up:
+                assert "reachable" in data["celery_workers"]
+            else:
+                assert data["celery_workers"] == "no_workers_responding"
+        else:
+            assert data["database"] == "error"
+            # DB failure returns before the Celery probe runs.
+            assert data["celery_workers"] == "unknown"
+
+    def test_celery_inspect_exception_marks_degraded(self, client: TestClient):
+        """A broker error (not just silence) is also a soft failure:
+        celery_workers="error", status="degraded", still HTTP 200."""
+        from unittest.mock import AsyncMock, Mock, patch
+
+        from database import get_async_db
+        from main import app
+
+        async def override_async_db():
+            mock_db = AsyncMock()
+            mock_db.execute = AsyncMock(return_value=Mock())
+            yield mock_db
+
+        app.dependency_overrides[get_async_db] = override_async_db
+        try:
+            with patch("celery_client.get_celery_app") as mock_get_app:
+                mock_get_app.return_value.control.inspect.return_value.ping.side_effect = Exception(
+                    "broker unreachable"
+                )
+                response = client.get("/health")
+        finally:
+            app.dependency_overrides.pop(get_async_db, None)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["status"] == "degraded"
+        assert data["celery_workers"] == "error"
+
+    def test_redis_unavailable_returns_503(self, client: TestClient):
+        """Redis is a hard dependency: unavailable -> 503 + "unhealthy".
+        The Redis check runs first, so database/celery stay "unknown"."""
+        from unittest.mock import patch
+
+        with patch("services.redis_cache.cache") as mock_cache:
+            mock_cache.is_available = False
+            mock_cache.redis_client = None
+            response = client.get("/health")
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        data = response.json()
+        assert data["status"] == "unhealthy"
+        assert data["redis"] == "unavailable"
+        assert data["database"] == "unknown"
+        assert data["celery_workers"] == "unknown"
+
+
+@pytest.mark.health
 class TestHealthSummary:
     """Summary tests to verify overall API health"""
 

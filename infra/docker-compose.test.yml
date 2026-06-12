@@ -487,7 +487,10 @@ services:
       test-redis:
         condition: service_healthy
     entrypoint: ["/bin/sh", "-c"]
-    command: ["pytest tests/ -v --tb=short --maxfail=10 --timeout=120 --cov=. --cov-branch --cov-report=term --cov-fail-under=60"]
+    # Coverage flags (incl. the ratchet floor) come from
+    # services/workers/pytest.ini addopts — don't re-specify them here:
+    # a command-line --cov-fail-under would override the ratchet.
+    command: ["pytest tests/ -v --tb=short --maxfail=10 --timeout=120"]
     networks:
       - benger-test-network
     profiles:

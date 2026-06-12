@@ -13,6 +13,7 @@ admin endpoints (still synchronous, out of #158 scope) remain unit-tested here.
 """
 
 import json
+import os
 import zipfile
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
@@ -114,7 +115,12 @@ class TestBulkExportProjects:
         )
 
         assert result.media_type == "application/json"
-        body = json.loads(result.body.decode())
+        # JSON bulk export spools to a tempfile and returns FileResponse;
+        # the background unlink only runs when served over ASGI, so read
+        # the file directly and clean it up here.
+        with open(result.path, encoding="utf-8") as f:
+            body = json.load(f)
+        os.unlink(result.path)
         assert "projects" in body
         assert len(body["projects"]) == 1
 
@@ -188,7 +194,9 @@ class TestBulkExportProjects:
             db=mock_db,
         )
 
-        body = json.loads(result.body.decode())
+        with open(result.path, encoding="utf-8") as f:
+            body = json.load(f)
+        os.unlink(result.path)
         assert len(body["projects"]) == 0
 
 

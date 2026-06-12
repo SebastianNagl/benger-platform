@@ -119,7 +119,7 @@ role-scenarios-*.txt
 single-test-*.txt
 
 # Docker
-.dockerignore
+# (.dockerignore files are build config and belong in version control)
 
 # Kubernetes
 kubeconfig.yaml
@@ -238,6 +238,13 @@ test_*.html
 
 # E2E debug probe scratch dirs
 services/frontend/e2e/**/_probe/
+
+# Extended-edition frontend overlay (extended#33). Empty placeholder dir
+# for the Tailwind content glob (tailwind.config.js) and the
+# @benger/extended alias (next.config.js); CI/local tooling copies the
+# proprietary benger-extended files here at build time — they must never
+# be committed to this public repo.
+services/frontend/benger-extended-frontend/
 
 # Migration and debug scripts
 *_migrate.py

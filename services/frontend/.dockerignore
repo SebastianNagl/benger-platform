@@ -1,0 +1,13 @@
+# Without this file, the builder stage's `COPY . .` overwrites the
+# node_modules freshly installed from package-lock.json with whatever the
+# host happens to have (wrong platform binaries, drifted versions — e.g. a
+# host next 15.5.18 clobbering the image's 15.5.19 crashes `next build`).
+node_modules
+.next
+out
+coverage
+test-results
+playwright-report
+e2e/.auth
+npm-debug.log*
+.DS_Store
