@@ -119,7 +119,10 @@ services:
 
   # Traefik Reverse Proxy
   test-traefik:
-    image: traefik:v3.0
+    # v3.0's docker client negotiates an API version below modern daemons'
+    # minimum (Docker 29 requires >= 1.40), so its docker provider never
+    # learns any routers and every request 404s.
+    image: traefik:v3.6
     hostname: test-traefik
     restart: unless-stopped
     ports:
