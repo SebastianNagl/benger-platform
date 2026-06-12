@@ -4,6 +4,10 @@
 # host next 15.5.18 clobbering the image's 15.5.19 crashes `next build`).
 node_modules
 .next
+# Host env files must never leak into image builds — .env.local can carry
+# machine-local toggles (e.g. NEXT_PRIVATE_LOCAL_WEBPACK) and secrets.
+.env*
+!.env.example
 out
 coverage
 test-results
