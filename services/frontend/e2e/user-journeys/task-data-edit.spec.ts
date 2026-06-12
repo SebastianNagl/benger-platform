@@ -78,8 +78,10 @@ async function editValueInOpenModal(
   originalText: string,
   editedText: string
 ) {
+  // Don't gate on the Dialog ROOT's visibility: HeadlessUI's root div is a
+  // zero-size positioning wrapper that Playwright reports as hidden even
+  // while the panel inside is fully rendered. Anchor on panel content.
   const dialog = page.locator(DIALOG)
-  await dialog.waitFor({ state: 'visible', timeout: 30000 })
 
   // Edit mode renders one textarea per data field; our task has exactly one
   // string field, so this resolves to a single element.
@@ -99,7 +101,9 @@ async function editValueInOpenModal(
 /** Close the task-data modal via Escape (the X button has no i18n title). */
 async function closeModal(page: Page) {
   await page.keyboard.press('Escape')
-  await page.locator(DIALOG).waitFor({ state: 'hidden', timeout: 15000 })
+  // 'detached', not 'hidden': the zero-size dialog root already counts as
+  // hidden while open; HeadlessUI unmounts it on close.
+  await page.locator(DIALOG).waitFor({ state: 'detached', timeout: 15000 })
 }
 
 /**
@@ -170,7 +174,6 @@ test.describe('Task Data Edit Modal (#159)', () => {
 
       await editedRow.locator(PROJECT_VIEW_EYE).click()
       const dialog = page.locator(DIALOG)
-      await dialog.waitFor({ state: 'visible', timeout: 30000 })
       await expect(dialog).toContainText(editedText, { timeout: 30000 })
       await expect(dialog).not.toContainText(originalText)
       await closeModal(page)
@@ -226,7 +229,6 @@ test.describe('Task Data Edit Modal (#159)', () => {
       await row.locator(GLOBAL_EDIT_PENCIL).click()
 
       const dialog = page.locator(DIALOG)
-      await dialog.waitFor({ state: 'visible', timeout: 30000 })
       await expect(dialog.locator('textarea')).toHaveValue(editedText, {
         timeout: 30000,
       })
