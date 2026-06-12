@@ -288,8 +288,8 @@ def serialize_human_evaluation_data(db, project_id: str, task_ids: List[str]) ->
     Returns dict with keys: human_evaluation_configs, human_evaluation_sessions,
     human_evaluation_results, preference_rankings, likert_scale_evaluations.
 
-    Used by both `GET /{project_id}/export` (data path) and
-    `get_comprehensive_project_data` (clone path).
+    Used by the export stream's data path and
+    `stream_comprehensive_project_data_json` (clone path).
     """
     from models import (
         HumanEvaluationConfig,

@@ -2,7 +2,6 @@
 
 import os
 import sys
-from unittest.mock import MagicMock, Mock, patch
 
 # Add path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
@@ -74,27 +73,44 @@ class TestConfigurationRoundtrip:
     properly preserved during project export/import.
     """
 
-    def test_generation_config_included_in_project_export_data(self):
-        """Verify generation_config is included in export data structure."""
-        # The export function should include generation_config in project data
-        from projects_api import get_comprehensive_project_data
+    def _make_project(self, test_db, test_users, *, generation_config, evaluation_config):
+        import uuid
 
-        # Mock project with generation_config
-        mock_project = Mock()
-        mock_project.id = "test-project-id"
-        mock_project.title = "Test Project"
-        mock_project.description = "Test Description"
-        mock_project.label_config = "<View></View>"
-        mock_project.expert_instruction = None
-        mock_project.show_instruction = True
-        mock_project.show_skip_button = True
-        mock_project.enable_empty_annotation = True
-        mock_project.created_by = "user-123"
-        mock_project.min_annotations_per_task = 1
-        mock_project.is_published = False
-        mock_project.created_at = None
-        mock_project.updated_at = None
-        mock_project.generation_config = {
+        from project_models import Project
+
+        admin = test_users[0]
+        project = Project(
+            id=str(uuid.uuid4()),
+            title="Config Roundtrip",
+            description="config export fidelity",
+            created_by=admin.id,
+            label_config="<View></View>",
+            generation_config=generation_config,
+            evaluation_config=evaluation_config,
+        )
+        test_db.add(project)
+        test_db.commit()
+        return project
+
+    @staticmethod
+    def _streamed_export(db, project_id):
+        """The production export path — `get_comprehensive_project_data` was
+        removed in issue #106; the streaming generator is what ships."""
+        import json
+
+        from routers.projects._export_stream import (
+            stream_comprehensive_project_data_json,
+        )
+
+        return json.loads(
+            "".join(stream_comprehensive_project_data_json(db, project_id))
+        )
+
+    def test_generation_config_included_in_project_export_data(
+        self, test_db, test_users
+    ):
+        """Verify generation_config is included in export data structure."""
+        generation_config = {
             "selected_configuration": {
                 "models": ["gpt-4o", "claude-3-7-sonnet-20250219"],
                 "parameters": {"temperature": 0.0, "max_tokens": 4000},
@@ -107,56 +123,29 @@ class TestConfigurationRoundtrip:
                 },
             }
         }
-        mock_project.evaluation_config = {"default_temperature": 0.2}
+        project = self._make_project(
+            test_db,
+            test_users,
+            generation_config=generation_config,
+            evaluation_config={"default_temperature": 0.2},
+        )
 
-        # Mock db session with side_effect so successive first() calls return correct types
-        # Call order: 1) Project query -> mock_project, 2) ProjectOrganization existence check,
-        # 3) ProjectOrganization.organization_id query -> needs to be subscriptable
-        mock_db = MagicMock()
-        mock_db.query.return_value.filter.return_value.first.side_effect = [
-            mock_project,
-            ("org-123",),
-            ("org-123",),
-        ]
-        mock_db.query.return_value.filter.return_value.all.return_value = []
+        export_data = self._streamed_export(test_db, project.id)
 
-        # Call get_comprehensive_project_data
-        with patch("projects_api.ProjectOrganization"):
-            export_data = get_comprehensive_project_data(mock_db, "test-project-id")
-
-        # Verify generation_config is in project data
         assert "project" in export_data
-        assert "generation_config" in export_data["project"]
-        assert export_data["project"]["generation_config"] == mock_project.generation_config
+        assert export_data["project"]["generation_config"] == generation_config
 
-        # Verify specific model_configs
-        model_configs = export_data["project"]["generation_config"]["selected_configuration"][
-            "model_configs"
-        ]
+        model_configs = export_data["project"]["generation_config"][
+            "selected_configuration"
+        ]["model_configs"]
         assert model_configs["gpt-4o"]["temperature"] == 0.7
         assert model_configs["claude-3-7-sonnet-20250219"]["thinking_budget"] == 16000
 
-    def test_evaluation_config_included_in_project_export_data(self):
+    def test_evaluation_config_included_in_project_export_data(
+        self, test_db, test_users
+    ):
         """Verify evaluation_config is included in export data structure."""
-        from projects_api import get_comprehensive_project_data
-
-        # Mock project with evaluation_config
-        mock_project = Mock()
-        mock_project.id = "test-project-id"
-        mock_project.title = "Test Project"
-        mock_project.description = "Test Description"
-        mock_project.label_config = "<View></View>"
-        mock_project.expert_instruction = None
-        mock_project.show_instruction = True
-        mock_project.show_skip_button = True
-        mock_project.enable_empty_annotation = True
-        mock_project.created_by = "user-123"
-        mock_project.min_annotations_per_task = 1
-        mock_project.is_published = False
-        mock_project.created_at = None
-        mock_project.updated_at = None
-        mock_project.generation_config = None
-        mock_project.evaluation_config = {
+        evaluation_config = {
             "default_temperature": 0.3,
             "available_methods": {
                 "answer": {
@@ -176,30 +165,18 @@ class TestConfigurationRoundtrip:
                 }
             ],
         }
+        project = self._make_project(
+            test_db,
+            test_users,
+            generation_config=None,
+            evaluation_config=evaluation_config,
+        )
 
-        # Mock db session with side_effect so successive first() calls return correct types
-        # Call order: 1) Project query -> mock_project, 2) ProjectOrganization existence check,
-        # 3) ProjectOrganization.organization_id query -> needs to be subscriptable
-        mock_db = MagicMock()
-        mock_db.query.return_value.filter.return_value.first.side_effect = [
-            mock_project,
-            ("org-123",),
-            ("org-123",),
-        ]
-        mock_db.query.return_value.filter.return_value.all.return_value = []
+        export_data = self._streamed_export(test_db, project.id)
 
-        # Call get_comprehensive_project_data
-        with patch("projects_api.ProjectOrganization"):
-            export_data = get_comprehensive_project_data(mock_db, "test-project-id")
-
-        # Verify evaluation_config is in project data
         assert "project" in export_data
-        assert "evaluation_config" in export_data["project"]
-        assert export_data["project"]["evaluation_config"] == mock_project.evaluation_config
-
-        # Verify default_temperature
+        assert export_data["project"]["evaluation_config"] == evaluation_config
         assert export_data["project"]["evaluation_config"]["default_temperature"] == 0.3
-
     def test_import_restores_generation_config(self):
         """Verify the export payload carries generation_config for import to restore."""
         # Validates the export data shape the importer consumes. The actual
@@ -262,7 +239,7 @@ class TestConfigurationRoundtrip:
             },
         }
 
-        # Create export data structure (simulating what get_comprehensive_project_data returns)
+        # Create export data structure (simulating the comprehensive export shape)
         export_data = {
             "project": {
                 "title": "Test",
@@ -288,42 +265,18 @@ class TestConfigurationRoundtrip:
         # Verify evaluation default temperature
         assert imported_eval_config["default_temperature"] == 0.2
 
-    def test_null_configs_handled_gracefully(self):
-        """Test that null generation_config and evaluation_config don't break export."""
-        from projects_api import get_comprehensive_project_data
+    def test_null_configs_handled_gracefully(self, test_db, test_users):
+        """Null generation_config and evaluation_config don't break export."""
+        project = self._make_project(
+            test_db,
+            test_users,
+            generation_config=None,
+            evaluation_config=None,
+        )
 
-        # Mock project with null configs
-        mock_project = Mock()
-        mock_project.id = "test-project-id"
-        mock_project.title = "Test Project"
-        mock_project.description = "Test"
-        mock_project.label_config = "<View></View>"
-        mock_project.expert_instruction = None
-        mock_project.show_instruction = True
-        mock_project.show_skip_button = True
-        mock_project.enable_empty_annotation = True
-        mock_project.created_by = "user-123"
-        mock_project.min_annotations_per_task = 1
-        mock_project.is_published = False
-        mock_project.created_at = None
-        mock_project.updated_at = None
-        mock_project.generation_config = None  # Null config
-        mock_project.evaluation_config = None  # Null config
+        export_data = self._streamed_export(test_db, project.id)
 
-        # Mock db session with side_effect so successive first() calls return correct types
-        mock_db = MagicMock()
-        mock_db.query.return_value.filter.return_value.first.side_effect = [
-            mock_project,
-            ("org-123",),
-            ("org-123",),
-        ]
-        mock_db.query.return_value.filter.return_value.all.return_value = []
-
-        # Call get_comprehensive_project_data - should not raise
-        with patch("projects_api.ProjectOrganization"):
-            export_data = get_comprehensive_project_data(mock_db, "test-project-id")
-
-        # Verify configs are included (even if None)
+        # Configs are included (even if None)
         assert "generation_config" in export_data["project"]
         assert "evaluation_config" in export_data["project"]
         assert export_data["project"]["generation_config"] is None
