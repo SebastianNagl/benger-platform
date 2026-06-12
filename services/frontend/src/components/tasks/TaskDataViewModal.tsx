@@ -93,9 +93,9 @@ export function TaskDataViewModal({
     setSaveError(null)
     setFieldErrors({})
     if (startMode === 'edit') {
-      setEditValues(buildEditBuffer(baseData))
+      setEditValues(buildEditBuffer(currentData))
     }
-    // baseData intentionally omitted — keyed on task identity to avoid clobbering edits.
+    // currentData intentionally omitted — keyed on task identity to avoid clobbering edits.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, currentTaskId, initialMode, canEdit])
 
@@ -131,15 +131,22 @@ export function TaskDataViewModal({
   const handleSave = async () => {
     if (!canPersist || !resolvedProjectId) return
 
+    // Only send fields whose value actually changed: the server audit-logs
+    // every submitted key, and unchanged fields must not clobber a concurrent
+    // editor's work.
     const newData: Record<string, any> = {}
     const errors: Record<string, string> = {}
     Object.entries(currentData).forEach(([key, original]) => {
       const raw = editValues[key] ?? ''
       if (typeof original === 'string') {
-        newData[key] = raw
-      } else {
+        if (raw !== original) newData[key] = raw
+      } else if (raw !== JSON.stringify(original, null, 2)) {
         try {
-          newData[key] = JSON.parse(raw)
+          const parsed = JSON.parse(raw)
+          // Reformatted but semantically equal JSON is not a change.
+          if (JSON.stringify(parsed) !== JSON.stringify(original)) {
+            newData[key] = parsed
+          }
         } catch {
           errors[key] = t('tasks.dataView.invalidJson')
         }
@@ -148,6 +155,11 @@ export function TaskDataViewModal({
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors)
+      return
+    }
+
+    if (Object.keys(newData).length === 0) {
+      setMode('view')
       return
     }
 
@@ -473,6 +485,7 @@ function EditableDataView({
               </span>
             </div>
             <textarea
+              aria-label={key}
               value={editValues[key] ?? ''}
               onChange={(e) => onChange(key, e.target.value)}
               rows={isString ? 3 : 5}
