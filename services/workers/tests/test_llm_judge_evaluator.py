@@ -536,7 +536,7 @@ class TestLLMJudgeCustomPrompt:
     def test_custom_prompt_template_used(self):
         """Test that custom prompt template is used when provided."""
         custom_template = (
-            "Evaluate {candidate} against {reference} for {criterion_name}. Return JSON with score."
+            "Evaluate {prediction} against {ground_truth} for {criterion_name}. Return JSON with score."
         )
 
         mock_ai_service = MagicMock()
@@ -564,6 +564,48 @@ class TestLLMJudgeCustomPrompt:
 
         # The prompt should contain "Evaluate" from custom template, not default
         assert "Evaluate Actual against Expected" in prompt
+
+    def test_no_aliases_in_single_criterion_path(self):
+        """Issue #107: the alias names {response}/{candidate}/{reference}/{input}
+        must NOT resolve in the per-criterion path — only the canonical
+        context/ground_truth/prediction. Unknown placeholders fall back to
+        literal passthrough via the partial-substitution path, mirroring
+        _evaluate_multidim_single_call."""
+        custom_template = (
+            "ref={reference} resp={response} cand={candidate} in={input} "
+            "gt={ground_truth} pred={prediction}"
+        )
+
+        mock_ai_service = MagicMock()
+        mock_ai_service.generate.return_value = {
+            "success": True,
+            "content": '{"score": 4}',
+        }
+
+        evaluator = LLMJudgeEvaluator(
+            ai_service=mock_ai_service,
+            judge_model="test-model",
+            custom_prompt_template=custom_template,
+        )
+
+        evaluator._evaluate_single_criterion(
+            context="CTX",
+            ground_truth="GT",
+            prediction="PRED",
+            criterion="helpfulness",
+        )
+
+        call_args = mock_ai_service.generate.call_args
+        prompt = call_args.kwargs.get("prompt") or call_args[1].get("prompt") or call_args[0][0]
+
+        # Canonical names substitute
+        assert "gt=GT" in prompt
+        assert "pred=PRED" in prompt
+        # Aliases stay literal
+        assert "ref={reference}" in prompt
+        assert "resp={response}" in prompt
+        assert "cand={candidate}" in prompt
+        assert "in={input}" in prompt
 
 
 class TestLLMJudgeCustomCriteria:

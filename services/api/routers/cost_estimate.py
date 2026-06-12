@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, model_validator
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from auth_module import require_user
@@ -495,6 +496,8 @@ def _scored_for(
     subject_col, kind: str,
 ) -> set:
     from models import TaskEvaluation, EvaluationRun
+    # DISTINCT bounds the result at one row per scored subject; without it the
+    # row count grows with every historical re-run of the same cell (issue #106).
     rows = (
         db.query(subject_col)
         .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
@@ -505,6 +508,7 @@ def _scored_for(
             TaskEvaluation.error_message.is_(None),
             subject_col.isnot(None),
         )
+        .distinct()
         .all()
     )
     return {(kind, r[0]) for r in rows if r[0] is not None}
@@ -536,13 +540,18 @@ def _count_cells_to_generate(
     from project_models import Task
     from models import ResponseGeneration as DBResponseGeneration
 
-    task_ids = [r[0] for r in db.query(Task.id).filter(Task.project_id == project_id).all()]
-    if not task_ids:
-        return 0
     structures: List[Optional[str]] = list(structure_keys) if structure_keys else [None]
 
     if generation_mode != "missing":
-        return len(task_ids) * len(structures)
+        # Only the task count matters here — don't materialize the ID list.
+        task_count = (
+            db.query(func.count(Task.id)).filter(Task.project_id == project_id).scalar()
+        )
+        return task_count * len(structures)
+
+    task_ids = [r[0] for r in db.query(Task.id).filter(Task.project_id == project_id).all()]
+    if not task_ids:
+        return 0
 
     # Issue #83: mode == "missing" — bulk-fetch latest status per cell in two
     # round-trips (exact structure_key matches + NULL fallback rows) instead

@@ -1312,6 +1312,105 @@ describe('AnnotationTab', () => {
       const assignButtons = screen.getAllByText('Assign')
       expect(assignButtons.length).toBeGreaterThan(0)
     })
+
+    describe('Edit data column gating (#159)', () => {
+      // Drives the real getEffectiveProjectRole logic: the mocked
+      // currentProject has no created_by, so the effective role comes from
+      // is_superadmin or the user's org role.
+      const setAuthUser = (overrides: {
+        is_superadmin?: boolean
+        role?: string
+      }) => {
+        mockUseAuth.mockReturnValue({
+          user: {
+            id: 'user-1',
+            email: 'test@example.com',
+            username: 'testuser',
+            is_superadmin: false,
+            role: 'ADMIN',
+            is_active: true,
+            name: 'Test User',
+            ...overrides,
+          },
+          login: jest.fn(),
+          signup: jest.fn(),
+          logout: jest.fn(),
+          updateUser: jest.fn(),
+          isLoading: false,
+          refreshAuth: jest.fn(),
+          organizations: [],
+          currentOrganization: null,
+          setCurrentOrganization: jest.fn(),
+          refreshOrganizations: jest.fn(),
+          apiClient: {} as any,
+        })
+      }
+
+      const editColumnHeaderRendered = () =>
+        screen
+          .getAllByRole('columnheader')
+          .some((h) => h.textContent === 'annotationTab.columns.edit')
+
+      it('shows the edit-data pencil for an ORG_ADMIN of the project', async () => {
+        setAuthUser({ role: 'ORG_ADMIN' })
+
+        render(<AnnotationTab projectId="project-1" />)
+
+        await waitFor(() => {
+          expect(mockFetchProjectTasks).toHaveBeenCalled()
+        })
+
+        // Anchor: both task rows rendered (view button is ungated)
+        await waitFor(() => {
+          expect(
+            screen.getAllByTitle('View complete task data')
+          ).toHaveLength(2)
+        })
+
+        // Edit column header + one pencil per row
+        expect(editColumnHeaderRendered()).toBe(true)
+        expect(screen.getAllByTitle('annotation.editTaskData')).toHaveLength(2)
+      })
+
+      it('shows the edit-data pencil for a superadmin regardless of org role', async () => {
+        setAuthUser({ is_superadmin: true, role: 'ANNOTATOR' })
+
+        render(<AnnotationTab projectId="project-1" />)
+
+        await waitFor(() => {
+          expect(mockFetchProjectTasks).toHaveBeenCalled()
+        })
+
+        await waitFor(() => {
+          expect(
+            screen.getAllByTitle('View complete task data')
+          ).toHaveLength(2)
+        })
+
+        expect(editColumnHeaderRendered()).toBe(true)
+        expect(screen.getAllByTitle('annotation.editTaskData')).toHaveLength(2)
+      })
+
+      it('hides the edit-data column and pencil from an ANNOTATOR', async () => {
+        setAuthUser({ role: 'ANNOTATOR' })
+
+        render(<AnnotationTab projectId="project-1" />)
+
+        await waitFor(() => {
+          expect(mockFetchProjectTasks).toHaveBeenCalled()
+        })
+
+        // Rows did render — the absence below is the gating, not an empty table
+        await waitFor(() => {
+          expect(
+            screen.getAllByTitle('View complete task data')
+          ).toHaveLength(2)
+        })
+
+        expect(editColumnHeaderRendered()).toBe(false)
+        expect(screen.queryByTitle('annotation.editTaskData')).toBeNull()
+      })
+    })
   })
 
   describe('Metadata Filtering', () => {
