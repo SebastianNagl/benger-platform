@@ -675,6 +675,125 @@ describe('TaskDataViewModal', () => {
     })
   })
 
+  it('should send only the changed fields on save', async () => {
+    const user = userEvent.setup()
+    const onSaved = jest.fn()
+    const multiFieldTask: Task = {
+      ...mockTask,
+      id: 123,
+      data: { title: 'Original title', question: 'What?', tags: ['a'] },
+    }
+
+    await act(async () => {
+      render(
+        <TaskDataViewModal
+          task={multiFieldTask}
+          isOpen={true}
+          onClose={mockOnClose}
+          projectId="proj-1"
+          canEdit={true}
+          initialMode="edit"
+          onSaved={onSaved}
+        />
+      )
+    })
+
+    const titleField = screen.getByRole('textbox', { name: 'title' })
+    await act(async () => {
+      await user.clear(titleField)
+      await user.type(titleField, 'Edited title')
+    })
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+    })
+
+    await waitFor(() => {
+      expect(mockUpdateTaskData).toHaveBeenCalledWith('proj-1', '123', {
+        title: 'Edited title',
+      })
+    })
+    expect(onSaved).toHaveBeenCalledWith({ title: 'Edited title' })
+  })
+
+  it('should skip the API call and return to view mode when nothing changed', async () => {
+    const user = userEvent.setup()
+    const onSaved = jest.fn()
+    const singleFieldTask: Task = {
+      ...mockTask,
+      id: 123,
+      data: { text: 'hello' },
+    }
+
+    await act(async () => {
+      render(
+        <TaskDataViewModal
+          task={singleFieldTask}
+          isOpen={true}
+          onClose={mockOnClose}
+          projectId="proj-1"
+          canEdit={true}
+          initialMode="edit"
+          onSaved={onSaved}
+        />
+      )
+    })
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+    })
+
+    expect(mockUpdateTaskData).not.toHaveBeenCalled()
+    expect(onSaved).not.toHaveBeenCalled()
+    // A no-op save drops straight back to view mode.
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: 'Save' })
+      ).not.toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
+  })
+
+  it('should treat reformatted-but-equivalent JSON as unchanged', async () => {
+    const user = userEvent.setup()
+    const jsonFieldTask: Task = {
+      ...mockTask,
+      id: 123,
+      data: { tags: ['a', 'b'] },
+    }
+
+    await act(async () => {
+      render(
+        <TaskDataViewModal
+          task={jsonFieldTask}
+          isOpen={true}
+          onClose={mockOnClose}
+          projectId="proj-1"
+          canEdit={true}
+          initialMode="edit"
+        />
+      )
+    })
+
+    const tagsField = screen.getByRole('textbox', { name: 'tags' })
+    await act(async () => {
+      await user.clear(tagsField)
+      await user.click(tagsField)
+      await user.paste('["a", "b"]')
+    })
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+    })
+
+    expect(mockUpdateTaskData).not.toHaveBeenCalled()
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: 'Save' })
+      ).not.toBeInTheDocument()
+    })
+  })
+
   it('should block save and show an error on invalid JSON for a non-string field', async () => {
     const user = userEvent.setup()
     const numberFieldTask: Task = {
@@ -736,6 +855,13 @@ describe('TaskDataViewModal', () => {
           initialMode="edit"
         />
       )
+    })
+
+    // A field must actually change — unchanged saves never hit the API.
+    const textarea = screen.getByRole('textbox')
+    await act(async () => {
+      await user.clear(textarea)
+      await user.type(textarea, 'changed value')
     })
 
     await act(async () => {
