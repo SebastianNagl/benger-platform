@@ -531,3 +531,92 @@ class TestCountCellsBulkQuery:
             test_db, data["project"].id, "m-cost", None, "missing"
         )
         assert n == 1
+
+
+# ---------------------------------------------------------------------------
+# start_generation fallback bound — issue #106
+# ---------------------------------------------------------------------------
+
+
+class TestStartGenerationFallbackBound:
+    """Issue #106: omitting `task_ids` used to load every Task row in the
+    project (full `data` JSONB included) with no upper bound. The handler now
+    loads IDs only and rejects the no-task_ids fallback above
+    GENERATION_FALLBACK_MAX_TASKS."""
+
+    @patch("routers.generation_task_list.celery_app")
+    def test_fallback_above_cap_rejected_with_400(
+        self, mock_celery, client, test_db, test_users, test_org, auth_headers
+    ):
+        mock_celery.send_task.return_value = None
+        admin = test_users[0]
+        data = _make_project_with_tasks(
+            test_db, admin, test_org, num_tasks=4, model_ids=["model-A"],
+        )
+
+        with patch("routers.generation_task_list.GENERATION_FALLBACK_MAX_TASKS", 3):
+            resp = client.post(
+                f"/api/generation-tasks/projects/{data['project'].id}/generate",
+                json={"mode": "all"},
+                headers=auth_headers["admin"],
+            )
+
+        assert resp.status_code == 400, resp.text
+        assert "task_ids" in resp.json()["detail"]
+        # Nothing was queued or dispatched.
+        n_rows = (
+            test_db.query(DBResponseGeneration)
+            .filter(DBResponseGeneration.project_id == data["project"].id)
+            .count()
+        )
+        assert n_rows == 0
+        mock_celery.send_task.assert_not_called()
+
+    @patch("routers.generation_task_list.celery_app")
+    def test_fallback_at_cap_still_queues_all_tasks(
+        self, mock_celery, client, test_db, test_users, test_org, auth_headers
+    ):
+        mock_celery.send_task.return_value = None
+        admin = test_users[0]
+        data = _make_project_with_tasks(
+            test_db, admin, test_org, num_tasks=4, model_ids=["model-A"],
+        )
+
+        with patch("routers.generation_task_list.GENERATION_FALLBACK_MAX_TASKS", 4):
+            resp = client.post(
+                f"/api/generation-tasks/projects/{data['project'].id}/generate",
+                json={"mode": "all"},
+                headers=auth_headers["admin"],
+            )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["tasks_queued"] == 4
+
+    @patch("routers.generation_task_list.celery_app")
+    def test_explicit_task_ids_bypass_the_cap(
+        self, mock_celery, client, test_db, test_users, test_org, auth_headers
+    ):
+        """The bound only guards the load-everything fallback; callers paging
+        through explicit task_ids stay functional on huge projects."""
+        mock_celery.send_task.return_value = None
+        admin = test_users[0]
+        data = _make_project_with_tasks(
+            test_db, admin, test_org, num_tasks=3, model_ids=["model-A"],
+        )
+        picked = [t.id for t in data["tasks"][:2]]
+
+        with patch("routers.generation_task_list.GENERATION_FALLBACK_MAX_TASKS", 1):
+            resp = client.post(
+                f"/api/generation-tasks/projects/{data['project'].id}/generate",
+                json={"mode": "all", "task_ids": picked},
+                headers=auth_headers["admin"],
+            )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["tasks_queued"] == 2
+        inserted = (
+            test_db.query(DBResponseGeneration.task_id)
+            .filter(DBResponseGeneration.project_id == data["project"].id)
+            .all()
+        )
+        assert {r.task_id for r in inserted} == set(picked)

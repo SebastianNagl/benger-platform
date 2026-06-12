@@ -37,6 +37,13 @@ from celery_client import get_celery_app  # noqa: E402
 logger = logging.getLogger(__name__)
 celery_app = get_celery_app()
 
+# Issue #106: when a trigger omits explicit task_ids, the handler dispatches
+# for every task in the project. The dispatch itself is synchronous (one
+# ResponseGeneration row per cell plus N Celery sends), so an unbounded
+# fallback turns a single request into an OOM/timeout risk on huge projects.
+# Callers above this bound must page through explicit task_ids.
+GENERATION_FALLBACK_MAX_TASKS = 10_000
+
 
 # ============= Request/Response Models =============
 
@@ -658,17 +665,34 @@ async def start_generation(
             "using default generation without structure_key"
         )
 
-    # Get tasks to process
+    # Get tasks to process. Only IDs are needed for dispatch — loading full
+    # rows pulled every Task.data JSONB blob into memory (issue #106).
     if request.task_ids:
-        tasks = (
-            db.query(Task)
+        task_ids = [
+            row[0]
+            for row in db.query(Task.id)
             .filter(Task.project_id == project_id, Task.id.in_(request.task_ids))
             .all()
-        )
+        ]
     else:
-        tasks = db.query(Task).filter(Task.project_id == project_id).all()
+        task_count = (
+            db.query(func.count(Task.id)).filter(Task.project_id == project_id).scalar()
+        )
+        if task_count > GENERATION_FALLBACK_MAX_TASKS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Project has {task_count} tasks, above the "
+                    f"{GENERATION_FALLBACK_MAX_TASKS}-task limit for triggering "
+                    "generation without explicit task_ids. Pass task_ids in batches."
+                ),
+            )
+        task_ids = [
+            row[0]
+            for row in db.query(Task.id).filter(Task.project_id == project_id).all()
+        ]
 
-    if not tasks:
+    if not task_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="No tasks found to generate"
         )
@@ -682,7 +706,6 @@ async def start_generation(
     # threshold even though the handler completed correctly server-side.
     latest_status: Dict[tuple, str] = {}
     if request.mode == "missing":
-        task_ids_list = [t.id for t in tasks]
         latest_rows = (
             db.query(
                 DBResponseGeneration.task_id,
@@ -692,7 +715,7 @@ async def start_generation(
             )
             .filter(
                 DBResponseGeneration.project_id == project_id,
-                DBResponseGeneration.task_id.in_(task_ids_list),
+                DBResponseGeneration.task_id.in_(task_ids),
                 DBResponseGeneration.model_id.in_(model_ids),
             )
             .distinct(
@@ -712,17 +735,17 @@ async def start_generation(
             (r.task_id, r.model_id, r.structure_key): r.status for r in latest_rows
         }
 
-    for task in tasks:
+    for task_id in task_ids:
         for model_id in model_ids:
             for structure_key in structure_keys:
                 if request.mode in ("all", "single"):
                     should_generate = True
                 else:  # mode == "missing"
-                    latest = latest_status.get((task.id, model_id, structure_key))
+                    latest = latest_status.get((task_id, model_id, structure_key))
                     should_generate = (latest is None) or (latest == "failed")
 
                 if should_generate:
-                    tasks_to_queue.append((task.id, model_id, structure_key))
+                    tasks_to_queue.append((task_id, model_id, structure_key))
 
     # When running in "all" mode, cancel existing pending/running generations for this project
     # to avoid wasting API costs on duplicates that will be overwritten
