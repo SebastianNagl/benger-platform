@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from models import (
     Organization,
     OrganizationMembership,
+    OrganizationRole,
     User,
 )
 from project_models import (
@@ -270,6 +271,87 @@ class TestUpdateTaskAuthorization:
             headers={**auth_headers["org_admin"], "X-Organization-Context": test_org.id},
         )
         assert resp.status_code == 403
+
+    def test_project_creator_can_edit(self, client, test_db, test_users, auth_headers, test_org):
+        # Project created by the contributor (non-superadmin, CONTRIBUTOR role,
+        # no ORG_ADMIN membership anywhere): the creator branch of
+        # check_user_can_edit_task_data fires before the ORG_ADMIN check, so the
+        # creator may edit despite holding a non-admin org role
+        # (test_contributor_cannot_edit proves the role alone is insufficient).
+        project, tasks = _setup(test_db, test_users[1], test_org)
+        resp = client.put(
+            f"/api/projects/{project.id}/tasks/{tasks[0].id}",
+            json={"data": {"text": "Edited by creator"}},
+            headers={**auth_headers["contributor"], "X-Organization-Context": test_org.id},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["data"]["text"] == "Edited by creator"
+
+    def test_non_member_cannot_edit(self, client, test_db, test_users, auth_headers, test_org):
+        from auth_module import create_access_token
+        from user_service import get_password_hash
+
+        project, tasks = _setup(test_db, test_users[0], test_org)
+
+        # A user with no relationship to the project: not the creator, no
+        # membership in the project's org — only an active membership (even as
+        # ORG_ADMIN) in an unrelated organization.
+        other_org = Organization(
+            id=_uid(),
+            name="Unrelated Org",
+            slug=f"unrelated-org-{uuid.uuid4().hex[:6]}",
+            display_name="Unrelated Org",
+            description="Organization with no link to the test project",
+        )
+        outsider = User(
+            id=_uid(),
+            username="outsider@test.com",
+            email="outsider@test.com",
+            name="Test Outsider",
+            hashed_password=get_password_hash("outsider123"),
+            is_superadmin=False,
+            is_active=True,
+            email_verified=True,
+        )
+        test_db.add_all([other_org, outsider])
+        test_db.flush()
+        test_db.add(
+            OrganizationMembership(
+                id=_uid(),
+                user_id=outsider.id,
+                organization_id=other_org.id,
+                role=OrganizationRole.ORG_ADMIN,
+                is_active=True,
+            )
+        )
+        test_db.commit()
+
+        token = create_access_token(data={"user_id": outsider.id})
+        resp = client.put(
+            f"/api/projects/{project.id}/tasks/{tasks[0].id}",
+            json={"data": {"text": "Outsider attempt"}},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "X-Organization-Context": other_org.id,
+            },
+        )
+        # check_project_accessible fires before the edit gate: the project does
+        # not belong to the outsider's org, so the request is rejected with 403
+        # "Access denied" and check_user_can_edit_task_data is never reached.
+        assert resp.status_code == 403
+        assert resp.json()["detail"] == "Access denied"
+
+    def test_unauthenticated_cannot_edit(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project, tasks = _setup(test_db, test_users[0], test_org)
+        resp = client.put(
+            f"/api/projects/{project.id}/tasks/{tasks[0].id}",
+            json={"data": {"text": "Anonymous attempt"}},
+            headers={"X-Organization-Context": test_org.id},
+        )
+        # require_user rejects the request before any project/task lookup.
+        assert resp.status_code == 401
 
     def test_edit_merges_data_and_writes_audit_log(
         self, client, test_db, test_users, auth_headers, test_org
