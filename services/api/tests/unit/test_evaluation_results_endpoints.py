@@ -95,7 +95,7 @@ class TestExtractPrimaryScore:
         assert _extract_primary_score(metrics) == 18
 
 
-# ============= _get_task_preview =============
+# ============= _get_task_data_availability =============
 
 
 class TestGetTaskDataAvailability:
