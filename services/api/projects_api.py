@@ -28,7 +28,6 @@ from project_models import (  # noqa: F401 -- tests patch these model classes
 from routers.projects.helpers import (  # noqa: F401
     calculate_generation_stats,
     calculate_project_stats_batch,
-    get_comprehensive_project_data,
     get_project_organizations,
     get_user_with_memberships,
 )

@@ -14,7 +14,6 @@ is covered by the shared-driver round-trip tests and the async job endpoints.
 import json
 import uuid
 from datetime import datetime
-from unittest.mock import patch
 
 
 from models import (
@@ -312,20 +311,17 @@ class TestBulkExportFull:
     """Test full project export (ZIP format)."""
 
     def test_bulk_export_full_zip(self, client, test_users, test_db, auth_headers):
+        # No mock: the route streams the real comprehensive export
+        # (the dict-building helper this test used to patch was removed
+        # in issue #106 and the patch had been a no-op since #158).
         data = _setup_project_with_data(test_db, test_users)
         pid = data["project"].id
 
-        with patch("routers.projects.helpers.get_comprehensive_project_data") as mock_export:
-            mock_export.return_value = {
-                "format_version": "2.0.0",
-                "project": {"id": pid, "title": "Test"},
-                "tasks": [],
-            }
-            resp = client.post(
-                "/api/projects/bulk-export-full",
-                json={"project_ids": [pid]},
-                headers=auth_headers["admin"],
-            )
+        resp = client.post(
+            "/api/projects/bulk-export-full",
+            json={"project_ids": [pid]},
+            headers=auth_headers["admin"],
+        )
         assert resp.status_code == 200
         assert "application/zip" in resp.headers.get("content-type", "")
 
