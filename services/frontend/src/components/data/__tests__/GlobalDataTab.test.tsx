@@ -76,16 +76,22 @@ jest.mock('@/components/tasks/TaskDataViewModal', () => ({
     isOpen,
     onClose,
     task,
+    initialMode,
+    canEdit,
   }: {
     isOpen: boolean
     onClose: () => void
     task: any
+    initialMode?: 'view' | 'edit'
+    canEdit?: boolean
   }) => (
     <div data-testid="task-view-modal">
       {isOpen && (
         <div>
           <h2>Task View Modal</h2>
           <p>Task ID: {task?.id}</p>
+          <p>Mode: {initialMode}</p>
+          <p>Can edit: {String(canEdit)}</p>
           <button onClick={onClose}>Close Modal</button>
         </div>
       )}
@@ -263,6 +269,7 @@ describe('GlobalDataTab', () => {
           'data.management.columnProject': 'Project',
           'data.management.columnAssignedTo': 'Assigned To',
           'data.management.columnAnnotations': 'Annotations',
+          'data.management.columnEdit': 'Edit',
           'data.management.complete': 'Complete',
         }
         let result = translations[key] || key
@@ -1702,6 +1709,102 @@ describe('GlobalDataTab', () => {
         expect(mockLink.download).toContain('tasks_export_')
         expect(mockLink.download).toMatch(/tasks_export_.*\.json/)
       })
+    })
+  })
+
+  describe('Edit Column Permission Gating (#159)', () => {
+    it('hides the edit column and pencil buttons from a non-admin user', async () => {
+      const user = userEvent.setup()
+      mockUseAuth.mockReturnValue({
+        user: { ...mockUser, role: 'CONTRIBUTOR' },
+      } as any)
+
+      render(<GlobalDataTab />)
+
+      await waitFor(() => {
+        expect(screen.getByText('3 total tasks')).toBeInTheDocument()
+      })
+
+      // No "Edit" column header
+      const headers = screen.getAllByRole('columnheader')
+      expect(headers.some((h) => h.textContent === 'Edit')).toBe(false)
+
+      // No pencil button in any row
+      expect(screen.queryByTitle('Edit')).toBeNull()
+
+      // Data rows only carry the eye + magnifying-glass action buttons
+      const rows = screen.getAllByRole('row')
+      expect(within(rows[1]).getAllByRole('button')).toHaveLength(2)
+
+      // The column-visibility dropdown does not offer the edit column
+      const columnsButton = screen.getByRole('button', { name: /Columns/i })
+      await user.click(columnsButton)
+
+      const checkboxes = screen.getAllByRole('checkbox')
+      const editOption = checkboxes.find(
+        (cb) => cb.closest('label')?.textContent?.trim() === 'edit'
+      )
+      expect(editOption).toBeUndefined()
+    })
+
+    it('shows the edit column and a pencil per row for a superadmin', async () => {
+      mockUseAuth.mockReturnValue({
+        user: { ...mockUser, is_superadmin: true },
+      } as any)
+
+      render(<GlobalDataTab />)
+
+      await waitFor(() => {
+        expect(screen.getByText('3 total tasks')).toBeInTheDocument()
+      })
+
+      // "Edit" column header is rendered
+      const headers = screen.getAllByRole('columnheader')
+      expect(headers.some((h) => h.textContent === 'Edit')).toBe(true)
+
+      // One pencil button per task row
+      expect(screen.getAllByTitle('Edit')).toHaveLength(3)
+
+      // Eye + magnifying glass + pencil in each data row
+      const rows = screen.getAllByRole('row')
+      expect(within(rows[1]).getAllByRole('button')).toHaveLength(3)
+    })
+
+    it('shows the edit column for an ORG_ADMIN (non-superadmin) user', async () => {
+      mockUseAuth.mockReturnValue({
+        user: { ...mockUser, role: 'ORG_ADMIN' },
+      } as any)
+
+      render(<GlobalDataTab />)
+
+      await waitFor(() => {
+        expect(screen.getByText('3 total tasks')).toBeInTheDocument()
+      })
+
+      expect(screen.getAllByTitle('Edit')).toHaveLength(3)
+    })
+
+    it('opens the task data modal in edit mode when the pencil is clicked', async () => {
+      const user = userEvent.setup()
+      mockUseAuth.mockReturnValue({
+        user: { ...mockUser, is_superadmin: true },
+      } as any)
+
+      render(<GlobalDataTab />)
+
+      await waitFor(() => {
+        expect(screen.getByText('3 total tasks')).toBeInTheDocument()
+      })
+
+      const pencilButtons = screen.getAllByTitle('Edit')
+      await user.click(pencilButtons[0])
+
+      await waitFor(() => {
+        expect(screen.getByText('Task View Modal')).toBeInTheDocument()
+      })
+      expect(screen.getByText('Task ID: task-1')).toBeInTheDocument()
+      expect(screen.getByText('Mode: edit')).toBeInTheDocument()
+      expect(screen.getByText('Can edit: true')).toBeInTheDocument()
     })
   })
 })
