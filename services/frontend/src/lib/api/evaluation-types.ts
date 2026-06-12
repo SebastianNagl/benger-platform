@@ -74,26 +74,17 @@ export interface CustomCriteriaDefinition {
 /**
  * Available template variables for custom prompts
  * These can be inserted into custom_prompt_template
+ *
+ * Canonical names only — the alias names ({input}/{reference}/{response}/
+ * {candidate}) were removed in Issue #107 and no longer resolve.
  */
 export const PROMPT_TEMPLATE_VARIABLES = [
-  { key: '{context}', description: 'Task context / input text', aliases: ['{input}'] },
-  {
-    key: '{ground_truth}',
-    description: 'Reference / ground truth answer',
-    aliases: ['{reference}'],
-  },
-  {
-    key: '{prediction}',
-    description: 'Model response to evaluate',
-    aliases: ['{response}', '{candidate}'],
-  },
-  { key: '{criterion_name}', description: 'Name of the evaluation criterion', aliases: [] },
-  {
-    key: '{criterion_description}',
-    description: 'Description of the criterion',
-    aliases: [],
-  },
-  { key: '{rubric}', description: 'Scoring rubric (1-5 scale)', aliases: [] },
+  { key: '{context}', description: 'Task context / input text' },
+  { key: '{ground_truth}', description: 'Reference / ground truth answer' },
+  { key: '{prediction}', description: 'Model response to evaluate' },
+  { key: '{criterion_name}', description: 'Name of the evaluation criterion' },
+  { key: '{criterion_description}', description: 'Description of the criterion' },
+  { key: '{rubric}', description: 'Scoring rubric (1-5 scale)' },
 ] as const
 
 /**
