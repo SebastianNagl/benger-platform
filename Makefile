@@ -449,7 +449,11 @@ test-frontend: ## Run frontend Jest tests only (use GREP="pattern" to filter, FI
 	@echo "$(BLUE)🎨 Running frontend tests...$(NC)"
 	@rm -rf $(FRONTEND_DIR)/.jest-cache
 	@cd $(FRONTEND_DIR) && npm test -- \
-		$(if $(FILE),--testPathPattern="$(FILE)",) $(if $(GREP),--testNamePattern="$(GREP)",)
+		$(if $(FILE),--testPathPatterns="$(FILE)",) $(if $(GREP),--testNamePattern="$(GREP)",) \
+		$(if $(FILE)$(GREP),--coverage=false,)
+# Targeted runs skip coverage: jest.config.js sets collectCoverage:true with
+# full-suite thresholds, so a single file can never meet them and FILE=/GREP=
+# would always exit 1 on the threshold check (issue #180).
 
 .PHONY: test-quiet
 test-quiet: ## Run tests with minimal output (for agents/CI)
