@@ -119,7 +119,7 @@ role-scenarios-*.txt
 single-test-*.txt
 
 # Docker
-.dockerignore
+# (.dockerignore files are build config and belong in version control)
 
 # Kubernetes
 kubeconfig.yaml
