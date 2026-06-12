@@ -527,6 +527,7 @@ class TestStartGeneration:
 
         mock_q = MagicMock()
         mock_q.filter.return_value = mock_q
+        mock_q.scalar.return_value = 0  # issue #106: fallback counts tasks first
         mock_q.all.return_value = []
         db.query.return_value = mock_q
 
@@ -574,11 +575,15 @@ class TestStartGeneration:
             mock_q.filter.return_value = mock_q
             mock_q.order_by.return_value = mock_q
 
+            # Issue #106: the no-task_ids fallback counts tasks first, then
+            # selects bare id tuples instead of full Task rows.
             if call_count["n"] == 1:
-                mock_q.all.return_value = [task]
+                mock_q.scalar.return_value = 1
             elif call_count["n"] == 2:
-                mock_q.all.return_value = [pending_gen]
+                mock_q.all.return_value = [(task.id,)]
             elif call_count["n"] == 3:
+                mock_q.all.return_value = [pending_gen]
+            elif call_count["n"] == 4:
                 mock_q.update.return_value = 1
             else:
                 mock_q.first.return_value = None
@@ -649,9 +654,12 @@ class TestStartGeneration:
             mock_q.distinct.return_value = mock_q
             mock_q.order_by.return_value = mock_q
 
+            # Issue #106: count first, then bare id tuples.
             if call_count["n"] == 1:
-                mock_q.all.return_value = [task1, task2]  # tasks query
+                mock_q.scalar.return_value = 2
             elif call_count["n"] == 2:
+                mock_q.all.return_value = [(task1.id,), (task2.id,)]  # id tuples
+            elif call_count["n"] == 3:
                 # Single bulk DISTINCT ON returning latest per cell.
                 mock_q.all.return_value = [latest_row_task1, latest_row_task2]
             else:
@@ -698,7 +706,7 @@ class TestStartGeneration:
             mock_q.filter.return_value = mock_q
 
             if call_count["n"] == 1:
-                mock_q.all.return_value = [task]
+                mock_q.all.return_value = [(task.id,)]  # issue #106: id tuples
             else:
                 mock_q.first.return_value = None
                 mock_q.all.return_value = []
@@ -754,8 +762,11 @@ class TestStartGeneration:
             mock_q = MagicMock()
             mock_q.filter.return_value = mock_q
 
+            # Issue #106: count first, then bare id tuples.
             if call_count["n"] == 1:
-                mock_q.all.return_value = [task]
+                mock_q.scalar.return_value = 1
+            elif call_count["n"] == 2:
+                mock_q.all.return_value = [(task.id,)]
             else:
                 mock_q.first.return_value = None
                 mock_q.all.return_value = []
