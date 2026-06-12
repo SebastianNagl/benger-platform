@@ -664,6 +664,62 @@ class TestProjectResultsByTaskModel:
         assert "tasks" in data
         assert "summary" in data
 
+    def test_task_previews_computed_without_loading_task_data(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """Issue #106: the evaluated branch used to pull every Task.data JSONB
+        blob into Python to slice a 100-char preview. The preview now comes
+        from SQL — this pins the payload contract (every project task present,
+        preview = leading 100 chars of the precedence-picked key)."""
+        p, tasks = _setup_project(test_db, test_users[0], test_org)
+        er = _make_eval_run(test_db, p, status="completed")
+
+        llm_model = LLMModel(
+            id="test-model-prev",
+            name="Test GPT-4 prev",
+            provider="openai",
+            model_type="chat",
+            capabilities=["text_generation"],
+        )
+        test_db.add(llm_model)
+        test_db.flush()
+        rg = ResponseGeneration(
+            id=_uid(), task_id=tasks[0].id, model_id="test-model-prev",
+            config_id="config-1", status="completed", created_by=test_users[0].id,
+        )
+        test_db.add(rg)
+        test_db.flush()
+        gen = Generation(
+            id=_uid(), generation_id=rg.id, task_id=tasks[0].id,
+            model_id="test-model-prev",
+            case_data=json.dumps({"text": "task"}),
+            response_content="output",
+            status="completed",
+        )
+        test_db.add(gen)
+        test_db.flush()
+        _make_task_evaluation(test_db, er, tasks[0], generation=gen, metrics={"score": 0.9})
+        # One task with a >100-char text to pin the SQL LEFT(.., 100) cut.
+        long_text = "x" * 250
+        tasks[1].data = {"text": long_text}
+        test_db.add(tasks[1])
+        test_db.commit()
+
+        resp = client.get(
+            f"/api/evaluations/projects/{p.id}/results/by-task-model",
+            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        previews = {t["task_id"]: t["task_preview"] for t in body["tasks"]}
+        # Every project task is present, evaluated or not.
+        assert set(previews) == {t.id for t in tasks}
+        # "text" wins the key precedence over "content" (see _setup_project data).
+        assert previews[tasks[0].id] == "Eval task #0"
+        assert previews[tasks[2].id] == "Eval task #2"
+        # Preview is truncated server-side to 100 chars.
+        assert previews[tasks[1].id] == long_text[:100]
+
     def test_results_nonexistent_project(self, client, test_db, test_users, auth_headers):
         resp = client.get(
             "/api/evaluations/projects/nonexistent/results/by-task-model",

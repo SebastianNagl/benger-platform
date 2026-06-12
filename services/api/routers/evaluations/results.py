@@ -1178,20 +1178,18 @@ def _get_task_data_availability(db, task_ids: list) -> tuple:
     return tasks_with_annotations, generation_model_by_task, annotator_displays_by_task
 
 
-def _build_all_tasks_response(db, project_id: str) -> list:
-    """Build task list with data availability info for all tasks in a project.
+def _task_preview_rows(db, project_id: str) -> list:
+    """Return `[(task_id, preview)]` for every task in a project.
 
-    Previously this loaded `Task.data` (1–5KB JSON per row) for every task in
-    the project — tens of MB streamed across the wire for a large project to
-    extract a 100-character preview that the SQL engine can produce itself.
-    The new query asks Postgres for the preview string directly and keeps
-    `Task.data` server-side.
+    The 100-character preview is computed by Postgres so `Task.data` (1–5KB
+    JSON per row) never leaves the server — loading the blobs to slice a
+    preview in Python streamed tens of MB across the wire on large projects.
+    Key precedence: input → text → question → prompt → content, else "".
     """
     from sqlalchemy import cast as sa_cast, func as sa_func
     from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
 
     jsonb_data = sa_cast(Task.data, PG_JSONB)
-    # Mirrors _get_task_preview key-precedence: input → text → question → prompt → content.
     preview_text = sa_func.coalesce(
         jsonb_data.op("->>")("input"),
         jsonb_data.op("->>")("text"),
@@ -1200,11 +1198,16 @@ def _build_all_tasks_response(db, project_id: str) -> list:
         jsonb_data.op("->>")("content"),
         "",
     )
-    rows = (
+    return (
         db.query(Task.id, sa_func.left(preview_text, 100))
         .filter(Task.project_id == project_id)
         .all()
     )
+
+
+def _build_all_tasks_response(db, project_id: str) -> list:
+    """Build task list with data availability info for all tasks in a project."""
+    rows = _task_preview_rows(db, project_id)
     all_task_ids = [tid for tid, _ in rows]
     tasks_with_annotations, gen_model_by_task, annot_displays_by_task = (
         _get_task_data_availability(db, all_task_ids)
@@ -1221,19 +1224,6 @@ def _build_all_tasks_response(db, project_id: str) -> list:
         }
         for tid, preview in rows
     ]
-
-
-def _get_task_preview(task_data: dict) -> str:
-    """Extract a short preview string from task data."""
-    if not task_data:
-        return ""
-    for key in ["input", "text", "question", "prompt", "content"]:
-        if key in task_data:
-            return str(task_data[key])[:100]
-    for v in task_data.values():
-        if isinstance(v, str):
-            return v[:100]
-    return ""
 
 
 @router.get("/projects/{project_id}/results/by-task-model")
@@ -1630,11 +1620,13 @@ async def get_project_results_by_task_model(
                         task_scores.setdefault(task_id_, {})[synthetic_model_id] = mean
                         model_scores[synthetic_model_id].append(mean)
 
-        # Get ALL project tasks (not just evaluated ones) so unevaluated tasks show as n/a
-        all_project_tasks = db.query(Task.id, Task.data).filter(Task.project_id == project_id).all()
-        all_task_ids = [t.id for t in all_project_tasks]
-        for task in all_project_tasks:
-            task_previews[task.id] = _get_task_preview(task.data)
+        # Get ALL project tasks (not just evaluated ones) so unevaluated tasks
+        # show as n/a. Previews are computed in SQL — selecting Task.data here
+        # loaded every JSONB blob in the project into Python (issue #106).
+        preview_rows = _task_preview_rows(db, project_id)
+        all_task_ids = [tid for tid, _ in preview_rows]
+        for tid, preview in preview_rows:
+            task_previews[tid] = preview or ""
 
         # Get data availability for clickable n/a cells
         tasks_with_annotations, generation_model_by_task, annot_displays_by_task = (
@@ -1649,15 +1641,15 @@ async def get_project_results_by_task_model(
 
         # Build response - include ALL project tasks, not just evaluated ones
         tasks_response = []
-        for task in all_project_tasks:
-            gen_models = generation_model_by_task.get(task.id, set())
-            annot_cols = annot_displays_by_task.get(task.id, set())
+        for tid in all_task_ids:
+            gen_models = generation_model_by_task.get(tid, set())
+            annot_cols = annot_displays_by_task.get(tid, set())
             tasks_response.append(
                 {
-                    "task_id": task.id,
-                    "task_preview": task_previews.get(task.id, ""),
-                    "scores": task_scores.get(task.id, {}),
-                    "has_annotation": task.id in tasks_with_annotations,
+                    "task_id": tid,
+                    "task_preview": task_previews.get(tid, ""),
+                    "scores": task_scores.get(tid, {}),
+                    "has_annotation": tid in tasks_with_annotations,
                     "generation_models": list(gen_models),
                     # Annotator columns (`annotator:<display>`) for which this
                     # task has an actual submitted annotation. Drives the

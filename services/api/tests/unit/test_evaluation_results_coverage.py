@@ -11,7 +11,6 @@ Covers:
 - get_results_by_task_model endpoint (lines 669-872)
 - _get_task_data_availability helper (lines 875-903)
 - _build_all_tasks_response helper (lines 906-921)
-- _get_task_preview helper (lines 924-934)
 - get_project_results_by_task_model endpoint (lines 937-1175)
 - _metric_display_name helper (lines 1483-1492)
 - _build_field_results helper (lines 1495-1552)
@@ -104,9 +103,6 @@ class TestExtractPrimaryScore:
             "score": 0.5,
         })
         assert result == 0.8
-
-
-# ============= _get_task_preview =============
 
 
 # ============= _build_field_results =============
