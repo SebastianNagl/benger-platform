@@ -570,6 +570,12 @@ async def get_full_import_job(
     return _serialize_import_job(job)
 
 
+# Task batch for the bulk-export JSON spool below; matches the import side's
+# flush cadence (_IMPORT_BATCH) rather than export_stream's eval-aware batching
+# because this endpoint serializes tasks only.
+_BULK_EXPORT_TASK_BATCH = 200
+
+
 @router.post("/bulk-export")
 async def bulk_export_projects(
     data: dict,
@@ -577,20 +583,27 @@ async def bulk_export_projects(
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
-    """Bulk export multiple projects"""
+    """Bulk export multiple projects (multi-project admin export).
 
+    Stays synchronous by design (see CLAUDE.md "Object storage"), but must not
+    hold the selection in RAM: the JSON body is spooled to a tempfile with each
+    project's tasks streamed straight into it via yield_per + expunge, so peak
+    memory scales with one task batch, not with N projects' tasks. The legacy
+    builder loaded every task of every selected project and json.dumps-ed the
+    whole thing — the same O(dataset) shape that OOMKilled the pod on the
+    bulk-export-full path on 2026-05-31.
+    """
     project_ids = data.get("project_ids", [])
     format = data.get("format", "json")
     include_data = data.get("include_data", True)
 
+    if format not in ("json", "csv"):
+        raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")
+
     org_context = get_org_context_from_request(request)
 
-    export_data = {
-        "projects": [],
-        "exported_at": datetime.now().isoformat(),
-        "format": format,
-    }
-
+    # Light per-project metadata only; tasks never enter this list.
+    project_metas = []
     for project_id in project_ids:
         project = db.query(Project).filter(Project.id == project_id).first()
         if not project:
@@ -600,7 +613,6 @@ async def bulk_export_projects(
         if not check_project_accessible(db, current_user, project_id, org_context):
             continue
 
-        # Calculate counts dynamically
         task_count = db.query(Task).filter(Task.project_id == project.id).count()
         annotation_count = (
             db.query(Annotation)
@@ -608,65 +620,26 @@ async def bulk_export_projects(
             .count()
         )
 
-        project_data = {
-            "id": project.id,
-            "title": project.title,
-            "description": project.description,
-            "created_at": (project.created_at.isoformat() if project.created_at else None),
-            "created_by": project.created_by,
-            "task_count": task_count,
-            "annotation_count": annotation_count,
-            "label_config": project.label_config,
-            "expert_instruction": project.expert_instruction,
-        }
+        project_metas.append(
+            {
+                "id": project.id,
+                "title": project.title,
+                "description": project.description,
+                "created_at": (project.created_at.isoformat() if project.created_at else None),
+                "created_by": project.created_by,
+                "task_count": task_count,
+                "annotation_count": annotation_count,
+                "label_config": project.label_config,
+                "expert_instruction": project.expert_instruction,
+            }
+        )
 
-        if include_data:
-            # Include tasks and annotations
-            tasks = db.query(Task).filter(Task.project_id == project_id).all()
-            # NOTE: Annotation table doesn't exist yet - returning empty list
-            annotations = (
-                []
-            )  # db.query(Annotation).filter(Annotation.project_id == project_id).all()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-            project_data["tasks"] = []
-            for task in tasks:
-                task_data = {
-                    "id": task.id,
-                    "data": task.data,
-                    "meta": task.meta,
-                    "is_labeled": task.is_labeled,
-                    "created_at": (task.created_at.isoformat() if task.created_at else None),
-                }
-
-                # Add annotations for this task
-                task_annotations = [a for a in annotations if a.task_id == task.id]
-                task_data["annotations"] = []
-                for ann in task_annotations:
-                    task_data["annotations"].append(
-                        {
-                            "id": ann.id,
-                            "result": ann.result,
-                            "completed_by": ann.completed_by,
-                            "created_at": (ann.created_at.isoformat() if ann.created_at else None),
-                            "was_cancelled": ann.was_cancelled,
-                        }
-                    )
-
-                project_data["tasks"].append(task_data)
-
-        export_data["projects"].append(project_data)
-
-    # Format the response
-    if format == "json":
-        content = json.dumps(export_data, indent=2)
-        media_type = "application/json"
-        filename = f"projects_bulk_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    elif format == "csv":
-        # For CSV, we'll create a simplified flat structure
+    if format == "csv":
+        # CSV is metadata-only rows — O(#projects), no spooling needed.
         output = io.StringIO()
         writer = csv.writer(output)
-
-        # Header
         writer.writerow(
             [
                 "project_id",
@@ -677,29 +650,96 @@ async def bulk_export_projects(
                 "created_at",
             ]
         )
-
-        # Data rows
-        for project in export_data["projects"]:
+        for meta in project_metas:
             writer.writerow(
                 [
-                    project["id"],
-                    project["title"],
-                    project.get("description", ""),
-                    project["task_count"],
-                    project["annotation_count"],
-                    project["created_at"],
+                    meta["id"],
+                    meta["title"],
+                    meta.get("description", ""),
+                    meta["task_count"],
+                    meta["annotation_count"],
+                    meta["created_at"],
                 ]
             )
+        return Response(
+            content=output.getvalue(),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename="
+                f"projects_bulk_export_{timestamp}.csv"
+            },
+        )
 
-        content = output.getvalue()
-        media_type = "text/csv"
-        filename = f"projects_bulk_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    else:
-        raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")
+    filename = f"projects_bulk_export_{timestamp}.json"
+    spool = tempfile.NamedTemporaryFile(
+        prefix="benger-bulk-export-", suffix=".json", delete=False
+    )
+    spool_path = spool.name
+    spool.close()  # FileResponse opens it; we just needed the path.
 
-    return Response(
-        content=content,
-        media_type=media_type,
+    try:
+        with open(spool_path, "w", encoding="utf-8") as out:
+            out.write('{"projects": [')
+            for idx, meta in enumerate(project_metas):
+                if idx:
+                    out.write(", ")
+                head = json.dumps(meta, ensure_ascii=False)
+                if not include_data:
+                    out.write(head)
+                    continue
+                # json.dumps of a non-empty dict always ends in '}'; strip it
+                # to splice the streamed `tasks` array into the same object.
+                out.write(head[:-1] + ', "tasks": [')
+                first = True
+                task_q = db.query(Task).filter(Task.project_id == meta["id"])
+                for task in task_q.yield_per(_BULK_EXPORT_TASK_BATCH):
+                    if not first:
+                        out.write(", ")
+                    out.write(
+                        json.dumps(
+                            {
+                                "id": task.id,
+                                "data": task.data,
+                                "meta": task.meta,
+                                "is_labeled": task.is_labeled,
+                                "created_at": (
+                                    task.created_at.isoformat() if task.created_at else None
+                                ),
+                                # Annotation export was never implemented on
+                                # this endpoint (the legacy builder hardcoded
+                                # an empty list); the key stays so the response
+                                # shape is unchanged.
+                                "annotations": [],
+                            },
+                            ensure_ascii=False,
+                        )
+                    )
+                    first = False
+                    db.expunge(task)
+                out.write("]}")
+            out.write(
+                '], "exported_at": '
+                + json.dumps(datetime.now().isoformat())
+                + ', "format": '
+                + json.dumps(format)
+                + "}"
+            )
+    except BaseException:
+        # If anything blows up mid-build, don't leak the tempfile.
+        try:
+            os.unlink(spool_path)
+        except OSError:
+            pass
+        raise
+
+    from fastapi.responses import FileResponse
+    from starlette.background import BackgroundTask
+
+    return FileResponse(
+        path=spool_path,
+        media_type="application/json",
+        filename=filename,
+        background=BackgroundTask(os.unlink, spool_path),
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
