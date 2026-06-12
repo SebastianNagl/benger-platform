@@ -59,6 +59,16 @@ def _create_tables():
                     "AND (eval_metadata ->> 'evaluation_type') = 'korrektur_falloesung'"
                 )
             )
+            # Migration 061: the korrektur_custom sibling of the index above.
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS "
+                    "uq_human_eval_run_per_project_metric_custom "
+                    "ON evaluation_runs (project_id, model_id) "
+                    "WHERE model_id = 'human' "
+                    "AND (eval_metadata ->> 'evaluation_type') = 'korrektur_custom'"
+                )
+            )
             conn.execute(
                 text(
                     "ALTER TABLE task_evaluations "
