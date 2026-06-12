@@ -175,9 +175,143 @@ class TestGetOrCreateHumanEvalRun:
             test_db.flush()
 
 
+class TestKorrekturCustomHumanEvalRun:
+    """korrektur_custom is the second human-graded metric (extended#33).
+
+    The extended edition's submit_custom_grade endpoint resolves its run
+    through get_or_create_human_eval_run(db, project_id, "korrektur_custom",
+    ...) — before the whitelist + migration-061 index landed, that call
+    raised ValueError and 500'd in prod.
+    """
+
+    def test_korrektur_custom_is_human_graded(self):
+        assert is_human_graded_metric("korrektur_custom")
+
+    def test_first_call_creates_singleton(self, test_db: Session, admin_user: User):
+        project = _make_project(test_db, admin_user)
+
+        run = get_or_create_human_eval_run(
+            test_db, project.id, "korrektur_custom", admin_user.id
+        )
+        test_db.commit()
+
+        assert run.id != None  # noqa: E711
+        assert run.project_id == project.id
+        assert run.model_id == "human"
+        assert run.evaluation_type_ids == ["korrektur_custom"]
+        assert run.eval_metadata.get("evaluation_type") == "korrektur_custom"
+        configs = run.eval_metadata.get("evaluation_configs") or []
+        assert any(c.get("metric") == "korrektur_custom" for c in configs)
+        assert run.status == "completed"
+        assert run.created_by == admin_user.id
+
+    def test_second_call_returns_same_row(self, test_db: Session, admin_user: User):
+        project = _make_project(test_db, admin_user)
+
+        run1 = get_or_create_human_eval_run(
+            test_db, project.id, "korrektur_custom", admin_user.id
+        )
+        test_db.commit()
+        run2 = get_or_create_human_eval_run(
+            test_db, project.id, "korrektur_custom", admin_user.id
+        )
+        test_db.commit()
+
+        assert run1.id == run2.id
+
+    def test_falloesung_and_custom_get_different_runs(
+        self, test_db: Session, admin_user: User
+    ):
+        """The two human-graded metrics must NOT share a singleton: each
+        (project, metric) pair gets its own persistent run. This is exactly
+        why migration 061 adds a second per-metric partial index instead of
+        widening 037's predicate to `evaluation_type IN (...)` — a combined
+        (project_id, model_id) unique index would collapse both metrics
+        into one row per project.
+        """
+        project = _make_project(test_db, admin_user)
+
+        falloesung_run = get_or_create_human_eval_run(
+            test_db, project.id, "korrektur_falloesung", admin_user.id
+        )
+        test_db.commit()
+        custom_run = get_or_create_human_eval_run(
+            test_db, project.id, "korrektur_custom", admin_user.id
+        )
+        test_db.commit()
+
+        assert falloesung_run.id != custom_run.id
+        assert falloesung_run.eval_metadata["evaluation_type"] == "korrektur_falloesung"
+        assert custom_run.eval_metadata["evaluation_type"] == "korrektur_custom"
+
+        # Both rows coexist; repeated calls keep resolving to their own
+        # singleton rather than the other metric's row.
+        assert (
+            get_or_create_human_eval_run(
+                test_db, project.id, "korrektur_falloesung", admin_user.id
+            ).id
+            == falloesung_run.id
+        )
+        assert (
+            get_or_create_human_eval_run(
+                test_db, project.id, "korrektur_custom", admin_user.id
+            ).id
+            == custom_run.id
+        )
+
+        count = (
+            test_db.query(EvaluationRun)
+            .filter(EvaluationRun.project_id == project.id)
+            .filter(EvaluationRun.model_id == "human")
+            .count()
+        )
+        assert count == 2
+
+    def test_partial_unique_index_rejects_bypass_insert(
+        self, test_db: Session, admin_user: User
+    ):
+        """Same race-safety guarantee as for korrektur_falloesung: a second
+        human-korrektur_custom run inserted bypassing the helper must violate
+        the migration-061 partial unique index.
+        """
+        project = _make_project(test_db, admin_user)
+
+        get_or_create_human_eval_run(
+            test_db, project.id, "korrektur_custom", admin_user.id
+        )
+        test_db.commit()
+
+        with pytest.raises(IntegrityError):
+            test_db.execute(
+                text(
+                    """
+                    INSERT INTO evaluation_runs
+                      (id, project_id, model_id, evaluation_type_ids, metrics,
+                       eval_metadata, status, samples_evaluated, has_sample_results,
+                       created_by, created_at)
+                    VALUES
+                      (:id, :pid, 'human',
+                       '["korrektur_custom"]'::json,
+                       '{}'::json,
+                       '{"evaluation_type": "korrektur_custom"}'::json,
+                       'in_progress', 0, true, :uid, now())
+                    """
+                ),
+                {
+                    "id": str(uuid.uuid4()),
+                    "pid": project.id,
+                    "uid": admin_user.id,
+                },
+            )
+            test_db.flush()
+
+
 class TestMetricSetExports:
     def test_korrektur_falloesung_in_set(self):
         assert "korrektur_falloesung" in HUMAN_GRADED_METRICS
+
+    def test_korrektur_custom_in_set(self):
+        assert "korrektur_custom" in HUMAN_GRADED_METRICS
 
     def test_set_is_frozen(self):
         with pytest.raises(AttributeError):

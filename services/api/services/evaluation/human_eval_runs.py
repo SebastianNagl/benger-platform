@@ -1,7 +1,8 @@
 """Singleton EvaluationRun for human-graded evaluation methods.
 
 Some evaluation methods (today: `korrektur_falloesung`, the human-graded
-Standard Falllösung correction) are not run by a worker against an LLM —
+Standard Falllösung correction, and `korrektur_custom`, its
+custom-annotation-type sibling) are not run by a worker against an LLM —
 humans submit grades through the Korrektur queue and each submission
 becomes a `TaskEvaluation` row. There is **one persistent EvaluationRun
 per (project, metric)** for all of those rows; correctors append to it
@@ -10,9 +11,10 @@ preserved per-grader history.
 
 This module owns the find-or-create helper that both
 `POST /evaluations/run` (when the configured metric is human-graded) and
-the extended `submit_falloesung_grade` endpoint use to resolve the
-destination run. The partial unique index added in migration 037 makes
-the upsert safe under concurrent submits.
+the extended `submit_falloesung_grade` / `submit_custom_grade` endpoints
+use to resolve the destination run. The per-metric partial unique
+indexes (migration 037 for `korrektur_falloesung`, 061 for
+`korrektur_custom`) make the upsert safe under concurrent submits.
 """
 
 from __future__ import annotations
@@ -30,7 +32,15 @@ from models import EvaluationRun
 # The set of metrics whose EvaluationRun is human-driven (one persistent
 # row per project, no worker involvement). Hardcoded string list per the
 # open-core split rule: this is a hook, not the implementation.
-HUMAN_GRADED_METRICS: Final[frozenset[str]] = frozenset({"korrektur_falloesung"})
+#
+# NOTE: every metric listed here needs a matching partial unique index on
+# evaluation_runs (see migrations 037 and 061) — the upsert below infers
+# the index from a per-metric predicate, and without the index the
+# ON CONFLICT clause raises "no unique or exclusion constraint matching
+# the ON CONFLICT specification".
+HUMAN_GRADED_METRICS: Final[frozenset[str]] = frozenset(
+    {"korrektur_falloesung", "korrektur_custom"}
+)
 
 
 def is_human_graded_metric(metric: str) -> bool:
@@ -47,7 +57,9 @@ def get_or_create_human_eval_run(
 
     Creates it on first call; on every subsequent call (including
     concurrent ones from different graders) returns the same row via the
-    partial unique index `uq_human_eval_run_per_project_metric`.
+    metric's partial unique index (`uq_human_eval_run_per_project_metric`
+    for korrektur_falloesung, `uq_human_eval_run_per_project_metric_custom`
+    for korrektur_custom).
 
     `created_by` is the user who triggered this call and is recorded
     only on first creation; it has no semantic meaning for the ongoing
@@ -95,9 +107,13 @@ def get_or_create_human_eval_run(
         )
         .on_conflict_do_update(
             index_elements=["project_id", "model_id"],
+            # The predicate must be a literal (not a bind param) so Postgres
+            # can infer the matching partial unique index at plan time.
+            # Interpolating `metric` is safe: it was validated against the
+            # HUMAN_GRADED_METRICS whitelist above.
             index_where=text(
                 "model_id = 'human' "
-                "AND (eval_metadata ->> 'evaluation_type') = 'korrektur_falloesung'"
+                f"AND (eval_metadata ->> 'evaluation_type') = '{metric}'"
             ),
             # No-op SET to force ON CONFLICT to RETURN the existing id rather
             # than skip (DO NOTHING would suppress RETURNING on conflict).
