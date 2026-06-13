@@ -79,7 +79,7 @@ check_optional "ANTHROPIC_API_KEY"
 check_optional "GOOGLE_API_KEY"
 check_optional "LABEL_STUDIO_API_KEY"
 check_optional "SENTRY_DSN"
-check_optional "SMTP_HOST"
+check_optional "SENDGRID_API_KEY"
 
 echo ""
 echo "🔍 Format Validation:"
