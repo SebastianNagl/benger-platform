@@ -110,7 +110,7 @@ const config = {
       // production coverage is unchanged. Ratchet back up when the eval
       // dashboard suite is rewritten against the typed apiClient.
       statements: 81,
-      branches: 72,
+      branches: 73, // ratcheted 2026-06-15 after lib helper/util backfill
       functions: 76,
       lines: 82,
     },
