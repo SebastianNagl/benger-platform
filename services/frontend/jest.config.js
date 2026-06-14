@@ -112,53 +112,51 @@ const config = {
   // because the deleted tests were exercising the same lines repeatedly.
   coverageThreshold: {
     global: {
-      // Lowered from 84/77/78/85 after deleting the eval-dashboard test
-      // file (920 lines that, even with 37/41 failing, still incidentally
-      // executed code paths and propped the headline percentage up). Real
-      // production coverage is unchanged. Ratchet back up when the eval
-      // dashboard suite is rewritten against the typed apiClient.
-      statements: 81,
-      branches: 73,
-      functions: 76,
-      lines: 83, // ratcheted 2026-06-15
+      // Ratcheted 2026-06-15 (issue #33) after the project-page + evaluation +
+      // labeling + pages/auth/search backfill. Measured (non-grouped "rest"):
+      // 90.54/83.63/85.40/91.94. Stmts/lines clear 90; funcs/branches climbing.
+      statements: 90,
+      branches: 83,
+      functions: 85,
+      lines: 91,
     },
-    // Per-dir floors ratcheted 2026-06-14 (issue #33) to floor(measured)-1pt
-    // after the lib/api + evaluation + projects-wizard backfill. Never lower
+    // Per-dir floors ratcheted 2026-06-15 (issue #33) to floor(measured)
+    // after the project-page/evaluation/labeling/data backfill. Never lower
     // without a comment on issue #33. Target: 90.
     // Critical business logic - higher standards
     'src/lib/api/': {
-      statements: 92, // measured 93.3
-      branches: 85, // measured 86.5
-      functions: 92, // measured 93.0
-      lines: 92, // measured 93.7
+      statements: 93, // measured 93.33
+      branches: 86, // measured 86.5
+      functions: 93, // measured 93.01
+      lines: 93, // measured 93.66
     },
     // API routes (the old "~0%" note was stale; really ~96%)
     'src/app/api/': {
-      statements: 95, // measured 96.7
-      branches: 91, // measured 92.7
-      functions: 89, // measured 90.7
-      lines: 95, // measured 96.7
+      statements: 96, // measured 96.74
+      branches: 92, // measured 92.74
+      functions: 90, // measured 90.7
+      lines: 96, // measured 96.72
     },
     // Utilities - should be thoroughly tested
     'src/utils/': {
-      statements: 98, // measured 99.0
-      branches: 95, // measured 96.8
-      functions: 98, // measured 100
-      lines: 98, // measured 99.1
+      statements: 99, // measured 99.04
+      branches: 96, // measured 96.82
+      functions: 100, // measured 100
+      lines: 99, // measured 99.1
     },
     // State management - critical
     'src/stores/': {
-      statements: 98, // measured 99.4
-      branches: 85, // measured 86.5
-      functions: 98, // measured 100
-      lines: 98, // measured 99.4
+      statements: 99, // measured 99.4
+      branches: 86, // measured 86.49
+      functions: 100, // measured 100
+      lines: 99, // measured 99.38
     },
-    // Components - raised after the evaluation/projects/leaderboards/generation backfill
+    // Components - raised after the project-page/evaluation/labeling/data backfill
     'src/components/': {
-      statements: 88, // measured 89.x
-      branches: 81, // measured 82.x
-      functions: 86, // measured 87.x
-      lines: 89, // measured 90.x
+      statements: 92, // measured 92.51
+      branches: 85, // measured 85.89
+      functions: 90, // measured 90.81
+      lines: 93, // measured 93.45
     },
   },
 
