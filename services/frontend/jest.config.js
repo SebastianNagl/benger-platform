@@ -114,40 +114,43 @@ const config = {
       functions: 76,
       lines: 82,
     },
+    // Per-dir floors ratcheted 2026-06-14 (issue #33) to floor(measured)-1pt
+    // after the lib/api + evaluation + projects-wizard backfill. Never lower
+    // without a comment on issue #33. Target: 90.
     // Critical business logic - higher standards
     'src/lib/api/': {
-      statements: 70, // Target: 85%
-      branches: 64, // Target: 80%
-      functions: 70, // Target: 85%
-      lines: 70, // Target: 85%
+      statements: 92, // measured 93.3
+      branches: 85, // measured 86.5
+      functions: 92, // measured 93.0
+      lines: 92, // measured 93.7
     },
-    // API routes - essential coverage
+    // API routes (the old "~0%" note was stale; really ~96%)
     'src/app/api/': {
-      statements: 60, // Target: 80% (currently ~0%)
-      branches: 54, // Target: 75%
-      functions: 60, // Target: 80%
-      lines: 60, // Target: 80%
+      statements: 95, // measured 96.7
+      branches: 91, // measured 92.7
+      functions: 89, // measured 90.7
+      lines: 95, // measured 96.7
     },
     // Utilities - should be thoroughly tested
     'src/utils/': {
-      statements: 85, // Already at 93.78%, maintain high standard
-      branches: 80,
-      functions: 85,
-      lines: 85,
+      statements: 98, // measured 99.0
+      branches: 95, // measured 96.8
+      functions: 98, // measured 100
+      lines: 98, // measured 99.1
     },
     // State management - critical
     'src/stores/': {
-      statements: 80,
-      branches: 68,
-      functions: 90,
-      lines: 85,
+      statements: 98, // measured 99.4
+      branches: 85, // measured 86.5
+      functions: 98, // measured 100
+      lines: 98, // measured 99.4
     },
-    // Components - raised after Phase 4 coverage improvement
+    // Components - raised after the evaluation/projects backfill
     'src/components/': {
-      statements: 60,
-      branches: 50,
-      functions: 55,
-      lines: 60,
+      statements: 86, // measured 87.4
+      branches: 80, // measured 81.1
+      functions: 84, // measured 85.8
+      lines: 87, // measured 88.4
     },
   },
 
