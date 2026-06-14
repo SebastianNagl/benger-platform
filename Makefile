@@ -418,15 +418,21 @@ test-e2e: ## Run E2E Playwright tests (skips tests requiring optional extensions
 	PLAYWRIGHT_BASE_URL=http://benger-test.localhost:8090 \
 	npx playwright test $(if $(FILE),$(FILE),) $(if $(GREP),--grep "$(GREP)",--grep-invert "@extended") --reporter=$(if $(E2E_REPORTER),$(E2E_REPORTER),line)
 
+# COVERAGE=1 adds thread-accurate coverage flags to API test runs. Per-merge
+# CI leaves it unset (fast, no coverage); the nightly coverage workflow sets
+# it per shard to feed the combined api-coverage-gate. --no-cov-on-fail keeps
+# a failing shard from suppressing the data the gate needs.
+API_COV_FLAGS := $(if $(COVERAGE),--cov=. --cov-branch --cov-report=term,)
+
 .PHONY: test-api
-test-api: ## Run API tests only (use GREP="pattern" to filter, FILE="path" to target file)
+test-api: ## Run API tests only (use GREP="pattern" to filter, FILE="path" to target file; COVERAGE=1 for coverage)
 	@echo "$(BLUE)🔍 Running API tests...$(NC)"
 ifdef GREP
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-api-runner \
-		"pip install -q -r requirements-test.txt && pytest $(if $(FILE),$(FILE),tests/) -v --tb=short --maxfail=10 --ignore=tests/e2e -k '$(GREP)'"
+		"pip install -q -r requirements-test.txt && pytest $(if $(FILE),$(FILE),tests/) -v --tb=short --maxfail=10 --ignore=tests/e2e $(API_COV_FLAGS) -k '$(GREP)'"
 else ifdef FILE
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-api-runner \
-		"pip install -q -r requirements-test.txt && pytest $(FILE) -v --tb=short --maxfail=10 --ignore=tests/e2e"
+		"pip install -q -r requirements-test.txt && pytest $(FILE) -v --tb=short --maxfail=10 --ignore=tests/e2e $(API_COV_FLAGS)"
 else
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-api-runner
 endif

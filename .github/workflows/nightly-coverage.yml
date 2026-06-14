@@ -1,0 +1,131 @@
+name: Nightly API Coverage
+
+# Thread-accurate API coverage is ~3x slower than a plain test run, so it is
+# NOT enforced on the per-merge gate (it would blow the shard timeouts —
+# see ci.yml). Instead it runs here on a nightly cron: the API suite is
+# sharded the same way as the prod gate but with COVERAGE=1, each shard
+# uploads its .coverage data, and a final job combines them and enforces
+# API_COVERAGE_FLOOR (Makefile, single source of truth). A regression surfaces
+# as a red nightly within a day. Ratchet the floor up with every test-adding
+# PR; never lower it without a comment on issue #33. Target: 90.
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # 02:00 UTC nightly
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api-coverage-shards:
+    name: ${{ matrix.shard }} coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        # Same alphabetical sharding as ci.yml's integration-tests, minus the
+        # workers shard (workers coverage is gated in services/workers/pytest.ini).
+        include:
+          - shard: api-unit-al
+            glob: tests/unit/test_[a-l]*.py
+          - shard: api-unit-mz
+            glob: tests/unit/test_[m-z]*.py
+          - shard: api-integration-al
+            glob: tests/integration/test_[a-l]*.py
+          - shard: api-integration-mz
+            glob: tests/integration/test_[m-z]*.py
+          - shard: api-rest
+            glob: tests/ --ignore=tests/unit --ignore=tests/integration
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/local/share/chromium || true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: services/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 2
+          retry_wait_seconds: 30
+          command: cd services/frontend && npm ci
+
+      - name: Build test infrastructure
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 30
+          max_attempts: 2
+          retry_wait_seconds: 30
+          command: make test-build
+
+      - name: Seed test database
+        run: make test-seed
+
+      - name: Run ${{ matrix.shard }} with coverage
+        run: make test-api FILE="${{ matrix.glob }}" COVERAGE=1
+        timeout-minutes: 110
+
+      - name: Stash coverage data
+        run: |
+          cd services/api
+          # COVERAGE=1 leaves a combined .coverage on the host (mounted from
+          # /app). Rename per-shard so the gate job can coverage-combine them.
+          if [ -f .coverage ]; then
+            mv .coverage .coverage.${{ matrix.shard }}
+          else
+            echo "::error::shard ${{ matrix.shard }} produced no .coverage file"
+            ls -la .coverage* || true
+            exit 1
+          fi
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@v4
+        with:
+          name: apicov-${{ matrix.shard }}
+          path: services/api/.coverage.${{ matrix.shard }}
+          include-hidden-files: true
+          if-no-files-found: error
+
+      - name: Cleanup
+        if: always()
+        run: make test-stop 2>/dev/null || true
+
+  api-coverage-gate:
+    name: Combine + enforce API_COVERAGE_FLOOR
+    needs: [api-coverage-shards]
+    if: always() && needs.api-coverage-shards.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install coverage
+        run: pip install coverage
+
+      - name: Download per-shard coverage
+        uses: actions/download-artifact@v4
+        with:
+          path: services/api
+          pattern: apicov-*
+          merge-multiple: true
+
+      - name: Combine shards and enforce floor
+        run: |
+          ls -la services/api/.coverage.* || {
+            echo "::error::no per-shard coverage artifacts were downloaded"; exit 1; }
+          make api-coverage-gate
