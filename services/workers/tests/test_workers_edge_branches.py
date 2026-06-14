@@ -53,14 +53,6 @@ from response_parser import ResponseParser  # noqa: E402
 
 
 # ============================================================================
-# statistics.significance_test — generic except -> error
-# ============================================================================
-
-
-class TestSignificanceTestGenericExcept:
-
-
-# ============================================================================
 # statistics.correlation_matrix — per-cell except -> None
 # ============================================================================
 
