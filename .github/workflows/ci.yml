@@ -143,11 +143,76 @@ jobs:
         run: ${{ matrix.cmd }}
         timeout-minutes: 80
 
+      # The api shards each measure --cov=. over the whole codebase but run
+      # only ~1/5 of the tests, so no single shard's % is meaningful. Stash
+      # each shard's combined .coverage data file (pytest-cov leaves one on
+      # the host, mounted from /app in the test container) under a per-shard
+      # name so the api-coverage-gate job can `coverage combine` them into a
+      # whole-suite total. Hidden file (.coverage.*) → include-hidden-files.
+      - name: Stash API coverage data
+        if: success() && startsWith(matrix.shard, 'api-')
+        run: |
+          cd services/api
+          if [ -f .coverage ]; then
+            mv .coverage .coverage.${{ matrix.shard }}
+          else
+            echo "::error::shard ${{ matrix.shard }} produced no .coverage file"
+            ls -la .coverage* || true
+            exit 1
+          fi
+
+      - name: Upload API coverage data
+        if: success() && startsWith(matrix.shard, 'api-')
+        uses: actions/upload-artifact@v4
+        with:
+          name: apicov-${{ matrix.shard }}
+          path: services/api/.coverage.${{ matrix.shard }}
+          include-hidden-files: true
+          if-no-files-found: error
+
       - name: Cleanup
         if: always()
         run: |
           make test-stop 2>/dev/null || true
           docker image prune -f || true
+
+  # Real-source coverage ratchet for the platform API (issue #33). The api
+  # shards each measure the whole codebase from ~1/5 of the tests, so the
+  # floor can't live in pytest.ini (every shard would fail it). Instead each
+  # shard uploads its coverage data and this job combines them into a
+  # whole-suite total and enforces API_COVERAGE_FLOOR (Makefile, single
+  # source of truth). Runs only when every api shard passed; on a [hotfix]
+  # push the shards skip, so this job's `needs` result is not 'success' and
+  # the job skips too — notify-extended treats the skip as passing.
+  api-coverage-gate:
+    name: API coverage gate (prod gate)
+    needs: [integration-tests]
+    if: always() && needs.integration-tests.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install coverage
+        run: pip install coverage
+
+      - name: Download per-shard API coverage
+        uses: actions/download-artifact@v4
+        with:
+          path: services/api
+          pattern: apicov-*
+          merge-multiple: true
+
+      - name: Combine shards and enforce floor
+        run: |
+          ls -la services/api/.coverage.* || {
+            echo "::error::no per-shard coverage artifacts were downloaded"; exit 1; }
+          make api-coverage-gate
 
   # Cross-repo dispatch: tells the private extended repo to rebuild against
   # this commit and deploy to production. Fires only on push to main, and
@@ -171,7 +236,7 @@ jobs:
   # passes CI.
   notify-extended:
     name: Trigger downstream rebuild
-    needs: [frontend-tests, python-checks, integration-tests]
+    needs: [frontend-tests, python-checks, integration-tests, api-coverage-gate]
     if: >-
       always() && github.event_name == 'push' &&
       !contains(needs.*.result, 'failure') &&

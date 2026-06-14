@@ -11,6 +11,26 @@ omit =
     */services/ssl_tls_config.py
     */services/migration_utils.py
     */alembic/*
+    # Test code is not source-under-measurement (issue #33: measure REAL
+    # source coverage — counting test files inflated the headline to ~89%
+    # while real source coverage is ~70% line / 57% branch).
+    tests/*
+    */tests/*
+    conftest.py
+    */conftest.py
+    # CLI one-shot scripts — operational tooling, exercised by running, not
+    # unit-tested (same rationale as the startup files above).
+    scripts/*
+    */scripts/*
+
+# Map the in-container source root (/app) to the host checkout so the CI
+# coverage gate can `coverage combine` per-shard data files (collected in
+# the test-api-runner container at /app) and then report against the
+# checked-out source. Remapping happens during `coverage combine`.
+[paths]
+source =
+    .
+    /app
 
 [report]
 show_missing = True
