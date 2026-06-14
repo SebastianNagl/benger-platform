@@ -58,4 +58,4 @@ class TestExtensionLoader:
         from extensions import CORE_API_VERSION
 
         assert isinstance(CORE_API_VERSION, str)
-        assert CORE_API_VERSION == "2.1"
+        assert CORE_API_VERSION == "2.2"
