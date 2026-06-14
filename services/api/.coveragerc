@@ -2,7 +2,12 @@
 branch = True
 source = .
 parallel = True
-concurrency = multiprocessing
+# `thread` is REQUIRED: FastAPI runs sync (`def`) route handlers in a
+# Starlette threadpool, so without thread-tracing every sync endpoint body
+# reads as uncovered (only its import-time lines count) — it understated
+# the real API source coverage by ~20pts. `multiprocessing` keeps coverage
+# of any worker-style subprocesses.
+concurrency = thread, multiprocessing
 omit =
     # Infrastructure/startup — validated by app running, not unit tests
     */database.py
