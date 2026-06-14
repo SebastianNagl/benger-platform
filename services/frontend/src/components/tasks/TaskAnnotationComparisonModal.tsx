@@ -87,8 +87,13 @@ export function TaskAnnotationComparisonModal({
     setError(null)
 
     try {
-      // Fetch all annotations for this task
-      const allAnnotations = await projectsAPI.getTaskAnnotations(task.id)
+      // Fetch all annotations for this task from EVERY annotator (not just the
+      // current user). This is the read-only oversight view on the data page;
+      // the backend gates all_users on project access + task visibility.
+      const allAnnotations = await projectsAPI.getTaskAnnotations(
+        task.id,
+        true
+      )
 
       if (allAnnotations.length === 0) {
         setAnnotations([])
@@ -393,8 +398,9 @@ export function TaskAnnotationComparisonModal({
             </button>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-hidden">
+          {/* Content — flex column with min-h-0 so the inner Tab.Panels
+              (or form branch) gets a bounded height and can scroll. */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
@@ -414,7 +420,7 @@ export function TaskAnnotationComparisonModal({
               // Automatically show annotation creator interface for empty tasks
               mode === 'create' && project?.label_config ? (
                 // Show annotation creator interface immediately - LabelStudio pattern
-                <div className="p-6">
+                <div className="min-h-0 flex-1 overflow-y-auto p-6">
                   <div className="mb-4 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
                     <h3 className="flex items-center gap-2 text-sm font-medium text-blue-900 dark:text-blue-100">
                       <PencilIcon className="h-4 w-4" />
@@ -481,7 +487,7 @@ export function TaskAnnotationComparisonModal({
               )
             ) : showAddAnnotation && project?.label_config ? (
               // User is adding a new annotation or editing existing one
-              <div className="p-6">
+              <div className="min-h-0 flex-1 overflow-y-auto p-6">
                 <div className="mb-4 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
                   <h3 className="flex items-center gap-2 text-sm font-medium text-blue-900 dark:text-blue-100">
                     {editingAnnotation ? (
@@ -543,7 +549,12 @@ export function TaskAnnotationComparisonModal({
                 )}
               </div>
             ) : (
-              <Tab.Group selectedIndex={selectedTab} onChange={setSelectedTab}>
+              <Tab.Group
+                selectedIndex={selectedTab}
+                onChange={setSelectedTab}
+                as="div"
+                className="flex min-h-0 flex-1 flex-col overflow-hidden"
+              >
                 {/* Tab List with horizontal scroll */}
                 <div className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
                   <Tab.List className="scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800 flex space-x-1 overflow-x-auto px-4 py-2 sm:px-6">
@@ -574,7 +585,7 @@ export function TaskAnnotationComparisonModal({
                 </div>
 
                 {/* Tab Panels */}
-                <Tab.Panels className="flex-1 overflow-y-auto">
+                <Tab.Panels className="min-h-0 flex-1 overflow-y-auto">
                   {annotatorTabs.map((tab) => (
                     <Tab.Panel key={tab.userId} className="p-4 sm:p-6">
                       {/* Annotator Info */}

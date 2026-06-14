@@ -1,12 +1,12 @@
 /**
- * Unit tests for AnnotationTab component logic
+ * Unit tests for ProjectDataTab component logic
  * Focus on business logic, utility functions, and data transformations
  * @jest-environment jsdom
  */
 
 import '@testing-library/jest-dom'
 
-describe('AnnotationTab Business Logic', () => {
+describe('ProjectDataTab Business Logic', () => {
   describe('Task Filtering Logic', () => {
     const mockTasks = [
       {

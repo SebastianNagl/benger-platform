@@ -1,11 +1,11 @@
 /**
- * E2E tests for the REAL column management system in AnnotationTab
+ * E2E tests for the REAL column management system in ProjectDataTab
  * Tests the actual ColumnSelector component and dynamic column extraction
  */
 
 import { expect, test } from '@playwright/test'
 
-test.describe('AnnotationTab Column Management - Real Implementation', () => {
+test.describe('ProjectDataTab Column Management - Real Implementation', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to projects page
     await page.goto('/projects', {
@@ -15,7 +15,7 @@ test.describe('AnnotationTab Column Management - Real Implementation', () => {
     await page.waitForTimeout(2000)
   })
 
-  test('should test the real column management system in AnnotationTab', async ({
+  test('should test the real column management system in ProjectDataTab', async ({
     page,
   }) => {
     // Find a project with tasks (reuse working logic)
@@ -47,11 +47,11 @@ test.describe('AnnotationTab Column Management - Real Implementation', () => {
           projectId = match[1]
         }
 
-        // Navigate directly to the project data page (AnnotationTab)
+        // Navigate directly to the project data page (ProjectDataTab)
         await page.goto(`/projects/${projectId}/data`)
         await page.waitForTimeout(5000) // Give more time for data to load
 
-        // Check if we have the AnnotationTab loaded with data
+        // Check if we have the ProjectDataTab loaded with data
         const tables = page.locator('table')
         if ((await tables.count()) > 0) {
           foundProject = true
@@ -74,7 +74,7 @@ test.describe('AnnotationTab Column Management - Real Implementation', () => {
 
     console.log(`Testing with project ID: ${projectId}`)
 
-    // Now we should be on the AnnotationTab with real data
+    // Now we should be on the ProjectDataTab with real data
     await page.waitForSelector('table', { timeout: 15000 })
 
     // Take screenshot to see what we're working with
@@ -148,7 +148,7 @@ test.describe('AnnotationTab Column Management - Real Implementation', () => {
   test('should test dynamic column extraction with nested data', async ({
     page,
   }) => {
-    // Find project with data and navigate to AnnotationTab
+    // Find project with data and navigate to ProjectDataTab
     const projectRows = page.locator('tbody tr')
     const projectCount = await projectRows.count()
 
@@ -241,7 +241,7 @@ test.describe('AnnotationTab Column Management - Real Implementation', () => {
     await page.keyboard.press('Escape')
   })
 
-  test('should test localStorage persistence in AnnotationTab', async ({
+  test('should test localStorage persistence in ProjectDataTab', async ({
     page,
   }) => {
     // Navigate to a project with column management

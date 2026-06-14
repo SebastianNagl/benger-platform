@@ -25,7 +25,7 @@ import { TestHelpers } from '../helpers/test-helpers'
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || ''
 
-// Pencil / eye buttons on the per-project annotation tab (AnnotationTab.tsx,
+// Pencil / eye buttons on the per-project annotation tab (ProjectDataTab.tsx,
 // titles from annotation.editTaskData / annotation.viewTaskData).
 const PROJECT_EDIT_PENCIL =
   'button[title="Aufgabendaten bearbeiten"], button[title="Edit task data"]'

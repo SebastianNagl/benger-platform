@@ -250,7 +250,7 @@ export const projectsAPI = {
   /**
    * Paginated variant that returns the full envelope (items + total + pages).
    * Use this when the UI drives pagination from the backend `total` (e.g.
-   * AnnotationTab) instead of loading every page upfront.
+   * ProjectDataTab) instead of loading every page upfront.
    */
   getTasksPage: async (
     projectId: string,

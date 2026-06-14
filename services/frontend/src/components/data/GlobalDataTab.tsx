@@ -1,6 +1,6 @@
 /**
  * GlobalDataTab - Display all tasks across all projects with pagination and filtering
- * Similar to AnnotationTab but for global data management
+ * Similar to ProjectDataTab but for global data management
  */
 
 'use client'

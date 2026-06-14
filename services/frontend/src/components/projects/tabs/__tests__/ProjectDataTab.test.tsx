@@ -1,12 +1,12 @@
 /**
- * Test suite for AnnotationTab component
+ * Test suite for ProjectDataTab component
  * Focus on business logic and testable functionality
  * @jest-environment jsdom
  */
 
 import '@testing-library/jest-dom'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { AnnotationTab } from '../AnnotationTab'
+import { ProjectDataTab } from '../ProjectDataTab'
 
 // Import mocked modules
 import { useToast } from '@/components/shared/Toast'
@@ -53,7 +53,7 @@ jest.mock('@/lib/api/projects', () => ({
     bulkArchiveTasks: jest.fn(),
     getMembers: jest.fn(),
     removeTaskAssignment: jest.fn(),
-    // Server-side pagination (Phase 6.4): AnnotationTab fetches one
+    // Server-side pagination (Phase 6.4): ProjectDataTab fetches one
     // page at a time via getTasksPage; the new ids_only endpoint backs
     // the "select all matching" affordance.
     getTasksPage: jest.fn(() =>
@@ -348,11 +348,11 @@ const defaultColumns = [
     type: 'system',
   },
   {
-    id: 'agreement',
-    label: 'Agreement',
+    id: 'graders',
+    label: 'Graders',
     visible: true,
-    sortable: true,
-    width: 'w-28',
+    sortable: false,
+    width: 'w-32',
     type: 'system',
   },
   {
@@ -381,7 +381,7 @@ const defaultColumns = [
   },
 ]
 
-describe('AnnotationTab', () => {
+describe('ProjectDataTab', () => {
   let mockFetchProjectTasks: jest.Mock
   let mockAddToast: jest.Mock
   let mockStartProgress: jest.Mock
@@ -398,7 +398,7 @@ describe('AnnotationTab', () => {
     mockUpdateProgress = jest.fn()
     mockCompleteProgress = jest.fn()
 
-    // Phase 6.4 redirected AnnotationTab's data load from the store's
+    // Phase 6.4 redirected ProjectDataTab's data load from the store's
     // `fetchProjectTasks` to `projectsAPI.getTasksPage` (server-side
     // pagination). Bridge the existing per-test fixtures so tests that
     // call `mockFetchProjectTasks.mockResolvedValue([...])` still drive
@@ -591,7 +591,7 @@ describe('AnnotationTab', () => {
 
   describe('Component Rendering', () => {
     it('should render the annotation tab', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalledWith('project-1')
@@ -603,7 +603,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should display task count', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(
@@ -615,7 +615,7 @@ describe('AnnotationTab', () => {
     it('should render empty state when no tasks', async () => {
       mockFetchProjectTasks.mockResolvedValue([])
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(
@@ -627,7 +627,7 @@ describe('AnnotationTab', () => {
 
   describe('Search Functionality', () => {
     it('should toggle search visibility', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -646,7 +646,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should filter tasks by search query', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -670,7 +670,7 @@ describe('AnnotationTab', () => {
 
   describe('Filtering', () => {
     it('should filter tasks by completed status', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -687,7 +687,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should filter tasks by incomplete status', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -706,7 +706,7 @@ describe('AnnotationTab', () => {
 
   describe('Task Selection', () => {
     it('should select individual tasks', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -725,7 +725,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should select all tasks via header checkbox', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -744,7 +744,7 @@ describe('AnnotationTab', () => {
 
   describe('Bulk Actions', () => {
     it('should delete selected tasks', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       // Wait for tasks to load
       await waitFor(() => {
@@ -773,7 +773,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should export selected tasks', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -809,7 +809,7 @@ describe('AnnotationTab', () => {
       // Object storage is mandatory: a full-project export goes straight to
       // storage and the browser downloads via a presigned URL, so the bulk
       // bytes never stream through the request path. No task_ids → whole project.
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -833,7 +833,7 @@ describe('AnnotationTab', () => {
     it('should not export when no tasks', async () => {
       mockFetchProjectTasks.mockResolvedValue([])
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -850,7 +850,7 @@ describe('AnnotationTab', () => {
         new Error('Export failed')
       )
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -872,7 +872,7 @@ describe('AnnotationTab', () => {
         new Error('Delete failed')
       )
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -904,7 +904,7 @@ describe('AnnotationTab', () => {
         reorderColumns: jest.fn(),
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -919,7 +919,7 @@ describe('AnnotationTab', () => {
 
   describe('Progress Tracking', () => {
     it('should track progress during export', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -942,7 +942,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should track progress during delete', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -966,7 +966,7 @@ describe('AnnotationTab', () => {
 
   describe('Sorting', () => {
     it('should sort tasks by ID ascending', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -993,7 +993,7 @@ describe('AnnotationTab', () => {
         updatePreference: mockUpdatePreference,
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1013,7 +1013,7 @@ describe('AnnotationTab', () => {
 
   describe('Import Modal', () => {
     it('should open import modal', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1028,7 +1028,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should refresh tasks after import', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1048,7 +1048,7 @@ describe('AnnotationTab', () => {
 
   describe('Task Assignment', () => {
     it('should open assignment modal when bulk assign clicked', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1067,7 +1067,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should show warning when trying to assign without selection', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1085,7 +1085,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should refresh tasks after assignment', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1112,7 +1112,7 @@ describe('AnnotationTab', () => {
 
   describe('Task Data View Modal', () => {
     it('should open task data modal when view button clicked', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1132,7 +1132,7 @@ describe('AnnotationTab', () => {
 
   describe('Task Comparison Modal', () => {
     it('should open comparison modal when row clicked', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1156,7 +1156,7 @@ describe('AnnotationTab', () => {
 
   describe('Bulk Archive', () => {
     it('should archive selected tasks', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1182,7 +1182,7 @@ describe('AnnotationTab', () => {
         new Error('Archive failed')
       )
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1205,7 +1205,7 @@ describe('AnnotationTab', () => {
 
   describe('Task Statistics', () => {
     it('should display correct task statistics', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1227,7 +1227,7 @@ describe('AnnotationTab', () => {
     it('should show loading spinner', async () => {
       mockFetchProjectTasks.mockImplementation(() => new Promise(() => {}))
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       // Look for the loading spinner by its class
       const spinner = document.querySelector('.animate-spin')
@@ -1237,7 +1237,7 @@ describe('AnnotationTab', () => {
 
   describe('Task Unassignment', () => {
     it('should remove assignment when unassign clicked', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1260,7 +1260,7 @@ describe('AnnotationTab', () => {
         new Error('Failed to remove')
       )
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1303,7 +1303,7 @@ describe('AnnotationTab', () => {
         apiClient: {} as any,
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1354,7 +1354,7 @@ describe('AnnotationTab', () => {
       it('shows the edit-data pencil for an ORG_ADMIN of the project', async () => {
         setAuthUser({ role: 'ORG_ADMIN' })
 
-        render(<AnnotationTab projectId="project-1" />)
+        render(<ProjectDataTab projectId="project-1" />)
 
         await waitFor(() => {
           expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1375,7 +1375,7 @@ describe('AnnotationTab', () => {
       it('shows the edit-data pencil for a superadmin regardless of org role', async () => {
         setAuthUser({ is_superadmin: true, role: 'ANNOTATOR' })
 
-        render(<AnnotationTab projectId="project-1" />)
+        render(<ProjectDataTab projectId="project-1" />)
 
         await waitFor(() => {
           expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1394,7 +1394,7 @@ describe('AnnotationTab', () => {
       it('hides the edit-data column and pencil from an ANNOTATOR', async () => {
         setAuthUser({ role: 'ANNOTATOR' })
 
-        render(<AnnotationTab projectId="project-1" />)
+        render(<ProjectDataTab projectId="project-1" />)
 
         await waitFor(() => {
           expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1428,7 +1428,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithMetadata)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1455,7 +1455,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithNestedData)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1467,7 +1467,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle date range filtering', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1507,7 +1507,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithDifferentFields)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1535,7 +1535,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithoutStrings)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1560,7 +1560,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithArrayMetadata)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1572,7 +1572,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle sorting by different columns', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1609,7 +1609,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle empty annotator filter', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1622,7 +1622,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should clear search when hiding search bar', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1658,7 +1658,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle sorting by created date', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1679,7 +1679,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle comparison modal opening', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1707,7 +1707,7 @@ describe('AnnotationTab', () => {
     it('should handle bulk delete confirmation cancellation', async () => {
       global.confirm = jest.fn(() => false)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1725,7 +1725,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle default sorting fallback', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1737,7 +1737,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle date range filtering', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1766,7 +1766,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksForAssignment)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1780,7 +1780,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle export with different formats', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1815,7 +1815,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(complexMetadataTasks)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1840,7 +1840,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithNullMeta)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1852,7 +1852,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle empty task list after filtering', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1888,7 +1888,7 @@ describe('AnnotationTab', () => {
         reorderColumns: mockReorderColumns,
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1908,7 +1908,7 @@ describe('AnnotationTab', () => {
         reorderColumns: jest.fn(),
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1935,7 +1935,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithMetadata)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -1947,43 +1947,38 @@ describe('AnnotationTab', () => {
       ).toBeInTheDocument()
     })
 
-    it('should handle agreement percentage display', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+    it('should display the graders column header (Korrektur grader assignments)', async () => {
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
       })
 
-      // Agreement column should be visible even if no agreement data
-      const agreementColumn = screen.getAllByText(
-        /annotationTab\.columns\.agreement/i
+      // Graders replaced the removed Agreement column.
+      const gradersColumn = screen.getAllByText(
+        /annotationTab\.columns\.graders/i
       )
-      expect(agreementColumn.length).toBeGreaterThan(0)
+      expect(gradersColumn.length).toBeGreaterThan(0)
     })
 
-    it('should handle sorting by agreement', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+    it('should no longer render the removed agreement column', async () => {
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
       })
 
-      const agreementHeaders = screen.getAllByText(
-        /annotationTab\.columns\.agreement/i
-      )
-      const agreementHeader = agreementHeaders[0].closest('th')
-      if (agreementHeader) {
-        fireEvent.click(agreementHeader)
-        await waitFor(() => {
-          expect(
-            screen.getByText(/annotationTab\.display\.showing/i)
-          ).toBeInTheDocument()
-        })
-      }
+      // Agreement was removed; reviewers/annotators are the people columns.
+      expect(
+        screen.queryByText(/annotationTab\.columns\.agreement/i)
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getAllByText(/annotationTab\.columns\.reviewers/i).length
+      ).toBeGreaterThan(0)
     })
 
     it('should handle bulk operations with empty selection', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2004,7 +1999,7 @@ describe('AnnotationTab', () => {
         new Error('Failed to fetch members')
       )
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2038,7 +2033,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithEmptyData)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2050,7 +2045,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle clicking on non-interactive table elements', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2073,7 +2068,7 @@ describe('AnnotationTab', () => {
         updatePreference: mockUpdatePreference,
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2101,7 +2096,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithAnnotations)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2112,7 +2107,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle header checkbox indeterminate state', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2130,7 +2125,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle row click to open comparison modal', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2149,7 +2144,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should close modals properly', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2198,7 +2193,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithNested)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2210,7 +2205,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle date filtering with valid date range', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2239,7 +2234,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(simpleTask)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2263,7 +2258,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithMeta)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2276,7 +2271,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle task data view modal close', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2300,7 +2295,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle task comparison modal close', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2335,7 +2330,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockReturnValue(loadingPromise)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       // Should show loading spinner
       const spinner = document.querySelector('.animate-spin')
@@ -2352,7 +2347,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle keyboard navigation on sortable headers', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2383,7 +2378,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle assignment modal close', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2422,7 +2417,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithMetadata)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2435,7 +2430,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle unselecting all tasks', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2482,7 +2477,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithLongText)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2514,7 +2509,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithMetadata)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2551,7 +2546,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithNestedData)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2595,7 +2590,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(complexTasks)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2618,7 +2613,7 @@ describe('AnnotationTab', () => {
         fetchProjectTasks: mockFetchProjectTasks,
       } as any)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2673,7 +2668,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithLongMeta)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2719,7 +2714,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithData)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2731,7 +2726,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle sorting on non-sortable columns gracefully', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2753,7 +2748,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle keyboard events on non-sortable columns gracefully', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2776,7 +2771,7 @@ describe('AnnotationTab', () => {
     it('should handle bulk archive confirmation cancellation properly', async () => {
       global.confirm = jest.fn(() => false)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2797,7 +2792,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle search by task ID correctly', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2819,7 +2814,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should prevent bulk export when no tasks selected', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2835,7 +2830,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should stop propagation on checkbox click in table row', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2858,7 +2853,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should stop propagation when clicking assign button', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2878,7 +2873,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should stop propagation when clicking view data button', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2896,7 +2891,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle annotator filter logic correctly', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2910,7 +2905,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should render reviewers column with empty state correctly', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2922,21 +2917,20 @@ describe('AnnotationTab', () => {
       ).toBeInTheDocument()
     })
 
-    it('should handle agreement display logic correctly', async () => {
-      // Test agreement display is handled (always returns null currently)
-      render(<AnnotationTab projectId="project-1" />)
+    it('should render the graders column (replaces removed agreement)', async () => {
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
       })
 
       expect(
-        screen.getByText(/annotationTab\.display\.showing/i)
-      ).toBeInTheDocument()
+        screen.getAllByText(/annotationTab\.columns\.graders/i).length
+      ).toBeGreaterThan(0)
     })
 
     it('should render annotators column with empty array correctly', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2949,7 +2943,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle export with CSV format when selected tasks', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -2977,7 +2971,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithDates)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -3004,7 +2998,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithComplexMeta)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -3029,7 +3023,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithSameId)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -3041,7 +3035,7 @@ describe('AnnotationTab', () => {
     })
 
     it('should handle task selection state changes correctly', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -3081,7 +3075,7 @@ describe('AnnotationTab', () => {
         updatePreference: mockUpdatePreference,
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -3108,7 +3102,7 @@ describe('AnnotationTab', () => {
     it('should handle export filtered tasks with empty filter result', async () => {
       mockFetchProjectTasks.mockResolvedValue([])
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -3137,7 +3131,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithQuestion)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -3165,7 +3159,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithPrompt)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -3193,7 +3187,7 @@ describe('AnnotationTab', () => {
 
       mockFetchProjectTasks.mockResolvedValue(tasksWithNoString)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -3228,7 +3222,7 @@ describe('AnnotationTab', () => {
         apiClient: {} as any,
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -3267,7 +3261,7 @@ describe('AnnotationTab', () => {
     it('should handle export warning for empty tasks', async () => {
       mockFetchProjectTasks.mockResolvedValue([])
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()

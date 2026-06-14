@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  *
- * Branch coverage tests for AnnotationTab - round 5.
+ * Branch coverage tests for ProjectDataTab - round 5.
  * Targets specific uncovered branches:
  * - Metadata filter: array filter on array task value (lines 283-285)
  * - Metadata filter: array filter on single task value (lines 287-289)
@@ -31,7 +31,7 @@
 
 import '@testing-library/jest-dom'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { AnnotationTab } from '../AnnotationTab'
+import { ProjectDataTab } from '../ProjectDataTab'
 
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
@@ -322,13 +322,13 @@ const defaultColumns = [
   { id: 'annotations', label: 'Annotations', visible: true, sortable: true, width: 'w-32', type: 'system' },
   { id: 'generations', label: 'Generations', visible: true, sortable: true, width: 'w-24', type: 'system' },
   { id: 'annotators', label: 'Annotators', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'agreement', label: 'Agreement', visible: true, sortable: true, width: 'w-28', type: 'system' },
+  { id: 'graders', label: 'Graders', visible: true, sortable: false, width: 'w-32', type: 'system' },
   { id: 'reviewers', label: 'Reviewers', visible: true, sortable: false, width: 'w-32', type: 'system' },
   { id: 'created', label: 'Created', visible: true, sortable: true, width: 'w-36', type: 'system' },
   { id: 'view_data', label: 'View', visible: true, sortable: false, width: 'w-16', type: 'system' },
 ]
 
-describe('AnnotationTab - br5 branch coverage', () => {
+describe('ProjectDataTab - br5 branch coverage', () => {
   let mockFetchProjectTasks: jest.Mock
   let mockAddToast: jest.Mock
   let mockStartProgress: jest.Mock
@@ -507,14 +507,14 @@ describe('AnnotationTab - br5 branch coverage', () => {
   })
 
   it('renders the annotation tab with tasks', async () => {
-    render(<AnnotationTab projectId="project-1" />)
+    render(<ProjectDataTab projectId="project-1" />)
     await waitFor(() => {
       expect(mockFetchProjectTasks).toHaveBeenCalled()
     })
   })
 
   it('triggers onTagsUpdated callback from BulkActions', async () => {
-    render(<AnnotationTab projectId="project-1" />)
+    render(<ProjectDataTab projectId="project-1" />)
 
     await waitFor(() => {
       expect(screen.getByTestId('bulk-actions')).toBeInTheDocument()
@@ -535,7 +535,7 @@ describe('AnnotationTab - br5 branch coverage', () => {
   it('handles bulk delete with confirm=false', async () => {
     ;(global.confirm as jest.Mock).mockReturnValue(false)
 
-    render(<AnnotationTab projectId="project-1" />)
+    render(<ProjectDataTab projectId="project-1" />)
 
     // Wait for the row checkboxes to render — `bulk-actions` is a mocked
     // component that's in the DOM unconditionally, so it can't gate on
@@ -565,7 +565,7 @@ describe('AnnotationTab - br5 branch coverage', () => {
   it('handles empty state when no tasks', async () => {
     mockFetchProjectTasks.mockResolvedValue([])
 
-    render(<AnnotationTab projectId="project-1" />)
+    render(<ProjectDataTab projectId="project-1" />)
 
     await waitFor(() => {
       expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -586,7 +586,7 @@ describe('AnnotationTab - br5 branch coverage', () => {
       updatePreference: jest.fn(),
     })
 
-    render(<AnnotationTab projectId="project-1" />)
+    render(<ProjectDataTab projectId="project-1" />)
 
     await waitFor(() => {
       expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -604,7 +604,7 @@ describe('AnnotationTab - br5 branch coverage', () => {
       updatePreference: jest.fn(),
     })
 
-    render(<AnnotationTab projectId="project-1" />)
+    render(<ProjectDataTab projectId="project-1" />)
 
     await waitFor(() => {
       expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -622,7 +622,7 @@ describe('AnnotationTab - br5 branch coverage', () => {
       updatePreference: jest.fn(),
     })
 
-    render(<AnnotationTab projectId="project-1" />)
+    render(<ProjectDataTab projectId="project-1" />)
 
     await waitFor(() => {
       expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -640,7 +640,7 @@ describe('AnnotationTab - br5 branch coverage', () => {
       updatePreference: jest.fn(),
     })
 
-    render(<AnnotationTab projectId="project-1" />)
+    render(<ProjectDataTab projectId="project-1" />)
 
     await waitFor(() => {
       expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -658,7 +658,7 @@ describe('AnnotationTab - br5 branch coverage', () => {
       updatePreference: jest.fn(),
     })
 
-    render(<AnnotationTab projectId="project-1" />)
+    render(<ProjectDataTab projectId="project-1" />)
 
     await waitFor(() => {
       expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -676,7 +676,7 @@ describe('AnnotationTab - br5 branch coverage', () => {
       updatePreference: jest.fn(),
     })
 
-    render(<AnnotationTab projectId="project-1" />)
+    render(<ProjectDataTab projectId="project-1" />)
 
     await waitFor(() => {
       expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -707,7 +707,7 @@ describe('AnnotationTab - br5 branch coverage', () => {
       apiClient: {} as any,
     })
 
-    render(<AnnotationTab projectId="project-1" />)
+    render(<ProjectDataTab projectId="project-1" />)
 
     await waitFor(() => {
       expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -725,7 +725,7 @@ describe('AnnotationTab - br5 branch coverage', () => {
       updatePreference: jest.fn(),
     })
 
-    render(<AnnotationTab projectId="project-1" />)
+    render(<ProjectDataTab projectId="project-1" />)
 
     await waitFor(() => {
       expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -743,7 +743,7 @@ describe('AnnotationTab - br5 branch coverage', () => {
       new Error('Export failed')
     )
 
-    render(<AnnotationTab projectId="project-1" />)
+    render(<ProjectDataTab projectId="project-1" />)
 
     // Wait for the row checkboxes to render (Phase 6.4 microtask hop).
     await waitFor(() => {

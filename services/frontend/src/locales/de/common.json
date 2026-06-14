@@ -581,7 +581,12 @@
     "columns": {
       "label": "Spalten",
       "showHideReorder": "Spalten ein-/ausblenden und sortieren",
-      "resetToDefault": "Auf Standard zurücksetzen"
+      "resetToDefault": "Auf Standard zurücksetzen",
+      "type": {
+        "system": "System",
+        "data": "Daten",
+        "metadata": "Metadaten"
+      }
     },
     "labelConfig": {
       "title": "Label-Konfiguration",
@@ -2446,6 +2451,17 @@
       "viewResults": "Ergebnisse anzeigen",
       "cellGenerationQueued": "Generierung in Warteschlange",
       "cellGenerationFailed": "Generierung konnte nicht gestartet werden"
+    },
+    "comparison": {
+      "modal": {
+        "title": "Alle Generierungen",
+        "taskId": "Aufgabe {taskId}",
+        "description": "Generierungen aller Modelle für diese Aufgabe.",
+        "viewAll": "Alle Generierungen anzeigen",
+        "noGenerations": "Für diese Aufgabe gibt es noch keine Generierungen.",
+        "noResult": "Kein Ergebnis verfügbar.",
+        "loadError": "Generierungen konnten nicht geladen werden."
+      }
     },
     "resultModal": {
       "title": "Generierungsergebnis",
@@ -6638,11 +6654,16 @@
       "annotations": "Annotationen",
       "generations": "Generierungen",
       "annotators": "Annotatoren",
-      "agreement": "Übereinstimmung",
+      "graders": "Korrektoren",
       "reviewers": "Prüfer",
       "created": "Erstellt",
       "view": "Ansicht",
       "edit": "Bearbeiten"
+    },
+    "orderBy": {
+      "sortBy": "Sortieren nach",
+      "ascending": "Aufsteigend",
+      "descending": "Absteigend"
     },
     "buttons": {
       "search": "Suchen",

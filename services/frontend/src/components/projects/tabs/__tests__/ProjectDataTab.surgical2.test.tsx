@@ -1,12 +1,12 @@
 /**
- * Surgical branch coverage tests for AnnotationTab
+ * Surgical branch coverage tests for ProjectDataTab
  * Targets uncovered lines: 222, 247, 274, 282, 283, 292, 407, 409, 410, 424, 430, 441, 471, 485, 498
  * @jest-environment jsdom
  */
 
 import '@testing-library/jest-dom'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { AnnotationTab } from '../AnnotationTab'
+import { ProjectDataTab } from '../ProjectDataTab'
 
 // Import mocked modules
 import { useToast } from '@/components/shared/Toast'
@@ -336,13 +336,13 @@ const defaultColumns = [
   { id: 'annotations', label: 'Annotations', visible: true, sortable: true, width: 'w-32', type: 'system' },
   { id: 'generations', label: 'Generations', visible: true, sortable: true, width: 'w-32', type: 'system' },
   { id: 'annotators', label: 'Annotators', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'agreement', label: 'Agreement', visible: true, sortable: true, width: 'w-28', type: 'system' },
+  { id: 'graders', label: 'Graders', visible: true, sortable: false, width: 'w-32', type: 'system' },
   { id: 'reviewers', label: 'Reviewers', visible: true, sortable: false, width: 'w-32', type: 'system' },
   { id: 'created', label: 'Created', visible: true, sortable: true, width: 'w-36', type: 'system' },
   { id: 'view_data', label: 'View', visible: true, sortable: false, width: 'w-16', type: 'system' },
 ]
 
-describe('AnnotationTab - Surgical Branch Coverage 2', () => {
+describe('ProjectDataTab - Surgical Branch Coverage 2', () => {
   let mockFetchProjectTasks: jest.Mock
   let mockAddToast: jest.Mock
   let mockStartProgress: jest.Mock
@@ -508,7 +508,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
   // The component won't be rendered with empty projectId in practice, but the branch exists
   describe('Load tasks when projectId is truthy (line 222)', () => {
     it('loads tasks when projectId is provided', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalledWith('project-1')
@@ -529,7 +529,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
         updatePreference: jest.fn(),
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -550,7 +550,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
         updatePreference: jest.fn(),
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -564,7 +564,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
   // Lines 274, 282, 283, 292: Metadata filtering - various filter value/task value type combinations
   describe('Metadata filter type combinations (lines 274-292)', () => {
     it('filters by metadata with array filter values against array task values (line 282-283)', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -581,7 +581,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
     })
 
     it('filters by metadata with single filter value against single task value (line 295)', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -595,7 +595,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
     })
 
     it('filters by metadata with single filter value against array task value (line 292)', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -625,7 +625,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
         updatePreference: mockUpdatePreference,
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -654,7 +654,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
         updatePreference: mockUpdatePreference,
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -675,7 +675,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
   // We test those actual code paths to cover the export branches.
   describe('Export via handleExportTasks (all filtered tasks)', () => {
     it('exports all filtered tasks via the export button', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -697,7 +697,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
     it('shows warning when no filtered tasks to export', async () => {
       mockFetchProjectTasks.mockResolvedValue([])
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -711,7 +711,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
 
   describe('Export via handleBulkExport (selected tasks)', () => {
     it('handles bulk export button click (no-op when nothing selected)', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -736,7 +736,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
         new Error('Export failed')
       )
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -770,7 +770,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
         updatePreference: mockUpdatePreference,
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -802,7 +802,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
         updatePreference: mockUpdatePreference,
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -835,7 +835,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
         updatePreference: jest.fn(),
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -853,7 +853,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
         updatePreference: jest.fn(),
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -871,7 +871,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
         updatePreference: jest.fn(),
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -889,7 +889,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
         updatePreference: jest.fn(),
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -907,7 +907,7 @@ describe('AnnotationTab - Surgical Branch Coverage 2', () => {
         updatePreference: jest.fn(),
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()

@@ -1,12 +1,12 @@
 /**
- * Additional coverage tests for AnnotationTab component
+ * Additional coverage tests for ProjectDataTab component
  * Covers bulk archive, sort by different columns, view modals, cancel delete
  * @jest-environment jsdom
  */
 
 import '@testing-library/jest-dom'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { AnnotationTab } from '../AnnotationTab'
+import { ProjectDataTab } from '../ProjectDataTab'
 
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
@@ -273,13 +273,13 @@ const defaultColumns = [
   { id: 'annotations', label: 'Annotations', visible: true, sortable: true, width: 'w-32', type: 'system' },
   { id: 'generations', label: 'Generations', visible: true, sortable: true, width: 'w-32', type: 'system' },
   { id: 'annotators', label: 'Annotators', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'agreement', label: 'Agreement', visible: true, sortable: true, width: 'w-28', type: 'system' },
+  { id: 'graders', label: 'Graders', visible: true, sortable: false, width: 'w-32', type: 'system' },
   { id: 'reviewers', label: 'Reviewers', visible: true, sortable: false, width: 'w-32', type: 'system' },
   { id: 'created', label: 'Created', visible: true, sortable: true, width: 'w-36', type: 'system' },
   { id: 'view_data', label: 'View', visible: true, sortable: false, width: 'w-16', type: 'system' },
 ]
 
-describe('AnnotationTab - Coverage', () => {
+describe('ProjectDataTab - Coverage', () => {
   let mockFetchProjectTasks: jest.Mock
   let mockAddToast: jest.Mock
   let mockStartProgress: jest.Mock
@@ -413,7 +413,7 @@ describe('AnnotationTab - Coverage', () => {
 
   describe('Bulk Archive', () => {
     it('should archive selected tasks', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => { expect(mockFetchProjectTasks).toHaveBeenCalled() })
       await act(async () => { await new Promise(r => setTimeout(r, 0)) })
@@ -432,7 +432,7 @@ describe('AnnotationTab - Coverage', () => {
     it('should handle archive errors', async () => {
       ;(projectsAPI.bulkArchiveTasks as jest.Mock).mockRejectedValue(new Error('Archive failed'))
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => { expect(mockFetchProjectTasks).toHaveBeenCalled() })
       await act(async () => { await new Promise(r => setTimeout(r, 0)) })
@@ -456,7 +456,7 @@ describe('AnnotationTab - Coverage', () => {
         updatePreference: mockUpdatePreference,
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => { expect(mockFetchProjectTasks).toHaveBeenCalled() })
 
@@ -478,7 +478,7 @@ describe('AnnotationTab - Coverage', () => {
         updatePreference: mockUpdatePreference,
       })
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => { expect(mockFetchProjectTasks).toHaveBeenCalled() })
 
@@ -497,7 +497,7 @@ describe('AnnotationTab - Coverage', () => {
     it('should not delete when confirm is cancelled', async () => {
       global.confirm = jest.fn(() => false)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => { expect(mockFetchProjectTasks).toHaveBeenCalled() })
       await act(async () => { await new Promise(r => setTimeout(r, 0)) })
@@ -514,7 +514,7 @@ describe('AnnotationTab - Coverage', () => {
 
   describe('Empty Selection Guards', () => {
     it('should not export when no tasks selected and bulk export clicked', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => { expect(mockFetchProjectTasks).toHaveBeenCalled() })
 
@@ -527,7 +527,7 @@ describe('AnnotationTab - Coverage', () => {
     })
 
     it('should not archive when no tasks selected', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => { expect(mockFetchProjectTasks).toHaveBeenCalled() })
 
@@ -540,7 +540,7 @@ describe('AnnotationTab - Coverage', () => {
 
   describe('Task Row Rendering', () => {
     it('renders task rows with completion indicator', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => {
         expect(mockFetchProjectTasks).toHaveBeenCalled()
@@ -557,7 +557,7 @@ describe('AnnotationTab - Coverage', () => {
 
   describe('Assignment Unassign', () => {
     it('should unassign a task when remove button clicked', async () => {
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => { expect(mockFetchProjectTasks).toHaveBeenCalled() })
       await act(async () => { await new Promise(r => setTimeout(r, 0)) })

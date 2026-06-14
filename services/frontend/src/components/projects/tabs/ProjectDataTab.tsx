@@ -1,5 +1,5 @@
 /**
- * AnnotationTab - Display project annotation data with filtering, sorting, and bulk operations
+ * ProjectDataTab - Display project annotation data with filtering, sorting, and bulk operations
  * This component contains the original content from the project data page
  */
 
@@ -19,6 +19,7 @@ import { Input } from '@/components/shared/Input'
 import { useToast } from '@/components/shared/Toast'
 import { TaskAnnotationComparisonModal } from '@/components/tasks/TaskAnnotationComparisonModal'
 import { TaskDataViewModal } from '@/components/tasks/TaskDataViewModal'
+import { TaskGenerationComparisonModal } from '@/components/tasks/TaskGenerationComparisonModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useProgress } from '@/contexts/ProgressContext'
@@ -46,6 +47,7 @@ import {
   getEffectiveProjectRole,
 } from '@/utils/permissions'
 import { labelStudioTaskToApi } from '@/utils/taskTypeAdapter'
+import { Menu } from '@headlessui/react'
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -58,7 +60,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-interface AnnotationTabProps {
+interface ProjectDataTabProps {
   projectId: string
 }
 
@@ -131,11 +133,11 @@ const defaultColumns: TableColumn[] = [
     type: 'system',
   },
   {
-    id: 'agreement',
-    label: 'annotationTab.columns.agreement',
+    id: 'graders',
+    label: 'annotationTab.columns.graders',
     visible: true,
-    sortable: true,
-    width: 'w-28',
+    sortable: false,
+    width: 'w-32',
     type: 'system',
   },
   {
@@ -173,7 +175,7 @@ const defaultColumns: TableColumn[] = [
   },
 ]
 
-export function AnnotationTab({ projectId }: AnnotationTabProps) {
+export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
   const { user } = useAuth()
   const { t } = useI18n()
   const { addToast } = useToast()
@@ -243,10 +245,9 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
     setCurrentPage(1)
   }, [debouncedSearch, filterStatus, filterDateRange.start, filterDateRange.end, sortBy, sortOrder])
 
-  // Map UI sort key to the backend sort columns. `agreement` isn't a
-  // server-sortable concept yet (it's derived from per-task annotation
-  // distribution), so we fall back to created and let the client-side
-  // pass at lines below handle the in-page ordering.
+  // Map UI sort key to the backend sort columns. Non-server-sortable keys
+  // (e.g. people columns) map to undefined and fall back to the default
+  // server ordering.
   const serverSortBy = useMemo<
     'id' | 'created' | 'completed' | 'annotations' | 'generations' | undefined
   >(() => {
@@ -707,6 +708,11 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
     useState<LabelStudioTask | null>(null)
   const [showComparisonModal, setShowComparisonModal] = useState(false)
 
+  // State for the all-generations modal (opened from the generations cell)
+  const [selectedTaskForGenerations, setSelectedTaskForGenerations] =
+    useState<LabelStudioTask | null>(null)
+  const [showGenerationModal, setShowGenerationModal] = useState(false)
+
   // Modal state for viewing/editing metadata - removed (now using page navigation)
 
   // Extract dynamic data columns including nested JSON fields
@@ -862,16 +868,6 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
     return `Task ${task.id}`
   }
 
-  // Get annotators for a task
-  const getTaskAnnotators = (task: LabelStudioTask) => {
-    return []
-  }
-
-  // Calculate inter-annotator agreement
-  const getAgreement = (task: LabelStudioTask) => {
-    return null
-  }
-
   // Fetch project members for assignment (including organization members)
   const fetchProjectMembers = async () => {
     try {
@@ -1009,12 +1005,75 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
                 onMetadataChange={setMetadataFilters}
               />
 
-              <div className="relative hidden sm:block">
-                <Button variant="outline" className="gap-2">
+              <Menu as="div" className="relative hidden sm:block">
+                <Menu.Button as={Button} variant="outline" className="gap-2">
                   {t('annotationTab.buttons.orderBy')}
                   <ChevronDownIcon className="h-4 w-4" />
-                </Button>
-              </div>
+                </Menu.Button>
+                <Menu.Items className="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-zinc-900">
+                  <div className="py-1">
+                    <div className="px-4 py-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                      {t('annotationTab.orderBy.sortBy')}
+                    </div>
+                    {columns
+                      .filter((c) => c.sortable)
+                      .map((column) => {
+                        const isActive = sortBy === column.id
+                        return (
+                          <Menu.Item key={column.id}>
+                            {({ active: focused }) => (
+                              <button
+                                onClick={() => {
+                                  setSortBy(column.id)
+                                  updatePreference('sortBy', column.id)
+                                }}
+                                className={`flex w-full items-center justify-between px-4 py-2 text-sm ${
+                                  focused ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                                } ${
+                                  isActive
+                                    ? 'font-medium text-emerald-600 dark:text-emerald-400'
+                                    : 'text-zinc-700 dark:text-zinc-200'
+                                }`}
+                              >
+                                <span>{t(column.label)}</span>
+                                {isActive && (
+                                  <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                                )}
+                              </button>
+                            )}
+                          </Menu.Item>
+                        )
+                      })}
+                    <div className="my-1 border-t border-zinc-200 dark:border-zinc-700" />
+                    {(['asc', 'desc'] as const).map((dir) => (
+                      <Menu.Item key={dir}>
+                        {({ active: focused }) => (
+                          <button
+                            onClick={() => {
+                              setSortOrder(dir)
+                              updatePreference('sortOrder', dir)
+                            }}
+                            className={`flex w-full items-center justify-between px-4 py-2 text-sm ${
+                              focused ? 'bg-zinc-100 dark:bg-zinc-800' : ''
+                            } ${
+                              sortOrder === dir
+                                ? 'font-medium text-emerald-600 dark:text-emerald-400'
+                                : 'text-zinc-700 dark:text-zinc-200'
+                            }`}
+                          >
+                            <span>
+                              {dir === 'asc'
+                                ? t('annotationTab.orderBy.ascending')
+                                : t('annotationTab.orderBy.descending')}
+                            </span>
+                            {sortOrder === dir && <span>✓</span>}
+                          </button>
+                        )}
+                      </Menu.Item>
+                    ))}
+                  </div>
+                </Menu.Items>
+              </Menu>
 
               <Button variant="outline" className="hidden md:flex">
                 <DocumentMagnifyingGlassIcon className="mr-2 h-4 w-4" />
@@ -1245,8 +1304,21 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
                 </thead>
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
                   {filteredTasks.map((task) => {
-                    const annotators = getTaskAnnotators(task)
-                    const agreement = getAgreement(task)
+                    // People who actually did work on the task (from the
+                    // serializer), kept separate from assignments.
+                    const annotators = task.annotators || []
+                    const reviewers = task.reviewers || []
+                    // Assignment list split by target_type: annotator
+                    // assignments ('task') vs Korrektur grader assignments.
+                    const allAssignments = (task as any).assignments || []
+                    const annotatorAssignments = allAssignments.filter(
+                      (a: any) => !a.target_type || a.target_type === 'task'
+                    )
+                    const graderAssignments = allAssignments.filter(
+                      (a: any) =>
+                        a.target_type === 'annotation' ||
+                        a.target_type === 'generation'
+                    )
 
                     return (
                       <tr
@@ -1399,9 +1471,7 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     <AnnotatorBadges
-                                      assignments={
-                                        (task as any).assignments || []
-                                      }
+                                      assignments={annotatorAssignments}
                                       maxVisible={3}
                                       size="sm"
                                       showStatus={true}
@@ -1448,8 +1518,26 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
                                   <td
                                     key={column.id}
                                     className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      if (task.total_generations > 0) {
+                                        setSelectedTaskForGenerations(task)
+                                        setShowGenerationModal(true)
+                                      }
+                                    }}
                                   >
-                                    <span className="text-sm text-zinc-900 dark:text-white">
+                                    <span
+                                      className={`text-sm ${
+                                        task.total_generations > 0
+                                          ? 'cursor-pointer font-medium text-blue-600 hover:underline dark:text-blue-400'
+                                          : 'text-zinc-500 dark:text-zinc-400'
+                                      }`}
+                                      title={
+                                        task.total_generations > 0
+                                          ? t('generation.comparison.modal.viewAll')
+                                          : undefined
+                                      }
+                                    >
                                       {task.total_generations}
                                     </span>
                                   </td>
@@ -1462,10 +1550,10 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
                                   >
                                     {annotators.length > 0 ? (
                                       <div className="flex -space-x-2">
-                                        {annotators.map((name, idx) => (
+                                        {annotators.map((person) => (
                                           <UserAvatar
-                                            key={idx}
-                                            name={name}
+                                            key={person.id}
+                                            name={person.name}
                                             size="sm"
                                           />
                                         ))}
@@ -1477,26 +1565,26 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
                                     )}
                                   </td>
                                 )
-                              case 'agreement':
+                              case 'graders':
+                                // Korrektur grader assignments (item-level,
+                                // target_type annotation/generation). Read-only
+                                // here — grading is managed on the /korrektur
+                                // page.
                                 return (
                                   <td
                                     key={column.id}
                                     className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
-                                    {agreement !== null ? (
-                                      <div className="flex items-center space-x-2">
-                                        <span
-                                          className={`text-sm font-medium ${
-                                            agreement >= 80
-                                              ? 'text-emerald-600'
-                                              : agreement >= 60
-                                                ? 'text-amber-600'
-                                                : 'text-red-600'
-                                          }`}
-                                        >
-                                          {agreement}%
-                                        </span>
-                                      </div>
+                                    {graderAssignments.length > 0 ? (
+                                      <AnnotatorBadges
+                                        assignments={graderAssignments}
+                                        maxVisible={3}
+                                        size="sm"
+                                        showStatus={true}
+                                        canUnassign={false}
+                                        canAssign={false}
+                                      />
                                     ) : (
                                       <span className="text-sm text-zinc-500 dark:text-zinc-400">
                                         —
@@ -1539,14 +1627,29 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
                                   </td>
                                 )
                               case 'reviewers':
+                                // Who actually reviewed an annotation on this
+                                // task (Annotation.reviewed_by) — distinct from
+                                // graders above.
                                 return (
                                   <td
                                     key={column.id}
                                     className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
                                   >
-                                    <span className="text-sm text-zinc-500">
-                                      —
-                                    </span>
+                                    {reviewers.length > 0 ? (
+                                      <div className="flex -space-x-2">
+                                        {reviewers.map((person) => (
+                                          <UserAvatar
+                                            key={person.id}
+                                            name={person.name}
+                                            size="sm"
+                                          />
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                                        —
+                                      </span>
+                                    )}
                                   </td>
                                 )
                               case 'created':
@@ -1589,7 +1692,7 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
           </div>
         )}
 
-        {/* Pagination — server-driven now that AnnotationTab loads one page
+        {/* Pagination — server-driven now that ProjectDataTab loads one page
             at a time. The Previous/Next buttons were stubbed (`disabled`)
             while everything lived in memory; they're real controls again. */}
         {totalTasks > 0 && (
@@ -1680,6 +1783,17 @@ export function AnnotationTab({ projectId }: AnnotationTabProps) {
         onClose={() => {
           setShowComparisonModal(false)
           setSelectedTaskForComparison(null)
+        }}
+        projectId={projectId}
+      />
+
+      {/* Task Generation Comparison Modal (all models for the task) */}
+      <TaskGenerationComparisonModal
+        task={selectedTaskForGenerations}
+        isOpen={showGenerationModal}
+        onClose={() => {
+          setShowGenerationModal(false)
+          setSelectedTaskForGenerations(null)
         }}
         projectId={projectId}
       />

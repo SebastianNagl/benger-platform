@@ -1,5 +1,5 @@
 /**
- * Additional coverage tests for AnnotationTab
+ * Additional coverage tests for ProjectDataTab
  * Targets uncovered handlers: export, bulk delete, bulk export, export all,
  * view task data, import complete, assignment modal, comparison modal,
  * sort by various columns, metadata filters, empty state, search filter.
@@ -9,7 +9,7 @@
 
 import '@testing-library/jest-dom'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { AnnotationTab } from '../AnnotationTab'
+import { ProjectDataTab } from '../ProjectDataTab'
 
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
@@ -281,7 +281,7 @@ const defaultColumns = [
   { id: 'annotations', label: 'Annotations', visible: true, sortable: true, width: 'w-32', type: 'system' },
   { id: 'generations', label: 'Generations', visible: true, sortable: true, width: 'w-32', type: 'system' },
   { id: 'annotators', label: 'Annotators', visible: true, sortable: false, width: 'w-32', type: 'system' },
-  { id: 'agreement', label: 'Agreement', visible: true, sortable: true, width: 'w-28', type: 'system' },
+  { id: 'graders', label: 'Graders', visible: true, sortable: false, width: 'w-32', type: 'system' },
   { id: 'reviewers', label: 'Reviewers', visible: true, sortable: false, width: 'w-32', type: 'system' },
   { id: 'created', label: 'Created', visible: true, sortable: true, width: 'w-36', type: 'system' },
   { id: 'view_data', label: 'View', visible: true, sortable: false, width: 'w-16', type: 'system' },
@@ -429,12 +429,12 @@ function setupMocks() {
 }
 
 async function renderAndWaitForTasks() {
-  render(<AnnotationTab projectId="project-1" />)
+  render(<ProjectDataTab projectId="project-1" />)
   await waitFor(() => expect(mockFetchProjectTasks).toHaveBeenCalled())
   await act(async () => { await new Promise(r => setTimeout(r, 0)) })
 }
 
-describe('AnnotationTab - interaction coverage', () => {
+describe('ProjectDataTab - interaction coverage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     setupMocks()
@@ -469,7 +469,7 @@ describe('AnnotationTab - interaction coverage', () => {
 
     it('shows warning when exporting with no tasks', async () => {
       mockFetchProjectTasks.mockResolvedValue([])
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
       await waitFor(() => expect(mockFetchProjectTasks).toHaveBeenCalled())
       await act(async () => { await new Promise(r => setTimeout(r, 0)) })
 
@@ -904,7 +904,7 @@ describe('AnnotationTab - interaction coverage', () => {
   describe('Empty state', () => {
     it('shows empty state when no tasks loaded', async () => {
       mockFetchProjectTasks.mockResolvedValue([])
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       await waitFor(() => expect(mockFetchProjectTasks).toHaveBeenCalled())
       await act(async () => { await new Promise(r => setTimeout(r, 0)) })
@@ -961,7 +961,7 @@ describe('AnnotationTab - interaction coverage', () => {
         fetchProjectTasks: jest.fn().mockReturnValue(new Promise(() => {})), // never resolves
       } as any)
 
-      render(<AnnotationTab projectId="project-1" />)
+      render(<ProjectDataTab projectId="project-1" />)
 
       // Should show loading spinner
       const spinner = document.querySelector('.animate-spin')
