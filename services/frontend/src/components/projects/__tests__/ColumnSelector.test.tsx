@@ -16,6 +16,12 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.columns.label': 'Columns',
         'projects.columns.showHideReorder': 'Show/Hide & Reorder Columns',
         'projects.columns.resetToDefault': 'Reset to Default',
+        // The component i18n's the column-type annotation as
+        // `(${t('projects.columns.type.<type>')})`; map them so the
+        // rendered text is `(data)` / `(system)` / `(metadata)`.
+        'projects.columns.type.data': 'data',
+        'projects.columns.type.system': 'system',
+        'projects.columns.type.metadata': 'metadata',
       }
       return translations[key] || key
     },
