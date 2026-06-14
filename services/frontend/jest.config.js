@@ -145,12 +145,12 @@ const config = {
       functions: 98, // measured 100
       lines: 98, // measured 99.4
     },
-    // Components - raised after the evaluation/projects backfill
+    // Components - raised after the evaluation/projects/leaderboards/generation backfill
     'src/components/': {
-      statements: 86, // measured 87.4
-      branches: 80, // measured 81.1
-      functions: 84, // measured 85.8
-      lines: 87, // measured 88.4
+      statements: 87, // measured 88.x
+      branches: 81, // measured 82.x
+      functions: 86, // measured 87.x
+      lines: 88, // measured 89.x
     },
   },
 
