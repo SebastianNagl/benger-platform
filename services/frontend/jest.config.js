@@ -147,10 +147,10 @@ const config = {
     },
     // Components - raised after the evaluation/projects/leaderboards/generation backfill
     'src/components/': {
-      statements: 87, // measured 88.x
+      statements: 88, // measured 89.x
       branches: 81, // measured 82.x
       functions: 86, // measured 87.x
-      lines: 88, // measured 89.x
+      lines: 89, // measured 90.x
     },
   },
 
