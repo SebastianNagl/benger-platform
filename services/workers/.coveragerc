@@ -1,0 +1,23 @@
+# Workers coverage config. Unlike the API there is no thread concurrency here
+# (Celery handlers are tested by direct call, not through a threadpool), so the
+# default tracer measures everything. The key fix vs. the old pytest.ini
+# [coverage:run] block (which coverage.py ignored) is omitting test files so we
+# measure REAL source coverage (issue #33) — counting tests had inflated the
+# branch number to ~84% while real source was ~65%.
+[run]
+branch = True
+source = .
+omit =
+    tests/*
+    */tests/*
+    conftest.py
+    */conftest.py
+    */alembic/*
+    */migrations/*
+    # one-shot CLI script, exercised by running not unit tests
+    parse_existing_generations.py
+
+[report]
+show_missing = True
+precision = 2
+skip_empty = True
