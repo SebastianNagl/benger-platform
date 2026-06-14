@@ -21,3 +21,15 @@ omit =
 show_missing = True
 precision = 2
 skip_empty = True
+# Exclude the genuinely-untestable Celery orchestration tasks in tasks.py
+# (issue #33, "optimal solution" decision). These four are chord/chord-callback
+# bodies that need a real DB + Celery broker + threadpool + downloaded models +
+# object storage to execute — integration-test territory, not unit-testable.
+# Their guard/early-return branches are covered by the unit suites; the bodies
+# are excluded so the floor reflects real testable coverage. A def-line regex
+# excludes the whole function block.
+exclude_also =
+    def run_evaluation\(
+    def evaluate_generation_cell\(
+    def evaluate_annotation_cell\(
+    def finalize_evaluation_run\(

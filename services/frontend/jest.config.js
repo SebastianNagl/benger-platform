@@ -92,6 +92,14 @@ const config = {
     '!src/**/__mocks__/**',
     '!src/test-utils/**',
     '!src/**/*.config.{ts,tsx}',
+    // Untestable shells (issue #33, "optimal solution" decision): extended-slot
+    // dispatcher pages (useSlot(...) + community fallback; the real behavior is
+    // tested in benger-extended) and a pure <ProtectedRoute><LabelingInterface/>
+    // composition shell. No isolated logic; not renderable under jsdom.
+    '!src/app/projects/[id]/korrektur/page.tsx',
+    '!src/app/projects/[id]/my-korrektur/[taskId]/page.tsx',
+    '!src/app/projects/[id]/review/page.tsx',
+    '!src/app/projects/[id]/label/page.tsx',
   ],
 
   // UPDATED COVERAGE THRESHOLDS (Issue #764)
@@ -110,9 +118,9 @@ const config = {
       // production coverage is unchanged. Ratchet back up when the eval
       // dashboard suite is rewritten against the typed apiClient.
       statements: 81,
-      branches: 73, // ratcheted 2026-06-15 after lib helper/util backfill
+      branches: 73,
       functions: 76,
-      lines: 82,
+      lines: 83, // ratcheted 2026-06-15
     },
     // Per-dir floors ratcheted 2026-06-14 (issue #33) to floor(measured)-1pt
     // after the lib/api + evaluation + projects-wizard backfill. Never lower
