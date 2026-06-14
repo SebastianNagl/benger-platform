@@ -185,6 +185,17 @@ ANSWER_TYPE_TO_METRICS = {
     ],
 }
 
+# Immediate-evaluation eligibility lives in the shared metric_filters module
+# (importable by both the API and the worker). Re-exported here because this
+# module is the documented home for metric/answer-type configuration. Heavy /
+# semantic metrics run in batch eval but are gated out of immediate eval; see
+# `metric_filters.HEAVY_METRICS` for the rationale.
+from metric_filters import (  # noqa: E402
+    HEAVY_METRICS,
+    is_heavy_metric,
+    is_immediate_eligible,
+)
+
 # Extension point: extended package can register additional metrics per answer type
 _extended_metrics: dict[str, list[str]] = {}
 

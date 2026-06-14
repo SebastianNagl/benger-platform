@@ -1068,6 +1068,173 @@ class TestRunSingleSampleEvaluation:
         assert result["results"][0]["status"] == "error"
 
 
+class TestRunSingleSampleEvaluationParallel:
+    """Parallel fan-out, heavy-metric gating, and the judge_run_id NOT NULL
+    crash fix on the Falllösung error path."""
+
+    def _install_fake_extended(self, monkeypatch, *, compute_fn, persist_spy):
+        """Register fake benger_extended worker modules so the platform worker
+        (which has no extended package in its own test image) can exercise the
+        Falllösung dispatch + error-persistence path."""
+        import types
+
+        be = types.ModuleType("benger_extended")
+        be_workers = types.ModuleType("benger_extended.workers")
+        be_workers.get_falloesung_compute_fn = lambda: compute_fn
+        be_ft = types.ModuleType("benger_extended.workers.falloesung_tasks")
+        be_ft._persist_falloesung_eval_error = persist_spy
+        monkeypatch.setitem(sys.modules, "benger_extended", be)
+        monkeypatch.setitem(sys.modules, "benger_extended.workers", be_workers)
+        monkeypatch.setitem(
+            sys.modules, "benger_extended.workers.falloesung_tasks", be_ft
+        )
+
+    def _run(self, db, eval_configs, annotation_results, task_data):
+        eval_run_obj = MagicMock()
+        eval_run_obj.eval_metadata = {"configs": eval_configs}
+        eval_run_obj.metrics = {}
+        eval_run_obj.status = "running"
+        query_mock = MagicMock()
+        query_mock.filter.return_value.first.return_value = eval_run_obj
+        query_mock.filter.return_value.all.return_value = []
+        db.query.return_value = query_mock
+        with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)):
+            from tasks import run_single_sample_evaluation
+
+            return run_single_sample_evaluation.run(
+                evaluation_record_id="eval-par-1",
+                project_id="p1",
+                task_id="t1",
+                annotation_id="a1",
+                evaluation_configs=eval_configs,
+                annotation_results=annotation_results,
+                task_data=task_data,
+                user_id="u1",
+            )
+
+    def test_falloesung_error_persists_with_judge_run_id(self, monkeypatch):
+        """Regression: when a Falllösung config errors, the error row MUST be
+        persisted with a non-null judge_run_id. The column is NOT NULL since
+        migration 043; the old code omitted the kwarg, raising an
+        IntegrityError that escaped and left the whole run stuck 'running'."""
+        captured = {}
+
+        def fake_persist(
+            db, evaluation_record_id, project_id, task_id, annotation_id,
+            user_id, field_name, musterloesung, prediction, error_msg,
+            *, eval_run_id=None, judge_run_id=None, evaluation_config_id=None,
+        ):
+            captured.update(
+                called=True,
+                judge_run_id=judge_run_id,
+                eval_run_id=eval_run_id,
+                evaluation_config_id=evaluation_config_id,
+            )
+
+        def boom(**kwargs):
+            raise RuntimeError("judge unavailable")
+
+        self._install_fake_extended(
+            monkeypatch, compute_fn=boom, persist_spy=fake_persist
+        )
+
+        result = self._run(
+            _mock_db(),
+            eval_configs=[{
+                "id": "llm_judge_falloesung",
+                "metric": "llm_judge_falloesung",
+                "prediction_fields": ["loesung"],
+                "reference_fields": ["task.musterloesung"],
+                "metric_parameters": {"judge_model": "gpt-4o"},
+            }],
+            annotation_results={"loesung": "Meine Lösung"},
+            task_data={"musterloesung": "Muster"},
+        )
+
+        # The run still finishes (no IntegrityError escaping the task)...
+        assert result["status"] == "completed"
+        # ...and the error helper got a non-null judge_run_id + the config id.
+        assert captured.get("called") is True
+        assert captured.get("judge_run_id") is not None
+        assert captured.get("eval_run_id") == "eval-par-1"
+        assert captured.get("evaluation_config_id") == "llm_judge_falloesung"
+
+    def test_one_failing_config_does_not_poison_siblings(self, monkeypatch):
+        """A failing Falllösung config must not abort a sibling deterministic
+        metric — the parallel jobs are independent."""
+        def boom(**kwargs):
+            raise RuntimeError("judge down")
+
+        self._install_fake_extended(
+            monkeypatch, compute_fn=boom, persist_spy=lambda *a, **k: None
+        )
+
+        mock_evaluator = MagicMock()
+        mock_evaluator._compute_metric_with_details.return_value = {
+            "value": 0.4, "method": "chrf", "details": {}, "error": None,
+        }
+
+        with patch(
+            "ml_evaluation.sample_evaluator.SampleEvaluator",
+            return_value=mock_evaluator,
+        ):
+            result = self._run(
+                _mock_db(),
+                eval_configs=[
+                    {
+                        "id": "chrf", "metric": "chrf",
+                        "prediction_fields": ["loesung"],
+                        "reference_fields": ["task.musterloesung"],
+                        "metric_parameters": {},
+                    },
+                    {
+                        "id": "llm_judge_falloesung", "metric": "llm_judge_falloesung",
+                        "prediction_fields": ["loesung"],
+                        "reference_fields": ["task.musterloesung"],
+                        "metric_parameters": {"judge_model": "gpt-4o"},
+                    },
+                ],
+                annotation_results={"loesung": "Meine Lösung"},
+                task_data={"musterloesung": "Muster"},
+            )
+
+        assert result["status"] == "completed"
+        by_metric = {r.get("metric"): r.get("status") for r in result["results"]}
+        assert by_metric.get("chrf") == "completed"
+        assert by_metric.get("llm_judge_falloesung") == "error"
+
+    def test_heavy_metric_is_filtered_out(self, monkeypatch):
+        """Heavy/semantic metrics are skipped by the worker even if dispatched
+        — defense in depth behind the router's filter."""
+        mock_evaluator = MagicMock()
+        mock_evaluator._compute_metric_with_details.return_value = {
+            "value": 0.4, "method": "chrf", "details": {}, "error": None,
+        }
+        with patch(
+            "ml_evaluation.sample_evaluator.SampleEvaluator",
+            return_value=mock_evaluator,
+        ):
+            result = self._run(
+                _mock_db(),
+                eval_configs=[
+                    {"id": "chrf", "metric": "chrf",
+                     "prediction_fields": ["loesung"],
+                     "reference_fields": ["task.musterloesung"],
+                     "metric_parameters": {}},
+                    {"id": "bertscore", "metric": "bertscore",
+                     "prediction_fields": ["loesung"],
+                     "reference_fields": ["task.musterloesung"],
+                     "metric_parameters": {}},
+                ],
+                annotation_results={"loesung": "Meine Lösung"},
+                task_data={"musterloesung": "Muster"},
+            )
+        assert result["status"] == "completed"
+        metrics = {r.get("metric") for r in result["results"]}
+        assert "chrf" in metrics
+        assert "bertscore" not in metrics  # gated out — never computed
+
+
 # ===========================================================================
 # _evaluate_llm_judge_single
 # ===========================================================================

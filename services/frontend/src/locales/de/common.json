@@ -420,6 +420,8 @@
           "subtitle": "Metriken zur Bewertung von Modellausgaben auswählen",
           "immediateEvaluation": "Sofortige Evaluation",
           "immediateEvaluationHint": "Annotationen automatisch sofort nach dem Absenden evaluieren",
+          "batchOnly": "Nur Batch",
+          "batchOnlyHint": "Dieses Verfahren lädt ein großes Modell und läuft nur in der Batch-Evaluation, nicht in der Sofort-Evaluation.",
           "falloesungConfig": "Standard-Falllösung-Konfiguration",
           "points": "Pkt",
           "maxTokens": "Max Tokens",
@@ -6643,7 +6645,11 @@
         "improvementTips": "Verbesserungsbereiche"
       },
       "allMethods": "Alle",
-      "skipEvaluation": "Evaluierung überspringen"
+      "skipEvaluation": "Evaluierung überspringen",
+      "methods": "Methoden",
+      "methodPending": "Wird ausgewertet …",
+      "methodSkipped": "Übersprungen – für dieses Feld lag kein auswertbarer Wert vor.",
+      "progress": "Auswertung läuft ({done}/{total}) …"
     }
   },
   "annotationTab": {

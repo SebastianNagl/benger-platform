@@ -420,6 +420,8 @@
           "subtitle": "Select metrics to evaluate model outputs",
           "immediateEvaluation": "Immediate Evaluation",
           "immediateEvaluationHint": "Automatically evaluate annotations immediately after submission",
+          "batchOnly": "Batch only",
+          "batchOnlyHint": "This method loads a large model and runs in batch evaluation only, not in immediate feedback.",
           "falloesungConfig": "Standard Fallloesung Configuration",
           "points": "Pts",
           "maxTokens": "Max Tokens",
@@ -6661,7 +6663,11 @@
         "improvementTips": "Improvement Areas"
       },
       "allMethods": "All",
-      "skipEvaluation": "Skip Evaluation"
+      "skipEvaluation": "Skip Evaluation",
+      "methods": "Methods",
+      "methodPending": "Evaluating…",
+      "methodSkipped": "Skipped – no evaluable value was present for this field.",
+      "progress": "Evaluation in progress ({done}/{total})…"
     }
   },
   "annotationTab": {

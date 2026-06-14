@@ -905,26 +905,48 @@ export class EvaluationsClient extends BaseApiClient {
     projectId: string,
     taskId: string,
     evaluationId: string,
-    options?: { intervalMs?: number; timeoutMs?: number },
+    options?: {
+      intervalMs?: number
+      timeoutMs?: number
+      /** Called with every intermediate (still-pending) status payload so the
+       * modal can stream per-method results in as they land instead of
+       * blocking on a single resolved promise. */
+      onUpdate?: (data: ImmediateEvaluationData) => void
+    },
   ): Promise<ImmediateEvaluationData> {
     const interval = options?.intervalMs ?? 2000
-    const timeout = options?.timeoutMs ?? 90000
+    // Methods run in parallel on the worker, so wall-clock ≈ the slowest
+    // single method — but a slow LLM judge plus retries can still take a
+    // while. This is a generous SAFETY NET, not the expected wait: the modal
+    // streams partial results via onUpdate the whole time, so hitting this
+    // ceiling is rare and never blanks already-shown results.
+    const timeout = options?.timeoutMs ?? 300000
     const startTime = Date.now()
+    let last: ImmediateEvaluationData | null = null
     while (Date.now() - startTime < timeout) {
       const result = (await this.request(
         `/evaluations/projects/${projectId}/tasks/${taskId}/immediate/${evaluationId}/status`,
       )) as ImmediateEvaluationData
+      last = result
       if (result.status === 'completed' || result.status === 'failed') {
         return result
       }
+      // Surface partial progress (methods + any results that already landed).
+      options?.onUpdate?.(result)
       await new Promise((resolve) => setTimeout(resolve, interval))
     }
+    // Timed out — return the last partial payload (so any results that DID
+    // land still render) marked as a soft failure, rather than discarding it.
     return {
       success: false,
       task_id: taskId,
-      message: 'Evaluation timed out',
-      results: [],
-      error: 'Evaluation did not complete within the expected time',
+      message: 'Evaluation is taking longer than expected',
+      results: last?.results ?? [],
+      methods: last?.methods ?? null,
+      expected_metrics: last?.expected_metrics ?? null,
+      completed_metrics: last?.completed_metrics ?? null,
+      error:
+        'Some methods did not finish within the expected time. Partial results are shown below.',
       status: 'failed',
     }
   }

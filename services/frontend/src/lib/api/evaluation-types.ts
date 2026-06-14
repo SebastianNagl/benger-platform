@@ -222,6 +222,19 @@ export interface ImmediateFieldEvaluationResult {
 }
 
 /**
+ * Per-method progress for the streaming immediate-evaluation modal. One entry
+ * per expected (immediate-eligible) method; the modal renders a status light
+ * (spinner / green check / red) and pulls scores from `results` by metric_name.
+ */
+export interface ImmediateMethodStatus {
+  metric_name: string
+  display_name: string
+  /** `skipped` = no result row was produced (e.g. an empty prediction field)
+   * once the run is terminal — so the modal stops spinning on it. */
+  status: 'pending' | 'done' | 'error' | 'skipped'
+}
+
+/**
  * Payload returned by the immediate-evaluation endpoints
  * (POST /immediate, GET /immediate/{id}/status).
  */
@@ -236,6 +249,8 @@ export interface ImmediateEvaluationData {
   status?: string | null
   expected_metrics?: string[] | null
   completed_metrics?: string[] | null
+  /** Per-method status for the streaming sidebar (added with parallel eval). */
+  methods?: ImmediateMethodStatus[] | null
 }
 
 /**
@@ -355,6 +370,13 @@ export interface AvailableMetric {
    * summable so users can't request a meaningless rollup. Defaults to
    * `false` when omitted — the conservative choice. */
   summable?: boolean
+  /** Whether this metric may run in IMMEDIATE (post-submit) evaluation.
+   * Heavy/semantic metrics (BERTScore, MoverScore, semantic similarity,
+   * FactCC, QAGS, coherence) load transformer models at compute time — fine
+   * for batch eval, too slow/heavy for instant per-submit feedback — so they
+   * set this `false` and are filtered out of immediate dispatch (mirrors
+   * `metric_filters.HEAVY_METRICS` on the backend). Defaults to `true`. */
+  immediate_eligible?: boolean
 }
 
 /**
@@ -876,6 +898,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     supports_parameters: false,
     display_scale: '0-1',
     summable: false,
+    // Loads a transformer model — batch eval only, not immediate feedback.
+    immediate_eligible: false,
   },
   moverscore: {
     name: 'moverscore',
@@ -886,6 +910,7 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     supports_parameters: false,
     display_scale: '0-1',
     summable: false,
+    immediate_eligible: false,
   },
   semantic_similarity: {
     name: 'semantic_similarity',
@@ -896,6 +921,7 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     supports_parameters: false,
     display_scale: '0-1',
     summable: false,
+    immediate_eligible: false,
   },
 
   // Factuality Metrics
@@ -915,6 +941,7 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     },
     display_scale: '0-1',
     summable: false,
+    immediate_eligible: false,
   },
   qags: {
     name: 'qags',
@@ -925,6 +952,7 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     supports_parameters: false,
     display_scale: '0-1',
     summable: false,
+    immediate_eligible: false,
   },
   coherence: {
     name: 'coherence',
@@ -935,6 +963,7 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
     supports_parameters: false,
     display_scale: '0-1',
     summable: false,
+    immediate_eligible: false,
   },
 
   // Classification Metrics
@@ -1090,6 +1119,18 @@ export function getMetricScale(key: string): MetricDisplayScale {
 export function getMetricSummable(key: string): boolean {
   const def = getMetricDefinitions()[key]
   return def?.summable ?? false
+}
+
+/**
+ * Whether a metric may run in immediate (post-submit) evaluation. Heavy /
+ * semantic metrics opt out via `immediate_eligible: false`; everything else
+ * (and any unregistered key) defaults to eligible. Mirrors
+ * `metric_filters.is_immediate_eligible` on the backend — the dispatcher is
+ * authoritative; this lets the wizard mark a metric as "batch only" in the UI.
+ */
+export function isMetricImmediateEligible(key: string): boolean {
+  const def = getMetricDefinitions()[key]
+  return def?.immediate_eligible !== false
 }
 
 /**

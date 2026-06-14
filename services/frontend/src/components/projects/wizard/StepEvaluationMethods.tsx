@@ -16,6 +16,7 @@ import {
   generateEvaluationId,
   getGroupedMetrics,
   getMetricDefinitions,
+  isMetricImmediateEligible,
 } from '@/lib/api/evaluation-types'
 import { OutputField } from '@/lib/labelConfig/fieldExtractor'
 import { useModels } from '@/hooks/useModels'
@@ -216,8 +217,24 @@ export function StepEvaluationMethods({
                       data-testid={`wizard-metric-${metricKey}`}
                     >
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-zinc-900 dark:text-white">
+                        <p className="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-white">
                           {def.display_name}
+                          {immediateEvaluationEnabled &&
+                            !isMetricImmediateEligible(metricKey) && (
+                              <span
+                                title={t(
+                                  'projects.creation.wizard.step7.batchOnlyHint',
+                                  'Dieses Verfahren lädt ein großes Modell und läuft nur in der Batch-Evaluation, nicht in der Sofort-Evaluation.'
+                                )}
+                                className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                data-testid={`metric-batch-only-${metricKey}`}
+                              >
+                                {t(
+                                  'projects.creation.wizard.step7.batchOnly',
+                                  'Nur Batch'
+                                )}
+                              </span>
+                            )}
                         </p>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">
                           {def.description}
