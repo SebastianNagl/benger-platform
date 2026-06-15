@@ -7,7 +7,12 @@
     "configFile": "jest.config.stryker.js"
   },
   "coverageAnalysis": "perTest",
-  "mutate": ["src/lib/utils/annotationDiff.ts"],
+  "mutate": [
+    "src/lib/utils/annotationDiff.ts",
+    "src/lib/utils/fieldPath.ts",
+    "src/lib/utils/fieldMapping.ts",
+    "src/lib/api/evaluation-types.ts"
+  ],
   "reporters": ["clear-text", "json"],
   "jsonReporter": {
     "fileName": "reports/mutation/mutation.json"
