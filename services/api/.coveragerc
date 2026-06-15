@@ -27,6 +27,14 @@ omit =
     # unit-tested (same rationale as the startup files above).
     scripts/*
     */scripts/*
+    # DB-init CLI one-shot (demo users / table create) — same category as
+    # init_complete.py above; run, not unit-tested.
+    */init_db.py
+    init_db.py
+    # E2E test-data seeding endpoints — test-environment-only tooling
+    # (ENVIRONMENT in test/development/e2e), not production business logic.
+    # Same "test code is not source-under-measurement" rationale as tests/*.
+    */routers/test_seeding.py
 
 # Map the in-container source root (/app) to the host checkout so the CI
 # coverage gate can `coverage combine` per-shard data files (collected in

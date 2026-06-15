@@ -141,6 +141,10 @@ async def upload_file(
             upload_date=file_record.upload_date.isoformat(),
         )
 
+    except HTTPException:
+        # Validation guards (400 no-filename, 413 too-large) must surface their
+        # own status; without this they'd be swallowed by the 500 wrapper below.
+        raise
     except Exception as e:
         logger.error(f"Error uploading file: {e}")
         raise HTTPException(
