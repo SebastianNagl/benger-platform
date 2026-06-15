@@ -35,7 +35,10 @@ jobs:
             tests: tests/test_statistics.py tests/test_statistics_branches.py tests/test_statistics_coverage.py tests/test_statistics_properties.py tests/test_statistics_mutation_kills.py
           - name: inter_annotator_agreement
             module: ml_evaluation/inter_annotator_agreement.py
-            tests: tests/test_inter_annotator_agreement.py tests/test_inter_annotator_agreement_branches.py tests/test_iaa_coverage.py tests/test_inter_annotator_agreement_properties.py
+            tests: tests/test_inter_annotator_agreement.py tests/test_inter_annotator_agreement_branches.py tests/test_iaa_coverage.py tests/test_inter_annotator_agreement_properties.py tests/test_inter_annotator_agreement_mutation_kills.py
+          - name: sample_evaluator
+            module: ml_evaluation/sample_evaluator.py
+            tests: tests/test_sample_evaluator_properties.py tests/test_sample_evaluator_mutation_kills.py tests/test_core_metrics_accuracy.py tests/test_hierarchical_metrics.py
           - name: response_parser
             module: response_parser.py
             tests: tests/test_response_parser.py tests/test_response_parser_extended.py tests/test_response_parser_coverage.py tests/test_response_parser_properties.py
