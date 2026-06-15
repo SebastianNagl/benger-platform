@@ -22,13 +22,21 @@ jobs:
   python-mutation:
     name: mutate ${{ matrix.name }}
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    # Ceiling sized for the slowest shard (sample_evaluator, 2838 lines / ~1965
+    # mutants ≈ 3-4h whole-file). fail-fast:false isolates shards and the fast
+    # ones (statistics/IAA/parsers) finish in well under an hour, so the high
+    # ceiling only ever applies to the one long shard. GitHub-hosted job hard
+    # limit is 6h; 350 leaves margin.
+    timeout-minutes: 350
     strategy:
       fail-fast: false
       matrix:
         # One crown-jewel PURE module per shard, with the test files mutmut runs
-        # per mutant (scoped + DB-free for speed). sample_evaluator.py is deferred
-        # (2838 lines -> needs its own long shard / sub-scoping).
+        # per mutant (scoped + DB-free for speed). sample_evaluator.py (2838 lines)
+        # is the long shard — it runs whole-file against its 8 deterministic-metric
+        # test files; the model-dependent neural/IO plumbing survives by design
+        # (not unit-assertable without ML models), so its floor reflects the
+        # deterministic scoring kill rate, not 100% of the file.
         include:
           - name: statistics
             module: ml_evaluation/statistics.py
@@ -63,7 +71,7 @@ jobs:
           command: docker compose -f infra/docker-compose.test.yml build test-workers-runner
 
       - name: Run mutmut on ${{ matrix.module }} + enforce floor
-        timeout-minutes: 140
+        timeout-minutes: 340
         run: |
           docker compose -f infra/docker-compose.test.yml --profile test run --rm \
             --entrypoint /bin/sh test-workers-runner -c '
