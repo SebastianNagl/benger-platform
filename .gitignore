@@ -45,6 +45,11 @@ coverage.xml
 htmlcov/
 test-reports/
 .pytest_cache/
+# Mutation testing artifacts (mutmut cache + junit reports, Stryker reports)
+.mutmut-cache
+mutmut*.xml
+**/reports/mutation/
+.stryker-tmp/
 .benchmarks/
 *.cover
 .hypothesis/
