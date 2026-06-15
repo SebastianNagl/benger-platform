@@ -41,10 +41,10 @@ jobs:
             tests: tests/test_sample_evaluator_properties.py tests/test_sample_evaluator_mutation_kills.py tests/test_core_metrics_accuracy.py tests/test_hierarchical_metrics.py
           - name: response_parser
             module: response_parser.py
-            tests: tests/test_response_parser.py tests/test_response_parser_extended.py tests/test_response_parser_coverage.py tests/test_response_parser_properties.py
+            tests: tests/test_response_parser.py tests/test_response_parser_extended.py tests/test_response_parser_coverage.py tests/test_response_parser_properties.py tests/test_response_parser_mutation_kills.py
           - name: generation_structure_parser
             module: generation_structure_parser.py
-            tests: tests/test_generation_structure_parser.py tests/test_generation_structure_parser_extended.py tests/test_generation_structure_parser_coverage.py tests/test_generation_structure_parser_properties.py
+            tests: tests/test_generation_structure_parser.py tests/test_generation_structure_parser_extended.py tests/test_generation_structure_parser_coverage.py tests/test_generation_structure_parser_properties.py tests/test_generation_structure_parser_mutation_kills.py
     steps:
       - uses: actions/checkout@v4
 
