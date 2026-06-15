@@ -32,7 +32,7 @@ jobs:
         include:
           - name: statistics
             module: ml_evaluation/statistics.py
-            tests: tests/test_statistics.py tests/test_statistics_branches.py tests/test_statistics_coverage.py tests/test_statistics_properties.py
+            tests: tests/test_statistics.py tests/test_statistics_branches.py tests/test_statistics_coverage.py tests/test_statistics_properties.py tests/test_statistics_mutation_kills.py
           - name: inter_annotator_agreement
             module: ml_evaluation/inter_annotator_agreement.py
             tests: tests/test_inter_annotator_agreement.py tests/test_inter_annotator_agreement_branches.py tests/test_iaa_coverage.py tests/test_inter_annotator_agreement_properties.py
