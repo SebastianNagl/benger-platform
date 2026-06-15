@@ -8,6 +8,10 @@
 # testing
 /coverage
 
+# Stryker mutation testing (sandbox + generated reports)
+.stryker-tmp/
+reports/mutation/
+
 # next.js
 /.next/
 /out/

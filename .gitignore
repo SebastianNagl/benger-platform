@@ -189,6 +189,8 @@ targeted_fix.py
 !services/frontend/package.json
 !services/frontend/package-lock.json
 !services/frontend/tsconfig.json
+!services/frontend/stryker.conf.json
+!services/frontend/mutation-floors.json
 
 # Unignore frontend translation files
 !services/frontend/src/locales/de/common.json
