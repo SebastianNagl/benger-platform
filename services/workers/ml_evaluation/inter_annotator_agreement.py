@@ -345,6 +345,14 @@ def intraclass_correlation(
     else:
         return {"error": f"Unknown ICC type: {icc_type}"}
 
+    # Degenerate input has no variance to partition (e.g. every rating
+    # identical), making the ICC ratio 0/0 -> nan/inf. Returning that silently
+    # mislabels it "excellent" (nan < 0.40 is False, so it falls through). Map
+    # it to a finite, meaningful value: perfect agreement (zero total variance)
+    # -> 1.0 reliability; any other non-finite -> 0.0 (undefined/no signal).
+    if not np.isfinite(icc):
+        icc = 1.0 if np.isclose(SS_total, 0.0) else 0.0
+
     # Interpretation (Cicchetti, 1994)
     if icc < 0.40:
         interpretation = "poor"

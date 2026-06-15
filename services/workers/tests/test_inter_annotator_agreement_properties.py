@@ -21,6 +21,7 @@ Invariants covered:
   * compute_all_iaa_metrics: never raises for valid matrices; deterministic.
 """
 
+import math
 import os
 import sys
 
@@ -35,6 +36,7 @@ from ml_evaluation.inter_annotator_agreement import (  # noqa: E402
     cohens_kappa,
     compute_all_iaa_metrics,
     cronbachs_alpha,
+    intraclass_correlation,
     krippendorff_alpha,
     percent_agreement,
 )
@@ -323,3 +325,26 @@ class TestComputeAllIaaMetrics:
         for level in ("ordinal", "interval", "ratio"):
             out = compute_all_iaa_metrics(matrix, level_of_measurement=level)
             assert "metrics" in out
+
+
+class TestICCFiniteness:
+    """Regression: a degenerate matrix (no variance to partition) made the ICC
+    ratio 0/0 -> nan/inf, which silently mislabeled it 'excellent' (nan < 0.40
+    is False). The guard maps non-finite ICC to perfect-agreement 1.0 (zero total
+    variance) or 0.0 (no signal)."""
+
+    def test_all_identical_ratings_yield_finite_perfect_icc(self):
+        # Every rater gives every item the same score -> perfect agreement.
+        matrix = [[5, 5, 5], [5, 5, 5], [5, 5, 5], [5, 5, 5]]
+        for icc_type in ("ICC(1,1)", "ICC(2,1)", "ICC(3,1)"):
+            out = intraclass_correlation(matrix, icc_type)
+            assert math.isfinite(out["icc"]), f"{icc_type} returned {out['icc']!r}"
+            assert out["icc"] == 1.0
+            assert out["interpretation"] == "excellent"  # truly perfect, not a nan fall-through
+
+    @_settings
+    @given(matrix=_matrix(_numeric))
+    def test_icc_is_always_finite(self, matrix):
+        for icc_type in ("ICC(1,1)", "ICC(2,1)", "ICC(3,1)"):
+            out = intraclass_correlation(matrix, icc_type)
+            assert math.isfinite(out["icc"])
