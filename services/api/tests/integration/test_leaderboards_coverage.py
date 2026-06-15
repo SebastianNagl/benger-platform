@@ -26,11 +26,6 @@ the threshold drop, include_all_models padding, the period=weekly cutoff on
 The trust gate (``_intersect_with_allowlisted_org_projects``) is patched the
 same way as the sibling file: to ``()`` to lift it for live-path tests, or to the
 test org's id so a single project is in scope.
-
-NOTE: ``/llm-models/compare`` is shadowed by ``/llm-models/{model_id}`` (declared
-first) and is unreachable by path — its handler body (``compare_llm_models``,
-lines ~763-868) cannot be driven over HTTP. The sibling file locks in the
-route-order behaviour; we don't re-assert it here.
 """
 
 from __future__ import annotations

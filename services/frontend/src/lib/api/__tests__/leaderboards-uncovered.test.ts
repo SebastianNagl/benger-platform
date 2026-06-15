@@ -2,7 +2,7 @@
  * Additional coverage for LeaderboardsClient.
  *
  * leaderboards.test.ts covers getMyRank / getStatistics / getLLMLeaderboard /
- * getLLMModelDetails / compareLLMModels but NEVER calls:
+ * getLLMModelDetails but NEVER calls:
  *  - getAnnotatorLeaderboard
  *  - getCoCreationLeaderboard
  * and never exercises the getLLMLeaderboard `search` /

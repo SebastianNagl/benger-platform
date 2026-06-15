@@ -37,15 +37,6 @@ Endpoints + branches covered:
   GET /llm-models/{id} ....... precomputed per-model aggregate, unknown-model
                                fallback metadata (detect_provider_from_model_id),
                                period passthrough.
-  GET /llm-models/compare .... the 2-5 guard error, precomputed pairwise
-                               comparison + common_metrics + winner, the
-                               significance_available=False contract.
-
-NOTE: ``/llm-models/compare`` is declared AFTER ``/llm-models/{model_id}`` in
-the router, so FastAPI matches ``compare`` as a ``model_id`` path param. The
-real comparison endpoint is therefore unreachable by path and ``compare`` is
-served by the details handler. Tests target the details handler for that path
-(documented in the relevant test) rather than asserting an unreachable route.
 """
 
 from __future__ import annotations
@@ -553,29 +544,3 @@ class TestLLMModelDetails:
         assert body["aggregate_metrics"] == {}
         assert body["evaluation_count"] == 0
 
-
-# ===========================================================================
-# GET /llm-models/compare  (path-shadowed by /{model_id}; see module docstring)
-# ===========================================================================
-
-
-@pytest.mark.integration
-class TestCompareModels:
-    def test_compare_path_is_shadowed_by_details_route(
-        self, client, test_db, test_users, auth_headers
-    ):
-        """Because ``/llm-models/{model_id}`` is registered before
-        ``/llm-models/compare``, a GET to ``/llm-models/compare`` is matched by
-        the details handler with model_id='compare'. It returns the details
-        envelope (200), NOT the comparison payload — locking in the route-order
-        behaviour so a future re-order is a visible diff."""
-        resp = client.get(
-            f"{BASE}/llm-models/compare?model_ids=gpt-x&model_ids=gpt-y",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200, resp.text
-        body = resp.json()
-        # Details-handler shape, not the compare shape.
-        assert "model_info" in body
-        assert body["model_info"]["id"] == "compare"
-        assert "common_metrics" not in body

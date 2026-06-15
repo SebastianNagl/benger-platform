@@ -120,24 +120,6 @@ export interface LLMModelDetails {
   }
 }
 
-export interface LLMModelComparison {
-  models: Record<
-    string,
-    {
-      info: { name: string; provider: string }
-      metrics: Record<string, number>
-    }
-  >
-  common_metrics: string[]
-  all_metrics: string[]
-  comparison: Record<string, Record<string, number | string | null>>
-  filters: {
-    model_ids: string[]
-    project_ids: string[]
-    period: string
-  }
-}
-
 export class LeaderboardsClient extends BaseApiClient {
   /**
    * Get annotator leaderboard (extended feature)
@@ -326,28 +308,4 @@ export class LeaderboardsClient extends BaseApiClient {
     )
   }
 
-  /**
-   * Compare multiple LLM models side-by-side
-   */
-  async compareLLMModels(params: {
-    model_ids: string[]
-    project_ids?: string[]
-    period?: 'overall' | 'monthly' | 'weekly'
-  }): Promise<LLMModelComparison> {
-    const queryParams = new URLSearchParams()
-
-    params.model_ids.forEach((id) => queryParams.append('model_ids', id))
-
-    if (params.project_ids && params.project_ids.length > 0) {
-      params.project_ids.forEach((id) => queryParams.append('project_ids', id))
-    }
-
-    if (params.period) {
-      queryParams.append('period', params.period)
-    }
-
-    return this.get(
-      `/leaderboards/llm-models/compare?${queryParams.toString()}`
-    )
-  }
 }
