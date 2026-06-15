@@ -26,11 +26,14 @@ externally-managed connection is simply not a supported isolation model.
 Design B sidesteps it entirely:
 
 1. Run Celery EAGER (``task_always_eager``) so signatures execute inline.
-2. Replace ``celery.chord`` with an in-process shim (``patch_chord``) that
-   runs each header signature via ``.apply()`` and then invokes the
-   callback with the collected results — NO broker, NO result backend
-   (the runner's default Redis host is unreachable; a real chord would
-   hang on 20× reconnect retries even under eager).
+2. Drive a **REAL** ``celery.chord`` against a **real Redis result
+   backend** (the ``test-redis`` compose service). The chord
+   synchronization barrier needs a result backend even under eager, and
+   ``task_store_eager_result=True`` makes eager sub-task results land in
+   it — so ``chord(header)(callback)`` fan-out + auto-fire of the
+   ``finalize_evaluation_run`` callback runs exactly as it does in prod,
+   with NO in-process shim. (See "Why the backend must be repointed at
+   IMPORT time" below for the one non-obvious bit.)
 3. Do NOT patch ``tasks.SessionLocal`` — every sub-task uses the REAL
    docker engine/session, commits to the real test DB, and those commits
    are visible to the test's own real session (after ``expire_all()``).
@@ -44,13 +47,46 @@ keyed off the tracked roots (Project cascade handles tasks / annotations /
 generations / task_evaluations / judge_runs; EvaluationRun cascade handles
 its own children; Users / LLMModels deleted last). Unique per-row UUIDs
 keep tests independent even if a cleanup ever missed a row.
+
+Why the backend must be repointed at IMPORT time
+=================================================
+``services/workers/.env`` (mounted into the runner) sets
+``CELERY_BROKER_URL``/``CELERY_RESULT_BACKEND`` to the **dev** host
+``redis:6379`` (with a password), which is unresolvable on the test
+network. ``tasks.py`` calls ``load_dotenv()`` then, at import time, does
+``app.conf.broker_url = os.getenv("CELERY_BROKER_URL", ...)``.
+
+Celery's ``Settings`` is a layered ChainMap. A direct ``conf.attr =``
+assignment after the conf is finalized lands in a layer **above**
+``conf.changes`` and is un-overridable: a later ``conf.update(...)`` or
+``conf.changes[...] = ...`` is silently shadowed (verified — that is the
+"backend unreachable" wall the prior harness hit and why it shimmed the
+chord). The only lever that works is to make the *import-time*
+assignment read the right value: we set ``CELERY_BROKER_URL`` /
+``CELERY_RESULT_BACKEND`` to the reachable ``test-redis`` URL **before**
+``import tasks`` below, so the un-overridable layer is correct from the
+start. ``load_dotenv()`` doesn't override an already-set env var, so our
+value wins over ``.env``.
 """
 
 import os
 import uuid
 from datetime import datetime, timezone
 
-import celery as _celery
+# ── Repoint Celery broker/backend at the reachable test Redis BEFORE
+# importing `tasks` (see module docstring "Why the backend must be
+# repointed at IMPORT time"). The root `tests/conftest.py` already does
+# this first (it loads before this one), so these setdefaults are normally
+# no-ops; they're kept here as defense-in-depth so the eval-chord harness
+# still works if this file is ever collected without the root conftest.
+# `tasks.py`'s import-time `app.conf.broker_url = os.getenv("CELERY_BROKER_URL",
+# ...)` reads these; a runtime override would be silently shadowed by
+# Celery's config layering.
+_TEST_REDIS = os.environ.get("REDIS_URL") or os.environ.get("REDIS_URI") \
+    or "redis://test-redis:6379"
+os.environ.setdefault("CELERY_BROKER_URL", f"{_TEST_REDIS}/2")
+os.environ.setdefault("CELERY_RESULT_BACKEND", f"{_TEST_REDIS}/1")
+
 import pytest
 from sqlalchemy import create_engine, text
 
@@ -88,117 +124,50 @@ def _build_engine():
 
 @pytest.fixture(scope="session", autouse=True)
 def _eager_celery():
-    """Run Celery inline so chord()/signature() execute in-process.
+    """Run Celery inline so chord()/signature() execute in-process, with a
+    REAL Redis result backend so a real `chord(header)(callback)` works.
 
     Saves prior values on the REAL app object and restores them on teardown
     so other (non-eager) test files in the same session aren't affected.
+
+    `task_store_eager_result=True` is the key: under `task_always_eager`,
+    an EagerResult only lands in the result backend (and thus satisfies the
+    chord's synchronization barrier so the callback auto-fires) when this
+    flag is on. The broker/result_backend already point at the reachable
+    `test-redis` because conftest set CELERY_BROKER_URL/CELERY_RESULT_BACKEND
+    before `import tasks` (see module docstring) — so NO runtime repoint is
+    needed here (and would be silently shadowed if attempted).
     """
     conf = tasks.app.conf
     prior = {
         "task_always_eager": conf.task_always_eager,
         "task_eager_propagates": conf.task_eager_propagates,
         "task_store_eager_result": conf.task_store_eager_result,
-        "broker_url": conf.broker_url,
-        "result_backend": conf.result_backend,
     }
     conf.task_always_eager = True
     conf.task_eager_propagates = True
-    # In-process results only: with `task_store_eager_result=False`, an
-    # EagerResult.get() returns the value straight from memory and never
-    # touches the result backend. Combined with the in-process chord shim
-    # (`patch_chord`), this means NOTHING in the eval pipeline needs a
-    # reachable broker/backend — the runner's default points at an
-    # unreachable host (redis:6379 from a loaded .env), which would
-    # otherwise hang every chord/result on 20× reconnect retries.
-    conf.task_store_eager_result = False
-
-    # Best-effort: also point the broker/backend at the reachable test Redis
-    # and clear Celery's cached backend, so the poison-cell counter +
-    # progress pub/sub (which use `app.conf.broker_url` directly) hit a live
-    # Redis instead of falling back. Non-fatal if absent — those paths
-    # already degrade gracefully on a Redis error.
-    redis_url = os.environ.get("REDIS_URL") or os.environ.get("REDIS_URI")
-    if redis_url:
-        conf.broker_url = redis_url
-        conf.result_backend = redis_url
-        try:
-            tasks.app._backend = None  # invalidate cached backend
-        except Exception:
-            pass
+    conf.task_store_eager_result = True
     try:
         yield
     finally:
         for k, v in prior.items():
             setattr(conf, k, v)
-        try:
-            tasks.app._backend = None
-        except Exception:
-            pass
-
-
-class _InProcessChordResult:
-    """Mimics the AsyncResult returned by a chord call enough for callers."""
-
-    def __init__(self, callback_result):
-        self.id = "inprocess-chord"
-        self._callback_result = callback_result
-
-    def get(self, *a, **k):
-        return self._callback_result
-
-
-class _InProcessChord:
-    """In-process replacement for `celery.chord`.
-
-    A real chord needs a Redis result backend for its synchronization
-    barrier — even under `task_always_eager`. The test runner's default
-    broker/backend resolves to an unreachable host, so the real chord raises
-    on `chord(header)(callback)`. This shim runs every header signature
-    inline via `.apply()` (eager) and then invokes the callback signature
-    with the collected header results prepended as the first positional arg
-    (`finalize_evaluation_run(_sub_task_results, evaluation_id=...)`),
-    exactly as Celery's chord callback contract does — but with zero broker
-    or backend involvement. Header subtasks and the callback all run against
-    the monkeypatched `tasks.SessionLocal` (shared connection).
-    """
-
-    def __init__(self, header):
-        self._header = list(header)
-
-    def __call__(self, callback):
-        results = []
-        for sig in self._header:
-            results.append(sig.apply().get())
-        callback_result = callback.apply(args=(results,)).get()
-        return _InProcessChordResult(callback_result)
-
-
-@pytest.fixture(autouse=True)
-def patch_chord(request, monkeypatch):
-    """Replace `celery.chord` with the in-process shim for chord-driving tests.
-
-    Only active when a test pulls `db_conn` (so the shared-connection
-    SessionLocal patch is in play). `run_evaluation` does `from celery import
-    chord` locally, so patching the attribute on the `celery` package is what
-    the function picks up.
-    """
-    if "db_conn" not in request.fixturenames:
-        return
-    monkeypatch.setattr(_celery, "chord", _InProcessChord)
 
 
 @pytest.fixture(autouse=True)
 def _stub_notifications(request, monkeypatch):
     """No-op the notification side effect for chord-driving tests.
 
-    `finalize_evaluation_run` / the generation loop call
-    `NotificationService.create_notification`, whose email-enqueue does
-    `current_app.send_task(..., queue="emails")` — a BROKER publish that
-    ignores `task_always_eager` (the AlwaysEagerIgnored warning) and blocks
-    ~19s on 20× reconnect retries against the runner's unreachable default
-    broker. Notifications are an asserted-on-nothing side effect here, so we
-    stub the whole call: removes the per-finalize stall AND the broker
-    dependency. Only active for tests that pull `db_conn`.
+    This is the ONE side effect we stub. `finalize_evaluation_run` (and the
+    `run_evaluation` failure arm) call `NotificationService.create_notification`,
+    whose email-enqueue does `current_app.send_task(..., queue="emails")`.
+    Even with the broker now pointed at the reachable `test-redis`, that
+    `send_task` enqueues a real `emails` task that no consumer drains, and
+    `create_notification` writes Notification rows we don't assert on and
+    don't track for FK-safe cleanup. Stubbing it keeps the test focused on
+    the orchestration DB state. Everything else — the chord barrier, the
+    poison-cell Redis counter, the progress pub/sub — runs against the real
+    test-redis, exactly as in prod. Only active for tests that pull `db_conn`.
     """
     if "db_conn" not in request.fixturenames:
         return

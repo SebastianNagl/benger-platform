@@ -492,10 +492,15 @@ services:
       test-redis:
         condition: service_healthy
     entrypoint: ["/bin/sh", "-c"]
+    # Install requirements-test.txt at runtime (mirrors the api runner above) so
+    # test-only deps land regardless of workers-base image staleness — notably
+    # hypothesis + mutmut, which the property tests / mutation gate need and which
+    # are NOT in the baked base until it is rebuilt. Without this the property
+    # suites ERROR on collection in CI (`make test-workers`).
     # Coverage flags (incl. the ratchet floor) come from
     # services/workers/pytest.ini addopts — don't re-specify them here:
     # a command-line --cov-fail-under would override the ratchet.
-    command: ["pytest tests/ -v --tb=short --maxfail=10 --timeout=120"]
+    command: ["pip install -q -r requirements-test.txt && pytest tests/ -v --tb=short --maxfail=10 --timeout=120"]
     networks:
       - benger-test-network
     profiles:

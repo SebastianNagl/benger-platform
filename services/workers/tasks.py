@@ -4581,8 +4581,16 @@ def _record_cell_failure_reason(db, evaluation_id: str, reason: str) -> None:
     """Increment `eval_metadata.failures_by_reason[reason]` so the UI
     can surface *why* cells silently failed (rate-limit, judge timeout,
     poison cell, etc.) instead of just `samples_failed=N` with no
-    breakdown. Uses `jsonb_set(... , create_missing=true)` so the
-    nested object is created on first failure of any kind.
+    breakdown.
+
+    Two nested `jsonb_set` calls are required, NOT one: Postgres'
+    `create_missing=true` only creates the *leaf* key — it cannot create a
+    missing intermediate parent. A single `jsonb_set(.., {failures_by_reason,
+    <reason>}, .., true)` against an eval_metadata that has no
+    `failures_by_reason` key is a SILENT NO-OP (it returns the input
+    unchanged), so the FIRST failure of any kind was never recorded. The
+    inner `jsonb_set` seeds the parent object (`failures_by_reason` ←
+    COALESCE(existing, '{}')) so the outer one can then set the leaf.
 
     Skips entirely when the parent is already terminal, mirroring the
     `_bump_evaluation_counters` guard."""
@@ -4594,7 +4602,14 @@ def _record_cell_failure_reason(db, evaluation_id: str, reason: str) -> None:
             UPDATE evaluation_runs
                SET eval_metadata = (
                  jsonb_set(
-                   COALESCE(eval_metadata::jsonb, '{}'::jsonb),
+                   -- Ensure the failures_by_reason parent object exists first;
+                   -- jsonb_set can't auto-create a missing intermediate path.
+                   jsonb_set(
+                     COALESCE(eval_metadata::jsonb, '{}'::jsonb),
+                     ARRAY['failures_by_reason'],
+                     COALESCE(eval_metadata::jsonb->'failures_by_reason', '{}'::jsonb),
+                     true
+                   ),
                    ARRAY['failures_by_reason', :reason],
                    to_jsonb(
                      COALESCE(
