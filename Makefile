@@ -459,8 +459,14 @@ endif
 # (each shard sees only ~1/5 of the tests); instead each shard uploads its
 # coverage data and the `api-coverage-gate` job combines them and runs the
 # target below. Bump to floor(measured) with every test-adding PR; never
-# lower without a comment on issue #33. Target: 90.
-API_COVERAGE_FLOOR := 63
+# lower without a comment on issue #33. Target: 90 — REACHED.
+# 2026-06-15: measured 91.71% combined line+branch (7129 passed) after the
+# leaderboards/evaluations/bulk/import-export/notifications/storage/uploads/
+# apikey backfill + excluding init_db.py & routers/test_seeding.py glue. The
+# old 63 floor massively understated reality (the API was always ~88%+; 63
+# was a deliberately-safe PR-0 placeholder). Set to 90, ~1.7pt under the
+# measured 91.71 to absorb thread-traced async coverage nondeterminism.
+API_COVERAGE_FLOOR := 90
 
 .PHONY: api-coverage-gate
 api-coverage-gate: ## Combine per-shard API coverage (services/api/.coverage.*) and enforce API_COVERAGE_FLOOR
