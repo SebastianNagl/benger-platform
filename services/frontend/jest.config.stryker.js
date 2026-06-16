@@ -44,7 +44,22 @@ module.exports = {
   // https://stryker-mutator.io/docs/stryker-js/jest-runner#coverage-analysis
   testEnvironment: '@stryker-mutator/jest-runner/jest-env/jsdom',
   setupFilesAfterEnv: clientProject.setupFilesAfterEnv,
-  testMatch: clientProject.testMatch,
+  // SCOPE the initial test run to ONLY the dedicated tests of the mutated
+  // crown jewels (stryker.conf.json `mutate`). The base clientProject.testMatch
+  // globs ALL ~12.9k client tests, dozens of which carry a per-file
+  // `@jest-environment <custom>` docblock that bypasses this config's env and
+  // so does NOT report per-test coverage to Stryker — the initial "perTest" dry
+  // run then aborts with "Missing coverage results for ...". Stryker only needs
+  // the tests that exercise the mutated files; measuring the DEDICATED unit +
+  // property + branch suites is also the honest signal (are our intentional
+  // tests strong, not whether some incidental component test happens to cover a
+  // mutant). Keep this list in sync with stryker.conf.json `mutate`.
+  testMatch: [
+    '<rootDir>/src/lib/utils/__tests__/annotationDiff*.test.{ts,tsx}',
+    '<rootDir>/src/lib/utils/__tests__/fieldPath*.test.{ts,tsx}',
+    '<rootDir>/src/lib/utils/__tests__/fieldMapping*.test.{ts,tsx}',
+    '<rootDir>/src/lib/api/__tests__/evaluation-types*.test.{ts,tsx}',
+  ],
   moduleNameMapper: {
     // Some test files carry a per-file `@jest-environment jsdom` docblock
     // (e.g. annotationDiff.br4.test.ts). That pragma resolves to the plain
@@ -79,6 +94,10 @@ module.exports = {
     // drop it from the Stryker run only (the normal `jest` run still includes
     // it). Mutant-killing power is unaffected — the same branches are covered.
     'annotationDiff\\.br4\\.test\\.ts$',
+    // fieldPath.br7.test.ts carries the same `@jest-environment jsdom` docblock
+    // and the same coverage-reporting problem; its fieldPath.ts branch coverage
+    // is redundant with fieldPath.test.ts + fieldPath.property.test.ts.
+    'fieldPath\\.br7\\.test\\.ts$',
   ],
   // Stryker measures mutation coverage itself; jest coverage just slows the run.
   collectCoverage: false,

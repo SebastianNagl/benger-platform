@@ -1,7 +1,8 @@
 {
   "_comment": "Mutation-score ratchet for the frontend — co-gate to the Jest coverage thresholds, mirroring services/workers/mutation-floors.cfg. floor = floor(measured mutation score), per file. A test that EXECUTES a line without ASSERTing its behavior leaves that line's mutants alive, dropping this score — so coverage % cannot be gamed with filler while this gate holds. Raise to the new measured integer with every test-strengthening PR; never lower without a comment on the program issue (#33). Mutation score = killed / (killed + survived); timeouts / no-coverage / runtime-errors are excluded from the denominator (Stryker convention). Floors start at 0 (inert) until the first nightly baseline run sets them to floor(measured). Enforced by scripts/mutation-gate.js against reports/mutation/mutation.json.",
-  "src/lib/utils/annotationDiff.ts": 0,
-  "src/lib/utils/fieldPath.ts": 0,
-  "src/lib/utils/fieldMapping.ts": 0,
-  "src/lib/api/evaluation-types.ts": 0
+  "_baseline_note": "First green Stryker baseline 2026-06-16 (after fixing the scoped testMatch so the perTest dry run stops aborting on @jest-environment docblock files). fieldPath 94.6%. evaluation-types 46.8% is data-DOMINATED — ~90% of its 241 survivors are StringLiteral/ObjectLiteral/ArrayDeclaration metric-table + display-name + prompt-template config (presentation, not scoring logic, like the workers neural plumbing); its actual scale-resolution/classification logic is killed by the property suite. annotationDiff + fieldMapping floors get bumped by a targeted logic-kill pass.",
+  "src/lib/utils/annotationDiff.ts": 66,
+  "src/lib/utils/fieldPath.ts": 94,
+  "src/lib/utils/fieldMapping.ts": 61,
+  "src/lib/api/evaluation-types.ts": 46
 }
