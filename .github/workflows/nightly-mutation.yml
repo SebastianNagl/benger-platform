@@ -53,6 +53,9 @@ jobs:
           - name: generation_structure_parser
             module: generation_structure_parser.py
             tests: tests/test_generation_structure_parser.py tests/test_generation_structure_parser_extended.py tests/test_generation_structure_parser_coverage.py tests/test_generation_structure_parser_properties.py tests/test_generation_structure_parser_mutation_kills.py
+          - name: llm_judge_evaluator
+            module: ml_evaluation/llm_judge_evaluator.py
+            tests: tests/test_llm_judge_evaluator.py tests/test_llm_judge_evaluator_branches.py tests/test_llm_judge_evaluator_more.py tests/test_llm_judge_pure_kills.py tests/test_llm_judge_aggregation_kills.py tests/test_llm_judge_orchestration_kills.py
     steps:
       - uses: actions/checkout@v4
 
