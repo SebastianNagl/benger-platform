@@ -257,6 +257,23 @@ workers:
     - name: MAIL_ENABLED
       value: "true"
 
+# Celery beat scheduler (deployment-beat.yaml). Single-replica process that
+# fires the periodic schedule in tasks.py (app.conf.beat_schedule), e.g.
+# recompute-aggregates. Reuses the workers image + env. Keep replicas at 1
+# (enforced in the template) — a second beat double-dispatches every
+# scheduled task. Lightweight: it only dispatches tasks to the broker; the
+# actual work runs on the workers.
+beat:
+  enabled: true
+  name: beat
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      cpu: 300m
+      memory: 384Mi
+
 frontend:
   name: frontend
   replicaCount: 1

@@ -1,0 +1,84 @@
+{{- if .Values.beat.enabled }}
+# Celery beat scheduler. Fires the periodic schedule defined in
+# services/workers/tasks.py (`app.conf.beat_schedule`) — notably
+# `recompute-aggregates`, which refreshes the project_summaries table behind
+# project-list progress, the dashboard tiles, and the leaderboards.
+#
+# Before this deployment existed, NO beat process ran anywhere (the workers
+# run `celery ... worker` without `-B`), so the schedule never fired and
+# project_summaries stayed frozen at the 051_aggregate_summaries backfill.
+#
+# MUST stay at exactly one replica: a second beat would double-dispatch
+# every periodic task. Hence replicas: 1 (no autoscaling) + strategy
+# Recreate (never run two beats during a rollout).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.beat.name }}
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.beat.name }}
+    app.kubernetes.io/name: {{ .Release.Name }}-{{ .Values.beat.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: beat
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-{{ .Values.beat.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-{{ .Values.beat.name }}
+    spec:
+      {{- include "benger.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: {{ .Values.beat.name }}
+          # Reuse the workers image + env — same Celery app / codebase, same
+          # Redis broker. (In prod, .Values.workers.image is overridden to the
+          # extended workers image by values-extended.yaml; beat inherits it.)
+          image: "{{ .Values.workers.image.repository }}:{{ .Values.workers.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.workers.image.pullPolicy }}
+          # Schedule DB + pidfile live under /tmp so a restart never trips on
+          # a stale pidfile or a read-only workdir. --pidfile= disables the
+          # pidfile entirely (beat is PID 1; the container restarts on crash).
+          command: ["celery", "-A", "tasks", "beat", "--loglevel=info", "--schedule=/tmp/celerybeat-schedule", "--pidfile="]
+          # Explicit empty args (mirrors deployment-workers.yaml) so a
+          # server-side-apply / kubectl patch can't preserve a stray args
+          # array that would duplicate the celery invocation.
+          args: []
+          # Confirms the Celery app imports cleanly on boot; a hard import
+          # failure exits PID 1 and K8s restarts the pod with a clear status.
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "python -c 'from tasks import app; print(\"Celery beat app initialized\")'"
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 15
+            failureThreshold: 30
+          env:
+            {{- range .Values.workers.env }}
+            - name: {{ .name }}
+              {{- if .value }}
+              {{- if eq .name "FRONTEND_URL" }}
+              value: {{ tpl .value $ | quote }}
+              {{- else }}
+              value: {{ .value | quote }}
+              {{- end }}
+              {{- else if .valueFrom }}
+              valueFrom:
+                {{- toYaml .valueFrom | nindent 16 }}
+              {{- end }}
+            {{- end }}
+            {{- with .Values.workers.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.beat.resources | nindent 12 }}
+{{- end }}
