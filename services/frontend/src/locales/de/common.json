@@ -1064,6 +1064,8 @@
         "assignmentModeHelp": "Steuert, wie Aufgaben an Annotatoren verteilt werden. Im Manuell/Auto-Modus sehen Annotatoren nur ihnen zugewiesene Aufgaben.",
         "randomizeTaskOrder": "Zufällige Aufgabenreihenfolge",
         "randomizeTaskOrderHelp": "Jeder Annotator sieht Aufgaben in einer anderen zufälligen Reihenfolge für eine gleichmäßige Annotationsverteilung",
+        "annotatorFullVisibility": "Alle Felder nach Abgabe anzeigen",
+        "annotatorFullVisibilityHelp": "Wenn aktiviert, sehen Annotatoren beim Ansehen ihrer eigenen abgegebenen Arbeit alle Aufgabenfelder einschließlich der Musterlösung. Wenn deaktiviert, ist diese Ansicht auf die Felder beschränkt, die sie beim Annotieren gesehen haben – die Musterlösung bleibt verborgen.",
         "samplingMethod": "Aufgaben-Sampling-Methode",
         "samplingMethodHelp": "Wie Aufgaben den Annotatoren präsentiert werden",
         "modes": {
@@ -1429,6 +1431,7 @@
       "taskPrefix": "Aufgabe",
       "labeled": "Beschriftet",
       "feedbackAvailable": "Feedback",
+      "evaluationAvailable": "Bewertung",
       "due": "Fällig"
     },
     "review": {

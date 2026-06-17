@@ -234,6 +234,10 @@ class ProjectUpdate(BaseModel):
     korrektur_enabled: Optional[bool] = None
     korrektur_config: Optional[List[Dict[str, Any]]] = None
     immediate_evaluation_enabled: Optional[bool] = None
+    # When True, annotators see all task fields (incl. the reference solution)
+    # when reviewing their own submitted work in Meine Aufgaben; when False
+    # (default) that view is filtered to only the fields they saw while labeling.
+    annotator_full_visibility_after_submit: Optional[bool] = None
     # Per-project feature visibility (controls which configuration cards
     # render on the project detail page; pure UI gate)
     enable_annotation: Optional[bool] = None
@@ -349,6 +353,7 @@ class ProjectResponse(ProjectBase):
     korrektur_enabled: bool = False
     korrektur_config: Optional[List[Dict[str, Any]]] = None
     immediate_evaluation_enabled: bool = False
+    annotator_full_visibility_after_submit: bool = False
     enable_annotation: bool = True
     enable_generation: bool = True
     enable_evaluation: bool = True

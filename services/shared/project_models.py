@@ -81,6 +81,16 @@ class Project(Base):
     # Immediate evaluation feedback (Issue #998)
     immediate_evaluation_enabled = Column(Boolean, default=False, nullable=False)
 
+    # When True, annotators reviewing their own submitted work in "Meine
+    # Aufgaben" see ALL task fields after submission (incl. the reference
+    # solution / Musterlösung and raw ground_truth) so they can compare and
+    # learn. When False (default) the post-submission view is filtered to only
+    # the fields the annotator saw while labeling — protecting the reference
+    # from being leaked to peers who still have to sit the same exam.
+    annotator_full_visibility_after_submit = Column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+
     # Annotation time limit (Issue #1043)
     annotation_time_limit_enabled = Column(Boolean, default=False, nullable=False)
     annotation_time_limit_seconds = Column(

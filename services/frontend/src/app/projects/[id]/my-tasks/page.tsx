@@ -22,10 +22,12 @@ import {
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useSlot } from '@/lib/extensions/slots'
 import { useProjectStore } from '@/stores/projectStore'
 import { Task, TaskAssignment } from '@/types/labelStudio'
 import {
   CalendarIcon,
+  ChartBarIcon,
   ChatBubbleLeftRightIcon,
   CheckCircleIcon,
   ChevronRightIcon,
@@ -41,6 +43,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 interface MyTask extends Task {
   assignment?: TaskAssignment
   has_feedback?: boolean
+  has_evaluation?: boolean
 }
 
 interface MyTasksResponse {
@@ -72,6 +75,10 @@ export default function MyTasksPage() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalTasks, setTotalTasks] = useState(0)
+  // The submission+scores modal is contributed by the extended package. When
+  // absent (community edition) the row falls back to navigation.
+  const ReviewModal = useSlot('MyTaskEvaluationModal')
+  const [reviewTaskId, setReviewTaskId] = useState<string | null>(null)
 
   // Debounce search so per-keystroke typing doesn't burst /my-tasks.
   const debouncedSearch = useDebouncedValue(searchQuery, 300)
@@ -130,6 +137,15 @@ export default function MyTasksPage() {
   }, [loadMyTasks])
 
   const startAnnotating = (task: MyTask) => {
+    // A task the user has already worked (feedback or any evaluation) opens the
+    // read-only submission+scores modal when the extended slot is mounted.
+    const canReview = task.has_feedback || task.has_evaluation
+    if (canReview && ReviewModal) {
+      setReviewTaskId(task.id)
+      return
+    }
+    // Legacy fallback when the modal slot isn't available: Korrektur feedback
+    // still has its own read-only page.
     if (task.has_feedback) {
       router.push(`/projects/${projectId}/my-korrektur/${task.id}`)
       return
@@ -302,6 +318,12 @@ export default function MyTasksPage() {
                         {t('tasks.myTasks.feedbackAvailable')}
                       </Badge>
                     )}
+                    {task.has_evaluation && (
+                      <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300">
+                        <ChartBarIcon className="mr-1 h-3 w-3" />
+                        {t('tasks.myTasks.evaluationAvailable')}
+                      </Badge>
+                    )}
                   </div>
 
                   {task.assignment && (
@@ -366,6 +388,20 @@ export default function MyTasksPage() {
             {t('common.next')}
           </Button>
         </div>
+      )}
+
+      {/* Read-only submission + scores modal (extended slot). Refreshes the
+          list on close so any newly-arrived evaluation badge appears. */}
+      {ReviewModal && reviewTaskId && (
+        // eslint-disable-next-line react-hooks/static-components
+        <ReviewModal
+          projectId={projectId}
+          taskId={reviewTaskId}
+          onClose={() => {
+            setReviewTaskId(null)
+            loadMyTasks()
+          }}
+        />
       )}
     </div>
   )

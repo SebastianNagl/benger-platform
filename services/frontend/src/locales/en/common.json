@@ -1064,6 +1064,8 @@
         "assignmentModeHelp": "Controls how tasks are distributed to annotators. In Manual/Auto mode, annotators only see tasks assigned to them.",
         "randomizeTaskOrder": "Randomize task order",
         "randomizeTaskOrderHelp": "Each annotator sees tasks in a different random order for even annotation distribution",
+        "annotatorFullVisibility": "Reveal all fields after submission",
+        "annotatorFullVisibilityHelp": "When on, annotators reviewing their own submitted work see all task fields including the reference solution. When off, that view is filtered to only the fields they saw while labeling, keeping the reference hidden.",
         "samplingMethod": "Task Sampling Method",
         "samplingMethodHelp": "How tasks are presented to annotators",
         "modes": {
@@ -1429,6 +1431,7 @@
       "taskPrefix": "Task",
       "labeled": "Labeled",
       "feedbackAvailable": "Feedback",
+      "evaluationAvailable": "Evaluation",
       "due": "Due"
     },
     "review": {
