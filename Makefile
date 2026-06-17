@@ -418,15 +418,21 @@ test-e2e: ## Run E2E Playwright tests (skips tests requiring optional extensions
 	PLAYWRIGHT_BASE_URL=http://benger-test.localhost:8090 \
 	npx playwright test $(if $(FILE),$(FILE),) $(if $(GREP),--grep "$(GREP)",--grep-invert "@extended") --reporter=$(if $(E2E_REPORTER),$(E2E_REPORTER),line)
 
+# COVERAGE=1 adds thread-accurate coverage flags to API test runs. Per-merge
+# CI leaves it unset (fast, no coverage); the nightly coverage workflow sets
+# it per shard to feed the combined api-coverage-gate. --no-cov-on-fail keeps
+# a failing shard from suppressing the data the gate needs.
+API_COV_FLAGS := $(if $(COVERAGE),--cov=. --cov-branch --cov-report=term,)
+
 .PHONY: test-api
-test-api: ## Run API tests only (use GREP="pattern" to filter, FILE="path" to target file)
+test-api: ## Run API tests only (use GREP="pattern" to filter, FILE="path" to target file; COVERAGE=1 for coverage)
 	@echo "$(BLUE)🔍 Running API tests...$(NC)"
 ifdef GREP
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-api-runner \
-		"pip install -q -r requirements-test.txt && pytest $(if $(FILE),$(FILE),tests/) -v --tb=short --maxfail=10 --ignore=tests/e2e -k '$(GREP)'"
+		"pip install -q -r requirements-test.txt && pytest $(if $(FILE),$(FILE),tests/) -v --tb=short --maxfail=10 --ignore=tests/e2e $(API_COV_FLAGS) -k '$(GREP)'"
 else ifdef FILE
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-api-runner \
-		"pip install -q -r requirements-test.txt && pytest $(FILE) -v --tb=short --maxfail=10 --ignore=tests/e2e"
+		"pip install -q -r requirements-test.txt && pytest $(FILE) -v --tb=short --maxfail=10 --ignore=tests/e2e $(API_COV_FLAGS)"
 else
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-api-runner
 endif
@@ -443,6 +449,28 @@ else ifdef FILE
 else
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-workers-runner
 endif
+
+# Real-source coverage floor for the platform API (benger-extended issue
+# #33 ratchet). Measured 2026-06-14 on the dockerized suite: ~66.5%
+# combined line+branch of REAL source — test files and CLI scripts are
+# excluded via services/api/.coveragerc `omit` (counting tests had
+# inflated the headline to ~89%). The API suite is sharded in CI
+# (ci.yml `integration-tests`), so the floor is NOT enforced per-shard
+# (each shard sees only ~1/5 of the tests); instead each shard uploads its
+# coverage data and the `api-coverage-gate` job combines them and runs the
+# target below. Bump to floor(measured) with every test-adding PR; never
+# lower without a comment on issue #33. Target: 90 — REACHED.
+# 2026-06-15: measured 91.71% combined line+branch (7129 passed) after the
+# leaderboards/evaluations/bulk/import-export/notifications/storage/uploads/
+# apikey backfill + excluding init_db.py & routers/test_seeding.py glue. The
+# old 63 floor massively understated reality (the API was always ~88%+; 63
+# was a deliberately-safe PR-0 placeholder). Set to 90, ~1.7pt under the
+# measured 91.71 to absorb thread-traced async coverage nondeterminism.
+API_COVERAGE_FLOOR := 90
+
+.PHONY: api-coverage-gate
+api-coverage-gate: ## Combine per-shard API coverage (services/api/.coverage.*) and enforce API_COVERAGE_FLOOR
+	@cd $(API_DIR) && python3 -m coverage combine && python3 -m coverage report --fail-under=$(API_COVERAGE_FLOOR)
 
 .PHONY: test-frontend
 test-frontend: ## Run frontend Jest tests only (use GREP="pattern" to filter, FILE="path" to target file)

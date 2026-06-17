@@ -6,6 +6,17 @@ FROM ${WORKERS_BASE_IMAGE}
 
 WORKDIR /app
 
+# Safety net: install the worker's declared deps on top of the base.
+# workers-base bakes in deps + ML models for fast code builds, but when a new
+# dependency is added to requirements.txt ahead of a base rebuild, the pinned
+# base lacks it (e.g. boto3/ijson for object-storage export/import — issue #158).
+# Installing requirements here guarantees the worker image always has its
+# declared deps regardless of base staleness. Cached on requirements.txt
+# content, so code-only commits still rebuild fast — it's a near no-op when the
+# base is already current (all packages already satisfied).
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
 # Copy application code (this is the only layer that changes on code commits)
 COPY . .
 

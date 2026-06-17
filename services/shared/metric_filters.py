@@ -42,3 +42,47 @@ def metric_key_is_real(key: Optional[str]) -> bool:
 
 # Legacy underscore alias — many call sites already use this name.
 _metric_key_is_real = metric_key_is_real
+
+
+# ---------------------------------------------------------------------------
+# Immediate-evaluation eligibility
+# ---------------------------------------------------------------------------
+# Metrics that load transformer models (sentence-transformers, BERT, NLI,
+# QA/QG pipelines) at compute time. They are fully supported in BATCH
+# evaluation — one model load amortizes over many samples on a warm worker —
+# but are deliberately excluded from IMMEDIATE (per-submit) evaluation:
+#   * a per-submit model load is far too slow for "instant" feedback, and
+#   * stacking those loads on the small interactive worker fleet risks OOM.
+# The immediate-eval dispatcher filters these out and the modal surfaces them
+# as "batch only". Mirrored on the frontend in evaluation-types.ts
+# (`immediate_eligible: false`). Lives here because both the API (dispatch
+# router) and the worker (defense-in-depth) need the same predicate and both
+# have /shared on sys.path.
+HEAVY_METRICS = frozenset(
+    {
+        "bertscore",
+        "moverscore",
+        "semantic_similarity",
+        "factcc",
+        "qags",
+        "coherence",
+    }
+)
+
+
+def is_heavy_metric(metric_name: Optional[str]) -> bool:
+    """True for transformer-model-loading metrics excluded from immediate
+    (per-submit) evaluation. See :data:`HEAVY_METRICS`."""
+    return bool(metric_name) and metric_name in HEAVY_METRICS
+
+
+def is_immediate_eligible(metric_name: Optional[str]) -> bool:
+    """Whether a metric may run in immediate (post-submit) evaluation.
+
+    Excludes human-graded Korrektur metrics (``korrektur_*`` — scored by a
+    person, never computed by the worker) and heavy/semantic metrics; every
+    other metric (deterministic + LLM judges) is eligible.
+    """
+    if not metric_name or metric_name.startswith("korrektur_"):
+        return False
+    return not is_heavy_metric(metric_name)

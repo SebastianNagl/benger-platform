@@ -7,7 +7,14 @@ import { ColumnSelector } from '../ColumnSelector'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, fallback?: string) => fallback || key,
+    t: (key: string, fallback?: string) => {
+      // The component i18n's the column-type annotation as
+      // `(${t('projects.columns.type.<type>')})`; surface the bare type
+      // so the rendered text is `(data)` / `(system)`.
+      const m = key.match(/^projects\.columns\.type\.(\w+)$/)
+      if (m) return m[1]
+      return fallback || key
+    },
     locale: 'en',
   }),
 }))

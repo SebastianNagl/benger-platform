@@ -38,9 +38,9 @@ jest.mock('@/lib/utils/subdomain', () => ({
 }))
 
 // Mock components
-jest.mock('@/components/projects/tabs/AnnotationTab', () => ({
-  AnnotationTab: ({ projectId }: { projectId: string }) => (
-    <div data-testid="annotation-tab">AnnotationTab for {projectId}</div>
+jest.mock('@/components/projects/tabs/ProjectDataTab', () => ({
+  ProjectDataTab: ({ projectId }: { projectId: string }) => (
+    <div data-testid="annotation-tab">ProjectDataTab for {projectId}</div>
   ),
 }))
 
@@ -610,14 +610,14 @@ describe('ProjectDataPage', () => {
   })
 
   describe('Component Integration', () => {
-    it('should pass correct props to AnnotationTab', async () => {
+    it('should pass correct props to ProjectDataTab', async () => {
       const params = Promise.resolve({ id: 'test-project-id' })
       render(<ProjectDataPage params={params} />)
 
       await waitFor(() => {
         const annotationTab = screen.getByTestId('annotation-tab')
         expect(annotationTab).toHaveTextContent(
-          'AnnotationTab for test-project-id'
+          'ProjectDataTab for test-project-id'
         )
       })
     })

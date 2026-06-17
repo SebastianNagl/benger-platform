@@ -607,9 +607,16 @@ class LLMJudgeEvaluator(BaseEvaluator):
         for criterion, scores in all_scores.items():
             if scores:
                 avg_score = sum(scores) / len(scores)
-                # Normalize to 0-1 range based on score_scale
+                # Normalize to 0-1 range based on score_scale. This ladder MUST
+                # match the canonical one the worker applies in tasks.py (the
+                # multi-run result path) and the clamp in _evaluate_single_criterion
+                # — all three support "0-100". Without the 0-100 branch a generic
+                # judge on a 0–100 scale normalized via (score-1)/4, e.g. 100 ->
+                # 24.75, blowing a "normalized" metric far past 1.0.
                 if self.score_scale == "0-1":
                     normalized_score = avg_score  # Already 0-1
+                elif self.score_scale == "0-100":
+                    normalized_score = avg_score / 100.0  # Convert 0-100 to 0-1
                 else:
                     normalized_score = (avg_score - 1) / 4  # Convert 1-5 to 0-1
                 metrics[f"llm_judge_{criterion}"] = normalized_score
@@ -991,9 +998,14 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 )
                 if result is not None:
                     score = result["score"]
-                    # Normalize to 0-1 based on score_scale
+                    # Normalize to 0-1 based on score_scale. Mirror the canonical
+                    # ladder (tasks.py / _evaluate_single_criterion clamp), which
+                    # supports "0-100"; without it a 0–100 judge consensus would
+                    # be (score-1)/4 -> far above 1.0.
                     if self.score_scale == "0-1":
                         normalized = score  # Already 0-1
+                    elif self.score_scale == "0-100":
+                        normalized = score / 100.0  # Convert 0-100 to 0-1
                     else:
                         normalized = (score - 1) / 4  # Convert 1-5 to 0-1
                     judge_scores[criterion] = normalized

@@ -2,7 +2,12 @@
 branch = True
 source = .
 parallel = True
-concurrency = multiprocessing
+# `thread` is REQUIRED: FastAPI runs sync (`def`) route handlers in a
+# Starlette threadpool, so without thread-tracing every sync endpoint body
+# reads as uncovered (only its import-time lines count) — it understated
+# the real API source coverage by ~20pts. `multiprocessing` keeps coverage
+# of any worker-style subprocesses.
+concurrency = thread, multiprocessing
 omit =
     # Infrastructure/startup — validated by app running, not unit tests
     */database.py
@@ -11,6 +16,34 @@ omit =
     */services/ssl_tls_config.py
     */services/migration_utils.py
     */alembic/*
+    # Test code is not source-under-measurement (issue #33: measure REAL
+    # source coverage — counting test files inflated the headline to ~89%
+    # while real source coverage is ~70% line / 57% branch).
+    tests/*
+    */tests/*
+    conftest.py
+    */conftest.py
+    # CLI one-shot scripts — operational tooling, exercised by running, not
+    # unit-tested (same rationale as the startup files above).
+    scripts/*
+    */scripts/*
+    # DB-init CLI one-shot (demo users / table create) — same category as
+    # init_complete.py above; run, not unit-tested.
+    */init_db.py
+    init_db.py
+    # E2E test-data seeding endpoints — test-environment-only tooling
+    # (ENVIRONMENT in test/development/e2e), not production business logic.
+    # Same "test code is not source-under-measurement" rationale as tests/*.
+    */routers/test_seeding.py
+
+# Map the in-container source root (/app) to the host checkout so the CI
+# coverage gate can `coverage combine` per-shard data files (collected in
+# the test-api-runner container at /app) and then report against the
+# checked-out source. Remapping happens during `coverage combine`.
+[paths]
+source =
+    .
+    /app
 
 [report]
 show_missing = True

@@ -58,7 +58,7 @@ class TestExtensionLoader:
         from extensions import CORE_API_VERSION
 
         assert isinstance(CORE_API_VERSION, str)
-        assert CORE_API_VERSION == "2.1"
+        assert CORE_API_VERSION == "2.2"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

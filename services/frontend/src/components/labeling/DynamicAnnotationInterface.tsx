@@ -283,35 +283,6 @@ export function DynamicAnnotationInterface({
     await autoSave.saveNow({ fieldName, value })
   }, [autoSave])
 
-  // Simplified validation to prevent recursion issues
-  const validateAnnotations = (
-    annotationResults: AnnotationResult[]
-  ): string[] => {
-    const validationErrors: string[] = []
-
-    if (annotationResults.length === 0) {
-      validationErrors.push(t('annotation.interface.atLeastOne'))
-      return validationErrors
-    }
-
-    // Basic validation only - check if values exist
-    for (const annotation of annotationResults) {
-      const fieldName = annotation.from_name || 'Unknown field'
-
-      if (
-        annotation.value === null ||
-        annotation.value === undefined ||
-        annotation.value === ''
-      ) {
-        validationErrors.push(
-          t('annotation.interface.fieldRequired', { fieldName })
-        )
-      }
-    }
-
-    return validationErrors
-  }
-
   // Handle submit - simplified to prevent stack overflow
   const handleSubmit = useCallback(async () => {
     try {

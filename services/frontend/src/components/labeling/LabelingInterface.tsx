@@ -58,7 +58,6 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     currentTaskTotal,
     loading,
     getNextTask,
-    createAnnotation,
     createAnnotationInternal,
     skipTask,
     fetchProject,
@@ -521,29 +520,6 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       setShowInstructionsModal(true)
     }
   }, [currentProject?.show_instruction, currentProject?.instructions, currentProject?.instructions_always_visible, currentProject?.conditional_instructions, INSTRUCTIONS_DISMISSED_KEY, currentTask?.id])
-
-  // Calculate lead time
-  const getLeadTime = useCallback(() => {
-    return (Date.now() - startTime) / 1000 // seconds
-  }, [startTime])
-
-  // Handle annotation submission
-  const handleSubmit = useCallback(async () => {
-    if (!currentTask || annotations.length === 0) {
-      addToast(
-        t('annotation.errors.pleaseProvideAnnotation', { defaultValue: 'Please provide an annotation' }),
-        'error'
-      )
-      return
-    }
-
-    try {
-      await createAnnotation(currentTask.id, annotations)
-      // Next task is loaded automatically by the store
-    } catch (error) {
-      console.error('Failed to submit annotation:', error)
-    }
-  }, [currentTask, annotations, createAnnotation])
 
   // Handle task skip
   const handleSkip = useCallback(async () => {

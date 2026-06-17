@@ -12,26 +12,33 @@ from typing import Any, Dict, List
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+# `logger` is only consumed inside the two `except ImportError` blocks below,
+# which are unreachable where scipy/statsmodels are installed (both are hard
+# deps in requirements.txt). The `logger = None` mutant is therefore equivalent.
+logger = logging.getLogger(__name__)  # pragma: no mutate
 
 # Try to import scipy for advanced statistics
 try:
     from scipy import stats as scipy_stats
 
     SCIPY_AVAILABLE = True
-except ImportError:
-    SCIPY_AVAILABLE = False
-    logger.warning("scipy not available - some statistical tests will be limited")
+except ImportError:  # pragma: no cover
+    # Dead branch in the test/prod env (scipy is installed) -> mutants here are
+    # unreachable/equivalent. Pragma'd so mutmut stops generating them.
+    SCIPY_AVAILABLE = False  # pragma: no mutate
+    logger.warning("scipy not available - some statistical tests will be limited")  # pragma: no mutate
 
 # Try to import statsmodels for additional tests (required dependency)
 try:
     from statsmodels.stats.contingency_tables import mcnemar
 
     STATSMODELS_AVAILABLE = True
-except ImportError as e:
-    STATSMODELS_AVAILABLE = False
+except ImportError as e:  # pragma: no cover
+    # Dead branch: statsmodels is a hard dependency. Only this fallback body is
+    # unreachable, so its mutants are equivalent.
+    STATSMODELS_AVAILABLE = False  # pragma: no mutate
     # Log as ERROR - this is a required dependency declared in requirements.txt
-    logger.error(f"statsmodels import failed: {e}. McNemar test will not work.")
+    logger.error(f"statsmodels import failed: {e}. McNemar test will not work.")  # pragma: no mutate
 
 
 def bootstrap_confidence_interval(

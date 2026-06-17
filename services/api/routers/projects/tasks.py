@@ -266,8 +266,11 @@ async def list_project_tasks(
 
     task_ids = [task.id for task in tasks]
 
-    # Per-task generation counts in one grouped query.
+    # Per-task generation counts + the distinct model ids that produced them.
+    # The model list drives the per-task "all generations" modal (one tab per
+    # model); the count stays the total Generation row count so the two agree.
     generation_counts: Dict[str, int] = {}
+    generation_models_by_task: Dict[str, List[str]] = {tid: [] for tid in task_ids}
     if task_ids:
         gen_counts = (
             db.query(Generation.task_id, func.count(Generation.id))
@@ -277,21 +280,84 @@ async def list_project_tasks(
         )
         generation_counts = {task_id: count for task_id, count in gen_counts}
 
+        gen_model_rows = (
+            db.query(Generation.task_id, Generation.model_id)
+            .filter(
+                Generation.task_id.in_(task_ids),
+                Generation.model_id.isnot(None),
+            )
+            .distinct()
+            .all()
+        )
+        for tid, mid in gen_model_rows:
+            if mid and mid not in generation_models_by_task.setdefault(tid, []):
+                generation_models_by_task[tid].append(mid)
+
     # Bulk-fetch all assignments for the page + the users they reference. Two
     # IN queries replace the previous per-task and per-assignment lookups
     # (which scaled as page_size + page_size × ~5 assignees per task).
     assignments_by_task: Dict[str, List[TaskAssignment]] = {tid: [] for tid in task_ids}
     users_by_id: Dict[str, User] = {}
+    # Distinct people who actually DID work on each task, kept separate from
+    # assignments because they live on different structures: annotators =
+    # who submitted an annotation (Annotation.completed_by); reviewers = who
+    # reviewed one (Annotation.reviewed_by, set post-hoc by the review
+    # workflow). Graders (Korrektur) stay inside `assignments` and are split
+    # out client-side via the assignment `target_type`.
+    annotators_by_task: Dict[str, List[str]] = {tid: [] for tid in task_ids}
+    reviewers_by_task: Dict[str, List[str]] = {tid: [] for tid in task_ids}
     if task_ids:
         page_assignments = (
             db.query(TaskAssignment).filter(TaskAssignment.task_id.in_(task_ids)).all()
         )
         for assn in page_assignments:
             assignments_by_task.setdefault(assn.task_id, []).append(assn)
+
+        annotator_rows = (
+            db.query(Annotation.task_id, Annotation.completed_by)
+            .filter(
+                Annotation.task_id.in_(task_ids),
+                Annotation.completed_by.isnot(None),
+                Annotation.was_cancelled == False,  # noqa: E712
+                Annotation.result.isnot(None),
+                func.cast(Annotation.result, String) != "[]",
+            )
+            .distinct()
+            .all()
+        )
+        for tid, uid in annotator_rows:
+            if uid and uid not in annotators_by_task.setdefault(tid, []):
+                annotators_by_task[tid].append(uid)
+
+        reviewer_rows = (
+            db.query(Annotation.task_id, Annotation.reviewed_by)
+            .filter(
+                Annotation.task_id.in_(task_ids),
+                Annotation.reviewed_by.isnot(None),
+            )
+            .distinct()
+            .all()
+        )
+        for tid, uid in reviewer_rows:
+            if uid and uid not in reviewers_by_task.setdefault(tid, []):
+                reviewers_by_task[tid].append(uid)
+
         user_ids = {a.user_id for a in page_assignments if a.user_id}
+        user_ids |= {uid for uids in annotators_by_task.values() for uid in uids}
+        user_ids |= {uid for uids in reviewers_by_task.values() for uid in uids}
         if user_ids:
             user_rows = db.query(User).filter(User.id.in_(user_ids)).all()
             users_by_id = {u.id: u for u in user_rows}
+
+    def _people(uids: List[str]) -> List[Dict[str, str]]:
+        """Resolve a list of user ids to lightweight {id, name} dicts,
+        skipping ids whose User row wasn't fetched (e.g. deleted user)."""
+        people = []
+        for uid in uids:
+            resolved = users_by_id.get(uid)
+            if resolved is not None:
+                people.append({"id": uid, "name": resolved.name})
+        return people
 
     # Enrich tasks with assignment information
     result = []
@@ -307,10 +373,16 @@ async def list_project_tasks(
             "total_annotations": task.total_annotations,
             "cancelled_annotations": task.cancelled_annotations,
             "total_generations": generation_counts.get(task.id, 0),
+            "generation_models": generation_models_by_task.get(task.id, []),
             "project_id": task.project_id,
             "llm_responses": getattr(task, "llm_responses", None),
             "llm_evaluations": getattr(task, "llm_evaluations", None),
             "assignments": [],
+            # Who actually annotated / reviewed this task (distinct from the
+            # assignment list above). Annotators come from completed_by,
+            # reviewers from reviewed_by; both are [{id, name}].
+            "annotators": _people(annotators_by_task.get(task.id, [])),
+            "reviewers": _people(reviewers_by_task.get(task.id, [])),
             # Keep tags for backward compatibility temporarily
             "tags": task.meta.get("tags", []) if task.meta else [],
         }
@@ -329,6 +401,11 @@ async def list_project_tasks(
                     "priority": getattr(assignment, "priority", 0),
                     "due_date": getattr(assignment, "due_date", None),
                     "assigned_at": assignment.assigned_at,
+                    # 'task' = annotator assignment; 'annotation'/'generation'
+                    # = item-level Korrektur grader assignment. The client
+                    # splits the "Assigned To" and "Graders" columns on this.
+                    "target_type": getattr(assignment, "target_type", "task")
+                    or "task",
                 }
             )
 

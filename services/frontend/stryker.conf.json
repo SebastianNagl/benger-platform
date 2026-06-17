@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing for the annotationDiff crown-jewel pure module. Nightly-runnable: scope is intentionally a single file. The fast-check property suite in src/lib/utils/__tests__/annotationDiff.property.test.ts plus the example-based tests are the killing tests. The mutation-score gate is enforced by scripts/mutation-gate.js against mutation-floors.json, NOT by Stryker's own break threshold (kept null on purpose so a single-mutant flake never red-lights the nightly job). JEST CONFIG: Stryker's jest-runner needs a single FLAT project, but platform jest.config.js uses a dual-`projects` layout; nulling `projects` would flatten it but drop the per-project babel transform (and the bare `next/babel` preset string also fails to resolve from Stryker's sandbox cwd). So we point at jest.config.stryker.js, which hoists the `client` project to the top level, resolves `next/babel` to an absolute path, and uses Stryker's jsdom env — see that file's header for the full rationale.",
+  "testRunner": "jest",
+  "jest": {
+    "projectType": "custom",
+    "configFile": "jest.config.stryker.js"
+  },
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/lib/utils/annotationDiff.ts",
+    "src/lib/utils/fieldPath.ts",
+    "src/lib/utils/fieldMapping.ts",
+    "src/lib/api/evaluation-types.ts"
+  ],
+  "reporters": ["clear-text", "json"],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "thresholds": {
+    "high": 90,
+    "low": 70,
+    "break": null
+  },
+  "timeoutMS": 60000,
+  "concurrency": 4
+}

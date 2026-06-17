@@ -15,7 +15,7 @@
  *   - app/projects/[id]/my-tasks/page.tsx
  *   - app/projects/[id]/members/page.tsx
  *   - app/admin/feature-flags/page.tsx
- *   - components/projects/AnnotationTab.tsx
+ *   - components/projects/ProjectDataTab.tsx
  */
 
 'use client'

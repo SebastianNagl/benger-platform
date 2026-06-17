@@ -135,10 +135,10 @@ export function ColumnSelector({
                                   className="pointer-events-none mr-3 h-4 w-4 flex-shrink-0 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                                 />
                                 <span className="flex-1 truncate text-left">
-                                  {column.label}
+                                  {t(column.label)}
                                   {column.type && (
                                     <span className="ml-2 text-xs text-zinc-500 dark:text-zinc-400">
-                                      ({column.type})
+                                      {`(${t(`projects.columns.type.${column.type}`)})`}
                                     </span>
                                   )}
                                 </span>

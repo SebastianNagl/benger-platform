@@ -201,11 +201,15 @@ class TestIntraclassCorrelation:
         result = intraclass_correlation([])
         assert "error" in result
 
-    def test_single_rater(self):
-        # 1 item, 3 raters -> n_items=1, causes n_items-1=0 -> nan ICC
-        result = intraclass_correlation([[1, 2, 3]])
+    def test_single_item_returns_finite_zero(self):
+        # 1 item, 3 raters: n_items-1=0 makes the ICC ratio degenerate. This used
+        # to return nan (and silently mislabel it "excellent"); the guard now maps
+        # a non-perfect degenerate case to a finite 0.0 ("no signal" — you can't
+        # assess inter-rater reliability from a single item).
         import math
-        assert math.isnan(result["icc"])
+        result = intraclass_correlation([[1, 2, 3]])
+        assert math.isfinite(result["icc"])
+        assert result["icc"] == 0.0
 
     def test_perfect_icc21(self):
         matrix = [[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]]

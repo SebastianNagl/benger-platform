@@ -225,7 +225,11 @@ def _generate_example(schema: Dict[str, Any]) -> Dict[str, Any]:
         elif field_type == "integer":
             example[field_name] = field_schema.get("minimum", 1)
         elif field_type == "number":
-            example[field_name] = 0.0
+            # Respect the schema's minimum (mirror the integer branch): a constant
+            # 0.0 violates a field with a positive `minimum`, and this example is
+            # injected into the prompt as the canonical sample for providers without
+            # native structured output — teaching the model an out-of-range value.
+            example[field_name] = field_schema.get("minimum", 0.0)
         else:
             example[field_name] = "..."
 

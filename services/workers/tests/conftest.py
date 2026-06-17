@@ -21,6 +21,26 @@ import pytest
 # time. Mirrors what the API conftest does via JWT_SECRET_KEY / SECRET_KEY.
 os.environ.setdefault("BENGER_TEST_MODE", "1")
 
+# Point Celery's broker + result backend at the reachable test Redis BEFORE
+# anything imports `tasks` (this root conftest is the FIRST thing pytest
+# loads in the workers suite, so it precedes every `import tasks`). The
+# mounted `services/workers/.env` sets CELERY_BROKER_URL / CELERY_RESULT_BACKEND
+# to the dev host `redis:6379` (unresolvable on the test network) and
+# `tasks.py` reads them at import time via a direct `app.conf.broker_url =`
+# assignment that Celery's config layering makes UN-overridable at runtime
+# (a later conf.update / conf.changes write is silently shadowed). So the
+# only place to win is here, before import: `setdefault` is enough because
+# the runner env doesn't set these and `load_dotenv()` (called inside
+# tasks.py) doesn't override an already-set var. The integration eval-chord
+# harness needs the result backend reachable so a REAL `chord(header)(callback)`
+# barrier fires; other worker tests just benefit from a reachable broker
+# instead of a dead host. Distinct DBs (/1 result, /2 broker) keep the chord
+# result keyspace off the poison-cell counter / progress pub-sub keyspace.
+_test_redis = os.environ.get("REDIS_URL") or os.environ.get("REDIS_URI") \
+    or "redis://test-redis:6379"
+os.environ.setdefault("CELERY_BROKER_URL", f"{_test_redis}/2")
+os.environ.setdefault("CELERY_RESULT_BACKEND", f"{_test_redis}/1")
+
 # Ensure the workers source directory is at the front of sys.path
 # so that local modules (email_service, ml_evaluation, etc.) are
 # imported from workers, not from other services.

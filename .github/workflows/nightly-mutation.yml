@@ -1,0 +1,150 @@
+name: Nightly Mutation
+
+# Mutation testing is the co-gate for the coverage ratchet: a filler test that
+# executes a line without asserting its behavior leaves the line's mutants alive,
+# dropping the mutation score — so coverage % can't be gamed with filler while
+# this gate holds. mutmut/Stryker are ~too slow for the per-merge gate (hours on
+# the larger modules), so they run here nightly, one crown-jewel module per shard.
+# Each shard runs the module's tests against its mutants and enforces the per-module
+# floor (services/workers/mutation-floors.cfg, services/frontend/mutation-floors.json).
+# Floors are ratchets: raise to floor(measured) with every test-strengthening PR;
+# never lower without a comment on the meaningful-coverage program issue. Target: 90.
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # 03:00 UTC (after the 01:00 full-suite + 02:00 coverage nightlies)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-mutation:
+    name: mutate ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    # Ceiling sized for the slowest shard (sample_evaluator, 2838 lines / ~1965
+    # mutants ≈ 3-4h whole-file). fail-fast:false isolates shards and the fast
+    # ones (statistics/IAA/parsers) finish in well under an hour, so the high
+    # ceiling only ever applies to the one long shard. GitHub-hosted job hard
+    # limit is 6h; 350 leaves margin.
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        # One crown-jewel PURE module per shard, with the test files mutmut runs
+        # per mutant (scoped + DB-free for speed). sample_evaluator.py (2838 lines)
+        # is the long shard — it runs whole-file against its 8 deterministic-metric
+        # test files; the model-dependent neural/IO plumbing survives by design
+        # (not unit-assertable without ML models), so its floor reflects the
+        # deterministic scoring kill rate, not 100% of the file.
+        include:
+          - name: statistics
+            module: ml_evaluation/statistics.py
+            tests: tests/test_statistics.py tests/test_statistics_branches.py tests/test_statistics_coverage.py tests/test_statistics_properties.py tests/test_statistics_mutation_kills.py
+          - name: inter_annotator_agreement
+            module: ml_evaluation/inter_annotator_agreement.py
+            tests: tests/test_inter_annotator_agreement.py tests/test_inter_annotator_agreement_branches.py tests/test_iaa_coverage.py tests/test_inter_annotator_agreement_properties.py tests/test_inter_annotator_agreement_mutation_kills.py
+          - name: sample_evaluator
+            module: ml_evaluation/sample_evaluator.py
+            tests: tests/test_sample_evaluator_properties.py tests/test_sample_evaluator_mutation_kills.py tests/test_sample_evaluator_kills_nlg_ranking.py tests/test_sample_evaluator_kills_scalar_failure.py tests/test_sample_evaluator_kills_spans_hier.py tests/test_sample_evaluator_kills_json_util_lang.py tests/test_sample_evaluator_neural_logic_kills.py tests/test_sample_evaluator_embedding_logic_kills.py tests/test_sample_evaluator_dispatch_factuality_kills.py tests/test_core_metrics_accuracy.py tests/test_hierarchical_metrics.py
+          - name: response_parser
+            module: response_parser.py
+            tests: tests/test_response_parser.py tests/test_response_parser_extended.py tests/test_response_parser_coverage.py tests/test_response_parser_properties.py tests/test_response_parser_mutation_kills.py
+          - name: generation_structure_parser
+            module: generation_structure_parser.py
+            tests: tests/test_generation_structure_parser.py tests/test_generation_structure_parser_extended.py tests/test_generation_structure_parser_coverage.py tests/test_generation_structure_parser_properties.py tests/test_generation_structure_parser_mutation_kills.py
+          - name: llm_judge_evaluator
+            module: ml_evaluation/llm_judge_evaluator.py
+            tests: tests/test_llm_judge_evaluator.py tests/test_llm_judge_evaluator_branches.py tests/test_llm_judge_evaluator_more.py tests/test_llm_judge_pure_kills.py tests/test_llm_judge_aggregation_kills.py tests/test_llm_judge_orchestration_kills.py
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/share/powershell /usr/local/share/chromium || true
+
+      - name: Build worker test image
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 30
+          max_attempts: 2
+          retry_wait_seconds: 30
+          # mutmut + hypothesis are installed at runtime from requirements-test.txt
+          # (see the explicit pip install in the run step) — they are NOT baked in.
+          command: docker compose -f infra/docker-compose.test.yml build test-workers-runner
+
+      - name: Run mutmut on ${{ matrix.module }} + enforce floor
+        timeout-minutes: 340
+        run: |
+          docker compose -f infra/docker-compose.test.yml --profile test run --rm \
+            --entrypoint /bin/sh test-workers-runner -c '
+              set -e
+              cd /app
+              # The runner installs test deps at runtime (mutmut + hypothesis live
+              # in requirements-test.txt, not the image) — the default command
+              # does this; we override the command, so do it explicitly here.
+              pip install -q -r requirements-test.txt
+              rm -rf .mutmut-cache
+              # --runner overrides the setup.cfg default so each shard mutates its
+              # module against ONLY that module tests. -o addopts= neutralizes
+              # pytest.ini --cov-fail-under (else every mutant is a false kill).
+              mutmut run \
+                --paths-to-mutate "${{ matrix.module }}" \
+                --runner "python -m pytest -x -q --no-cov -o addopts= -p no:cacheprovider ${{ matrix.tests }}" \
+                || true
+              mutmut junitxml > mutmut.xml
+              python scripts/mutation_gate.py \
+                --junitxml mutmut.xml \
+                --module "${{ matrix.module }}" \
+                --floors mutation-floors.cfg
+            '
+
+      - name: Upload mutmut report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutmut-${{ matrix.name }}
+          path: services/workers/mutmut.xml
+          if-no-files-found: warn
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f infra/docker-compose.test.yml down -v 2>/dev/null || true
+
+  ts-mutation:
+    name: mutate frontend crown jewels (Stryker)
+    runs-on: ubuntu-latest
+    # Scope grew from annotationDiff alone to +fieldPath +fieldMapping
+    # +evaluation-types (1160 LOC) — more mutants, so raise from 60.
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: services/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 2
+          retry_wait_seconds: 30
+          command: cd services/frontend && npm ci
+
+      - name: Run Stryker + enforce floor
+        working-directory: services/frontend
+        run: |
+          npx stryker run
+          node scripts/mutation-gate.js
+
+      - name: Upload Stryker report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stryker-annotationDiff
+          path: services/frontend/reports/mutation/
+          if-no-files-found: warn

@@ -166,6 +166,16 @@ export interface TaskAssignment {
   assigned_at: string
   started_at?: string
   completed_at?: string
+  // 'task' = annotator assignment; 'annotation'/'generation' = item-level
+  // Korrektur grader assignment. Used to split the Assigned-To vs Graders
+  // columns on the project data page.
+  target_type?: 'task' | 'annotation' | 'generation'
+}
+
+// Lightweight {id, name} pair for the people who actually did work on a task.
+export interface TaskPerson {
+  id: string
+  name: string
 }
 
 export interface AssignTasksRequest {
@@ -188,6 +198,9 @@ export interface Task {
   total_annotations: number
   cancelled_annotations: number
   total_generations: number
+  // Distinct model ids that produced generations for this task — drives the
+  // per-task "all generations" modal (one tab per model).
+  generation_models?: string[]
 
   // BenGER specific
   llm_responses?: Record<string, any>
@@ -201,6 +214,11 @@ export interface Task {
 
   // Task assignments - users assigned to this task
   assignments?: TaskAssignment[]
+
+  // Who actually annotated / reviewed this task (distinct from assignments).
+  // annotators = Annotation.completed_by; reviewers = Annotation.reviewed_by.
+  annotators?: TaskPerson[]
+  reviewers?: TaskPerson[]
 }
 
 // Annotation types

@@ -1,0 +1,29 @@
+# Workers coverage config. Unlike the API there is no thread concurrency here
+# (Celery handlers are tested by direct call, not through a threadpool), so the
+# default tracer measures everything. The key fix vs. the old pytest.ini
+# [coverage:run] block (which coverage.py ignored) is omitting test files so we
+# measure REAL source coverage (issue #33) — counting tests had inflated the
+# branch number to ~84% while real source was ~65%.
+[run]
+branch = True
+source = .
+omit =
+    tests/*
+    */tests/*
+    conftest.py
+    */conftest.py
+    */alembic/*
+    */migrations/*
+    # one-shot CLI script, exercised by running not unit tests
+    parse_existing_generations.py
+
+[report]
+show_missing = True
+precision = 2
+skip_empty = True
+# NOTE: the four Celery orchestration entrypoints (run_evaluation,
+# evaluate_generation_cell, evaluate_annotation_cell, finalize_evaluation_run)
+# used to be excluded here. They are now COUNTED — they are genuinely exercised
+# end-to-end by tests/integration/test_evaluation_chord_e2e.py against the real
+# test-db, so they belong in the measured floor like everything else. Excluding
+# the riskiest code from the % was hiding it, not protecting it.

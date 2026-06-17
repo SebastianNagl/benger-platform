@@ -92,6 +92,14 @@ const config = {
     '!src/**/__mocks__/**',
     '!src/test-utils/**',
     '!src/**/*.config.{ts,tsx}',
+    // Untestable shells (issue #33, "optimal solution" decision): extended-slot
+    // dispatcher pages (useSlot(...) + community fallback; the real behavior is
+    // tested in benger-extended) and a pure <ProtectedRoute><LabelingInterface/>
+    // composition shell. No isolated logic; not renderable under jsdom.
+    '!src/app/projects/[id]/korrektur/page.tsx',
+    '!src/app/projects/[id]/my-korrektur/[taskId]/page.tsx',
+    '!src/app/projects/[id]/review/page.tsx',
+    '!src/app/projects/[id]/label/page.tsx',
   ],
 
   // UPDATED COVERAGE THRESHOLDS (Issue #764)
@@ -104,50 +112,51 @@ const config = {
   // because the deleted tests were exercising the same lines repeatedly.
   coverageThreshold: {
     global: {
-      // Lowered from 84/77/78/85 after deleting the eval-dashboard test
-      // file (920 lines that, even with 37/41 failing, still incidentally
-      // executed code paths and propped the headline percentage up). Real
-      // production coverage is unchanged. Ratchet back up when the eval
-      // dashboard suite is rewritten against the typed apiClient.
-      statements: 81,
-      branches: 72,
-      functions: 76,
-      lines: 82,
+      // Ratcheted 2026-06-15 (issue #33) after the project-page + evaluation +
+      // labeling + pages/auth/search backfill. Measured (non-grouped "rest"):
+      // 90.54/83.63/85.40/91.94. Stmts/lines clear 90; funcs/branches climbing.
+      statements: 90,
+      branches: 83,
+      functions: 85,
+      lines: 91,
     },
+    // Per-dir floors ratcheted 2026-06-15 (issue #33) to floor(measured)
+    // after the project-page/evaluation/labeling/data backfill. Never lower
+    // without a comment on issue #33. Target: 90.
     // Critical business logic - higher standards
     'src/lib/api/': {
-      statements: 70, // Target: 85%
-      branches: 64, // Target: 80%
-      functions: 70, // Target: 85%
-      lines: 70, // Target: 85%
+      statements: 93, // measured 93.33
+      branches: 86, // measured 86.5
+      functions: 93, // measured 93.01
+      lines: 93, // measured 93.66
     },
-    // API routes - essential coverage
+    // API routes (the old "~0%" note was stale; really ~96%)
     'src/app/api/': {
-      statements: 60, // Target: 80% (currently ~0%)
-      branches: 54, // Target: 75%
-      functions: 60, // Target: 80%
-      lines: 60, // Target: 80%
+      statements: 96, // measured 96.74
+      branches: 92, // measured 92.74
+      functions: 90, // measured 90.7
+      lines: 96, // measured 96.72
     },
     // Utilities - should be thoroughly tested
     'src/utils/': {
-      statements: 85, // Already at 93.78%, maintain high standard
-      branches: 80,
-      functions: 85,
-      lines: 85,
+      statements: 99, // measured 99.04
+      branches: 96, // measured 96.82
+      functions: 100, // measured 100
+      lines: 99, // measured 99.1
     },
     // State management - critical
     'src/stores/': {
-      statements: 80,
-      branches: 68,
-      functions: 90,
-      lines: 85,
+      statements: 99, // measured 99.4
+      branches: 86, // measured 86.49
+      functions: 100, // measured 100
+      lines: 99, // measured 99.38
     },
-    // Components - raised after Phase 4 coverage improvement
+    // Components - raised after the project-page/evaluation/labeling/data backfill
     'src/components/': {
-      statements: 60,
-      branches: 50,
-      functions: 55,
-      lines: 60,
+      statements: 92, // measured 92.51
+      branches: 85, // measured 85.89
+      functions: 90, // measured 90.81
+      lines: 93, // measured 93.45
     },
   },
 

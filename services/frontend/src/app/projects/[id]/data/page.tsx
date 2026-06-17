@@ -4,7 +4,7 @@
 
 'use client'
 
-import { AnnotationTab } from '@/components/projects/tabs/AnnotationTab'
+import { ProjectDataTab } from '@/components/projects/tabs/ProjectDataTab'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -133,7 +133,7 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
 
       {/* Content */}
       <div className="px-6 py-4">
-        <AnnotationTab projectId={projectId} />
+        <ProjectDataTab projectId={projectId} />
       </div>
     </div>
   )

@@ -3517,77 +3517,107 @@ def run_single_sample_evaluation(
                 "spacy_de_model_version": "de_core_news_md@3.7.0",
             }
 
-        # Create a per-dispatch EvaluationRun so polling can find all results
-        dispatch_eval_id = evaluation_record_id
-        eval_run = EvaluationRun(
-            id=dispatch_eval_id,
-            project_id=project_id,
-            model_id="immediate",
-            evaluation_type_ids=[c.get("metric", "") for c in evaluation_configs],
-            status="running",
-            created_by=user_id or "system",
-            eval_metadata={
-                "evaluation_type": "immediate",
-                "expected_config_count": len(evaluation_configs),
-                "configs": [
-                    {"metric": c.get("metric", ""), "display_name": c.get("display_name", c.get("metric", ""))}
-                    for c in evaluation_configs
-                ],
-                **run_provenance,
-            },
-            metrics={},
-        )
-        db.add(eval_run)
-        db.flush()
+        # Immediate eval runs deterministic metrics + LLM judges only.
+        # Human-graded Korrektur (scored by a person) and heavy/semantic
+        # metrics (transformer-model loads — too slow for instant feedback,
+        # OOM risk on the interactive fleet) are filtered out. The dispatcher
+        # already excludes them; doing it here too guarantees expected ==
+        # actual so the polling endpoint's completion detection is exact.
+        from metric_filters import is_immediate_eligible
 
-        # Migration 042: every TaskEvaluation row needs a judge_run_id (will
-        # be NOT NULL after migration 043). Immediate eval is single-judge
-        # per call by design, so create one catch-all judge_run for the
-        # whole dispatch and stamp it on every row. judge_model_id is null
-        # for deterministic metrics; for LLM judge metrics it's filled in
-        # below per (config, judge) pair.
+        eligible_configs = [
+            c for c in evaluation_configs if is_immediate_eligible(c.get("metric", ""))
+        ]
+
+        # Per-dispatch EvaluationRun. The API pre-creates this row at dispatch
+        # (so polling finds the expected method list immediately); get-or-create
+        # here so the worker is robust whether or not it already exists. The
+        # worker additionally stamps run_provenance (worker image tag, schema
+        # snapshot) which the API can't know.
+        from sqlalchemy.orm.attributes import flag_modified
+
+        dispatch_eval_id = evaluation_record_id
+        configs_meta = [
+            {
+                "id": c.get("id", c.get("metric", "")),
+                "metric": c.get("metric", ""),
+                "display_name": c.get("display_name", c.get("metric", "")),
+            }
+            for c in eligible_configs
+        ]
+        eval_run = (
+            db.query(EvaluationRun).filter(EvaluationRun.id == dispatch_eval_id).first()
+        )
+        if eval_run is None:
+            eval_run = EvaluationRun(
+                id=dispatch_eval_id,
+                project_id=project_id,
+                model_id="immediate",
+                evaluation_type_ids=[c.get("metric", "") for c in eligible_configs],
+                status="running",
+                created_by=user_id or "system",
+                eval_metadata={
+                    "evaluation_type": "immediate",
+                    "expected_config_count": len(eligible_configs),
+                    "configs": configs_meta,
+                    **run_provenance,
+                },
+                metrics={},
+            )
+            db.add(eval_run)
+            db.flush()
+        else:
+            # Pre-created by the API — fold in worker-only provenance and make
+            # sure the expected-config list is present for completion detection.
+            meta = dict(eval_run.eval_metadata or {})
+            meta.update(run_provenance)
+            meta.setdefault("evaluation_type", "immediate")
+            if not meta.get("configs"):
+                meta["configs"] = configs_meta
+                meta["expected_config_count"] = len(eligible_configs)
+            eval_run.eval_metadata = meta
+            eval_run.status = "running"
+            flag_modified(eval_run, "eval_metadata")
+            db.flush()
+
+        # Every TaskEvaluation row needs a judge_run_id (NOT NULL since
+        # migration 043). CRITICAL: the unique constraint uq_task_evaluations_cell
+        # keys on (evaluation_id, judge_run_id, generation_id, annotation_id,
+        # field_name, created_by). Immediate eval writes a BARE field_name and
+        # all configs grade the SAME annotation, so every config here shares
+        # (annotation_id, field_name) — the ONLY field left to differentiate
+        # rows is judge_run_id. So each config gets its OWN judge_run with a
+        # distinct run_index; sharing one catch-all judge_run would make the
+        # 2nd+ config on a field collide and silently drop. (Batch eval instead
+        # encodes the config id into field_name; immediate keeps the bare name
+        # so the modal can group by the real field.)
         from models import EvaluationJudgeRun
 
-        default_judge_run = EvaluationJudgeRun(
-            id=str(uuid.uuid4()),
-            evaluation_id=dispatch_eval_id,
-            judge_model_id=None,
-            run_index=0,
-            status="running",
-            started_at=datetime.now(),
-        )
-        db.add(default_judge_run)
-        db.flush()
-        default_judge_run_id = default_judge_run.id
+        # Per-dispatch cache so a config resolved once (or revisited on a retry
+        # within the same dispatch) reuses the judge_run it already created
+        # instead of issuing a second INSERT.
+        _judge_run_by_idx: Dict[int, str] = {}
 
-        # Per-config LLM judge_runs: created lazily as we encounter llm_judge_*
-        # metrics. Keyed by config_id so multiple LLM-judge configs each get
-        # their own row (one per judge model).
-        per_config_judge_run_id: Dict[str, str] = {}
-
-        # Cache (judge_model_id, run_index) -> jr_id within this dispatch so
-        # configs that share the same judge reuse the same EvaluationJudgeRun
-        # instead of colliding on uq_evaluation_judge_runs.
-        _dispatch_judge_run_cache: Dict[tuple, str] = {}
-
-        def _get_or_create_judge_run_for_config(cfg: Dict[str, Any]) -> str:
-            cid = cfg.get("id", "unknown")
-            if cid in per_config_judge_run_id:
-                return per_config_judge_run_id[cid]
+        def _get_or_create_judge_run_for_config(cfg: Dict[str, Any], idx: int) -> str:
+            if idx in _judge_run_by_idx:
+                return _judge_run_by_idx[idx]
             params = cfg.get("metric_parameters") or {}
             judge_model = params.get("judge_model")
             judges = params.get("judges")
             if isinstance(judges, list) and judges:
                 judge_model = judges[0].get("judge_model_id") or judge_model
-            cache_key = (judge_model, 0)
-            if cache_key in _dispatch_judge_run_cache:
-                jr_id = _dispatch_judge_run_cache[cache_key]
-                per_config_judge_run_id[cid] = jr_id
-                return jr_id
+
+            # run_index doubles as a per-config disambiguator: each config gets a
+            # distinct (evaluation_id, judge_model_id, run_index), hence a
+            # distinct judge_run_id — what keeps the per-row
+            # uq_task_evaluations_cell from colliding across configs. Look first
+            # for a judge_run a prior dispatch already created for THIS config
+            # (a resume reuses the same dispatch_eval_id), so we don't violate
+            # uq_evaluation_judge_runs by re-inserting the same triple.
             existing = db.query(EvaluationJudgeRun).filter(
                 EvaluationJudgeRun.evaluation_id == dispatch_eval_id,
                 EvaluationJudgeRun.judge_model_id == judge_model,
-                EvaluationJudgeRun.run_index == 0,
+                EvaluationJudgeRun.run_index == idx,
             ).first()
             if existing:
                 # See _create_judge_run: revive a judge_run a prior cancel left
@@ -3599,96 +3629,80 @@ def run_single_sample_evaluation(
                     existing.completed_at = None
                     existing.started_at = datetime.now()
                     db.commit()
-                _dispatch_judge_run_cache[cache_key] = existing.id
-                per_config_judge_run_id[cid] = existing.id
+                _judge_run_by_idx[idx] = existing.id
                 return existing.id
-            # Same tiered resolution as run_evaluation, applied to the
-            # immediate-eval / single-sample dispatch path so judge_runs
-            # created here also capture _param_provenance for academic-
-            # rigor traceability.
-            judge_model_obj = (
-                db.query(DBLLMModel).filter(DBLLMModel.id == judge_model).first()
-                if judge_model
-                else None
-            )
-            judge_recommended = (
-                getattr(judge_model_obj, "recommended_parameters", None) or None
-            )
-            judge_provenance: Dict[str, Dict[str, Any]] = {}
 
-            def _resolve_for_jr(key: str):
-                value, source, rec_at_trigger = _resolve_param(
-                    key=key,
-                    mode="evaluation",
-                    model_recommended=judge_recommended,
-                    project_cfg=None,
-                    per_model_cfg=params,
+            # LLM-judge configs capture the same _param_provenance snapshot as
+            # run_evaluation (academic-rigor traceability). Deterministic
+            # metrics have no judge model, so they skip that resolution and
+            # store judge_model_id=NULL.
+            snapshot = None
+            if judge_model:
+                judge_model_obj = (
+                    db.query(DBLLMModel).filter(DBLLMModel.id == judge_model).first()
                 )
-                judge_provenance[key] = {
-                    "value": value,
-                    "source": source,
-                    "recommended_at_trigger": rec_at_trigger,
-                }
-                return value
-
-            for _k in ("temperature", "max_tokens", "seed"):
-                _resolve_for_jr(_k)
-
-            snapshot = dict(params) if params else {}
-            snapshot["_param_provenance"] = judge_provenance
+                judge_recommended = (
+                    getattr(judge_model_obj, "recommended_parameters", None) or None
+                )
+                judge_provenance: Dict[str, Dict[str, Any]] = {}
+                for _k in ("temperature", "max_tokens", "seed"):
+                    value, source, rec_at_trigger = _resolve_param(
+                        key=_k,
+                        mode="evaluation",
+                        model_recommended=judge_recommended,
+                        project_cfg=None,
+                        per_model_cfg=params,
+                    )
+                    judge_provenance[_k] = {
+                        "value": value,
+                        "source": source,
+                        "recommended_at_trigger": rec_at_trigger,
+                    }
+                snapshot = dict(params)
+                snapshot["_param_provenance"] = judge_provenance
 
             jr = EvaluationJudgeRun(
                 id=str(uuid.uuid4()),
                 evaluation_id=dispatch_eval_id,
-                judge_model_id=judge_model,
-                run_index=0,
+                judge_model_id=judge_model,  # None for deterministic metrics
+                run_index=idx,
                 status="running",
                 started_at=datetime.now(),
                 metric_parameters_snapshot=snapshot,
             )
             db.add(jr)
             db.flush()
-            _dispatch_judge_run_cache[cache_key] = jr.id
-            per_config_judge_run_id[cid] = jr.id
+            _judge_run_by_idx[idx] = jr.id
             return jr.id
 
-        results = []
+        # ---- Resolve each config into a self-contained job (main session) ----
+        #
+        # Everything that needs THIS session (judge_run get-or-create, which
+        # races under parallelism) is done here, serially, before fan-out.
+        # Prediction/reference resolution needs no DB, so it happens here too.
+        # `prediction_fields` carries a literal field name, a
+        # `human:<field>` / `model:<field>` prefix, or the bulk selectors
+        # `__all_human__` / `__all_model__`. `annotation_results` is keyed by
+        # raw `from_name`, so we strip prefixes and expand `__all_human__`.
+        def _resolve_human_field(pf: str):
+            if pf == "__all_human__":
+                if not annotation_results:
+                    return None
+                return "\n\n".join(
+                    f"{k}: {v}" for k, v in annotation_results.items() if v
+                )
+            key = pf.split(":", 1)[1] if pf.startswith("human:") else pf
+            return annotation_results.get(key)
 
-        for eval_cfg in evaluation_configs:
+        jobs: List[Dict[str, Any]] = []
+        for idx, eval_cfg in enumerate(eligible_configs):
             metric_type = eval_cfg.get("metric", "")
             pred_fields = eval_cfg.get("prediction_fields", [])
             ref_fields = eval_cfg.get("reference_fields", [])
             metric_params = eval_cfg.get("metric_parameters", {})
 
-            # Korrektur (Classic / Standard Falllösung) is human-graded —
-            # the score is persisted directly by the API when a corrector
-            # submits, never computed by this worker. Skip it from the
-            # dispatch loop entirely so we don't try (and fail) to compare
-            # a non-existent prediction against a non-existent reference.
-            if metric_type.startswith("korrektur_"):
-                continue
-
-            # Extract prediction and reference values.
-            #
-            # `prediction_fields` carries either a literal field name, a
-            # `human:<field>` / `model:<field>` prefixed name (matching the
-            # EvaluationBuilder's specifiers), or the bulk selectors
-            # `__all_human__` / `__all_model__`. `annotation_results` is
-            # keyed by raw `from_name`, so we strip prefixes and expand the
-            # `__all_human__` selector before lookup.
             prediction_value = None
             reference_value = None
-
-            def _resolve_human_field(pf: str):
-                if pf == "__all_human__":
-                    if not annotation_results:
-                        return None
-                    return "\n\n".join(
-                        f"{k}: {v}" for k, v in annotation_results.items() if v
-                    )
-                key = pf.split(":", 1)[1] if pf.startswith("human:") else pf
-                return annotation_results.get(key)
-
             for pf in pred_fields:
                 if pf.startswith("model:") or pf == "__all_model__":
                     # Single-sample immediate eval has no model generations to
@@ -3712,172 +3726,58 @@ def run_single_sample_evaluation(
                 logger.warning(f"[SingleSampleEval] Skipping {metric_type} - no prediction value")
                 continue
 
-            field_name = pred_fields[0] if pred_fields else "field"
-            record_id = str(uuid.uuid4())
+            # Each config gets its OWN judge_run (distinct run_index) so the
+            # per-row uq_task_evaluations_cell stays unique even though every
+            # config grades the same annotation+field. Created here in the main
+            # session (committed before fan-out) so worker threads resolve the FK.
+            judge_run_id = _get_or_create_judge_run_for_config(eval_cfg, idx)
 
-            try:
-                if metric_type == "llm_judge_falloesung":
-                    # Phase 5: Delegate to extended-registered Falllösung
-                    # compute. Platform code never imports the function
-                    # directly — it asks the extended package to provide
-                    # one. Community edition (no benger_extended) raises
-                    # an informative error rather than crashing.
-                    try:
-                        from benger_extended.workers import (
-                            get_falloesung_compute_fn,
-                        )
-                    except ImportError as exc:
-                        raise RuntimeError(
-                            "Metric 'llm_judge_falloesung' requires the "
-                            "benger_extended package; it is not installed "
-                            "in this worker. Configure the project to use "
-                            "a different LLM-judge metric or load the "
-                            "extended edition."
-                        ) from exc
-                    falloesung_fn = get_falloesung_compute_fn()
-                    judge_run_id = _get_or_create_judge_run_for_config(eval_cfg)
-                    # Pass judge_run_id when the extended fn supports it;
-                    # older extended packages won't accept the kwarg, so we
-                    # introspect first and fall back gracefully.
-                    import inspect as _inspect
-                    fn_params = set(_inspect.signature(falloesung_fn).parameters.keys())
-                    extra = {"judge_run_id": judge_run_id} if "judge_run_id" in fn_params else {}
-                    result = falloesung_fn(
-                        db=db,
-                        record_id=record_id,
-                        immediate_eval_id=dispatch_eval_id,
+            jobs.append({
+                "metric_type": metric_type,
+                "metric_params": metric_params,
+                "field_name": pred_fields[0] if pred_fields else "field",
+                "prediction_value": prediction_value,
+                "reference_value": reference_value,
+                "judge_run_id": judge_run_id,
+                "evaluation_config_id": eval_cfg.get("id"),
+                "record_id": str(uuid.uuid4()),
+            })
+
+        # Commit the setup rows (EvaluationRun, default + per-config judge_runs)
+        # so the worker threads' own sessions can resolve them as FK targets.
+        db.commit()
+
+        # ---- Fan out: each job computes + persists in its OWN session on a
+        # worker thread. LLM judges are I/O-bound, so wall-clock ≈ slowest
+        # job, not the sum — which keeps a multi-method submit inside the
+        # frontend's poll budget. Heavy/semantic metrics are already gated
+        # out, so no transformer-model loads land on these threads. ----
+        results = []
+        if jobs:
+            from concurrent.futures import ThreadPoolExecutor
+
+            max_workers = min(len(jobs), 8)
+            with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                futures = [
+                    pool.submit(
+                        _run_immediate_config_job,
+                        job=job,
+                        dispatch_eval_id=dispatch_eval_id,
                         project_id=project_id,
                         task_id=task_id,
                         annotation_id=annotation_id,
+                        organization_id=organization_id,
                         user_id=user_id,
-                        field_name=field_name,
-                        prediction=str(prediction_value),
                         task_data=task_data,
-                        metric_params=metric_params,
-                        organization_id=organization_id,
-                        **extra,
                     )
-                    results.append(result)
-
-                elif metric_type.startswith("llm_judge_"):
-                    # Other LLM judge metrics — use LLMJudgeEvaluator. Pass
-                    # the per-config judge_run so this row's judge_run_id
-                    # points at the right (single) judge for the config.
-                    judge_run_id = _get_or_create_judge_run_for_config(eval_cfg)
-                    result = _evaluate_llm_judge_single(
-                        db=db,
-                        record_id=record_id,
-                        immediate_eval_id=dispatch_eval_id,
-                        judge_run_id=judge_run_id,
-                        project_id=project_id,
-                        task_id=task_id,
-                        annotation_id=annotation_id,
-                        user_id=user_id,
-                        field_name=field_name,
-                        metric_type=metric_type,
-                        prediction=str(prediction_value),
-                        reference=str(reference_value) if reference_value else "",
-                        metric_params=metric_params,
-                        organization_id=organization_id,
-                        # Issue #111 / migration 057: thread the config id
-                        # down so the persisted row carries it discretely.
-                        evaluation_config_id=eval_cfg.get("id"),
-                    )
-                    results.append(result)
-
-                else:
-                    # Deterministic metrics — use SampleEvaluator with real implementations
-                    from ml_evaluation.sample_evaluator import SampleEvaluator
-                    from ml_evaluation import extract_value
-
-                    field_configs = {field_name: {"type": "text"}}
-                    param_configs = {field_name: {metric_type: metric_params}} if metric_params else {}
-                    evaluator = SampleEvaluator(record_id, field_configs, param_configs)
-
-                    # Phase 2: rich result dict with provenance. The legacy
-                    # consumer (passed=score>=0.5 etc.) extracts the bare
-                    # value via the shared shim; the persisted record now
-                    # stores the full audit trail under metric_type.
-                    metric_result = evaluator._compute_metric_with_details(
-                        metric_name=metric_type,
-                        ground_truth=reference_value,
-                        prediction=prediction_value,
-                        answer_type="text",
-                        parameters=metric_params or None,
-                    )
-                    score_value = extract_value(metric_result) or 0.0
-
-                    eval_record = TaskEvaluation(
-                        id=record_id,
-                        evaluation_id=dispatch_eval_id,
-                        # Migration 042: deterministic metrics use the
-                        # default judge_run (judge_model_id=None) created
-                        # for this dispatch.
-                        judge_run_id=default_judge_run_id,
-                        task_id=task_id,
-                        annotation_id=annotation_id,
-                        generation_id=None,
-                        field_name=field_name,
-                        # Issue #111 / migration 057: store the config id
-                        # discretely so downstream readers don't have to
-                        # parse field_name. Immediate-eval writes a bare
-                        # field_name, so this column is the only place
-                        # the config id survives.
-                        evaluation_config_id=eval_cfg.get("id"),
-                        answer_type="text",
-                        ground_truth=str(reference_value) if reference_value else "",
-                        prediction=str(prediction_value) if prediction_value else "",
-                        metrics={
-                            metric_type: metric_result,  # Full {value, details, ...}
-                            "raw_score": float(score_value),
-                        },
-                        passed=float(score_value) >= 0.5,
-                    )
-                    db.add(eval_record)
-                    db.commit()
-
-                    results.append({
-                        "status": "completed",
-                        "record_id": record_id,
-                        "metric": metric_type,
-                        "score": float(score_value),
-                        "details": metric_result.get("details") if isinstance(metric_result, dict) else None,
-                    })
-
-            except Exception as e:
-                logger.error(f"[SingleSampleEval] {metric_type} failed: {e}")
-                # Phase 5: error persistence helper moved to extended.
-                # Falllösung-specific failures use the extended helper;
-                # everything else logs the error and proceeds (the
-                # generic LLM judge / deterministic-metric paths don't
-                # need a per-failure DB record — the worker-level error
-                # is enough). For Falllösung specifically, defer to the
-                # extended helper if present.
-                if metric_type == "llm_judge_falloesung":
+                    for job in jobs
+                ]
+                for fut in futures:
                     try:
-                        from benger_extended.workers.falloesung_tasks import (
-                            _persist_falloesung_eval_error,
-                        )
-                        _persist_falloesung_eval_error(
-                            db, record_id, project_id, task_id,
-                            annotation_id, user_id or "system", field_name,
-                            str(reference_value) if reference_value else "",
-                            str(prediction_value) if prediction_value else "",
-                            str(e),
-                            eval_run_id=dispatch_eval_id,
-                        )
-                    except ImportError:
-                        # Community edition — best effort, just log.
-                        logger.warning(
-                            "Falllösung error persistence skipped; "
-                            "benger_extended not installed"
-                        )
-                results.append({
-                    "status": "error",
-                    "record_id": record_id,
-                    "metric": metric_type,
-                    "error": str(e),
-                })
+                        results.append(fut.result())
+                    except Exception as e:  # defensive — the job fn catches its own
+                        logger.error(f"[SingleSampleEval] config job crashed: {e}")
+                        results.append({"status": "error", "error": str(e)})
 
         # Mark the dispatch run as completed and aggregate metrics
         eval_run = db.query(EvaluationRun).filter(EvaluationRun.id == dispatch_eval_id).first()
@@ -3885,7 +3785,9 @@ def run_single_sample_evaluation(
             eval_run.status = "completed"
 
             # Aggregate TaskEvaluation scores into EvaluationRun.metrics
-            # so the comparison table on /evaluations can display them
+            # so the comparison table on /evaluations can display them.
+            # Re-query in this session — the rows were written by the worker
+            # threads' sessions and committed.
             task_evals = db.query(TaskEvaluation).filter(
                 TaskEvaluation.evaluation_id == dispatch_eval_id
             ).all()
@@ -3897,13 +3799,32 @@ def run_single_sample_evaluation(
                 for te in task_evals:
                     field_name = te.field_name or "annotation"
                     for metric_name, score in (te.metrics or {}).items():
-                        if isinstance(score, (int, float)) and metric_name != "raw_score" and not any(metric_name.endswith(s) for s in skip_suffixes):
+                        if metric_name == "raw_score" or any(metric_name.endswith(s) for s in skip_suffixes):
+                            continue
+                        # Unified shape {value, method, details}: pull the
+                        # numeric `value`. Legacy bare floats pass straight
+                        # through. Anything else (None/str/dict-without-value)
+                        # is not aggregatable.
+                        if isinstance(score, dict):
+                            inner = score.get("value")
+                            if isinstance(inner, (int, float)):
+                                metric_scores[(field_name, metric_name)].append(inner)
+                        elif isinstance(score, (int, float)):
                             metric_scores[(field_name, metric_name)].append(score)
 
                 aggregated = {}
                 for (field_name, metric_name), scores in metric_scores.items():
-                    # Key format: config_id:pred_field:ref_field:metric_name
-                    key = f"{metric_name}:{field_name}:reference:{metric_name}"
+                    # `f"{field_name}|{metric_name}"` is the key shape the
+                    # /evaluations comparison table already parses for batch
+                    # runs, so it renders immediate runs with no extra parser.
+                    # Note this rollup is a lossy SUMMARY, not byte-parity with
+                    # batch: batch encodes the config id into field_name, so two
+                    # configs grading the same field with the same metric stay
+                    # distinct there, whereas here they average into one bucket.
+                    # The per-config breakdown is preserved in the TaskEvaluation
+                    # rows (and surfaced per-method by the modal); this map is
+                    # only the headline number for the comparison table.
+                    key = f"{field_name}|{metric_name}"
                     aggregated[key] = sum(scores) / len(scores)
 
                 eval_run.metrics = aggregated
@@ -3946,6 +3867,246 @@ def run_single_sample_evaluation(
 # benger-extended/benger_extended/workers/falloesung_tasks.evaluate_falloesung_single
 # and dispatched via the metric registry hook. See the
 # llm_judge_falloesung branch in run_single_sample_evaluation above.
+
+
+def _run_immediate_config_job(
+    *,
+    job: Dict[str, Any],
+    dispatch_eval_id: str,
+    project_id: str,
+    task_id: str,
+    annotation_id: Optional[str],
+    organization_id: Optional[str],
+    user_id: Optional[str],
+    task_data: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Compute + persist a single immediate-eval config in its OWN DB session.
+
+    Run on a worker thread by ``run_single_sample_evaluation`` so multiple
+    (I/O-bound) LLM-judge configs evaluate concurrently — wall-clock ≈ the
+    slowest config, not the sum. Each thread owns its session (SQLAlchemy
+    sessions are not thread-safe); the shared ``EvaluationRun`` +
+    ``EvaluationJudgeRun`` rows were committed by the caller before fan-out,
+    so the FKs resolve. ALWAYS returns a result dict (never raises) so one
+    failing config can't poison its siblings or leave the run stuck.
+    """
+    import inspect as _inspect
+
+    from models import TaskEvaluation
+
+    metric_type = job["metric_type"]
+    metric_params = job["metric_params"]
+    field_name = job["field_name"]
+    prediction_value = job["prediction_value"]
+    reference_value = job["reference_value"]
+    judge_run_id = job["judge_run_id"]
+    evaluation_config_id = job.get("evaluation_config_id")
+    record_id = job["record_id"]
+
+    db = SessionLocal()
+    try:
+        if metric_type == "llm_judge_falloesung":
+            # Phase 5: delegate to the extended-registered Falllösung compute.
+            # Community edition (no benger_extended) raises an informative
+            # error rather than crashing.
+            try:
+                from benger_extended.workers import get_falloesung_compute_fn
+            except ImportError as exc:
+                raise RuntimeError(
+                    "Metric 'llm_judge_falloesung' requires the benger_extended "
+                    "package; it is not installed in this worker. Configure the "
+                    "project to use a different LLM-judge metric or load the "
+                    "extended edition."
+                ) from exc
+            falloesung_fn = get_falloesung_compute_fn()
+            # Older extended packages may not accept judge_run_id /
+            # evaluation_config_id; introspect and pass only what's supported.
+            fn_params = set(_inspect.signature(falloesung_fn).parameters.keys())
+            extra: Dict[str, Any] = {}
+            if "judge_run_id" in fn_params:
+                extra["judge_run_id"] = judge_run_id
+            if "evaluation_config_id" in fn_params:
+                extra["evaluation_config_id"] = evaluation_config_id
+            return falloesung_fn(
+                db=db,
+                record_id=record_id,
+                immediate_eval_id=dispatch_eval_id,
+                project_id=project_id,
+                task_id=task_id,
+                annotation_id=annotation_id,
+                user_id=user_id,
+                field_name=field_name,
+                prediction=str(prediction_value),
+                task_data=task_data,
+                metric_params=metric_params,
+                organization_id=organization_id,
+                **extra,
+            )
+
+        elif metric_type.startswith("llm_judge_"):
+            # Other LLM judge metrics — LLMJudgeEvaluator persists its own row.
+            return _evaluate_llm_judge_single(
+                db=db,
+                record_id=record_id,
+                immediate_eval_id=dispatch_eval_id,
+                judge_run_id=judge_run_id,
+                project_id=project_id,
+                task_id=task_id,
+                annotation_id=annotation_id,
+                user_id=user_id,
+                field_name=field_name,
+                metric_type=metric_type,
+                prediction=str(prediction_value),
+                reference=str(reference_value) if reference_value else "",
+                metric_params=metric_params,
+                organization_id=organization_id,
+                evaluation_config_id=evaluation_config_id,
+            )
+
+        else:
+            # Deterministic metrics — SampleEvaluator with real implementations.
+            from ml_evaluation.sample_evaluator import SampleEvaluator
+            from ml_evaluation import extract_value
+
+            field_configs = {field_name: {"type": "text"}}
+            param_configs = (
+                {field_name: {metric_type: metric_params}} if metric_params else {}
+            )
+            evaluator = SampleEvaluator(record_id, field_configs, param_configs)
+            metric_result = evaluator._compute_metric_with_details(
+                metric_name=metric_type,
+                ground_truth=reference_value,
+                prediction=prediction_value,
+                answer_type="text",
+                parameters=metric_params or None,
+            )
+            score_value = extract_value(metric_result) or 0.0
+
+            eval_record = TaskEvaluation(
+                id=record_id,
+                evaluation_id=dispatch_eval_id,
+                # This config's own judge_run (judge_model_id=None for
+                # deterministic metrics) — distinct per config so the
+                # per-row uq_task_evaluations_cell doesn't collide.
+                judge_run_id=judge_run_id,
+                task_id=task_id,
+                annotation_id=annotation_id,
+                generation_id=None,
+                field_name=field_name,
+                # Issue #111 / migration 057: discrete carrier of the config id.
+                evaluation_config_id=evaluation_config_id,
+                answer_type="text",
+                ground_truth=str(reference_value) if reference_value else "",
+                prediction=str(prediction_value) if prediction_value else "",
+                metrics={
+                    metric_type: metric_result,  # Full {value, method, details}
+                    "raw_score": float(score_value),
+                },
+                passed=float(score_value) >= 0.5,
+            )
+            db.add(eval_record)
+            db.commit()
+            return {
+                "status": "completed",
+                "record_id": record_id,
+                "metric": metric_type,
+                "score": float(score_value),
+                "details": metric_result.get("details")
+                if isinstance(metric_result, dict)
+                else None,
+            }
+
+    except Exception as e:
+        logger.error(f"[SingleSampleEval] {metric_type} failed: {e}")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        # Persist an error TaskEvaluation row for EVERY metric type so the
+        # method shows as failed in the modal and the run still reaches a
+        # terminal state (every expected config ends with a row). judge_run_id
+        # is REQUIRED — the column is NOT NULL (migration 043), so omitting it
+        # used to raise an IntegrityError that escaped and left the whole run
+        # stuck "running". Falllösung routes through the extended helper (it
+        # owns the canonical row shape); everything else writes a minimal row.
+        if metric_type == "llm_judge_falloesung":
+            try:
+                from benger_extended.workers.falloesung_tasks import (
+                    _persist_falloesung_eval_error,
+                )
+                err_params = set(
+                    _inspect.signature(_persist_falloesung_eval_error).parameters.keys()
+                )
+                err_kwargs: Dict[str, Any] = {
+                    "eval_run_id": dispatch_eval_id,
+                    "judge_run_id": judge_run_id,
+                }
+                if "evaluation_config_id" in err_params:
+                    err_kwargs["evaluation_config_id"] = evaluation_config_id
+                _persist_falloesung_eval_error(
+                    db, record_id, project_id, task_id,
+                    annotation_id, user_id or "system", field_name,
+                    str(reference_value) if reference_value else "",
+                    str(prediction_value) if prediction_value else "",
+                    str(e),
+                    **err_kwargs,
+                )
+            except ImportError:
+                logger.warning(
+                    "Falllösung error persistence skipped; benger_extended not installed"
+                )
+            except Exception as persist_err:
+                logger.error(
+                    "[SingleSampleEval] failed to persist falloesung error row: %s",
+                    persist_err,
+                )
+        else:
+            try:
+                from models import TaskEvaluation
+                db.add(
+                    TaskEvaluation(
+                        id=record_id,
+                        evaluation_id=dispatch_eval_id,
+                        judge_run_id=judge_run_id,
+                        evaluation_config_id=evaluation_config_id,
+                        task_id=task_id,
+                        annotation_id=annotation_id,
+                        generation_id=None,
+                        field_name=field_name,
+                        answer_type="text",
+                        ground_truth=str(reference_value) if reference_value else "",
+                        prediction=str(prediction_value) if prediction_value else "",
+                        metrics={
+                            metric_type: {
+                                "value": None,
+                                "method": metric_type,
+                                "details": {},
+                                "error": str(e),
+                            }
+                        },
+                        error_message=str(e),
+                        passed=False,
+                    )
+                )
+                db.commit()
+            except Exception as persist_err:
+                logger.error(
+                    "[SingleSampleEval] failed to persist error row for %s: %s",
+                    metric_type,
+                    persist_err,
+                )
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+        return {
+            "status": "error",
+            "record_id": record_id,
+            "metric": metric_type,
+            "error": str(e),
+        }
+    finally:
+        db.close()
 
 
 def _evaluate_llm_judge_single(
@@ -4420,8 +4581,16 @@ def _record_cell_failure_reason(db, evaluation_id: str, reason: str) -> None:
     """Increment `eval_metadata.failures_by_reason[reason]` so the UI
     can surface *why* cells silently failed (rate-limit, judge timeout,
     poison cell, etc.) instead of just `samples_failed=N` with no
-    breakdown. Uses `jsonb_set(... , create_missing=true)` so the
-    nested object is created on first failure of any kind.
+    breakdown.
+
+    Two nested `jsonb_set` calls are required, NOT one: Postgres'
+    `create_missing=true` only creates the *leaf* key — it cannot create a
+    missing intermediate parent. A single `jsonb_set(.., {failures_by_reason,
+    <reason>}, .., true)` against an eval_metadata that has no
+    `failures_by_reason` key is a SILENT NO-OP (it returns the input
+    unchanged), so the FIRST failure of any kind was never recorded. The
+    inner `jsonb_set` seeds the parent object (`failures_by_reason` ←
+    COALESCE(existing, '{}')) so the outer one can then set the leaf.
 
     Skips entirely when the parent is already terminal, mirroring the
     `_bump_evaluation_counters` guard."""
@@ -4433,7 +4602,14 @@ def _record_cell_failure_reason(db, evaluation_id: str, reason: str) -> None:
             UPDATE evaluation_runs
                SET eval_metadata = (
                  jsonb_set(
-                   COALESCE(eval_metadata::jsonb, '{}'::jsonb),
+                   -- Ensure the failures_by_reason parent object exists first;
+                   -- jsonb_set can't auto-create a missing intermediate path.
+                   jsonb_set(
+                     COALESCE(eval_metadata::jsonb, '{}'::jsonb),
+                     ARRAY['failures_by_reason'],
+                     COALESCE(eval_metadata::jsonb->'failures_by_reason', '{}'::jsonb),
+                     true
+                   ),
                    ARRAY['failures_by_reason', :reason],
                    to_jsonb(
                      COALESCE(

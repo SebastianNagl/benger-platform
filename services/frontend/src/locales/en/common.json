@@ -420,6 +420,8 @@
           "subtitle": "Select metrics to evaluate model outputs",
           "immediateEvaluation": "Immediate Evaluation",
           "immediateEvaluationHint": "Automatically evaluate annotations immediately after submission",
+          "batchOnly": "Batch only",
+          "batchOnlyHint": "This method loads a large model and runs in batch evaluation only, not in immediate feedback.",
           "falloesungConfig": "Standard Fallloesung Configuration",
           "points": "Pts",
           "maxTokens": "Max Tokens",
@@ -581,7 +583,12 @@
     "columns": {
       "label": "Columns",
       "showHideReorder": "Show/Hide & Reorder Columns",
-      "resetToDefault": "Reset to Default"
+      "resetToDefault": "Reset to Default",
+      "type": {
+        "system": "system",
+        "data": "data",
+        "metadata": "metadata"
+      }
     },
     "labelConfig": {
       "title": "Label Configuration",
@@ -2467,6 +2474,17 @@
       "viewResults": "View Results",
       "cellGenerationQueued": "Generation queued",
       "cellGenerationFailed": "Failed to queue generation"
+    },
+    "comparison": {
+      "modal": {
+        "title": "All Generations",
+        "taskId": "Task {taskId}",
+        "description": "Every model's generations for this task.",
+        "viewAll": "View all generations",
+        "noGenerations": "No generations for this task yet.",
+        "noResult": "No result available.",
+        "loadError": "Failed to load generations."
+      }
     },
     "resultModal": {
       "title": "Generation Result",
@@ -6648,7 +6666,11 @@
         "improvementTips": "Improvement Areas"
       },
       "allMethods": "All",
-      "skipEvaluation": "Skip Evaluation"
+      "skipEvaluation": "Skip Evaluation",
+      "methods": "Methods",
+      "methodPending": "Evaluating…",
+      "methodSkipped": "Skipped – no evaluable value was present for this field.",
+      "progress": "Evaluation in progress ({done}/{total})…"
     }
   },
   "annotationTab": {
@@ -6659,11 +6681,16 @@
       "annotations": "Annotations",
       "generations": "Generations",
       "annotators": "Annotators",
-      "agreement": "Agreement",
+      "graders": "Graders",
       "reviewers": "Reviewers",
       "created": "Created",
       "view": "View",
       "edit": "Edit"
+    },
+    "orderBy": {
+      "sortBy": "Sort by",
+      "ascending": "Ascending",
+      "descending": "Descending"
     },
     "buttons": {
       "search": "Search",
