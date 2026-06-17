@@ -342,7 +342,9 @@ class TestGetMandatoryProfileFields:
         assert "job" not in missing
         assert "years_of_experience" not in missing
 
-    def test_law_student_requires_zwischenpruefung_and_vorgeruecktenubung(self, make_user):
+    def test_law_student_does_not_require_zwischenpruefung_or_vorgeruecktenubung(self, make_user):
+        """Zwischenpruefung / Vorgeruecktenubung are optional — many students
+        have not sat those exams yet."""
         from auth_module.user_service import get_mandatory_profile_fields
 
         user = make_user(
@@ -351,8 +353,8 @@ class TestGetMandatoryProfileFields:
             grade_vorgeruecktenubung=None,
         )
         missing = get_mandatory_profile_fields(user)
-        assert "grade_zwischenpruefung" in missing
-        assert "grade_vorgeruecktenubung" in missing
+        assert "grade_zwischenpruefung" not in missing
+        assert "grade_vorgeruecktenubung" not in missing
 
     def test_law_student_does_not_require_staatsexamen(self, make_user):
         from auth_module.user_service import get_mandatory_profile_fields
@@ -494,7 +496,9 @@ class TestGetMandatoryProfileFields:
         assert "job" in missing
         assert "years_of_experience" in missing
 
-    def test_staatsexamen_still_requires_grades(self, make_user):
+    def test_staatsexamen_degree_does_not_require_early_grades(self, make_user):
+        """Even on the Staatsexamen track, Zwischenpruefung / Vorgeruecktenubung
+        are optional (not just LLB/LLM are exempt)."""
         from auth_module.user_service import get_mandatory_profile_fields
 
         user = make_user(
@@ -504,8 +508,8 @@ class TestGetMandatoryProfileFields:
             grade_vorgeruecktenubung=None,
         )
         missing = get_mandatory_profile_fields(user)
-        assert "grade_zwischenpruefung" in missing
-        assert "grade_vorgeruecktenubung" in missing
+        assert "grade_zwischenpruefung" not in missing
+        assert "grade_vorgeruecktenubung" not in missing
 
 
 # === Tests for check_confirmation_due ===
@@ -719,7 +723,9 @@ class TestCheckMandatoryFieldsPresent:
         )
         assert result is False
 
-    def test_law_student_missing_grades_returns_false(self):
+    def test_law_student_complete_without_grades_returns_true(self):
+        """A law student with all base fields is complete even without the
+        (now optional) Zwischenpruefung / Vorgeruecktenubung grades."""
         from auth_module.user_service import _check_mandatory_fields_present
 
         result = _check_mandatory_fields_present(
@@ -736,7 +742,7 @@ class TestCheckMandatoryFieldsPresent:
             grade_zwischenpruefung=None,
             grade_vorgeruecktenubung=None,
         )
-        assert result is False
+        assert result is True
 
     def test_graduated_missing_job_returns_false(self):
         from auth_module.user_service import _check_mandatory_fields_present

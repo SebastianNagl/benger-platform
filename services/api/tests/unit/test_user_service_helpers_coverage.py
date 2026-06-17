@@ -145,8 +145,8 @@ class TestGetMandatoryProfileFields:
             ki_experience_scores={},
         )
         missing = get_mandatory_profile_fields(user)
-        assert "grade_zwischenpruefung" in missing
-        assert "grade_vorgeruecktenubung" in missing
+        assert "grade_zwischenpruefung" not in missing
+        assert "grade_vorgeruecktenubung" not in missing
         assert "grade_first_staatsexamen" not in missing
 
     def test_referendar_needs_first_staatsexamen(self):
@@ -159,8 +159,8 @@ class TestGetMandatoryProfileFields:
             ki_experience_scores={},
         )
         missing = get_mandatory_profile_fields(user)
-        assert "grade_zwischenpruefung" in missing
-        assert "grade_vorgeruecktenubung" in missing
+        assert "grade_zwischenpruefung" not in missing
+        assert "grade_vorgeruecktenubung" not in missing
         assert "grade_first_staatsexamen" in missing
 
     def test_graduated_needs_second_staatsexamen_and_job(self):
@@ -187,7 +187,7 @@ class TestGetMandatoryProfileFields:
             ki_experience_scores={},
         )
         missing = get_mandatory_profile_fields(user)
-        assert "grade_zwischenpruefung" in missing
+        assert "grade_zwischenpruefung" not in missing
         assert "grade_first_staatsexamen" in missing
         assert "grade_second_staatsexamen" in missing
         assert "job" in missing
@@ -245,7 +245,7 @@ class TestGetMandatoryProfileFields:
             ki_experience_scores={},
         )
         missing = get_mandatory_profile_fields(user)
-        assert "grade_zwischenpruefung" in missing
+        assert "grade_zwischenpruefung" not in missing
         assert "grade_first_staatsexamen" in missing
         assert "grade_second_staatsexamen" in missing
         assert "job" in missing
@@ -275,7 +275,7 @@ class TestGetMandatoryProfileFields:
             ki_experience_scores={},
         )
         missing = get_mandatory_profile_fields(user)
-        assert "grade_zwischenpruefung" in missing
+        assert "grade_zwischenpruefung" not in missing
 
     def test_string_degree_type(self):
         from auth_module.user_service import get_mandatory_profile_fields
@@ -424,7 +424,9 @@ class TestCheckMandatoryFieldsPresent:
         )
         assert result is True
 
-    def test_law_student_missing_grade(self):
+    def test_law_student_complete_without_zwischenpruefung(self):
+        """Zwischenpruefung / Vorgeruecktenubung are optional — a law student
+        with all base fields is complete without them."""
         from auth_module.user_service import _check_mandatory_fields_present
         result = _check_mandatory_fields_present(
             legal_expertise_level="law_student",
@@ -434,7 +436,7 @@ class TestCheckMandatoryFieldsPresent:
             ki_experience_scores={},
             grade_zwischenpruefung=None, grade_vorgeruecktenubung=9.0,
         )
-        assert result is False
+        assert result is True
 
     def test_referendar_complete(self):
         from auth_module.user_service import _check_mandatory_fields_present
