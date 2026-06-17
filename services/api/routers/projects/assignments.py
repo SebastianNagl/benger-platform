@@ -13,7 +13,14 @@ from auth_module.models import User as AuthUser
 from database import get_db
 from models import NotificationType, OrganizationMembership, User
 from notification_service import NotificationService
-from project_models import Project, ProjectMember, ProjectOrganization, Task, TaskAssignment
+from project_models import (
+    Annotation,
+    Project,
+    ProjectMember,
+    ProjectOrganization,
+    Task,
+    TaskAssignment,
+)
 from routers.projects.helpers import check_project_accessible, get_org_context_from_request, get_user_with_memberships
 
 router = APIRouter()
@@ -535,12 +542,33 @@ async def get_my_tasks(
     if not check_project_accessible(db, current_user, project_id, org_context):
         raise HTTPException(status_code=403, detail="Access denied")
 
+    from sqlalchemy import exists as sa_exists, or_ as sa_or
+
+    # A task belongs in "Meine Aufgaben" if the user is assigned to it OR has
+    # annotated it themselves. The second arm is what surfaces open-mode work:
+    # open-mode annotation never writes a TaskAssignment, so the only user->task
+    # link is the annotation's `completed_by`. LEFT-join the assignment (scoped
+    # to this user, task-level only) so annotation-only rows survive but still
+    # carry assignment ordering/metadata when present.
+    annotation_exists = sa_exists().where(
+        (Annotation.task_id == Task.id)
+        & (Annotation.completed_by == current_user.id)
+        & (Annotation.was_cancelled == False)  # noqa: E712 — SQLAlchemy
+    )
     query = (
         db.query(Task)
-        .join(TaskAssignment)
-        .filter(Task.project_id == project_id, TaskAssignment.user_id == current_user.id)
+        .outerjoin(
+            TaskAssignment,
+            (TaskAssignment.task_id == Task.id)
+            & (TaskAssignment.user_id == current_user.id)
+            & (TaskAssignment.target_type == "task"),
+        )
+        .filter(Task.project_id == project_id)
+        .filter(sa_or(TaskAssignment.id.isnot(None), annotation_exists))
     )
 
+    # The status filter is on the assignment; selecting one naturally drops
+    # annotation-only (un-assigned) tasks, which have no assignment status.
     if status:
         query = query.filter(TaskAssignment.status == status)
 
@@ -555,9 +583,15 @@ async def get_my_tasks(
             )
         )
 
-    # Order by priority and due date
+    # Assigned tasks rank first by priority/due-date; annotation-only tasks
+    # (null assignment) fall after, ordered by inner_id for stable paging.
+    # No DISTINCT needed: the assignment join is scoped to target_type='task',
+    # whose partial unique (task_id, user_id) index yields at most one row per
+    # task, and annotation membership is an EXISTS subquery that never fans out.
     query = query.order_by(
-        TaskAssignment.priority.desc(), TaskAssignment.due_date.asc().nullsfirst()
+        TaskAssignment.priority.desc().nullslast(),
+        TaskAssignment.due_date.asc().nullsfirst(),
+        Task.inner_id.asc(),
     )
 
     # Pagination
@@ -569,6 +603,12 @@ async def get_my_tasks(
     # has no human-feedback workflow.
     task_ids = [t.id for t in tasks]
     feedback_task_ids = extensions.tasks_with_feedback_for_user(
+        db, project_id, current_user.id, task_ids
+    )
+    # Bulk-resolve which tasks have any evaluation (immediate-eval, LLM-judge,
+    # deterministic, …) on this user's annotations — drives a separate badge and
+    # lets the row open the submission+scores modal. Empty set without extended.
+    evaluation_task_ids = extensions.tasks_with_evaluation_for_user(
         db, project_id, current_user.id, task_ids
     )
 
@@ -596,6 +636,7 @@ async def get_my_tasks(
             "inner_id": task.inner_id,
             "is_labeled": task.is_labeled,
             "has_feedback": task.id in feedback_task_ids,
+            "has_evaluation": task.id in evaluation_task_ids,
             "assignment": (
                 {
                     "id": assignment.id,
