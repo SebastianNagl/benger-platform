@@ -21,12 +21,13 @@
  *  - generateEvaluationId                             (prefix + uniqueness)
  *  - static-table integrity (METRIC_ORDER / GROUPED_METRICS / scale tokens)
  *
- * NOTE on the scale contract: the *arithmetic* of rendering a value under a
- * scale (×100 for '0-1', "X / 18 NP" for '0-18', etc.) lives in the
- * leaderboard component, not here. This module owns the resolution step —
- * which scale token a metric maps to — which is the input that drives that
- * formatter. So the scale invariants below pin the *token* a metric resolves
- * to (the thing a wrong-constant mutant would corrupt), not a formatter.
+ * NOTE on the scale contract: this module owns BOTH the resolution step
+ * (`getMetricScale` — which scale token a metric maps to) and the rendering
+ * arithmetic (`formatValueForScale` — ×100 for '0-1', "X / 18 NP" for '0-18',
+ * etc.). The scale invariants below pin the *token* a metric resolves to (the
+ * thing a wrong-constant mutant would corrupt); the exact branch/precision
+ * arithmetic of `formatValueForScale` is pinned in the sibling test file
+ * `evaluation-types.format-value.test.ts`.
  */
 
 import fc from 'fast-check'

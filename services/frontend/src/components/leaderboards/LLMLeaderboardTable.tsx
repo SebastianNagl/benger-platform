@@ -17,10 +17,10 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useProjects } from '@/hooks/useProjects'
 import {
   AvailableMetric,
+  formatValueForScale,
   getMetricDefinitions,
   getMetricScale,
   getMetricSummable,
-  type MetricDisplayScale,
 } from '@/lib/api/evaluation-types'
 import type { LLMLeaderboardEntry } from '@/lib/api/leaderboards'
 import { Menu } from '@headlessui/react'
@@ -248,27 +248,13 @@ export function LLMLeaderboardTable() {
   }
 
   // Scale-aware formatter. The metric registry is the single source of
-  // truth: a metric declared `display_scale: '0-1'` displays as a percent
-  // (×100), `'0-100'` displays as-is, `'0-18'` as Notenpunkte, `'raw'`
-  // unitless. Unknown keys default to `'0-1'` for backwards compatibility
-  // with the historical formatter behaviour. This unifies what used to be
-  // a hand-maintained `NATIVELY_PERCENT_METRICS` allowlist plus a
-  // `endsWith('grade_points')` special case.
-  const formatValueForScale = (value: number, scale: MetricDisplayScale, sum: boolean): string => {
-    if (scale === '0-18') {
-      return sum ? `${value.toFixed(1)} NP` : `${value.toFixed(1)} / 18 NP`
-    }
-    if (sum) {
-      // Sums of percentage-shaped metrics aren't dimensionally meaningful
-      // (sum of 100 bleu scores at 0.05 = 5, "5%" reads as 5/100 not 5
-      // bleu-units). Render as a raw number with no unit suffix and let
-      // the user infer.
-      return value.toFixed(2)
-    }
-    if (scale === '0-100') return `${value.toFixed(1)}%`
-    if (scale === '0-1') return `${(value * 100).toFixed(1)}%`
-    return value.toFixed(2) // raw
-  }
+  // truth for the display scale; the rendering arithmetic lives in
+  // `formatValueForScale` (co-located with `getMetricScale` in
+  // evaluation-types.ts) so it can be unit/mutation-tested in isolation.
+  // Unknown keys default to `'0-1'` for backwards compatibility (resolved
+  // by `getMetricScale`). This unifies what used to be a hand-maintained
+  // `NATIVELY_PERCENT_METRICS` allowlist plus a `endsWith('grade_points')`
+  // special case.
 
   const formatScore = (score: number | null) => {
     if (score === null || score === undefined) return 'n/a'
