@@ -96,15 +96,21 @@ jobs:
           GIT_COMMITTER_NAME: "Dependabot Batch"
           GIT_COMMITTER_EMAIL: "dependabot-batch@github.local"
         run: |
+          # Batch ALL open dependabot PRs. We deliberately do NOT filter on
+          # reviewDecision: `main` has no required-review branch protection, so
+          # GitHub returns reviewDecision=null for every PR and the old
+          # `== "APPROVED"` filter matched nothing (the batch silently produced
+          # zero PRs for weeks). The batch PR re-runs the full gate before any
+          # manual merge, so per-PR approval here is redundant.
           PRS=$(gh pr list \
             --repo "$REPO" \
             --author "app/dependabot" \
             --state open \
-            --json number,title,headRefName,reviewDecision \
-            --jq '[.[] | select(.reviewDecision == "APPROVED")]')
+            --json number,title,headRefName \
+            --jq '[.[]]')
 
           COUNT=$(echo "$PRS" | jq length)
-          echo "Found $COUNT approved Dependabot PRs"
+          echo "Found $COUNT open Dependabot PRs"
 
           if [ "$COUNT" -eq 0 ]; then
             echo "No eligible PRs to batch"
