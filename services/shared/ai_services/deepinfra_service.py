@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 import aiohttp
 
-from .base_service import BaseAIService, derive_truncated
+from .base_service import BaseAIService, derive_refusal, derive_truncated
 from .provider_capabilities import calculate_cost, model_supports_seed
 from .response_validator import ResponseValidator
 
@@ -300,7 +300,9 @@ class DeepInfraService(BaseAIService):
                     "provider": "DeepInfra",
                     "finish_reason": finish_reason,
                     "truncated": derive_truncated(finish_reason),
-                    "refusal": False,
+                    # DeepInfra is OpenAI-compatible: a content-policy block surfaces
+                    # as the "content_filter" finish_reason (mapped by derive_refusal).
+                    "refusal": derive_refusal(finish_reason),
                     "error_type": None,
                     # Per-model gated; None when the model doesn't accept seed.
                     "seed": requested_seed if supports_seed_here else None,

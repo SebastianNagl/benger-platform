@@ -17,7 +17,7 @@ from typing import Any, Dict, Optional
 
 import aiohttp
 
-from .base_service import BaseAIService, derive_truncated
+from .base_service import BaseAIService, derive_refusal, derive_truncated
 from .provider_capabilities import model_supports_seed
 from .response_validator import ResponseValidator
 
@@ -280,7 +280,9 @@ class GrokService(BaseAIService):
                     "response_time_ms": response_time_ms,
                     "finish_reason": finish_reason,
                     "truncated": derive_truncated(finish_reason),
-                    "refusal": False,
+                    # Grok is OpenAI-compatible: a content-policy block surfaces
+                    # as the "content_filter" finish_reason (mapped by derive_refusal).
+                    "refusal": derive_refusal(finish_reason),
                     "error_type": None,
                     "seed": requested_seed if supports_seed_here else None,
                     "created_at": end_time.isoformat(),
@@ -467,7 +469,7 @@ Your response must be ONLY the JSON object, no other text before or after.
                 "structured_output": True,
                 "finish_reason": finish_reason,
                 "truncated": derive_truncated(finish_reason),
-                "refusal": False,
+                "refusal": derive_refusal(finish_reason),
                 "error_type": None,
                 "seed": requested_seed if supports_seed_here else None,
                 "created_at": end_time.isoformat(),
