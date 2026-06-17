@@ -410,7 +410,6 @@ Your response must be ONLY the JSON object, no other text before or after.
                 validation_result = validator.validate_response(
                     result["content"],
                     json_schema,
-                    attempt_repair=True
                 )
 
                 if validation_result.valid and validation_result.data != None:
@@ -431,10 +430,6 @@ Your response must be ONLY the JSON object, no other text before or after.
                     result["metadata"]["schema_validated"] = False
                     result["metadata"]["validation_errors"] = validation_result.errors
                     logger.warning(f"DeepInfra response not valid JSON: {validation_result.errors}")
-
-                if validation_result.repair_attempted:
-                    result["metadata"]["repair_attempted"] = True
-                    result["metadata"]["repair_successful"] = validation_result.repair_successful
 
             return result
 

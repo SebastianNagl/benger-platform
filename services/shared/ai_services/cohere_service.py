@@ -427,7 +427,6 @@ Your response must be ONLY the JSON object, no other text before or after.
             validation_result = validator.validate_response(
                 raw_content,
                 json_schema,
-                attempt_repair=True
             )
 
             finish_reason = (
@@ -464,10 +463,6 @@ Your response must be ONLY the JSON object, no other text before or after.
                 result_metadata["schema_validated"] = False
                 result_metadata["validation_errors"] = validation_result.errors
                 logger.warning(f"Cohere response not valid JSON: {validation_result.errors}")
-
-            if validation_result.repair_attempted:
-                result_metadata["repair_attempted"] = True
-                result_metadata["repair_successful"] = validation_result.repair_successful
 
             return self._create_response_dict(
                 content=content,
