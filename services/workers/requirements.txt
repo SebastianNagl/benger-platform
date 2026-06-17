@@ -21,7 +21,7 @@ de-core-news-md @ https://github.com/explosion/spacy-models/releases/download/de
 rouge-score>=0.1.2
 sacrebleu>=2.4.0
 jsonschema==4.26.0
-ijson>=3.2.0  # Streaming JSON parser for memory-bounded import worker (issue #158)
+ijson>=3.5.0  # Streaming JSON parser for memory-bounded import worker (issue #158)
 # boto3/botocore: the export/import worker streams artifacts to S3-compatible
 # object storage (multipart upload / download); without them the relocated
 # storage singleton falls back to local filesystem (issue #158).
