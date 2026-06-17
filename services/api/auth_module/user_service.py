@@ -661,7 +661,7 @@ def _complete_demo_user_profile(db: Session, user):
     # Set all defaults where the field is None. We can't rely on only setting
     # fields from `missing` because get_mandatory_profile_fields() returns early
     # when legal_expertise_level is None, omitting expertise-dependent fields
-    # like grade_zwischenpruefung that become required once the level is set.
+    # like grade_first_staatsexamen that become required once the level is set.
     defaults = {
         "gender": "maennlich",
         "age": 30,
@@ -1145,9 +1145,11 @@ def get_mandatory_profile_fields(user) -> list:
     and degree_program_type:
     - All users: gender, age, german_proficiency, subjective_competence_*,
       ati_s_scores, ptt_a_scores, ki_experience_scores, legal_expertise_level
-    - law_student+: grade_zwischenpruefung, grade_vorgeruecktenubung
     - referendar+: grade_first_staatsexamen
     - graduated_no_practice+: grade_second_staatsexamen, job, years_of_experience
+
+    grade_zwischenpruefung / grade_vorgeruecktenubung are NOT required — many
+    students have not sat those exams yet — but stay as optional inputs.
 
     LLB/LLM degree programs are exempt from all grade requirements as they
     do not follow the traditional German Staatsexamen grading structure.
@@ -1192,13 +1194,10 @@ def get_mandatory_profile_fields(user) -> list:
     degree_type = user.degree_program_type.value if hasattr(user.degree_program_type, 'value') else str(user.degree_program_type) if user.degree_program_type else None
     is_incomparable_grading = degree_type in ("llb", "llm")
 
-    # Levels that require Zwischenpruefung and Vorgeruecktenubung grades
-    student_and_above = {"law_student", "referendar", "graduated_no_practice", "practicing_lawyer", "judge_professor"}
-    if expertise in student_and_above and not is_incomparable_grading:
-        if user.grade_zwischenpruefung == None:  # noqa: E711
-            missing.append("grade_zwischenpruefung")
-        if user.grade_vorgeruecktenubung == None:  # noqa: E711
-            missing.append("grade_vorgeruecktenubung")
+    # NOTE: Zwischenpruefung and Vorgeruecktenubung grades are intentionally
+    # NOT mandatory — many students (e.g. Göttingen cohort) have not yet sat
+    # those exams when they join. They remain optional inputs in the profile /
+    # signup forms for those who do have them.
 
     # Levels that require 1. Staatsexamen
     referendar_and_above = {"referendar", "graduated_no_practice", "practicing_lawyer", "judge_professor"}
@@ -1308,12 +1307,8 @@ def _check_mandatory_fields_present(**kwargs) -> bool:
     degree_type = kwargs.get("degree_program_type")
     is_incomparable_grading = degree_type in ("llb", "llm")
 
-    student_and_above = {"law_student", "referendar", "graduated_no_practice", "practicing_lawyer", "judge_professor"}
-    if expertise in student_and_above and not is_incomparable_grading:
-        if kwargs.get("grade_zwischenpruefung") is None:
-            return False
-        if kwargs.get("grade_vorgeruecktenubung") is None:
-            return False
+    # Zwischenpruefung / Vorgeruecktenubung grades are optional (see
+    # get_mandatory_profile_fields) — not gated here.
 
     referendar_and_above = {"referendar", "graduated_no_practice", "practicing_lawyer", "judge_professor"}
     if expertise in referendar_and_above and not is_incomparable_grading:
