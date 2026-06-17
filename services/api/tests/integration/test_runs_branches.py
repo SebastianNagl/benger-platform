@@ -192,7 +192,9 @@ class TestListRunsGeneration:
         test_db.commit()
 
         resp = client.get(
-            f"{BASE}?type=generation",
+            # Scope to this test's project — the shared CI DB carries baseline
+            # and other-test generations, so an unscoped `total` is not 2.
+            f"{BASE}?type=generation&project_id={project.id}",
             headers=_ctx(auth_headers, "admin", test_org),
         )
         assert resp.status_code == 200
@@ -215,7 +217,7 @@ class TestListRunsGeneration:
         test_db.commit()
 
         resp = client.get(
-            f"{BASE}?type=generation&status=completed",
+            f"{BASE}?type=generation&status=completed&project_id={project.id}",
             headers=_ctx(auth_headers, "admin", test_org),
         )
         assert resp.status_code == 200
@@ -253,7 +255,7 @@ class TestListRunsGeneration:
         test_db.commit()
 
         resp = client.get(
-            f"{BASE}?type=generation&page=5&page_size=10",
+            f"{BASE}?type=generation&page=5&page_size=10&project_id={project.id}",
             headers=_ctx(auth_headers, "admin", test_org),
         )
         assert resp.status_code == 200
@@ -293,7 +295,7 @@ class TestListRunsEvaluation:
         test_db.commit()
 
         resp = client.get(
-            f"{BASE}?type=evaluation",
+            f"{BASE}?type=evaluation&project_id={project.id}",
             headers=_ctx(auth_headers, "admin", test_org),
         )
         assert resp.status_code == 200
@@ -365,7 +367,9 @@ class TestListRunsAccessibilityFilter:
         test_db.commit()
 
         resp = client.get(
-            f"{BASE}?type=generation",
+            # Scope to the hidden project so `total` is exactly its 1 run,
+            # robust to baseline/other-test rows on the shared CI DB.
+            f"{BASE}?type=generation&project_id={hidden.id}",
             headers=_ctx(auth_headers, "contributor", test_org),
         )
         assert resp.status_code == 200

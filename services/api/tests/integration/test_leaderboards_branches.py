@@ -452,16 +452,20 @@ class TestLLMLeaderboardSingleProject:
         _setup_project(test_db, test_users[0], test_org)
         test_db.commit()
 
+        # Search for a model name that cannot match anything — this still
+        # forces the live-aggregation path (search set) but keeps the result
+        # empty on the shared CI DB, which carries baseline/other-test
+        # task_evaluations that a real term like "gpt" would surface.
         with patch(ALLOWLIST_ATTR, ()):
             resp = client.get(
-                f"{BASE}/llm-models?search=gpt&min_generation_count=0"
+                f"{BASE}/llm-models?search=zzz-no-such-model&min_generation_count=0"
                 "&min_samples_evaluated=0",
                 headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
             )
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        assert body["filters"]["search"] == "gpt"
-        # Live path with no eval data → no rows, computed_at stays null.
+        assert body["filters"]["search"] == "zzz-no-such-model"
+        # Live path, no matching eval data → no rows, computed_at stays null.
         assert body["leaderboard"] == []
         assert body["computed_at"] is None
 
