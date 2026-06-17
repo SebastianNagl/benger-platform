@@ -59,3 +59,17 @@ class TestExtensionLoader:
 
         assert isinstance(CORE_API_VERSION, str)
         assert CORE_API_VERSION == "2.1"
+
+    def test_tasks_with_feedback_for_user_empty_without_package(self):
+        """Community edition: no human-feedback workflow -> empty set."""
+        from extensions import tasks_with_feedback_for_user
+
+        assert tasks_with_feedback_for_user(None, "p", "u", ["t1"]) == set()
+        assert tasks_with_feedback_for_user(None, "p", "u", []) == set()
+
+    def test_tasks_with_evaluation_for_user_empty_without_package(self):
+        """Community edition: no evaluation-on-own-annotation badge -> empty set."""
+        from extensions import tasks_with_evaluation_for_user
+
+        assert tasks_with_evaluation_for_user(None, "p", "u", ["t1"]) == set()
+        assert tasks_with_evaluation_for_user(None, "p", "u", []) == set()

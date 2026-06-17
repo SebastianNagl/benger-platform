@@ -180,3 +180,26 @@ def tasks_with_feedback_for_user(db, project_id, user_id, task_ids):
             result = hook(db, project_id, user_id, list(task_ids))
             return set(result or ())
     return set()
+
+
+def tasks_with_evaluation_for_user(db, project_id, user_id, task_ids):
+    """Return the subset of task_ids on which the user has any evaluation.
+
+    "Evaluation" = at least one TaskEvaluation row on one of the user's
+    annotations — immediate-eval, LLM-judge, or deterministic metric. Broader
+    than `tasks_with_feedback_for_user` (which is human-Korrektur only). Used by
+    `/my-tasks` to render an "evaluation available" badge and let the row open
+    the submission+scores modal.
+
+    Returns an empty set when extended is not loaded — community edition has no
+    evaluation-on-own-annotation workflow surfaced in Meine Aufgaben.
+    """
+    if not task_ids:
+        return set()
+    if _extended and hasattr(_extended, "get_hooks"):
+        hooks = _extended.get_hooks()
+        hook = hooks.get("tasks_with_evaluation_for_user")
+        if hook:
+            result = hook(db, project_id, user_id, list(task_ids))
+            return set(result or ())
+    return set()

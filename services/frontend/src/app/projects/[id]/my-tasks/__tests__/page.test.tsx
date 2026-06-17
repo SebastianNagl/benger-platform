@@ -253,6 +253,8 @@ const translations: Record<string, string> = {
   'tasks.myTasks.taskPrefix': 'Task',
   'tasks.myTasks.labeled': 'Labeled',
   'tasks.myTasks.due': 'Due',
+  'tasks.myTasks.feedbackAvailable': 'Feedback',
+  'tasks.myTasks.evaluationAvailable': 'Evaluation',
 }
 
 describe('MyTasksPage', () => {
@@ -441,6 +443,38 @@ describe('MyTasksPage', () => {
       expect(screen.getByText('Task #1')).toBeInTheDocument()
       expect(screen.getByText('Task #2')).toBeInTheDocument()
       expect(screen.getByText('Task #3')).toBeInTheDocument()
+    })
+  })
+
+  it('shows the evaluation badge for an annotated open-mode task', async () => {
+    // An open-mode annotated task: no assignment, has_evaluation flagged.
+    ;(global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          tasks: [
+            {
+              id: 'open-1',
+              inner_id: 7,
+              data: { text: 'open task' },
+              is_labeled: true,
+              has_feedback: false,
+              has_evaluation: true,
+              assignment: null,
+            },
+          ],
+          total: 1,
+          page: 1,
+          page_size: 20,
+          pages: 1,
+        }),
+    })
+
+    render(<MyTasksPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Task #7')).toBeInTheDocument()
+      expect(screen.getByText('Evaluation')).toBeInTheDocument()
     })
   })
 

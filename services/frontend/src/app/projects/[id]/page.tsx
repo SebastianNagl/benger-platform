@@ -352,6 +352,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     min_annotations_per_task: 1,
     assignment_mode: 'open' as 'open' | 'manual' | 'auto',
     randomize_task_order: false,
+    annotator_full_visibility_after_submit: false,
     review_enabled: false,
     review_mode: 'in_place' as 'in_place' | 'independent' | 'both',
     allow_self_review: false,
@@ -664,6 +665,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         min_annotations_per_task: currentProject.min_annotations_per_task || 1,
         assignment_mode: currentProject.assignment_mode || 'open',
         randomize_task_order: currentProject.randomize_task_order || false,
+        annotator_full_visibility_after_submit:
+          (currentProject as any).annotator_full_visibility_after_submit || false,
         review_enabled: currentProject.review_enabled || false,
         review_mode: currentProject.review_mode || 'in_place',
         allow_self_review: currentProject.allow_self_review || false,
@@ -2200,6 +2203,29 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           setAdvancedSettings((prev: any) => ({
                             ...prev,
                             randomize_task_order: e.target.checked,
+                          }))
+                        }
+                        disabled={!editing}
+                        className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label>
+                          {t('project.settings.annotationBehavior.annotatorFullVisibility', 'Reveal all fields after submission')}
+                        </Label>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                          {t('project.settings.annotationBehavior.annotatorFullVisibilityHelp', 'When on, annotators reviewing their own submitted work see all task fields including the reference solution. When off, that view is filtered to only the fields they saw while labeling, keeping the reference hidden.')}
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={advancedSettings.annotator_full_visibility_after_submit}
+                        onChange={(e) =>
+                          setAdvancedSettings((prev: any) => ({
+                            ...prev,
+                            annotator_full_visibility_after_submit: e.target.checked,
                           }))
                         }
                         disabled={!editing}

@@ -74,6 +74,26 @@ class TestProjectUpdate:
         assert data["title"] == "Updated"
         assert data["show_skip_button"] == True  # noqa: E712
 
+    def test_annotator_full_visibility_flag(self):
+        """The post-submission visibility toggle round-trips through update +
+        defaults False on the response schema."""
+        from project_schemas import ProjectResponse, ProjectUpdate
+
+        update = ProjectUpdate(annotator_full_visibility_after_submit=True)
+        data = update.dict(exclude_unset=True)
+        assert data["annotator_full_visibility_after_submit"] is True
+        # Unset -> not emitted, so a partial PATCH never clobbers it.
+        assert "annotator_full_visibility_after_submit" not in ProjectUpdate().dict(
+            exclude_unset=True
+        )
+        # Response model carries the field with a safe default.
+        assert (
+            ProjectResponse.model_fields[
+                "annotator_full_visibility_after_submit"
+            ].default
+            is False
+        )
+
 
 class TestPaginatedResponse:
     def test_empty_response(self):

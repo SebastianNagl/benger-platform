@@ -10,6 +10,7 @@ import uuid
 import pytest
 
 from project_models import (
+    Annotation,
     Project,
     ProjectOrganization,
     Task,
@@ -279,3 +280,107 @@ class TestMyTasks:
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 404
+
+    def _open_project_with_task(self, db, admin, org, inner_id=1):
+        project = Project(
+            id=_uid(),
+            title=f"Open {uuid.uuid4().hex[:6]}",
+            created_by=admin.id,
+            label_config='<View><Text name="text" value="$text"/></View>',
+            assignment_mode="open",
+        )
+        db.add(project)
+        db.flush()
+        db.add(
+            ProjectOrganization(
+                id=_uid(),
+                project_id=project.id,
+                organization_id=org.id,
+                assigned_by=admin.id,
+            )
+        )
+        db.flush()
+        task = Task(
+            id=_uid(),
+            project_id=project.id,
+            data={"text": "open task"},
+            inner_id=inner_id,
+            created_by=admin.id,
+        )
+        db.add(task)
+        db.commit()
+        return project, task
+
+    def test_open_mode_annotated_task_appears(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """Open mode: a task the user annotated (no TaskAssignment) is listed,
+        with a null assignment. This is the core of surfacing open-mode work."""
+        admin = test_users[0]
+        project, task = self._open_project_with_task(test_db, admin, test_org)
+        test_db.add(
+            Annotation(
+                id=_uid(),
+                task_id=task.id,
+                project_id=project.id,
+                completed_by=admin.id,
+                result=[],
+                was_cancelled=False,
+            )
+        )
+        test_db.commit()
+
+        resp = client.get(
+            f"/api/projects/{project.id}/my-tasks",
+            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        row = next((t for t in data["tasks"] if t["id"] == task.id), None)
+        assert row is not None, "annotated open-mode task missing from my-tasks"
+        assert row["assignment"] is None
+        # Community edition has no extended hook -> badge flags are False.
+        assert row["has_evaluation"] is False
+        assert row["has_feedback"] is False
+
+    def test_open_mode_untouched_task_absent(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """A task that's neither assigned nor annotated by the user is NOT listed."""
+        admin = test_users[0]
+        project, task = self._open_project_with_task(test_db, admin, test_org)
+
+        resp = client.get(
+            f"/api/projects/{project.id}/my-tasks",
+            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+        )
+        assert resp.status_code == 200, resp.text
+        ids = [t["id"] for t in resp.json()["tasks"]]
+        assert task.id not in ids
+
+    def test_status_filter_excludes_annotation_only_tasks(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """A status filter targets the assignment; annotation-only (un-assigned)
+        tasks have no status and drop out when a status is selected."""
+        admin = test_users[0]
+        project, task = self._open_project_with_task(test_db, admin, test_org)
+        test_db.add(
+            Annotation(
+                id=_uid(),
+                task_id=task.id,
+                project_id=project.id,
+                completed_by=admin.id,
+                result=[],
+                was_cancelled=False,
+            )
+        )
+        test_db.commit()
+
+        resp = client.get(
+            f"/api/projects/{project.id}/my-tasks?status=assigned",
+            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+        )
+        assert resp.status_code == 200, resp.text
+        ids = [t["id"] for t in resp.json()["tasks"]]
+        assert task.id not in ids
