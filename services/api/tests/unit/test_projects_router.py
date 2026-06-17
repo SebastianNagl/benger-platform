@@ -151,6 +151,7 @@ class TestProjectsRouter:
         project.korrektur_enabled = False
         project.korrektur_config = None
         project.immediate_evaluation_enabled = False
+        project.annotator_full_visibility_after_submit = False
         # Post-annotation questionnaire
         project.questionnaire_enabled = False
         project.questionnaire_config = None
@@ -631,6 +632,7 @@ class TestProjectsRouter:
             created_project.korrektur_enabled = False
             created_project.korrektur_config = None
             created_project.immediate_evaluation_enabled = False
+            created_project.annotator_full_visibility_after_submit = False
             # Post-annotation questionnaire
             created_project.questionnaire_enabled = False
             created_project.questionnaire_config = None
