@@ -212,15 +212,13 @@ export function EvaluationResults({
   // using `cfg.metric` for GROUPED_METRICS lookup (configs of the same
   // metric group together).
   const availableMetricRuns = useMemo(() => {
-    if (!results?.evaluations) return []
-
     // Include in-flight runs (`pending`, `running`) alongside `completed`
     // so the user can navigate to a metric the moment its run is
     // dispatched and watch rows fill in live, instead of waiting for the
     // whole run to finish before the dropdown surfaces it. Cells render
     // from `task_evaluations` rows directly — every committed row is
     // visible immediately, regardless of run status.
-    const visible = results.evaluations
+    const visible = (results?.evaluations ?? [])
       .filter((e) =>
         e.status === 'completed' ||
         e.status === 'running' ||
@@ -272,6 +270,34 @@ export function EvaluationResults({
           })
         }
       }
+    }
+
+    // Surface EVERY enabled project eval config as its own selectable table —
+    // including human-graded methods (korrektur_*) whose grades are NOT emitted
+    // as a normal EvaluationRun in `results.evaluations`, so they'd otherwise be
+    // absent from the dropdown and leak into an automated metric's view. These
+    // get empty `runIds`: the by-task-model fetch then sends only `?metric=`,
+    // and the endpoint scans all of the project's runs filtered by that metric
+    // key (results.py), so the human grades still populate the table.
+    for (const cfg of evaluationConfigs ?? []) {
+      if (cfg?.enabled === false) continue
+      const cfgId = cfg?.id || cfg?.metric
+      if (!cfgId || byConfig.has(cfgId)) continue
+      if (
+        selectedConfigIds &&
+        selectedConfigIds.length > 0 &&
+        !selectedConfigIds.includes(cfgId)
+      ) {
+        continue
+      }
+      byConfig.set(cfgId, {
+        id: cfgId,
+        metric: cfg?.metric || 'unknown',
+        configId: cfgId,
+        displayName: cfg?.display_name || cfg?.metric || 'Unknown',
+        samplesEvaluated: 0,
+        runIds: [],
+      })
     }
 
     // Sort by GROUPED_METRICS order (same as wizard) using cfg.metric
