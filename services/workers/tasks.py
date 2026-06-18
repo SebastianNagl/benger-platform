@@ -301,6 +301,67 @@ def _normalize_field_key(field_name: str | None, *, is_annotation: bool) -> str 
     return f"{cfg}|{pred}|{ref}"
 
 
+def _pred_field_matches(row_field_name: str | None, config_pred_field: str) -> bool:
+    """Does a stored *bare* ``TaskEvaluation.field_name`` correspond to a
+    config's ``prediction_fields`` entry, for missing-only key reconstruction?
+
+    Immediate eval persists the BARE prediction field as ``field_name`` (e.g.
+    ``"human:loesung"`` or ``"loesung"`` — see the immediate-eval block in
+    ``run_single_sample_evaluation``), whereas the missing-only matcher keys on
+    the 3-part ``{config_id}|{pred}|{ref}`` form. 3-part rows are already handled
+    by :func:`_normalize_field_key`; this helper only bridges the bare form so a
+    row whose ``evaluation_config_id`` is known can be mapped back to the exact
+    expected key. The ``human:``/``model:`` role prefix is tolerated on either
+    side so a bare ``"loesung"`` row matches a ``"human:loesung"`` config field.
+    """
+    if not row_field_name:
+        return False
+    # 3-part rows are the _normalize_field_key path, not this one.
+    if "|" in row_field_name:
+        return False
+
+    def _strip_role(s: str) -> str:
+        if s in ("__all_human__", "__all_model__"):
+            return s
+        if s.startswith("human:") or s.startswith("model:"):
+            return s.split(":", 1)[1]
+        return s
+
+    if row_field_name == config_pred_field:
+        return True
+    return _strip_role(row_field_name) == _strip_role(config_pred_field)
+
+
+def _reconstruct_expected_keys(row, configs_by_id: dict) -> set:
+    """Expected-key strings an existing ``TaskEvaluation`` row satisfies, derived
+    from its discrete ``evaluation_config_id`` (Issue #111 / migration 057).
+
+    Immediate eval stores a bare ``field_name`` that the 3-part missing-only
+    matcher misses, but it also stores ``evaluation_config_id``; from that we
+    rebuild the exact ``{config_id}|{pred}|{ref}`` strings that
+    ``all_expected_field_keys`` is built from, so an immediate-graded unit counts
+    as "done" without changing what immediate writes. Returns an empty set when
+    the row carries no config id, or a config id not among the current run's
+    configs (a re-saved config gets a new id — those rows aren't recognized).
+
+    Wildcard prediction fields (``__all_human__``/``__all_model__``) are skipped:
+    the expected set holds the literal wildcard string while rows hold the
+    expanded field, so wildcard configs are a pre-existing missing-only
+    limitation this must not silently change.
+    """
+    keys: set = set()
+    cfg = configs_by_id.get(getattr(row, "evaluation_config_id", None))
+    if not cfg:
+        return keys
+    for pf in cfg.get("prediction_fields", []):
+        if pf in ("__all_human__", "__all_model__"):
+            continue
+        if _pred_field_matches(row.field_name, pf):
+            for rf in cfg.get("reference_fields", []):
+                keys.add(f"{cfg.get('id', 'unknown')}|{pf}|{rf}")
+    return keys
+
+
 # Add current directory to Python path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
@@ -3065,6 +3126,13 @@ def run_evaluation(
                 for rf in c.get("reference_fields", [])
             }
 
+            # Index configs by id so missing-only can reconstruct expected keys
+            # for rows that carry the discrete `evaluation_config_id` (Issue #111)
+            # but a bare `field_name` — i.e. immediate-eval rows, which the 3-part
+            # `_normalize_field_key` matcher alone never recognizes. See
+            # `_reconstruct_expected_keys`.
+            configs_by_id = {c.get("id", "unknown"): c for c in enabled_configs}
+
             # Pre-load the gen-side missing-only skip set (same query as
             # legacy 2755-2794 — terminal-error rows count as "tried" to
             # avoid hopeless retries).
@@ -3076,6 +3144,7 @@ def run_evaluation(
                         TaskEvaluation.generation_id,
                         TaskEvaluation.field_name,
                         TaskEvaluation.metrics,
+                        TaskEvaluation.evaluation_config_id,
                     )
                     .join(EvaluationRun, TaskEvaluation.evaluation_id == EvaluationRun.id)
                     .filter(
@@ -3087,9 +3156,11 @@ def run_evaluation(
                 )
                 for r in existing:
                     if _row_has_score(r.metrics) or _row_is_terminal_error(r.metrics):
-                        evaluated_by_gen.setdefault(r.generation_id, set()).add(
-                            _normalize_field_key(r.field_name, is_annotation=False)
-                        )
+                        done = evaluated_by_gen.setdefault(r.generation_id, set())
+                        done.add(_normalize_field_key(r.field_name, is_annotation=False))
+                        # Also recognize bare-field_name rows (immediate eval) via
+                        # their discrete evaluation_config_id.
+                        done |= _reconstruct_expected_keys(r, configs_by_id)
                 logger.info(
                     f"Loaded existing gen evaluations: {sum(len(v) for v in evaluated_by_gen.values())} "
                     f"results across {len(evaluated_by_gen)} generations"
@@ -3174,6 +3245,7 @@ def run_evaluation(
                             TaskEvaluation.annotation_id,
                             TaskEvaluation.field_name,
                             TaskEvaluation.metrics,
+                            TaskEvaluation.evaluation_config_id,
                         )
                         .join(EvaluationRun, TaskEvaluation.evaluation_id == EvaluationRun.id)
                         .filter(
@@ -3185,9 +3257,11 @@ def run_evaluation(
                     )
                     for r in existing_ann:
                         if _row_has_score(r.metrics) or _row_is_terminal_error(r.metrics):
-                            evaluated_by_ann.setdefault(r.annotation_id, set()).add(
-                                _normalize_field_key(r.field_name, is_annotation=True)
-                            )
+                            done = evaluated_by_ann.setdefault(r.annotation_id, set())
+                            done.add(_normalize_field_key(r.field_name, is_annotation=True))
+                            # Also recognize bare-field_name rows (immediate eval)
+                            # via their discrete evaluation_config_id.
+                            done |= _reconstruct_expected_keys(r, configs_by_id)
 
                 for ann in all_annotations:
                     ann_done = evaluated_by_ann.get(ann.id, set())

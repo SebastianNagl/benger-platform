@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 
 import aiohttp
 
-from .base_service import BaseAIService, derive_truncated
+from .base_service import BaseAIService, derive_refusal, derive_truncated
 from .provider_capabilities import calculate_cost, model_supports_seed
 from .response_validator import ResponseValidator
 
@@ -300,7 +300,9 @@ class DeepInfraService(BaseAIService):
                     "provider": "DeepInfra",
                     "finish_reason": finish_reason,
                     "truncated": derive_truncated(finish_reason),
-                    "refusal": False,
+                    # DeepInfra is OpenAI-compatible: a content-policy block surfaces
+                    # as the "content_filter" finish_reason (mapped by derive_refusal).
+                    "refusal": derive_refusal(finish_reason),
                     "error_type": None,
                     # Per-model gated; None when the model doesn't accept seed.
                     "seed": requested_seed if supports_seed_here else None,
@@ -408,7 +410,6 @@ Your response must be ONLY the JSON object, no other text before or after.
                 validation_result = validator.validate_response(
                     result["content"],
                     json_schema,
-                    attempt_repair=True
                 )
 
                 if validation_result.valid and validation_result.data != None:
@@ -429,10 +430,6 @@ Your response must be ONLY the JSON object, no other text before or after.
                     result["metadata"]["schema_validated"] = False
                     result["metadata"]["validation_errors"] = validation_result.errors
                     logger.warning(f"DeepInfra response not valid JSON: {validation_result.errors}")
-
-                if validation_result.repair_attempted:
-                    result["metadata"]["repair_attempted"] = True
-                    result["metadata"]["repair_successful"] = validation_result.repair_successful
 
             return result
 

@@ -15,7 +15,7 @@ from datetime import datetime
 from functools import wraps
 from typing import Any, Dict, Optional
 
-from .base_service import BaseAIService, derive_truncated
+from .base_service import BaseAIService, derive_refusal, derive_truncated
 from .provider_capabilities import model_supports_seed
 from .response_validator import ResponseValidator
 
@@ -279,8 +279,10 @@ class CohereService(BaseAIService):
                     "response_time_ms": response_time_ms,
                     "finish_reason": finish_reason,
                     "truncated": derive_truncated(finish_reason) or finish_reason == "MAX_TOKENS",
-                    # Cohere has no equivalent of message.refusal today.
-                    "refusal": False,
+                    # Cohere surfaces a content-policy block via the ERROR_TOXIC
+                    # finish_reason (mapped by derive_refusal); it has no
+                    # message.refusal field like OpenAI/Anthropic.
+                    "refusal": derive_refusal(finish_reason),
                     "error_type": None,
                     "seed": requested_seed if supports_seed_here else None,
                     "created_at": end_time.isoformat(),
@@ -425,7 +427,6 @@ Your response must be ONLY the JSON object, no other text before or after.
             validation_result = validator.validate_response(
                 raw_content,
                 json_schema,
-                attempt_repair=True
             )
 
             finish_reason = (
@@ -439,7 +440,7 @@ Your response must be ONLY the JSON object, no other text before or after.
                 "structured_output": True,
                 "finish_reason": finish_reason,
                 "truncated": derive_truncated(finish_reason) or finish_reason == "MAX_TOKENS",
-                "refusal": False,
+                "refusal": derive_refusal(finish_reason),
                 "error_type": None,
                 "seed": requested_seed if supports_seed_here else None,
                 "created_at": end_time.isoformat(),
@@ -462,10 +463,6 @@ Your response must be ONLY the JSON object, no other text before or after.
                 result_metadata["schema_validated"] = False
                 result_metadata["validation_errors"] = validation_result.errors
                 logger.warning(f"Cohere response not valid JSON: {validation_result.errors}")
-
-            if validation_result.repair_attempted:
-                result_metadata["repair_attempted"] = True
-                result_metadata["repair_successful"] = validation_result.repair_successful
 
             return self._create_response_dict(
                 content=content,

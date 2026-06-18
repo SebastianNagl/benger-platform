@@ -553,7 +553,6 @@ class GoogleService(BaseAIService):
             validation_result = validator.validate_response(
                 response_text,
                 json_schema,
-                attempt_repair=True
             )
 
             result_metadata = {
@@ -591,10 +590,6 @@ class GoogleService(BaseAIService):
                 result_metadata["validation_errors"] = validation_result.errors
                 logger.warning(
                     f"Google response not valid JSON: {validation_result.errors}")
-
-            if validation_result.repair_attempted:
-                result_metadata["repair_attempted"] = True
-                result_metadata["repair_successful"] = validation_result.repair_successful
 
             return self._create_response_dict(
                 content=content,

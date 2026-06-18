@@ -630,6 +630,111 @@ def test_run_evaluation_missing_only_nothing_to_dispatch_completes(
     )
 
 
+def _add_immediate_row(db_conn, *, run, task, ann, field_name, config_id):
+    """Persist an immediate-eval-style TaskEvaluation: a BARE ``field_name``
+    (what ``run_single_sample_evaluation`` writes), a discrete
+    ``evaluation_config_id`` (Issue #111), and a unified nested-dict metric
+    blob that ``_row_has_score`` counts as scored."""
+    import uuid as _uuid
+
+    jr_id = _make_default_judge_run(db_conn, run)
+    db_conn.add(TaskEvaluation(
+        id=str(_uuid.uuid4()),
+        evaluation_id=run.id,
+        judge_run_id=jr_id,
+        task_id=task.id,
+        annotation_id=ann.id,
+        generation_id=None,
+        field_name=field_name,
+        evaluation_config_id=config_id,
+        answer_type="text",
+        ground_truth="ja",
+        prediction="ja",
+        metrics={"exact_match": {"value": 1.0, "method": "exact_match",
+                                 "details": {}, "error": None}},
+        passed=True,
+    ))
+    db_conn.commit()
+
+
+def test_missing_only_recognizes_immediate_row_via_config_id(
+    db_conn, make_user, make_project, make_task, make_annotation,
+    make_evaluation_run,
+):
+    """A bare-field_name immediate-eval row must count as DONE in a subsequent
+    batch missing-only run — recognized via its discrete ``evaluation_config_id``
+    — so the orchestrator short-circuits (``cells_dispatched == 0``) and writes
+    no new rows. Reproduces the prod bug where immediate-graded annotations were
+    re-graded by a missing-only batch run."""
+    user = make_user()
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
+    ann = make_annotation(
+        project.id, task.id, completed_by=user.id,
+        result=[_ann_result("answer", "ja")],
+    )
+    imm = make_evaluation_run(project.id, user.id, model_id="immediate",
+                              status="completed")
+    _add_immediate_row(db_conn, run=imm, task=task, ann=ann,
+                       field_name="human:answer", config_id="cfg1")
+
+    batch = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    config = _human_exact_match_config()  # id=cfg1, pred human:answer, ref task.expected
+    result = tasks.run_evaluation(
+        evaluation_id=batch.id, project_id=project.id,
+        evaluation_configs=[config], evaluate_missing_only=True,
+    )
+    db_conn.expire_all()
+
+    assert result["status"] == "success"
+    assert result["cells_dispatched"] == 0
+    fresh = _refresh(db_conn, batch)
+    assert fresh.status == "completed"
+    assert (fresh.eval_metadata or {}).get("note") == \
+        "no cells to dispatch (missing-only short-circuit)"
+    # No new rows written under the batch run — the immediate grade stood in.
+    assert (
+        db_conn.query(TaskEvaluation)
+        .filter(TaskEvaluation.evaluation_id == batch.id)
+        .count()
+        == 0
+    )
+
+
+def test_missing_only_does_not_overskip_other_field_immediate_row(
+    db_conn, make_user, make_project, make_task, make_annotation,
+    make_evaluation_run,
+):
+    """Over-skip guard: an immediate row graded on a DIFFERENT field
+    (``human:other``) must NOT satisfy a config expecting ``human:answer``. The
+    annotation is still dispatched (``cells_dispatched == 1``)."""
+    user = make_user()
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
+    ann = make_annotation(
+        project.id, task.id, completed_by=user.id,
+        result=[_ann_result("answer", "ja")],
+    )
+    imm = make_evaluation_run(project.id, user.id, model_id="immediate",
+                              status="completed")
+    _add_immediate_row(db_conn, run=imm, task=task, ann=ann,
+                       field_name="human:other", config_id="cfg1")
+
+    batch = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    config = _human_exact_match_config()  # expects human:answer, not human:other
+    result = tasks.run_evaluation(
+        evaluation_id=batch.id, project_id=project.id,
+        evaluation_configs=[config], evaluate_missing_only=True,
+    )
+    db_conn.expire_all()
+    assert result["status"] == "dispatched"
+    assert result["cells_dispatched"] == 1
+
+
 def test_run_evaluation_evaluation_not_found(db_conn):
     """A nonexistent evaluation id returns the not-found error arm without
     raising (the very first guard in run_evaluation)."""

@@ -34,7 +34,6 @@ from .provider_capabilities import (
 from .response_validator import (
     ResponseValidator,
     ValidationResult,
-    RepairResult,
     validate_structured_response,
 )
 
@@ -67,6 +66,5 @@ __all__ = [
     # Response validation
     "ResponseValidator",
     "ValidationResult",
-    "RepairResult",
     "validate_structured_response",
 ]

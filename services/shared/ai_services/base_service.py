@@ -27,6 +27,30 @@ def derive_truncated(finish_reason: Optional[str]) -> bool:
     return finish_reason in TRUNCATED_FINISH_REASONS
 
 
+# Content-policy / safety refusal finish_reasons. Conservative: only the
+# documented content-filter signals, so a normal/length/stop response is never
+# mislabelled a refusal. OpenAI + Anthropic expose a dedicated ``refusal`` field
+# (handled in those services); Google uses a ``SAFETY`` finish_reason (handled in
+# google_service). The OpenAI-compatible providers (Grok, DeepInfra) and Cohere
+# only surface it via finish_reason, so derive_refusal maps those.
+REFUSAL_FINISH_REASONS = frozenset({
+    "content_filter",   # OpenAI-compatible (Grok / DeepInfra) content-policy block
+    "ERROR_TOXIC",      # Cohere content-policy block
+})
+
+
+def derive_refusal(finish_reason: Optional[str]) -> bool:
+    """True if the model DECLINED for content-policy/safety reasons.
+
+    A refusal is distinct from a normal stop or a length truncation: no real
+    answer was produced because a safety filter fired. For an academic benchmark
+    this matters — a refusal silently scored as a real answer biases the result.
+    """
+    if not finish_reason:
+        return False
+    return finish_reason in REFUSAL_FINISH_REASONS
+
+
 def classify_error_type(exc: BaseException) -> str:
     """Classify a provider-call exception into the error_type enum.
 

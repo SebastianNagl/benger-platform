@@ -1111,6 +1111,44 @@ export function getMetricScale(key: string): MetricDisplayScale {
 }
 
 /**
+ * Render a raw metric score to the string shown on the leaderboard, honouring
+ * the metric's display scale. This is the display-arithmetic counterpart to
+ * `getMetricScale` (which resolves the scale token); they're co-located so the
+ * resolution step and the rendering step stay in lockstep.
+ *
+ * A bug here is a wrong displayed benchmark number on the PUBLIC leaderboard
+ * (e.g. `0.85` rendered as "8.5%" instead of "85.0%"), so the branch/precision
+ * contract is pinned exactly by unit tests.
+ *
+ * Branch contract (order matters — `'0-18'` is checked BEFORE the generic
+ * `sum` short-circuit):
+ *  - `'0-18'` (Notenpunkte): `"X.x NP"` when `sum`, else `"X.x / 18 NP"` —
+ *    one decimal.
+ *  - `sum` (any other scale): sums of percentage-shaped metrics aren't
+ *    dimensionally meaningful (sum of 100 bleu scores at 0.05 = 5, "5%" reads
+ *    as 5/100 not 5 bleu-units), so render the raw value with `toFixed(2)` and
+ *    NO unit suffix and let the user infer.
+ *  - `'0-100'`: already a percent, `"X.x%"` as-is, one decimal (NO ×100).
+ *  - `'0-1'`: raw fraction, `"X.x%"` after ×100, one decimal.
+ *  - `'raw'` / unknown: unitless `toFixed(2)`.
+ */
+export function formatValueForScale(
+  value: number,
+  scale: MetricDisplayScale,
+  sum: boolean
+): string {
+  if (scale === '0-18') {
+    return sum ? `${value.toFixed(1)} NP` : `${value.toFixed(1)} / 18 NP`
+  }
+  if (sum) {
+    return value.toFixed(2)
+  }
+  if (scale === '0-100') return `${value.toFixed(1)}%`
+  if (scale === '0-1') return `${(value * 100).toFixed(1)}%`
+  return value.toFixed(2) // raw
+}
+
+/**
  * Whether `sum(values)` is meaningful for this metric. Defaults to false —
  * the conservative choice for unknown keys, mirroring `getMetricScale`.
  * Used by the leaderboard's Sum-aggregation toggle to disable itself when
