@@ -285,12 +285,111 @@ describe('composite key parsing for *_by_model_metric blocks', () => {
   })
 })
 
+// Human-eval methods (korrektur_*) are graded by a person, not by a normal
+// EvaluationRun, so their grades never appear in `results.evaluations`. The
+// dropdown must still list them — sourced from the project's enabled
+// `evaluation_configs` — with empty `runIds` so the by-task-model fetch sends
+// only `?metric=` and the backend scans all project runs by metric key.
+type Cfg = { id?: string; metric?: string; display_name?: string; enabled?: boolean }
+
+// Mirror of the config-merge step appended to `availableMetricRuns` in
+// EvaluationResults.tsx. Kept in sync via the drift guard below.
+function mergeEnabledConfigs(
+  entries: ConfigEntry[],
+  configs: Cfg[],
+  selectedConfigIds: string[] = [],
+): ConfigEntry[] {
+  const byConfig = new Map(entries.map((e) => [e.id, e]))
+  for (const cfg of configs ?? []) {
+    if (cfg?.enabled === false) continue
+    const cfgId = cfg?.id || cfg?.metric
+    if (!cfgId || byConfig.has(cfgId)) continue
+    if (selectedConfigIds.length > 0 && !selectedConfigIds.includes(cfgId)) continue
+    byConfig.set(cfgId, {
+      id: cfgId,
+      metric: cfg?.metric || 'unknown',
+      configId: cfgId,
+      displayName: cfg?.display_name || cfg?.metric || 'Unknown',
+      samplesEvaluated: 0,
+      runIds: [],
+    })
+  }
+  return Array.from(byConfig.values())
+}
+
+describe('availableMetricRuns surfaces enabled configs without a run (human eval)', () => {
+  it('lists a human-graded korrektur config that has no EvaluationRun', () => {
+    // The Probeklausur prod scenario: llm_judge has immediate runs, the human
+    // korrektur method is configured + enabled but its grades are not an
+    // EvaluationRun, so it is absent from `results.evaluations`.
+    const runs: EvalRun[] = [
+      {
+        evaluation_id: 'imm-1',
+        status: 'completed',
+        samples_evaluated: 14,
+        evaluation_configs: [
+          { metric: 'llm_judge_falloesung', id: 'cfg-judge', display_name: 'Falllösung LLM Judge' },
+        ],
+      },
+    ]
+    const configs: Cfg[] = [
+      { id: 'cfg-judge', metric: 'llm_judge_falloesung', display_name: 'Falllösung LLM Judge', enabled: true },
+      { id: 'cfg-korrektur', metric: 'korrektur_falloesung', display_name: 'Korrektur (Standard Falllösung)', enabled: true },
+    ]
+    const result = mergeEnabledConfigs(groupRunsByConfig(runs), configs)
+    const korrektur = result.find((r) => r.id === 'cfg-korrektur')
+    expect(korrektur).toBeTruthy()
+    expect(korrektur!.metric).toBe('korrektur_falloesung')
+    // Empty runIds → the fetch sends only `?metric=`, backend scans all runs.
+    expect(korrektur!.runIds).toEqual([])
+    // The run-backed automated entry keeps its run id.
+    expect(result.find((r) => r.id === 'cfg-judge')!.runIds).toEqual(['imm-1'])
+  })
+
+  it('does not overwrite a config that already has runs', () => {
+    const runs: EvalRun[] = [
+      {
+        evaluation_id: 'r1',
+        status: 'completed',
+        samples_evaluated: 10,
+        evaluation_configs: [{ metric: 'bleu', id: 'cfg-bleu' }],
+      },
+    ]
+    const configs: Cfg[] = [{ id: 'cfg-bleu', metric: 'bleu', enabled: true }]
+    const result = mergeEnabledConfigs(groupRunsByConfig(runs), configs)
+    expect(result).toHaveLength(1)
+    expect(result[0].runIds).toEqual(['r1']) // not reset to []
+  })
+
+  it('excludes disabled configs', () => {
+    const configs: Cfg[] = [
+      { id: 'cfg-on', metric: 'korrektur_falloesung', enabled: true },
+      { id: 'cfg-off', metric: 'korrektur_custom', enabled: false },
+    ]
+    const result = mergeEnabledConfigs([], configs)
+    expect(result.map((r) => r.id)).toEqual(['cfg-on'])
+  })
+
+  it('respects the page-level selectedConfigIds filter', () => {
+    const configs: Cfg[] = [
+      { id: 'cfg-a', metric: 'korrektur_falloesung', enabled: true },
+      { id: 'cfg-b', metric: 'llm_judge_falloesung', enabled: true },
+    ]
+    const result = mergeEnabledConfigs([], configs, ['cfg-b'])
+    expect(result.map((r) => r.id)).toEqual(['cfg-b'])
+  })
+})
+
 describe('drift guard: EvaluationResults.tsx still iterates all configs and groups by id', () => {
   it('source file walks evaluation_configs in a for-of, not [0]', () => {
     const tsxPath = join(__dirname, '..', 'EvaluationResults.tsx')
     const src = readFileSync(tsxPath, 'utf8')
     // Multi-config iteration must be present in the metric grouping.
     expect(src).toMatch(/for \(const cfg of cfgs\)/)
+    // The config-merge step (surfaces human-eval configs) must be present:
+    // a for-of over evaluationConfigs that skips disabled ones.
+    expect(src).toMatch(/for \(const cfg of evaluationConfigs \?\? \[\]\)/)
+    expect(src).toMatch(/cfg\?\.enabled === false/)
     // The pre-fix shortcut MUST NOT come back. We allow `evaluation_configs?.[0]`
     // elsewhere in the file (other components legitimately read the
     // first config), but the metric-grouping `useMemo` must use the
