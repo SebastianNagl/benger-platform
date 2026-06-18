@@ -142,37 +142,29 @@ describe('suggestFieldMappings — properties', () => {
     )
   })
 
-  it('order independence: shuffling the source list yields the same set of (source→target) mappings', () => {
-    // The matcher walks sources in array order; for a *distinct* target set the
-    // chosen mapping for any given source must not depend on the source's
-    // position (exact + synonym + fuzzy all pick a target deterministically by
-    // the source identity when targets are distinct and disjoint enough).
+  it('no target is ever double-assigned, regardless of source order', () => {
+    // `suggestFieldMappings` is a GREEDY matcher: it walks sources in array
+    // order and claims targets via a `usedTargets` set (fieldMapping.ts). For a
+    // *contested* target, reversing the source list can legitimately hand it to
+    // a different source — a different but equally-valid full mapping. So the
+    // pairing itself is intentionally order-DEPENDENT under contention; the
+    // order-INVARIANT property that always holds (and is the one that matters —
+    // never bind two columns to one template field) is that no target is
+    // assigned to more than one source, in either ordering.
+    //
+    // (A prior version asserted cross-order pairing equality whenever both
+    // orderings fully mapped; that is a false invariant — "both fully mapped"
+    // does not imply "uncontested" — and flaked under fast-check's random seed.
+    // Follow-up: make suggestFieldMappings order-independent if we want the
+    // stronger property.)
     fc.assert(
       fc.property(distinctFieldsArb, distinctFieldsArb, (src, tgt) => {
-        const norm = (r: ReturnType<typeof suggestFieldMappings>) =>
-          r.mappings
-            .map((m) => `${m.source}=>${m.target}@${m.confidence}`)
-            .sort()
-        const a = norm(suggestFieldMappings(src, tgt))
-        const reversed = [...src].reverse()
-        const b = norm(suggestFieldMappings(reversed, tgt))
-        // Reversing can change which source "wins" a contested target, so we
-        // only assert the weaker invariant that the *count* is stable and no
-        // target is double-assigned in either ordering.
-        const aTargets = suggestFieldMappings(src, tgt).mappings.map(
-          (m) => m.target,
-        )
-        const bTargets = suggestFieldMappings(reversed, tgt).mappings.map(
-          (m) => m.target,
-        )
+        const targetsOf = (sources: string[]) =>
+          suggestFieldMappings(sources, tgt).mappings.map((m) => m.target)
+        const aTargets = targetsOf(src)
+        const bTargets = targetsOf([...src].reverse())
         expect(new Set(aTargets).size).toBe(aTargets.length)
         expect(new Set(bTargets).size).toBe(bTargets.length)
-        // When every source has a unique unambiguous home (distinct, disjoint),
-        // the mapping set is order-invariant.
-        if (a.length === src.length && b.length === src.length) {
-          // Both fully mapped: the same source→target pairing must hold.
-          expect(b).toEqual(a)
-        }
       }),
     )
   })
