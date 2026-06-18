@@ -377,3 +377,86 @@ def test_task_evaluation_constructors_pass_evaluation_config_id():
         f"{constructor_count} TaskEvaluation(...) constructors but only "
         f"{kwarg_count} occurrences of 'evaluation_config_id=' in tasks.py."
     )
+
+
+# Inline mirror of `tasks.py:_pred_field_matches`. Same drift pattern.
+
+def _pred_field_matches(row_field_name, config_pred_field):
+    """Mirror of `tasks.py:_pred_field_matches`. Keep in sync."""
+    _wildcards = ("__all_human__", "__all_model__")
+    if not row_field_name:
+        return False
+    if "|" in row_field_name:
+        return False
+
+    def _strip_role(s):
+        if s in _wildcards:
+            return s
+        if s.startswith("human:") or s.startswith("model:"):
+            return s.split(":", 1)[1]
+        return s
+
+    if row_field_name == config_pred_field:
+        return True
+    return _strip_role(row_field_name) == _strip_role(config_pred_field)
+
+
+def test_inline_pred_field_matches_present_in_tasks_py():
+    """Drift guard for the immediate-eval recognition path (config-id based).
+
+    The bug this covers: immediate eval persists a BARE field_name
+    (e.g. ``human:loesung``) plus a discrete ``evaluation_config_id``, but the
+    missing-only matcher keyed only on the 3-part ``{cfg}|{pred}|{ref}`` form,
+    so it never recognized immediate grades → it re-graded every
+    immediate-graded annotation on the next missing-only run. The fix
+    reconstructs the expected key from ``evaluation_config_id`` via
+    ``_pred_field_matches`` + ``_reconstruct_expected_keys``.
+    """
+    tasks_path = Path(__file__).parent.parent / "tasks.py"
+    src = tasks_path.read_text()
+    assert "def _pred_field_matches(" in src, (
+        "tasks.py is missing the `_pred_field_matches` helper that maps a bare "
+        "immediate-eval field_name to a config prediction field."
+    )
+    assert "def _reconstruct_expected_keys(" in src, (
+        "tasks.py is missing `_reconstruct_expected_keys` — the config-id-based "
+        "recognition of bare immediate-eval rows in missing-only mode."
+    )
+    # Definition + BOTH skip-set loops (generation + annotation) must use it.
+    assert src.count("_reconstruct_expected_keys(") >= 3, (
+        "Expected `_reconstruct_expected_keys` definition + calls at BOTH the "
+        "generation and annotation missing-only skip-set inserts in tasks.py."
+    )
+
+
+class TestPredFieldMatches:
+    """A bare immediate-eval ``field_name`` (the config's prediction field) vs.
+    a config ``prediction_fields`` entry — tolerating the human:/model: role
+    prefix so a backfilled/legacy row maps to the right config."""
+
+    def test_exact_bare_match(self):
+        assert _pred_field_matches("human:loesung", "human:loesung") is True
+
+    def test_bare_without_prefix_matches_human_field(self):
+        # Korrektur-style bare 'loesung' row vs a 'human:loesung' config field.
+        assert _pred_field_matches("loesung", "human:loesung") is True
+
+    def test_model_prefix_tolerated(self):
+        assert _pred_field_matches("loesung", "model:loesung") is True
+
+    def test_different_field_does_not_match(self):
+        assert _pred_field_matches("human:other", "human:loesung") is False
+
+    def test_three_part_row_excluded(self):
+        # 3-part rows are the _normalize_field_key path, not this helper.
+        assert (
+            _pred_field_matches("cfg|human:loesung|musterlösung", "human:loesung")
+            is False
+        )
+
+    def test_wildcard_never_matches(self):
+        assert _pred_field_matches("human:loesung", "__all_human__") is False
+
+    def test_empty(self):
+        assert _pred_field_matches(None, "human:loesung") is False
+        assert _pred_field_matches("", "human:loesung") is False
