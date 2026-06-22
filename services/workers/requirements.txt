@@ -13,7 +13,7 @@ numpy>=1.26.4,<2.0  # Cap at <2.0: thinc/spacy wheels assume numpy-1.x ABI (88-b
 scikit-learn>=1.9.0
 scipy>=1.17.1
 nltk>=3.9.4
-spacy>=3.7.0,<3.8  # German NER for coherence metric (Phase 3 academic-rigor). Cap at <3.8 keeps thinc on the 8.2.x line (numpy-1.x ABI). spaCy 3.8 pulls thinc 8.3.x compiled against numpy-2.x and breaks at runtime under our numpy>=1.26.4,<2 stack.
+spacy>=3.8.14,<3.9  # German NER for coherence metric (Phase 3 academic-rigor). Cap at <3.8 keeps thinc on the 8.2.x line (numpy-1.x ABI). spaCy 3.8 pulls thinc 8.3.x compiled against numpy-2.x and breaks at runtime under our numpy>=1.26.4,<2 stack.
 # Pin to a specific spaCy model release so worker images are reproducible.
 # de_core_news_md is the medium-size German news pipeline; see
 # Dockerfile.base download step for the actual install.
