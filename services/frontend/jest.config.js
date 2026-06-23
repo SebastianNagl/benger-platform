@@ -151,20 +151,16 @@ const config = {
       functions: 100, // measured 100
       lines: 99, // measured 99.38
     },
-    // Components - raised after the project-page/evaluation/labeling/data backfill
-    // Lowered 2026-06-23 (issue #33): the Tier-2 component decomposition extracted
-    // ~6 cards/hooks (AdvancedSettingsCard, ModelSelectionSection,
-    // Evaluation/GenerationDefaultsCard, usePermissions, evaluation/results/,
-    // profile/) out of the project-creation/evaluation monoliths without dedicated
-    // tests, redistributing per-file coverage below the prior 92/85/90/93 floors.
-    // All 16k component suites still pass — this is a coverage-floor relax, not a
-    // behavioral regression. Floors reset to floor(measured); RESTORE toward
-    // 92/-/90/93 as the extracted components get their own tests.
+    // Components - RESTORED 2026-06-24 to the pre-decomposition ratchet. The
+    // Tier-2 decomposition had extracted ~5 cards/hooks (AdvancedSettingsCard,
+    // ModelSelectionSection, Evaluation/GenerationDefaultsCard, usePermissions)
+    // without tests, which forced a temporary floor relax to 91/85/88/92. Those
+    // components now have dedicated tests (all ~100%), so the floors are back up.
     'src/components/': {
-      statements: 91, // measured 91.82 (was 92, pre-decomposition 92.51)
-      branches: 85, // measured 85.64 (unchanged)
-      functions: 88, // measured 88.71 (was 90, pre-decomposition 90.81)
-      lines: 92, // measured 92.94 (was 93, pre-decomposition 93.45)
+      statements: 92,
+      branches: 85,
+      functions: 90,
+      lines: 93,
     },
   },
 
