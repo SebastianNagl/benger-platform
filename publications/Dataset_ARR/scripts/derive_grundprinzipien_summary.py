@@ -14,7 +14,7 @@ Outputs:
         "metrics": {
           "judge_raw_mean": <float, 0-100 scale>,
           "judge_pass_rate": <float>,
-          "accuracy": <float, Ja/Nein exact match>,
+          "accuracy": <float, normalised Ja/Nein decision match>,
           "<metric>_mean": <float>,   # bleu / rouge / bertscore / ...
         }
       },
@@ -57,6 +57,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _stats import pearson as _pearson  # noqa: E402
 from _stats import spearman as _spearman  # noqa: E402
 from _stats import welford_update as _welford_update  # noqa: E402
+from _gp_decision import decision_accuracy  # noqa: E402
 
 HERE = Path(__file__).resolve().parent.parent
 SRC = HERE / "data" / "raw" / "grundprinzipien" / "grundprinzipien_Grundprinzipien_full_export.json"
@@ -119,6 +120,14 @@ def main() -> None:
             if task_id:
                 slot["tasks"].add(task_id)
 
+            # Ja/Nein accuracy: recompute from the normalised decision match
+            # (model kurzantwort vs gold binary_solution) rather than the buggy
+            # exact-match `accuracy` metric. See scripts/_gp_decision.py.
+            acc = decision_accuracy(gen.get("response_content"),
+                                    (task.get("data") or {}).get("binary_solution"))
+            if acc is not None:
+                _running_mean_update(slot, "accuracy", acc)
+
             gen_judge_raw = None
             gen_metric_vals: dict[str, float] = {}
 
@@ -147,11 +156,9 @@ def main() -> None:
                             slot["judge_pass_count"] += 1
                     continue
 
-                # Binary Ja/Nein decision (use accuracy; exact_match is a duplicate)
-                if "accuracy" in m and isinstance(m["accuracy"], dict):
-                    v = m["accuracy"].get("value")
-                    if v is not None:
-                        _running_mean_update(slot, "accuracy", v)
+                # Ja/Nein accuracy is recomputed per-generation above (normalised
+                # decision match); skip the buggy exact-match metric row here.
+                if "accuracy" in m:
                     continue
 
                 # Automatic free-text metrics

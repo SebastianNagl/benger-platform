@@ -32,6 +32,9 @@ import ijson
 import numpy as np
 from scipy import stats as sp_stats
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _gp_decision import decision_accuracy  # noqa: E402
+
 HERE = Path(__file__).resolve().parent.parent
 RAW = HERE / "data" / "raw"
 PROCESSED = HERE / "data" / "processed"
@@ -478,7 +481,11 @@ def build_grundprinzipien():
             sys_gens[mid] += 1
 
             gen_judge = {"judge_raw": None, "judge_pass_rate": None,
-                         "accuracy": None}
+                         # Ja/Nein accuracy: normalised decision match, not the
+                         # buggy exact-match metric. See scripts/_gp_decision.py.
+                         "accuracy": decision_accuracy(
+                             gen.get("response_content"),
+                             (task.get("data") or {}).get("binary_solution"))}
             gen_metric_vals: dict[str, float] = {}
 
             for ev in gen.get("evaluations") or []:
@@ -494,11 +501,7 @@ def build_grundprinzipien():
                         gen_judge["judge_pass_rate"] = 1.0 if passed else 0.0
                     continue
 
-                if ("accuracy" in m and isinstance(m["accuracy"], dict)
-                        and gen_judge["accuracy"] is None):
-                    v = _to_float(m["accuracy"].get("value"))
-                    if v is not None:
-                        gen_judge["accuracy"] = v
+                if "accuracy" in m:   # recomputed above; ignore the stored metric
                     continue
 
                 for k in ("bleu", "rouge", "meteor", "chrf",
