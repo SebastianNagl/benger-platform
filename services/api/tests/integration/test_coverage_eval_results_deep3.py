@@ -973,14 +973,15 @@ class TestEvaluationStatus:
 
 @pytest.mark.integration
 class TestEvaluationTypes:
-    # NOTE: these three hit the SYNC list endpoint and read whatever
-    # evaluation_types exist. The committed base test DB already seeds a full
-    # set (accuracy, f1, exact_match, …), so we deliberately DON'T request the
-    # `test_evaluation_types` fixture here — its inserts collide on the PK with
-    # the base seed rows (UniqueViolation in fixture setup). The base data
-    # alone satisfies every assertion below (non-empty list; the only
-    # classification-category row is `accuracy`).
-    def test_list_evaluation_types(self, client, test_db, test_users, auth_headers):
+    # NOTE: the evaluation_types catalog is seeded at app startup, but that path
+    # is skipped in test mode — so on a fresh CI database the table is empty (the
+    # rows only persist on a long-lived dev DB, which is why these passed locally
+    # but not in CI). Tests that read the catalog request the idempotent
+    # `test_evaluation_types` fixture, which reuses existing rows and only adds
+    # the missing ones (no PK collision whether the base is empty or pre-seeded).
+    def test_list_evaluation_types(
+        self, client, test_db, test_users, auth_headers, test_evaluation_types
+    ):
         resp = client.get(
             "/api/evaluations/evaluation-types",
             headers=auth_headers["admin"],
@@ -1009,9 +1010,30 @@ class TestEvaluationTypes:
 
     @pytest.mark.asyncio
     async def test_get_single_eval_type(self, async_test_client, async_test_db):
-        # "accuracy" is part of the committed base seed data, so the async
-        # handler's session sees it via the outer-transaction snapshot — no
-        # need to (and must not) re-insert it (would collide on the PK).
+        # The eval-type catalog is seeded at startup, but that path is skipped in
+        # test mode → empty on a fresh CI DB. Seed "accuracy" idempotently via the
+        # async session (the async handler reads through this same connection; a
+        # sync test_db SAVEPOINT would be invisible to it).
+        from sqlalchemy import select as _select
+        from models import EvaluationType as _EvaluationType
+
+        _existing = (
+            await async_test_db.execute(
+                _select(_EvaluationType).where(_EvaluationType.id == "accuracy")
+            )
+        ).scalar_one_or_none()
+        if _existing is None:
+            async_test_db.add(
+                _EvaluationType(
+                    id="accuracy",
+                    name="Accuracy",
+                    description="Percentage of correct predictions",
+                    category="classification",
+                    higher_is_better=True,
+                    value_range={"min": 0, "max": 1},
+                    applicable_project_types=["test_classification", "text_classification"],
+                )
+            )
         owner = await _make_owner(async_test_db)
         await async_test_db.commit()
 
