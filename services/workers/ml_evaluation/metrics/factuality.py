@@ -18,9 +18,12 @@ log records keep the original logger name.
 
 from typing import Any, Dict, List, Optional
 
-import torch
 from nltk.tag import pos_tag
 from nltk.tokenize import sent_tokenize, word_tokenize
+
+# NOTE: `torch` is imported LAZILY inside compute_factuality_metric (not at
+# module top) so importing this module — and transitively `import tasks` —
+# stays cheap. See ml_evaluation/sample_evaluator.py for the full rationale.
 
 
 def compute_factuality_metric(
@@ -90,7 +93,10 @@ def compute_factuality_metric(
                     return_tensors='pt',
                 )
 
-                # Move to same device as model
+                # Move to same device as model (torch imported lazily here to
+                # keep module import — and `import tasks` — light).
+                import torch
+
                 if torch.cuda.is_available():
                     inputs = {k: v.cuda() for k, v in inputs.items()}
 
