@@ -61,11 +61,16 @@ export function setValueByPath(data: any, path: string, value: any): any {
 
   let current = data
 
-  // Create nested structure if needed
-  for (const segment of segments) {
-    if (!current[segment]) {
-      // Create array or object based on next segment
-      const nextSegment = segments[segments.indexOf(segment) + 1] || lastSegment
+  // Walk/instantiate the nested structure. Overwrite a non-object intermediate
+  // (primitive or null) with a fresh container so the path can always be set —
+  // otherwise e.g. set({O: 1}, "O.a", 0) throws "Cannot create property 'a' on
+  // number 1" and the round-trip law get(set(o, p, v), p) === v breaks. Index
+  // by position (not indexOf) so a repeated segment name picks the right next
+  // segment.
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i]
+    const nextSegment = segments[i + 1] ?? lastSegment
+    if (current[segment] === null || typeof current[segment] !== 'object') {
       current[segment] = !isNaN(Number(nextSegment)) ? [] : {}
     }
     current = current[segment]
