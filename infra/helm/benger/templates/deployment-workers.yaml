@@ -63,7 +63,11 @@ spec:
                 - "python -c 'from tasks import app; print(\"Celery app initialized\")'"
             initialDelaySeconds: 90
             periodSeconds: 20
-            timeoutSeconds: 15
+            # 120s (was 15s): `from tasks import app` now imports lazily (~1.7s,
+            # no neural ML — see workers/tests/test_tasks_import_lightness.py); the
+            # generous timeout is a safety net so a slow first import can never
+            # wedge a deploy.
+            timeoutSeconds: 120
             failureThreshold: 30
           env:
             {{- range .Values.workers.env }}

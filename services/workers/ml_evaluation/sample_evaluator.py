@@ -76,17 +76,55 @@ SKLEARN_AVAILABLE = True
 SCIPY_AVAILABLE = True
 JSONSCHEMA_AVAILABLE = True
 
-# BERTScore for semantic similarity - REQUIRED
-from bert_score import score as bert_score_compute
-
+# Heavy ML libs (bert_score, sentence-transformers, transformers, torch) are
+# imported LAZILY via the module-level __getattr__ below — NOT at module top.
+# Rationale: `import tasks` must stay cheap (~1.7s, no ML). The beat scheduler
+# and the api import the Celery app but never compute neural metrics; an eager
+# ~7s/500Mi ML load here breaks the beat's 15s startup probe and slows every
+# deploy. The libs ARE installed (required), so the capability flags stay True;
+# the actual import happens on first use inside the metric functions.
 BERTSCORE_AVAILABLE = True
-
-# Sentence Transformers for semantic similarity - REQUIRED
-from sentence_transformers import SentenceTransformer
-from sentence_transformers import util as st_util
-
 SENTENCE_TRANSFORMERS_AVAILABLE = True
 _sentence_transformer_model = None  # Lazy-loaded
+
+
+# Heavy ML symbols are module globals (so they resolve as bare names inside the
+# metric functions and stay monkeypatchable in tests) but bound LAZILY — None
+# until the first metric computation calls _load_heavy(). Importing this module,
+# and transitively `import tasks`, must NOT pay the ~7s/500Mi neural-ML cost.
+bert_score_compute = None
+SentenceTransformer = None
+st_util = None
+BertForSequenceClassification = None
+BertTokenizer = None
+torch = None
+
+
+def _load_heavy() -> None:
+    """Bind the heavy-ML module globals on first use (idempotent; a no-op once
+    bound, or once a test has monkeypatched a symbol to a non-None stand-in)."""
+    global bert_score_compute, SentenceTransformer, st_util
+    global BertForSequenceClassification, BertTokenizer, torch
+    if torch is None:
+        import torch as _torch
+
+        torch = _torch
+    if bert_score_compute is None:
+        from bert_score import score as _bs
+
+        bert_score_compute = _bs
+    if SentenceTransformer is None:
+        from sentence_transformers import SentenceTransformer as _ST
+        from sentence_transformers import util as _util
+
+        SentenceTransformer = _ST
+        st_util = _util
+    if BertForSequenceClassification is None:
+        from transformers import BertForSequenceClassification as _BFSC
+        from transformers import BertTokenizer as _BT
+
+        BertForSequenceClassification = _BFSC
+        BertTokenizer = _BT
 
 # Backend selector for platform-aware metric computation (MoverScore via POT)
 _backend_selector = None
@@ -102,18 +140,14 @@ def _get_backend_selector():
     return _backend_selector
 
 
-# Transformers for FactCC - REQUIRED for BERT-based factual consistency
-from transformers import BertForSequenceClassification, BertTokenizer
-
+# Transformers for FactCC — imported lazily (see __getattr__ above).
 TRANSFORMERS_AVAILABLE = True
 # QAGS and SummaC models now handled by backends (see backends/torch_backend.py and backends/onnx_backend.py)
 
 # SummaC factual consistency - now handled by backends (no summac package needed)
 # The SummaC algorithm is reimplemented using the ViTC model directly
 
-# PyTorch for model operations - REQUIRED
-import torch
-
+# PyTorch — imported lazily (see __getattr__ above).
 TORCH_AVAILABLE = True
 _factcc_model = None  # Lazy-loaded FactCC model
 _factcc_tokenizer = None  # Lazy-loaded FactCC tokenizer
@@ -123,6 +157,7 @@ logger = logging.getLogger(__name__)
 
 def _get_sentence_transformer():
     """Lazy load sentence transformer model for GPU efficiency"""
+    _load_heavy()
     global _sentence_transformer_model
     if _sentence_transformer_model is None and SENTENCE_TRANSFORMERS_AVAILABLE:
         _sentence_transformer_model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
@@ -131,6 +166,7 @@ def _get_sentence_transformer():
 
 def _get_factcc_model():
     """Lazy load FactCC model and tokenizer for factual consistency checking"""
+    _load_heavy()
     global _factcc_model, _factcc_tokenizer
     if _factcc_model is None and TRANSFORMERS_AVAILABLE and TORCH_AVAILABLE:
         logger.info("Loading FactCC model for factual consistency checking...")
@@ -847,6 +883,8 @@ class SampleEvaluator:
         """BERTScore with backend provenance — researchers can filter
         runs by host_arch / backend if they need to compare scores
         produced by ONNX vs full bert-score."""
+        _load_heavy()
+
         import platform as _platform
 
         gt_str = str(gt)
@@ -887,6 +925,8 @@ class SampleEvaluator:
     ) -> Dict[str, Any]:
         """Semantic similarity with backend provenance — same arch-based
         ONNX vs sentence-transformers swap as BERTScore."""
+        _load_heavy()
+
         import platform as _platform
 
         gt_str = str(gt)
