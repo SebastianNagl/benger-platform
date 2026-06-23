@@ -16,7 +16,6 @@ Production Security Impact:
 """
 
 import asyncio
-import os
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -34,7 +33,9 @@ class SSLTLSManager:
         self.domain = domain
         self.email = email
         self.cert_dir = Path("/etc/letsencrypt/live") / domain
-        self.staging = os.getenv("SSL_STAGING", "false").lower() == "true"
+        from app.core.config import get_settings
+
+        self.staging = get_settings().ssl_staging
 
     async def setup_letsencrypt(self) -> Dict:
         """Setup Let's Encrypt certificates"""

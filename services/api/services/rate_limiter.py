@@ -196,8 +196,12 @@ def get_rate_limits_for_user(endpoint: str, user: Optional[User] = None) -> Dict
     """Get rate limits adjusted for user role"""
     base_limits = RATE_LIMITS.get(endpoint, RATE_LIMITS["api"])
 
-    if user and user.role in USER_ROLE_MULTIPLIERS:
-        multiplier = USER_ROLE_MULTIPLIERS[user.role]
+    # ``role`` lives on OrganizationMembership, not on the ORM/Pydantic User —
+    # use getattr so a role-less user object falls through to base limits
+    # instead of AttributeError-500ing this path.
+    user_role = getattr(user, "role", None) if user else None
+    if user_role in USER_ROLE_MULTIPLIERS:
+        multiplier = USER_ROLE_MULTIPLIERS[user_role]
 
         # Apply multiplier to limits
         adjusted_limits = {}

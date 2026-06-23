@@ -16,7 +16,6 @@ Performance Impact:
 
 import json
 import logging
-import os
 import time
 from functools import wraps
 from typing import Any, Dict, List, Optional
@@ -24,14 +23,20 @@ from typing import Any, Dict, List, Optional
 import redis
 from redis import Redis
 
+from app.core.config import get_settings
+
 logger = logging.getLogger(__name__)
 
-# Redis configuration - prefer REDIS_URI for production compatibility
-REDIS_URI = os.getenv("REDIS_URI")
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-REDIS_DB = int(os.getenv("REDIS_DB", "0"))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
+# Redis configuration sourced from the single Settings object (prefers REDIS_URI
+# for production compatibility, same as before). Kept as module-level names so
+# the connection block and any legacy reader see one config source — no second
+# os.getenv block to drift from app.core.config.
+_settings = get_settings()
+REDIS_URI = _settings.redis_uri
+REDIS_HOST = _settings.redis_host
+REDIS_PORT = _settings.redis_port
+REDIS_DB = _settings.redis_db
+REDIS_PASSWORD = _settings.redis_password
 
 # Cache TTL settings (in seconds)
 CACHE_TTL = {

@@ -46,6 +46,14 @@ jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({ addToast: jest.fn(), removeToast: jest.fn() }),
 }))
 
+jest.mock('@/contexts/ProgressContext', () => ({
+  useProgress: () => ({
+    startProgress: jest.fn(),
+    updateProgress: jest.fn(),
+    completeProgress: jest.fn(),
+  }),
+}))
+
 // AuthContext is overridden per test via the `mockUser` ref below.
 const mockUser = { current: { is_superadmin: false } as { is_superadmin: boolean } }
 jest.mock('@/contexts/AuthContext', () => ({

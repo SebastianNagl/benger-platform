@@ -5,14 +5,77 @@ update_project, delete_project, update_project_visibility,
 recalculate_project_statistics, get_project_completion_stats.
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock
 
 import pytest
 from fastapi import HTTPException
-from fastapi.testclient import TestClient
 
+from auth_module import require_user
+from auth_module.models import User as AuthUser
 from main import app
+from models import User
+from project_models import Project
+
+
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user: User):
+    """Override require_user with an AuthUser matching the seeded DB user."""
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_user(db, *, is_superadmin=False, name="Test User"):
+    u = User(
+        id=_uid(),
+        username=f"pcc-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name=name,
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _make_project(
+    db, *, created_by, title="Test Project", is_private=True, label_config="<View></View>"
+):
+    p = Project(
+        id=_uid(),
+        title=title,
+        description="A test project",
+        created_by=created_by,
+        label_config=label_config,
+        is_private=is_private,
+        is_public=False,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(p)
+    await db.flush()
+    return p
 
 
 # ── deep_merge_dicts unit tests ─────────────────────────────────────
@@ -68,162 +131,55 @@ class TestDeepMergeDicts:
         assert "a" not in update
 
 
-# ── Endpoint integration tests via TestClient ───────────────────────
-def _mock_user(*, superadmin=False, user_id="user-1", name="TestUser"):
-    user = Mock()
-    user.id = user_id
-    user.username = "testuser"
-    user.email = "test@example.com"
-    user.name = name
-    user.is_superadmin = superadmin
-    user.is_active = True
-    user.email_verified = True
-    user.created_at = datetime.now(timezone.utc)
-    membership = Mock()
-    membership.organization_id = "org-1"
-    membership.is_active = True
-    membership.role = "CONTRIBUTOR"
-    membership.organization = Mock()
-    membership.organization.id = "org-1"
-    membership.organization.name = "Test Org"
-    user.organization_memberships = [membership]
-    return user
-
-
-def _mock_project(
-    project_id="proj-1",
-    created_by="user-1",
-    is_private=False,
-    label_config="<View></View>",
-    generation_config=None,
-    evaluation_config=None,
-    is_archived=False,
-    min_annotations_per_task=1,
-    is_published=False,
-):
-    project = Mock()
-    project.id = project_id
-    project.title = "Test Project"
-    project.description = "A test project"
-    project.created_by = created_by
-    project.created_at = datetime.now(timezone.utc)
-    project.updated_at = None
-    project.label_config = label_config
-    project.generation_structure = ""
-    project.expert_instruction = "Instructions"
-    project.show_instruction = True
-    project.show_skip_button = True
-    project.enable_empty_annotation = True
-    project.show_annotation_history = False
-    project.generation_config = generation_config or {}
-    project.evaluation_config = evaluation_config or {}
-    project.is_private = is_private
-    project.is_archived = is_archived
-    project.min_annotations_per_task = min_annotations_per_task
-    project.is_published = is_published
-    project.label_config_version = "v1"
-    project.label_config_history = None
-    project.maximum_annotations = 0
-    project.assignment_mode = "open"
-    project.show_submit_button = True
-    project.require_comment_on_skip = False
-    project.require_confirm_before_submit = False
-    project.questionnaire_enabled = False
-    project.questionnaire_config = None
-    project.randomize_task_order = False
-    project.conditional_instructions = None
-    project.member_count = 0
-    project.organization_ids = []
-
-    # Relationships
-    project.creator = Mock()
-    project.creator.name = "Creator Name"
-    project.organizations = []
-    project.project_organizations = []
-    return project
-
-
+# ── Endpoint tests via async_test_client (async-lane handler) ───────
 class TestListProjectsEndpoint:
-    """Tests for GET /api/projects/"""
+    """Tests for GET /api/projects/ (async-lane handler — seeded real rows)."""
 
-    @pytest.fixture
-    def client(self):
-        return TestClient(app)
+    @pytest.mark.asyncio
+    async def test_list_projects_success_superadmin(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await _make_project(async_test_db, created_by=admin.id, title="Listed One")
+        await async_test_db.commit()
 
-    def test_list_projects_success_superadmin(self, client):
-        user = _mock_user(superadmin=True)
-        project = _mock_project()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/projects/", headers={"X-Organization-Context": "private"}
+            )
 
-        with patch("routers.projects.crud.require_user", return_value=user), \
-             patch("routers.projects.crud.get_db") as mock_get_db, \
-             patch("routers.projects.crud.get_accessible_project_ids", return_value=None), \
-             patch("routers.projects.crud.calculate_project_stats_batch", return_value={}), \
-             patch("routers.projects.crud.calculate_generation_stats"):
-            mock_db = MagicMock()
-            mock_query = MagicMock()
-            mock_query.count.return_value = 1
-            mock_query.filter.return_value = mock_query
-            mock_query.options.return_value = mock_query
-            mock_query.offset.return_value = mock_query
-            mock_query.limit.return_value = mock_query
-            mock_query.all.return_value = [project]
-            mock_db.query.return_value = mock_query
-            mock_get_db.return_value = mock_db
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] >= 0
+        assert any(p["title"] == "Listed One" for p in data["items"])
 
-            resp = client.get("/api/projects/", headers={"Authorization": "Bearer fake"})  # noqa: F841
-            # May get 401 since we're not properly injecting auth
-            # The test is about exercising the code path, not auth
-
-    def test_list_projects_with_search_filter(self, client):
+    @pytest.mark.asyncio
+    async def test_list_projects_with_search_filter(self, async_test_client, async_test_db):
         """Tests the search filter branch."""
-        user = _mock_user(superadmin=True)
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await _make_project(async_test_db, created_by=admin.id, title="Matchable Topic")
+        await async_test_db.commit()
 
-        with patch("routers.projects.crud.require_user", return_value=user), \
-             patch("routers.projects.crud.get_db") as mock_get_db, \
-             patch("routers.projects.crud.get_accessible_project_ids", return_value=None), \
-             patch("routers.projects.crud.calculate_project_stats_batch", return_value={}), \
-             patch("routers.projects.crud.calculate_generation_stats"):
-            mock_db = MagicMock()
-            mock_query = MagicMock()
-            mock_query.count.return_value = 0
-            mock_query.filter.return_value = mock_query
-            mock_query.options.return_value = mock_query
-            mock_query.offset.return_value = mock_query
-            mock_query.limit.return_value = mock_query
-            mock_query.all.return_value = []
-            mock_db.query.return_value = mock_query
-            mock_get_db.return_value = mock_db
-
-            resp = client.get(  # noqa: F841
-                "/api/projects/?search=test",
-                headers={"Authorization": "Bearer fake"},
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/projects/", params={"search": "no-such-search-xyz"}
             )
 
-    def test_list_projects_with_is_archived_filter(self, client):
+        assert resp.status_code == 200
+        titles = [p["title"] for p in resp.json()["items"]]
+        assert "Matchable Topic" not in titles
+
+    @pytest.mark.asyncio
+    async def test_list_projects_with_is_archived_filter(self, async_test_client, async_test_db):
         """Tests the is_archived filter branch."""
-        user = _mock_user(superadmin=True)
-        project = _mock_project(is_archived=True)
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await _make_project(async_test_db, created_by=admin.id)
+        await async_test_db.commit()
 
-        with patch("routers.projects.crud.require_user", return_value=user), \
-             patch("routers.projects.crud.get_db") as mock_get_db, \
-             patch("routers.projects.crud.get_accessible_project_ids", return_value=None), \
-             patch("routers.projects.crud.calculate_project_stats_batch", return_value={"proj-1": {"task_count": 5, "completed_tasks_count": 3, "annotation_count": 10}}), \
-             patch("routers.projects.crud.calculate_generation_stats"):
-            mock_db = MagicMock()
-            mock_query = MagicMock()
-            mock_query.count.return_value = 1
-            mock_query.filter.return_value = mock_query
-            mock_query.options.return_value = mock_query
-            mock_query.offset.return_value = mock_query
-            mock_query.limit.return_value = mock_query
-            mock_query.all.return_value = [project]
-            mock_db.query.return_value = mock_query
-            mock_get_db.return_value = mock_db
-
-            resp = client.get(  # noqa: F841
-                "/api/projects/?is_archived=true",
-                headers={"Authorization": "Bearer fake"},
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/projects/", params={"is_archived": True}
             )
+
+        assert resp.status_code == 200
 
 
 class TestProjectHelpersCoverage:

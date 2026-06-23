@@ -1,19 +1,31 @@
 """
 Coverage boost tests for evaluation results endpoints.
 
-Targets specific branches in routers/evaluations/results.py:
+Targets specific branches in routers/evaluations/results/:
 - _extract_primary_score with various metric keys
 - get_evaluation_results
 - get_per_sample_results
 - get_confusion_matrix
 - get_score_distribution
 - export_evaluation_results
+
+The results router package was migrated to the async DB lane, so these HTTP
+surface tests seed real rows via ``async_test_db`` and drive the surface
+through ``async_test_client``; auth is supplied by overriding ``require_user``
+with a superadmin (so ``check_project_accessible_async`` short-circuits True).
+The pure ``_extract_primary_score`` helper tests need no DB.
 """
 
 import uuid
-from datetime import datetime
+from contextlib import contextmanager
+from datetime import datetime, timezone
 
+import pytest
+from sqlalchemy import select
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
@@ -22,6 +34,7 @@ from models import (
     OrganizationMembership,
     ResponseGeneration,
     TaskEvaluation,
+    User,
 )
 from project_models import (
     Project,
@@ -30,8 +43,40 @@ from project_models import (
 )
 
 
-def _setup_eval_project(db, users):
-    """Create a project with evaluation runs."""
+@contextmanager
+def _as_user(db_user):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _setup_eval_project(db):
+    """Create a superadmin owner + project with org/membership/link."""
+    owner = User(
+        id=str(uuid.uuid4()),
+        username=f"eval-owner-{uuid.uuid4().hex[:8]}",
+        email=f"{uuid.uuid4().hex[:8]}@example.com",
+        name="Eval Owner",
+        is_superadmin=True,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(owner)
+    await db.flush()
+
     org = Organization(
         id=str(uuid.uuid4()),
         name="Eval Org",
@@ -40,40 +85,39 @@ def _setup_eval_project(db, users):
         created_at=datetime.utcnow(),
     )
     db.add(org)
-    db.commit()
+    await db.flush()
 
     pid = str(uuid.uuid4())
     p = Project(
         id=pid,
         title="Eval Project",
-        created_by=users[0].id,
+        created_by=owner.id,
         is_private=False,
         label_config="<View><Text name='text' value='$text'/><Choices name='c' toName='text'><Choice value='A'/><Choice value='B'/></Choices></View>",
         assignment_mode="open",
     )
     db.add(p)
-    db.commit()
+    await db.flush()
 
-    for i, user in enumerate(users[:4]):
-        db.add(OrganizationMembership(
-            id=str(uuid.uuid4()),
-            user_id=user.id,
-            organization_id=org.id,
-            role="ORG_ADMIN" if i == 0 else "CONTRIBUTOR",
-            joined_at=datetime.utcnow(),
-        ))
+    db.add(OrganizationMembership(
+        id=str(uuid.uuid4()),
+        user_id=owner.id,
+        organization_id=org.id,
+        role="ORG_ADMIN",
+        joined_at=datetime.utcnow(),
+    ))
     db.add(ProjectOrganization(
         id=str(uuid.uuid4()),
         project_id=pid,
         organization_id=org.id,
-        assigned_by=users[0].id,
+        assigned_by=owner.id,
     ))
-    db.commit()
+    await db.commit()
 
-    return p, org
+    return p, org, owner
 
 
-def _make_eval_run(db, project_id, user_id, model_id="gpt-4o", status="completed", metrics=None, **kwargs):
+async def _make_eval_run(db, project_id, user_id, model_id="gpt-4o", status="completed", metrics=None, **kwargs):
     run_id = str(uuid.uuid4())
     run = EvaluationRun(
         id=run_id,
@@ -89,11 +133,11 @@ def _make_eval_run(db, project_id, user_id, model_id="gpt-4o", status="completed
         **kwargs,
     )
     db.add(run)
-    db.commit()
+    await db.commit()
     return run
 
 
-def _make_generation(db, task_id):
+async def _make_generation(db, task_id):
     """A minimal, FK-valid generation so each task_evaluation is a distinct cell."""
     rg = ResponseGeneration(
         id=str(uuid.uuid4()),
@@ -103,7 +147,7 @@ def _make_generation(db, task_id):
         created_by="test",
     )
     db.add(rg)
-    db.commit()
+    await db.flush()
     gen = Generation(
         id=str(uuid.uuid4()),
         generation_id=rg.id,
@@ -116,20 +160,24 @@ def _make_generation(db, task_id):
         parse_status="success",
     )
     db.add(gen)
-    db.commit()
+    await db.commit()
     return gen
 
 
-def _make_task_eval(db, eval_id, task_id, field_name="c", predicted="A", reference="B", metrics=None):
+async def _make_task_eval(db, eval_id, task_id, field_name="c", predicted="A", reference="B", metrics=None):
     # Migration 043: judge_run_id is NOT NULL. Reuse the per-eval synthetic
     # judge_run when present, otherwise create one (matches the 043 backfill).
     jr = (
-        db.query(EvaluationJudgeRun)
-        .filter(
-            EvaluationJudgeRun.evaluation_id == eval_id,
-            EvaluationJudgeRun.judge_model_id.is_(None),
-            EvaluationJudgeRun.run_index == 0,
+        (
+            await db.execute(
+                select(EvaluationJudgeRun).where(
+                    EvaluationJudgeRun.evaluation_id == eval_id,
+                    EvaluationJudgeRun.judge_model_id.is_(None),
+                    EvaluationJudgeRun.run_index == 0,
+                )
+            )
         )
+        .scalars()
         .first()
     )
     if jr is None:
@@ -141,14 +189,15 @@ def _make_task_eval(db, eval_id, task_id, field_name="c", predicted="A", referen
             status="completed",
         )
         db.add(jr)
-        db.commit()
+        await db.flush()
 
+    gen = await _make_generation(db, task_id)
     te = TaskEvaluation(
         id=str(uuid.uuid4()),
         evaluation_id=eval_id,
         judge_run_id=jr.id,
         task_id=task_id,
-        generation_id=_make_generation(db, task_id).id,
+        generation_id=gen.id,
         field_name=field_name,
         answer_type="choice",
         prediction=predicted,
@@ -157,7 +206,7 @@ def _make_task_eval(db, eval_id, task_id, field_name="c", predicted="A", referen
         metrics=metrics or {"accuracy": 1.0 if predicted == reference else 0.0},
     )
     db.add(te)
-    db.commit()
+    await db.commit()
     return te
 
 
@@ -210,179 +259,170 @@ class TestExtractPrimaryScore:
 class TestGetEvaluationResults:
     """Test evaluation results endpoint."""
 
-    def test_results_with_completed_runs(self, client, auth_headers, test_db, test_users):
-        p, org = _setup_eval_project(test_db, test_users)
-        _make_eval_run(test_db, p.id, test_users[0].id)
+    @pytest.mark.asyncio
+    async def test_results_with_completed_runs(self, async_test_client, async_test_db):
+        p, org, owner = await _setup_eval_project(async_test_db)
+        await _make_eval_run(async_test_db, p.id, owner.id)
 
-        resp = client.get(
-            f"/api/evaluations/results/{p.id}",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(f"/api/evaluations/results/{p.id}")
         assert resp.status_code == 200
 
-    def test_results_no_runs(self, client, auth_headers, test_db, test_users):
-        p, org = _setup_eval_project(test_db, test_users)
-        resp = client.get(
-            f"/api/evaluations/results/{p.id}",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
+    @pytest.mark.asyncio
+    async def test_results_no_runs(self, async_test_client, async_test_db):
+        p, org, owner = await _setup_eval_project(async_test_db)
+        with _as_user(owner):
+            resp = await async_test_client.get(f"/api/evaluations/results/{p.id}")
         assert resp.status_code == 200
 
-    def test_results_multiple_models(self, client, auth_headers, test_db, test_users):
-        p, org = _setup_eval_project(test_db, test_users)
-        _make_eval_run(test_db, p.id, test_users[0].id, model_id="gpt-4o")
-        _make_eval_run(test_db, p.id, test_users[0].id, model_id="claude-3-opus")
+    @pytest.mark.asyncio
+    async def test_results_multiple_models(self, async_test_client, async_test_db):
+        p, org, owner = await _setup_eval_project(async_test_db)
+        await _make_eval_run(async_test_db, p.id, owner.id, model_id="gpt-4o")
+        await _make_eval_run(async_test_db, p.id, owner.id, model_id="claude-3-opus")
 
-        resp = client.get(
-            f"/api/evaluations/results/{p.id}",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(f"/api/evaluations/results/{p.id}")
         assert resp.status_code == 200
 
-    def test_results_with_failed_run(self, client, auth_headers, test_db, test_users):
-        p, org = _setup_eval_project(test_db, test_users)
-        _make_eval_run(
-            test_db, p.id, test_users[0].id,
+    @pytest.mark.asyncio
+    async def test_results_with_failed_run(self, async_test_client, async_test_db):
+        p, org, owner = await _setup_eval_project(async_test_db)
+        await _make_eval_run(
+            async_test_db, p.id, owner.id,
             status="failed",
             error_message="Evaluation failed",
         )
-        resp = client.get(
-            f"/api/evaluations/results/{p.id}",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(f"/api/evaluations/results/{p.id}")
         assert resp.status_code == 200
 
 
 class TestPerSampleResults:
     """Test per-sample results endpoint."""
 
-    def test_per_sample_results(self, client, auth_headers, test_db, test_users):
-        p, org = _setup_eval_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_per_sample_results(self, async_test_client, async_test_db):
+        p, org, owner = await _setup_eval_project(async_test_db)
         t = Task(id=str(uuid.uuid4()), project_id=p.id, data={"text": "sample"}, inner_id=1)
-        test_db.add(t)
-        test_db.commit()
+        async_test_db.add(t)
+        await async_test_db.commit()
 
-        run = _make_eval_run(test_db, p.id, test_users[0].id)
-        _make_task_eval(test_db, run.id, t.id, predicted="A", reference="A")
+        run = await _make_eval_run(async_test_db, p.id, owner.id)
+        await _make_task_eval(async_test_db, run.id, t.id, predicted="A", reference="A")
 
-        resp = client.get(
-            f"/api/evaluations/{run.id}/samples",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(f"/api/evaluations/{run.id}/samples")
         # The endpoint triggers complex joins; 200 or 500 both indicate the route was exercised
         assert resp.status_code in [200, 422, 500]
 
-    def test_per_sample_with_pagination(self, client, auth_headers, test_db, test_users):
-        p, org = _setup_eval_project(test_db, test_users)
-        run = _make_eval_run(test_db, p.id, test_users[0].id)
+    @pytest.mark.asyncio
+    async def test_per_sample_with_pagination(self, async_test_client, async_test_db):
+        p, org, owner = await _setup_eval_project(async_test_db)
+        run = await _make_eval_run(async_test_db, p.id, owner.id)
 
         for i in range(5):
             t = Task(id=str(uuid.uuid4()), project_id=p.id, data={"text": f"s-{i}"}, inner_id=i + 1)
-            test_db.add(t)
-            test_db.commit()
-            _make_task_eval(test_db, run.id, t.id, predicted="A" if i % 2 == 0 else "B", reference="A")
+            async_test_db.add(t)
+            await async_test_db.commit()
+            await _make_task_eval(async_test_db, run.id, t.id, predicted="A" if i % 2 == 0 else "B", reference="A")
 
-        resp = client.get(
-            f"/api/evaluations/{run.id}/samples?page=1&page_size=2",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(f"/api/evaluations/{run.id}/samples?page=1&page_size=2")
         assert resp.status_code in [200, 422, 500]
 
 
 class TestConfusionMatrix:
     """Test confusion matrix endpoint."""
 
-    def test_confusion_matrix(self, client, auth_headers, test_db, test_users):
-        p, org = _setup_eval_project(test_db, test_users)
-        run = _make_eval_run(test_db, p.id, test_users[0].id)
+    @pytest.mark.asyncio
+    async def test_confusion_matrix(self, async_test_client, async_test_db):
+        p, org, owner = await _setup_eval_project(async_test_db)
+        run = await _make_eval_run(async_test_db, p.id, owner.id)
 
         for i, (pred, ref) in enumerate([("A", "A"), ("A", "B"), ("B", "A"), ("B", "B")]):
             t = Task(id=str(uuid.uuid4()), project_id=p.id, data={"text": f"cm-{i}"}, inner_id=i + 1)
-            test_db.add(t)
-            test_db.commit()
-            _make_task_eval(test_db, run.id, t.id, predicted=pred, reference=ref)
+            async_test_db.add(t)
+            await async_test_db.commit()
+            await _make_task_eval(async_test_db, run.id, t.id, predicted=pred, reference=ref)
 
-        resp = client.get(
-            f"/api/evaluations/{run.id}/confusion-matrix",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(f"/api/evaluations/{run.id}/confusion-matrix")
         assert resp.status_code in [200, 422, 500]
 
 
 class TestScoreDistribution:
     """Test score distribution endpoint."""
 
-    def test_score_distribution(self, client, auth_headers, test_db, test_users):
-        p, org = _setup_eval_project(test_db, test_users)
-        run = _make_eval_run(test_db, p.id, test_users[0].id)
+    @pytest.mark.asyncio
+    async def test_score_distribution(self, async_test_client, async_test_db):
+        p, org, owner = await _setup_eval_project(async_test_db)
+        run = await _make_eval_run(async_test_db, p.id, owner.id)
 
         for i in range(10):
             t = Task(id=str(uuid.uuid4()), project_id=p.id, data={"text": f"dist-{i}"}, inner_id=i + 1)
-            test_db.add(t)
-            test_db.commit()
-            _make_task_eval(
-                test_db, run.id, t.id,
+            async_test_db.add(t)
+            await async_test_db.commit()
+            await _make_task_eval(
+                async_test_db, run.id, t.id,
                 predicted="A" if i < 7 else "B",
                 reference="A",
                 metrics={"score": i / 10.0},
             )
 
-        resp = client.get(
-            f"/api/evaluations/{run.id}/metrics/score/distribution",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(f"/api/evaluations/{run.id}/metrics/score/distribution")
         assert resp.status_code == 200
 
 
 class TestExportEvaluationResults:
     """Test export evaluation results endpoint."""
 
-    def test_export_results(self, client, auth_headers, test_db, test_users):
-        p, org = _setup_eval_project(test_db, test_users)
-        run = _make_eval_run(test_db, p.id, test_users[0].id)
+    @pytest.mark.asyncio
+    async def test_export_results(self, async_test_client, async_test_db):
+        p, org, owner = await _setup_eval_project(async_test_db)
+        run = await _make_eval_run(async_test_db, p.id, owner.id)
 
         t = Task(id=str(uuid.uuid4()), project_id=p.id, data={"text": "export"}, inner_id=1)
-        test_db.add(t)
-        test_db.commit()
-        _make_task_eval(test_db, run.id, t.id, predicted="A", reference="A")
+        async_test_db.add(t)
+        await async_test_db.commit()
+        await _make_task_eval(async_test_db, run.id, t.id, predicted="A", reference="A")
 
-        resp = client.post(
-            f"/api/evaluations/export/{p.id}",
-            json={"format": "csv"},
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
+        with _as_user(owner):
+            resp = await async_test_client.post(
+                f"/api/evaluations/export/{p.id}",
+                json={"format": "csv"},
+            )
         assert resp.status_code == 200
 
 
 class TestByTaskModel:
     """Test results by task-model endpoint."""
 
-    def test_by_task_model_for_project(self, client, auth_headers, test_db, test_users):
-        p, org = _setup_eval_project(test_db, test_users)
-        run = _make_eval_run(test_db, p.id, test_users[0].id)
+    @pytest.mark.asyncio
+    async def test_by_task_model_for_project(self, async_test_client, async_test_db):
+        p, org, owner = await _setup_eval_project(async_test_db)
+        run = await _make_eval_run(async_test_db, p.id, owner.id)
 
         t = Task(id=str(uuid.uuid4()), project_id=p.id, data={"text": "btm"}, inner_id=1)
-        test_db.add(t)
-        test_db.commit()
-        _make_task_eval(test_db, run.id, t.id, predicted="A", reference="B")
+        async_test_db.add(t)
+        await async_test_db.commit()
+        await _make_task_eval(async_test_db, run.id, t.id, predicted="A", reference="B")
 
-        resp = client.get(
-            f"/api/evaluations/projects/{p.id}/results/by-task-model",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(f"/api/evaluations/projects/{p.id}/results/by-task-model")
         assert resp.status_code == 200
 
-    def test_by_task_model_for_run(self, client, auth_headers, test_db, test_users):
-        p, org = _setup_eval_project(test_db, test_users)
-        run = _make_eval_run(test_db, p.id, test_users[0].id)
+    @pytest.mark.asyncio
+    async def test_by_task_model_for_run(self, async_test_client, async_test_db):
+        p, org, owner = await _setup_eval_project(async_test_db)
+        run = await _make_eval_run(async_test_db, p.id, owner.id)
 
         t = Task(id=str(uuid.uuid4()), project_id=p.id, data={"text": "btm2"}, inner_id=1)
-        test_db.add(t)
-        test_db.commit()
-        _make_task_eval(test_db, run.id, t.id, predicted="A", reference="A")
+        async_test_db.add(t)
+        await async_test_db.commit()
+        await _make_task_eval(async_test_db, run.id, t.id, predicted="A", reference="A")
 
-        resp = client.get(
-            f"/api/evaluations/{run.id}/results/by-task-model",
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(f"/api/evaluations/{run.id}/results/by-task-model")
         assert resp.status_code == 200

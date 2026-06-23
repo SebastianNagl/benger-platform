@@ -33,7 +33,7 @@ from models import NotificationType
 @pytest.fixture
 def email_svc():
     """Create an EmailService instance with mocked dependencies."""
-    with patch("services.email.email_service.SendGridClient") as mock_sg:
+    with patch("mailer.email_service.SendGridClient") as mock_sg:
         with patch("database.SessionLocal"):
             from email_service import EmailService
 
@@ -64,7 +64,7 @@ class TestIsMailEnabled:
         with patch("database.SessionLocal", side_effect=Exception("no DB")):
             from email_service import EmailService
 
-            with patch("services.email.email_service.SendGridClient"):
+            with patch("mailer.email_service.SendGridClient"):
                 svc = EmailService()
                 # Should default to enabled on error
                 assert svc.mail_enabled == True  # noqa: E712
@@ -78,11 +78,11 @@ class TestInitTemplateEnvironment:
 
     def test_oserror_on_mkdir(self):
         """OSError during directory creation is caught (lines 70-71)."""
-        with patch("services.email.email_service.SendGridClient"):
+        with patch("mailer.email_service.SendGridClient"):
             with patch("database.SessionLocal"):
-                with patch("services.email.email_service.Path.exists", return_value=False):
+                with patch("mailer.email_service.Path.exists", return_value=False):
                     with patch(
-                        "services.email.email_service.Path.mkdir",
+                        "mailer.email_service.Path.mkdir",
                         side_effect=OSError("read-only"),
                     ):
                         from email_service import EmailService
@@ -103,7 +103,7 @@ class TestInitTemplateEnvironment:
             (tmp_path / name).write_text("Subject: x\n<html></html>")
 
         with patch.dict(os.environ, {"EMAIL_TEMPLATE_DIR": str(tmp_path)}), \
-             patch("services.email.email_service.SendGridClient"), \
+             patch("mailer.email_service.SendGridClient"), \
              patch("database.SessionLocal"):
             from email_service import EmailService
 
@@ -532,16 +532,20 @@ class TestConvenienceFunctions:
         """Test module-level send_notification_email function (line 564)."""
         import sys
 
-        # The convenience functions reference the global from services.email.email_service
+        # The convenience functions are now defined in the canonical module
+        # mailer.email_service and read its module-global `email_service`. Patch
+        # there as well as on the re-export shims (services.email.email_service /
+        # email_service) so the lookup inside the function hits the mock.
+        canon_mod = sys.modules.get("mailer.email_service")
         pkg_mod = sys.modules.get("services.email.email_service")
         short_mod = sys.modules.get("email_service")
 
-        # Patch in both module copies
+        # Patch in every module copy
         mock_svc = MagicMock()
         mock_svc.send_notification_email = AsyncMock(return_value=True)
 
         originals = {}
-        for mod in [pkg_mod, short_mod]:
+        for mod in [canon_mod, pkg_mod, short_mod]:
             if mod:
                 originals[id(mod)] = (mod, getattr(mod, "email_service", None))
                 mod.email_service = mock_svc
@@ -562,6 +566,7 @@ class TestConvenienceFunctions:
         """Test module-level send_digest_email function (line 571)."""
         import sys
 
+        canon_mod = sys.modules.get("mailer.email_service")
         pkg_mod = sys.modules.get("services.email.email_service")
         short_mod = sys.modules.get("email_service")
 
@@ -569,7 +574,7 @@ class TestConvenienceFunctions:
         mock_svc.send_digest_email = AsyncMock(return_value=True)
 
         originals = {}
-        for mod in [pkg_mod, short_mod]:
+        for mod in [canon_mod, pkg_mod, short_mod]:
             if mod:
                 originals[id(mod)] = (mod, getattr(mod, "email_service", None))
                 mod.email_service = mock_svc
@@ -589,6 +594,7 @@ class TestConvenienceFunctions:
         """Test module-level test_email_service function (line 576)."""
         import sys
 
+        canon_mod = sys.modules.get("mailer.email_service")
         pkg_mod = sys.modules.get("services.email.email_service")
         short_mod = sys.modules.get("email_service")
 
@@ -596,7 +602,7 @@ class TestConvenienceFunctions:
         mock_svc.test_connection = AsyncMock(return_value=True)
 
         originals = {}
-        for mod in [pkg_mod, short_mod]:
+        for mod in [canon_mod, pkg_mod, short_mod]:
             if mod:
                 originals[id(mod)] = (mod, getattr(mod, "email_service", None))
                 mod.email_service = mock_svc

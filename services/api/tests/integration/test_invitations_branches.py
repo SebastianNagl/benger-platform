@@ -34,16 +34,135 @@ Permission map under ``test_org``:
 """
 
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import select
 
-from models import Invitation, OrganizationMembership, OrganizationRole, User
+from models import (
+    Invitation,
+    Organization,
+    OrganizationMembership,
+    OrganizationRole,
+    User,
+)
 
 
 def _uid() -> str:
     return str(uuid.uuid4())
+
+
+# ---------------------------------------------------------------------------
+# Async-lane helpers
+#
+# Several invitation endpoints moved to the async DB lane
+# (``Depends(get_async_db)``): list, validate-by-token, get-by-token, cancel.
+# Driving them with the sync TestClient + sync test_db fails because the async
+# engine is bound to a different event loop than TestClient's portal. Those
+# tests are driven with ``async_test_client`` and seed rows via
+# ``async_test_db`` instead. The create / bulk / accept endpoints stay sync, so
+# their tests keep using the sync ``client`` + ``test_db`` helpers above.
+# ---------------------------------------------------------------------------
+
+from auth_module.dependencies import require_user  # noqa: E402
+from auth_module.models import User as AuthUser  # noqa: E402
+from main import app  # noqa: E402
+
+
+@contextmanager
+def _as_user(db_user):
+    """Override require_user with an AuthUser mirroring a seeded DB user row."""
+    au = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _aseed_user(
+    db, email, name="Inviter User", *, is_superadmin=False, email_verified=True
+):
+    """Seed a User row on the async session and return it."""
+    user = User(
+        id=_uid(),
+        username=email,
+        email=email,
+        name=name,
+        hashed_password="hashed",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=email_verified,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(user)
+    await db.flush()
+    return user
+
+
+async def _aseed_org(db, *, name="Async Test Org", slug=None):
+    org = Organization(
+        id=_uid(),
+        name=name,
+        display_name=f"{name} Display",
+        slug=slug or f"async-org-{uuid.uuid4().hex[:8]}",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(org)
+    await db.flush()
+    return org
+
+
+async def _aseed_membership(db, user_id, org_id, role=OrganizationRole.ANNOTATOR, is_active=True):
+    m = OrganizationMembership(
+        id=_uid(),
+        user_id=user_id,
+        organization_id=org_id,
+        role=role,
+        is_active=is_active,
+    )
+    db.add(m)
+    await db.flush()
+    return m
+
+
+async def _aseed_invitation(
+    db,
+    org_id,
+    invited_by,
+    *,
+    email="invitee@example.com",
+    role=OrganizationRole.ANNOTATOR,
+    token=None,
+    accepted=False,
+    accepted_at=None,
+    expires_in_days=7,
+):
+    inv = Invitation(
+        id=_uid(),
+        organization_id=org_id,
+        email=email,
+        role=role,
+        token=token or _uid(),
+        invited_by=invited_by,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=expires_in_days),
+        accepted=accepted,
+        accepted_at=accepted_at,
+    )
+    db.add(inv)
+    await db.flush()
+    return inv
 
 
 def _make_invitation(
@@ -324,64 +443,82 @@ class TestBulkInvitations:
 
 @pytest.mark.integration
 class TestListInvitations:
-    def test_non_admin_cannot_list_403(
-        self, client, test_db, test_users, test_org, auth_headers
-    ):
-        resp = client.get(
-            f"/api/invitations/organizations/{test_org.id}/invitations",
-            headers=auth_headers["annotator"],
+    """list_organization_invitations is async — driven via async_test_client."""
+
+    @pytest.mark.asyncio
+    async def test_non_admin_cannot_list_403(self, async_test_client, async_test_db):
+        org = await _aseed_org(async_test_db)
+        annotator = await _aseed_user(async_test_db, "list-annotator@example.com")
+        await _aseed_membership(
+            async_test_db, annotator.id, org.id, role=OrganizationRole.ANNOTATOR
         )
+        await async_test_db.commit()
+
+        with _as_user(annotator):
+            resp = await async_test_client.get(
+                f"/api/invitations/organizations/{org.id}/invitations"
+            )
         assert resp.status_code == 403
         assert "Only organization admins" in resp.json()["detail"]
 
-    def test_pending_only_excludes_accepted(
-        self, client, test_db, test_users, test_org, auth_headers
-    ):
-        _make_invitation(
-            test_db, test_org.id, test_users[0].id, email="pendinglist@example.com"
+    @pytest.mark.asyncio
+    async def test_pending_only_excludes_accepted(self, async_test_client, async_test_db):
+        org = await _aseed_org(async_test_db)
+        admin = await _aseed_user(
+            async_test_db, "list-admin1@example.com", is_superadmin=True
         )
-        _make_invitation(
-            test_db,
-            test_org.id,
-            test_users[0].id,
+        inviter = await _aseed_user(async_test_db, "list-inviter1@example.com")
+        await _aseed_invitation(
+            async_test_db, org.id, inviter.id, email="pendinglist@example.com"
+        )
+        await _aseed_invitation(
+            async_test_db,
+            org.id,
+            inviter.id,
             email="acceptedlist@example.com",
             accepted=True,
             accepted_at=datetime.now(timezone.utc),
         )
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/invitations/organizations/{test_org.id}/invitations",
-            headers=auth_headers["org_admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/invitations/organizations/{org.id}/invitations"
+            )
         assert resp.status_code == 200
         emails = {inv["email"] for inv in resp.json()}
         assert "pendinglist@example.com" in emails
         assert "acceptedlist@example.com" not in emails
 
-    def test_include_expired_toggle(
-        self, client, test_db, test_users, test_org, auth_headers
-    ):
-        _make_invitation(
-            test_db,
-            test_org.id,
-            test_users[0].id,
+    @pytest.mark.asyncio
+    async def test_include_expired_toggle(self, async_test_client, async_test_db):
+        org = await _aseed_org(async_test_db)
+        admin = await _aseed_user(
+            async_test_db, "list-admin2@example.com", is_superadmin=True
+        )
+        inviter = await _aseed_user(async_test_db, "list-inviter2@example.com")
+        await _aseed_invitation(
+            async_test_db,
+            org.id,
+            inviter.id,
             email="expiredlist@example.com",
             expires_in_days=-1,
         )
+        await async_test_db.commit()
 
         # Default: expired hidden.
-        resp = client.get(
-            f"/api/invitations/organizations/{test_org.id}/invitations",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/invitations/organizations/{org.id}/invitations"
+            )
         assert resp.status_code == 200
         assert "expiredlist@example.com" not in {inv["email"] for inv in resp.json()}
 
         # With include_expired=true: shown.
-        resp2 = client.get(
-            f"/api/invitations/organizations/{test_org.id}/invitations?include_expired=true",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp2 = await async_test_client.get(
+                f"/api/invitations/organizations/{org.id}/invitations?include_expired=true"
+            )
         assert resp2.status_code == 200
         assert "expiredlist@example.com" in {inv["email"] for inv in resp2.json()}
 
@@ -393,82 +530,103 @@ class TestListInvitations:
 
 @pytest.mark.integration
 class TestTokenLookup:
-    def test_validate_not_found_404(self, client, test_db):
-        resp = client.get(f"/api/invitations/validate/{_uid()}")
+    """validate_invitation_token / get_invitation_by_token are async + public
+    (no auth) — driven via async_test_client, no _as_user needed."""
+
+    @pytest.mark.asyncio
+    async def test_validate_not_found_404(self, async_test_client, async_test_db):
+        resp = await async_test_client.get(f"/api/invitations/validate/{_uid()}")
         assert resp.status_code == 404
         assert "Invitation not found" in resp.json()["detail"]
 
-    def test_validate_already_accepted_400(
-        self, client, test_db, test_users, test_org
-    ):
+    @pytest.mark.asyncio
+    async def test_validate_already_accepted_400(self, async_test_client, async_test_db):
+        org = await _aseed_org(async_test_db)
+        inviter = await _aseed_user(async_test_db, "validate-inviter1@example.com")
         token = _uid()
-        _make_invitation(
-            test_db,
-            test_org.id,
-            test_users[0].id,
+        await _aseed_invitation(
+            async_test_db,
+            org.id,
+            inviter.id,
             email="acc@example.com",
             token=token,
             accepted=True,
             accepted_at=datetime.now(timezone.utc),
         )
-        resp = client.get(f"/api/invitations/validate/{token}")
+        await async_test_db.commit()
+
+        resp = await async_test_client.get(f"/api/invitations/validate/{token}")
         assert resp.status_code == 400
         assert "already been accepted" in resp.json()["detail"]
 
-    def test_get_by_token_not_found_404(self, client, test_db):
-        resp = client.get(f"/api/invitations/token/{_uid()}")
+    @pytest.mark.asyncio
+    async def test_get_by_token_not_found_404(self, async_test_client, async_test_db):
+        resp = await async_test_client.get(f"/api/invitations/token/{_uid()}")
         assert resp.status_code == 404
         assert "Invitation not found" in resp.json()["detail"]
 
-    def test_get_by_token_expired_400(self, client, test_db, test_users, test_org):
+    @pytest.mark.asyncio
+    async def test_get_by_token_expired_400(self, async_test_client, async_test_db):
+        org = await _aseed_org(async_test_db)
+        inviter = await _aseed_user(async_test_db, "token-inviter-exp@example.com")
         token = _uid()
-        _make_invitation(
-            test_db,
-            test_org.id,
-            test_users[0].id,
+        await _aseed_invitation(
+            async_test_db,
+            org.id,
+            inviter.id,
             email="exp@example.com",
             token=token,
             expires_in_days=-2,
         )
-        resp = client.get(f"/api/invitations/token/{token}")
+        await async_test_db.commit()
+
+        resp = await async_test_client.get(f"/api/invitations/token/{token}")
         assert resp.status_code == 400
         assert "expired" in resp.json()["detail"].lower()
 
-    def test_get_by_token_already_accepted_400(
-        self, client, test_db, test_users, test_org
-    ):
+    @pytest.mark.asyncio
+    async def test_get_by_token_already_accepted_400(self, async_test_client, async_test_db):
+        org = await _aseed_org(async_test_db)
+        inviter = await _aseed_user(async_test_db, "token-inviter-acc@example.com")
         token = _uid()
-        _make_invitation(
-            test_db,
-            test_org.id,
-            test_users[0].id,
+        await _aseed_invitation(
+            async_test_db,
+            org.id,
+            inviter.id,
             email="accbytoken@example.com",
             token=token,
             accepted=True,
             accepted_at=datetime.now(timezone.utc),
         )
-        resp = client.get(f"/api/invitations/token/{token}")
+        await async_test_db.commit()
+
+        resp = await async_test_client.get(f"/api/invitations/token/{token}")
         assert resp.status_code == 400
         assert "already been accepted" in resp.json()["detail"]
 
-    def test_get_by_token_success_enriches(
-        self, client, test_db, test_users, test_org
-    ):
+    @pytest.mark.asyncio
+    async def test_get_by_token_success_enriches(self, async_test_client, async_test_db):
+        org = await _aseed_org(async_test_db)
+        inviter = await _aseed_user(
+            async_test_db, "token-inviter-ok@example.com", name="Token Inviter"
+        )
         token = _uid()
-        _make_invitation(
-            test_db,
-            test_org.id,
-            test_users[0].id,
+        await _aseed_invitation(
+            async_test_db,
+            org.id,
+            inviter.id,
             email="ok@example.com",
             token=token,
             role=OrganizationRole.CONTRIBUTOR,
         )
-        resp = client.get(f"/api/invitations/token/{token}")
+        await async_test_db.commit()
+
+        resp = await async_test_client.get(f"/api/invitations/token/{token}")
         assert resp.status_code == 200
         body = resp.json()
         assert body["email"] == "ok@example.com"
-        assert body["organization_name"] == test_org.name
-        assert body["inviter_name"] == test_users[0].name
+        assert body["organization_name"] == org.name
+        assert body["inviter_name"] == inviter.name
         assert body["role"] == "CONTRIBUTOR"
 
 
@@ -662,61 +820,98 @@ class TestAcceptInvitation:
 
 @pytest.mark.integration
 class TestCancelInvitation:
-    def test_cancel_not_found_404(self, client, test_db, test_users, auth_headers):
-        resp = client.delete(
-            f"/api/invitations/{_uid()}",
-            headers=auth_headers["admin"],
+    """cancel_invitation is async — driven via async_test_client."""
+
+    @pytest.mark.asyncio
+    async def test_cancel_not_found_404(self, async_test_client, async_test_db):
+        admin = await _aseed_user(
+            async_test_db, "cancel-admin0@example.com", is_superadmin=True
         )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.delete(f"/api/invitations/{_uid()}")
         assert resp.status_code == 404
         assert "Invitation not found" in resp.json()["detail"]
 
-    def test_org_admin_cancels_deletes_row(
-        self, client, test_db, test_users, test_org, auth_headers
-    ):
-        inv = _make_invitation(
-            test_db, test_org.id, test_users[0].id, email="cancelme@example.com"
+    @pytest.mark.asyncio
+    async def test_org_admin_cancels_deletes_row(self, async_test_client, async_test_db):
+        org = await _aseed_org(async_test_db)
+        # Non-superadmin who holds an ORG_ADMIN membership for this org.
+        org_admin = await _aseed_user(async_test_db, "cancel-orgadmin@example.com")
+        await _aseed_membership(
+            async_test_db, org_admin.id, org.id, role=OrganizationRole.ORG_ADMIN
         )
-        resp = client.delete(
-            f"/api/invitations/{inv.id}",
-            headers=auth_headers["org_admin"],
+        inviter = await _aseed_user(async_test_db, "cancel-inviter1@example.com")
+        inv = await _aseed_invitation(
+            async_test_db, org.id, inviter.id, email="cancelme@example.com"
         )
+        await async_test_db.commit()
+
+        with _as_user(org_admin):
+            resp = await async_test_client.delete(f"/api/invitations/{inv.id}")
         assert resp.status_code == 200
         assert "cancelled successfully" in resp.json()["message"]
 
-        test_db.expire_all()
-        assert test_db.query(Invitation).filter(Invitation.id == inv.id).first() is None
+        row = (
+            await async_test_db.execute(
+                select(Invitation).where(Invitation.id == inv.id)
+            )
+        ).scalar_one_or_none()
+        assert row is None
 
-    def test_inviter_can_cancel_own_invitation(self, client, test_db, test_users, test_org):
+    @pytest.mark.asyncio
+    async def test_inviter_can_cancel_own_invitation(self, async_test_client, async_test_db):
         """A non-admin user who created the invitation may cancel it (the
         ``invitation.invited_by == current_user.id`` branch)."""
-        # Make the contributor (non-admin) the inviter.
-        inviter = test_users[1]
-        inv = _make_invitation(
-            test_db, test_org.id, inviter.id, email="ownerinvite@example.com"
+        org = await _aseed_org(async_test_db)
+        # A non-admin contributor who is the inviter — no ORG_ADMIN membership.
+        inviter = await _aseed_user(async_test_db, "cancel-owner@example.com")
+        await _aseed_membership(
+            async_test_db, inviter.id, org.id, role=OrganizationRole.CONTRIBUTOR
         )
-        resp = client.delete(
-            f"/api/invitations/{inv.id}",
-            headers=_bearer(inviter),
+        inv = await _aseed_invitation(
+            async_test_db, org.id, inviter.id, email="ownerinvite@example.com"
         )
-        assert resp.status_code == 200
-        test_db.expire_all()
-        assert test_db.query(Invitation).filter(Invitation.id == inv.id).first() is None
+        await async_test_db.commit()
 
-    def test_non_admin_non_inviter_cannot_cancel_403(
-        self, client, test_db, test_users, test_org
+        with _as_user(inviter):
+            resp = await async_test_client.delete(f"/api/invitations/{inv.id}")
+        assert resp.status_code == 200
+
+        row = (
+            await async_test_db.execute(
+                select(Invitation).where(Invitation.id == inv.id)
+            )
+        ).scalar_one_or_none()
+        assert row is None
+
+    @pytest.mark.asyncio
+    async def test_non_admin_non_inviter_cannot_cancel_403(
+        self, async_test_client, async_test_db
     ):
         """A non-admin who did NOT create the invitation is forbidden."""
-        inv = _make_invitation(
-            test_db, test_org.id, test_users[0].id, email="protected@example.com"
+        org = await _aseed_org(async_test_db)
+        inviter = await _aseed_user(async_test_db, "cancel-realinviter@example.com")
+        # The actor: a non-admin annotator who is neither org-admin nor inviter.
+        actor = await _aseed_user(async_test_db, "cancel-annotator@example.com")
+        await _aseed_membership(
+            async_test_db, actor.id, org.id, role=OrganizationRole.ANNOTATOR
         )
-        # annotator is neither org-admin nor the inviter.
-        resp = client.delete(
-            f"/api/invitations/{inv.id}",
-            headers=_bearer(test_users[2]),
+        inv = await _aseed_invitation(
+            async_test_db, org.id, inviter.id, email="protected@example.com"
         )
+        await async_test_db.commit()
+
+        with _as_user(actor):
+            resp = await async_test_client.delete(f"/api/invitations/{inv.id}")
         assert resp.status_code == 403
         assert "Only organization admins or the inviter" in resp.json()["detail"]
 
         # Row still present.
-        test_db.expire_all()
-        assert test_db.query(Invitation).filter(Invitation.id == inv.id).first() is not None
+        row = (
+            await async_test_db.execute(
+                select(Invitation).where(Invitation.id == inv.id)
+            )
+        ).scalar_one_or_none()
+        assert row is not None

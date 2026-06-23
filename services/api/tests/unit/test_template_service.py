@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from models import Organization, OrganizationMembership, User
-from template_service import TemplateService
+from services.template_service import TemplateService
 
 
 class TestTemplateService:
@@ -422,7 +422,7 @@ class TestTemplateService:
 
     def test_service_singleton_behavior(self):
         """Test that service instances behave consistently"""
-        from template_service import template_service, universal_template_service_v3
+        from services.template_service import template_service, universal_template_service_v3
 
         # Both should be the same instance
         assert template_service is universal_template_service_v3
@@ -433,7 +433,7 @@ class TestTemplateService:
         # Test that validation errors are properly logged
         invalid_data = {"not": "valid"}
 
-        with patch('template_service.logger') as mock_logger:  # noqa: F841
+        with patch('services.template_service.logger') as mock_logger:  # noqa: F841
             is_valid, error = template_service.validate_template(invalid_data)
             assert is_valid is False
             # Verify logger was called (error logging is in the exception handler)

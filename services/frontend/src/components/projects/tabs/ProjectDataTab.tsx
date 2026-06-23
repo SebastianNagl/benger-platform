@@ -6,72 +6,49 @@
 'use client'
 
 import { logger } from '@/lib/utils/logger'
-import { AnnotatorBadges } from '@/components/projects/AnnotatorBadges'
 import { BulkActions } from '@/components/projects/BulkActions'
 import { ColumnSelector } from '@/components/projects/ColumnSelector'
 import { FilterDropdown } from '@/components/projects/FilterDropdown'
 import { ImportDataModal } from '@/components/projects/ImportDataModal'
-import { TableCheckbox } from '@/components/projects/TableCheckbox'
 import { TaskAssignmentModal } from '@/components/projects/TaskAssignmentModal'
-import { UserAvatar } from '@/components/projects/UserAvatar'
 import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
 import { useToast } from '@/components/shared/Toast'
 import { TaskAnnotationComparisonModal } from '@/components/tasks/TaskAnnotationComparisonModal'
-import { TaskDataViewModal } from '@/components/tasks/TaskDataViewModal'
 import { TaskGenerationComparisonModal } from '@/components/tasks/TaskGenerationComparisonModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useProgress } from '@/contexts/ProgressContext'
-import {
-  useColumnSettings,
-  useTablePreferences,
-} from '@/hooks/useColumnSettings'
-import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { useColumnSettings } from '@/hooks/useColumnSettings'
+import { usePermissions } from '@/hooks/usePermissions'
 import { projectsAPI } from '@/lib/api/projects'
 import { Task } from '@/lib/api/types'
 import { useProjectStore } from '@/stores/projectStore'
 import { Task as LabelStudioTask } from '@/types/labelStudio'
 import {
   extractMetadataColumns,
-  formatCellValue,
   hasConsistentMetadataStructure,
 } from '@/utils/dataColumnHelpers'
-import {
-  extractNestedDataColumns,
-  formatNestedCellValue,
-  getTaskNestedValue,
-} from '@/utils/nestedDataColumnHelpers'
-import {
-  canAccessProjectData,
-  getEffectiveProjectRole,
-} from '@/utils/permissions'
+import { extractNestedDataColumns } from '@/utils/nestedDataColumnHelpers'
 import { labelStudioTaskToApi } from '@/utils/taskTypeAdapter'
 import { Menu } from '@headlessui/react'
 import {
-  CheckIcon,
   ChevronDownIcon,
   DocumentMagnifyingGlassIcon,
-  EyeIcon,
   MagnifyingGlassIcon,
-  PencilSquareIcon,
   PlayIcon,
 } from '@heroicons/react/24/outline'
-import { formatDistanceToNow } from 'date-fns'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+
+import { DataRecordModal } from './data/DataRecordModal'
+import {
+  ProjectDataTable,
+  type TableColumn,
+} from './data/ProjectDataTable'
+import { useProjectData } from './data/useProjectData'
 
 interface ProjectDataTabProps {
   projectId: string
-}
-
-// Define table columns
-interface TableColumn {
-  id: string
-  label: string
-  visible: boolean
-  sortable: boolean
-  width?: string
-  type?: 'metadata' | 'data' | 'system'
 }
 
 const defaultColumns: TableColumn[] = [
@@ -177,6 +154,7 @@ const defaultColumns: TableColumn[] = [
 
 export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
   const { user } = useAuth()
+  const perms = usePermissions()
   const { t } = useI18n()
   const { addToast } = useToast()
   const { startProgress, updateProgress, completeProgress } = useProgress()
@@ -187,163 +165,45 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
   const { columns, toggleColumn, resetColumns, updateColumns, reorderColumns } =
     useColumnSettings(projectId, user?.id, defaultColumns)
 
-  // Use persistent table preferences
-  const { preferences, updatePreference } = useTablePreferences(
-    projectId,
-    user?.id
-  )
+  // Data-fetching + row/pagination/filter state lives in a dedicated hook so
+  // this component can focus on layout and the modal/bulk wiring. The hook
+  // owns the server-driven page fetch and the client-side metadata/annotator
+  // filter pass; it also seeds + re-exposes `updatePreference` so the order-by
+  // menu can keep persisting sort choices.
+  const {
+    updatePreference,
+    tasks,
+    filteredTasks,
+    isLoading,
+    searchQuery,
+    setSearchQuery,
+    showSearch,
+    setShowSearch,
+    debouncedSearch,
+    sortBy,
+    setSortBy,
+    sortOrder,
+    setSortOrder,
+    filterStatus,
+    setFilterStatus,
+    filterDateRange,
+    setFilterDateRange,
+    setFilterAnnotator,
+    metadataFilters,
+    setMetadataFilters,
+    currentPage,
+    setCurrentPage,
+    totalTasks,
+    totalPages,
+    reloadCurrentPage,
+  } = useProjectData({ projectId, userId: user?.id })
 
-  // State - using LabelStudio Task type internally for compatibility.
-  // `tasks` holds the CURRENT PAGE only; the projects-list page is driven
-  // by server-side pagination + filters now. `filteredTasks` keeps the
-  // (small) client-side filter pass for fields the API doesn't yet expose
-  // (annotator, metadata) on top of the current page.
-  const [tasks, setTasks] = useState<LabelStudioTask[]>([])
-  const [filteredTasks, setFilteredTasks] = useState<LabelStudioTask[]>([])
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showSearch, setShowSearch] = useState(preferences.showSearch)
-  const [sortBy, setSortBy] = useState<string>(preferences.sortBy)
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(
-    preferences.sortOrder
-  )
-  const [filterStatus, setFilterStatus] = useState<
-    'all' | 'completed' | 'incomplete'
-  >(preferences.filterStatus)
-  const [filterDateRange, setFilterDateRange] = useState<{
-    start: string
-    end: string
-  }>({ start: '', end: '' })
   const [showImportModal, setShowImportModal] = useState(false)
-  const [filterAnnotator, setFilterAnnotator] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
-
-  // Server-driven pagination state. The API endpoint returns `total` /
-  // `pages` from the new Phase 1c filter shape; this lets us drive
-  // Previous/Next without ever loading the entire project into memory.
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize] = useState(50)
-  const [totalTasks, setTotalTasks] = useState(0)
-  const [totalPages, setTotalPages] = useState(0)
-
-  // Metadata filtering state (Label Studio aligned)
-  const [metadataFilters, setMetadataFilters] = useState<Record<string, any>>(
-    {}
-  )
 
   // Task Assignment Modal state
   const [showAssignmentModal, setShowAssignmentModal] = useState(false)
   const [projectMembers, setProjectMembers] = useState<any[]>([])
-
-  // Lag the search input so per-keystroke typing doesn't refire the page
-  // fetch.
-  const debouncedSearch = useDebouncedValue(searchQuery, 300)
-
-  // Reset to page 1 whenever a filter changes — otherwise the current page
-  // index may exceed the new totalPages and the UI shows an empty page.
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [debouncedSearch, filterStatus, filterDateRange.start, filterDateRange.end, sortBy, sortOrder])
-
-  // Map UI sort key to the backend sort columns. Non-server-sortable keys
-  // (e.g. people columns) map to undefined and fall back to the default
-  // server ordering.
-  const serverSortBy = useMemo<
-    'id' | 'created' | 'completed' | 'annotations' | 'generations' | undefined
-  >(() => {
-    if (sortBy === 'id' || sortBy === 'created' || sortBy === 'completed') return sortBy
-    if (sortBy === 'annotations' || sortBy === 'generations') return sortBy
-    return undefined
-  }, [sortBy])
-
-  // Load the current page from the server with the active filters in one
-  // round-trip. Pre-refactor the store walked every page of the project
-  // and concatenated them into memory — for 50k-task projects that was
-  // tens of MB streamed across the wire on every filter change.
-  const reloadCurrentPage = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const page = await projectsAPI.getTasksPage(projectId, {
-        page: currentPage,
-        pageSize,
-        search: debouncedSearch || undefined,
-        dateFrom: filterDateRange.start || undefined,
-        dateTo: filterDateRange.end || undefined,
-        onlyLabeled: filterStatus === 'completed' ? true : undefined,
-        onlyUnlabeled: filterStatus === 'incomplete' ? true : undefined,
-        sortBy: serverSortBy,
-        sortOrder,
-      })
-      // `getTasksPage` returns the raw task shape from the API; cast to
-      // the LabelStudio task type used by the rest of this component.
-      setTasks(page.items as unknown as LabelStudioTask[])
-      setFilteredTasks(page.items as unknown as LabelStudioTask[])
-      setTotalTasks(page.total)
-      setTotalPages(page.pages)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [
-    projectId,
-    currentPage,
-    pageSize,
-    debouncedSearch,
-    filterStatus,
-    filterDateRange.start,
-    filterDateRange.end,
-    serverSortBy,
-    sortOrder,
-  ])
-
-  useEffect(() => {
-    if (!projectId) return
-    reloadCurrentPage()
-  }, [projectId, reloadCurrentPage])
-
-  // Client-side fallback pass for fields the API doesn't filter yet:
-  // - filterAnnotator: requires reading annotation rows; no server endpoint exists yet
-  // - metadataFilters: arbitrary JSONB path equality, kept client-side
-  // status/date/search/sort all went server-side in Phase 6.4 and operate
-  // on the full project before pagination — no need to re-apply them here.
-  useEffect(() => {
-    let filtered = tasks
-
-    if (filterAnnotator) {
-      // TODO(perf): expose annotator filter on /projects/{id}/tasks; today
-      // this is a no-op because annotation rows aren't included in the
-      // task payload. Kept as a guarded branch so the prop wiring stays
-      // valid when the backend filter lands.
-      filtered = filtered
-    }
-
-    if (Object.keys(metadataFilters).length > 0) {
-      filtered = filtered.filter((task) => {
-        const taskMeta = (task as any).meta || {}
-
-        return Object.entries(metadataFilters).every(
-          ([field, filterValues]) => {
-            const taskValue = taskMeta[field]
-
-            if (Array.isArray(filterValues)) {
-              if (Array.isArray(taskValue)) {
-                return filterValues.some((fv) => taskValue.includes(fv))
-              } else {
-                return filterValues.includes(taskValue)
-              }
-            } else {
-              if (Array.isArray(taskValue)) {
-                return taskValue.includes(filterValues)
-              } else {
-                return taskValue === filterValues
-              }
-            }
-          }
-        )
-      })
-    }
-
-    setFilteredTasks(filtered)
-  }, [tasks, filterAnnotator, metadataFilters])
 
   // Handle column visibility - now using the hook
   const handleColumnToggle = (columnId: string) => {
@@ -518,12 +378,12 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
       // Selected-subset export goes through the async job flow: a worker streams
       // the export to object storage and the browser downloads it via a
       // presigned URL, keeping the bulk data plane off the request path. The
-      // worker reports no total size, so the bar stays indeterminate.
+      // worker reports task-count progress (tasks streamed / total), which we
+      // poll and reflect on the bar.
       startProgress(progressId, t('annotationTab.buttons.bulkExport'), {
         sublabel: t('annotationTab.messages.exportingSelected', {
           count: selectedTasks.size,
         }),
-        indeterminate: true,
       })
 
       await projectsAPI.runProjectExportJob(
@@ -532,7 +392,11 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         {
           onStatus: (status) => {
             if (status.status === 'running' || status.status === 'pending') {
-              updateProgress(progressId, 0, t('annotationTab.messages.exporting'))
+              updateProgress(
+                progressId,
+                status.progress,
+                t('annotationTab.messages.exporting')
+              )
             }
           },
         },
@@ -604,7 +468,6 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
 
       startProgress(progressId, t('annotationTab.buttons.export'), {
         sublabel: t('annotationTab.messages.exportingSelected', { count }),
-        indeterminate: true,
       })
 
       await projectsAPI.runProjectExportJob(
@@ -612,10 +475,14 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         'json',
         {
           onStatus: (status) => {
-            // The worker reports bytes-so-far but the total size is unknown, so
-            // we keep the bar indeterminate and just reflect the job state.
+            // The worker reports task-count progress (tasks streamed / total);
+            // reflect it on the bar as the export streams.
             if (status.status === 'running' || status.status === 'pending') {
-              updateProgress(progressId, 0, t('annotationTab.messages.exporting'))
+              updateProgress(
+                progressId,
+                status.progress,
+                t('annotationTab.messages.exporting')
+              )
             }
           },
         },
@@ -700,8 +567,10 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
   // Per-project edit gate: superadmins, the project creator, and ORG_ADMINs of
   // the project's org. The backend re-checks and returns 403 if not allowed.
   const canEditTasks =
-    getEffectiveProjectRole(user, currentProject ?? null, user?.role ?? null) ===
-    'ORG_ADMIN'
+    perms.getEffectiveProjectRole(
+      currentProject ?? null,
+      user?.role ?? null
+    ) === 'ORG_ADMIN'
 
   // State for annotation comparison modal
   const [selectedTaskForComparison, setSelectedTaskForComparison] =
@@ -933,7 +802,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
 
   // Check if current user can unassign tasks (admins/contributors, plus
   // public-tier CONTRIBUTORs when the project is public).
-  const canUnassign = canAccessProjectData(user, { project: currentProject })
+  const canUnassign = perms.canAccessProjectData({ project: currentProject })
 
   return (
     <>
@@ -976,7 +845,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                 onExport={handleBulkExport}
                 onArchive={handleBulkArchive}
                 onAssign={handleOpenAssignmentModal}
-                canAssign={canAccessProjectData(user, { project: currentProject })}
+                canAssign={perms.canAccessProjectData({ project: currentProject })}
                 onTagsUpdated={async () => {
                   await reloadCurrentPage()
                   addToast(t('success.tagsUpdated'), 'success')
@@ -1209,476 +1078,36 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
             <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px]">
-                <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800">
-                  <tr>
-                    {columns
-                      .filter(
-                        (col) =>
-                          col.visible &&
-                          (col.id !== 'edit_data' || canEditTasks)
-                      )
-                      .map((column) => {
-                        // Handle dynamic data columns
-                        if (column.id.startsWith('data_')) {
-                          // Find the corresponding data column
-                          const dataColumnKey = column.id.replace('data_', '')
-                          const dataColumn = dataColumns.find(
-                            (dc) => dc.id === dataColumnKey
-                          )
-                          if (dataColumn) {
-                            return (
-                              <th
-                                key={column.id}
-                                className={`min-w-[120px] whitespace-nowrap border-r border-zinc-200 px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-600 dark:border-zinc-700 dark:text-zinc-400 ${column.width || ''} bg-amber-50/50 dark:bg-amber-900/10`}
-                              >
-                                {t(column.label)}
-                              </th>
-                            )
-                          }
-                          return null
-                        }
-
-                        // Skip the single 'data' column if we're using dynamic columns
-                        if (column.id === 'data' && useDataColumns) {
-                          return null
-                        }
-
-                        return (
-                          <th
-                            key={column.id}
-                            className={`whitespace-nowrap border-r border-zinc-200 px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-600 dark:border-zinc-700 dark:text-zinc-400 ${column.width || ''} ${
-                              column.sortable
-                                ? 'cursor-pointer select-none transition-colors duration-150 hover:text-zinc-900 dark:hover:text-white'
-                                : ''
-                            } ${
-                              column.type === 'metadata'
-                                ? 'bg-blue-50/50 dark:bg-blue-900/10'
-                                : column.type === 'data'
-                                  ? 'bg-amber-50/50 dark:bg-amber-900/10'
-                                  : ''
-                            }`}
-                            onClick={(e) => {
-                              e.preventDefault()
-                              if (column.sortable) {
-                                handleSort(column.id)
-                              }
-                            }}
-                            role={column.sortable ? 'button' : undefined}
-                            tabIndex={column.sortable ? 0 : undefined}
-                            onKeyDown={(e) => {
-                              if (
-                                column.sortable &&
-                                (e.key === 'Enter' || e.key === ' ')
-                              ) {
-                                e.preventDefault()
-                                handleSort(column.id)
-                              }
-                            }}
-                          >
-                            {column.id === 'select' ? (
-                              <TableCheckbox
-                                checked={headerCheckboxState.allSelected}
-                                indeterminate={
-                                  headerCheckboxState.isIndeterminate
-                                }
-                                onChange={handleSelectAll}
-                                data-testid="header-checkbox"
-                              />
-                            ) : (
-                              <div className="flex items-center space-x-1">
-                                <span>{t(column.label)}</span>
-                                {column.sortable && sortBy === column.id && (
-                                  <span className="text-emerald-600">
-                                    {sortOrder === 'asc' ? '↑' : '↓'}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </th>
-                        )
-                      })}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
-                  {filteredTasks.map((task) => {
-                    // People who actually did work on the task (from the
-                    // serializer), kept separate from assignments.
-                    const annotators = task.annotators || []
-                    const reviewers = task.reviewers || []
-                    // Assignment list split by target_type: annotator
-                    // assignments ('task') vs Korrektur grader assignments.
-                    const allAssignments = (task as any).assignments || []
-                    const annotatorAssignments = allAssignments.filter(
-                      (a: any) => !a.target_type || a.target_type === 'task'
-                    )
-                    const graderAssignments = allAssignments.filter(
-                      (a: any) =>
-                        a.target_type === 'annotation' ||
-                        a.target_type === 'generation'
-                    )
-
-                    return (
-                      <tr
-                        key={task.id}
-                        className="h-12 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                        onClick={() => {
-                          setSelectedTaskForComparison(task)
-                          setShowComparisonModal(true)
-                        }}
-                      >
-                        {columns
-                          .filter(
-                            (col) =>
-                              col.visible &&
-                              (col.id !== 'edit_data' || canEditTasks)
-                          )
-                          .map((column) => {
-                            // Handle dynamic metadata columns
-                            if (column.id.startsWith('meta_')) {
-                              const metaColumnKey = column.id.replace(
-                                'meta_',
-                                ''
-                              )
-                              const metaColumn = metadataColumns.find(
-                                (mc) => mc.key === metaColumnKey
-                              )
-                              if (metaColumn) {
-                                const value = task.meta?.[metaColumn.key]
-                                const formatted = formatCellValue(
-                                  value,
-                                  metaColumn.type,
-                                  50
-                                )
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="min-w-[120px] cursor-pointer whitespace-nowrap border-r border-zinc-200 bg-blue-50/30 px-3 py-2 hover:bg-blue-100/30 dark:border-zinc-700 dark:bg-blue-900/5 dark:hover:bg-blue-800/10"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleViewTaskMetadata(task)
-                                    }}
-                                    title={t(
-                                      'annotationTab.display.viewMetadata'
-                                    )}
-                                  >
-                                    {formatted.truncated ? (
-                                      <span
-                                        className="text-sm text-zinc-900 hover:text-zinc-700 dark:text-white dark:hover:text-zinc-300"
-                                        title={formatted.full}
-                                      >
-                                        {formatted.display}
-                                      </span>
-                                    ) : (
-                                      <span className="text-sm text-zinc-900 dark:text-white">
-                                        {formatted.display}
-                                      </span>
-                                    )}
-                                  </td>
-                                )
-                              }
-                              return null
-                            }
-
-                            // Handle dynamic data columns
-                            if (column.id.startsWith('data_')) {
-                              const dataColumnKey = column.id.replace(
-                                'data_',
-                                ''
-                              )
-                              const dataColumn = dataColumns.find(
-                                (dc) => dc.id === dataColumnKey
-                              )
-                              if (dataColumn) {
-                                // Use nested value getter to support dot notation paths
-                                const value = getTaskNestedValue(
-                                  task as any,
-                                  dataColumn.id
-                                )
-                                const formatted = formatNestedCellValue(
-                                  value,
-                                  dataColumn.type,
-                                  50
-                                )
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="min-w-[120px] whitespace-nowrap border-r border-zinc-200 bg-amber-50/30 px-3 py-2 dark:border-zinc-700 dark:bg-amber-900/5"
-                                  >
-                                    {formatted.truncated ? (
-                                      <span
-                                        className="cursor-help text-sm text-zinc-900 hover:text-zinc-700 dark:text-white dark:hover:text-zinc-300"
-                                        title={formatted.full}
-                                      >
-                                        {formatted.display}
-                                      </span>
-                                    ) : (
-                                      <span className="text-sm text-zinc-900 dark:text-white">
-                                        {formatted.display}
-                                      </span>
-                                    )}
-                                  </td>
-                                )
-                              }
-                              return null
-                            }
-
-                            switch (column.id) {
-                              case 'select':
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <TableCheckbox
-                                      checked={selectedTasks.has(task.id)}
-                                      onChange={() => handleSelectTask(task.id)}
-                                    />
-                                  </td>
-                                )
-                              case 'id':
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="border-r border-zinc-200 px-3 py-2 font-mono text-sm text-zinc-900 dark:border-zinc-700 dark:text-white"
-                                  >
-                                    {task.id}
-                                  </td>
-                                )
-                              case 'completed':
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
-                                  >
-                                    <div className="flex items-center">
-                                      {task.is_labeled ? (
-                                        <CheckIcon className="h-4 w-4 text-emerald-500" />
-                                      ) : (
-                                        <div className="h-4 w-4 rounded border-2 border-zinc-300 dark:border-zinc-600" />
-                                      )}
-                                    </div>
-                                  </td>
-                                )
-                              case 'assigned':
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <AnnotatorBadges
-                                      assignments={annotatorAssignments}
-                                      maxVisible={3}
-                                      size="sm"
-                                      showStatus={true}
-                                      onUnassign={handleUnassign}
-                                      canUnassign={canUnassign}
-                                      onAssign={() => handleAssignTask(task.id)}
-                                      canAssign={canUnassign}
-                                    />
-                                  </td>
-                                )
-                              // Tags case removed - handled by dynamic metadata columns now
-                              case 'data':
-                                // Skip the 'data' column if we're using dynamic columns
-                                if (useDataColumns) {
-                                  return null
-                                }
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
-                                  >
-                                    <p className="truncate text-sm text-zinc-900 dark:text-white">
-                                      {getTaskDisplayValue(task)}
-                                    </p>
-                                  </td>
-                                )
-                              case 'annotations':
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
-                                  >
-                                    <span className="text-sm font-medium text-zinc-900 dark:text-white">
-                                      {Math.max(
-                                        0,
-                                        task.total_annotations -
-                                          task.cancelled_annotations
-                                      )}
-                                    </span>
-                                  </td>
-                                )
-                              case 'generations':
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      if (task.total_generations > 0) {
-                                        setSelectedTaskForGenerations(task)
-                                        setShowGenerationModal(true)
-                                      }
-                                    }}
-                                  >
-                                    <span
-                                      className={`text-sm ${
-                                        task.total_generations > 0
-                                          ? 'cursor-pointer font-medium text-blue-600 hover:underline dark:text-blue-400'
-                                          : 'text-zinc-500 dark:text-zinc-400'
-                                      }`}
-                                      title={
-                                        task.total_generations > 0
-                                          ? t('generation.comparison.modal.viewAll')
-                                          : undefined
-                                      }
-                                    >
-                                      {task.total_generations}
-                                    </span>
-                                  </td>
-                                )
-                              case 'annotators':
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
-                                  >
-                                    {annotators.length > 0 ? (
-                                      <div className="flex -space-x-2">
-                                        {annotators.map((person) => (
-                                          <UserAvatar
-                                            key={person.id}
-                                            name={person.name}
-                                            size="sm"
-                                          />
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                                        —
-                                      </span>
-                                    )}
-                                  </td>
-                                )
-                              case 'graders':
-                                // Korrektur grader assignments (item-level,
-                                // target_type annotation/generation). Read-only
-                                // here — grading is managed on the /korrektur
-                                // page.
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {graderAssignments.length > 0 ? (
-                                      <AnnotatorBadges
-                                        assignments={graderAssignments}
-                                        maxVisible={3}
-                                        size="sm"
-                                        showStatus={true}
-                                        canUnassign={false}
-                                        canAssign={false}
-                                      />
-                                    ) : (
-                                      <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                                        —
-                                      </span>
-                                    )}
-                                  </td>
-                                )
-                              case 'view_data':
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <button
-                                      onClick={() => handleViewTaskData(task)}
-                                      className="rounded p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-                                      title={t('annotation.viewTaskData')}
-                                    >
-                                      <EyeIcon className="h-4 w-4" />
-                                    </button>
-                                  </td>
-                                )
-                              case 'edit_data':
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {canEditTasks && (
-                                      <button
-                                        onClick={() => handleEditTaskData(task)}
-                                        className="rounded p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-                                        title={t('annotation.editTaskData')}
-                                      >
-                                        <PencilSquareIcon className="h-4 w-4" />
-                                      </button>
-                                    )}
-                                  </td>
-                                )
-                              case 'reviewers':
-                                // Who actually reviewed an annotation on this
-                                // task (Annotation.reviewed_by) — distinct from
-                                // graders above.
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
-                                  >
-                                    {reviewers.length > 0 ? (
-                                      <div className="flex -space-x-2">
-                                        {reviewers.map((person) => (
-                                          <UserAvatar
-                                            key={person.id}
-                                            name={person.name}
-                                            size="sm"
-                                          />
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                                        —
-                                      </span>
-                                    )}
-                                  </td>
-                                )
-                              case 'created':
-                                return (
-                                  <td
-                                    key={column.id}
-                                    className="border-r border-zinc-200 px-3 py-2 dark:border-zinc-700"
-                                  >
-                                    <span className="whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400">
-                                      {formatDistanceToNow(
-                                        new Date(task.created_at),
-                                        {
-                                          addSuffix: true,
-                                        }
-                                      ).replace(/\s+/g, ' ')}
-                                    </span>
-                                  </td>
-                                )
-                              default:
-                                return null
-                            }
-                          })}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <ProjectDataTable
+            rows={filteredTasks}
+            columns={columns}
+            canEditTasks={canEditTasks}
+            dataColumns={dataColumns}
+            metadataColumns={metadataColumns}
+            useDataColumns={useDataColumns}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSort={handleSort}
+            selectedTasks={selectedTasks}
+            headerCheckboxState={headerCheckboxState}
+            onSelectAll={handleSelectAll}
+            onSelectTask={handleSelectTask}
+            canUnassign={canUnassign}
+            onUnassign={handleUnassign}
+            onAssignTask={handleAssignTask}
+            onRowClick={(task) => {
+              setSelectedTaskForComparison(task)
+              setShowComparisonModal(true)
+            }}
+            onOpenGenerations={(task) => {
+              setSelectedTaskForGenerations(task)
+              setShowGenerationModal(true)
+            }}
+            onViewTaskData={handleViewTaskData}
+            onEditTaskData={handleEditTaskData}
+            onViewTaskMetadata={handleViewTaskMetadata}
+            getTaskDisplayValue={getTaskDisplayValue}
+          />
         )}
 
         {/* Empty state */}
@@ -1762,7 +1191,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
       )}
 
       {/* Task Data View / Edit Modal */}
-      <TaskDataViewModal
+      <DataRecordModal
         task={viewDataTask}
         isOpen={showDataModal}
         onClose={() => {
@@ -1770,8 +1199,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
           setViewDataTask(null)
         }}
         projectId={projectId}
-        taskId={viewDataTask?.id ? String(viewDataTask.id) : undefined}
-        initialMode={dataModalMode}
+        mode={dataModalMode}
         canEdit={canEditTasks}
         onSaved={() => reloadCurrentPage()}
       />

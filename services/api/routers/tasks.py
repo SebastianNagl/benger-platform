@@ -8,13 +8,14 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import and_, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from sqlalchemy.types import String
 
 from auth_module import User as AuthUser
 from auth_module import require_user
-from database import get_db
+from database import get_async_db
 from models import Organization, OrganizationMembership
 from project_models import Project, ProjectMember, ProjectOrganization, Task
 from project_schemas import PaginatedResponse
@@ -40,40 +41,41 @@ class TaskResponse(BaseModel):
 router = APIRouter(prefix="/api/data", tags=["data-management"])
 
 
-def get_user_accessible_projects(db: Session, user: AuthUser) -> List[str]:
+async def get_user_accessible_projects(db: AsyncSession, user: AuthUser) -> List[str]:
     """Get list of project IDs that the user has access to."""
     # Superadmins can access everything
     if user.is_superadmin:
-        projects = db.query(Project.id).all()
-        return [p.id for p in projects]
+        result = await db.execute(select(Project.id))
+        return [row[0] for row in result.all()]
 
     # Get user's organizations (active memberships only — a deactivated
     # membership must not grant continued access to that org's task data).
     user_orgs = (
-        db.query(OrganizationMembership.organization_id)
-        .filter(
+        select(OrganizationMembership.organization_id)
+        .where(
             OrganizationMembership.user_id == user.id,
             OrganizationMembership.is_active == True,  # noqa: E712
         )
-        .subquery()
+        .scalar_subquery()
     )
 
     # Get projects linked to user's organizations (private projects)
-    org_projects = (
-        db.query(Project.id)
+    org_result = await db.execute(
+        select(Project.id)
         .join(ProjectOrganization, ProjectOrganization.project_id == Project.id)
-        .filter(ProjectOrganization.organization_id.in_(user_orgs))
-        .all()
+        .where(ProjectOrganization.organization_id.in_(user_orgs))
     )
+    org_projects = org_result.all()
 
     # Note: All projects are considered accessible for now
     # TODO: Add public/private project visibility if needed
     public_projects = []
 
     # Get projects where user is a member
-    member_projects = (
-        db.query(ProjectMember.project_id).filter(ProjectMember.user_id == user.id).all()
+    member_result = await db.execute(
+        select(ProjectMember.project_id).where(ProjectMember.user_id == user.id)
     )
+    member_projects = member_result.all()
 
     # Combine all accessible project IDs
     project_ids = set()
@@ -99,7 +101,7 @@ async def list_all_tasks(
     date_from: Optional[datetime] = Query(None, description="Filter tasks created after this date"),
     date_to: Optional[datetime] = Query(None, description="Filter tasks created before this date"),
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     List all tasks across projects with pagination and filtering.
@@ -107,11 +109,12 @@ async def list_all_tasks(
     This endpoint provides a global view of all tasks the user has access to,
     with comprehensive filtering and sorting capabilities.
     """
+    from sqlalchemy.orm import selectinload
 
     # No feature flag check needed - page access is controlled by data_page flag
 
     # Get accessible projects for the user
-    accessible_projects = get_user_accessible_projects(db, current_user)
+    accessible_projects = await get_user_accessible_projects(db, current_user)
 
     # If project_ids filter is provided, intersect with accessible projects
     if project_ids:
@@ -122,86 +125,106 @@ async def list_all_tasks(
     else:
         filtered_project_ids = accessible_projects
 
-    # Build base query with project information
-    query = (
-        db.query(Task)
+    # Build base query with project information. Eager-load the relationships
+    # the response reads (project / assigned_user / annotations) so the async
+    # engine never triggers a lazy load (MissingGreenlet) during serialization.
+    stmt = (
+        select(Task)
         .join(Project)
-        .options(joinedload(Task.project), joinedload(Task.assigned_user))
-        .filter(Task.project_id.in_(filtered_project_ids))
+        .options(
+            joinedload(Task.project),
+            joinedload(Task.assigned_user),
+            selectinload(Task.annotations),
+        )
+        .where(Task.project_id.in_(filtered_project_ids))
+    )
+    count_stmt = (
+        select(func.count())
+        .select_from(Task)
+        .where(Task.project_id.in_(filtered_project_ids))
     )
 
     # Apply status filter
     if status and status != 'all':
         if status == 'completed':
-            query = query.filter(Task.is_labeled == True)  # noqa: E712
+            cond = Task.is_labeled == True  # noqa: E712
         elif status == 'incomplete':
-            query = query.filter(Task.is_labeled == False)  # noqa: E712
+            cond = Task.is_labeled == False  # noqa: E712
         elif status == 'in_progress':
-            query = query.filter(and_(Task.assigned_to.isnot(None), Task.is_labeled == False))  # noqa: E712
+            cond = and_(Task.assigned_to.isnot(None), Task.is_labeled == False)  # noqa: E712
+        else:
+            cond = None
+        if cond is not None:
+            stmt = stmt.where(cond)
+            count_stmt = count_stmt.where(cond)
 
     # Apply assigned user filter
     if assigned_to:
-        query = query.filter(Task.assigned_to == assigned_to)
+        stmt = stmt.where(Task.assigned_to == assigned_to)
+        count_stmt = count_stmt.where(Task.assigned_to == assigned_to)
 
     # Apply date range filter
     if date_from:
-        query = query.filter(Task.created_at >= date_from)
+        stmt = stmt.where(Task.created_at >= date_from)
+        count_stmt = count_stmt.where(Task.created_at >= date_from)
     if date_to:
-        query = query.filter(Task.created_at <= date_to)
+        stmt = stmt.where(Task.created_at <= date_to)
+        count_stmt = count_stmt.where(Task.created_at <= date_to)
 
     # Apply search filter (searches in data and meta fields)
     if search:
         search_pattern = f"%{search}%"
-        query = query.filter(
-            or_(
-                func.cast(Task.data, String).ilike(search_pattern),
-                func.cast(Task.meta, String).ilike(search_pattern),
-                Task.id.ilike(search_pattern),
-            )
+        search_cond = or_(
+            func.cast(Task.data, String).ilike(search_pattern),
+            func.cast(Task.meta, String).ilike(search_pattern),
+            Task.id.ilike(search_pattern),
         )
+        stmt = stmt.where(search_cond)
+        count_stmt = count_stmt.where(search_cond)
 
     # Get total count before pagination
-    total_count = query.count()
+    total_count = int((await db.execute(count_stmt)).scalar() or 0)
 
     # Apply sorting
     if hasattr(Task, sort_by):
         order_column = getattr(Task, sort_by)
         if sort_order == "desc":
-            query = query.order_by(order_column.desc())
+            stmt = stmt.order_by(order_column.desc())
         else:
-            query = query.order_by(order_column.asc())
+            stmt = stmt.order_by(order_column.asc())
     else:
         # Default sorting
-        query = query.order_by(Task.created_at.desc())
+        stmt = stmt.order_by(Task.created_at.desc())
 
     # Apply pagination
     offset = (page - 1) * page_size
-    tasks = query.offset(offset).limit(page_size).all()
+    tasks_result = await db.execute(stmt.offset(offset).limit(page_size))
+    tasks = tasks_result.unique().scalars().all()
+
+    # Pre-fetch org names for all projects on this page in one query each,
+    # avoiding an N+1 over the per-task org lookup.
+    page_project_ids = list({t.project_id for t in tasks})
+    org_name_by_project: Dict[str, Optional[str]] = {}
+    if page_project_ids:
+        org_rows = await db.execute(
+            select(ProjectOrganization.project_id, Organization.name)
+            .join(
+                Organization,
+                Organization.id == ProjectOrganization.organization_id,
+            )
+            .where(ProjectOrganization.project_id.in_(page_project_ids))
+        )
+        for pid, name in org_rows.all():
+            # First org wins, mirroring the prior .first() semantics.
+            org_name_by_project.setdefault(pid, name)
 
     # Format tasks for response
     task_responses = []
     for task in tasks:
         # Get annotation count
-        annotation_count = len(task.annotations) if hasattr(task, 'annotations') else 0
+        annotation_count = len(task.annotations) if task.annotations is not None else 0
 
-        # Get the organization for this project
-        from project_models import ProjectOrganization  # noqa: F402
-
-        project_org = (
-            db.query(ProjectOrganization)
-            .filter(ProjectOrganization.project_id == task.project_id)
-            .first()
-        )
-
-        org_name = None
-        if project_org:
-            org = (
-                db.query(Organization)
-                .filter(Organization.id == project_org.organization_id)
-                .first()
-            )
-            if org:
-                org_name = org.name
+        org_name = org_name_by_project.get(task.project_id)
 
         task_response = TaskResponse(
             id=task.id,
@@ -238,7 +261,7 @@ async def bulk_assign_tasks(
     task_ids: List[str],
     user_id: str,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Bulk assign multiple tasks to a user.
@@ -247,14 +270,15 @@ async def bulk_assign_tasks(
     # No feature flag check needed - page access is controlled by data_page flag
 
     # Get accessible projects for the user
-    accessible_projects = get_user_accessible_projects(db, current_user)
+    accessible_projects = await get_user_accessible_projects(db, current_user)
 
     # Get tasks and verify access
-    tasks = (
-        db.query(Task)
-        .filter(and_(Task.id.in_(task_ids), Task.project_id.in_(accessible_projects)))
-        .all()
+    tasks_result = await db.execute(
+        select(Task).where(
+            and_(Task.id.in_(task_ids), Task.project_id.in_(accessible_projects))
+        )
     )
+    tasks = tasks_result.scalars().all()
 
     if len(tasks) != len(task_ids):
         raise HTTPException(
@@ -266,7 +290,7 @@ async def bulk_assign_tasks(
         task.assigned_to = user_id
         task.updated_at = datetime.utcnow()
 
-    db.commit()
+    await db.commit()
 
     return {"message": f"Successfully assigned {len(tasks)} tasks to user {user_id}"}
 
@@ -276,7 +300,7 @@ async def bulk_update_task_status(
     task_ids: List[str],
     is_labeled: bool,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Bulk update the completion status of multiple tasks.
@@ -285,14 +309,15 @@ async def bulk_update_task_status(
     # No feature flag check needed - page access is controlled by data_page flag
 
     # Get accessible projects for the user
-    accessible_projects = get_user_accessible_projects(db, current_user)
+    accessible_projects = await get_user_accessible_projects(db, current_user)
 
     # Get tasks and verify access
-    tasks = (
-        db.query(Task)
-        .filter(and_(Task.id.in_(task_ids), Task.project_id.in_(accessible_projects)))
-        .all()
+    tasks_result = await db.execute(
+        select(Task).where(
+            and_(Task.id.in_(task_ids), Task.project_id.in_(accessible_projects))
+        )
     )
+    tasks = tasks_result.scalars().all()
 
     if len(tasks) != len(task_ids):
         raise HTTPException(
@@ -304,7 +329,7 @@ async def bulk_update_task_status(
         task.is_labeled = is_labeled
         task.updated_at = datetime.utcnow()
 
-    db.commit()
+    await db.commit()
 
     status = "completed" if is_labeled else "incomplete"
     return {"message": f"Successfully marked {len(tasks)} tasks as {status}"}
@@ -315,7 +340,7 @@ async def export_tasks(
     task_ids: Optional[List[str]] = None,
     format: str = Query("json", pattern="^(json|csv)$"),
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Export selected tasks or all accessible tasks in specified format.
@@ -328,16 +353,22 @@ async def export_tasks(
 
     # No feature flag check needed - page access is controlled by data_page flag
     # Get accessible projects for the user
-    accessible_projects = get_user_accessible_projects(db, current_user)
+    accessible_projects = await get_user_accessible_projects(db, current_user)
 
-    # Build query
-    query = db.query(Task).join(Project).filter(Task.project_id.in_(accessible_projects))
+    # Build query — eager-load project so task.project.title doesn't lazy-load.
+    stmt = (
+        select(Task)
+        .join(Project)
+        .options(joinedload(Task.project))
+        .where(Task.project_id.in_(accessible_projects))
+    )
 
     # Filter by specific task IDs if provided
     if task_ids:
-        query = query.filter(Task.id.in_(task_ids))
+        stmt = stmt.where(Task.id.in_(task_ids))
 
-    tasks = query.all()
+    tasks_result = await db.execute(stmt)
+    tasks = tasks_result.unique().scalars().all()
 
     if format == "json":
         # Export as JSON

@@ -2,8 +2,61 @@
 Unit tests for API endpoints
 """
 
+import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
+
 import pytest
 from fastapi import status
+
+
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user):
+    """Override require_user with an AuthUser mirroring ``db_user`` (used for
+    async-endpoint tests that authenticate as a seeded DB user). The real
+    ``require_superadmin`` dependency keys off ``is_superadmin``, so flipping
+    the seeded user's flag drives both the 403 and 200 branches."""
+    from auth_module.dependencies import require_user
+    from auth_module.models import User as AuthUser
+    from main import app
+
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _seed_db_user(db, *, is_superadmin=False, is_active=True):
+    from models import User as DBUser
+
+    u = DBUser(
+        id=_uid(),
+        username=f"apiep-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="API EP User",
+        is_superadmin=is_superadmin,
+        is_active=is_active,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
 
 
 @pytest.mark.unit
@@ -90,58 +143,69 @@ class TestAuthenticationEndpoints:
 class TestUserManagementEndpoints:
     """Test user management endpoints"""
 
-    def test_get_all_users_admin_only(self, client, auth_headers):
-        """Test that getting all users requires admin role"""
-        # Test with annotator role (should fail)
-        response = client.get("/api/users", headers=auth_headers["annotator"])
+    @pytest.mark.asyncio
+    async def test_get_all_users_admin_only(self, async_test_client, async_test_db):
+        """Test that getting all users requires admin role (async users router)."""
+        admin = await _seed_db_user(async_test_db, is_superadmin=True)
+        annotator = await _seed_db_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
+
+        with _as_user(annotator):
+            response = await async_test_client.get("/api/users")
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-        # Test with admin role (should succeed)
-        response = client.get("/api/users", headers=auth_headers["admin"])
+        with _as_user(admin):
+            response = await async_test_client.get("/api/users")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert isinstance(data, list)
 
-    def test_update_user_role_admin_only(self, client, auth_headers, test_users):
-        """Test updating user role requires admin"""
-        user_id = test_users[2].id  # annotator user
-        role_data = {"is_superadmin": False}  # Updated to use boolean flag
+    @pytest.mark.asyncio
+    async def test_update_user_role_admin_only(self, async_test_client, async_test_db):
+        """Test updating user role requires admin.
 
-        # Test with annotator role (should fail)
-        response = client.patch(
-            f"/api/users/{user_id}/role",
-            json=role_data,
-            headers=auth_headers["annotator"],
-        )
+        The users router moved to the async DB lane, so the target user is
+        seeded via async_test_db and both branches are driven by toggling the
+        acting user's superadmin flag (the real ``require_superadmin`` keys off
+        it).
+        """
+        admin = await _seed_db_user(async_test_db, is_superadmin=True)
+        annotator = await _seed_db_user(async_test_db, is_superadmin=False)
+        target = await _seed_db_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
+        role_data = {"is_superadmin": False}
+
+        with _as_user(annotator):
+            response = await async_test_client.patch(
+                f"/api/users/{target.id}/role", json=role_data
+            )
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-        # Test with admin role (should succeed)
-        response = client.patch(
-            f"/api/users/{user_id}/role",
-            json=role_data,
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            response = await async_test_client.patch(
+                f"/api/users/{target.id}/role", json=role_data
+            )
         assert response.status_code == status.HTTP_200_OK
 
-    def test_update_user_status_admin_only(self, client, auth_headers, test_users):
-        """Test updating user status requires admin"""
-        user_id = test_users[2].id  # annotator user
+    @pytest.mark.asyncio
+    async def test_update_user_status_admin_only(self, async_test_client, async_test_db):
+        """Test updating user status requires admin (async users router)."""
+        admin = await _seed_db_user(async_test_db, is_superadmin=True)
+        annotator = await _seed_db_user(async_test_db, is_superadmin=False)
+        target = await _seed_db_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
         status_data = {"is_active": False}
 
-        # Test with annotator role (should fail)
-        response = client.patch(
-            f"/api/users/{user_id}/status",
-            json=status_data,
-            headers=auth_headers["annotator"],
-        )
+        with _as_user(annotator):
+            response = await async_test_client.patch(
+                f"/api/users/{target.id}/status", json=status_data
+            )
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-        # Test with admin role (should succeed)
-        response = client.patch(
-            f"/api/users/{user_id}/status",
-            json=status_data,
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            response = await async_test_client.patch(
+                f"/api/users/{target.id}/status", json=status_data
+            )
         assert response.status_code == status.HTTP_200_OK
 
     def test_delete_user_admin_only(self, client, auth_headers, test_users):
@@ -198,44 +262,54 @@ class TestTaskEndpoints:
             status.HTTP_403_FORBIDDEN,  # No access to project
         ]
 
-    def test_get_tasks(self, client, auth_headers):
-        """Test getting all tasks"""
-        # Tasks are accessed through projects API
-        response = client.get("/api/projects", headers=auth_headers["annotator"])
+    @pytest.mark.asyncio
+    async def test_get_tasks(self, async_test_client, async_test_db):
+        """Test getting all tasks (projects list, async router)."""
+        user = await _seed_db_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
+        with _as_user(user):
+            response = await async_test_client.get("/api/projects", follow_redirects=True)
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         # Projects endpoint returns paginated response
         assert "items" in data
         assert isinstance(data["items"], list)
 
-    def test_get_task_by_id(self, client, auth_headers):
-        """Test getting task by ID"""
-        # Non-existent task should return 404
-        response = client.get("/api/projects/tasks/00000000-0000-0000-0000-000000000000", headers=auth_headers["annotator"])
+    @pytest.mark.asyncio
+    async def test_get_task_by_id(self, async_test_client, async_test_db):
+        """Test getting non-existent task by ID returns 404 (async router)."""
+        user = await _seed_db_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
+        with _as_user(user):
+            response = await async_test_client.get(
+                "/api/projects/tasks/00000000-0000-0000-0000-000000000000"
+            )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_update_task_contributor_required(self, client, auth_headers):
-        """Test updating task requires contributor role"""
-        task_update = {
-            "name": "Updated Task",
-            "description": "Updated description",
-        }
-
-        # Non-existent task should return 404
-        response = client.patch(
-            "/api/projects/tasks/00000000-0000-0000-0000-000000000000/metadata", json=task_update, headers=auth_headers["annotator"]
-        )
+    @pytest.mark.asyncio
+    async def test_update_task_contributor_required(self, async_test_client, async_test_db):
+        """Test updating a non-existent task returns 404 (async router)."""
+        user = await _seed_db_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
+        task_update = {"name": "Updated Task", "description": "Updated description"}
+        with _as_user(user):
+            response = await async_test_client.patch(
+                "/api/projects/tasks/00000000-0000-0000-0000-000000000000/metadata",
+                json=task_update,
+            )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_delete_task_admin_required(self, client, auth_headers):
-        """Test deleting task requires admin role"""
-        # Test with contributor role - tasks are deleted through bulk delete endpoint
+    @pytest.mark.asyncio
+    async def test_delete_task_admin_required(self, async_test_client, async_test_db):
+        """Test deleting task requires admin role (bulk-delete, async router)."""
+        user = await _seed_db_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
         delete_data = {"task_ids": [1]}
-        response = client.post(
-            "/api/projects/test-project/tasks/bulk-delete",
-            json=delete_data,
-            headers=auth_headers["contributor"],
-        )
+        with _as_user(user):
+            response = await async_test_client.post(
+                "/api/projects/test-project/tasks/bulk-delete",
+                json=delete_data,
+            )
         # May return 404 if project doesn't exist or 403 if no permission
         assert response.status_code in [
             status.HTTP_403_FORBIDDEN,  # No permission to delete
@@ -268,13 +342,36 @@ class TestEvaluationTypeEndpoints:
         data = response.json()
         assert isinstance(data, list)
 
-    def test_get_evaluation_type_by_id(self, client, auth_headers, test_evaluation_types):
-        """Test getting evaluation type by ID"""
-        eval_type_id = test_evaluation_types[0].id
-        response = client.get(
-            f"/api/evaluations/evaluation-types/{eval_type_id}",
-            headers=auth_headers["annotator"],
-        )
+    @pytest.mark.asyncio
+    async def test_get_evaluation_type_by_id(self, async_test_client, async_test_db):
+        """Test getting evaluation type by ID.
+
+        The single-type endpoint moved to the async DB lane. We self-seed a
+        unique-id row (rather than the shared ``test_evaluation_types`` fixture,
+        whose fixed-id bulk insert UniqueViolation's against the long-lived
+        test DB) and authenticate as a seeded user.
+        """
+        from models import EvaluationType as DBEvaluationType
+
+        user = await _seed_db_user(async_test_db, is_superadmin=False)
+        eval_type_id = f"acc-{_uid()[:8]}"
+        async_test_db.add(DBEvaluationType(
+            id=eval_type_id,
+            name="Accuracy",
+            description="Measures prediction accuracy",
+            category="performance",
+            higher_is_better=True,
+            value_range={"min": 0.0, "max": 1.0},
+            applicable_project_types=["qa"],
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
+        ))
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.get(
+                f"/api/evaluations/evaluation-types/{eval_type_id}",
+            )
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["id"] == eval_type_id
@@ -357,19 +454,31 @@ class TestEvaluationEndpoints:
 class TestProjectEndpoints:
     """Test native project endpoints"""
 
-    def test_get_projects(self, client, auth_headers):
-        """Test getting projects"""
-        response = client.get("/api/projects", headers=auth_headers["annotator"])
+    @pytest.mark.asyncio
+    async def test_get_projects(self, async_test_client, async_test_db):
+        """Test getting projects (async router)."""
+        user = await _seed_db_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
+        with _as_user(user):
+            response = await async_test_client.get("/api/projects", follow_redirects=True)
         assert response.status_code == status.HTTP_200_OK
 
-    def test_get_project_by_id(self, client, auth_headers):
-        """Test getting non-existent project by ID returns 404"""
-        response = client.get("/api/projects/1", headers=auth_headers["annotator"])
+    @pytest.mark.asyncio
+    async def test_get_project_by_id(self, async_test_client, async_test_db):
+        """Test getting non-existent project by ID returns 404 (async router)."""
+        user = await _seed_db_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
+        with _as_user(user):
+            response = await async_test_client.get("/api/projects/1")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_get_project_tasks(self, client, auth_headers):
-        """Test getting tasks for non-existent project returns 404"""
-        response = client.get("/api/projects/1/tasks", headers=auth_headers["annotator"])
+    @pytest.mark.asyncio
+    async def test_get_project_tasks(self, async_test_client, async_test_db):
+        """Test getting tasks for non-existent project returns 404 (async router)."""
+        user = await _seed_db_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
+        with _as_user(user):
+            response = await async_test_client.get("/api/projects/1/tasks")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 

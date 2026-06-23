@@ -68,17 +68,22 @@ test.describe('Multi-run inventory + detail pages', () => {
     const allRows = await page.locator('tbody tr').count()
 
     // Pick the second option in the project filter (first is "Alle Projekte"
-    // / "All projects"). If only the placeholder option exists the filter
-    // is empty and we skip — there's nothing to narrow against.
+    // / "All projects"). The dropdown is populated by a SEPARATE async projects
+    // fetch (runs/page.tsx useEffect), independent of the rows above, so its
+    // <option> list lags the table — reading it mid-flight used to see only the
+    // placeholder and silently skip. The seed always provides multiple
+    // projects, so wait for the list to settle and treat a still-empty dropdown
+    // as a real failure rather than a skip.
     const projectSelect = page.locator('select').first()
-    const optionCount = await projectSelect.locator('option').count()
-    test.skip(optionCount < 2, 'No projects available to filter against')
+    await expect
+      .poll(() => projectSelect.locator('option').count(), { timeout: 15000 })
+      .toBeGreaterThanOrEqual(2)
 
     const targetValue = await projectSelect
       .locator('option')
       .nth(1)
       .getAttribute('value')
-    test.skip(!targetValue, 'Project option has no id')
+    expect(targetValue, 'second project option should carry a project id').toBeTruthy()
     await projectSelect.selectOption(targetValue!)
 
     await expect(page).toHaveURL(/project_id=/, { timeout: 10000 })
@@ -96,8 +101,18 @@ test.describe('Multi-run inventory + detail pages', () => {
     const firstRow = page.locator('tbody tr').first()
     await expect(firstRow).toBeVisible({ timeout: 30000 })
 
-    await firstRow.click()
-    await page.waitForURL(/\/generations\/[a-f0-9-]+$/, { timeout: 15000 })
+    // Rows navigate via a client-side onClick → router.push (no <a href>), so a
+    // click only works once React has hydrated and wired the handler. In the
+    // loaded Docker test env hydration can take 20-30s, and a click issued
+    // before then is silently dropped (verified: the 1st click never navigates;
+    // a click once hydrated lands in ~400ms). Retry the click until the URL
+    // actually changes, rather than clicking once and racing hydration.
+    await expect(async () => {
+      if (!/\/generations\/[a-f0-9-]+$/.test(page.url())) {
+        await firstRow.click({ timeout: 5000 })
+      }
+      expect(page.url()).toMatch(/\/generations\/[a-f0-9-]+$/)
+    }).toPass({ timeout: 60000, intervals: [500, 1000, 2000, 3000] })
     // Detail page shows the generation-run heading.
     await expect(
       page.getByRole('heading', { name: /Generierungs-Lauf|Generation Run/ }),

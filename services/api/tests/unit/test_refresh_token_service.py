@@ -10,9 +10,9 @@ from unittest.mock import Mock, patch
 import pytest
 from sqlalchemy.orm import Session
 
-import refresh_token_service
+from services import refresh_token_service
 from models import RefreshToken
-from refresh_token_service import (
+from services.refresh_token_service import (
     cleanup_expired_tokens,
     create_refresh_token,
     generate_refresh_token,

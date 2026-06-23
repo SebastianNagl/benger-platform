@@ -1,11 +1,12 @@
 """
 Earth Mover Distance backends.
 
-POT backend for ARM64 compatibility, pyemd for x86_64 performance.
+POT is preferred on all platforms (pyemd >= 1.1.0 returns incorrect EMD
+values); pyemd remains only as a fallback if POT is unavailable.
 
 References:
 - POT: Flamary et al. (2021) "POT: Python Optimal Transport"
-- pyemd: Standard EMD implementation using C++ SIMD
+- pyemd: Standard EMD implementation using C++ SIMD (fallback only)
 """
 
 import logging

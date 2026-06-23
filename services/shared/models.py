@@ -760,6 +760,27 @@ class ResponseGeneration(Base):
     runs_requested = Column(Integer, nullable=False, server_default=text("1"))
     runs_completed = Column(Integer, nullable=False, server_default=text("0"))
     runs_failed = Column(Integer, nullable=False, server_default=text("0"))
+    # Pause/resume/retry lifecycle (migration 063): the pause endpoint stamps
+    # ``paused_at`` and the resume endpoint stamps ``resumed_at``; the retry
+    # endpoint reads-then-increments ``retry_count`` on every re-dispatch.
+    # Before migration 063 these were unmapped attribute writes/reads — the
+    # retry read in particular raised AttributeError on a freshly-loaded row,
+    # 500ing the retry endpoint on real data. (``runs_completed``/``runs_failed``
+    # above are now DERIVED — the worker recomputes them from the child
+    # Generation rows after each trial rather than incrementing, so they can't
+    # drift or double-count under the fan-out.)
+    paused_at = Column(DateTime(timezone=True), nullable=True)
+    resumed_at = Column(DateTime(timezone=True), nullable=True)
+    retry_count = Column(Integer, nullable=False, server_default=text("0"))
+    # Dispatch epoch (migration 063): bumped on every re-dispatch (resume/retry)
+    # so a re-dispatched trial gets a FRESH deterministic Celery id
+    # ``{gen_id}:{run_idx}:{epoch}``. stop/pause/supersede revoke the CURRENT
+    # epoch; resume/retry first revoke the prior epoch's survivors, then dispatch
+    # the next epoch. Reusing the id across a revoke would make Celery's in-memory
+    # revoked set (remembered ~3h per worker) silently DISCARD the re-dispatch —
+    # so resume/retry would regenerate nothing. The epoch makes the new ids
+    # un-revoked. See generation_revoke.py.
+    dispatch_epoch = Column(Integer, default=0, nullable=False, server_default=text("0"))
     error_message = Column(Text, nullable=True)  # Error message if failed
     # Generation result (actual generated content)
     result = Column(JSON, nullable=True)

@@ -22,8 +22,9 @@ import apiClient from './api/index'
 export default apiClient
 
 // Re-export specific named exports for backward compatibility
-export { ApiClient, api } from './api/index'
+export { ApiClient, api, createApiClient } from './api/index'
 export type {
+  ApiClientConfig,
   LLMModel,
   Organization,
   OrganizationMember,

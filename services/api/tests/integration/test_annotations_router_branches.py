@@ -16,10 +16,13 @@ This file deliberately covers ONLY the branches those three miss:
   * POST server-side TaskDraft cleanup on submit.
   * POST ``min_annotations_per_task`` labeling threshold (labels only AT min).
 
-Idioms mirror test_project_progress_mix.py (direct model inserts + flush) and
-the shared client/test_db/test_users/auth_headers fixtures. The admin user
-(test_users[0], is_superadmin=True) short-circuits check_project_accessible and
-check_task_assigned_to_user, so open-mode projects it creates are reachable.
+The GET ``list_task_annotations`` handler was migrated to the async DB lane
+(``Depends(get_async_db)``), so the GET-driven tests below seed real rows via
+``async_test_db`` and drive the surface through ``async_test_client`` with a
+``require_user`` override (the sync ``client``/``test_db`` pair only overrides
+``get_db``, so an async handler can't see uncommitted SAVEPOINT rows). The POST
+``create_annotation`` handler STAYED sync (it calls sync-only extension hooks),
+so ``TestCreateSideEffects`` keeps the sync ``client``/``test_db`` fixtures.
 
 Full paths through the /api/projects router prefix:
   POST   /api/projects/tasks/{task_id}/annotations
@@ -27,10 +30,85 @@ Full paths through the /api/projects router prefix:
 """
 
 import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
+from models import User
 from project_models import Annotation, Project, Task, TaskDraft
+
+
+@pytest.fixture(autouse=True)
+def _mute_celery():
+    """Stub the report-refresh Celery dispatch in create/update_annotation.
+
+    Without a Redis broker (isolated venv) Celery retries the connection for
+    ~20s, which on the async lane outlives the 15s statement_timeout and
+    cancels the in-flight transaction. The handler already swallows dispatch
+    failures in prod, so stubbing it changes no behaviour under test.
+    """
+    with patch("celery_client.get_celery_app", return_value=MagicMock()):
+        yield
+
+
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_user(
+    db,
+    *,
+    is_superadmin=True,
+    name="Ann User",
+    username=None,
+    pseudonym=None,
+    use_pseudonym=False,
+):
+    u = User(
+        id=_uid(),
+        username=username or f"ann-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name=name,
+        pseudonym=pseudonym,
+        use_pseudonym=use_pseudonym,
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+# ---------------------------------------------------------------------------
+# Sync helpers — used ONLY by the POST (create_annotation) tests below, which
+# stay on the sync client/test_db pair.
+# ---------------------------------------------------------------------------
 
 
 def _make_project(test_db, *, created_by, **overrides):
@@ -61,20 +139,6 @@ def _make_task(test_db, project, *, inner_id=1, **overrides):
     return task
 
 
-def _seed_annotation(test_db, task, project, completed_by, result=None):
-    ann = Annotation(
-        id=str(uuid.uuid4()),
-        task_id=task.id,
-        project_id=project.id,
-        completed_by=completed_by,
-        result=result if result is not None else [{"value": {"choices": ["x"]}}],
-        was_cancelled=False,
-    )
-    test_db.add(ann)
-    test_db.flush()
-    return ann
-
-
 def _payload(**overrides):
     payload = {
         "result": [{"value": {"choices": ["positive"]}, "from_name": "label"}],
@@ -85,43 +149,104 @@ def _payload(**overrides):
 
 
 # ---------------------------------------------------------------------------
+# Async helpers — used by the GET (list_task_annotations) tests, which run on
+# the async client/db pair so the migrated async handler sees the rows.
+# ---------------------------------------------------------------------------
+
+
+async def _make_project_async(db, *, created_by, **overrides):
+    project = Project(
+        id=str(uuid.uuid4()),
+        title="Annotations Router Branch Test",
+        created_by=created_by,
+        assignment_mode=overrides.pop("assignment_mode", "open"),
+        maximum_annotations=overrides.pop("maximum_annotations", 0),
+        min_annotations_per_task=overrides.pop("min_annotations_per_task", 1),
+        **overrides,
+    )
+    db.add(project)
+    await db.flush()
+    return project
+
+
+async def _make_task_async(db, project, *, inner_id=1, **overrides):
+    task = Task(
+        id=str(uuid.uuid4()),
+        project_id=project.id,
+        inner_id=inner_id,
+        data={"text": "Some legal text to annotate"},
+        **overrides,
+    )
+    db.add(task)
+    await db.flush()
+    return task
+
+
+async def _seed_annotation_async(db, task, project, completed_by, result=None):
+    ann = Annotation(
+        id=str(uuid.uuid4()),
+        task_id=task.id,
+        project_id=project.id,
+        completed_by=completed_by,
+        result=result if result is not None else [{"value": {"choices": ["x"]}}],
+        was_cancelled=False,
+    )
+    db.add(ann)
+    await db.flush()
+    return ann
+
+
+# ---------------------------------------------------------------------------
 # GET completed_by_username resolution (match + no-match) — uncovered elsewhere
 # ---------------------------------------------------------------------------
 
+
+@pytest.mark.integration
 class TestListByUsername:
-    def test_filter_by_username_match(self, client, test_db, test_users, auth_headers):
-        admin = test_users[0]
-        contributor = test_users[1]
-        project = _make_project(test_db, created_by=admin.id)
-        task = _make_task(test_db, project)
-        _seed_annotation(test_db, task, project, admin.id)
-        theirs = _seed_annotation(test_db, task, project, contributor.id)
+    @pytest.mark.asyncio
+    async def test_filter_by_username_match(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        contributor = await _make_user(
+            async_test_db,
+            is_superadmin=False,
+            name="Test Contributor",
+            username="contributor@test.com",
+        )
+        project = await _make_project_async(async_test_db, created_by=admin.id)
+        task = await _make_task_async(async_test_db, project)
+        await _seed_annotation_async(async_test_db, task, project, admin.id)
+        theirs = await _seed_annotation_async(
+            async_test_db, task, project, contributor.id
+        )
+        await async_test_db.commit()
 
         # contributor.username == "contributor@test.com"; the handler resolves
         # the display string back to a user via username/name/pseudonym.
-        resp = client.get(
-            f"/api/projects/tasks/{task.id}/annotations",
-            params={"completed_by_username": contributor.username},
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/tasks/{task.id}/annotations",
+                params={"completed_by_username": contributor.username},
+            )
         assert resp.status_code == 200, resp.text
         ids = {a["id"] for a in resp.json()}
         assert ids == {theirs.id}
 
-    def test_filter_by_username_no_match_returns_empty(
-        self, client, test_db, test_users, auth_headers
+    @pytest.mark.asyncio
+    async def test_filter_by_username_no_match_returns_empty(
+        self, async_test_client, async_test_db
     ):
-        admin = test_users[0]
-        project = _make_project(test_db, created_by=admin.id)
-        task = _make_task(test_db, project)
-        _seed_annotation(test_db, task, project, admin.id)
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project_async(async_test_db, created_by=admin.id)
+        task = await _make_task_async(async_test_db, project)
+        await _seed_annotation_async(async_test_db, task, project, admin.id)
+        await async_test_db.commit()
 
         # No user resolves -> early `return []` branch.
-        resp = client.get(
-            f"/api/projects/tasks/{task.id}/annotations",
-            params={"completed_by_username": "no-such-display-name"},
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/tasks/{task.id}/annotations",
+                params={"completed_by_username": "no-such-display-name"},
+            )
         assert resp.status_code == 200, resp.text
         assert resp.json() == []
 
@@ -130,51 +255,62 @@ class TestListByUsername:
 # GET latest_only dedup + empty-result exclusion — uncovered elsewhere
 # ---------------------------------------------------------------------------
 
-class TestListLatestAndEmpty:
-    def test_latest_only_dedupes_per_annotator(
-        self, client, test_db, test_users, auth_headers
-    ):
-        admin = test_users[0]
-        project = _make_project(test_db, created_by=admin.id)
-        task = _make_task(test_db, project)
-        _seed_annotation(test_db, task, project, admin.id)
-        _seed_annotation(test_db, task, project, admin.id)
 
-        resp = client.get(
-            f"/api/projects/tasks/{task.id}/annotations",
-            params={"latest_only": "true"},
-            headers=auth_headers["admin"],
-        )
+@pytest.mark.integration
+class TestListLatestAndEmpty:
+    @pytest.mark.asyncio
+    async def test_latest_only_dedupes_per_annotator(
+        self, async_test_client, async_test_db
+    ):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project_async(async_test_db, created_by=admin.id)
+        task = await _make_task_async(async_test_db, project)
+        await _seed_annotation_async(async_test_db, task, project, admin.id)
+        await _seed_annotation_async(async_test_db, task, project, admin.id)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/tasks/{task.id}/annotations",
+                params={"latest_only": "true"},
+            )
         assert resp.status_code == 200, resp.text
         body = resp.json()
         # Two annotations from one user collapse to a single latest row.
         assert len(body) == 1
         assert body[0]["completed_by"] == admin.id
 
-    def test_empty_result_annotations_excluded(
-        self, client, test_db, test_users, auth_headers
+    @pytest.mark.asyncio
+    async def test_empty_result_annotations_excluded(
+        self, async_test_client, async_test_db
     ):
-        admin = test_users[0]
-        project = _make_project(test_db, created_by=admin.id)
-        task = _make_task(test_db, project)
-        real = _seed_annotation(test_db, task, project, admin.id)
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project_async(async_test_db, created_by=admin.id)
+        task = await _make_task_async(async_test_db, project)
+        real = await _seed_annotation_async(async_test_db, task, project, admin.id)
         # result == [] is filtered by the `cast(result, String) != '[]'` clause.
-        _seed_annotation(test_db, task, project, admin.id, result=[])
-
-        resp = client.get(
-            f"/api/projects/tasks/{task.id}/annotations",
-            params={"all_users": "true"},
-            headers=auth_headers["admin"],
+        await _seed_annotation_async(
+            async_test_db, task, project, admin.id, result=[]
         )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/tasks/{task.id}/annotations",
+                params={"all_users": "true"},
+            )
         assert resp.status_code == 200, resp.text
         ids = {a["id"] for a in resp.json()}
         assert ids == {real.id}
 
 
 # ---------------------------------------------------------------------------
-# POST TaskDraft cleanup + min_annotations labeling threshold — uncovered
+# POST TaskDraft cleanup + min_annotations labeling threshold — uncovered.
+# These hit create_annotation, which stayed on the sync DB lane.
 # ---------------------------------------------------------------------------
 
+
+@pytest.mark.integration
 class TestCreateSideEffects:
     def test_create_clears_existing_server_draft(
         self, client, test_db, test_users, auth_headers

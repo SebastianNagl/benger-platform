@@ -10,21 +10,40 @@ sub-router (mounted at prefix ``/api/evaluations`` — see
   * GET  /api/evaluations/projects/{id}/detect-answer-types
   * GET  /api/evaluations/projects/{id}/field-types
 
-Every test calls the endpoint via the ``client`` fixture and asserts the exact
-status code + response JSON, and — wherever the endpoint persists a config row
-— re-reads ``Project.evaluation_config`` from ``test_db`` to assert the stored
-state. No route-registration / decorator / source-structure assertions.
+The three GET handlers were migrated to the async DB lane
+(``Depends(get_async_db)`` + ``await db.execute(select(...))``). The sync
+``client`` fixture only overrides ``get_db`` — the async handlers run against a
+separate ``get_async_db`` session, so a project seeded inside the sync
+``test_db`` transaction is invisible to them. Those tests now seed rows via
+``async_test_db`` and drive the surface through ``async_test_client``, asserting
+the same status codes + response JSON and re-reading
+``Project.evaluation_config`` from ``async_test_db`` to assert stored state.
+
+The PUT handler stays SYNC, so its tests keep the original ``client`` /
+``test_db`` / ``auth_headers`` / ``test_org`` pattern unchanged.
 
 Access model recap (from app/core/authorization.check_project_access and
 routers/projects/helpers.check_project_accessible):
-  * superadmin (test_users[0], "admin") -> always allowed
-  * a private project's creator is the only non-superadmin allowed when the
-    request carries ``X-Organization-Context: private`` (or the project is
-    private) -> used to produce deterministic 403s for non-creators.
+  * superadmin -> always allowed.
+  * the access-control denial branch is exercised by patching the async access
+    helper the handler calls (``auth_service.check_project_access_async`` for
+    GET /evaluation-config; ``check_project_accessible_async`` for
+    detect-answer-types / field-types) to return False, the same lever the
+    real org/private check pulls for a non-creator non-superadmin.
 """
 
 import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from unittest.mock import patch
 
+import pytest
+from sqlalchemy import select
+
+from main import app
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from models import User
 from project_models import Project, ProjectOrganization
 
 # A binary <Choices> control. The Ja/Nein two-choice pair is detected as the
@@ -54,7 +73,7 @@ def _make_project(
     evaluation_config=None,
     is_private=False,
 ):
-    """Create a Project (optionally assigned to an org) and commit it."""
+    """Create a Project (optionally assigned to an org) and commit it (sync)."""
     pid = _uid()
     project = Project(
         id=pid,
@@ -85,47 +104,122 @@ def _org_headers(auth_headers, role, org):
     return {**auth_headers[role], "X-Organization-Context": org.id}
 
 
+# ---------------------------------------------------------------------------
+# Async helpers for the migrated GET endpoints
+# ---------------------------------------------------------------------------
+
+
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _seed_user(db, *, is_superadmin=True):
+    u = User(
+        id=_uid(),
+        username=f"ecb-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Eval Config Branch User",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _seed_project(
+    db,
+    creator,
+    *,
+    label_config=BINARY_LABEL_CONFIG,
+    label_config_version=None,
+    evaluation_config=None,
+    is_private=False,
+):
+    project = Project(
+        id=_uid(),
+        title=f"P-{uuid.uuid4().hex[:6]}",
+        created_by=creator.id,
+        label_config=label_config,
+        label_config_version=label_config_version,
+        evaluation_config=evaluation_config,
+        is_private=is_private,
+    )
+    db.add(project)
+    await db.commit()
+    return project
+
+
+async def _reload_eval_config(db, project_id):
+    """Re-read the stored evaluation_config from the async session."""
+    db.expire_all()
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    return result.scalar_one().evaluation_config
+
+
 # =====================================================================
-# GET /evaluation-config
+# GET /evaluation-config  (async)
 # =====================================================================
 
 
 class TestGetEvaluationConfig:
-    def test_project_not_found_returns_404(self, client, test_db, test_users, auth_headers):
-        resp = client.get(
-            "/api/evaluations/projects/does-not-exist/evaluation-config",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_project_not_found_returns_404(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user):
+            resp = await async_test_client.get(
+                "/api/evaluations/projects/does-not-exist/evaluation-config"
+            )
         assert resp.status_code == 404
         assert "not found" in resp.json()["detail"].lower()
 
-    def test_access_denied_returns_403(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        # Private project created by the contributor; the annotator is neither
-        # superadmin nor creator -> check_project_access returns False -> 403.
-        project = _make_project(
-            test_db, test_users[1], test_org, is_private=True
-        )
-        resp = client.get(
-            f"/api/evaluations/projects/{project.id}/evaluation-config",
-            headers={
-                **auth_headers["annotator"],
-                "X-Organization-Context": "private",
-            },
-        )
+    @pytest.mark.asyncio
+    async def test_access_denied_returns_403(self, async_test_client, async_test_db):
+        # A non-superadmin, non-creator user: the async access helper returns
+        # False -> 403.
+        creator = await _seed_user(async_test_db)
+        viewer = await _seed_user(async_test_db, is_superadmin=False)
+        project = await _seed_project(async_test_db, creator, is_private=True)
+
+        with _as_user(viewer), patch(
+            "routers.evaluations.config.auth_service.check_project_access_async",
+            return_value=False,
+        ):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/evaluation-config"
+            )
         assert resp.status_code == 403
         assert "permission" in resp.json()["detail"].lower()
 
-    def test_no_label_config_returns_empty_structure(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_no_label_config_returns_empty_structure(
+        self, async_test_client, async_test_db
     ):
-        project = _make_project(test_db, test_users[0], test_org, label_config=None)
+        user = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, user, label_config=None)
 
-        resp = client.get(
-            f"/api/evaluations/projects/{project.id}/evaluation-config",
-            headers=_org_headers(auth_headers, "admin", test_org),
-        )
+        with _as_user(user):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/evaluation-config"
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body == {
@@ -135,22 +229,20 @@ class TestGetEvaluationConfig:
             "last_updated": None,
         }
         # Empty-structure path must NOT persist anything onto the project.
-        test_db.expire_all()
-        refreshed = test_db.query(Project).filter(Project.id == project.id).first()
-        assert refreshed.evaluation_config is None
+        assert await _reload_eval_config(async_test_db, project.id) is None
 
-    def test_first_load_generates_and_persists_config(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_first_load_generates_and_persists_config(
+        self, async_test_client, async_test_db
     ):
-        project = _make_project(
-            test_db, test_users[0], test_org, label_config_version="v1"
-        )
+        user = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, user, label_config_version="v1")
         assert project.evaluation_config is None
 
-        resp = client.get(
-            f"/api/evaluations/projects/{project.id}/evaluation-config",
-            headers=_org_headers(auth_headers, "admin", test_org),
-        )
+        with _as_user(user):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/evaluation-config"
+            )
         assert resp.status_code == 200
         body = resp.json()
         # The generated config exposes the detector output for the binary field.
@@ -161,17 +253,15 @@ class TestGetEvaluationConfig:
         assert "answer" in detected_names
         assert "answer" in body["available_methods"]
 
-        # Generated config is persisted to the DB (db.commit on line ~168).
-        test_db.expire_all()
-        stored = (
-            test_db.query(Project).filter(Project.id == project.id).first()
-        ).evaluation_config
+        # Generated config is persisted to the DB.
+        stored = await _reload_eval_config(async_test_db, project.id)
         assert stored is not None
         assert stored["label_config_version"] == "v1"
         assert "answer" in stored["available_methods"]
 
-    def test_force_regenerate_rebuilds_config(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_force_regenerate_rebuilds_config(
+        self, async_test_client, async_test_db
     ):
         stale = {
             "detected_answer_types": [],
@@ -180,19 +270,19 @@ class TestGetEvaluationConfig:
             "label_config_version": "v1",
             "stale_marker": True,
         }
-        project = _make_project(
-            test_db,
-            test_users[0],
-            test_org,
+        user = await _seed_user(async_test_db)
+        project = await _seed_project(
+            async_test_db,
+            user,
             label_config_version="v1",
             evaluation_config=stale,
         )
 
-        resp = client.get(
-            f"/api/evaluations/projects/{project.id}/evaluation-config"
-            "?force_regenerate=true",
-            headers=_org_headers(auth_headers, "admin", test_org),
-        )
+        with _as_user(user):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/evaluation-config"
+                "?force_regenerate=true"
+            )
         assert resp.status_code == 200
         body = resp.json()
         # Regeneration repopulates available_methods from the live label_config.
@@ -200,14 +290,12 @@ class TestGetEvaluationConfig:
         # Existing extra keys are preserved through regeneration.
         assert body.get("stale_marker") is True
 
-        test_db.expire_all()
-        stored = (
-            test_db.query(Project).filter(Project.id == project.id).first()
-        ).evaluation_config
+        stored = await _reload_eval_config(async_test_db, project.id)
         assert "answer" in stored["available_methods"]
 
-    def test_legacy_config_without_version_gets_stamped(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_legacy_config_without_version_gets_stamped(
+        self, async_test_client, async_test_db
     ):
         # Pre-version config: has selections but no label_config_version.
         legacy = {
@@ -224,18 +312,18 @@ class TestGetEvaluationConfig:
             "selected_methods": {"answer": {"automated": ["exact_match"], "human": []}},
             "evaluation_configs": [{"id": "x", "metric": "exact_match"}],
         }
-        project = _make_project(
-            test_db,
-            test_users[0],
-            test_org,
+        user = await _seed_user(async_test_db)
+        project = await _seed_project(
+            async_test_db,
+            user,
             label_config_version="v7",
             evaluation_config=legacy,
         )
 
-        resp = client.get(
-            f"/api/evaluations/projects/{project.id}/evaluation-config",
-            headers=_org_headers(auth_headers, "admin", test_org),
-        )
+        with _as_user(user):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/evaluation-config"
+            )
         assert resp.status_code == 200
         body = resp.json()
         # The version is stamped in place; user selections are preserved (no
@@ -245,20 +333,18 @@ class TestGetEvaluationConfig:
             "answer": {"automated": ["exact_match"], "human": []}
         }
 
-        test_db.expire_all()
-        stored = (
-            test_db.query(Project).filter(Project.id == project.id).first()
-        ).evaluation_config
+        stored = await _reload_eval_config(async_test_db, project.id)
         assert stored["label_config_version"] == "v7"
         assert stored["selected_methods"] == {
             "answer": {"automated": ["exact_match"], "human": []}
         }
 
-    def test_legacy_config_derives_evaluation_configs(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_legacy_config_derives_evaluation_configs(
+        self, async_test_client, async_test_db
     ):
         # Has selected_methods but no evaluation_configs -> lazy migration
-        # derives evaluation_configs (lines ~181-188).
+        # derives evaluation_configs.
         legacy = {
             "detected_answer_types": [
                 {"name": "answer", "type": "binary", "to_name": "text"}
@@ -277,18 +363,18 @@ class TestGetEvaluationConfig:
             },
             "label_config_version": "v3",
         }
-        project = _make_project(
-            test_db,
-            test_users[0],
-            test_org,
+        user = await _seed_user(async_test_db)
+        project = await _seed_project(
+            async_test_db,
+            user,
             label_config_version="v3",
             evaluation_config=legacy,
         )
 
-        resp = client.get(
-            f"/api/evaluations/projects/{project.id}/evaluation-config",
-            headers=_org_headers(auth_headers, "admin", test_org),
-        )
+        with _as_user(user):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/evaluation-config"
+            )
         assert resp.status_code == 200
         body = resp.json()
         derived = body.get("evaluation_configs")
@@ -297,15 +383,12 @@ class TestGetEvaluationConfig:
         assert derived[0]["id"] == "answer_exact_match"
         assert derived[0]["prediction_fields"] == ["answer"]
 
-        test_db.expire_all()
-        stored = (
-            test_db.query(Project).filter(Project.id == project.id).first()
-        ).evaluation_config
+        stored = await _reload_eval_config(async_test_db, project.id)
         assert stored["evaluation_configs"][0]["metric"] == "exact_match"
 
 
 # =====================================================================
-# PUT /evaluation-config
+# PUT /evaluation-config  (sync handler — unchanged)
 # =====================================================================
 
 
@@ -659,57 +742,64 @@ class TestUpdateEvaluationConfig:
 
 
 # =====================================================================
-# GET /detect-answer-types
+# GET /detect-answer-types  (async)
 # =====================================================================
 
 
 class TestDetectAnswerTypes:
-    def test_project_not_found_returns_404(self, client, test_db, test_users, auth_headers):
-        resp = client.get(
-            "/api/evaluations/projects/missing/detect-answer-types",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_project_not_found_returns_404(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user):
+            resp = await async_test_client.get(
+                "/api/evaluations/projects/missing/detect-answer-types"
+            )
         assert resp.status_code == 404
         assert "not found" in resp.json()["detail"].lower()
 
-    def test_access_denied_returns_403(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        project = _make_project(
-            test_db, test_users[1], test_org, is_private=True
-        )
-        resp = client.get(
-            f"/api/evaluations/projects/{project.id}/detect-answer-types",
-            headers={
-                **auth_headers["annotator"],
-                "X-Organization-Context": "private",
-            },
-        )
+    @pytest.mark.asyncio
+    async def test_access_denied_returns_403(self, async_test_client, async_test_db):
+        creator = await _seed_user(async_test_db)
+        viewer = await _seed_user(async_test_db, is_superadmin=False)
+        project = await _seed_project(async_test_db, creator, is_private=True)
+
+        with _as_user(viewer), patch(
+            "routers.evaluations.config.check_project_accessible_async",
+            return_value=False,
+        ):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/detect-answer-types"
+            )
         assert resp.status_code == 403
         assert resp.json()["detail"] == "Access denied"
 
-    def test_no_label_config_returns_message(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_no_label_config_returns_message(
+        self, async_test_client, async_test_db
     ):
-        project = _make_project(test_db, test_users[0], test_org, label_config=None)
-        resp = client.get(
-            f"/api/evaluations/projects/{project.id}/detect-answer-types",
-            headers=_org_headers(auth_headers, "admin", test_org),
-        )
+        user = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, user, label_config=None)
+        with _as_user(user):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/detect-answer-types"
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["project_id"] == project.id
         assert body["detected_types"] == []
         assert body["message"] == "No label configuration found"
 
-    def test_detects_answer_types_from_label_config(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_detects_answer_types_from_label_config(
+        self, async_test_client, async_test_db
     ):
-        project = _make_project(test_db, test_users[0], test_org)
-        resp = client.get(
-            f"/api/evaluations/projects/{project.id}/detect-answer-types",
-            headers=_org_headers(auth_headers, "admin", test_org),
-        )
+        user = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, user)
+        with _as_user(user):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/detect-answer-types"
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["project_id"] == project.id
@@ -722,56 +812,63 @@ class TestDetectAnswerTypes:
 
 
 # =====================================================================
-# GET /field-types
+# GET /field-types  (async)
 # =====================================================================
 
 
 class TestFieldTypes:
-    def test_project_not_found_returns_404(self, client, test_db, test_users, auth_headers):
-        resp = client.get(
-            "/api/evaluations/projects/missing/field-types",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_project_not_found_returns_404(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user):
+            resp = await async_test_client.get(
+                "/api/evaluations/projects/missing/field-types"
+            )
         assert resp.status_code == 404
         assert "not found" in resp.json()["detail"].lower()
 
-    def test_access_denied_returns_403(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        project = _make_project(
-            test_db, test_users[1], test_org, is_private=True
-        )
-        resp = client.get(
-            f"/api/evaluations/projects/{project.id}/field-types",
-            headers={
-                **auth_headers["annotator"],
-                "X-Organization-Context": "private",
-            },
-        )
+    @pytest.mark.asyncio
+    async def test_access_denied_returns_403(self, async_test_client, async_test_db):
+        creator = await _seed_user(async_test_db)
+        viewer = await _seed_user(async_test_db, is_superadmin=False)
+        project = await _seed_project(async_test_db, creator, is_private=True)
+
+        with _as_user(viewer), patch(
+            "routers.evaluations.config.check_project_accessible_async",
+            return_value=False,
+        ):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/field-types"
+            )
         assert resp.status_code == 403
         assert resp.json()["detail"] == "Access denied"
 
-    def test_no_label_config_returns_empty_field_types(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_no_label_config_returns_empty_field_types(
+        self, async_test_client, async_test_db
     ):
-        project = _make_project(test_db, test_users[0], test_org, label_config=None)
-        resp = client.get(
-            f"/api/evaluations/projects/{project.id}/field-types",
-            headers=_org_headers(auth_headers, "admin", test_org),
-        )
+        user = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, user, label_config=None)
+        with _as_user(user):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/field-types"
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["project_id"] == project.id
         assert body["field_types"] == {}
 
-    def test_field_types_built_from_label_config(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_field_types_built_from_label_config(
+        self, async_test_client, async_test_db
     ):
-        project = _make_project(test_db, test_users[0], test_org)
-        resp = client.get(
-            f"/api/evaluations/projects/{project.id}/field-types",
-            headers=_org_headers(auth_headers, "admin", test_org),
-        )
+        user = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, user)
+        with _as_user(user):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{project.id}/field-types"
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["project_id"] == project.id

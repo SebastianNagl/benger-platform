@@ -11,19 +11,37 @@ Covers:
   - _count_cells_to_generate `exact_match preferred over NULL fallback` rule
     in cost_estimate.py: exact structure_key matches must shadow legacy NULL
     rows, and the sk=None branch must ignore keyed rows.
+
+The `generation_task_list` router was migrated to the async DB lane
+(``Depends(get_async_db)``), so the start_generation tests seed real rows via
+``async_test_db`` and drive the HTTP surface through ``async_test_client``.
+``require_user`` is overridden per-test via the ``_as_user`` context manager to
+return an auth User matching a seeded DB user (the sync auth dependency can't
+see the async test transaction). ``celery_app`` is patched on the router module
+so no real broker fires.
+
+``_count_cells_to_generate`` is a sync-only helper (``db: Session``) that the
+async cost-estimate handler bridges via ``run_sync``; the ``TestCountCellsBulkQuery``
+class exercises it directly on a sync ``async_test_db`` connection through
+``await async_test_db.run_sync(...)`` so the seeded rows are visible.
 """
 
 from __future__ import annotations
 
 import time
 import uuid
-from datetime import datetime, timedelta
+from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 from unittest.mock import patch
 
-from sqlalchemy import event
+import pytest
+from sqlalchemy import event, select
 from sqlalchemy.engine import Engine
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
 from models import ResponseGeneration as DBResponseGeneration
 from models import User
 from project_models import Project, ProjectOrganization, Task
@@ -38,16 +56,68 @@ def _uid() -> str:
     return str(uuid.uuid4())
 
 
-def _make_project_with_tasks(
-    test_db,
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_superadmin(db, *, username_prefix="bulkq") -> User:
+    """A superadmin passes every access + write-access check, which is all the
+    start_generation handler needs from the caller."""
+    u = User(
+        id=_uid(),
+        username=f"{username_prefix}-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Bulk Query Admin",
+        is_superadmin=True,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _make_org(db, *, name="Org") -> "object":
+    from models import Organization
+
+    org = Organization(
+        id=_uid(),
+        name=name,
+        display_name=name,
+        slug=f"{name.lower().replace(' ', '-')}-{_uid()[:8]}",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(org)
+    await db.flush()
+    return org
+
+
+async def _make_project_with_tasks(
+    db,
     admin: User,
-    test_org,
+    org,
     *,
     num_tasks: int,
     model_ids: List[str],
     structure_keys: List[str] | None = None,
 ) -> Dict:
-    """Create a published project with N tasks, wired to the test org.
+    """Create a published project with N tasks, wired to the given org.
 
     Seeds generation_config so start_generation finds models + structure keys
     without needing the caller to pass them explicitly.
@@ -66,17 +136,17 @@ def _make_project_with_tasks(
             "prompt_structures": prompt_structures,
         },
     )
-    test_db.add(project)
-    test_db.flush()
-    test_db.add(
+    db.add(project)
+    await db.flush()
+    db.add(
         ProjectOrganization(
             id=_uid(),
             project_id=pid,
-            organization_id=test_org.id,
+            organization_id=org.id,
             assigned_by=admin.id,
         )
     )
-    test_db.flush()
+    await db.flush()
 
     tasks: List[Task] = []
     for i in range(num_tasks):
@@ -87,15 +157,13 @@ def _make_project_with_tasks(
             data={"text": f"sample {i}"},
             created_by=admin.id,
         )
-        test_db.add(t)
+        db.add(t)
         tasks.append(t)
-    test_db.flush()
-    test_db.commit()
+    await db.flush()
     return {"project": project, "tasks": tasks}
 
 
-def _seed_response_gen(
-    test_db,
+def _make_response_gen(
     *,
     project_id: str,
     task_id: str,
@@ -105,7 +173,7 @@ def _seed_response_gen(
     created_by: str,
     created_at: datetime | None = None,
 ) -> DBResponseGeneration:
-    rg = DBResponseGeneration(
+    return DBResponseGeneration(
         id=_uid(),
         project_id=project_id,
         task_id=task_id,
@@ -115,7 +183,12 @@ def _seed_response_gen(
         created_by=created_by,
         created_at=created_at or datetime.utcnow(),
     )
-    test_db.add(rg)
+
+
+async def _seed_response_gen(db, **kwargs) -> DBResponseGeneration:
+    rg = _make_response_gen(**kwargs)
+    db.add(rg)
+    await db.flush()
     return rg
 
 
@@ -130,171 +203,180 @@ class TestStartGenerationMissingModeDecisionMatrix:
     pre-fix per-cell loop would have. The bulk DISTINCT ON path must preserve
     the `latest is None or latest.status == "failed"` semantics."""
 
-    @patch("routers.generation_task_list.celery_app")
-    def test_missing_mode_queues_only_unfinished_or_failed_cells(
-        self, mock_celery, client, test_db, test_users, test_org, auth_headers
+    @pytest.mark.asyncio
+    async def test_missing_mode_queues_only_unfinished_or_failed_cells(
+        self, async_test_client, async_test_db
     ):
-        mock_celery.send_task.return_value = None
-        admin = test_users[0]
+        admin = await _make_superadmin(async_test_db)
+        org = await _make_org(async_test_db)
 
         model_ids = ["model-A", "model-B"]
         structure_keys = ["sk1", "sk2"]
-        data = _make_project_with_tasks(
-            test_db,
+        data = await _make_project_with_tasks(
+            async_test_db,
             admin,
-            test_org,
+            org,
             num_tasks=4,
             model_ids=model_ids,
             structure_keys=structure_keys,
         )
         project = data["project"]
+        project_id = project.id
         tasks = data["tasks"]
         # Stable handles for the matrix.
         t0, t1, t2, t3 = tasks
+        t0_id, t1_id, t2_id, t3_id = t0.id, t1.id, t2.id, t3.id
 
         # Matrix of seeded states. Anything NOT seeded → no row → should generate.
         # task / model / sk -> (status, age_offset_seconds)
         now = datetime.utcnow()
         seeds = [
             # t0: completed across the board → none should queue
-            (t0, "model-A", "sk1", "completed", 0),
-            (t0, "model-A", "sk2", "completed", 0),
-            (t0, "model-B", "sk1", "completed", 0),
-            (t0, "model-B", "sk2", "completed", 0),
+            (t0_id, "model-A", "sk1", "completed", 0),
+            (t0_id, "model-A", "sk2", "completed", 0),
+            (t0_id, "model-B", "sk1", "completed", 0),
+            (t0_id, "model-B", "sk2", "completed", 0),
             # t1: latest failed → all four should queue
-            (t1, "model-A", "sk1", "failed", 0),
-            (t1, "model-A", "sk2", "failed", 0),
-            (t1, "model-B", "sk1", "failed", 0),
-            (t1, "model-B", "sk2", "failed", 0),
+            (t1_id, "model-A", "sk1", "failed", 0),
+            (t1_id, "model-A", "sk2", "failed", 0),
+            (t1_id, "model-B", "sk1", "failed", 0),
+            (t1_id, "model-B", "sk2", "failed", 0),
             # t2: pending / running / cancelled (treated as "exists, not failed")
             #     → should NOT queue. Cancelled is the tricky one: it's not
             #     "failed" so the per-cell loop skips it. We preserve that.
-            (t2, "model-A", "sk1", "pending", 0),
-            (t2, "model-A", "sk2", "running", 0),
-            (t2, "model-B", "sk1", "cancelled", 0),
+            (t2_id, "model-A", "sk1", "pending", 0),
+            (t2_id, "model-A", "sk2", "running", 0),
+            (t2_id, "model-B", "sk1", "cancelled", 0),
             # (t2, "model-B", "sk2") deliberately unseeded → should queue
             # t3: older-completed-then-newer-failed → latest wins → should queue.
             #     This verifies DISTINCT ON's ORDER BY created_at DESC picks the
             #     newest row, matching the original .order_by(...).first() logic.
-            (t3, "model-A", "sk1", "completed", -3600),  # 1h ago
-            (t3, "model-A", "sk1", "failed", 0),  # now → latest
+            (t3_id, "model-A", "sk1", "completed", -3600),  # 1h ago
+            (t3_id, "model-A", "sk1", "failed", 0),  # now → latest
             # And the reverse: older-failed-then-newer-completed → should NOT queue
-            (t3, "model-A", "sk2", "failed", -3600),
-            (t3, "model-A", "sk2", "completed", 0),
+            (t3_id, "model-A", "sk2", "failed", -3600),
+            (t3_id, "model-A", "sk2", "completed", 0),
         ]
-        for task, model_id, sk, status, age_offset in seeds:
-            _seed_response_gen(
-                test_db,
-                project_id=project.id,
-                task_id=task.id,
+        for task_id, model_id, sk, status, age_offset in seeds:
+            await _seed_response_gen(
+                async_test_db,
+                project_id=project_id,
+                task_id=task_id,
                 model_id=model_id,
                 structure_key=sk,
                 status=status,
                 created_by=admin.id,
                 created_at=now + timedelta(seconds=age_offset),
             )
-        test_db.commit()
+        await async_test_db.commit()
 
-        resp = client.post(
-            f"/api/generation-tasks/projects/{project.id}/generate",
-            json={"mode": "missing"},
-            headers=auth_headers["admin"],
-        )
+        with patch("routers.generation_task_list.celery_app") as mock_celery:
+            mock_celery.send_task.return_value = None
+            with _as_user(admin):
+                resp = await async_test_client.post(
+                    f"/api/generation-tasks/projects/{project_id}/generate",
+                    json={"mode": "missing"},
+                )
         assert resp.status_code == 200, resp.text
         body = resp.json()
 
         # Build expected set: every (task, model, sk) cell whose latest row is
         # None or "failed".
         expected = {
-            (t1.id, "model-A", "sk1"),
-            (t1.id, "model-A", "sk2"),
-            (t1.id, "model-B", "sk1"),
-            (t1.id, "model-B", "sk2"),
-            (t2.id, "model-B", "sk2"),  # unseeded
-            (t3.id, "model-A", "sk1"),  # latest is failed
+            (t1_id, "model-A", "sk1"),
+            (t1_id, "model-A", "sk2"),
+            (t1_id, "model-B", "sk1"),
+            (t1_id, "model-B", "sk2"),
+            (t2_id, "model-B", "sk2"),  # unseeded
+            (t3_id, "model-A", "sk1"),  # latest is failed
             # t3 / model-A / sk2 has latest=completed → not queued
             # All of t3 / model-B / * unseeded → queue
-            (t3.id, "model-B", "sk1"),
-            (t3.id, "model-B", "sk2"),
+            (t3_id, "model-B", "sk1"),
+            (t3_id, "model-B", "sk2"),
         }
         # tasks_queued is a count; the exact cells are the rows whose IDs are
         # returned in generation_job_ids (the handler inserts one new row per
         # queued cell). Cross-check by looking those rows up.
         assert body["tasks_queued"] == len(expected)
         inserted = (
-            test_db.query(
-                DBResponseGeneration.task_id,
-                DBResponseGeneration.model_id,
-                DBResponseGeneration.structure_key,
+            await async_test_db.execute(
+                select(
+                    DBResponseGeneration.task_id,
+                    DBResponseGeneration.model_id,
+                    DBResponseGeneration.structure_key,
+                ).where(DBResponseGeneration.id.in_(body["generation_job_ids"]))
             )
-            .filter(DBResponseGeneration.id.in_(body["generation_job_ids"]))
-            .all()
-        )
+        ).all()
         actual = {(r.task_id, r.model_id, r.structure_key) for r in inserted}
         assert actual == expected
 
-    @patch("routers.generation_task_list.celery_app")
-    def test_missing_mode_with_null_structure_key_legacy_projects(
-        self, mock_celery, client, test_db, test_users, test_org, auth_headers
+    @pytest.mark.asyncio
+    async def test_missing_mode_with_null_structure_key_legacy_projects(
+        self, async_test_client, async_test_db
     ):
         """Projects with no `prompt_structures` configured collapse to a single
         [None] structure_key. The bulk query keys by `None` and must match
         rows where structure_key IS NULL — not rows with a non-null key."""
-        mock_celery.send_task.return_value = None
-        admin = test_users[0]
+        admin = await _make_superadmin(async_test_db)
+        org = await _make_org(async_test_db)
 
-        data = _make_project_with_tasks(
-            test_db,
+        data = await _make_project_with_tasks(
+            async_test_db,
             admin,
-            test_org,
+            org,
             num_tasks=2,
             model_ids=["m-1"],
             structure_keys=[],  # → handler uses [None]
         )
         project = data["project"]
+        project_id = project.id
         t0, t1 = data["tasks"]
+        t1_id = t1.id
 
         # t0 has a NULL-keyed completed row → should NOT queue.
         # t1 has only a non-NULL-keyed completed row → that row is invisible to
         # the [None] cell, so the [None] cell is "no row" → SHOULD queue.
-        _seed_response_gen(
-            test_db,
-            project_id=project.id,
+        await _seed_response_gen(
+            async_test_db,
+            project_id=project_id,
             task_id=t0.id,
             model_id="m-1",
             structure_key=None,
             status="completed",
             created_by=admin.id,
         )
-        _seed_response_gen(
-            test_db,
-            project_id=project.id,
+        await _seed_response_gen(
+            async_test_db,
+            project_id=project_id,
             task_id=t1.id,
             model_id="m-1",
             structure_key="leftover-key",  # not in the structure_keys list
             status="completed",
             created_by=admin.id,
         )
-        test_db.commit()
+        await async_test_db.commit()
 
-        resp = client.post(
-            f"/api/generation-tasks/projects/{project.id}/generate",
-            json={"mode": "missing"},
-            headers=auth_headers["admin"],
-        )
+        with patch("routers.generation_task_list.celery_app") as mock_celery:
+            mock_celery.send_task.return_value = None
+            with _as_user(admin):
+                resp = await async_test_client.post(
+                    f"/api/generation-tasks/projects/{project_id}/generate",
+                    json={"mode": "missing"},
+                )
         assert resp.status_code == 200, resp.text
         assert resp.json()["tasks_queued"] == 1
 
+        async_test_db.expire_all()
         queued = (
-            test_db.query(DBResponseGeneration)
-            .filter(
-                DBResponseGeneration.project_id == project.id,
-                DBResponseGeneration.status == "pending",
+            await async_test_db.execute(
+                select(DBResponseGeneration).where(
+                    DBResponseGeneration.project_id == project_id,
+                    DBResponseGeneration.status == "pending",
+                )
             )
-            .all()
-        )
+        ).scalars().all()
         assert len(queued) == 1
-        assert queued[0].task_id == t1.id
+        assert queued[0].task_id == t1_id
         assert queued[0].structure_key == None  # noqa: E711
 
 
@@ -308,24 +390,25 @@ class TestStartGenerationBulkQueryPerf:
     must return within 5s and issue at most one SELECT against
     `response_generations` (down from 10,000)."""
 
-    @patch("routers.generation_task_list.celery_app")
-    def test_1000_tasks_x_10_models_returns_under_5s_with_single_bulk_query(
-        self, mock_celery, client, test_db, test_users, test_org, auth_headers
+    @pytest.mark.asyncio
+    async def test_1000_tasks_x_10_models_returns_under_5s_with_single_bulk_query(
+        self, async_test_client, async_test_db
     ):
-        mock_celery.send_task.return_value = None
-        admin = test_users[0]
+        admin = await _make_superadmin(async_test_db)
+        org = await _make_org(async_test_db)
 
         num_tasks = 1000
         model_ids = [f"perf-model-{i}" for i in range(10)]
-        data = _make_project_with_tasks(
-            test_db,
+        data = await _make_project_with_tasks(
+            async_test_db,
             admin,
-            test_org,
+            org,
             num_tasks=num_tasks,
             model_ids=model_ids,
             structure_keys=[],  # single [None] cell per (task, model)
         )
         project = data["project"]
+        project_id = project.id
         tasks = data["tasks"]
 
         # Seed one completed ResponseGeneration per cell so the missing-mode
@@ -333,24 +416,26 @@ class TestStartGenerationBulkQueryPerf:
         # dispatch. This isolates the bulk SELECT phase, which is what the
         # bug was about.
         now = datetime.utcnow()
-        rg_rows = [
-            {
-                "id": _uid(),
-                "project_id": project.id,
-                "task_id": t.id,
-                "model_id": m,
-                "structure_key": None,
-                "status": "completed",
-                "created_by": admin.id,
-                "created_at": now,
-            }
-            for t in tasks
-            for m in model_ids
-        ]
-        test_db.bulk_insert_mappings(DBResponseGeneration, rg_rows)
-        test_db.commit()
+        for t in tasks:
+            for m in model_ids:
+                async_test_db.add(
+                    _make_response_gen(
+                        project_id=project_id,
+                        task_id=t.id,
+                        model_id=m,
+                        structure_key=None,
+                        status="completed",
+                        created_by=admin.id,
+                        created_at=now,
+                    )
+                )
+        await async_test_db.commit()
 
-        # Count SELECTs against response_generations during the request.
+        # Count SELECTs against response_generations during the request. The
+        # async lane runs over asyncpg, but SQLAlchemy still drives it through a
+        # sync_engine under the hood, so the global `Engine` class's
+        # `before_cursor_execute` event fires for these statements too — letting
+        # us count the same way the sync version did.
         rg_select_count = 0
 
         def _listener(conn, cursor, statement, parameters, context, executemany):
@@ -361,14 +446,18 @@ class TestStartGenerationBulkQueryPerf:
             ):
                 rg_select_count += 1
 
+        # Listen on the global Engine class so any engine (sync or the async
+        # engine's underlying sync_engine) fires the hook.
         event.listen(Engine, "before_cursor_execute", _listener)
         try:
             start = time.perf_counter()
-            resp = client.post(
-                f"/api/generation-tasks/projects/{project.id}/generate",
-                json={"mode": "missing"},
-                headers=auth_headers["admin"],
-            )
+            with patch("routers.generation_task_list.celery_app") as mock_celery:
+                mock_celery.send_task.return_value = None
+                with _as_user(admin):
+                    resp = await async_test_client.post(
+                        f"/api/generation-tasks/projects/{project_id}/generate",
+                        json={"mode": "missing"},
+                    )
             elapsed = time.perf_counter() - start
         finally:
             event.remove(Engine, "before_cursor_execute", _listener)
@@ -397,138 +486,147 @@ class TestCountCellsBulkQuery:
     `exact structure_key match > NULL fallback row` that the original
     per-cell `case((sk match, 0), else_=1)` ORDER BY enforced. The bulk-query
     rewrite splits this into two queries; the Python merge below is where the
-    precedence lives now."""
+    precedence lives now.
 
-    def _project_with_tasks(self, test_db, admin, test_org, num_tasks):
-        return _make_project_with_tasks(
-            test_db,
+    The helper is sync-only (``db: Session``); we run it via
+    ``async_test_db.run_sync`` so it sees the rows seeded in this async
+    transaction.
+    """
+
+    async def _project_with_tasks(self, db, admin, org, num_tasks):
+        return await _make_project_with_tasks(
+            db,
             admin,
-            test_org,
+            org,
             num_tasks=num_tasks,
             model_ids=["m-cost"],
             structure_keys=["sk-x"],
         )
 
-    def test_exact_completed_beats_null_failed(
-        self, test_db, test_users, test_org
-    ):
-        """task has exact `sk-x` completed + NULL failed → exact wins →
-        cell NOT counted (no need to regenerate)."""
+    @staticmethod
+    def _count(sync_db, project_id, structure_keys):
         from routers.cost_estimate import _count_cells_to_generate
 
-        admin = test_users[0]
-        data = self._project_with_tasks(test_db, admin, test_org, num_tasks=1)
+        return _count_cells_to_generate(
+            sync_db, project_id, "m-cost", structure_keys, "missing"
+        )
+
+    @pytest.mark.asyncio
+    async def test_exact_completed_beats_null_failed(self, async_test_db):
+        """task has exact `sk-x` completed + NULL failed → exact wins →
+        cell NOT counted (no need to regenerate)."""
+        admin = await _make_superadmin(async_test_db)
+        org = await _make_org(async_test_db)
+        data = await self._project_with_tasks(async_test_db, admin, org, num_tasks=1)
+        project_id = data["project"].id
         t = data["tasks"][0]
 
-        _seed_response_gen(
-            test_db, project_id=data["project"].id, task_id=t.id,
+        await _seed_response_gen(
+            async_test_db, project_id=project_id, task_id=t.id,
             model_id="m-cost", structure_key="sk-x",
             status="completed", created_by=admin.id,
         )
-        _seed_response_gen(
-            test_db, project_id=data["project"].id, task_id=t.id,
+        await _seed_response_gen(
+            async_test_db, project_id=project_id, task_id=t.id,
             model_id="m-cost", structure_key=None,
             status="failed", created_by=admin.id,
         )
-        test_db.commit()
+        await async_test_db.commit()
 
-        n = _count_cells_to_generate(
-            test_db, data["project"].id, "m-cost", ["sk-x"], "missing"
+        n = await async_test_db.run_sync(
+            lambda s: self._count(s, project_id, ["sk-x"])
         )
         assert n == 0
 
-    def test_null_fallback_used_when_no_exact_match(
-        self, test_db, test_users, test_org
-    ):
+    @pytest.mark.asyncio
+    async def test_null_fallback_used_when_no_exact_match(self, async_test_db):
         """task has only NULL `completed` row (legacy) → NULL fallback wins
         for the `sk-x` query → cell NOT counted."""
-        from routers.cost_estimate import _count_cells_to_generate
-
-        admin = test_users[0]
-        data = self._project_with_tasks(test_db, admin, test_org, num_tasks=1)
+        admin = await _make_superadmin(async_test_db)
+        org = await _make_org(async_test_db)
+        data = await self._project_with_tasks(async_test_db, admin, org, num_tasks=1)
+        project_id = data["project"].id
         t = data["tasks"][0]
 
-        _seed_response_gen(
-            test_db, project_id=data["project"].id, task_id=t.id,
+        await _seed_response_gen(
+            async_test_db, project_id=project_id, task_id=t.id,
             model_id="m-cost", structure_key=None,
             status="completed", created_by=admin.id,
         )
-        test_db.commit()
+        await async_test_db.commit()
 
-        n = _count_cells_to_generate(
-            test_db, data["project"].id, "m-cost", ["sk-x"], "missing"
+        n = await async_test_db.run_sync(
+            lambda s: self._count(s, project_id, ["sk-x"])
         )
         assert n == 0
 
-    def test_exact_failed_shadows_null_completed(
-        self, test_db, test_users, test_org
-    ):
+    @pytest.mark.asyncio
+    async def test_exact_failed_shadows_null_completed(self, async_test_db):
         """task has exact `sk-x` failed + NULL completed → exact wins (failed)
         → cell IS counted. The NULL completed must NOT rescue the cell — the
         original case()-ordered query forbade that."""
-        from routers.cost_estimate import _count_cells_to_generate
-
-        admin = test_users[0]
-        data = self._project_with_tasks(test_db, admin, test_org, num_tasks=1)
+        admin = await _make_superadmin(async_test_db)
+        org = await _make_org(async_test_db)
+        data = await self._project_with_tasks(async_test_db, admin, org, num_tasks=1)
+        project_id = data["project"].id
         t = data["tasks"][0]
 
-        _seed_response_gen(
-            test_db, project_id=data["project"].id, task_id=t.id,
+        await _seed_response_gen(
+            async_test_db, project_id=project_id, task_id=t.id,
             model_id="m-cost", structure_key="sk-x",
             status="failed", created_by=admin.id,
         )
-        _seed_response_gen(
-            test_db, project_id=data["project"].id, task_id=t.id,
+        await _seed_response_gen(
+            async_test_db, project_id=project_id, task_id=t.id,
             model_id="m-cost", structure_key=None,
             status="completed", created_by=admin.id,
         )
-        test_db.commit()
+        await async_test_db.commit()
 
-        n = _count_cells_to_generate(
-            test_db, data["project"].id, "m-cost", ["sk-x"], "missing"
+        n = await async_test_db.run_sync(
+            lambda s: self._count(s, project_id, ["sk-x"])
         )
         assert n == 1
 
-    def test_no_rows_at_all_cell_counted(
-        self, test_db, test_users, test_org
-    ):
+    @pytest.mark.asyncio
+    async def test_no_rows_at_all_cell_counted(self, async_test_db):
         """No `response_generations` row for the cell → cell IS counted."""
-        from routers.cost_estimate import _count_cells_to_generate
+        admin = await _make_superadmin(async_test_db)
+        org = await _make_org(async_test_db)
+        data = await self._project_with_tasks(async_test_db, admin, org, num_tasks=1)
+        project_id = data["project"].id
+        await async_test_db.commit()
 
-        admin = test_users[0]
-        data = self._project_with_tasks(test_db, admin, test_org, num_tasks=1)
-
-        n = _count_cells_to_generate(
-            test_db, data["project"].id, "m-cost", ["sk-x"], "missing"
+        n = await async_test_db.run_sync(
+            lambda s: self._count(s, project_id, ["sk-x"])
         )
         assert n == 1
 
-    def test_sk_none_ignores_keyed_rows(
-        self, test_db, test_users, test_org
-    ):
+    @pytest.mark.asyncio
+    async def test_sk_none_ignores_keyed_rows(self, async_test_db):
         """Legacy projects with no structures → structure_keys=None. The
         helper must only consider NULL rows; non-null-keyed rows must NOT
         rescue the cell from counting."""
-        from routers.cost_estimate import _count_cells_to_generate
-
-        admin = test_users[0]
-        data = _make_project_with_tasks(
-            test_db, admin, test_org,
+        admin = await _make_superadmin(async_test_db)
+        org = await _make_org(async_test_db)
+        data = await _make_project_with_tasks(
+            async_test_db, admin, org,
             num_tasks=1, model_ids=["m-cost"], structure_keys=[],
         )
+        project_id = data["project"].id
         t = data["tasks"][0]
 
         # A non-NULL-keyed completed row exists, but the sk=None branch must
         # ignore it. Result: the [None] cell has no row → counted.
-        _seed_response_gen(
-            test_db, project_id=data["project"].id, task_id=t.id,
+        await _seed_response_gen(
+            async_test_db, project_id=project_id, task_id=t.id,
             model_id="m-cost", structure_key="leftover",
             status="completed", created_by=admin.id,
         )
-        test_db.commit()
+        await async_test_db.commit()
 
-        n = _count_cells_to_generate(
-            test_db, data["project"].id, "m-cost", None, "missing"
+        n = await async_test_db.run_sync(
+            lambda s: self._count(s, project_id, None)
         )
         assert n == 1
 
@@ -544,79 +642,98 @@ class TestStartGenerationFallbackBound:
     loads IDs only and rejects the no-task_ids fallback above
     GENERATION_FALLBACK_MAX_TASKS."""
 
-    @patch("routers.generation_task_list.celery_app")
-    def test_fallback_above_cap_rejected_with_400(
-        self, mock_celery, client, test_db, test_users, test_org, auth_headers
+    @pytest.mark.asyncio
+    async def test_fallback_above_cap_rejected_with_400(
+        self, async_test_client, async_test_db
     ):
-        mock_celery.send_task.return_value = None
-        admin = test_users[0]
-        data = _make_project_with_tasks(
-            test_db, admin, test_org, num_tasks=4, model_ids=["model-A"],
+        admin = await _make_superadmin(async_test_db)
+        org = await _make_org(async_test_db)
+        data = await _make_project_with_tasks(
+            async_test_db, admin, org, num_tasks=4, model_ids=["model-A"],
         )
+        project_id = data["project"].id
+        await async_test_db.commit()
 
-        with patch("routers.generation_task_list.GENERATION_FALLBACK_MAX_TASKS", 3):
-            resp = client.post(
-                f"/api/generation-tasks/projects/{data['project'].id}/generate",
-                json={"mode": "all"},
-                headers=auth_headers["admin"],
-            )
+        with patch("routers.generation_task_list.celery_app") as mock_celery:
+            mock_celery.send_task.return_value = None
+            with patch("routers.generation_task_list.GENERATION_FALLBACK_MAX_TASKS", 3):
+                with _as_user(admin):
+                    resp = await async_test_client.post(
+                        f"/api/generation-tasks/projects/{project_id}/generate",
+                        json={"mode": "all"},
+                    )
 
-        assert resp.status_code == 400, resp.text
-        assert "task_ids" in resp.json()["detail"]
-        # Nothing was queued or dispatched.
+            assert resp.status_code == 400, resp.text
+            assert "task_ids" in resp.json()["detail"]
+            mock_celery.send_task.assert_not_called()
+
+        # Nothing was queued.
+        async_test_db.expire_all()
         n_rows = (
-            test_db.query(DBResponseGeneration)
-            .filter(DBResponseGeneration.project_id == data["project"].id)
-            .count()
-        )
-        assert n_rows == 0
-        mock_celery.send_task.assert_not_called()
-
-    @patch("routers.generation_task_list.celery_app")
-    def test_fallback_at_cap_still_queues_all_tasks(
-        self, mock_celery, client, test_db, test_users, test_org, auth_headers
-    ):
-        mock_celery.send_task.return_value = None
-        admin = test_users[0]
-        data = _make_project_with_tasks(
-            test_db, admin, test_org, num_tasks=4, model_ids=["model-A"],
-        )
-
-        with patch("routers.generation_task_list.GENERATION_FALLBACK_MAX_TASKS", 4):
-            resp = client.post(
-                f"/api/generation-tasks/projects/{data['project'].id}/generate",
-                json={"mode": "all"},
-                headers=auth_headers["admin"],
+            await async_test_db.execute(
+                select(DBResponseGeneration).where(
+                    DBResponseGeneration.project_id == project_id
+                )
             )
+        ).scalars().all()
+        assert len(n_rows) == 0
+
+    @pytest.mark.asyncio
+    async def test_fallback_at_cap_still_queues_all_tasks(
+        self, async_test_client, async_test_db
+    ):
+        admin = await _make_superadmin(async_test_db)
+        org = await _make_org(async_test_db)
+        data = await _make_project_with_tasks(
+            async_test_db, admin, org, num_tasks=4, model_ids=["model-A"],
+        )
+        project_id = data["project"].id
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery:
+            mock_celery.send_task.return_value = None
+            with patch("routers.generation_task_list.GENERATION_FALLBACK_MAX_TASKS", 4):
+                with _as_user(admin):
+                    resp = await async_test_client.post(
+                        f"/api/generation-tasks/projects/{project_id}/generate",
+                        json={"mode": "all"},
+                    )
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["tasks_queued"] == 4
 
-    @patch("routers.generation_task_list.celery_app")
-    def test_explicit_task_ids_bypass_the_cap(
-        self, mock_celery, client, test_db, test_users, test_org, auth_headers
+    @pytest.mark.asyncio
+    async def test_explicit_task_ids_bypass_the_cap(
+        self, async_test_client, async_test_db
     ):
         """The bound only guards the load-everything fallback; callers paging
         through explicit task_ids stay functional on huge projects."""
-        mock_celery.send_task.return_value = None
-        admin = test_users[0]
-        data = _make_project_with_tasks(
-            test_db, admin, test_org, num_tasks=3, model_ids=["model-A"],
+        admin = await _make_superadmin(async_test_db)
+        org = await _make_org(async_test_db)
+        data = await _make_project_with_tasks(
+            async_test_db, admin, org, num_tasks=3, model_ids=["model-A"],
         )
+        project_id = data["project"].id
         picked = [t.id for t in data["tasks"][:2]]
+        await async_test_db.commit()
 
-        with patch("routers.generation_task_list.GENERATION_FALLBACK_MAX_TASKS", 1):
-            resp = client.post(
-                f"/api/generation-tasks/projects/{data['project'].id}/generate",
-                json={"mode": "all", "task_ids": picked},
-                headers=auth_headers["admin"],
-            )
+        with patch("routers.generation_task_list.celery_app") as mock_celery:
+            mock_celery.send_task.return_value = None
+            with patch("routers.generation_task_list.GENERATION_FALLBACK_MAX_TASKS", 1):
+                with _as_user(admin):
+                    resp = await async_test_client.post(
+                        f"/api/generation-tasks/projects/{project_id}/generate",
+                        json={"mode": "all", "task_ids": picked},
+                    )
 
         assert resp.status_code == 200, resp.text
         assert resp.json()["tasks_queued"] == 2
+        async_test_db.expire_all()
         inserted = (
-            test_db.query(DBResponseGeneration.task_id)
-            .filter(DBResponseGeneration.project_id == data["project"].id)
-            .all()
-        )
+            await async_test_db.execute(
+                select(DBResponseGeneration.task_id).where(
+                    DBResponseGeneration.project_id == project_id
+                )
+            )
+        ).all()
         assert {r.task_id for r in inserted} == set(picked)

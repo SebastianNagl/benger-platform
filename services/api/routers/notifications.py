@@ -6,6 +6,21 @@ This module provides REST API endpoints for the notification system:
 - Mark notifications as read
 - Manage user notification preferences
 - Server-Sent Events for real-time updates
+
+Async-migration note (Tier 3.1 — LEAF/MISC wave): this router is intentionally
+left on the SYNC DB lane (``Depends(get_db)``). Every handler body is a thin
+delegation to ``NotificationService`` static methods (``get_user_notifications``,
+``mark_notification_read``, ``get_user_preferences``, ``create_notification``,
+``delete_notifications_bulk``, …), all of which take a ``db: Session`` and live
+in the canonical ``shared/mailer/notification_service.py`` module. That module
+is explicitly out of scope for this wave (the email/notification implementation
+must stay sync), so there are no async twins to call. Converting the handlers
+would mean wrapping each single service call in ``run_in_threadpool`` with a
+short-lived ``SessionLocal()`` — pure overhead with no async win, since the
+whole handler body is that one sync call. The SSE ``/stream`` endpoint is
+already ``async def`` for the streaming generator but uses a sync session for
+its periodic ``get_unread_count`` poll, for the same reason. Revisit only once
+``NotificationService`` itself grows async twins.
 """
 
 import asyncio

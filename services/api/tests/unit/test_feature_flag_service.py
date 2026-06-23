@@ -10,7 +10,7 @@ import pytest
 import redis
 from sqlalchemy.orm import Session
 
-from feature_flag_service import FeatureFlagService
+from services.feature_flag_service import FeatureFlagService
 from models import FeatureFlag, User
 
 

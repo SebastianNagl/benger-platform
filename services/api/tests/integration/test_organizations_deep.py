@@ -1,7 +1,11 @@
 """
 Deep integration tests for organization CRUD and member management.
 
-Targets: routers/projects/organizations.py
+Targets: routers/organizations/* (migrated to the async DB lane). Rows are
+seeded via ``async_test_db`` and the HTTP surface is driven through
+``async_test_client``; both auth dependencies are overridden per-test via
+``_as_user`` (the sync auth deps can't see the async test transaction).
+
 - GET    /api/organizations           — list organizations
 - POST   /api/organizations           — create organization
 - GET    /api/organizations/{id}      — get org details
@@ -15,11 +19,14 @@ Targets: routers/projects/organizations.py
 """
 
 import uuid
-from datetime import datetime
+from contextlib import contextmanager
+from datetime import datetime, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
+from auth_module.dependencies import get_current_user, require_user
+from auth_module.models import User as AuthUser
+from main import app
 from models import Organization, OrganizationMembership, User
 from project_models import Project, ProjectOrganization
 
@@ -28,50 +35,92 @@ def _uid() -> str:
     return str(uuid.uuid4())
 
 
-def _make_org(db: Session, created_by: str = None, name: str = "Test Org", slug: str = None):
-    """Create an organization directly in the database."""
-    org = Organization(
-        id=_uid(),
-        name=name,
-        slug=slug or f"org-{uuid.uuid4().hex[:8]}",
-        display_name=f"{name} Display",
-        description=f"Organization: {name}",
-        created_at=datetime.utcnow(),
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
     )
-    db.add(org)
-    db.commit()
-    db.refresh(org)
-    return org
+    app.dependency_overrides[require_user] = lambda: auth_user
+    app.dependency_overrides[get_current_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+        app.dependency_overrides.pop(get_current_user, None)
 
 
-def _make_membership(db: Session, user_id: str, org_id: str, role: str = "ORG_ADMIN"):
-    """Create an organization membership."""
-    m = OrganizationMembership(
-        id=_uid(),
-        user_id=user_id,
-        organization_id=org_id,
-        role=role,
-        joined_at=datetime.utcnow(),
-    )
-    db.add(m)
-    db.commit()
-    return m
-
-
-def _make_user(db: Session, name: str = "Extra User"):
-    """Create an extra user for member management tests."""
+async def _make_user(db, name="Extra User", *, is_superadmin=False) -> User:
     user = User(
         id=_uid(),
         username=f"{name.lower().replace(' ', '-')}-{uuid.uuid4().hex[:6]}@test.com",
         email=f"{name.lower().replace(' ', '-')}-{uuid.uuid4().hex[:6]}@test.com",
         name=name,
         hashed_password="hashed_placeholder",
+        is_superadmin=is_superadmin,
         is_active=True,
         email_verified=True,
+        created_at=datetime.now(timezone.utc),
     )
     db.add(user)
-    db.commit()
+    await db.flush()
     return user
+
+
+async def _make_org(db, name: str = "Test Org", slug: str = None) -> Organization:
+    org = Organization(
+        id=_uid(),
+        name=name,
+        slug=slug or f"org-{uuid.uuid4().hex[:8]}",
+        display_name=f"{name} Display",
+        description=f"Organization: {name}",
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(org)
+    await db.flush()
+    return org
+
+
+async def _make_membership(db, user_id: str, org_id: str, role: str = "ORG_ADMIN"):
+    db.add(
+        OrganizationMembership(
+            id=_uid(),
+            user_id=user_id,
+            organization_id=org_id,
+            role=role,
+            is_active=True,
+            joined_at=datetime.now(timezone.utc),
+        )
+    )
+    await db.flush()
+
+
+async def _seed_org_with_members(db):
+    """Org with the 4 canonical members (admin superadmin/ORG_ADMIN,
+    contributor, annotator, org_admin). Returns ``(org, users_by_role)``."""
+    admin = await _make_user(db, "Test Admin", is_superadmin=True)
+    contributor = await _make_user(db, "Test Contributor")
+    annotator = await _make_user(db, "Test Annotator")
+    org_admin = await _make_user(db, "Test Org Admin")
+    org = await _make_org(db, name="Test Org")
+    await _make_membership(db, admin.id, org.id, "ORG_ADMIN")
+    await _make_membership(db, contributor.id, org.id, "CONTRIBUTOR")
+    await _make_membership(db, annotator.id, org.id, "ANNOTATOR")
+    await _make_membership(db, org_admin.id, org.id, "ORG_ADMIN")
+    await db.commit()
+    return org, {
+        "admin": admin,
+        "contributor": contributor,
+        "annotator": annotator,
+        "org_admin": org_admin,
+    }
 
 
 # ====================================================================
@@ -79,35 +128,50 @@ def _make_user(db: Session, name: str = "Extra User"):
 # ====================================================================
 
 @pytest.mark.integration
-class TestListOrgsDeep:
-    """Organization listing endpoint."""
+@pytest.mark.asyncio
+async def test_superadmin_sees_all_orgs(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    await _make_org(async_test_db, name="Extra Org A")
+    await _make_org(async_test_db, name="Extra Org B")
+    await async_test_db.commit()
+    with _as_user(users["admin"]):
+        resp = await async_test_client.get("/api/organizations/")
+    assert resp.status_code == 200
+    orgs = resp.json()
+    assert isinstance(orgs, list)
+    assert len(orgs) >= 3  # test_org + 2 extras
 
-    def test_superadmin_sees_all_orgs(self, client, test_db, test_users, auth_headers, test_org):
-        _make_org(test_db, name="Extra Org A")
-        _make_org(test_db, name="Extra Org B")
-        resp = client.get("/api/organizations/", headers=auth_headers["admin"])
-        assert resp.status_code == 200
-        orgs = resp.json()
-        assert isinstance(orgs, list)
-        assert len(orgs) >= 3  # test_org + 2 extras
 
-    def test_contributor_sees_own_orgs(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get("/api/organizations/", headers=auth_headers["contributor"])
-        assert resp.status_code == 200
-        orgs = resp.json()
-        assert isinstance(orgs, list)
-        org_ids = [o["id"] for o in orgs]
-        assert test_org.id in org_ids
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_contributor_sees_own_orgs(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid = org.id
+    with _as_user(users["contributor"]):
+        resp = await async_test_client.get("/api/organizations/")
+    assert resp.status_code == 200
+    orgs = resp.json()
+    assert isinstance(orgs, list)
+    org_ids = [o["id"] for o in orgs]
+    assert oid in org_ids
 
-    def test_annotator_sees_own_orgs(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get("/api/organizations/", headers=auth_headers["annotator"])
-        assert resp.status_code == 200
-        orgs = resp.json()
-        assert isinstance(orgs, list)
 
-    def test_unauthenticated_rejected(self, client, test_db):
-        resp = client.get("/api/organizations/")
-        assert resp.status_code in (401, 403)
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_annotator_sees_own_orgs(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    with _as_user(users["annotator"]):
+        resp = await async_test_client.get("/api/organizations/")
+    assert resp.status_code == 200
+    orgs = resp.json()
+    assert isinstance(orgs, list)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_unauthenticated_rejected(async_test_client):
+    resp = await async_test_client.get("/api/organizations/")
+    assert resp.status_code in (401, 403)
 
 
 # ====================================================================
@@ -115,12 +179,13 @@ class TestListOrgsDeep:
 # ====================================================================
 
 @pytest.mark.integration
-class TestCreateOrgDeep:
-    """Organization creation endpoint."""
-
-    def test_create_org_with_all_fields(self, client, test_db, test_users, auth_headers):
-        slug = f"full-org-{uuid.uuid4().hex[:8]}"
-        resp = client.post(
+@pytest.mark.asyncio
+async def test_create_org_with_all_fields(async_test_client, async_test_db):
+    admin = await _make_user(async_test_db, "Admin", is_superadmin=True)
+    await async_test_db.commit()
+    slug = f"full-org-{uuid.uuid4().hex[:8]}"
+    with _as_user(admin):
+        resp = await async_test_client.post(
             "/api/organizations/",
             json={
                 "name": "Full Org",
@@ -128,54 +193,77 @@ class TestCreateOrgDeep:
                 "display_name": "Full Organization",
                 "description": "A fully specified organization",
             },
-            headers=auth_headers["admin"],
         )
-        assert resp.status_code in (200, 201)
-        body = resp.json()
-        assert body["name"] == "Full Org"
-        assert body["slug"] == slug
-        assert body["display_name"] == "Full Organization"
+    assert resp.status_code in (200, 201)
+    body = resp.json()
+    assert body["name"] == "Full Org"
+    assert body["slug"] == slug
+    assert body["display_name"] == "Full Organization"
 
-    def test_create_org_minimal_fields(self, client, test_db, test_users, auth_headers):
-        slug = f"minimal-{uuid.uuid4().hex[:8]}"
-        resp = client.post(
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_org_minimal_fields(async_test_client, async_test_db):
+    admin = await _make_user(async_test_db, "Admin", is_superadmin=True)
+    await async_test_db.commit()
+    slug = f"minimal-{uuid.uuid4().hex[:8]}"
+    with _as_user(admin):
+        resp = await async_test_client.post(
             "/api/organizations/",
             json={"name": "Minimal Org", "slug": slug, "display_name": "Minimal"},
-            headers=auth_headers["admin"],
         )
-        assert resp.status_code in (200, 201)
+    assert resp.status_code in (200, 201)
 
-    def test_create_org_duplicate_slug_rejected(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.post(
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_org_duplicate_slug_rejected(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oslug = org.slug
+    with _as_user(users["admin"]):
+        resp = await async_test_client.post(
             "/api/organizations/",
-            json={"name": "Dup Slug", "slug": test_org.slug, "display_name": "Dup"},
-            headers=auth_headers["admin"],
+            json={"name": "Dup Slug", "slug": oslug, "display_name": "Dup"},
         )
-        assert resp.status_code in (400, 409)
+    assert resp.status_code in (400, 409)
 
-    def test_create_org_missing_name_rejected(self, client, test_db, test_users, auth_headers):
-        resp = client.post(
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_org_missing_name_rejected(async_test_client, async_test_db):
+    admin = await _make_user(async_test_db, "Admin", is_superadmin=True)
+    await async_test_db.commit()
+    with _as_user(admin):
+        resp = await async_test_client.post(
             "/api/organizations/",
             json={"slug": f"no-name-{uuid.uuid4().hex[:8]}"},
-            headers=auth_headers["admin"],
         )
-        assert resp.status_code == 422
+    assert resp.status_code == 422
 
-    def test_create_org_missing_slug_rejected(self, client, test_db, test_users, auth_headers):
-        resp = client.post(
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_org_missing_slug_rejected(async_test_client, async_test_db):
+    admin = await _make_user(async_test_db, "Admin", is_superadmin=True)
+    await async_test_db.commit()
+    with _as_user(admin):
+        resp = await async_test_client.post(
             "/api/organizations/",
             json={"name": "No Slug Org"},
-            headers=auth_headers["admin"],
         )
-        assert resp.status_code == 422
+    assert resp.status_code == 422
 
-    def test_annotator_cannot_create_org(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.post(
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_annotator_cannot_create_org(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    with _as_user(users["annotator"]):
+        resp = await async_test_client.post(
             "/api/organizations/",
             json={"name": "Nope", "slug": f"nope-{uuid.uuid4().hex[:8]}", "display_name": "Nope"},
-            headers=auth_headers["annotator"],
         )
-        assert resp.status_code == 403
+    assert resp.status_code == 403
 
 
 # ====================================================================
@@ -183,31 +271,47 @@ class TestCreateOrgDeep:
 # ====================================================================
 
 @pytest.mark.integration
-class TestGetOrgDeep:
-    """Get organization by ID."""
+@pytest.mark.asyncio
+async def test_get_org_by_id(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid, oname = org.id, org.name
+    with _as_user(users["admin"]):
+        resp = await async_test_client.get(f"/api/organizations/{oid}")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["id"] == oid
+    assert body["name"] == oname
 
-    def test_get_org_by_id(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get(f"/api/organizations/{test_org.id}", headers=auth_headers["admin"])
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["id"] == test_org.id
-        assert body["name"] == test_org.name
 
-    def test_get_org_includes_display_name(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get(f"/api/organizations/{test_org.id}", headers=auth_headers["admin"])
-        assert resp.status_code == 200
-        assert "display_name" in resp.json()
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_get_org_includes_display_name(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid = org.id
+    with _as_user(users["admin"]):
+        resp = await async_test_client.get(f"/api/organizations/{oid}")
+    assert resp.status_code == 200
+    assert "display_name" in resp.json()
 
-    def test_get_nonexistent_org(self, client, test_db, test_users, auth_headers):
-        resp = client.get("/api/organizations/nonexistent-org-id", headers=auth_headers["admin"])
-        assert resp.status_code == 404
 
-    def test_get_org_by_slug(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get(
-            f"/api/organizations/by-slug/{test_org.slug}",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code in (200, 404)
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_get_nonexistent_org(async_test_client, async_test_db):
+    admin = await _make_user(async_test_db, "Admin", is_superadmin=True)
+    await async_test_db.commit()
+    with _as_user(admin):
+        resp = await async_test_client.get("/api/organizations/nonexistent-org-id")
+    assert resp.status_code == 404
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_get_org_by_slug(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oslug = org.slug
+    with _as_user(users["admin"]):
+        resp = await async_test_client.get(f"/api/organizations/by-slug/{oslug}")
+    assert resp.status_code in (200, 404)
 
 
 # ====================================================================
@@ -215,38 +319,48 @@ class TestGetOrgDeep:
 # ====================================================================
 
 @pytest.mark.integration
-class TestUpdateOrgDeep:
-    """Update organization details."""
-
-    def test_update_org_name(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.put(
-            f"/api/organizations/{test_org.id}",
-            json={"name": "Updated Name", "slug": test_org.slug, "display_name": test_org.display_name},
-            headers=auth_headers["admin"],
+@pytest.mark.asyncio
+async def test_update_org_name(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid, oslug, odisplay = org.id, org.slug, org.display_name
+    with _as_user(users["admin"]):
+        resp = await async_test_client.put(
+            f"/api/organizations/{oid}",
+            json={"name": "Updated Name", "slug": oslug, "display_name": odisplay},
         )
-        assert resp.status_code == 200
-        assert resp.json()["name"] == "Updated Name"
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "Updated Name"
 
-    def test_update_org_description(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.put(
-            f"/api/organizations/{test_org.id}",
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_update_org_description(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid, oname, oslug, odisplay = org.id, org.name, org.slug, org.display_name
+    with _as_user(users["admin"]):
+        resp = await async_test_client.put(
+            f"/api/organizations/{oid}",
             json={
-                "name": test_org.name,
-                "slug": test_org.slug,
-                "display_name": test_org.display_name,
+                "name": oname,
+                "slug": oslug,
+                "display_name": odisplay,
                 "description": "Updated description for testing",
             },
-            headers=auth_headers["admin"],
         )
-        assert resp.status_code == 200
+    assert resp.status_code == 200
 
-    def test_update_nonexistent_org(self, client, test_db, test_users, auth_headers):
-        resp = client.put(
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_update_nonexistent_org(async_test_client, async_test_db):
+    admin = await _make_user(async_test_db, "Admin", is_superadmin=True)
+    await async_test_db.commit()
+    with _as_user(admin):
+        resp = await async_test_client.put(
             "/api/organizations/nonexistent",
             json={"name": "Nope", "slug": "nope", "display_name": "Nope"},
-            headers=auth_headers["admin"],
         )
-        assert resp.status_code == 404
+    assert resp.status_code == 404
 
 
 # ====================================================================
@@ -254,30 +368,52 @@ class TestUpdateOrgDeep:
 # ====================================================================
 
 @pytest.mark.integration
-class TestDeleteOrgDeep:
-    """Delete organization endpoint."""
+@pytest.mark.asyncio
+async def test_superadmin_can_delete_org(async_test_client, async_test_db):
+    admin = await _make_user(async_test_db, "Admin", is_superadmin=True)
+    org = await _make_org(async_test_db, name="Delete Me")
+    oid = org.id
+    await async_test_db.commit()
+    with _as_user(admin):
+        resp = await async_test_client.delete(f"/api/organizations/{oid}")
+    assert resp.status_code in (200, 204)
 
-    def test_superadmin_can_delete_org(self, client, test_db, test_users, auth_headers):
-        org = _make_org(test_db, name="Delete Me")
-        resp = client.delete(f"/api/organizations/{org.id}", headers=auth_headers["admin"])
-        assert resp.status_code in (200, 204)
 
-    def test_delete_nonexistent_org(self, client, test_db, test_users, auth_headers):
-        resp = client.delete("/api/organizations/nonexistent", headers=auth_headers["admin"])
-        assert resp.status_code == 404
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_delete_nonexistent_org(async_test_client, async_test_db):
+    admin = await _make_user(async_test_db, "Admin", is_superadmin=True)
+    await async_test_db.commit()
+    with _as_user(admin):
+        resp = await async_test_client.delete("/api/organizations/nonexistent")
+    assert resp.status_code == 404
 
-    def test_annotator_cannot_delete_org(self, client, test_db, test_users, auth_headers):
-        org = _make_org(test_db, name="Protected Org")
-        _make_membership(test_db, test_users[2].id, org.id, "ANNOTATOR")
-        resp = client.delete(f"/api/organizations/{org.id}", headers=auth_headers["annotator"])
-        assert resp.status_code == 403
 
-    def test_org_admin_cannot_delete_org(self, client, test_db, test_users, auth_headers):
-        org = _make_org(test_db, name="OrgAdmin Protected")
-        _make_membership(test_db, test_users[3].id, org.id, "ORG_ADMIN")
-        resp = client.delete(f"/api/organizations/{org.id}", headers=auth_headers["org_admin"])
-        # Only superadmin can delete orgs
-        assert resp.status_code in (200, 204, 403)
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_annotator_cannot_delete_org(async_test_client, async_test_db):
+    annotator = await _make_user(async_test_db, "Annotator")
+    org = await _make_org(async_test_db, name="Protected Org")
+    await _make_membership(async_test_db, annotator.id, org.id, "ANNOTATOR")
+    oid = org.id
+    await async_test_db.commit()
+    with _as_user(annotator):
+        resp = await async_test_client.delete(f"/api/organizations/{oid}")
+    assert resp.status_code == 403
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_org_admin_cannot_delete_org(async_test_client, async_test_db):
+    org_admin = await _make_user(async_test_db, "OrgAdmin")
+    org = await _make_org(async_test_db, name="OrgAdmin Protected")
+    await _make_membership(async_test_db, org_admin.id, org.id, "ORG_ADMIN")
+    oid = org.id
+    await async_test_db.commit()
+    with _as_user(org_admin):
+        resp = await async_test_client.delete(f"/api/organizations/{oid}")
+    # Only superadmin can delete orgs
+    assert resp.status_code in (200, 204, 403)
 
 
 # ====================================================================
@@ -285,78 +421,112 @@ class TestDeleteOrgDeep:
 # ====================================================================
 
 @pytest.mark.integration
-class TestOrgMembersDeep:
-    """Organization member management endpoints."""
+@pytest.mark.asyncio
+async def test_list_members(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid = org.id
+    with _as_user(users["admin"]):
+        resp = await async_test_client.get(f"/api/organizations/{oid}/members")
+    assert resp.status_code == 200
+    members = resp.json()
+    assert isinstance(members, list)
+    assert len(members) >= 4  # All 4 seeded users are members
 
-    def test_list_members(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get(
-            f"/api/organizations/{test_org.id}/members",
-            headers=auth_headers["admin"],
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_list_members_includes_roles(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid = org.id
+    with _as_user(users["admin"]):
+        resp = await async_test_client.get(f"/api/organizations/{oid}/members")
+    assert resp.status_code == 200
+    members = resp.json()
+    for member in members:
+        assert "role" in member
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_add_new_member(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    new_user = await _make_user(async_test_db, "Brand New Member")
+    oid, new_uid = org.id, new_user.id
+    await async_test_db.commit()
+    with _as_user(users["admin"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members",
+            json={"user_id": new_uid, "role": "ANNOTATOR"},
         )
-        assert resp.status_code == 200
-        members = resp.json()
-        assert isinstance(members, list)
-        assert len(members) >= 4  # All 4 test users are members
+    assert resp.status_code in (200, 201)
 
-    def test_list_members_includes_roles(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get(
-            f"/api/organizations/{test_org.id}/members",
-            headers=auth_headers["admin"],
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_add_member_as_contributor(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    new_user = await _make_user(async_test_db, "Contrib Member")
+    oid, new_uid = org.id, new_user.id
+    await async_test_db.commit()
+    with _as_user(users["admin"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members",
+            json={"user_id": new_uid, "role": "CONTRIBUTOR"},
         )
-        assert resp.status_code == 200
-        members = resp.json()
-        for member in members:
-            assert "role" in member
+    assert resp.status_code in (200, 201)
 
-    def test_add_new_member(self, client, test_db, test_users, auth_headers, test_org):
-        new_user = _make_user(test_db, "Brand New Member")
-        resp = client.post(
-            f"/api/organizations/{test_org.id}/members",
-            json={"user_id": new_user.id, "role": "ANNOTATOR"},
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code in (200, 201)
 
-    def test_add_member_as_contributor(self, client, test_db, test_users, auth_headers, test_org):
-        new_user = _make_user(test_db, "Contrib Member")
-        resp = client.post(
-            f"/api/organizations/{test_org.id}/members",
-            json={"user_id": new_user.id, "role": "CONTRIBUTOR"},
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code in (200, 201)
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_remove_member(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    user = await _make_user(async_test_db, "Remove Me Member")
+    await _make_membership(async_test_db, user.id, org.id, "ANNOTATOR")
+    oid, uid = org.id, user.id
+    await async_test_db.commit()
+    with _as_user(users["admin"]):
+        resp = await async_test_client.delete(f"/api/organizations/{oid}/members/{uid}")
+    assert resp.status_code in (200, 204)
 
-    def test_remove_member(self, client, test_db, test_users, auth_headers, test_org):
-        user = _make_user(test_db, "Remove Me Member")
-        _make_membership(test_db, user.id, test_org.id, "ANNOTATOR")
-        resp = client.delete(
-            f"/api/organizations/{test_org.id}/members/{user.id}",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code in (200, 204)
 
-    def test_update_member_role(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.put(
-            f"/api/organizations/{test_org.id}/members/{test_users[2].id}/role",
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_update_member_role(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid, uid = org.id, users["annotator"].id
+    with _as_user(users["admin"]):
+        resp = await async_test_client.put(
+            f"/api/organizations/{oid}/members/{uid}/role",
             json={"role": "CONTRIBUTOR"},
-            headers=auth_headers["admin"],
         )
-        assert resp.status_code in (200, 404)
+    assert resp.status_code in (200, 404)
 
-    def test_remove_nonexistent_member(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.delete(
-            f"/api/organizations/{test_org.id}/members/nonexistent-user",
-            headers=auth_headers["admin"],
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_remove_nonexistent_member(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid = org.id
+    with _as_user(users["admin"]):
+        resp = await async_test_client.delete(
+            f"/api/organizations/{oid}/members/nonexistent-user"
         )
-        assert resp.status_code in (404, 400)
+    assert resp.status_code in (404, 400)
 
-    def test_add_member_to_nonexistent_org(self, client, test_db, test_users, auth_headers):
-        resp = client.post(
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_add_member_to_nonexistent_org(async_test_client, async_test_db):
+    admin = await _make_user(async_test_db, "Admin", is_superadmin=True)
+    target = await _make_user(async_test_db, "Target")
+    target_id = target.id
+    await async_test_db.commit()
+    with _as_user(admin):
+        resp = await async_test_client.post(
             "/api/organizations/nonexistent/members",
-            json={"user_id": test_users[0].id, "role": "ANNOTATOR"},
-            headers=auth_headers["admin"],
+            json={"user_id": target_id, "role": "ANNOTATOR"},
         )
-        assert resp.status_code in (404, 400)
+    assert resp.status_code in (404, 400)
 
 
 # ====================================================================
@@ -364,31 +534,39 @@ class TestOrgMembersDeep:
 # ====================================================================
 
 @pytest.mark.integration
-class TestOrgWithProjectsDeep:
-    """Organization behavior with associated projects."""
+@pytest.mark.asyncio
+async def test_org_stats_endpoint(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid = org.id
+    with _as_user(users["admin"]):
+        resp = await async_test_client.get(f"/api/organizations/{oid}/stats")
+    assert resp.status_code in (200, 404)
 
-    def test_org_stats_endpoint(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get(
-            f"/api/organizations/{test_org.id}/stats",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code in (200, 404)
 
-    def test_org_projects_visible_after_creation(self, client, test_db, test_users, auth_headers, test_org):
-        # Create a project linked to the org
-        project = Project(
-            id=_uid(), title="Org Project", created_by=test_users[0].id,
-            label_config="<View><Text name='t' value='$text'/></View>",
-        )
-        test_db.add(project)
-        test_db.flush()
-        po = ProjectOrganization(
-            id=_uid(), project_id=project.id,
-            organization_id=test_org.id, assigned_by=test_users[0].id,
-        )
-        test_db.add(po)
-        test_db.commit()
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_org_projects_visible_after_creation(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    admin = users["admin"]
+    # Create a project linked to the org
+    project = Project(
+        id=_uid(),
+        title="Org Project",
+        created_by=admin.id,
+        label_config="<View><Text name='t' value='$text'/></View>",
+    )
+    async_test_db.add(project)
+    await async_test_db.flush()
+    po = ProjectOrganization(
+        id=_uid(),
+        project_id=project.id,
+        organization_id=org.id,
+        assigned_by=admin.id,
+    )
+    async_test_db.add(po)
+    await async_test_db.commit()
 
-        # Verify org details still accessible
-        resp = client.get(f"/api/organizations/{test_org.id}", headers=auth_headers["admin"])
-        assert resp.status_code == 200
+    oid = org.id
+    with _as_user(admin):
+        resp = await async_test_client.get(f"/api/organizations/{oid}")
+    assert resp.status_code == 200

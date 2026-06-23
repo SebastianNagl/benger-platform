@@ -8,11 +8,13 @@ import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 
 from auth_module import User, require_user
-from database import get_db
+from database import get_async_db, get_db
 from models import EvaluationRun as DBEvaluationRun
 from models import EvaluationType as DBEvaluationType
 from routers.evaluations.helpers import (
@@ -21,7 +23,12 @@ from routers.evaluations.helpers import (
     EvaluationTypeResponse,
     get_evaluation_types_for_task_type,
 )
-from routers.projects.helpers import check_project_accessible, get_accessible_project_ids, get_org_context_from_request
+from routers.projects.helpers import (
+    check_project_accessible,
+    check_project_accessible_async,
+    get_accessible_project_ids,
+    get_org_context_from_request,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +40,15 @@ async def get_evaluation_status(
     evaluation_id: str,
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get the status of a specific evaluation.
     """
-    evaluation = db.query(DBEvaluationRun).filter(DBEvaluationRun.id == evaluation_id).first()
+    result = await db.execute(
+        select(DBEvaluationRun).where(DBEvaluationRun.id == evaluation_id)
+    )
+    evaluation = result.scalar_one_or_none()
 
     if not evaluation:
         raise HTTPException(
@@ -47,7 +57,7 @@ async def get_evaluation_status(
         )
 
     # Check project access
-    if not check_project_accessible(db, current_user, evaluation.project_id, get_org_context_from_request(request)):
+    if not await check_project_accessible_async(db, current_user, evaluation.project_id, get_org_context_from_request(request)):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have access to this evaluation's project",
@@ -259,20 +269,19 @@ async def get_evaluation_types(
 async def get_evaluation_type(
     evaluation_type_id: str,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get a specific evaluation type by ID
     """
     try:
-        eval_type = (
-            db.query(DBEvaluationType)
-            .filter(
+        result = await db.execute(
+            select(DBEvaluationType).where(
                 DBEvaluationType.id == evaluation_type_id,
                 DBEvaluationType.is_active.is_(True),
             )
-            .first()
         )
+        eval_type = result.scalar_one_or_none()
 
         if not eval_type:
             raise HTTPException(
@@ -307,7 +316,7 @@ async def get_supported_metrics(
     Get all supported evaluation metrics.
     Returns a comprehensive list of all available automated and human evaluation metrics.
     """
-    from evaluation_config import AnswerType, get_metrics_for_answer_type
+    from services.evaluation.config import AnswerType, get_metrics_for_answer_type
 
     # Get all unique metrics across all answer types (core + extended)
     all_metrics = set()

@@ -6,13 +6,14 @@ Provides API endpoints for retrieving, comparing, and analyzing label_config sch
 
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authorization import Permission, auth_service
 from auth_module import require_user
 from auth_module.models import User
-from database import get_db
-from label_config_version_service import LabelConfigVersionService
+from database import get_async_db
+from services.label_config.version_service import LabelConfigVersionService
 from models import Generation as DBGeneration
 from project_models import Project
 from routers.projects.helpers import get_org_context_from_request
@@ -24,7 +25,7 @@ router = APIRouter()
 async def get_label_config_versions(
     project_id: str,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_user),
 ):
     """
@@ -33,7 +34,8 @@ async def get_label_config_versions(
     Returns metadata for each version including creation date, author, and description.
     """
     # Check project access
-    project = db.query(Project).filter(Project.id == project_id).first()
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Project {project_id} not found"
@@ -41,7 +43,9 @@ async def get_label_config_versions(
 
     # Verify user has permission to view project
     org_context = get_org_context_from_request(request)
-    if not auth_service.check_project_access(current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context):
+    if not await auth_service.check_project_access_async(
+        current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to view this project",
@@ -62,7 +66,7 @@ async def get_label_config_version(
     project_id: str,
     version: str,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_user),
 ):
     """
@@ -71,7 +75,8 @@ async def get_label_config_version(
     Returns the full XML/JSON schema definition for that version.
     """
     # Check project access
-    project = db.query(Project).filter(Project.id == project_id).first()
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Project {project_id} not found"
@@ -79,7 +84,9 @@ async def get_label_config_version(
 
     # Verify user has permission
     org_context = get_org_context_from_request(request)
-    if not auth_service.check_project_access(current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context):
+    if not await auth_service.check_project_access_async(
+        current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to view this project",
@@ -107,7 +114,7 @@ async def compare_label_config_versions(
     version1: str,
     version2: str,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_user),
 ):
     """
@@ -116,7 +123,8 @@ async def compare_label_config_versions(
     Returns a diff showing fields added, removed, and kept between versions.
     """
     # Check project access
-    project = db.query(Project).filter(Project.id == project_id).first()
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Project {project_id} not found"
@@ -124,7 +132,9 @@ async def compare_label_config_versions(
 
     # Verify user has permission
     org_context = get_org_context_from_request(request)
-    if not auth_service.check_project_access(current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context):
+    if not await auth_service.check_project_access_async(
+        current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to view this project",
@@ -142,7 +152,7 @@ async def compare_label_config_versions(
 async def get_generation_version_distribution(
     project_id: str,
     request: Request,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_user),
 ):
     """
@@ -152,7 +162,8 @@ async def get_generation_version_distribution(
     which versions have the most data.
     """
     # Check project access
-    project = db.query(Project).filter(Project.id == project_id).first()
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Project {project_id} not found"
@@ -160,7 +171,9 @@ async def get_generation_version_distribution(
 
     # Verify user has permission
     org_context = get_org_context_from_request(request)
-    if not auth_service.check_project_access(current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context):
+    if not await auth_service.check_project_access_async(
+        current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to view this project",
@@ -170,12 +183,13 @@ async def get_generation_version_distribution(
     from sqlalchemy import func
 
     results = (
-        db.query(DBGeneration.label_config_version, func.count(DBGeneration.id).label('count'))
-        .filter(DBGeneration.project_id == project_id)
-        .filter(DBGeneration.label_config_version.isnot(None))
-        .group_by(DBGeneration.label_config_version)
-        .all()
-    )
+        await db.execute(
+            select(DBGeneration.label_config_version, func.count(DBGeneration.id).label('count'))
+            .where(DBGeneration.project_id == project_id)
+            .where(DBGeneration.label_config_version.isnot(None))
+            .group_by(DBGeneration.label_config_version)
+        )
+    ).all()
 
     distribution = {version: count for version, count in results}
 

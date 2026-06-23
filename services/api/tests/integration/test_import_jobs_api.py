@@ -15,47 +15,119 @@ this project), and status fields + authz (requester vs. write-access vs. forbidd
 cross-project leak guard). The worker body is covered in
 ``services/workers/tests/test_import_task.py``; here ``send_task_safe`` and
 ``object_storage`` are mocked so we exercise only the endpoints.
+
+Async-DB migration note: the import-job endpoints now depend on ``get_async_db``,
+so these tests seed real rows via ``async_test_db`` and drive the surface through
+``async_test_client``. ``require_user`` is overridden per-test; org memberships
+are seeded so the contributor-write-access branch resolves for real.
 """
 
 import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy import select
 
-from models import ImportJob, JobStatus
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
+from models import (
+    ImportJob,
+    JobStatus,
+    Organization,
+    OrganizationMembership,
+    OrganizationRole,
+    User,
+)
 from project_models import Project, ProjectOrganization
-
-
-# The admin fixture user's id (see tests/fixtures/users.py).
-_ADMIN_ID = "admin-test-id"
 
 
 def _uid() -> str:
     return str(uuid.uuid4())
 
 
-@pytest.fixture
-def import_project_row(test_db, test_users, test_org):
-    """A minimal project owned by the admin user and bound to ``test_org``."""
-    admin = test_users[0]
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_user(db, *, is_superadmin=False, name="User") -> User:
+    u = User(
+        id=_uid(),
+        username=f"ij-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name=name,
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _make_org(db, *, name="Import Org") -> Organization:
+    oid = _uid()
+    org = Organization(
+        id=oid,
+        name=name,
+        display_name=name,
+        slug=f"org-{oid[:8]}",
+    )
+    db.add(org)
+    await db.flush()
+    return org
+
+
+async def _add_member(db, user, org, role):
+    db.add(
+        OrganizationMembership(
+            id=_uid(),
+            user_id=user.id,
+            organization_id=org.id,
+            role=role,
+            is_active=True,
+        )
+    )
+    await db.flush()
+
+
+async def _make_project(db, *, owner, org) -> Project:
     project = Project(
         id=_uid(),
         title="Import Jobs Project",
         description="async import-job fixture",
-        created_by=admin.id,
+        created_by=owner.id,
         label_config='<View><Text name="text" value="$text"/></View>',
     )
-    test_db.add(project)
-    test_db.flush()
-    test_db.add(
+    db.add(project)
+    await db.flush()
+    db.add(
         ProjectOrganization(
             id=_uid(),
             project_id=project.id,
-            organization_id=test_org.id,
-            assigned_by=admin.id,
+            organization_id=org.id,
+            assigned_by=owner.id,
         )
     )
-    test_db.commit()
+    await db.flush()
     return project
 
 
@@ -64,7 +136,7 @@ def _valid_key(project_id: str) -> str:
     return f"imports/2026/06/{project_id}/20260601_120000_import.json"
 
 
-def _make_job(test_db, project_id, requested_by, **overrides):
+async def _make_job(db, project_id, requested_by, **overrides) -> ImportJob:
     job = ImportJob(
         id=_uid(),
         project_id=project_id,
@@ -74,36 +146,55 @@ def _make_job(test_db, project_id, requested_by, **overrides):
         progress=overrides.pop("progress", 0),
         **overrides,
     )
-    test_db.add(job)
-    test_db.commit()
-    test_db.refresh(job)
+    db.add(job)
+    await db.commit()
+    await db.refresh(job)
     return job
+
+
+async def _seed_world(db):
+    """Seed admin owner + org + CONTRIBUTOR/ANNOTATOR members, and a project
+    bound to the org. Returns (admin, contributor, annotator, org, project)."""
+    org = await _make_org(db)
+    admin = await _make_user(db, is_superadmin=True, name="Admin")
+    contributor = await _make_user(db, name="Contributor")
+    annotator = await _make_user(db, name="Annotator")
+    await _add_member(db, admin, org, OrganizationRole.ORG_ADMIN)
+    await _add_member(db, contributor, org, OrganizationRole.CONTRIBUTOR)
+    await _add_member(db, annotator, org, OrganizationRole.ANNOTATOR)
+    project = await _make_project(db, owner=admin, org=org)
+    await db.commit()
+    return admin, contributor, annotator, org, project
+
+
+async def _get_job(db, job_id):
+    return (
+        await db.execute(select(ImportJob).where(ImportJob.id == job_id))
+    ).scalar_one_or_none()
 
 
 @pytest.mark.integration
 class TestCreateImportUploadUrl:
-    def test_returns_presigned_post_when_storage_configured(
-        self, client, import_project_row, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_returns_presigned_post_when_storage_configured(
+        self, async_test_client, async_test_db
     ):
-        project = import_project_row
+        admin, _contrib, _annot, org, project = await _seed_world(async_test_db)
         fake_upload = {
             "upload_url": "https://storage.example/upload",
             "method": "POST",
             "file_key": _valid_key(project.id),
             "fields": {"key": _valid_key(project.id)},
         }
-        with patch(
+        with _as_user(admin), patch(
             "routers.projects.import_export.object_storage.storage_backend", "minio"
         ), patch(
             "routers.projects.import_export.object_storage.get_upload_url",
             return_value=fake_upload,
         ) as mock_url:
-            resp = client.post(
+            resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports/upload-url?filename=import.json",
-                headers={
-                    **auth_headers["admin"],
-                    "X-Organization-Context": test_org.id,
-                },
+                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         assert resp.json()["file_key"] == _valid_key(project.id)
@@ -112,57 +203,50 @@ class TestCreateImportUploadUrl:
         assert mock_url.call_args.kwargs["user_id"] == project.id
         assert mock_url.call_args.kwargs["max_size"] > 0
 
-    def test_403_for_non_writer(
-        self, client, import_project_row, auth_headers, test_org
-    ):
-        project = import_project_row
-        with patch(
+    @pytest.mark.asyncio
+    async def test_403_for_non_writer(self, async_test_client, async_test_db):
+        admin, _contrib, annotator, org, project = await _seed_world(async_test_db)
+        with _as_user(annotator), patch(
             "routers.projects.import_export.object_storage.storage_backend", "minio"
         ):
-            resp = client.post(
+            resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports/upload-url",
-                headers={
-                    **auth_headers["annotator"],
-                    "X-Organization-Context": test_org.id,
-                },
+                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 403
 
-    def test_404_unknown_project(self, client, auth_headers, test_org):
-        with patch(
+    @pytest.mark.asyncio
+    async def test_404_unknown_project(self, async_test_client, async_test_db):
+        admin, _contrib, _annot, org, _project = await _seed_world(async_test_db)
+        with _as_user(admin), patch(
             "routers.projects.import_export.object_storage.storage_backend", "minio"
         ):
-            resp = client.post(
+            resp = await async_test_client.post(
                 f"/api/projects/{_uid()}/imports/upload-url",
-                headers={
-                    **auth_headers["admin"],
-                    "X-Organization-Context": test_org.id,
-                },
+                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 404
 
 
 @pytest.mark.integration
 class TestCreateImportJob:
-    def test_post_creates_pending_job_and_enqueues(
-        self, client, test_db, import_project_row, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_post_creates_pending_job_and_enqueues(
+        self, async_test_client, async_test_db
     ):
-        project = import_project_row
+        admin, _contrib, _annot, org, project = await _seed_world(async_test_db)
         key = _valid_key(project.id)
         fake_result = MagicMock()
         fake_result.id = "celery-import-xyz"
-        with patch(
+        with _as_user(admin), patch(
             "routers.projects.import_export.object_storage.storage_backend", "minio"
         ), patch(
             "routers.projects.import_export.send_task_safe", return_value=fake_result
         ) as mock_send:
-            resp = client.post(
+            resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports",
                 json={"object_key": key},
-                headers={
-                    **auth_headers["admin"],
-                    "X-Organization-Context": test_org.id,
-                },
+                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 202
         body = resp.json()
@@ -173,110 +257,96 @@ class TestCreateImportJob:
         assert mock_send.call_args.args[0] == "tasks.import_project"
         assert mock_send.call_args.kwargs["args"] == [job_id]
 
-        job = test_db.query(ImportJob).filter(ImportJob.id == job_id).first()
+        job = await _get_job(async_test_db, job_id)
         assert job is not None
         assert job.status == JobStatus.PENDING.value
         assert job.object_key == key
         assert job.project_id == project.id
-        assert job.requested_by == _ADMIN_ID
+        assert job.requested_by == admin.id
         assert job.celery_task_id == "celery-import-xyz"
 
-    def test_400_missing_object_key(
-        self, client, import_project_row, auth_headers, test_org
-    ):
-        project = import_project_row
-        with patch(
+    @pytest.mark.asyncio
+    async def test_400_missing_object_key(self, async_test_client, async_test_db):
+        admin, _contrib, _annot, org, project = await _seed_world(async_test_db)
+        with _as_user(admin), patch(
             "routers.projects.import_export.object_storage.storage_backend", "minio"
         ):
-            resp = client.post(
+            resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports",
                 json={},
-                headers={
-                    **auth_headers["admin"],
-                    "X-Organization-Context": test_org.id,
-                },
+                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 400
 
-    def test_400_object_key_outside_import_prefix(
-        self, client, import_project_row, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_400_object_key_outside_import_prefix(
+        self, async_test_client, async_test_db
     ):
         # A key not under imports/ must be rejected — a client can't point the
         # worker at an arbitrary stored object (e.g. another project's export).
-        project = import_project_row
-        with patch(
+        admin, _contrib, _annot, org, project = await _seed_world(async_test_db)
+        with _as_user(admin), patch(
             "routers.projects.import_export.object_storage.storage_backend", "minio"
         ):
-            resp = client.post(
+            resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports",
                 json={"object_key": f"exports/2026/06/{project.id}/leak.json"},
-                headers={
-                    **auth_headers["admin"],
-                    "X-Organization-Context": test_org.id,
-                },
+                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 400
 
-    def test_400_object_key_for_different_project(
-        self, client, import_project_row, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_400_object_key_for_different_project(
+        self, async_test_client, async_test_db
     ):
         # Correct prefix but scoped to a *different* project id — also rejected.
-        project = import_project_row
-        with patch(
+        admin, _contrib, _annot, org, project = await _seed_world(async_test_db)
+        with _as_user(admin), patch(
             "routers.projects.import_export.object_storage.storage_backend", "minio"
         ):
-            resp = client.post(
+            resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports",
                 json={"object_key": _valid_key(_uid())},
-                headers={
-                    **auth_headers["admin"],
-                    "X-Organization-Context": test_org.id,
-                },
+                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 400
 
-    def test_403_for_non_writer(
-        self, client, import_project_row, auth_headers, test_org
-    ):
-        project = import_project_row
-        with patch(
+    @pytest.mark.asyncio
+    async def test_403_for_non_writer(self, async_test_client, async_test_db):
+        admin, _contrib, annotator, org, project = await _seed_world(async_test_db)
+        with _as_user(annotator), patch(
             "routers.projects.import_export.object_storage.storage_backend", "minio"
         ), patch("routers.projects.import_export.send_task_safe") as mock_send:
-            resp = client.post(
+            resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports",
                 json={"object_key": _valid_key(project.id)},
-                headers={
-                    **auth_headers["annotator"],
-                    "X-Organization-Context": test_org.id,
-                },
+                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 403
         mock_send.assert_not_called()
 
-    def test_enqueue_failure_marks_job_failed_503(
-        self, client, test_db, import_project_row, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_enqueue_failure_marks_job_failed_503(
+        self, async_test_client, async_test_db
     ):
-        project = import_project_row
-        with patch(
+        admin, _contrib, _annot, org, project = await _seed_world(async_test_db)
+        with _as_user(admin), patch(
             "routers.projects.import_export.object_storage.storage_backend", "minio"
         ), patch(
             "routers.projects.import_export.send_task_safe",
             side_effect=RuntimeError("broker down"),
         ):
-            resp = client.post(
+            resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports",
                 json={"object_key": _valid_key(project.id)},
-                headers={
-                    **auth_headers["admin"],
-                    "X-Organization-Context": test_org.id,
-                },
+                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 503
         job = (
-            test_db.query(ImportJob)
-            .filter(ImportJob.project_id == project.id)
-            .first()
-        )
+            await async_test_db.execute(
+                select(ImportJob).where(ImportJob.project_id == project.id)
+            )
+        ).scalars().first()
         assert job is not None
         assert job.status == JobStatus.FAILED.value
         assert "broker down" in (job.error_message or "")
@@ -284,74 +354,76 @@ class TestCreateImportJob:
 
 @pytest.mark.integration
 class TestGetImportJobStatus:
-    def test_status_returns_job_fields(
-        self, client, test_db, import_project_row, auth_headers
+    @pytest.mark.asyncio
+    async def test_status_returns_job_fields(
+        self, async_test_client, async_test_db
     ):
-        job = _make_job(
-            test_db,
-            import_project_row.id,
-            _ADMIN_ID,
+        admin, _contrib, _annot, _org, project = await _seed_world(async_test_db)
+        job = await _make_job(
+            async_test_db,
+            project.id,
+            admin.id,
             status=JobStatus.RUNNING.value,
             progress=42,
             byte_size=12345,
             result={"created_tasks": 7},
         )
-        resp = client.get(
-            f"/api/projects/{import_project_row.id}/imports/{job.id}",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{project.id}/imports/{job.id}",
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["job_id"] == job.id
-        assert body["project_id"] == import_project_row.id
+        assert body["project_id"] == project.id
         assert body["status"] == JobStatus.RUNNING.value
         assert body["progress"] == 42
         assert body["byte_size"] == 12345
         assert body["result"] == {"created_tasks": 7}
         assert body["created_at"] is not None
 
-    def test_status_unknown_job_404(
-        self, client, import_project_row, auth_headers
-    ):
-        resp = client.get(
-            f"/api/projects/{import_project_row.id}/imports/{_uid()}",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_status_unknown_job_404(self, async_test_client, async_test_db):
+        admin, _contrib, _annot, _org, project = await _seed_world(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{project.id}/imports/{_uid()}",
+            )
         assert resp.status_code == 404
 
-    def test_status_cross_project_job_404(
-        self, client, test_db, import_project_row, auth_headers, test_users
+    @pytest.mark.asyncio
+    async def test_status_cross_project_job_404(
+        self, async_test_client, async_test_db
     ):
-        other = Project(
-            id=_uid(),
-            title="Other Import Project",
-            created_by=test_users[0].id,
-        )
-        test_db.add(other)
-        test_db.commit()
-        job = _make_job(test_db, other.id, test_users[0].id)
-        resp = client.get(
-            f"/api/projects/{import_project_row.id}/imports/{job.id}",
-            headers=auth_headers["admin"],
-        )
+        admin, _contrib, _annot, org, project = await _seed_world(async_test_db)
+        other = await _make_project(async_test_db, owner=admin, org=org)
+        job = await _make_job(async_test_db, other.id, admin.id)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{project.id}/imports/{job.id}",
+            )
         assert resp.status_code == 404
 
-    def test_status_forbidden_for_non_requester_without_write(
-        self, client, test_db, import_project_row, auth_headers, test_users
+    @pytest.mark.asyncio
+    async def test_status_forbidden_for_non_requester_without_write(
+        self, async_test_client, async_test_db
     ):
-        job = _make_job(test_db, import_project_row.id, test_users[0].id)
-        resp = client.get(
-            f"/api/projects/{import_project_row.id}/imports/{job.id}",
-            headers=auth_headers["annotator"],
-        )
+        admin, _contrib, annotator, _org, project = await _seed_world(async_test_db)
+        job = await _make_job(async_test_db, project.id, admin.id)
+        with _as_user(annotator):
+            resp = await async_test_client.get(
+                f"/api/projects/{project.id}/imports/{job.id}",
+            )
         assert resp.status_code == 403
 
-    def test_status_allowed_for_contributor_with_write(
-        self, client, test_db, import_project_row, auth_headers, test_users
+    @pytest.mark.asyncio
+    async def test_status_allowed_for_contributor_with_write(
+        self, async_test_client, async_test_db
     ):
-        job = _make_job(test_db, import_project_row.id, test_users[0].id)
-        resp = client.get(
-            f"/api/projects/{import_project_row.id}/imports/{job.id}",
-            headers=auth_headers["contributor"],
-        )
+        admin, contributor, _annot, _org, project = await _seed_world(async_test_db)
+        job = await _make_job(async_test_db, project.id, admin.id)
+        with _as_user(contributor):
+            resp = await async_test_client.get(
+                f"/api/projects/{project.id}/imports/{job.id}",
+            )
         assert resp.status_code == 200

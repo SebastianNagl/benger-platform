@@ -20,60 +20,35 @@ import { useI18n } from '@/contexts/I18nContext'
 import { TaskDataViewModal } from '@/components/tasks/TaskDataViewModal'
 import { canStartGeneration } from '@/utils/permissions'
 import { apiClient } from '@/lib/api/client'
-import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
 import { projectsAPI } from '@/lib/api/projects'
 import { Task as LabelStudioTask } from '@/types/labelStudio'
 import { Task } from '@/lib/api/types'
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import {
   ArrowDownTrayIcon,
   ArrowPathIcon,
   CheckCircleIcon,
   ClockIcon,
-  ClipboardDocumentIcon,
   ExclamationCircleIcon,
   PlayIcon,
   QueueListIcon,
   XCircleIcon,
-  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { METRIC_ORDER } from '@/lib/api/evaluation-types'
-import { getMetricDetail } from '@/lib/extensions/metricRenderers'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/shared/Select'
+import { ResultDetailsModal } from '@/components/evaluation/results/ResultsModal'
+import { useResultsData, useTaskModelData } from '@/components/evaluation/results/useResultsData'
+import type {
+  ChartData,
+  SampleEvaluationResult,
+  StatisticalMethod,
+  StatisticsData,
+} from '@/components/evaluation/results/types'
 
-/** Statistics data structure from computeStatistics API */
-interface StatisticsData {
-  by_model?: Record<
-    string,
-    {
-      model_name?: string
-      metrics: Record<
-        string,
-        {
-          mean: number
-          std: number
-          se?: number
-          ci_lower: number
-          ci_upper: number
-          n: number
-        }
-      >
-      sample_count: number
-    }
-  >
-}
-
-/** Statistical methods that can be selected for display */
-type StatisticalMethod =
-  | 'ci'
-  | 'se'
-  | 'std'
-  | 'ttest'
-  | 'bootstrap'
-  | 'cohens_d'
-  | 'cliffs_delta'
-  | 'correlation'
+// Re-exported so existing consumers (`@/app/evaluations/page.tsx`,
+// tests) that import `ChartData` from this module keep working after
+// the shape moved to `results/types`.
+export type { ChartData } from '@/components/evaluation/results/types'
 
 interface EvaluationResultsProps {
   projectId: string | number
@@ -114,58 +89,6 @@ interface EvaluationResultsProps {
   }>
 }
 
-// Data structure for chart visualization
-export interface ChartData {
-  model_id: string
-  model_name?: string
-  metrics: Record<string, number>
-  samples_evaluated: number
-}
-
-interface EvaluationResult {
-  evaluation_id: string
-  model_id: string
-  status: string
-  created_at: string | null
-  completed_at: string | null
-  samples_evaluated: number
-  sample_results_count: number
-  error_message: string | null
-  evaluation_configs: Array<{
-    id: string
-    metric: string
-    display_name?: string
-    metric_type?: string
-    metric_parameters?: Record<string, any>
-    prediction_fields: string[]
-    reference_fields: string[]
-    enabled: boolean
-  }>
-  results_by_config: Record<
-    string,
-    {
-      field_results: Array<{
-        combo_key: string
-        prediction_field: string
-        reference_field: string
-        scores: Record<string, number>
-      }>
-      aggregate_score: number | null
-    }
-  >
-  progress: {
-    samples_passed: number
-    samples_failed: number
-    samples_skipped: number
-  }
-}
-
-interface ProjectEvaluationResults {
-  project_id: string
-  evaluations: EvaluationResult[]
-  total_count: number
-}
-
 export function EvaluationResults({
   projectId,
   selectedModels = [],
@@ -187,10 +110,26 @@ export function EvaluationResults({
   const { addToast } = useToast()
   const { user } = useAuth()
   const { t } = useI18n()
-  const [loading, setLoading] = useState(true)
-  const [results, setResults] = useState<ProjectEvaluationResults | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
+
+  // Project evaluation results fetch unit (initial fetch + polling +
+  // refetch) lives in useResultsData. `refetch` re-fetches without
+  // touching the loading flag; manual refresh / re-evaluate call
+  // setLoading(true) first to surface the spinner. Declared up-front so
+  // the metric-grouping useMemo and chart effect below can read
+  // `results`/`taskModelData`.
+  const {
+    results,
+    loading,
+    error,
+    refetch: fetchResults,
+    setLoading,
+  } = useResultsData({
+    projectId,
+    refreshKey,
+    showHistory,
+    failedLoadMessage: t('evaluation.multiFieldResults.failedLoadResults'),
+  })
   const [selectedMetricRunId, setSelectedMetricRunId] = useState<string | null>(null)
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false)
   // Multi-run "By run" chart toggle (migration 042). When on, the chart data
@@ -340,23 +279,6 @@ export function EvaluationResults({
     setSelectedMetricRunId(availableMetricRuns[0].id)
   }, [availableMetricRuns, selectedMetricRunId, projectId])
 
-  // Per-task/model data table state
-  const [taskModelData, setTaskModelData] = useState<{
-    evaluation_id: string
-    models: string[]
-    model_names: Record<string, string>
-    tasks: Array<{
-      task_id: string
-      task_preview: string
-      scores: Record<string, number>
-      has_annotation?: boolean
-      generation_models?: string[]
-      annotator_columns?: string[]
-    }>
-    summary: Record<string, { avg: number; count: number; model_name: string }>
-  } | null>(null)
-  const [taskModelLoading, setTaskModelLoading] = useState(false)
-
   // Modal state for task data view
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -425,24 +347,6 @@ export function EvaluationResults({
   const [annotationLoading, setAnnotationLoading] = useState(false)
   const [generationLoading, setGenerationLoading] = useState(false)
   const [evaluationLoading, setEvaluationLoading] = useState(false)
-
-  const fetchResults = useCallback(async () => {
-    try {
-      // Always fetch all runs so the metric selector can list all completed metrics.
-      // showHistory controls display filtering, not the API fetch.
-      const displayData = await apiClient.getProjectEvaluationResults(
-        String(projectId),
-        false
-      )
-      setResults(displayData)
-      setError(null)
-    } catch (err: any) {
-      console.error('Failed to fetch evaluation results:', err)
-      setError(err?.message || t('evaluation.multiFieldResults.failedLoadResults'))
-    } finally {
-      setLoading(false)
-    }
-  }, [projectId, showHistory])
 
   // Filter evaluations based on selected filters
   const filteredEvaluations =
@@ -520,11 +424,6 @@ export function EvaluationResults({
     }
   }, [exportDropdownOpen])
 
-  // Initial fetch and refresh when parent signals data change
-  useEffect(() => {
-    fetchResults()
-  }, [fetchResults, refreshKey])
-
   // Notify parent when results are loaded
   useEffect(() => {
     if (!loading && results) {
@@ -532,6 +431,55 @@ export function EvaluationResults({
       onResultsLoaded?.(hasResults)
     }
   }, [loading, results, onResultsLoaded])
+
+  // Per-task/model data is fetched by ALL EvaluationRun IDs that belong
+  // to the selected metric. The backend's row_number() OVER (PARTITION BY
+  // generation_id, field_name ORDER BY created_at DESC) collapses
+  // overlapping runs to the latest score per cell, so passing every run
+  // for the metric is the safe aggregation primitive.
+  //
+  // Use a comma-joined string as the dep (stable primitive) instead of
+  // the runIds array — array references would change on every render
+  // and re-trigger the fetch in an infinite loop.
+  const selectedRunIdsKey = availableMetricRuns
+    .find(r => r.id === selectedMetricRunId)
+    ?.runIds.join(',') ?? ''
+
+  // The selected metric name is sent to the API so the backend can filter
+  // rows when a run bundles multiple metrics. Without this, multiple
+  // metric rows for the same (task, model) collapse during the loop's
+  // dict assignment and only the last metric's score survives.
+  const selectedMetricKey = availableMetricRuns
+    .find(r => r.id === selectedMetricRunId)
+    ?.metric ?? ''
+
+  // The worker commits each TaskEvaluation row to Postgres immediately
+  // after the evaluator returns (`db.commit()` per row), so an in-flight
+  // run already has queryable rows. We stream cell-by-cell updates via
+  // a WebSocket: the backend pushes a "tick" event when row counts or
+  // run statuses change, and the frontend re-fetches the per-cell
+  // view on each tick. WebSocket connection failures fall back to 5 s
+  // polling — same UX, slightly higher latency. Pattern mirrors the
+  // Generations page (`GenerationProgress.tsx:90-227`).
+  const hasInflightSelectedRun = useMemo(() => {
+    if (!results?.evaluations || !selectedRunIdsKey) return false
+    const selectedSet = new Set(selectedRunIdsKey.split(','))
+    return results.evaluations.some(
+      (e) =>
+        selectedSet.has(e.evaluation_id) &&
+        (e.status === 'running' || e.status === 'pending')
+    )
+  }, [results, selectedRunIdsKey])
+
+  // Per-task/model fetch unit (selected-metric-scoped fetch + WebSocket /
+  // polling live updates) lives in useTaskModelData.
+  const { taskModelData, taskModelLoading } = useTaskModelData({
+    projectId,
+    showHistory,
+    selectedRunIdsKey,
+    selectedMetricKey,
+    hasInflightSelectedRun,
+  })
 
   // Extract chart data when taskModelData is available (has correct model names)
   // This useEffect triggers after taskModelData is fetched, providing accurate per-model data
@@ -653,194 +601,6 @@ export function EvaluationResults({
       }
     }
   }, [loading, results, taskModelData, onDataLoaded, byRunChart, statisticsData])
-
-  // Poll for running evaluations
-  useEffect(() => {
-    const hasRunningEval = results?.evaluations?.some(
-      (e) => e.status === 'running' || e.status === 'pending'
-    )
-
-    if (hasRunningEval) {
-      const interval = setInterval(fetchResults, 5000)
-      return () => clearInterval(interval)
-    }
-  }, [results, fetchResults])
-
-  // Fetch per-task/model data — filtered by ALL EvaluationRun IDs that
-  // belong to the selected metric. The backend's row_number() OVER
-  // (PARTITION BY generation_id, field_name ORDER BY created_at DESC)
-  // collapses overlapping runs to the latest score per cell, so passing
-  // every run for the metric is the safe aggregation primitive.
-  //
-  // Use a comma-joined string as the dep (stable primitive) instead of
-  // the runIds array — array references would change on every render
-  // and re-trigger the fetch in an infinite loop.
-  const selectedRunIdsKey = availableMetricRuns
-    .find(r => r.id === selectedMetricRunId)
-    ?.runIds.join(',') ?? ''
-
-  // The selected metric name is sent to the API so the backend can filter
-  // rows when a run bundles multiple metrics. Without this, multiple
-  // metric rows for the same (task, model) collapse during the loop's
-  // dict assignment and only the last metric's score survives.
-  const selectedMetricKey = availableMetricRuns
-    .find(r => r.id === selectedMetricRunId)
-    ?.metric ?? ''
-
-  // The worker commits each TaskEvaluation row to Postgres immediately
-  // after the evaluator returns (`db.commit()` per row), so an in-flight
-  // run already has queryable rows. We stream cell-by-cell updates via
-  // a WebSocket: the backend pushes a "tick" event when row counts or
-  // run statuses change, and the frontend re-fetches the per-cell
-  // view on each tick. WebSocket connection failures fall back to 5 s
-  // polling — same UX, slightly higher latency. Pattern mirrors the
-  // Generations page (`GenerationProgress.tsx:90-227`).
-  const hasInflightSelectedRun = useMemo(() => {
-    if (!results?.evaluations || !selectedRunIdsKey) return false
-    const selectedSet = new Set(selectedRunIdsKey.split(','))
-    return results.evaluations.some(
-      (e) =>
-        selectedSet.has(e.evaluation_id) &&
-        (e.status === 'running' || e.status === 'pending')
-    )
-  }, [results, selectedRunIdsKey])
-
-  const fetchTaskModelDataRef = useRef<() => Promise<void>>(async () => {})
-
-  useEffect(() => {
-    let cancelled = false
-    const fetchTaskModelData = async () => {
-      if (!projectId) {
-        if (!cancelled) setTaskModelData(null)
-        return
-      }
-
-      // Initial fetch shows a loading state; subsequent refreshes don't,
-      // so the table doesn't visibly flash on each tick.
-      if (!taskModelData) setTaskModelLoading(true)
-      try {
-        const runIds = selectedRunIdsKey ? selectedRunIdsKey.split(',') : undefined
-        const data = await apiClient.getProjectResultsByTaskModel(
-          String(projectId),
-          runIds,
-          showHistory,
-          selectedMetricKey || null,
-        )
-        if (!cancelled) setTaskModelData(data)
-      } catch (err) {
-        console.error('Failed to fetch task-model data:', err)
-        if (!cancelled) setTaskModelData(null)
-      } finally {
-        if (!cancelled) setTaskModelLoading(false)
-      }
-    }
-    fetchTaskModelDataRef.current = fetchTaskModelData
-    fetchTaskModelData()
-
-    return () => {
-      cancelled = true
-    }
-     
-    // intentionally excluded; otherwise the effect re-fires on every
-    // setTaskModelData call and creates a fetch-loop.
-  }, [projectId, selectedRunIdsKey, selectedMetricKey, showHistory])
-
-  // WebSocket primary + 5 s polling fallback for live cell-by-cell updates.
-  // Only opens while a selected run is in-flight; closes immediately when
-  // the run finishes (saves backend connections + frontend timers).
-  useEffect(() => {
-    if (!projectId || !hasInflightSelectedRun) return
-
-    let ws: WebSocket | null = null
-    let reconnectAttempts = 0
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
-    let pollInterval: ReturnType<typeof setInterval> | null = null
-    let closed = false
-
-    const startPollingFallback = () => {
-      if (pollInterval) return
-      pollInterval = setInterval(() => {
-        fetchTaskModelDataRef.current()
-      }, 5000)
-    }
-
-    const connect = () => {
-      try {
-        const apiUrl =
-          (typeof window !== 'undefined' &&
-            (window as any).__BENGER_API_URL__) ||
-          (typeof window !== 'undefined' ? window.location.origin : '')
-        const wsProtocol = apiUrl.startsWith('https') ? 'wss' : 'ws'
-        const wsHost = apiUrl.replace(/^https?:\/\//, '')
-        const wsUrl = `${wsProtocol}://${wsHost}/api/ws/projects/${projectId}/evaluation-progress`
-        ws = new WebSocket(wsUrl)
-
-        ws.onopen = () => {
-          reconnectAttempts = 0
-          // Stop any polling fallback that was running before WS came up.
-          if (pollInterval) {
-            clearInterval(pollInterval)
-            pollInterval = null
-          }
-        }
-
-        ws.onmessage = (ev) => {
-          try {
-            const data = JSON.parse(ev.data)
-            if (data.type === 'tick' || data.type === 'idle') {
-              fetchTaskModelDataRef.current()
-            }
-          } catch {
-            /* ignore malformed messages */
-          }
-        }
-
-        ws.onerror = () => {
-          // Let onclose handle reconnect/fallback so we don't double-fire.
-        }
-
-        ws.onclose = (ev) => {
-          if (closed) return
-          // 4401 / 4403 are application-defined close codes the backend
-          // emits when the WS handshake fails auth (no/invalid token) or
-          // access (no project membership). Reconnecting cannot fix these.
-          // Fire the standard "session expired" UX: red toast + redirect to
-          // /login (full reload, same flow used for HTTP 401). Bail out of
-          // the WS connect/poll bookkeeping — the page is about to unmount.
-          if (ev.code === 4401 || ev.code === 4403) {
-            closed = true
-            redirectToLoginAsExpired()
-            return
-          }
-          // Exponential backoff up to 5 attempts, then drop to polling.
-          if (reconnectAttempts < 5) {
-            const delay = Math.min(1000 * 2 ** reconnectAttempts, 10000)
-            reconnectAttempts += 1
-            reconnectTimeout = setTimeout(connect, delay)
-          } else {
-            startPollingFallback()
-          }
-        }
-      } catch {
-        startPollingFallback()
-      }
-    }
-
-    connect()
-
-    return () => {
-      closed = true
-      if (ws) {
-        try {
-          ws.close()
-        } catch {
-          /* noop */
-        }
-      }
-      if (reconnectTimeout) clearTimeout(reconnectTimeout)
-      if (pollInterval) clearInterval(pollInterval)
-    }
-  }, [projectId, hasInflightSelectedRun])
 
   const handleRefresh = () => {
     setLoading(true)
@@ -1148,7 +908,7 @@ export function EvaluationResults({
 
   const getMetricDisplayName = (
     configId: string,
-    configs: EvaluationResult['evaluation_configs']
+    configs: SampleEvaluationResult['evaluation_configs']
   ) => {
     const config = configs.find((c) => c.id === configId)
     if (!config) return configId
@@ -1847,768 +1607,5 @@ export function EvaluationResults({
         }
       />
     </div>
-  )
-}
-
-/**
- * Modal component for displaying generation and evaluation result details with tabs
- */
-function ResultDetailsModal({
-  isOpen,
-  onClose,
-  taskId,
-  modelId,
-  annotationData,
-  generationData,
-  evaluationData,
-  annotationLoading,
-  generationLoading,
-  evaluationLoading,
-  onReEvaluate,
-  evaluationConfigs = [],
-  selectedMetricName = null,
-}: {
-  isOpen: boolean
-  onClose: () => void
-  taskId: string | null
-  modelId: string | null
-  annotationData: Array<{
-    id: string
-    task_id: number
-    completed_by: string
-    result: Array<{ value: any; from_name: string; to_name: string; type: string; [key: string]: any }>
-    was_cancelled: boolean
-    ground_truth: boolean
-    lead_time?: number
-    created_at: string
-    updated_at?: string
-    metadata?: Record<string, any>
-  }> | null
-  generationData: Array<{
-    task_id: string
-    model_id: string
-    generation_id: string
-    status: string
-    result?: {
-      generated_text?: string
-      created_at?: string
-      usage_stats?: Record<string, any>
-      fields?: Record<string, any>
-    }
-    generated_at?: string
-    generation_time_seconds?: number
-    prompt_used?: string
-    parameters?: Record<string, any>
-    error_message?: string
-    structure_key?: string
-  }> | null
-  evaluationData: {
-    task_id: string
-    model_id: string
-    results: Array<{
-      id: string
-      evaluation_id: string
-      field_name: string
-      answer_type: string
-      ground_truth: any
-      prediction: any
-      metrics: Record<string, any>
-      passed: boolean
-      confidence_score?: number
-      error_message?: string
-      processing_time_ms?: number
-      created_at?: string
-      evaluation_context?: {
-        evaluation_type: string
-        status: string
-        eval_metadata?: Record<string, any>
-      }
-    }>
-    total_count: number
-    message?: string
-  } | null
-  annotationLoading: boolean
-  generationLoading: boolean
-  evaluationLoading: boolean
-  onReEvaluate?: (taskId: string, modelId: string, selectedConfigIds: string[]) => void
-  evaluationConfigs?: Array<{
-    id: string
-    metric: string
-    display_name?: string
-    enabled: boolean
-  }>
-  /** Filters Evaluation Results tab to rows for this metric only.
-   * `field_name` shape: "<metric>-<slug>|<pred>|<ref>"; we match by prefix
-   * before the first `-`. Pass null/undefined to show everything. */
-  selectedMetricName?: string | null
-}) {
-  const { t } = useI18n()
-  const isAnnotatorCell = modelId?.startsWith('annotator:') ?? false
-  const [activeTab, setActiveTab] = useState<'annotation' | 'generation' | 'evaluation'>('annotation')
-  const [copySuccess, setCopySuccess] = useState(false)
-  const [selectedStructureIndex, setSelectedStructureIndex] = useState(0)
-  const [selectedEvalConfigIds, setSelectedEvalConfigIds] = useState<Set<string>>(new Set())
-  const [showMetricSelection, setShowMetricSelection] = useState(false)
-
-  // Reset structure index, metric selection, and default tab when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedStructureIndex(0)
-      setActiveTab(isAnnotatorCell ? 'annotation' : 'generation')
-      // Select all enabled configs by default
-      const enabledIds = evaluationConfigs
-        .filter((c) => c.enabled !== false)
-        .map((c) => c.id)
-      setSelectedEvalConfigIds(new Set(enabledIds))
-      setShowMetricSelection(false)
-    }
-  }, [isOpen, generationData, evaluationConfigs, isAnnotatorCell])
-
-  const handleCopyToClipboard = async () => {
-    const dataToCopy = activeTab === 'annotation' ? annotationData : activeTab === 'generation' ? generationData : evaluationData
-    if (!dataToCopy) return
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(dataToCopy, null, 2))
-      setCopySuccess(true)
-      setTimeout(() => setCopySuccess(false), 2000)
-    } catch (error) {
-      console.error('Failed to copy to clipboard:', error)
-    }
-  }
-
-  // Format metric value for display
-  const formatMetricValue = (value: any): string => {
-    if (value === null || value === undefined) {
-      return 'N/A'
-    }
-    if (typeof value === 'number') {
-      return value.toFixed(3)
-    }
-    if (typeof value === 'string') {
-      return value
-    }
-    return JSON.stringify(value)
-  }
-
-  return (
-    <Dialog open={isOpen} onClose={onClose} className="relative z-50">
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-
-      {/* Full-screen container */}
-      <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-4xl rounded-lg bg-white shadow-xl dark:bg-zinc-900">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-zinc-200 p-6 dark:border-zinc-700">
-            <div>
-              <DialogTitle className="text-lg font-semibold text-zinc-900 dark:text-white">
-                {t('evaluation.multiFieldResults.taskDetails')}
-              </DialogTitle>
-              {modelId && (
-                <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                  {t('evaluation.multiFieldResults.model')}: {modelId}
-                  {/* Surface the generation's timestamp + id so the user
-                   * can tell which generation the three tabs are
-                   * describing. Without this the modal looked identical
-                   * for two different generations of the same (task,
-                   * model) — the cell that was about to lie. */}
-                  {!isAnnotatorCell && generationData && generationData[0] && (
-                    <> · {t('evaluation.multiFieldResults.generation') ?? 'Generation'}: {
-                      generationData[0].generated_at
-                        ? new Date(generationData[0].generated_at).toLocaleString()
-                        : (generationData[0].generation_id || '').slice(0, 8) + '…'
-                    }</>
-                  )}
-                  {taskId && <> · {t('evaluation.multiFieldResults.task')}: {taskId.slice(0, 8)}…</>}
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3">
-              {/* Copy button */}
-              <button
-                onClick={handleCopyToClipboard}
-                disabled={activeTab === 'annotation' ? !annotationData : activeTab === 'generation' ? !generationData : !evaluationData}
-                className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                  copySuccess
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                    : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
-                } disabled:opacity-50`}
-              >
-                <ClipboardDocumentIcon className="h-4 w-4" />
-                {copySuccess ? t('evaluation.multiFieldResults.copied') : t('evaluation.multiFieldResults.copyJson')}
-              </button>
-
-              {/* Close button */}
-              <button
-                onClick={onClose}
-                className="rounded-lg p-2 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Tab Navigation - show only relevant tabs per cell type */}
-          <div className="border-b border-zinc-200 dark:border-zinc-700">
-            <nav className="flex px-6" aria-label="Tabs">
-              {isAnnotatorCell && (
-                <button
-                  onClick={() => setActiveTab('annotation')}
-                  className={`relative px-4 py-3 text-sm font-medium transition-colors ${
-                    activeTab === 'annotation'
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                  }`}
-                >
-                  {t('evaluation.multiFieldResults.annotationResult', 'Annotation Result')}
-                  {activeTab === 'annotation' && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
-                  )}
-                </button>
-              )}
-              {!isAnnotatorCell && (
-                <button
-                  onClick={() => setActiveTab('generation')}
-                  className={`relative px-4 py-3 text-sm font-medium transition-colors ${
-                    activeTab === 'generation'
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                  }`}
-                >
-                  {t('evaluation.multiFieldResults.generationResults')}
-                  {activeTab === 'generation' && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
-                  )}
-                </button>
-              )}
-              <button
-                onClick={() => setActiveTab('evaluation')}
-                className={`relative px-4 py-3 text-sm font-medium transition-colors ${
-                  activeTab === 'evaluation'
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-                }`}
-              >
-                {t('evaluation.multiFieldResults.evaluationResults')}
-                {activeTab === 'evaluation' && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
-                )}
-              </button>
-            </nav>
-          </div>
-
-          {/* Content */}
-          <div className="max-h-[60vh] overflow-y-auto p-6">
-            {activeTab === 'annotation' ? (
-              // Annotation Result Tab
-              annotationLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <LoadingSpinner />
-                </div>
-              ) : annotationData && annotationData.length > 0 ? (
-                <div className="space-y-6">
-                  {annotationData.map((annotation, annIndex) => (
-                    <div key={annotation.id} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
-                      {/* Annotation Header */}
-                      <div className="mb-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            annotation.ground_truth
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
-                              : 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300'
-                          }`}>
-                            {annotation.ground_truth ? t('evaluation.multiFieldResults.groundTruth', 'Ground Truth') : t('evaluation.multiFieldResults.annotation', 'Annotation')}
-                          </span>
-                          <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                            {t('evaluation.multiFieldResults.annotator', 'Annotator')}: {annotation.completed_by}
-                          </span>
-                        </div>
-                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                          {new Date(annotation.created_at).toLocaleString()}
-                        </span>
-                      </div>
-
-                      {/* Annotation Results */}
-                      {annotation.result && annotation.result.length > 0 ? (
-                        <div className="space-y-3">
-                          {annotation.result.map((res, resIndex) => (
-                            <div key={resIndex} className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
-                              <div className="mb-1 flex items-center gap-2">
-                                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                                  {res.from_name}
-                                </span>
-                                <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                                  ({res.type})
-                                </span>
-                              </div>
-                              <div className="text-sm text-zinc-900 dark:text-white">
-                                {typeof res.value === 'string' ? (
-                                  <p className="whitespace-pre-wrap">{res.value}</p>
-                                ) : (
-                                  <pre className="whitespace-pre-wrap text-xs">
-                                    {JSON.stringify(res.value, null, 2)}
-                                  </pre>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                          {t('evaluation.multiFieldResults.noAnnotationResults', 'No annotation results')}
-                        </p>
-                      )}
-
-                      {/* Metadata */}
-                      <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                        {annotation.lead_time != null && (
-                          <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
-                            <span className="text-zinc-500 dark:text-zinc-400">{t('evaluation.multiFieldResults.duration')}:</span>
-                            <span className="ml-2 text-zinc-900 dark:text-white">
-                              {annotation.lead_time.toFixed(1)}s
-                            </span>
-                          </div>
-                        )}
-                        {annotation.was_cancelled && (
-                          <div className="rounded-lg bg-red-50 p-3 dark:bg-red-900/20">
-                            <span className="text-red-700 dark:text-red-300">{t('evaluation.multiFieldResults.cancelled', 'Cancelled')}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Full JSON Section (collapsed) */}
-                  <details className="group">
-                    <summary className="cursor-pointer font-medium text-zinc-900 dark:text-white">
-                      {t('evaluation.multiFieldResults.rawJsonResponse')}
-                    </summary>
-                    <div className="mt-2 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
-                      <pre className="overflow-x-auto text-xs text-zinc-700 dark:text-zinc-300">
-                        {JSON.stringify(annotationData, null, 2)}
-                      </pre>
-                    </div>
-                  </details>
-                </div>
-              ) : (
-                <div className="py-12 text-center text-zinc-500 dark:text-zinc-400">
-                  {t('evaluation.multiFieldResults.noAnnotationData', 'No annotation data available for this task')}
-                </div>
-              )
-            ) : activeTab === 'generation' ? (
-              // Generation Results Tab
-              generationLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <LoadingSpinner />
-                </div>
-              ) : generationData && generationData.length > 0 ? (
-                <div className="space-y-6">
-                  {/* Structure Tabs (if multiple structures) */}
-                  {generationData.length > 1 && (
-                    <div className="border-b border-zinc-200 dark:border-zinc-700">
-                      <nav className="-mb-px flex space-x-4">
-                        {generationData.map((result, index) => (
-                          <button
-                            key={index}
-                            onClick={() => setSelectedStructureIndex(index)}
-                            className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
-                              selectedStructureIndex === index
-                                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                                : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
-                            }`}
-                          >
-                            {result.structure_key || t('evaluation.multiFieldResults.default')}
-                          </button>
-                        ))}
-                      </nav>
-                    </div>
-                  )}
-
-                  {/* Selected Structure Content */}
-                  {(() => {
-                    const selectedGen = generationData[selectedStructureIndex]
-                    if (!selectedGen) return null
-                    return (
-                      <>
-                        {/* Generated Text Section */}
-                        {selectedGen.result?.generated_text && (
-                          <div>
-                            <h4 className="mb-2 font-medium text-zinc-900 dark:text-white">
-                              {t('evaluation.multiFieldResults.generatedResponse')}
-                            </h4>
-                            <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
-                              <pre className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
-                                {selectedGen.result.generated_text}
-                              </pre>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Fields Section (for structured outputs) */}
-                        {selectedGen.result?.fields && Object.keys(selectedGen.result.fields).length > 0 && (
-                          <div>
-                            <h4 className="mb-2 font-medium text-zinc-900 dark:text-white">
-                              {t('evaluation.multiFieldResults.generatedFields')}
-                            </h4>
-                            <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
-                              <pre className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">
-                                {JSON.stringify(selectedGen.result.fields, null, 2)}
-                              </pre>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Prompt Used Section */}
-                        {selectedGen.prompt_used && (
-                          <div>
-                            <h4 className="mb-2 font-medium text-zinc-900 dark:text-white">
-                              {t('evaluation.multiFieldResults.promptUsed')}
-                            </h4>
-                            <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
-                              <pre className="whitespace-pre-wrap text-sm text-blue-800 dark:text-blue-200">
-                                {selectedGen.prompt_used}
-                              </pre>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Metadata Section */}
-                        <div>
-                          <h4 className="mb-2 font-medium text-zinc-900 dark:text-white">
-                            {t('evaluation.multiFieldResults.metadata')}
-                          </h4>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
-                              <span className="text-zinc-500 dark:text-zinc-400">{t('evaluation.multiFieldResults.statusLabel')}:</span>
-                              <span className="ml-2 text-zinc-900 dark:text-white">
-                                {selectedGen.status}
-                              </span>
-                            </div>
-                            {selectedGen.generated_at && (
-                              <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
-                                <span className="text-zinc-500 dark:text-zinc-400">{t('evaluation.multiFieldResults.generated')}:</span>
-                                <span className="ml-2 text-zinc-900 dark:text-white">
-                                  {new Date(selectedGen.generated_at).toLocaleString()}
-                                </span>
-                              </div>
-                            )}
-                            {selectedGen.generation_time_seconds != null && (
-                              <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
-                                <span className="text-zinc-500 dark:text-zinc-400">{t('evaluation.multiFieldResults.duration')}:</span>
-                                <span className="ml-2 text-zinc-900 dark:text-white">
-                                  {selectedGen.generation_time_seconds.toFixed(2)}s
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Full JSON Section (collapsed) */}
-                        <details className="group">
-                          <summary className="cursor-pointer font-medium text-zinc-900 dark:text-white">
-                            {t('evaluation.multiFieldResults.rawJsonResponse')}
-                          </summary>
-                          <div className="mt-2 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
-                            <pre className="overflow-x-auto text-xs text-zinc-700 dark:text-zinc-300">
-                              {JSON.stringify(selectedGen, null, 2)}
-                            </pre>
-                          </div>
-                        </details>
-                      </>
-                    )
-                  })()}
-                </div>
-              ) : (
-                <div className="py-12 text-center text-zinc-500 dark:text-zinc-400">
-                  {t('evaluation.multiFieldResults.noGenerationData')}
-                </div>
-              )
-            ) : (
-              // Evaluation Results Tab
-              evaluationLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <LoadingSpinner />
-                </div>
-              ) : evaluationData && evaluationData.results.length > 0 ? (() => {
-                // Filter to entries for the currently-selected metric.
-                // field_name shape from worker: "<metric>-<slug>|<pred>|<ref>"
-                // (see tasks.py: field_key = f"{config_id}|...", config_id = "{metric}-{slug}")
-                const visibleResults = selectedMetricName
-                  ? evaluationData.results.filter((r) => {
-                      const fieldMetric = (r.field_name || '').split('-')[0]
-                      const inMetricsKeys =
-                        r.metrics &&
-                        Object.keys(r.metrics).some(
-                          (k) => k === selectedMetricName || k.startsWith(`${selectedMetricName}_`)
-                        )
-                      return fieldMetric === selectedMetricName || inMetricsKeys
-                    })
-                  : evaluationData.results
-                if (visibleResults.length === 0) {
-                  return (
-                    <div className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                      {t('evaluation.multiFieldResults.noResultsForMetric', {
-                        defaultValue: 'No evaluation results for the selected metric.',
-                      })}
-                    </div>
-                  )
-                }
-                return (
-                <div className="space-y-6">
-                  {visibleResults.map((result, index) => (
-                    <div key={result.id} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
-                      {/* Result Header */}
-                      <div className="mb-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            result.passed === null
-                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
-                              : result.passed
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                                : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                          }`}>
-                            {result.passed === null ? t('evaluation.multiFieldResults.error') : result.passed ? t('evaluation.multiFieldResults.passed') : t('evaluation.multiFieldResults.failed')}
-                          </span>
-                          <span className="text-sm font-medium text-zinc-900 dark:text-white">
-                            {t('evaluation.multiFieldResults.field')}: {result.field_name}
-                          </span>
-                          <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                            ({result.answer_type})
-                          </span>
-                        </div>
-                        {result.confidence_score != null && (
-                          <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                            {t('evaluation.multiFieldResults.confidence')}: {(result.confidence_score * 100).toFixed(1)}%
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Metrics */}
-                      {result.metrics && Object.keys(result.metrics).length > 0 && (() => {
-                        // Separate _response objects from numeric metrics
-                        const llmResponses: Record<string, Record<string, any>> = {}
-                        const numericMetrics: Record<string, any> = {}
-
-                        Object.entries(result.metrics).forEach(([key, value]) => {
-                          if (key.endsWith('_response') && value && typeof value === 'object') {
-                            llmResponses[key.replace('_response', '')] = value as Record<string, any>
-                          } else if (!key.endsWith('_response')) {
-                            numericMetrics[key] = value
-                          }
-                        })
-
-                        return (
-                          <div className="mb-4">
-                            <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                              {t('evaluation.multiFieldResults.metrics')}
-                            </h5>
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                              {Object.entries(numericMetrics).map(([key, value]) => {
-                                // Extension hook: extended metrics may register
-                                // a detail component that renders the full
-                                // structured payload (dimensions, justification,
-                                // grade points, etc.) instead of the bare
-                                // formatMetricValue. Falls back to generic
-                                // numeric display when nothing is registered.
-                                const DetailComp = getMetricDetail(key)
-                                if (DetailComp) {
-                                  return (
-                                    <div key={key} className="col-span-full">
-                                      <DetailComp value={value} evaluation={result as unknown as Record<string, unknown>} />
-                                    </div>
-                                  )
-                                }
-                                return (
-                                  <div key={key} className="rounded bg-zinc-50 p-2 dark:bg-zinc-800">
-                                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{key}:</span>
-                                    <span className="ml-1 font-mono text-sm text-zinc-900 dark:text-white">
-                                      {formatMetricValue(value)}
-                                    </span>
-                                  </div>
-                                )
-                              })}
-                            </div>
-
-                            {/* Full LLM Judge Response */}
-                            {Object.keys(llmResponses).length > 0 && (
-                              <div className="mt-4">
-                                <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                                  {t('evaluation.multiFieldResults.llmJudgeResponse')}
-                                </h5>
-                                {Object.entries(llmResponses).map(([metric, response]) => (
-                                  <div key={metric} className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
-                                    <span className="mb-2 block text-xs font-medium text-amber-700 dark:text-amber-400">
-                                      {metric}
-                                    </span>
-                                    <div className="space-y-2">
-                                      {Object.entries(response).map(([fieldKey, fieldValue]) => {
-                                        if (fieldKey === 'score') return null
-                                        return (
-                                          <div key={fieldKey} className="text-sm">
-                                            <span className="font-medium text-amber-800 dark:text-amber-300">
-                                              {fieldKey}:
-                                            </span>
-                                            {typeof fieldValue === 'string' ? (
-                                              <p className="mt-1 whitespace-pre-wrap text-amber-900 dark:text-amber-200">
-                                                {fieldValue}
-                                              </p>
-                                            ) : (
-                                              <pre className="mt-1 overflow-x-auto rounded bg-amber-100 p-2 text-xs text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">
-                                                {JSON.stringify(fieldValue, null, 2)}
-                                              </pre>
-                                            )}
-                                          </div>
-                                        )
-                                      })}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })()}
-
-                      {/* Ground Truth vs Prediction */}
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                            {t('evaluation.multiFieldResults.groundTruth')}
-                          </h5>
-                          <div className="rounded-lg bg-green-50 p-3 dark:bg-green-900/20">
-                            <pre className="whitespace-pre-wrap text-xs text-green-800 dark:text-green-200">
-                              {typeof result.ground_truth === 'string'
-                                ? result.ground_truth
-                                : JSON.stringify(result.ground_truth, null, 2)}
-                            </pre>
-                          </div>
-                        </div>
-                        <div>
-                          <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                            {t('evaluation.multiFieldResults.modelPrediction')}
-                          </h5>
-                          <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
-                            <pre className="whitespace-pre-wrap text-xs text-blue-800 dark:text-blue-200">
-                              {typeof result.prediction === 'string'
-                                ? result.prediction
-                                : JSON.stringify(result.prediction, null, 2)}
-                            </pre>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Error Message if any */}
-                      {result.error_message && (
-                        <div className="mt-4 rounded-lg bg-red-50 p-3 dark:bg-red-900/20">
-                          <p className="text-sm text-red-700 dark:text-red-300">
-                            {t('evaluation.multiFieldResults.error')}: {result.error_message}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Evaluation Context */}
-                      {result.evaluation_context && (
-                        <div className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
-                          {t('evaluation.multiFieldResults.evaluation')}: {result.evaluation_context.evaluation_type} ({result.evaluation_context.status})
-                          {result.created_at && ` | ${new Date(result.created_at).toLocaleString()}`}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  {/* Full JSON Section (collapsed) */}
-                  <details className="group">
-                    <summary className="cursor-pointer font-medium text-zinc-900 dark:text-white">
-                      {t('evaluation.multiFieldResults.rawJsonResponse')}
-                    </summary>
-                    <div className="mt-2 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
-                      <pre className="overflow-x-auto text-xs text-zinc-700 dark:text-zinc-300">
-                        {JSON.stringify(evaluationData, null, 2)}
-                      </pre>
-                    </div>
-                  </details>
-                </div>
-                )
-              })() : (
-                <div className="py-12 text-center text-zinc-500 dark:text-zinc-400">
-                  {evaluationData?.message || t('evaluation.multiFieldResults.noEvalResults')}
-                </div>
-              )
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-between border-t border-zinc-200 p-4 dark:border-zinc-700">
-            <div className="flex items-center gap-3">
-              {onReEvaluate && taskId && modelId && evaluationConfigs.length > 0 && (
-                <>
-                  {showMetricSelection && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      {evaluationConfigs
-                        .filter((c) => c.enabled !== false)
-                        .map((config) => (
-                          <label
-                            key={config.id}
-                            className="flex items-center gap-1.5 rounded-md bg-zinc-50 px-2 py-1 text-xs dark:bg-zinc-800"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedEvalConfigIds.has(config.id)}
-                              onChange={(e) => {
-                                setSelectedEvalConfigIds((prev) => {
-                                  const next = new Set(prev)
-                                  if (e.target.checked) {
-                                    next.add(config.id)
-                                  } else {
-                                    next.delete(config.id)
-                                  }
-                                  return next
-                                })
-                              }}
-                              className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 dark:border-zinc-600"
-                            />
-                            <span className="text-zinc-700 dark:text-zinc-300">
-                              {config.display_name || config.metric.replace(/_/g, ' ')}
-                            </span>
-                          </label>
-                        ))}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    {evaluationConfigs.filter((c) => c.enabled !== false).length > 1 && (
-                      <button
-                        onClick={() => setShowMetricSelection(!showMetricSelection)}
-                        className="text-xs text-zinc-500 underline hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-                      >
-                        {t('evaluation.multiFieldResults.selectMetrics')}
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        onReEvaluate(taskId, modelId, [...selectedEvalConfigIds])
-                        onClose()
-                      }}
-                      disabled={selectedEvalConfigIds.size === 0}
-                      className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
-                    >
-                      <ArrowPathIcon className="h-4 w-4" />
-                      {t('evaluation.multiFieldResults.reEvaluate')}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-            <button
-              onClick={onClose}
-              className="rounded-md bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-            >
-              {t('evaluation.multiFieldResults.close')}
-            </button>
-          </div>
-        </DialogPanel>
-      </div>
-    </Dialog>
   )
 }

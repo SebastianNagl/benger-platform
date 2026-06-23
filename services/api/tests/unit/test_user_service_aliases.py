@@ -5,7 +5,7 @@ Verifies that function aliases work correctly
 
 import pytest
 
-from user_service import check_password, get_password_hash, hash_password, verify_password
+from auth_module.user_service import check_password, get_password_hash, hash_password, verify_password
 
 
 class TestPasswordHashingAliases:
@@ -60,7 +60,7 @@ class TestPasswordHashingAliases:
 
         # Original function names
         # Common alias names
-        from user_service import check_password, get_password_hash, hash_password, verify_password
+        from auth_module.user_service import check_password, get_password_hash, hash_password, verify_password
 
         # All imports should work without error
         assert callable(get_password_hash)
@@ -103,7 +103,7 @@ class TestRealWorldUsageCases:
     def test_original_failing_code_pattern(self):
         """Test the code pattern that originally failed"""
         # This import pattern now works thanks to the alias
-        from user_service import hash_password
+        from auth_module.user_service import hash_password
 
         # Original failing code pattern (now works)
         password = "user_password"
@@ -114,7 +114,7 @@ class TestRealWorldUsageCases:
 
     def test_user_creation_pattern(self):
         """Test common user creation pattern"""
-        from user_service import hash_password, verify_password
+        from auth_module.user_service import hash_password, verify_password
 
         # Simulate user creation
         user_password = "secure_password_123"
@@ -128,8 +128,8 @@ class TestRealWorldUsageCases:
         """Test that different import styles all work"""
         # Style 1: Direct imports
         # Style 2: Module import
-        import user_service
-        from user_service import get_password_hash, hash_password
+        import auth_module.user_service as user_service
+        from auth_module.user_service import get_password_hash, hash_password
 
         # All should work
         password = "test_import_styles"
@@ -151,7 +151,7 @@ class TestBackwardCompatibility:
 
     def test_original_functions_still_work(self):
         """Test that original function names still work"""
-        from user_service import get_password_hash, verify_password
+        from auth_module.user_service import get_password_hash, verify_password
 
         password = "backward_compat_test"
         hashed = get_password_hash(password)
@@ -161,7 +161,7 @@ class TestBackwardCompatibility:
 
     def test_no_namespace_pollution(self):
         """Test that we haven't added unexpected exports"""
-        import user_service
+        import auth_module.user_service as user_service
 
         # Check that private functions aren't exposed
         assert not hasattr(user_service, "_internal_function")

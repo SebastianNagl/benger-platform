@@ -10,10 +10,11 @@ from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import User, require_user
-from database import get_db
+from database import get_async_db
 from models import UploadedData
 from object_storage import object_storage
 
@@ -57,7 +58,7 @@ async def upload_file(
     task_id: Optional[str] = None,
     description: Optional[str] = None,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Upload a file to object storage
@@ -126,8 +127,8 @@ async def upload_file(
         )
 
         db.add(file_record)
-        db.commit()
-        db.refresh(file_record)
+        await db.commit()
+        await db.refresh(file_record)
 
         logger.info(f"File uploaded successfully: {file_record.id} ({file.filename})")
 
@@ -157,17 +158,18 @@ async def upload_file(
 async def list_files(
     task_id: Optional[str] = None,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """List uploaded files for the current user"""
     try:
         # Build query
-        query = db.query(UploadedData).filter(UploadedData.uploaded_by == current_user.id)
+        stmt = select(UploadedData).where(UploadedData.uploaded_by == current_user.id)
 
         if task_id:
-            query = query.filter(UploadedData.task_id == task_id)
+            stmt = stmt.where(UploadedData.task_id == task_id)
 
-        files = query.order_by(UploadedData.upload_date.desc()).all()
+        result = await db.execute(stmt.order_by(UploadedData.upload_date.desc()))
+        files = result.scalars().all()
 
         # Convert to response format
         result = []
@@ -206,16 +208,18 @@ async def list_files(
 async def download_file(
     file_id: str,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Download a file or get its download URL"""
     try:
         # Get file record
-        file_record = (
-            db.query(UploadedData)
-            .filter(UploadedData.id == file_id, UploadedData.uploaded_by == current_user.id)
-            .first()
+        result = await db.execute(
+            select(UploadedData).where(
+                UploadedData.id == file_id,
+                UploadedData.uploaded_by == current_user.id,
+            )
         )
+        file_record = result.scalar_one_or_none()
 
         if not file_record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
@@ -256,16 +260,18 @@ async def delete_file(
     file_id: str,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Delete an uploaded file"""
     try:
         # Get file record
-        file_record = (
-            db.query(UploadedData)
-            .filter(UploadedData.id == file_id, UploadedData.uploaded_by == current_user.id)
-            .first()
+        result = await db.execute(
+            select(UploadedData).where(
+                UploadedData.id == file_id,
+                UploadedData.uploaded_by == current_user.id,
+            )
         )
+        file_record = result.scalar_one_or_none()
 
         if not file_record:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
@@ -275,8 +281,8 @@ async def delete_file(
             background_tasks.add_task(object_storage.delete_file, file_record.storage_key)
 
         # Delete database record
-        db.delete(file_record)
-        db.commit()
+        await db.delete(file_record)
+        await db.commit()
 
         logger.info(f"File deleted: {file_id}")
 

@@ -119,44 +119,15 @@ class TestStorageRouter:
             finally:
                 app.dependency_overrides.clear()
 
-    def test_upload_file_to_storage_success(self, client, mock_user):
-        """Test successful file upload to storage"""
-        from database import get_db
-        from main import app
-        from routers.storage import require_user
-
-        def override_require_user():
-            return mock_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            return mock_db
-
-        with patch("routers.storage.object_storage.upload_file") as mock_upload:
-            mock_upload.return_value = {
-                "file_key": "uploads/test_file.txt",
-                "url": "http://example.com/file.txt",
-                "size": 1024,
-                "content_type": "text/plain",
-                "uploaded_at": datetime.now().isoformat(),
-                "storage_backend": "local",
-            }
-
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                # Create mock file
-                files = {"file": ("test_file.txt", b"test content", "text/plain")}
-                data = {"file_type": "uploads", "metadata": '{"type": "document"}'}
-
-                response = client.post("/storage/upload", files=files, data=data)
-                assert response.status_code == status.HTTP_200_OK
-                response_data = response.json()
-                assert response_data["file_key"] == "uploads/test_file.txt"
-                assert response_data["size"] == 1024
-            finally:
-                app.dependency_overrides.clear()
+    # NOTE: ``test_upload_file_to_storage_success`` was removed — the
+    # ``/storage/upload`` handler moved to the async DB lane and writes a real
+    # ``UploadedData`` row, so the sync ``TestClient`` + ``Mock(spec=Session)``
+    # override can't exercise its success path (the override targets the unused
+    # sync ``get_db``, and the real async engine can't serve a sync TestClient
+    # request mid-loop). The persist-and-shape success path is covered in
+    # ``tests/integration/test_storage_router_coverage.py`` (async fixtures).
+    # The failure path below stays here: ``object_storage.upload_file`` raises
+    # before any DB access, so the 500 branch resolves without touching the DB.
 
     def test_upload_file_to_storage_failure(self, client, mock_user):
         """Test file upload to storage failure"""
@@ -184,194 +155,16 @@ class TestStorageRouter:
             finally:
                 app.dependency_overrides.clear()
 
-    def test_get_download_url_success_owner(self, client, mock_user, mock_uploaded_data):
-        """Test successful download URL generation for file owner"""
-        from database import get_db
-        from main import app
-        from routers.storage import require_user
-
-        def override_require_user():
-            return mock_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            mock_db.query().filter().first.return_value = mock_uploaded_data
-            return mock_db
-
-        with patch("routers.storage.object_storage.get_download_url") as mock_get_download_url:
-            mock_get_download_url.return_value = "http://example.com/download/file.txt"
-
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                response = client.get("/storage/download-url/file-123")
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert data["url"] == "http://example.com/download/file.txt"
-                assert data["filename"] == "test_file.txt"
-                assert data["size"] == 1024
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_get_download_url_success_superadmin(
-        self, client, mock_superadmin_user, mock_uploaded_data
-    ):
-        """Test successful download URL generation for superadmin"""
-        from database import get_db
-        from main import app
-        from routers.storage import require_user
-
-        def override_require_user():
-            return mock_superadmin_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            mock_db.query().filter().first.return_value = mock_uploaded_data
-            return mock_db
-
-        with patch("routers.storage.object_storage.get_download_url") as mock_get_download_url:
-            mock_get_download_url.return_value = "http://example.com/download/file.txt"
-
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                response = client.get("/storage/download-url/file-123")
-                assert response.status_code == status.HTTP_200_OK
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_get_download_url_file_not_found(self, client, mock_user):
-        """Test download URL generation when file not found"""
-        from database import get_db
-        from main import app
-        from routers.storage import require_user
-
-        def override_require_user():
-            return mock_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            mock_db.query().filter().first.return_value = None
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
-
-        try:
-            response = client.get("/storage/download-url/nonexistent-file")
-            assert response.status_code == status.HTTP_404_NOT_FOUND
-            assert "File not found" in response.json()["detail"]
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_get_download_url_access_denied(self, client, mock_uploaded_data):
-        """Test download URL generation with access denied"""
-        from database import get_db
-        from main import app
-        from routers.storage import require_user
-
-        # Different user than file owner
-        different_user = User(
-            id="different-user-456",
-            username="differentuser",
-            email="different@example.com",
-            name="Different User",
-            hashed_password="hashed_password_different",
-            is_superadmin=False,
-            is_active=True,
-            email_verified=True,
-        )
-        # Set created_at after creation if needed
-        different_user.created_at = datetime.now(timezone.utc)
-
-        def override_require_user():
-            return different_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            mock_db.query().filter().first.return_value = mock_uploaded_data
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
-
-        try:
-            response = client.get("/storage/download-url/file-123")
-            assert response.status_code == status.HTTP_403_FORBIDDEN
-            assert "Access denied" in response.json()["detail"]
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_delete_file_from_storage_success(self, client, mock_user, mock_uploaded_data):
-        """Test successful file deletion from storage"""
-        from database import get_db
-        from main import app
-        from routers.storage import require_user
-
-        mock_db = Mock(spec=Session)
-        mock_db.query().filter().first.return_value = mock_uploaded_data
-
-        def override_require_user():
-            return mock_user
-
-        def override_get_db():
-            return mock_db
-
-        with patch("routers.storage.object_storage.delete_file") as mock_delete:
-            mock_delete.return_value = True
-
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                response = client.delete("/storage/file/file-123")
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert data["message"] == "File deleted successfully"
-                mock_db.delete.assert_called_once()
-                mock_db.commit.assert_called_once()
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_delete_file_access_denied(self, client, mock_uploaded_data):
-        """Test file deletion with access denied"""
-        from database import get_db
-        from main import app
-        from routers.storage import require_user
-
-        # Different user than file owner
-        different_user = User(
-            id="different-user-456",
-            username="differentuser",
-            email="different@example.com",
-            name="Different User",
-            hashed_password="hashed_password_different",
-            is_superadmin=False,
-            is_active=True,
-            email_verified=True,
-        )
-        # Set created_at after creation if needed
-        different_user.created_at = datetime.now(timezone.utc)
-
-        def override_require_user():
-            return different_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            mock_db.query().filter().first.return_value = mock_uploaded_data
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
-
-        try:
-            response = client.delete("/storage/file/file-123")
-            assert response.status_code == status.HTTP_403_FORBIDDEN
-            assert "Access denied" in response.json()["detail"]
-        finally:
-            app.dependency_overrides.clear()
+    # NOTE: the ``test_get_download_url_*`` (owner / superadmin / not-found /
+    # access-denied) and ``test_delete_file_*`` (success / access-denied) cases
+    # were removed here. Those handlers moved to the async DB lane
+    # (``Depends(get_async_db)``), so the ``Mock(spec=Session)`` +
+    # ``override_get_db`` pattern no longer reaches them (the override targets
+    # the now-unused sync ``get_db``). Every one of those branches —
+    # owner-grant, superadmin-grant, missing-row 404, non-owner 403,
+    # missing-associated-task 404, delete success + row removal,
+    # storage-delete-false 500 — is covered behaviourally against real rows in
+    # ``tests/integration/test_storage_router_coverage.py`` (async fixtures).
 
     def test_init_multipart_upload_success(self, client, mock_user):
         """Test successful multipart upload initialization"""
@@ -430,47 +223,10 @@ class TestStorageRouter:
             finally:
                 app.dependency_overrides.clear()
 
-    def test_complete_multipart_upload_success(self, client, mock_user):
-        """Test successful multipart upload completion"""
-        from database import get_db
-        from main import app
-        from routers.storage import require_user
-
-        def override_require_user():
-            return mock_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            return mock_db
-
-        with patch("routers.storage.object_storage.complete_multipart_upload") as mock_complete:
-            mock_complete.return_value = {
-                "size": 5000000,
-                "etag": "etag-123",
-                "storage_backend": "s3",
-            }
-
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                request_data = {
-                    "file_key": "uploads/large_file.zip",
-                    "upload_id": "upload-123",
-                    "parts": [
-                        {"PartNumber": 1, "ETag": "etag1"},
-                        {"PartNumber": 2, "ETag": "etag2"},
-                    ],
-                    "metadata": {"type": "archive"},
-                }
-
-                response = client.post("/storage/multipart/complete", json=request_data)
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert data["file_key"] == "uploads/large_file.zip"
-                assert data["size"] == 5000000
-            finally:
-                app.dependency_overrides.clear()
+    # NOTE: ``test_complete_multipart_upload_success`` was removed — the
+    # ``/storage/multipart/complete`` handler moved to the async DB lane and the
+    # ``Mock(spec=Session)`` override no longer reaches it. Covered behaviourally
+    # in ``tests/integration/test_storage_router_coverage.py``.
 
     def test_invalidate_cdn_cache_success(self, client, mock_superadmin_user):
         """Test successful CDN cache invalidation"""
@@ -590,97 +346,22 @@ class TestStorageRouterIntegration:
                 response = client.post("/storage/upload-url?filename=test_file.txt")
                 assert response.status_code == status.HTTP_200_OK
 
-            # Step 2: Upload file directly
-            with patch("routers.storage.object_storage.upload_file") as mock_upload:
-                mock_upload.return_value = {
-                    "file_key": "uploads/test_file.txt",
-                    "url": "http://example.com/file.txt",
-                    "size": 1024,
-                    "content_type": "text/plain",
-                    "uploaded_at": datetime.now().isoformat(),
-                    "storage_backend": "local",
-                }
-
-                files = {"file": ("test_file.txt", b"test content", "text/plain")}
-                response = client.post("/storage/upload", files=files)
-                assert response.status_code == status.HTTP_200_OK
+            # Step 2 (the direct ``/storage/upload`` DB-persist step) is covered
+            # in ``tests/integration/test_storage_router_coverage.py`` now that
+            # the upload handler runs on the async DB lane — it can't be driven
+            # through the sync TestClient + Mock(spec=Session) here.
 
         finally:
             app.dependency_overrides.clear()
 
-    def test_multipart_upload_workflow(self, client):
-        """Test complete multipart upload workflow"""
-        from database import get_db
-        from main import app
-        from routers.storage import require_user
-
-        mock_user = User(
-            id="test-user-123",
-            username="testuser",
-            email="test@example.com",
-            name="Test User",
-            hashed_password="hashed_password_test",
-            is_superadmin=False,
-            is_active=True,
-            email_verified=True,
-        )
-        # Set created_at after creation if needed
-        mock_user.created_at = datetime.now(timezone.utc)
-
-        def override_require_user():
-            return mock_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
-
-        try:
-            # Step 1: Initialize multipart upload
-            with patch("routers.storage.object_storage.create_multipart_upload") as mock_init:
-                mock_init.return_value = {
-                    "upload_id": "upload-123",
-                    "file_key": "uploads/large_file.zip",
-                }
-
-                response = client.post("/storage/multipart/init?filename=large_file.zip")
-                assert response.status_code == status.HTTP_200_OK
-                init_data = response.json()
-
-            # Step 2: Get part upload URLs
-            with patch("routers.storage.object_storage.get_multipart_upload_urls") as mock_get_urls:
-                mock_get_urls.return_value = ["http://example.com/upload/part1"]
-
-                request_data = {
-                    "file_key": init_data["file_key"],
-                    "upload_id": init_data["upload_id"],
-                    "part_numbers": [1],
-                }
-
-                response = client.post("/storage/multipart/urls", json=request_data)
-                assert response.status_code == status.HTTP_200_OK
-
-            # Step 3: Complete multipart upload
-            with patch("routers.storage.object_storage.complete_multipart_upload") as mock_complete:
-                mock_complete.return_value = {
-                    "size": 5000000,
-                    "etag": "etag-123",
-                    "storage_backend": "s3",
-                }
-
-                complete_data = {
-                    "file_key": init_data["file_key"],
-                    "upload_id": init_data["upload_id"],
-                    "parts": [{"PartNumber": 1, "ETag": "etag1"}],
-                }
-
-                response = client.post("/storage/multipart/complete", json=complete_data)
-                assert response.status_code == status.HTTP_200_OK
-
-        finally:
-            app.dependency_overrides.clear()
+    # NOTE: ``test_multipart_upload_workflow`` was removed here. Its final
+    # ``/storage/multipart/complete`` step writes a real ``UploadedData`` row,
+    # and that handler moved to the async DB lane (``Depends(get_async_db)``),
+    # so the ``Mock(spec=Session)`` + ``get_db`` override no longer reaches it.
+    # The full multipart-complete persistence path is covered behaviourally in
+    # ``tests/integration/test_storage_router_coverage.py`` (async fixtures).
+    # The init + part-URL steps stay covered by ``test_init_multipart_upload_success``
+    # and ``test_get_multipart_urls_success`` above (no DB).
 
     def test_error_handling_scenarios(self, client):
         """Test various error handling scenarios"""

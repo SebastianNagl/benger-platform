@@ -490,6 +490,10 @@ jest.mock('@/lib/api/base', () => ({
     delete = jest.fn().mockResolvedValue({})
     request = jest.fn().mockResolvedValue({})
     setAuthFailureHandler = jest.fn()
+    // Mirror the real BaseApiClient surface — the org-context setter is
+    // exercised whenever code constructs a client with an org provider (e.g.
+    // createApiClient({ orgContextProvider }) → configureAdminDefaultsClient).
+    setOrganizationContextProvider = jest.fn()
   },
 }))
 

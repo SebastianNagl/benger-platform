@@ -1,47 +1,58 @@
 """Behavioral branch-coverage integration tests for the organizations router.
 
 Targets the error / permission / edge paths in
-``services/api/routers/organizations.py`` that the happy-path suites
+``services/api/routers/organizations/*`` that the happy-path suites
 (``test_organizations_integration.py`` / ``_deep.py`` / ``_router_coverage.py``)
 either skip or assert too loosely (``in (200, 404)``) to actually exercise.
 
+Most handlers here were migrated to the async DB lane
+(``Depends(get_async_db)``), so their tests seed via ``async_test_db`` and drive
+the HTTP surface through ``async_test_client``, overriding both auth
+dependencies per-test via ``_as_user`` (the sync auth deps can't see the async
+test transaction). DB state is asserted by re-querying ``async_test_db`` by id
+AFTER the HTTP call (the ORM objects are expired across the await boundary).
+
+The one exception is ``delete_user`` (``DELETE /manage/users/{id}``), which is
+deliberately kept SYNC (it is dominated by the self-committing, sync-only
+``auth_module.user_service.delete_user`` orchestration). Its tests therefore
+keep the legacy sync ``client`` + ``test_db`` fixtures unchanged.
+
 Endpoints covered here:
 
-- ``get_organization_by_slug``  : non-member 403.
-- ``list_organization_members`` : non-member 403.
+- ``get_organization_by_slug``  : non-member 403.   [async]
+- ``list_organization_members`` : non-member 403.   [async]
 - ``update_member_role``        : org-admin success + persisted role, annotator
   403, member-not-found 404, own-role guard 400, superadmin-modifies-own-role
-  allowed.
+  allowed.   [async]
 - ``remove_member``             : org-admin success + soft-delete state, annotator
   403, member-not-found 404, self-removal guard 400, superadmin self-removal
-  allowed.
+  allowed.   [async]
 - ``add_user_to_organization``  : org-admin success + persisted row, user-not-found
   404, already-active-member 400, reactivate-previously-removed branch, annotator
-  403.
+  403.   [async]
 - ``verify_member_email``       : success + persisted verification fields,
   already-verified short-circuit, non-member 404 (org-admin path), annotator 403.
+  [async]
 - ``bulk_verify_member_emails`` : mixed success/skip/error tally + persisted state.
+  [async]
 - ``list_all_users`` (manage)   : superadmin sees all, non-superadmin org-scoped,
-  ``search`` ILIKE filter, no-org non-superadmin empty list.
+  ``search`` ILIKE filter, no-org non-superadmin empty list.   [async]
 - ``update_user_superadmin_status`` : promote success + persisted flag, non-admin
-  403, user-not-found 404.
+  403, user-not-found 404.   [async]
 - ``delete_user`` (manage)      : non-superadmin 403, user-not-found 404,
-  self-delete guard 400, last-superadmin guard 400.
-
-Every test calls through the ``client`` fixture, asserts HTTP status + response
-JSON, and verifies persisted DB state via ``test_db``.
-
-Permission map under ``test_org``:
-  * test_users[0] / auth_headers["admin"]       -> superadmin + ORG_ADMIN member
-  * test_users[1] / auth_headers["contributor"] -> CONTRIBUTOR member
-  * test_users[2] / auth_headers["annotator"]   -> ANNOTATOR member
-  * test_users[3] / auth_headers["org_admin"]   -> ORG_ADMIN member (non-superadmin)
+  self-delete guard 400, superadmin success.   [SYNC — handler stays sync]
 """
 
 import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
 
 import pytest
+from sqlalchemy import select
 
+from auth_module.dependencies import get_current_user, require_user
+from auth_module.models import User as AuthUser
+from main import app
 from models import Organization, OrganizationMembership, OrganizationRole, User
 
 
@@ -49,7 +60,32 @@ def _uid() -> str:
     return str(uuid.uuid4())
 
 
-def _make_user(test_db, name="Extra User", *, is_superadmin=False, email_verified=False):
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    app.dependency_overrides[get_current_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+# --- async seed helpers -----------------------------------------------------
+
+async def _make_user(
+    db, name="Extra User", *, is_superadmin=False, email_verified=False
+) -> User:
     suffix = uuid.uuid4().hex[:8]
     user = User(
         id=_uid(),
@@ -60,585 +96,717 @@ def _make_user(test_db, name="Extra User", *, is_superadmin=False, email_verifie
         is_superadmin=is_superadmin,
         is_active=True,
         email_verified=email_verified,
+        created_at=datetime.now(timezone.utc),
     )
-    test_db.add(user)
-    test_db.commit()
+    db.add(user)
+    await db.flush()
     return user
 
 
-def _membership(test_db, user_id, org_id, role="ANNOTATOR", is_active=True):
+async def _make_org(db, name="Branch Org", slug=None) -> Organization:
+    org = Organization(
+        id=_uid(),
+        name=name,
+        slug=slug or f"branch-{uuid.uuid4().hex[:8]}",
+        display_name=name,
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(org)
+    await db.flush()
+    return org
+
+
+async def _membership(db, user_id, org_id, role="ANNOTATOR", is_active=True):
     m = OrganizationMembership(
         id=_uid(),
         user_id=user_id,
         organization_id=org_id,
         role=role,
         is_active=is_active,
+        joined_at=datetime.now(timezone.utc),
     )
-    test_db.add(m)
-    test_db.commit()
+    db.add(m)
+    await db.flush()
     return m
 
 
-def _get_membership(test_db, user_id, org_id):
-    test_db.expire_all()
+async def _seed_org_with_members(db):
+    """Org + the 4 canonical members. Returns ``(org, users_by_role)``:
+    admin (superadmin/ORG_ADMIN), contributor, annotator, org_admin (ORG_ADMIN).
+    """
+    admin = await _make_user(db, "Test Admin", is_superadmin=True, email_verified=True)
+    contributor = await _make_user(db, "Test Contributor", email_verified=True)
+    annotator = await _make_user(db, "Test Annotator", email_verified=True)
+    org_admin = await _make_user(db, "Test Org Admin", email_verified=True)
+    org = await _make_org(db, name="Test Organization")
+    await _membership(db, admin.id, org.id, "ORG_ADMIN")
+    await _membership(db, contributor.id, org.id, "CONTRIBUTOR")
+    await _membership(db, annotator.id, org.id, "ANNOTATOR")
+    await _membership(db, org_admin.id, org.id, "ORG_ADMIN")
+    await db.commit()
+    return org, {
+        "admin": admin,
+        "contributor": contributor,
+        "annotator": annotator,
+        "org_admin": org_admin,
+    }
+
+
+async def _get_membership(db, user_id, org_id):
+    # `async_test_db` uses expire_on_commit=False and is the SAME session the
+    # handler wrote through, so a bare select() would return the cached
+    # identity-map row (assertion would pass even if nothing persisted).
+    # expire_all() forces a real DB round-trip — matches the sync HEAD pattern.
+    db.expire_all()
     return (
-        test_db.query(OrganizationMembership)
-        .filter(
-            OrganizationMembership.user_id == user_id,
-            OrganizationMembership.organization_id == org_id,
+        await db.execute(
+            select(OrganizationMembership).where(
+                OrganizationMembership.user_id == user_id,
+                OrganizationMembership.organization_id == org_id,
+            )
         )
-        .first()
-    )
+    ).scalar_one_or_none()
+
+
+async def _get_user(db, user_id):
+    # See _get_membership: force a real round-trip so persistence assertions
+    # (role / is_active / email_verified / is_superadmin) can't pass on a
+    # stale identity-map object.
+    db.expire_all()
+    return (
+        await db.execute(select(User).where(User.id == user_id))
+    ).scalar_one_or_none()
 
 
 # ---------------------------------------------------------------------------
 # get_organization_by_slug / list_organization_members — access 403 branches
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_get_by_slug_non_member_forbidden(async_test_client, async_test_db):
+    """A user with no membership on the org gets 403 from the by-slug route."""
+    annotator = await _make_user(async_test_db, "Outsider")
+    org = await _make_org(async_test_db, name="Slug Outsider Org")
+    oslug = org.slug
+    await async_test_db.commit()
+    with _as_user(annotator):
+        resp = await async_test_client.get(f"/api/organizations/by-slug/{oslug}")
+    assert resp.status_code == 403
+    assert "Not a member" in resp.json()["detail"]
+
 
 @pytest.mark.integration
-class TestOrgAccessForbidden:
-    def test_get_by_slug_non_member_forbidden(self, client, test_db, test_users, auth_headers):
-        """A user with no membership on the org gets 403 from the by-slug route."""
-        org = Organization(
-            id=_uid(),
-            name="Slug Outsider Org",
-            slug=f"slug-outsider-{uuid.uuid4().hex[:8]}",
-            display_name="Slug Outsider Org",
-        )
-        test_db.add(org)
-        test_db.commit()
-
-        # annotator has no membership in this fresh org.
-        resp = client.get(
-            f"/api/organizations/by-slug/{org.slug}",
-            headers=auth_headers["annotator"],
-        )
-        assert resp.status_code == 403
-        assert "Not a member" in resp.json()["detail"]
-
-    def test_list_members_non_member_forbidden(self, client, test_db, test_users, auth_headers):
-        org = Organization(
-            id=_uid(),
-            name="Members Outsider Org",
-            slug=f"members-outsider-{uuid.uuid4().hex[:8]}",
-            display_name="Members Outsider Org",
-        )
-        test_db.add(org)
-        test_db.commit()
-
-        resp = client.get(
-            f"/api/organizations/{org.id}/members",
-            headers=auth_headers["contributor"],
-        )
-        assert resp.status_code == 403
-        assert "Access denied" in resp.json()["detail"]
+@pytest.mark.asyncio
+async def test_list_members_non_member_forbidden(async_test_client, async_test_db):
+    contributor = await _make_user(async_test_db, "Outsider")
+    org = await _make_org(async_test_db, name="Members Outsider Org")
+    oid = org.id
+    await async_test_db.commit()
+    with _as_user(contributor):
+        resp = await async_test_client.get(f"/api/organizations/{oid}/members")
+    assert resp.status_code == 403
+    assert "Access denied" in resp.json()["detail"]
 
 
 # ---------------------------------------------------------------------------
 # update_member_role — permission + guard branches
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_org_admin_updates_role_persists(async_test_client, async_test_db):
+    """org_admin (non-superadmin) promotes the annotator -> persisted role."""
+    org, users = await _seed_org_with_members(async_test_db)
+    oid, annotator_id = org.id, users["annotator"].id
+    with _as_user(users["org_admin"]):
+        resp = await async_test_client.put(
+            f"/api/organizations/{oid}/members/{annotator_id}/role",
+            json={"role": "CONTRIBUTOR"},
+        )
+    assert resp.status_code == 200
+    assert "updated successfully" in resp.json()["message"]
+
+    m = await _get_membership(async_test_db, annotator_id, oid)
+    assert m is not None
+    assert m.role == OrganizationRole.CONTRIBUTOR
+
 
 @pytest.mark.integration
-class TestUpdateMemberRole:
-    def test_org_admin_updates_role_persists(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        """org_admin (non-superadmin) promotes the annotator -> persisted role."""
-        resp = client.put(
-            f"/api/organizations/{test_org.id}/members/{test_users[2].id}/role",
-            json={"role": "CONTRIBUTOR"},
-            headers=auth_headers["org_admin"],
-        )
-        assert resp.status_code == 200
-        assert "updated successfully" in resp.json()["message"]
-
-        m = _get_membership(test_db, test_users[2].id, test_org.id)
-        assert m is not None
-        assert m.role == OrganizationRole.CONTRIBUTOR
-
-    def test_annotator_cannot_update_role_forbidden(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        resp = client.put(
-            f"/api/organizations/{test_org.id}/members/{test_users[1].id}/role",
+@pytest.mark.asyncio
+async def test_annotator_cannot_update_role_forbidden(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid, contributor_id = org.id, users["contributor"].id
+    with _as_user(users["annotator"]):
+        resp = await async_test_client.put(
+            f"/api/organizations/{oid}/members/{contributor_id}/role",
             json={"role": "ORG_ADMIN"},
-            headers=auth_headers["annotator"],
         )
-        assert resp.status_code == 403
-        assert "Only organization admins" in resp.json()["detail"]
+    assert resp.status_code == 403
+    assert "Only organization admins" in resp.json()["detail"]
 
-        # contributor's role is unchanged.
-        m = _get_membership(test_db, test_users[1].id, test_org.id)
-        assert m.role == OrganizationRole.CONTRIBUTOR
+    m = await _get_membership(async_test_db, contributor_id, oid)
+    assert m.role == OrganizationRole.CONTRIBUTOR
 
-    def test_member_not_found_returns_404(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        resp = client.put(
-            f"/api/organizations/{test_org.id}/members/{_uid()}/role",
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_member_not_found_returns_404(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid = org.id
+    with _as_user(users["admin"]):
+        resp = await async_test_client.put(
+            f"/api/organizations/{oid}/members/{_uid()}/role",
             json={"role": "CONTRIBUTOR"},
-            headers=auth_headers["admin"],
         )
-        assert resp.status_code == 404
-        assert "Member not found" in resp.json()["detail"]
+    assert resp.status_code == 404
+    assert "Member not found" in resp.json()["detail"]
 
-    def test_org_admin_cannot_modify_own_role(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        """Non-superadmin modifying their own role -> 400 own-role guard."""
-        resp = client.put(
-            f"/api/organizations/{test_org.id}/members/{test_users[3].id}/role",
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_org_admin_cannot_modify_own_role(async_test_client, async_test_db):
+    """Non-superadmin modifying their own role -> 400 own-role guard."""
+    org, users = await _seed_org_with_members(async_test_db)
+    oid, org_admin_id = org.id, users["org_admin"].id
+    with _as_user(users["org_admin"]):
+        resp = await async_test_client.put(
+            f"/api/organizations/{oid}/members/{org_admin_id}/role",
             json={"role": "ANNOTATOR"},
-            headers=auth_headers["org_admin"],
         )
-        assert resp.status_code == 400
-        assert "Cannot modify your own role" in resp.json()["detail"]
+    assert resp.status_code == 400
+    assert "Cannot modify your own role" in resp.json()["detail"]
 
-        # org_admin still ORG_ADMIN.
-        m = _get_membership(test_db, test_users[3].id, test_org.id)
-        assert m.role == OrganizationRole.ORG_ADMIN
+    m = await _get_membership(async_test_db, org_admin_id, oid)
+    assert m.role == OrganizationRole.ORG_ADMIN
 
-    def test_superadmin_can_modify_own_role(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        """Superadmin is exempt from the own-role guard -> persisted change."""
-        resp = client.put(
-            f"/api/organizations/{test_org.id}/members/{test_users[0].id}/role",
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_superadmin_can_modify_own_role(async_test_client, async_test_db):
+    """Superadmin is exempt from the own-role guard -> persisted change."""
+    org, users = await _seed_org_with_members(async_test_db)
+    oid, admin_id = org.id, users["admin"].id
+    with _as_user(users["admin"]):
+        resp = await async_test_client.put(
+            f"/api/organizations/{oid}/members/{admin_id}/role",
             json={"role": "CONTRIBUTOR"},
-            headers=auth_headers["admin"],
         )
-        assert resp.status_code == 200
+    assert resp.status_code == 200
 
-        m = _get_membership(test_db, test_users[0].id, test_org.id)
-        assert m.role == OrganizationRole.CONTRIBUTOR
+    m = await _get_membership(async_test_db, admin_id, oid)
+    assert m.role == OrganizationRole.CONTRIBUTOR
 
 
 # ---------------------------------------------------------------------------
 # remove_member — permission + guard + soft-delete branches
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_org_admin_removes_member_soft_deletes(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    target = await _make_user(async_test_db, "Target Member")
+    await _membership(async_test_db, target.id, org.id, "ANNOTATOR")
+    oid, target_id = org.id, target.id
+    await async_test_db.commit()
+    with _as_user(users["org_admin"]):
+        resp = await async_test_client.delete(
+            f"/api/organizations/{oid}/members/{target_id}"
+        )
+    assert resp.status_code == 200
+    assert "removed" in resp.json()["message"].lower()
+
+    m = await _get_membership(async_test_db, target_id, oid)
+    assert m is not None
+    assert m.is_active is False
+
 
 @pytest.mark.integration
-class TestRemoveMember:
-    def test_org_admin_removes_member_soft_deletes(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        target = _make_user(test_db, "Target Member")
-        _membership(test_db, target.id, test_org.id, "ANNOTATOR")
-
-        resp = client.delete(
-            f"/api/organizations/{test_org.id}/members/{target.id}",
-            headers=auth_headers["org_admin"],
+@pytest.mark.asyncio
+async def test_annotator_cannot_remove_member_forbidden(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid, contributor_id = org.id, users["contributor"].id
+    with _as_user(users["annotator"]):
+        resp = await async_test_client.delete(
+            f"/api/organizations/{oid}/members/{contributor_id}"
         )
-        assert resp.status_code == 200
-        assert "removed" in resp.json()["message"].lower()
+    assert resp.status_code == 403
+    assert "Only organization admins" in resp.json()["detail"]
 
-        # Soft delete: row still exists but is_active is False.
-        m = _get_membership(test_db, target.id, test_org.id)
-        assert m is not None
-        assert m.is_active is False
+    m = await _get_membership(async_test_db, contributor_id, oid)
+    assert m.is_active is True
 
-    def test_annotator_cannot_remove_member_forbidden(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        resp = client.delete(
-            f"/api/organizations/{test_org.id}/members/{test_users[1].id}",
-            headers=auth_headers["annotator"],
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_remove_nonexistent_member_404(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid = org.id
+    with _as_user(users["admin"]):
+        resp = await async_test_client.delete(
+            f"/api/organizations/{oid}/members/{_uid()}"
         )
-        assert resp.status_code == 403
-        assert "Only organization admins" in resp.json()["detail"]
+    assert resp.status_code == 404
+    assert "Member not found" in resp.json()["detail"]
 
-        m = _get_membership(test_db, test_users[1].id, test_org.id)
-        assert m.is_active is True
 
-    def test_remove_nonexistent_member_404(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        resp = client.delete(
-            f"/api/organizations/{test_org.id}/members/{_uid()}",
-            headers=auth_headers["admin"],
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_org_admin_cannot_remove_self(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid, org_admin_id = org.id, users["org_admin"].id
+    with _as_user(users["org_admin"]):
+        resp = await async_test_client.delete(
+            f"/api/organizations/{oid}/members/{org_admin_id}"
         )
-        assert resp.status_code == 404
-        assert "Member not found" in resp.json()["detail"]
+    assert resp.status_code == 400
+    assert "Cannot remove yourself" in resp.json()["detail"]
 
-    def test_org_admin_cannot_remove_self(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        resp = client.delete(
-            f"/api/organizations/{test_org.id}/members/{test_users[3].id}",
-            headers=auth_headers["org_admin"],
+    m = await _get_membership(async_test_db, org_admin_id, oid)
+    assert m.is_active is True
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_superadmin_can_remove_self(async_test_client, async_test_db):
+    """Superadmin is exempt from the self-removal guard."""
+    org, users = await _seed_org_with_members(async_test_db)
+    oid, admin_id = org.id, users["admin"].id
+    with _as_user(users["admin"]):
+        resp = await async_test_client.delete(
+            f"/api/organizations/{oid}/members/{admin_id}"
         )
-        assert resp.status_code == 400
-        assert "Cannot remove yourself" in resp.json()["detail"]
+    assert resp.status_code == 200
 
-        # Still an active member.
-        m = _get_membership(test_db, test_users[3].id, test_org.id)
-        assert m.is_active is True
-
-    def test_superadmin_can_remove_self(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        """Superadmin is exempt from the self-removal guard."""
-        resp = client.delete(
-            f"/api/organizations/{test_org.id}/members/{test_users[0].id}",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-
-        m = _get_membership(test_db, test_users[0].id, test_org.id)
-        assert m.is_active is False
+    m = await _get_membership(async_test_db, admin_id, oid)
+    assert m.is_active is False
 
 
 # ---------------------------------------------------------------------------
 # add_user_to_organization — create / reactivate / guard branches
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_org_admin_adds_new_member_persists(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    new_user = await _make_user(async_test_db, "Fresh Add")
+    oid, new_uid = org.id, new_user.id
+    await async_test_db.commit()
+    with _as_user(users["org_admin"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members",
+            json={"user_id": new_uid, "role": "CONTRIBUTOR"},
+        )
+    assert resp.status_code == 200
+    assert "added" in resp.json()["message"].lower()
+
+    m = await _get_membership(async_test_db, new_uid, oid)
+    assert m is not None
+    assert m.is_active is True
+    assert m.role == OrganizationRole.CONTRIBUTOR
+
 
 @pytest.mark.integration
-class TestAddMember:
-    def test_org_admin_adds_new_member_persists(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        new_user = _make_user(test_db, "Fresh Add")
-        resp = client.post(
-            f"/api/organizations/{test_org.id}/members",
-            json={"user_id": new_user.id, "role": "CONTRIBUTOR"},
-            headers=auth_headers["org_admin"],
-        )
-        assert resp.status_code == 200
-        assert "added" in resp.json()["message"].lower()
-
-        m = _get_membership(test_db, new_user.id, test_org.id)
-        assert m is not None
-        assert m.is_active is True
-        assert m.role == OrganizationRole.CONTRIBUTOR
-
-    def test_add_user_not_found_404(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        resp = client.post(
-            f"/api/organizations/{test_org.id}/members",
+@pytest.mark.asyncio
+async def test_add_user_not_found_404(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid = org.id
+    with _as_user(users["admin"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members",
             json={"user_id": _uid(), "role": "ANNOTATOR"},
-            headers=auth_headers["admin"],
         )
-        assert resp.status_code == 404
-        assert "User not found" in resp.json()["detail"]
+    assert resp.status_code == 404
+    assert "User not found" in resp.json()["detail"]
 
-    def test_add_already_active_member_400(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        # contributor is already an active member of test_org.
-        resp = client.post(
-            f"/api/organizations/{test_org.id}/members",
-            json={"user_id": test_users[1].id, "role": "ANNOTATOR"},
-            headers=auth_headers["admin"],
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_add_already_active_member_400(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid, contributor_id = org.id, users["contributor"].id
+    with _as_user(users["admin"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members",
+            json={"user_id": contributor_id, "role": "ANNOTATOR"},
         )
-        assert resp.status_code == 400
-        assert "already a member" in resp.json()["detail"]
+    assert resp.status_code == 400
+    assert "already a member" in resp.json()["detail"]
 
-        # Role unchanged (the 400 short-circuits before any write).
-        m = _get_membership(test_db, test_users[1].id, test_org.id)
-        assert m.role == OrganizationRole.CONTRIBUTOR
+    m = await _get_membership(async_test_db, contributor_id, oid)
+    assert m.role == OrganizationRole.CONTRIBUTOR
 
-    def test_add_reactivates_previously_removed_member(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        """A prior inactive membership is reactivated (not a 2nd row), with the
-        new role applied."""
-        target = _make_user(test_db, "Returning Member")
-        _membership(test_db, target.id, test_org.id, "ANNOTATOR", is_active=False)
 
-        resp = client.post(
-            f"/api/organizations/{test_org.id}/members",
-            json={"user_id": target.id, "role": "CONTRIBUTOR"},
-            headers=auth_headers["admin"],
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_add_reactivates_previously_removed_member(async_test_client, async_test_db):
+    """A prior inactive membership is reactivated (not a 2nd row), with the
+    new role applied."""
+    org, users = await _seed_org_with_members(async_test_db)
+    target = await _make_user(async_test_db, "Returning Member")
+    await _membership(async_test_db, target.id, org.id, "ANNOTATOR", is_active=False)
+    oid, target_id = org.id, target.id
+    await async_test_db.commit()
+    with _as_user(users["admin"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members",
+            json={"user_id": target_id, "role": "CONTRIBUTOR"},
         )
-        assert resp.status_code == 200
+    assert resp.status_code == 200
 
-        rows = (
-            test_db.query(OrganizationMembership)
-            .filter(
-                OrganizationMembership.user_id == target.id,
-                OrganizationMembership.organization_id == test_org.id,
+    rows = (
+        await async_test_db.execute(
+            select(OrganizationMembership).where(
+                OrganizationMembership.user_id == target_id,
+                OrganizationMembership.organization_id == oid,
             )
-            .all()
         )
-        assert len(rows) == 1
-        assert rows[0].is_active is True
-        assert rows[0].role == OrganizationRole.CONTRIBUTOR
+    ).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].is_active is True
+    assert rows[0].role == OrganizationRole.CONTRIBUTOR
 
-    def test_annotator_cannot_add_member_forbidden(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        new_user = _make_user(test_db, "Denied Add")
-        resp = client.post(
-            f"/api/organizations/{test_org.id}/members",
-            json={"user_id": new_user.id, "role": "ANNOTATOR"},
-            headers=auth_headers["annotator"],
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_annotator_cannot_add_member_forbidden(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    new_user = await _make_user(async_test_db, "Denied Add")
+    oid, new_uid = org.id, new_user.id
+    await async_test_db.commit()
+    with _as_user(users["annotator"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members",
+            json={"user_id": new_uid, "role": "ANNOTATOR"},
         )
-        assert resp.status_code == 403
-        assert "Only organization admins" in resp.json()["detail"]
+    assert resp.status_code == 403
+    assert "Only organization admins" in resp.json()["detail"]
 
-        assert _get_membership(test_db, new_user.id, test_org.id) is None
+    assert await _get_membership(async_test_db, new_uid, oid) is None
 
 
 # ---------------------------------------------------------------------------
 # verify_member_email — single verification branches
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_org_admin_verifies_member_persists(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    target = await _make_user(async_test_db, "Unverified Member", email_verified=False)
+    await _membership(async_test_db, target.id, org.id, "ANNOTATOR")
+    oid, target_id, org_admin_id = org.id, target.id, users["org_admin"].id
+    await async_test_db.commit()
+    with _as_user(users["org_admin"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members/{target_id}/verify-email",
+            json={"reason": "manual check"},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["verification_method"] == "admin"
+
+    refreshed = await _get_user(async_test_db, target_id)
+    assert refreshed.email_verified is True
+    assert refreshed.email_verification_method == "admin"
+    assert refreshed.email_verified_by_id == org_admin_id
+
 
 @pytest.mark.integration
-class TestVerifyMemberEmail:
-    def test_org_admin_verifies_member_persists(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        target = _make_user(test_db, "Unverified Member", email_verified=False)
-        _membership(test_db, target.id, test_org.id, "ANNOTATOR")
-
-        resp = client.post(
-            f"/api/organizations/{test_org.id}/members/{target.id}/verify-email",
-            json={"reason": "manual check"},
-            headers=auth_headers["org_admin"],
-        )
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["verification_method"] == "admin"
-
-        test_db.expire_all()
-        refreshed = test_db.query(User).filter(User.id == target.id).first()
-        assert refreshed.email_verified is True
-        assert refreshed.email_verification_method == "admin"
-        assert refreshed.email_verified_by_id == test_users[3].id
-
-    def test_already_verified_short_circuits(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        target = _make_user(test_db, "Already Verified", email_verified=True)
-        _membership(test_db, target.id, test_org.id, "ANNOTATOR")
-
-        resp = client.post(
-            f"/api/organizations/{test_org.id}/members/{target.id}/verify-email",
+@pytest.mark.asyncio
+async def test_already_verified_short_circuits(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    target = await _make_user(async_test_db, "Already Verified", email_verified=True)
+    await _membership(async_test_db, target.id, org.id, "ANNOTATOR")
+    oid, target_id = org.id, target.id
+    await async_test_db.commit()
+    with _as_user(users["org_admin"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members/{target_id}/verify-email",
             json={},
-            headers=auth_headers["org_admin"],
         )
-        assert resp.status_code == 200
-        assert resp.json()["message"] == "Email already verified"
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Email already verified"
 
-    def test_verify_non_member_404_for_org_admin(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        """org_admin path checks org membership of the target -> 404 if absent."""
-        outsider = _make_user(test_db, "Org Outsider", email_verified=False)
 
-        resp = client.post(
-            f"/api/organizations/{test_org.id}/members/{outsider.id}/verify-email",
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_verify_non_member_404_for_org_admin(async_test_client, async_test_db):
+    """org_admin path checks org membership of the target -> 404 if absent."""
+    org, users = await _seed_org_with_members(async_test_db)
+    outsider = await _make_user(async_test_db, "Org Outsider", email_verified=False)
+    oid, outsider_id = org.id, outsider.id
+    await async_test_db.commit()
+    with _as_user(users["org_admin"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members/{outsider_id}/verify-email",
             json={},
-            headers=auth_headers["org_admin"],
         )
-        assert resp.status_code == 404
-        assert "not a member" in resp.json()["detail"].lower()
+    assert resp.status_code == 404
+    assert "not a member" in resp.json()["detail"].lower()
 
-        test_db.expire_all()
-        refreshed = test_db.query(User).filter(User.id == outsider.id).first()
-        assert refreshed.email_verified is False
+    refreshed = await _get_user(async_test_db, outsider_id)
+    assert refreshed.email_verified is False
 
-    def test_annotator_cannot_verify_forbidden(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        target = _make_user(test_db, "Verify Target", email_verified=False)
-        _membership(test_db, target.id, test_org.id, "ANNOTATOR")
 
-        resp = client.post(
-            f"/api/organizations/{test_org.id}/members/{target.id}/verify-email",
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_annotator_cannot_verify_forbidden(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    target = await _make_user(async_test_db, "Verify Target", email_verified=False)
+    await _membership(async_test_db, target.id, org.id, "ANNOTATOR")
+    oid, target_id = org.id, target.id
+    await async_test_db.commit()
+    with _as_user(users["annotator"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members/{target_id}/verify-email",
             json={},
-            headers=auth_headers["annotator"],
         )
-        assert resp.status_code == 403
-        assert "Only organization admins" in resp.json()["detail"]
+    assert resp.status_code == 403
+    assert "Only organization admins" in resp.json()["detail"]
 
 
 # ---------------------------------------------------------------------------
 # bulk_verify_member_emails — mixed-result tally branches
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_bulk_verify_mixed_results(async_test_client, async_test_db):
+    """One unverified member (success), one already-verified member (skipped),
+    one non-member (error) -> tally + persisted state for the success."""
+    org, users = await _seed_org_with_members(async_test_db)
+    unverified = await _make_user(async_test_db, "Bulk Unverified", email_verified=False)
+    await _membership(async_test_db, unverified.id, org.id, "ANNOTATOR")
+    verified = await _make_user(async_test_db, "Bulk Verified", email_verified=True)
+    await _membership(async_test_db, verified.id, org.id, "ANNOTATOR")
+    outsider = await _make_user(async_test_db, "Bulk Outsider", email_verified=False)
+    oid = org.id
+    unverified_id, verified_id, outsider_id = unverified.id, verified.id, outsider.id
+    await async_test_db.commit()
+    with _as_user(users["org_admin"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members/verify-emails",
+            json={"user_ids": [unverified_id, verified_id, outsider_id]},
+        )
+    assert resp.status_code == 200
+    summary = resp.json()["summary"]
+    assert summary["total"] == 3
+    assert summary["success"] == 1
+    assert summary["skipped"] == 1
+    assert summary["errors"] == 1
+
+    assert (await _get_user(async_test_db, unverified_id)).email_verified is True
+    # The non-member was never touched.
+    assert (await _get_user(async_test_db, outsider_id)).email_verified is False
+
 
 @pytest.mark.integration
-class TestBulkVerifyMemberEmails:
-    def test_bulk_verify_mixed_results(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        """One unverified member (success), one already-verified member (skipped),
-        one non-member (error) -> tally + persisted state for the success."""
-        unverified = _make_user(test_db, "Bulk Unverified", email_verified=False)
-        _membership(test_db, unverified.id, test_org.id, "ANNOTATOR")
-
-        verified = _make_user(test_db, "Bulk Verified", email_verified=True)
-        _membership(test_db, verified.id, test_org.id, "ANNOTATOR")
-
-        outsider = _make_user(test_db, "Bulk Outsider", email_verified=False)
-
-        resp = client.post(
-            f"/api/organizations/{test_org.id}/members/verify-emails",
-            json={"user_ids": [unverified.id, verified.id, outsider.id]},
-            headers=auth_headers["org_admin"],
+@pytest.mark.asyncio
+async def test_bulk_verify_annotator_forbidden(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    oid, contributor_id = org.id, users["contributor"].id
+    with _as_user(users["annotator"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members/verify-emails",
+            json={"user_ids": [contributor_id]},
         )
-        assert resp.status_code == 200
-        summary = resp.json()["summary"]
-        assert summary["total"] == 3
-        assert summary["success"] == 1
-        assert summary["skipped"] == 1
-        assert summary["errors"] == 1
-
-        test_db.expire_all()
-        assert (
-            test_db.query(User).filter(User.id == unverified.id).first().email_verified
-            is True
-        )
-        # The non-member was never touched.
-        assert (
-            test_db.query(User).filter(User.id == outsider.id).first().email_verified
-            is False
-        )
-
-    def test_bulk_verify_annotator_forbidden(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        resp = client.post(
-            f"/api/organizations/{test_org.id}/members/verify-emails",
-            json={"user_ids": [test_users[1].id]},
-            headers=auth_headers["annotator"],
-        )
-        assert resp.status_code == 403
-        assert "Only organization admins" in resp.json()["detail"]
+    assert resp.status_code == 403
+    assert "Only organization admins" in resp.json()["detail"]
 
 
 # ---------------------------------------------------------------------------
 # list_all_users (manage/users) — scope + search branches
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_superadmin_sees_all_users(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    seeded_ids = {u.id for u in users.values()}
+    with _as_user(users["admin"]):
+        resp = await async_test_client.get("/api/organizations/manage/users")
+    assert resp.status_code == 200
+    body = resp.json()
+    ids = {u["id"] for u in body}
+    # All 4 seeded users are active and visible to the superadmin.
+    assert seeded_ids.issubset(ids)
+
 
 @pytest.mark.integration
-class TestListAllUsers:
-    def test_superadmin_sees_all_users(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        resp = client.get(
-            "/api/organizations/manage/users",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-        body = resp.json()
-        ids = {u["id"] for u in body}
-        # All 4 test users are active and visible to the superadmin.
-        assert {u.id for u in test_users[:4]}.issubset(ids)
+@pytest.mark.asyncio
+async def test_non_superadmin_scoped_to_own_org(async_test_client, async_test_db):
+    """A contributor only sees members of their shared org. A user in a
+    different org is excluded.
 
-    def test_non_superadmin_scoped_to_own_org(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        """A contributor only sees members of their shared org. A user in a
-        different org is excluded."""
-        other_org = Organization(
-            id=_uid(),
-            name="Disjoint Org",
-            slug=f"disjoint-{uuid.uuid4().hex[:8]}",
-            display_name="Disjoint Org",
-        )
-        test_db.add(other_org)
-        test_db.commit()
-        stranger = _make_user(test_db, "Stranger")
-        _membership(test_db, stranger.id, other_org.id, "ANNOTATOR")
+    Note: ``list_all_users`` derives the caller's orgs from the auth User's
+    ``organizations`` attribute, so the overridden auth User must carry that
+    list. We build the contributor AuthUser with the seeded org attached.
+    """
+    org, users = await _seed_org_with_members(async_test_db)
+    other_org = await _make_org(async_test_db, name="Disjoint Org")
+    stranger = await _make_user(async_test_db, "Stranger")
+    await _membership(async_test_db, stranger.id, other_org.id, "ANNOTATOR")
+    oid, annotator_id, stranger_id = org.id, users["annotator"].id, stranger.id
+    await async_test_db.commit()
 
-        resp = client.get(
-            "/api/organizations/manage/users",
-            headers=auth_headers["contributor"],
-        )
-        assert resp.status_code == 200
-        ids = {u["id"] for u in resp.json()}
-        # Sees co-members of test_org...
-        assert test_users[2].id in ids
-        # ...but not the stranger in the disjoint org.
-        assert stranger.id not in ids
+    contributor = users["contributor"]
+    auth_user = AuthUser(
+        id=contributor.id,
+        username=contributor.username,
+        email=contributor.email,
+        name=contributor.name,
+        is_superadmin=False,
+        is_active=True,
+        email_verified=True,
+        created_at=contributor.created_at or datetime.now(timezone.utc),
+        organizations=[{"id": oid, "role": "CONTRIBUTOR"}],
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    app.dependency_overrides[get_current_user] = lambda: auth_user
+    try:
+        resp = await async_test_client.get("/api/organizations/manage/users")
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+        app.dependency_overrides.pop(get_current_user, None)
 
-    def test_search_filter_narrows(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        resp = client.get(
-            "/api/organizations/manage/users?search=annotator@test.com",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-        body = resp.json()
-        assert len(body) >= 1
-        assert all("annotator" in u["email"].lower() for u in body)
+    assert resp.status_code == 200
+    ids = {u["id"] for u in resp.json()}
+    # Sees co-members of the shared org...
+    assert annotator_id in ids
+    # ...but not the stranger in the disjoint org.
+    assert stranger_id not in ids
 
-    def test_non_superadmin_no_org_returns_empty(
-        self, client, test_db, auth_headers
-    ):
-        """A non-superadmin with no org memberships (no test_org fixture) sees an
-        empty list — the early-return branch when user_org_ids is empty."""
-        resp = client.get(
-            "/api/organizations/manage/users",
-            headers=auth_headers["contributor"],
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_search_filter_narrows(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    # The seeded annotator email isn't deterministic, so seed one we can match.
+    annot = await _make_user(async_test_db, "Searchable")
+    annot.email = f"annotator-{uuid.uuid4().hex[:6]}@test.com"
+    annot.username = annot.email
+    await async_test_db.flush()
+    await async_test_db.commit()
+    with _as_user(users["admin"]):
+        resp = await async_test_client.get(
+            "/api/organizations/manage/users?search=annotator-"
         )
-        assert resp.status_code == 200
-        assert resp.json() == []
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) >= 1
+    assert all("annotator-" in u["email"].lower() for u in body)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_non_superadmin_no_org_returns_empty(async_test_client, async_test_db):
+    """A non-superadmin with no org memberships sees an empty list — the
+    early-return branch when user_org_ids is empty."""
+    user = await _make_user(async_test_db, "Orgless")
+    await async_test_db.commit()
+    auth_user = AuthUser(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        name=user.name,
+        is_superadmin=False,
+        is_active=True,
+        email_verified=True,
+        created_at=user.created_at or datetime.now(timezone.utc),
+        organizations=[],
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    app.dependency_overrides[get_current_user] = lambda: auth_user
+    try:
+        resp = await async_test_client.get("/api/organizations/manage/users")
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+        app.dependency_overrides.pop(get_current_user, None)
+    assert resp.status_code == 200
+    assert resp.json() == []
 
 
 # ---------------------------------------------------------------------------
 # update_user_superadmin_status — promote / permission branches
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_superadmin_promotes_user_persists(async_test_client, async_test_db):
+    admin = await _make_user(async_test_db, "Admin", is_superadmin=True)
+    target = await _make_user(async_test_db, "Promote Me")
+    target_id = target.id
+    await async_test_db.commit()
+    with _as_user(admin):
+        resp = await async_test_client.put(
+            f"/api/organizations/manage/users/{target_id}/superadmin",
+            json={"is_superadmin": True},
+        )
+    assert resp.status_code == 200
+    assert resp.json()["is_superadmin"] is True
+
+    refreshed = await _get_user(async_test_db, target_id)
+    assert refreshed.is_superadmin is True
+
 
 @pytest.mark.integration
-class TestUpdateSuperadmin:
-    def test_superadmin_promotes_user_persists(
-        self, client, test_db, test_users, auth_headers
-    ):
-        target = _make_user(test_db, "Promote Me")
-        resp = client.put(
-            f"/api/organizations/manage/users/{target.id}/superadmin",
+@pytest.mark.asyncio
+async def test_non_superadmin_cannot_promote_403(async_test_client, async_test_db):
+    org, users = await _seed_org_with_members(async_test_db)
+    annotator_id = users["annotator"].id
+    with _as_user(users["org_admin"]):
+        resp = await async_test_client.put(
+            f"/api/organizations/manage/users/{annotator_id}/superadmin",
             json={"is_superadmin": True},
-            headers=auth_headers["admin"],
         )
-        assert resp.status_code == 200
-        assert resp.json()["is_superadmin"] is True
+    assert resp.status_code == 403
+    assert "Only superadmins" in resp.json()["detail"]
 
-        test_db.expire_all()
-        refreshed = test_db.query(User).filter(User.id == target.id).first()
-        assert refreshed.is_superadmin is True
+    refreshed = await _get_user(async_test_db, annotator_id)
+    assert refreshed.is_superadmin is False
 
-    def test_non_superadmin_cannot_promote_403(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        resp = client.put(
-            f"/api/organizations/manage/users/{test_users[2].id}/superadmin",
-            json={"is_superadmin": True},
-            headers=auth_headers["org_admin"],
-        )
-        assert resp.status_code == 403
-        assert "Only superadmins" in resp.json()["detail"]
 
-        test_db.expire_all()
-        assert (
-            test_db.query(User).filter(User.id == test_users[2].id).first().is_superadmin
-            is False
-        )
-
-    def test_promote_user_not_found_404(self, client, test_db, test_users, auth_headers):
-        resp = client.put(
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_promote_user_not_found_404(async_test_client, async_test_db):
+    admin = await _make_user(async_test_db, "Admin", is_superadmin=True)
+    await async_test_db.commit()
+    with _as_user(admin):
+        resp = await async_test_client.put(
             f"/api/organizations/manage/users/{_uid()}/superadmin",
             json={"is_superadmin": True},
-            headers=auth_headers["admin"],
         )
-        assert resp.status_code == 404
-        assert "User not found" in resp.json()["detail"]
+    assert resp.status_code == 404
+    assert "User not found" in resp.json()["detail"]
 
 
 # ---------------------------------------------------------------------------
 # delete_user (manage/users) — permission + guard branches
+#
+# NOTE: delete_user stays SYNC (handler depends on the self-committing sync-only
+# user_service.delete_user). These tests keep the legacy sync client + test_db
+# fixtures unchanged — they still drive the real sync handler.
 # ---------------------------------------------------------------------------
+
+def _sync_make_user(test_db, name="Extra User", *, is_superadmin=False):
+    suffix = uuid.uuid4().hex[:8]
+    user = User(
+        id=_uid(),
+        username=f"user-{suffix}@test.com",
+        email=f"user-{suffix}@test.com",
+        name=name,
+        hashed_password="hashed",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=False,
+    )
+    test_db.add(user)
+    test_db.commit()
+    return user
 
 
 @pytest.mark.integration
@@ -646,7 +814,7 @@ class TestDeleteUser:
     def test_non_superadmin_cannot_delete_403(
         self, client, test_db, test_users, auth_headers
     ):
-        target = _make_user(test_db, "Delete Denied")
+        target = _sync_make_user(test_db, "Delete Denied")
         resp = client.delete(
             f"/api/organizations/manage/users/{target.id}",
             headers=auth_headers["contributor"],
@@ -687,9 +855,9 @@ class TestDeleteUser:
         second superadmin first. The deleted row is gone afterward.
         """
         # Fallback superadmin so reassignment in delete_user_service is possible.
-        _make_user(test_db, "Fallback Admin", is_superadmin=True)
+        _sync_make_user(test_db, "Fallback Admin", is_superadmin=True)
 
-        target = _make_user(test_db, "Doomed User")
+        target = _sync_make_user(test_db, "Doomed User")
         resp = client.delete(
             f"/api/organizations/manage/users/{target.id}",
             headers=auth_headers["admin"],

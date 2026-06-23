@@ -11,7 +11,7 @@ sys.path.append("/Users/sebastiannagl/Code/BenGer/services/api")
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
-from projects_api import get_project_organizations  # noqa: E402
+from routers.projects.helpers import get_project_organizations  # noqa: E402
 
 # Database connection using the same settings as the production environment
 DATABASE_URL = "postgresql://postgres:changeme123!@localhost:5432/benger"

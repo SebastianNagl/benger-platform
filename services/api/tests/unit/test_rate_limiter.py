@@ -18,7 +18,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from models import User
-from rate_limiter import (
+from services.rate_limiter import (
     RATE_LIMITS,
     USER_ROLE_MULTIPLIERS,
     RateLimiter,
@@ -324,6 +324,18 @@ class TestUserRoleLimits:
 
         assert limits == RATE_LIMITS["tasks"]  # Base limits
 
+    def test_get_rate_limits_user_without_role_attr(self):
+        """A user object with no ``role`` attribute (the real ORM/Pydantic User
+        — ``role`` lives on OrganizationMembership) must fall through to base
+        limits via getattr, NOT AttributeError-500 the request."""
+        # Mock(spec=User) has no `role` (the ORM User carries none), so
+        # accessing it would raise — exactly the production object shape.
+        roleless_user = Mock(spec=User)
+
+        limits = get_rate_limits_for_user("tasks", roleless_user)
+
+        assert limits == RATE_LIMITS["tasks"]  # Base limits, no exception
+
     def test_get_rate_limits_unknown_endpoint(self):
         """Test fallback to default API limits for unknown endpoint"""
         limits = get_rate_limits_for_user("unknown", None)
@@ -479,7 +491,7 @@ class TestGlobalRateLimiterInstance:
 
     def test_global_rate_limiter_exists(self):
         """Test that global rate limiter instance is available"""
-        from rate_limiter import rate_limiter
+        from services.rate_limiter import rate_limiter
 
         assert rate_limiter is not None
         assert isinstance(rate_limiter, RateLimiter)

@@ -1,239 +1,168 @@
 """
-Unit tests for routers/file_uploads.py to increase coverage.
-Tests upload, list, download, and delete file endpoints.
+Unit-level smoke tests for routers/file_uploads.py.
+
+The router was migrated to the async DB lane, so the ``db.query``-Mock /
+``get_db``-override pattern no longer reaches the handlers (they depend on
+``get_async_db`` and call ``db.execute``). These now seed real rows via
+``async_test_db`` and drive the surface through ``async_test_client``; the
+exhaustive branch coverage lives in
+``tests/integration/test_file_uploads_coverage.py``.
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+import pytest
 
-from main import app
-from auth_module.models import User
-from database import get_db
 from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
+from models import UploadedData, User
 
 
-def _make_user(is_superadmin=True, user_id="user-123"):
-    return User(
-        id=user_id,
-        username="testuser",
-        email="test@example.com",
-        name="Test User",
-        hashed_password="hashed",
-        is_superadmin=is_superadmin,
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_user(db):
+    u = User(
+        id=_uid(),
+        username=f"fu-unit-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="File Unit User",
+        is_superadmin=True,
         is_active=True,
         email_verified=True,
         created_at=datetime.now(timezone.utc),
     )
+    db.add(u)
+    await db.flush()
+    return u
 
 
-def _mock_db():
-    mock_db = Mock(spec=Session)
-    mock_q = MagicMock()
-    mock_q.filter.return_value = mock_q
-    mock_q.order_by.return_value = mock_q
-    mock_q.first.return_value = None
-    mock_q.all.return_value = []
-    mock_db.query.return_value = mock_q
-    return mock_db
+async def _seed(db, owner, *, storage_key="uploads/test.pdf", storage_url="https://s/test.pdf"):
+    row = UploadedData(
+        id=_uid(),
+        name="test.pdf",
+        original_filename="test.pdf",
+        file_path="uploads/test.pdf",
+        storage_key=storage_key,
+        storage_url=storage_url,
+        file_hash="h" * 8,
+        storage_type="local",
+        size=1024,
+        format="pdf",
+        uploaded_by=owner.id,
+        upload_date=datetime.now(timezone.utc),
+    )
+    db.add(row)
+    await db.commit()
+    return row
 
 
 class TestListFiles:
-    def test_empty_list(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/files/")
-            assert resp.status_code == 200
-            assert resp.json() == []
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_empty_list(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/files/")
+        assert resp.status_code == 200
+        assert resp.json() == []
 
-    def test_with_files(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
+    @pytest.mark.asyncio
+    async def test_with_files(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        await _seed(async_test_db, user)
+        with _as_user(user):
+            resp = await async_test_client.get("/api/files/")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["name"] == "test.pdf"
 
-        file_record = Mock()
-        file_record.id = "file-1"
-        file_record.name = "test.pdf"
-        file_record.size = 1024
-        file_record.format = "pdf"
-        file_record.upload_date = datetime.now(timezone.utc)
-        file_record.task_id = None
-        file_record.storage_url = "https://storage.example.com/test.pdf"
-        file_record.storage_key = "uploads/test.pdf"
-        file_record.cdn_url = None
+    @pytest.mark.asyncio
+    async def test_filter_by_task_id(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/files/?task_id=task-1")
+        assert resp.status_code == 200
 
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.order_by.return_value = mock_q
-        mock_q.all.return_value = [file_record]
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/files/")
-            assert resp.status_code == 200
-            data = resp.json()
-            assert len(data) == 1
-            assert data[0]["name"] == "test.pdf"
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_filter_by_task_id(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.order_by.return_value = mock_q
-        mock_q.all.return_value = []
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/files/?task_id=task-1")
-            assert resp.status_code == 200
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_file_without_storage_url(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-
-        file_record = Mock()
-        file_record.id = "file-1"
-        file_record.name = "test.pdf"
-        file_record.size = 1024
-        file_record.format = "pdf"
-        file_record.upload_date = datetime.now(timezone.utc)
-        file_record.task_id = None
-        file_record.storage_url = None
-        file_record.storage_key = "uploads/test.pdf"
-        file_record.cdn_url = None
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.order_by.return_value = mock_q
-        mock_q.all.return_value = [file_record]
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.file_uploads.object_storage") as mock_storage:
-                mock_storage.get_download_url.return_value = "https://generated-url.com"
-                resp = client.get("/api/files/")
-                assert resp.status_code == 200
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_file_without_storage_url(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        await _seed(async_test_db, user, storage_url=None)
+        with _as_user(user), patch("routers.file_uploads.object_storage") as mock_storage:
+            mock_storage.get_download_url.return_value = "https://generated-url.com"
+            resp = await async_test_client.get("/api/files/")
+        assert resp.status_code == 200
 
 
 class TestDownloadFile:
-    def test_file_not_found(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/files/nonexistent/download")
-            assert resp.status_code == 404
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_file_not_found(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/files/nonexistent/download")
+        assert resp.status_code == 404
 
-    def test_redirect_to_presigned_url(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-
-        file_record = Mock()
-        file_record.id = "file-1"
-        file_record.storage_key = "uploads/test.pdf"
-        file_record.file_path = None
-        file_record.original_filename = "test.pdf"
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = file_record
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.file_uploads.object_storage") as mock_storage:
-                mock_storage.get_download_url.return_value = "https://storage.example.com/presigned"
-                resp = client.get("/api/files/file-1/download", follow_redirects=False)
-                assert resp.status_code == 302
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_redirect_to_presigned_url(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        row = await _seed(async_test_db, user, storage_key="uploads/test.pdf")
+        with _as_user(user), patch("routers.file_uploads.object_storage") as mock_storage:
+            mock_storage.get_download_url.return_value = "https://storage.example.com/presigned"
+            resp = await async_test_client.get(
+                f"/api/files/{row.id}/download", follow_redirects=False
+            )
+        assert resp.status_code == 302
 
 
 class TestDeleteFile:
-    def test_file_not_found(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.delete("/api/files/nonexistent")
-            assert resp.status_code == 404
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_file_not_found(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user):
+            resp = await async_test_client.delete("/api/files/nonexistent")
+        assert resp.status_code == 404
 
-    def test_successful_delete(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
+    @pytest.mark.asyncio
+    async def test_successful_delete(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        row = await _seed(async_test_db, user, storage_key="uploads/test.pdf")
+        with _as_user(user), patch("routers.file_uploads.object_storage"):
+            resp = await async_test_client.delete(f"/api/files/{row.id}")
+        assert resp.status_code == 200
+        assert "deleted" in resp.json()["message"].lower()
 
-        file_record = Mock()
-        file_record.id = "file-1"
-        file_record.storage_key = "uploads/test.pdf"
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = file_record
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.file_uploads.object_storage"):
-                resp = client.delete("/api/files/file-1")
-                assert resp.status_code == 200
-                assert "deleted" in resp.json()["message"].lower()
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_delete_without_storage_key(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-
-        file_record = Mock()
-        file_record.id = "file-1"
-        file_record.storage_key = None
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = file_record
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.delete("/api/files/file-1")
-            assert resp.status_code == 200
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_delete_without_storage_key(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        row = await _seed(async_test_db, user, storage_key=None)
+        with _as_user(user):
+            resp = await async_test_client.delete(f"/api/files/{row.id}")
+        assert resp.status_code == 200

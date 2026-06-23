@@ -1,29 +1,42 @@
 """
 Integration tests for evaluation results and metadata endpoints.
 
-Tests evaluation handlers in routers/evaluations/results.py and
-routers/evaluations/metadata.py using real PostgreSQL.
+Tests evaluation handlers in routers/evaluations/results/ and
+routers/evaluations/metadata/ using real PostgreSQL.
+
+All endpoints exercised here were converted sync->async (``get_async_db`` +
+``await db.execute(select(...))`` + ``check_project_accessible_async``), so the
+tests seed through the ``async_test_db`` fixture and drive ``async_test_client``
+(which overrides ``get_async_db``). Auth is supplied by overriding
+``require_user`` with a real seeded user via the ``_as_user`` contextmanager
+(superadmin for the happy paths — it short-circuits the access check; a
+non-superadmin + a patched ``check_project_accessible_async`` for the
+deterministic 403s). The seed helpers mirror the FK-valid idioms of
+``test_eval_results_branches.py`` (ResponseGeneration parent + Generation child,
+an EvaluationJudgeRun parent for every TaskEvaluation).
 """
 
 import uuid
-from datetime import datetime, timedelta
+from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy.orm import Session
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
+    Generation,
     HumanEvaluationSession,
     LikertScaleEvaluation,
     PreferenceRanking,
     ResponseGeneration,
-    Generation,
     TaskEvaluation,
     User,
 )
 from project_models import Project, Task
-from user_service import get_password_hash
 
 # URL prefix: main router = /api/evaluations
 # results.py routes start with /evaluations/... => /api/evaluations/...
@@ -33,102 +46,104 @@ RESULTS_PREFIX = "/api/evaluations"
 META_PREFIX = "/api/evaluations"
 
 
-# ===== Fixtures =====
+# ---------------------------------------------------------------------------
+# Auth override (mirrors test_eval_results_branches.py)
+# ---------------------------------------------------------------------------
 
 
-@pytest.fixture
-def admin_user(test_db: Session) -> User:
-    user = User(
+@contextmanager
+def _as_user(db_user, is_superadmin=None):
+    sa = db_user.is_superadmin if is_superadmin is None else is_superadmin
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=sa,
+        is_active=True,
+        email_verified=True,
+        created_at=getattr(db_user, "created_at", None) or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+# ---------------------------------------------------------------------------
+# Async seeding helpers
+# ---------------------------------------------------------------------------
+
+
+async def _make_admin(db, *, is_superadmin=True):
+    u = User(
         id=f"admin-eval-{uuid.uuid4().hex[:8]}",
         username=f"evaladmin-{uuid.uuid4().hex[:8]}@test.com",
         email=f"evaladmin-{uuid.uuid4().hex[:8]}@test.com",
         name="Eval Admin",
-        hashed_password=get_password_hash("admin123"),
-        is_superadmin=True,
+        is_superadmin=is_superadmin,
         is_active=True,
         email_verified=True,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
-    test_db.add(user)
-    test_db.commit()
-    test_db.refresh(user)
-    return user
+    db.add(u)
+    await db.flush()
+    return u
 
 
-@pytest.fixture
-def non_admin_user(test_db: Session) -> User:
-    user = User(
-        id=f"nonadmin-eval-{uuid.uuid4().hex[:8]}",
-        username=f"nonadmin-{uuid.uuid4().hex[:8]}@test.com",
-        email=f"nonadmin-{uuid.uuid4().hex[:8]}@test.com",
-        name="Non Admin",
-        hashed_password=get_password_hash("user123"),
-        is_superadmin=False,
-        is_active=True,
-        email_verified=True,
-        created_at=datetime.utcnow(),
-    )
-    test_db.add(user)
-    test_db.commit()
-    test_db.refresh(user)
-    return user
-
-
-@pytest.fixture
-def test_project(test_db: Session, admin_user: User) -> Project:
-    project = Project(
+async def _make_project(db, admin, *, is_private=False):
+    p = Project(
         id=f"proj-eval-{uuid.uuid4().hex[:8]}",
         title="Evaluation Test Project",
         description="A test project for evaluation testing",
-        created_by=admin_user.id,
-        created_at=datetime.utcnow(),
+        created_by=admin.id,
+        is_private=is_private,
+        created_at=datetime.now(timezone.utc),
     )
-    test_db.add(project)
-    test_db.commit()
-    test_db.refresh(project)
-    return project
+    db.add(p)
+    await db.flush()
+    return p
 
 
-@pytest.fixture
-def test_tasks(test_db: Session, test_project: Project, admin_user: User):
+async def _make_tasks(db, project, admin, *, num=5):
     tasks = []
-    for i in range(5):
-        task = Task(
+    for i in range(num):
+        t = Task(
             id=f"task-eval-{uuid.uuid4().hex[:8]}",
-            project_id=test_project.id,
+            project_id=project.id,
             data={"text": f"Sample legal text {i}", "content": f"Content for task {i}"},
             inner_id=i + 1,
-            created_by=admin_user.id,
-            created_at=datetime.utcnow(),
+            created_by=admin.id,
+            created_at=datetime.now(timezone.utc),
         )
-        test_db.add(task)
-        tasks.append(task)
-    test_db.commit()
-    for t in tasks:
-        test_db.refresh(t)
+        db.add(t)
+        tasks.append(t)
+    await db.flush()
     return tasks
 
 
-@pytest.fixture
-def response_generation(test_db: Session, test_project: Project, admin_user: User):
+async def _make_response_generation(db, project, admin):
     rg = ResponseGeneration(
         id=f"rg-eval-{uuid.uuid4().hex[:8]}",
-        project_id=test_project.id,
+        project_id=project.id,
         model_id="gpt-4",
         status="completed",
-        created_by=admin_user.id,
-        created_at=datetime.utcnow(),
+        created_by=admin.id,
+        created_at=datetime.now(timezone.utc),
     )
-    test_db.add(rg)
-    test_db.commit()
-    test_db.refresh(rg)
+    db.add(rg)
+    await db.flush()
     return rg
 
 
-@pytest.fixture
-def test_generations(test_db: Session, test_tasks, response_generation):
-    generations = []
-    for i, task in enumerate(test_tasks):
+async def _make_generations(db, tasks, response_generation):
+    gens = []
+    for i, task in enumerate(tasks):
         gen = Generation(
             id=f"gen-eval-{uuid.uuid4().hex[:8]}",
             generation_id=response_generation.id,
@@ -139,58 +154,54 @@ def test_generations(test_db: Session, test_tasks, response_generation):
             status="completed",
             parse_status="success",
             run_index=i,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
-        test_db.add(gen)
-        generations.append(gen)
-    test_db.commit()
-    for g in generations:
-        test_db.refresh(g)
-    return generations
+        db.add(gen)
+        gens.append(gen)
+    await db.flush()
+    return gens
 
 
-@pytest.fixture
-def evaluation_run(test_db: Session, test_project: Project, admin_user: User):
-    eval_run = EvaluationRun(
+async def _make_eval_run(db, project, admin, *, model_id="gpt-4", status="completed",
+                         metrics=None):
+    er = EvaluationRun(
         id=f"eval-run-{uuid.uuid4().hex[:8]}",
-        project_id=test_project.id,
-        model_id="gpt-4",
+        project_id=project.id,
+        model_id=model_id,
         evaluation_type_ids=["accuracy", "f1"],
-        metrics={"accuracy": 0.85, "f1_score": 0.82},
-        status="completed",
+        metrics=metrics if metrics is not None else {"accuracy": 0.85, "f1_score": 0.82},
+        status=status,
         samples_evaluated=5,
         has_sample_results=True,
-        created_by=admin_user.id,
-        created_at=datetime.utcnow(),
-        completed_at=datetime.utcnow(),
+        created_by=admin.id,
+        created_at=datetime.now(timezone.utc),
+        completed_at=datetime.now(timezone.utc),
     )
-    test_db.add(eval_run)
-    test_db.flush()
-    # Migration 043 made TaskEvaluation.judge_run_id NOT NULL; use the
-    # catch-all judge-run shape that orphan backfill uses.
+    db.add(er)
+    await db.flush()
+    # Migration 043 made TaskEvaluation.judge_run_id NOT NULL; every
+    # TaskEvaluation needs a parent judge run (catch-all shape).
     judge_run = EvaluationJudgeRun(
         id=f"jr-{uuid.uuid4().hex[:8]}",
-        evaluation_id=eval_run.id,
+        evaluation_id=er.id,
         judge_model_id=None,
         run_index=0,
         status="completed",
     )
-    test_db.add(judge_run)
-    test_db.commit()
-    test_db.refresh(eval_run)
-    eval_run._test_judge_run = judge_run
-    return eval_run
+    db.add(judge_run)
+    await db.flush()
+    er._test_judge_run = judge_run
+    return er
 
 
-@pytest.fixture
-def task_evaluations(test_db: Session, evaluation_run, test_tasks, test_generations):
+async def _make_task_evaluations(db, eval_run, tasks, gens):
     evals = []
-    for i, (task, gen) in enumerate(zip(test_tasks, test_generations)):
+    for i, (task, gen) in enumerate(zip(tasks, gens)):
         score = 0.7 + (i * 0.05)
         te = TaskEvaluation(
             id=f"te-{uuid.uuid4().hex[:8]}",
-            evaluation_id=evaluation_run.id,
-            judge_run_id=evaluation_run._test_judge_run.id,
+            evaluation_id=eval_run.id,
+            judge_run_id=eval_run._test_judge_run.id,
             task_id=task.id,
             generation_id=gen.id,
             field_name="text_answer",
@@ -201,18 +212,15 @@ def task_evaluations(test_db: Session, evaluation_run, test_tasks, test_generati
             passed=score >= 0.75,
             confidence_score=score,
             processing_time_ms=100 + i * 10,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
-        test_db.add(te)
+        db.add(te)
         evals.append(te)
-    test_db.commit()
-    for e in evals:
-        test_db.refresh(e)
+    await db.flush()
     return evals
 
 
-@pytest.fixture
-def classification_evaluations(test_db: Session, evaluation_run, test_tasks, test_generations):
+async def _make_classification_evaluations(db, eval_run, tasks, gens):
     evals = []
     predictions = [
         ("positive", "positive"),
@@ -221,12 +229,12 @@ def classification_evaluations(test_db: Session, evaluation_run, test_tasks, tes
         ("positive", "negative"),
         ("neutral", "neutral"),
     ]
-    for i, (task, gen) in enumerate(zip(test_tasks, test_generations)):
+    for i, (task, gen) in enumerate(zip(tasks, gens)):
         gt, pred = predictions[i]
         te = TaskEvaluation(
             id=f"te-cls-{uuid.uuid4().hex[:8]}",
-            evaluation_id=evaluation_run.id,
-            judge_run_id=evaluation_run._test_judge_run.id,
+            evaluation_id=eval_run.id,
+            judge_run_id=eval_run._test_judge_run.id,
             task_id=task.id,
             generation_id=gen.id,
             field_name="classification",
@@ -235,118 +243,91 @@ def classification_evaluations(test_db: Session, evaluation_run, test_tasks, tes
             prediction={"value": pred},
             metrics={"accuracy": 1.0 if gt == pred else 0.0},
             passed=gt == pred,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
-        test_db.add(te)
+        db.add(te)
         evals.append(te)
-    test_db.commit()
-    for e in evals:
-        test_db.refresh(e)
+    await db.flush()
     return evals
 
 
-@pytest.fixture
-def auth_header(admin_user):
-    from auth_module import create_access_token
-    token = create_access_token(data={"user_id": admin_user.id})
-    return {"Authorization": f"Bearer {token}"}
-
-
-@pytest.fixture
-def nonadmin_auth_header(non_admin_user):
-    from auth_module import create_access_token
-    token = create_access_token(data={"user_id": non_admin_user.id})
-    return {"Authorization": f"Bearer {token}"}
-
-
-@pytest.fixture
-def human_eval_session(test_db: Session, test_project: Project, admin_user: User):
+async def _make_human_session(db, project, admin, *, session_type="likert",
+                              items_evaluated=3):
     session = HumanEvaluationSession(
         id=f"hes-{uuid.uuid4().hex[:8]}",
-        project_id=test_project.id,
-        evaluator_id=admin_user.id,
-        session_type="likert",
-        items_evaluated=3,
+        project_id=project.id,
+        evaluator_id=admin.id,
+        session_type=session_type,
+        items_evaluated=items_evaluated,
         status="completed",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
-    test_db.add(session)
-    test_db.commit()
-    test_db.refresh(session)
+    db.add(session)
+    await db.flush()
     return session
 
 
-@pytest.fixture
-def likert_evaluations(test_db: Session, human_eval_session, test_tasks):
+async def _make_likert_evaluations(db, session, tasks):
     evals = []
     dimensions = ["accuracy", "clarity", "completeness"]
-    for task in test_tasks[:3]:
+    for task in tasks[:3]:
         for dim in dimensions:
             le = LikertScaleEvaluation(
                 id=f"le-{uuid.uuid4().hex[:8]}",
-                session_id=human_eval_session.id,
+                session_id=session.id,
                 task_id=task.id,
                 response_id=f"resp-{uuid.uuid4().hex[:8]}",
                 dimension=dim,
                 rating=3 + (hash(dim) % 3),
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
             )
-            test_db.add(le)
+            db.add(le)
             evals.append(le)
-    test_db.commit()
+    await db.flush()
     return evals
 
 
-@pytest.fixture
-def preference_eval_session(test_db: Session, test_project: Project, admin_user: User):
-    session = HumanEvaluationSession(
-        id=f"hes-pref-{uuid.uuid4().hex[:8]}",
-        project_id=test_project.id,
-        evaluator_id=admin_user.id,
-        session_type="preference",
-        items_evaluated=5,
-        status="completed",
-        created_at=datetime.utcnow(),
-    )
-    test_db.add(session)
-    test_db.commit()
-    test_db.refresh(session)
-    return session
-
-
-@pytest.fixture
-def preference_rankings(test_db: Session, preference_eval_session, test_tasks):
+async def _make_preference_rankings(db, session, tasks):
     rankings = []
     winners = ["a", "b", "a", "tie", "a"]
-    for i, task in enumerate(test_tasks):
+    for i, task in enumerate(tasks):
         pr = PreferenceRanking(
             id=f"pr-{uuid.uuid4().hex[:8]}",
-            session_id=preference_eval_session.id,
+            session_id=session.id,
             task_id=task.id,
             response_a_id=f"resp-a-{i}",
             response_b_id=f"resp-b-{i}",
             winner=winners[i],
             confidence=0.8,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
-        test_db.add(pr)
+        db.add(pr)
         rankings.append(pr)
-    test_db.commit()
+    await db.flush()
     return rankings
 
 
-# ===== Group 1: Evaluation Results Integration Tests =====
+# ===========================================================================
+# Group 1: GET /evaluations/results/{project_id}
+# ===========================================================================
 
 
+@pytest.mark.integration
 class TestGetEvaluationResults:
     """Tests for GET /evaluations/results/{project_id}"""
 
-    def test_get_automated_results(self, client, auth_header, test_project, evaluation_run):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/results/{test_project.id}",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_get_automated_results(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        await _make_eval_run(async_test_db, project, admin)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/results/{project.id}"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert isinstance(data, list)
         assert len(data) >= 1
@@ -354,206 +335,333 @@ class TestGetEvaluationResults:
         assert len(automated) >= 1
         assert automated[0]["results"]["metrics"]["accuracy"] == 0.85
 
-    def test_get_results_with_human_likert(
-        self, client, auth_header, test_project, evaluation_run, likert_evaluations
-    ):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/results/{test_project.id}",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_get_results_with_human_likert(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        tasks = await _make_tasks(async_test_db, project, admin)
+        await _make_eval_run(async_test_db, project, admin)
+        session = await _make_human_session(async_test_db, project, admin)
+        await _make_likert_evaluations(async_test_db, session, tasks)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/results/{project.id}"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         likert = [r for r in data if r["results"].get("type") == "human_likert"]
         assert len(likert) >= 1
         dims = likert[0]["results"]["dimensions"]
         assert "accuracy" in dims or "clarity" in dims or "completeness" in dims
 
-    def test_get_results_with_preference_rankings(
-        self, client, auth_header, test_project, evaluation_run, preference_rankings
+    @pytest.mark.asyncio
+    async def test_get_results_with_preference_rankings(
+        self, async_test_client, async_test_db
     ):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/results/{test_project.id}",
-            headers=auth_header,
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        tasks = await _make_tasks(async_test_db, project, admin)
+        await _make_eval_run(async_test_db, project, admin)
+        session = await _make_human_session(
+            async_test_db, project, admin, session_type="preference", items_evaluated=5
         )
-        assert resp.status_code == 200
+        await _make_preference_rankings(async_test_db, session, tasks)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/results/{project.id}"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         pref = [r for r in data if r["results"].get("type") == "human_preference"]
         assert len(pref) >= 1
         assert "counts" in pref[0]["results"]
         assert "percentages" in pref[0]["results"]
 
-    def test_get_results_automated_only(
-        self, client, auth_header, test_project, evaluation_run, likert_evaluations
-    ):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/results/{test_project.id}?include_human=false",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_get_results_automated_only(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        tasks = await _make_tasks(async_test_db, project, admin)
+        await _make_eval_run(async_test_db, project, admin)
+        session = await _make_human_session(async_test_db, project, admin)
+        await _make_likert_evaluations(async_test_db, session, tasks)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/results/{project.id}?include_human=false"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         human = [r for r in data if "human" in r["results"].get("type", "")]
         assert len(human) == 0
 
-    def test_get_results_human_only(
-        self, client, auth_header, test_project, evaluation_run, likert_evaluations
-    ):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/results/{test_project.id}?include_automated=false",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_get_results_human_only(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        tasks = await _make_tasks(async_test_db, project, admin)
+        await _make_eval_run(async_test_db, project, admin)
+        session = await _make_human_session(async_test_db, project, admin)
+        await _make_likert_evaluations(async_test_db, session, tasks)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/results/{project.id}?include_automated=false"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         automated = [r for r in data if r["results"].get("type") == "automated"]
         assert len(automated) == 0
 
-    def test_get_results_limit(self, client, auth_header, test_project, evaluation_run):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/results/{test_project.id}?limit=1",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_get_results_limit(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        await _make_eval_run(async_test_db, project, admin)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/results/{project.id}?limit=1"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         automated = [r for r in data if r["results"].get("type") == "automated"]
         assert len(automated) <= 1
 
-    def test_get_results_no_auth(self, client, test_project):
-        resp = client.get(f"{RESULTS_PREFIX}/results/{test_project.id}")
+    @pytest.mark.asyncio
+    async def test_get_results_no_auth(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        await async_test_db.commit()
+        resp = await async_test_client.get(f"{RESULTS_PREFIX}/results/{project.id}")
         assert resp.status_code in [401, 403]
 
-    def test_get_results_nonexistent_project(self, client, auth_header):
+    @pytest.mark.asyncio
+    async def test_get_results_nonexistent_project(self, async_test_client, async_test_db):
         """Superadmin can access any project; nonexistent returns empty results."""
-        resp = client.get(
-            f"{RESULTS_PREFIX}/results/nonexistent-project-id",
-            headers=auth_header,
-        )
+        admin = await _make_admin(async_test_db)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/results/nonexistent-project-id"
+            )
         # Superadmin passes access check; endpoint returns 200 with empty list
-        assert resp.status_code == 200
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert isinstance(data, list)
         assert len(data) == 0
 
-    def test_get_results_empty_project(self, client, auth_header, test_project):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/results/{test_project.id}",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_get_results_empty_project(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/results/{project.id}"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert isinstance(data, list)
 
 
+# ===========================================================================
+# POST /evaluations/export/{project_id}
+# ===========================================================================
+
+
+@pytest.mark.integration
 class TestExportEvaluationResults:
     """Tests for POST /evaluations/export/{project_id}"""
 
-    def test_export_json(self, client, auth_header, test_project, evaluation_run):
-        resp = client.post(
-            f"{RESULTS_PREFIX}/export/{test_project.id}?format=json",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_export_json(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        await _make_eval_run(async_test_db, project, admin)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.post(
+                f"{RESULTS_PREFIX}/export/{project.id}?format=json"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
-        assert data["project_id"] == test_project.id
+        assert data["project_id"] == project.id
         assert "results" in data
 
-    def test_export_csv(self, client, auth_header, test_project, evaluation_run):
-        resp = client.post(
-            f"{RESULTS_PREFIX}/export/{test_project.id}?format=csv",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_export_csv(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        await _make_eval_run(async_test_db, project, admin)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.post(
+                f"{RESULTS_PREFIX}/export/{project.id}?format=csv"
+            )
+        assert resp.status_code == 200, resp.text
         assert "text/csv" in resp.headers.get("content-type", "")
 
-    def test_export_no_auth(self, client, test_project):
-        resp = client.post(f"{RESULTS_PREFIX}/export/{test_project.id}?format=json")
+    @pytest.mark.asyncio
+    async def test_export_no_auth(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        await async_test_db.commit()
+        resp = await async_test_client.post(
+            f"{RESULTS_PREFIX}/export/{project.id}?format=json"
+        )
         assert resp.status_code in [401, 403]
 
 
+# ===========================================================================
+# GET /evaluations/{evaluation_id}/samples
+# ===========================================================================
+
+
+@pytest.mark.integration
 class TestGetEvaluationSamples:
     """Tests for GET /evaluations/{evaluation_id}/samples"""
 
-    def test_get_samples(self, client, auth_header, evaluation_run, task_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/samples",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    async def _seed_samples(self, db):
+        admin = await _make_admin(db)
+        project = await _make_project(db, admin)
+        tasks = await _make_tasks(db, project, admin)
+        rg = await _make_response_generation(db, project, admin)
+        gens = await _make_generations(db, tasks, rg)
+        er = await _make_eval_run(db, project, admin)
+        await _make_task_evaluations(db, er, tasks, gens)
+        await db.commit()
+        return admin, project, er
+
+    @pytest.mark.asyncio
+    async def test_get_samples(self, async_test_client, async_test_db):
+        admin, project, er = await self._seed_samples(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/samples"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert "items" in data
         assert "total" in data
         assert data["total"] == 5
 
-    def test_get_samples_filter_by_field(self, client, auth_header, evaluation_run, task_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/samples?field_name=text_answer",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_get_samples_filter_by_field(self, async_test_client, async_test_db):
+        admin, project, er = await self._seed_samples(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/samples?field_name=text_answer"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert data["total"] == 5
 
-    def test_get_samples_filter_passed_true(self, client, auth_header, evaluation_run, task_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/samples?passed=true",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_get_samples_filter_passed_true(self, async_test_client, async_test_db):
+        admin, project, er = await self._seed_samples(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/samples?passed=true"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         for item in data["items"]:
             assert item["passed"] == True  # noqa: E712
 
-    def test_get_samples_filter_passed_false(self, client, auth_header, evaluation_run, task_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/samples?passed=false",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_get_samples_filter_passed_false(self, async_test_client, async_test_db):
+        admin, project, er = await self._seed_samples(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/samples?passed=false"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         for item in data["items"]:
             assert item["passed"] == False  # noqa: E712
 
-    def test_get_samples_pagination(self, client, auth_header, evaluation_run, task_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/samples?page=1&page_size=2",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_get_samples_pagination(self, async_test_client, async_test_db):
+        admin, project, er = await self._seed_samples(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/samples?page=1&page_size=2"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert len(data["items"]) == 2
         assert data["page"] == 1
         assert data["page_size"] == 2
         assert data["has_next"] == True  # noqa: E712
 
-    def test_get_samples_page_2(self, client, auth_header, evaluation_run, task_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/samples?page=2&page_size=2",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_get_samples_page_2(self, async_test_client, async_test_db):
+        admin, project, er = await self._seed_samples(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/samples?page=2&page_size=2"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert data["page"] == 2
         assert len(data["items"]) == 2
 
-    def test_get_samples_nonexistent_evaluation(self, client, auth_header):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/nonexistent-eval-id/samples",
-            headers=auth_header,
-        )
-        assert resp.status_code == 404
+    @pytest.mark.asyncio
+    async def test_get_samples_nonexistent_evaluation(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/nonexistent-eval-id/samples"
+            )
+        assert resp.status_code == 404, resp.text
 
-    def test_get_samples_no_auth(self, client, evaluation_run):
-        resp = client.get(f"{RESULTS_PREFIX}/{evaluation_run.id}/samples")
+    @pytest.mark.asyncio
+    async def test_get_samples_no_auth(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        er = await _make_eval_run(async_test_db, project, admin)
+        await async_test_db.commit()
+        resp = await async_test_client.get(f"{RESULTS_PREFIX}/{er.id}/samples")
         assert resp.status_code in [401, 403]
 
 
+# ===========================================================================
+# GET /evaluations/{evaluation_id}/metrics/{metric_name}/distribution
+# ===========================================================================
+
+
+@pytest.mark.integration
 class TestMetricDistribution:
     """Tests for GET /evaluations/{evaluation_id}/metrics/{metric_name}/distribution"""
 
-    def test_get_distribution(self, client, auth_header, evaluation_run, task_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/metrics/accuracy/distribution",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    async def _seed(self, db):
+        admin = await _make_admin(db)
+        project = await _make_project(db, admin)
+        tasks = await _make_tasks(db, project, admin)
+        rg = await _make_response_generation(db, project, admin)
+        gens = await _make_generations(db, tasks, rg)
+        er = await _make_eval_run(db, project, admin)
+        await _make_task_evaluations(db, er, tasks, gens)
+        await db.commit()
+        return admin, er
+
+    @pytest.mark.asyncio
+    async def test_get_distribution(self, async_test_client, async_test_db):
+        admin, er = await self._seed(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/metrics/accuracy/distribution"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert data["metric_name"] == "accuracy"
         assert "mean" in data
@@ -564,56 +672,89 @@ class TestMetricDistribution:
         assert "quartiles" in data
         assert "histogram" in data
 
-    def test_distribution_stats_correct(self, client, auth_header, evaluation_run, task_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/metrics/accuracy/distribution",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_distribution_stats_correct(self, async_test_client, async_test_db):
+        admin, er = await self._seed(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/metrics/accuracy/distribution"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert data["min"] <= data["mean"] <= data["max"]
         assert data["min"] <= data["median"] <= data["max"]
         assert data["std"] >= 0
 
-    def test_distribution_with_field_filter(self, client, auth_header, evaluation_run, task_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/metrics/accuracy/distribution?field_name=text_answer",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_distribution_with_field_filter(self, async_test_client, async_test_db):
+        admin, er = await self._seed(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/metrics/accuracy/distribution?field_name=text_answer"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert data["metric_name"] == "accuracy"
 
-    def test_distribution_nonexistent_metric(self, client, auth_header, evaluation_run, task_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/metrics/nonexistent_metric/distribution",
-            headers=auth_header,
-        )
-        assert resp.status_code == 404
+    @pytest.mark.asyncio
+    async def test_distribution_nonexistent_metric(self, async_test_client, async_test_db):
+        admin, er = await self._seed(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/metrics/nonexistent_metric/distribution"
+            )
+        assert resp.status_code == 404, resp.text
 
-    def test_distribution_nonexistent_evaluation(self, client, auth_header):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/nonexistent-eval/metrics/accuracy/distribution",
-            headers=auth_header,
-        )
-        assert resp.status_code == 404
+    @pytest.mark.asyncio
+    async def test_distribution_nonexistent_evaluation(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/nonexistent-eval/metrics/accuracy/distribution"
+            )
+        assert resp.status_code == 404, resp.text
 
-    def test_distribution_no_auth(self, client, evaluation_run):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/metrics/accuracy/distribution"
+    @pytest.mark.asyncio
+    async def test_distribution_no_auth(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        er = await _make_eval_run(async_test_db, project, admin)
+        await async_test_db.commit()
+        resp = await async_test_client.get(
+            f"{RESULTS_PREFIX}/{er.id}/metrics/accuracy/distribution"
         )
         assert resp.status_code in [401, 403]
 
 
+# ===========================================================================
+# GET /evaluations/{evaluation_id}/confusion-matrix
+# ===========================================================================
+
+
+@pytest.mark.integration
 class TestConfusionMatrix:
     """Tests for GET /evaluations/{evaluation_id}/confusion-matrix"""
 
-    def test_get_confusion_matrix(self, client, auth_header, evaluation_run, classification_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/confusion-matrix?field_name=classification",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    async def _seed_classification(self, db):
+        admin = await _make_admin(db)
+        project = await _make_project(db, admin)
+        tasks = await _make_tasks(db, project, admin)
+        rg = await _make_response_generation(db, project, admin)
+        gens = await _make_generations(db, tasks, rg)
+        er = await _make_eval_run(db, project, admin)
+        await _make_classification_evaluations(db, er, tasks, gens)
+        await db.commit()
+        return admin, er
+
+    @pytest.mark.asyncio
+    async def test_get_confusion_matrix(self, async_test_client, async_test_db):
+        admin, er = await self._seed_classification(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/confusion-matrix?field_name=classification"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert data["field_name"] == "classification"
         assert "labels" in data
@@ -623,127 +764,189 @@ class TestConfusionMatrix:
         assert "recall_per_class" in data
         assert "f1_per_class" in data
 
-    def test_confusion_matrix_labels(self, client, auth_header, evaluation_run, classification_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/confusion-matrix?field_name=classification",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_confusion_matrix_labels(self, async_test_client, async_test_db):
+        admin, er = await self._seed_classification(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/confusion-matrix?field_name=classification"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         labels = data["labels"]
         assert len(labels) >= 2
         assert labels == sorted(labels)
 
-    def test_confusion_matrix_dimensions(self, client, auth_header, evaluation_run, classification_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/confusion-matrix?field_name=classification",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_confusion_matrix_dimensions(self, async_test_client, async_test_db):
+        admin, er = await self._seed_classification(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/confusion-matrix?field_name=classification"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         n = len(data["labels"])
         assert len(data["matrix"]) == n
         for row in data["matrix"]:
             assert len(row) == n
 
-    def test_confusion_matrix_accuracy_range(self, client, auth_header, evaluation_run, classification_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/confusion-matrix?field_name=classification",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_confusion_matrix_accuracy_range(self, async_test_client, async_test_db):
+        admin, er = await self._seed_classification(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/confusion-matrix?field_name=classification"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert 0.0 <= data["accuracy"] <= 1.0
 
-    def test_confusion_matrix_no_field(self, client, auth_header, evaluation_run, classification_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/confusion-matrix",
-            headers=auth_header,
-        )
-        assert resp.status_code == 422
+    @pytest.mark.asyncio
+    async def test_confusion_matrix_no_field(self, async_test_client, async_test_db):
+        admin, er = await self._seed_classification(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/confusion-matrix"
+            )
+        assert resp.status_code == 422, resp.text
 
-    def test_confusion_matrix_nonexistent_field(self, client, auth_header, evaluation_run, task_evaluations):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/{evaluation_run.id}/confusion-matrix?field_name=nonexistent_field",
-            headers=auth_header,
-        )
-        assert resp.status_code == 404
+    @pytest.mark.asyncio
+    async def test_confusion_matrix_nonexistent_field(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        tasks = await _make_tasks(async_test_db, project, admin)
+        rg = await _make_response_generation(async_test_db, project, admin)
+        gens = await _make_generations(async_test_db, tasks, rg)
+        er = await _make_eval_run(async_test_db, project, admin)
+        await _make_task_evaluations(async_test_db, er, tasks, gens)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/{er.id}/confusion-matrix?field_name=nonexistent_field"
+            )
+        assert resp.status_code == 404, resp.text
 
-    def test_confusion_matrix_nonexistent_evaluation(self, client, auth_header):
-        resp = client.get(
-            f"{RESULTS_PREFIX}/nonexistent/confusion-matrix?field_name=classification",
-            headers=auth_header,
-        )
-        assert resp.status_code == 404
+    @pytest.mark.asyncio
+    async def test_confusion_matrix_nonexistent_evaluation(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/nonexistent/confusion-matrix?field_name=classification"
+            )
+        assert resp.status_code == 404, resp.text
 
 
+# ===========================================================================
+# metadata endpoints (routers/evaluations/metadata/)
+# ===========================================================================
+
+
+@pytest.mark.integration
 class TestEvaluationMetadataEndpoints:
-    """Tests for metadata endpoints in routers/evaluations/metadata.py"""
+    """Tests for metadata endpoints in routers/evaluations/metadata/"""
 
-    def test_get_evaluated_models(self, client, auth_header, test_project, evaluation_run, test_generations):
-        resp = client.get(
-            f"{META_PREFIX}/projects/{test_project.id}/evaluated-models",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_get_evaluated_models(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        tasks = await _make_tasks(async_test_db, project, admin)
+        rg = await _make_response_generation(async_test_db, project, admin)
+        await _make_generations(async_test_db, tasks, rg)
+        await _make_eval_run(async_test_db, project, admin)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{META_PREFIX}/projects/{project.id}/evaluated-models"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert isinstance(data, list)
 
-    def test_evaluated_models_includes_model_info(
-        self, client, auth_header, test_project, evaluation_run, test_generations
-    ):
-        resp = client.get(
-            f"{META_PREFIX}/projects/{test_project.id}/evaluated-models",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_evaluated_models_includes_model_info(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        tasks = await _make_tasks(async_test_db, project, admin)
+        rg = await _make_response_generation(async_test_db, project, admin)
+        await _make_generations(async_test_db, tasks, rg)
+        await _make_eval_run(async_test_db, project, admin)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{META_PREFIX}/projects/{project.id}/evaluated-models"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         if data:
             model = data[0]
             assert "model_id" in model
             assert "model_name" in model
 
-    def test_evaluated_models_with_configured(
-        self, client, auth_header, test_project, evaluation_run, test_db, test_generations
-    ):
-        test_project.generation_config = {
+    @pytest.mark.asyncio
+    async def test_evaluated_models_with_configured(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        tasks = await _make_tasks(async_test_db, project, admin)
+        rg = await _make_response_generation(async_test_db, project, admin)
+        await _make_generations(async_test_db, tasks, rg)
+        await _make_eval_run(async_test_db, project, admin)
+        project.generation_config = {
             "selected_configuration": {
                 "models": ["gpt-4", "claude-3-sonnet"],
             }
         }
-        test_db.commit()
+        async_test_db.add(project)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{META_PREFIX}/projects/{test_project.id}/evaluated-models?include_configured=true",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{META_PREFIX}/projects/{project.id}/evaluated-models?include_configured=true"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert isinstance(data, list)
 
-    def test_evaluated_models_nonexistent_project(self, client, auth_header):
-        resp = client.get(
-            f"{META_PREFIX}/projects/nonexistent-project/evaluated-models",
-            headers=auth_header,
-        )
+    @pytest.mark.asyncio
+    async def test_evaluated_models_nonexistent_project(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{META_PREFIX}/projects/nonexistent-project/evaluated-models"
+            )
         assert resp.status_code in [403, 404]
 
-    def test_evaluated_models_no_auth(self, client, test_project):
-        resp = client.get(f"{META_PREFIX}/projects/{test_project.id}/evaluated-models")
+    @pytest.mark.asyncio
+    async def test_evaluated_models_no_auth(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        await async_test_db.commit()
+        resp = await async_test_client.get(
+            f"{META_PREFIX}/projects/{project.id}/evaluated-models"
+        )
         assert resp.status_code in [401, 403]
 
-    def test_configured_methods_no_config(self, client, auth_header, test_project):
-        resp = client.get(
-            f"{META_PREFIX}/projects/{test_project.id}/configured-methods",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_configured_methods_no_config(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{META_PREFIX}/projects/{project.id}/configured-methods"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
-        assert data["project_id"] == test_project.id
+        assert data["project_id"] == project.id
         assert data["fields"] == []
 
-    def test_configured_methods_with_config(self, client, auth_header, test_project, test_db):
-        test_project.evaluation_config = {
+    @pytest.mark.asyncio
+    async def test_configured_methods_with_config(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        project.evaluation_config = {
             "selected_methods": {
                 "text_answer": {
                     "automated": ["accuracy", "f1"],
@@ -757,13 +960,14 @@ class TestEvaluationMetadataEndpoints:
                 }
             },
         }
-        test_db.commit()
+        async_test_db.add(project)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{META_PREFIX}/projects/{test_project.id}/configured-methods",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{META_PREFIX}/projects/{project.id}/configured-methods"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert len(data["fields"]) >= 1
         field = data["fields"][0]
@@ -772,29 +976,45 @@ class TestEvaluationMetadataEndpoints:
         assert len(field["human_methods"]) >= 1
 
 
+# ===========================================================================
+# GET /projects/{project_id}/evaluation-history
+# ===========================================================================
+
+
+@pytest.mark.integration
 class TestEvaluationHistory:
     """Tests for GET /projects/{project_id}/evaluation-history"""
 
-    def test_evaluation_history(self, client, auth_header, test_project, evaluation_run):
+    @pytest.mark.asyncio
+    async def test_evaluation_history(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        await _make_eval_run(async_test_db, project, admin)
+        await async_test_db.commit()
         # Issue #111: ``metric`` was renamed to ``metrics`` and the
         # response is now ``{series: [...]}``.
-        resp = client.get(
-            f"{META_PREFIX}/projects/{test_project.id}/evaluation-history"
-            "?model_ids=gpt-4&metrics=accuracy",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{META_PREFIX}/projects/{project.id}/evaluation-history"
+                "?model_ids=gpt-4&metrics=accuracy"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert "series" in data
         assert isinstance(data["series"], list)
 
-    def test_evaluation_history_data_points(self, client, auth_header, test_project, evaluation_run):
-        resp = client.get(
-            f"{META_PREFIX}/projects/{test_project.id}/evaluation-history"
-            "?model_ids=gpt-4&metrics=accuracy",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_evaluation_history_data_points(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        await _make_eval_run(async_test_db, project, admin)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{META_PREFIX}/projects/{project.id}/evaluation-history"
+                "?model_ids=gpt-4&metrics=accuracy"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         # Issue #111: data points live under each series rather than a
         # top-level "data" array.
@@ -808,96 +1028,132 @@ class TestEvaluationHistory:
                 assert "value" in point
                 assert "sample_count" in point
 
-    def test_evaluation_history_date_filter(self, client, auth_header, test_project, evaluation_run):
+    @pytest.mark.asyncio
+    async def test_evaluation_history_date_filter(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        await _make_eval_run(async_test_db, project, admin)
+        await async_test_db.commit()
         yesterday = (datetime.utcnow() - timedelta(days=1)).isoformat()
         tomorrow = (datetime.utcnow() + timedelta(days=1)).isoformat()
-        resp = client.get(
-            f"{META_PREFIX}/projects/{test_project.id}/evaluation-history"
-            f"?model_ids=gpt-4&metrics=accuracy&start_date={yesterday}&end_date={tomorrow}",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{META_PREFIX}/projects/{project.id}/evaluation-history"
+                f"?model_ids=gpt-4&metrics=accuracy&start_date={yesterday}&end_date={tomorrow}"
+            )
+        assert resp.status_code == 200, resp.text
 
-    def test_evaluation_history_nonexistent_project(self, client, auth_header):
-        resp = client.get(
-            f"{META_PREFIX}/projects/nonexistent/evaluation-history?model_ids=gpt-4&metrics=accuracy",
-            headers=auth_header,
-        )
+    @pytest.mark.asyncio
+    async def test_evaluation_history_nonexistent_project(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{META_PREFIX}/projects/nonexistent/evaluation-history?model_ids=gpt-4&metrics=accuracy"
+            )
         assert resp.status_code in [403, 404]
 
 
+# ===========================================================================
+# GET /significance/{project_id}
+# ===========================================================================
+
+
+@pytest.mark.integration
 class TestSignificanceTests:
     """Tests for GET /significance/{project_id}"""
 
-    def test_significance_endpoint(
-        self, client, auth_header, test_project, evaluation_run, task_evaluations, test_generations
-    ):
-        resp = client.get(
-            f"{META_PREFIX}/significance/{test_project.id}"
-            "?model_ids=gpt-4&metrics=accuracy",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_significance_endpoint(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
+        tasks = await _make_tasks(async_test_db, project, admin)
+        rg = await _make_response_generation(async_test_db, project, admin)
+        gens = await _make_generations(async_test_db, tasks, rg)
+        er = await _make_eval_run(async_test_db, project, admin)
+        await _make_task_evaluations(async_test_db, er, tasks, gens)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{META_PREFIX}/significance/{project.id}"
+                "?model_ids=gpt-4&metrics=accuracy"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         assert "comparisons" in data or "message" in data
 
-    def test_significance_nonexistent_project(self, client, auth_header):
-        resp = client.get(
-            f"{META_PREFIX}/significance/nonexistent?model_ids=gpt-4&metrics=accuracy",
-            headers=auth_header,
-        )
+    @pytest.mark.asyncio
+    async def test_significance_nonexistent_project(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{META_PREFIX}/significance/nonexistent?model_ids=gpt-4&metrics=accuracy"
+            )
         assert resp.status_code in [403, 404]
 
 
+# ===========================================================================
+# Model comparison via results endpoints
+# ===========================================================================
+
+
+@pytest.mark.integration
 class TestModelComparison:
     """Tests for model comparison via results endpoints."""
 
-    def test_multiple_eval_runs(self, client, auth_header, test_project, admin_user, test_db):
+    @pytest.mark.asyncio
+    async def test_multiple_eval_runs(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
         for i in range(3):
             er = EvaluationRun(
                 id=f"er-multi-{uuid.uuid4().hex[:8]}",
-                project_id=test_project.id,
+                project_id=project.id,
                 model_id=f"model-{i}",
                 evaluation_type_ids=["accuracy"],
                 metrics={"accuracy": 0.7 + (i * 0.1)},
                 status="completed",
                 samples_evaluated=10,
-                created_by=admin_user.id,
-                created_at=datetime.utcnow(),
+                created_by=admin.id,
+                created_at=datetime.now(timezone.utc),
             )
-            test_db.add(er)
-        test_db.commit()
+            async_test_db.add(er)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{RESULTS_PREFIX}/results/{test_project.id}?limit=100",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/results/{project.id}?limit=100"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         automated = [r for r in data if r["results"].get("type") == "automated"]
         assert len(automated) >= 3
 
-    def test_result_ordering(self, client, auth_header, test_project, admin_user, test_db):
+    @pytest.mark.asyncio
+    async def test_result_ordering(self, async_test_client, async_test_db):
+        admin = await _make_admin(async_test_db)
+        project = await _make_project(async_test_db, admin)
         for i in range(3):
             er = EvaluationRun(
                 id=f"er-order-{uuid.uuid4().hex[:8]}",
-                project_id=test_project.id,
+                project_id=project.id,
                 model_id="gpt-4",
                 evaluation_type_ids=["accuracy"],
                 metrics={"accuracy": 0.5 + (i * 0.1)},
                 status="completed",
                 samples_evaluated=10,
-                created_by=admin_user.id,
-                created_at=datetime.utcnow() - timedelta(hours=3 - i),
+                created_by=admin.id,
+                created_at=datetime.now(timezone.utc) - timedelta(hours=3 - i),
             )
-            test_db.add(er)
-        test_db.commit()
+            async_test_db.add(er)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{RESULTS_PREFIX}/results/{test_project.id}?limit=100",
-            headers=auth_header,
-        )
-        assert resp.status_code == 200
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{RESULTS_PREFIX}/results/{project.id}?limit=100"
+            )
+        assert resp.status_code == 200, resp.text
         data = resp.json()
         automated = [r for r in data if r["results"].get("type") == "automated"]
         if len(automated) >= 2:

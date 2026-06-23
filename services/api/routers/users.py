@@ -6,19 +6,25 @@ import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import or_
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from auth_module import (
     User,
     require_superadmin,
-    update_user_status,
-    update_user_superadmin_status,
 )
 # Re-exported for tests that patch routers.users.get_all_users.
 from auth_module import get_all_users  # noqa: F401
+# Async twins for the user-status updaters (migrated handlers below). The
+# legacy sync ``update_user_status`` / ``update_user_superadmin_status`` are no
+# longer called here — the handlers were moved to the async DB lane.
+from auth_module.user_service import (
+    update_user_status_async,
+    update_user_superadmin_status_async,
+)
 from auth_module.email_verification import email_verification_service
-from database import get_db
+from database import get_async_db, get_db
 from models import User as DBUser
 
 logger = logging.getLogger(__name__)
@@ -29,7 +35,7 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 @router.get("", response_model=List[User])
 async def get_all_users_endpoint(
     current_user: User = Depends(require_superadmin),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     search: Optional[str] = Query(
         None,
         description=(
@@ -51,13 +57,16 @@ async def get_all_users_endpoint(
     typing doesn't fan out queries.
     """
     if not search:
-        return db.query(DBUser).order_by(DBUser.created_at.desc()).limit(limit).all()
+        result = await db.execute(
+            select(DBUser).order_by(DBUser.created_at.desc()).limit(limit)
+        )
+        return result.scalars().all()
 
     escaped = search.replace("%", r"\%").replace("_", r"\_")
     like = f"%{escaped}%"
-    return (
-        db.query(DBUser)
-        .filter(
+    result = await db.execute(
+        select(DBUser)
+        .where(
             or_(
                 DBUser.username.ilike(like),
                 DBUser.email.ilike(like),
@@ -66,8 +75,8 @@ async def get_all_users_endpoint(
         )
         .order_by(DBUser.created_at.desc())
         .limit(limit)
-        .all()
     )
+    return result.scalars().all()
 
 
 @router.patch("/{user_id}/role", response_model=User)
@@ -75,7 +84,7 @@ async def update_user_role_endpoint(
     user_id: str,
     role_data: dict,
     current_user: User = Depends(require_superadmin),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Update user role (admin only)"""
     # Get superadmin status from request
@@ -87,7 +96,7 @@ async def update_user_role_endpoint(
         )
 
     # Update role
-    updated_user = update_user_superadmin_status(db, user_id, is_superadmin)
+    updated_user = await update_user_superadmin_status_async(db, user_id, is_superadmin)
     if not updated_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -99,11 +108,11 @@ async def update_user_status_endpoint(
     user_id: str,
     status_data: dict,
     current_user: User = Depends(require_superadmin),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Update user active status (admin only)"""
     # Update status
-    updated_user = update_user_status(db, user_id, status_data.get("is_active"))
+    updated_user = await update_user_status_async(db, user_id, status_data.get("is_active"))
     if not updated_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -153,7 +162,7 @@ async def delete_user_endpoint(
         )
 
     # Check if user exists and delete
-    from user_service import delete_user
+    from auth_module.user_service import delete_user
 
     try:
         if not delete_user(db, user_id):

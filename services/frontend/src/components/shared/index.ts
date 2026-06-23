@@ -49,3 +49,5 @@ export {
 export { Textarea } from './Textarea'
 export { default as UserApiKeys } from './UserApiKeys'
 export { LikertScale } from './LikertScale'
+
+export { GradeInput } from './GradeInput'

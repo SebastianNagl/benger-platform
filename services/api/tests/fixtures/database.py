@@ -85,6 +85,37 @@ def _create_tables():
                     "TIMESTAMP WITH TIME ZONE"
                 )
             )
+            # Migration 063: pause/resume/retry lifecycle columns on
+            # response_generations. Same create_all-skips-existing-tables
+            # drift — a long-lived test DB bootstrapped before these landed
+            # won't have them, so the generation router's success paths would
+            # 500 on the missing columns. Force them in idempotently.
+            conn.execute(
+                text(
+                    "ALTER TABLE response_generations "
+                    "ADD COLUMN IF NOT EXISTS paused_at TIMESTAMP WITH TIME ZONE"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE response_generations "
+                    "ADD COLUMN IF NOT EXISTS resumed_at TIMESTAMP WITH TIME ZONE"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE response_generations "
+                    "ADD COLUMN IF NOT EXISTS retry_count INTEGER NOT NULL DEFAULT 0"
+                )
+            )
+            # dispatch_epoch: bumped per re-dispatch so resume/retry get fresh,
+            # un-revoked deterministic task ids ({gen}:{run}:{epoch}).
+            conn.execute(
+                text(
+                    "ALTER TABLE response_generations "
+                    "ADD COLUMN IF NOT EXISTS dispatch_epoch INTEGER NOT NULL DEFAULT 0"
+                )
+            )
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "
@@ -327,7 +358,7 @@ def populated_database(
     test_evaluation_types: List[EvaluationType],
 ) -> Session:
     """Database populated with test data."""
-    from user_service import init_demo_users
+    from auth_module.user_service import init_demo_users
 
     init_demo_users(test_db)
     return test_db

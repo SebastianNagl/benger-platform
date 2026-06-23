@@ -1,6 +1,21 @@
 """
-Comprehensive tests for email service (workers)
-Tests email sending, template rendering, multi-language support
+Comprehensive tests for email service (workers).
+
+Tests email sending, template rendering, multi-language support.
+
+``EmailService`` is now the canonical, shared implementation that lives in
+``services/shared/mailer/email_service.py`` (the worker-local ``email_service``
+module is a thin re-export shim). Two consequences for these tests:
+
+* Module-level names that ``EmailService.__init__`` / ``_init_template_environment``
+  look up (``SendGridClient``, ``pathlib.Path``) are patched on the canonical
+  module — ``mailer.email_service.SendGridClient`` — not the local shim, because
+  the class body resolves names in the canonical module's namespace.
+* The unified ``EmailService`` consults the ``API_MAIL_SERVICE`` feature flag by
+  default; the worker has no DB at construction time, so these tests construct
+  with ``check_feature_flag=False`` (the worker's historical force-enabled
+  behavior) wherever a real ``__init__`` runs.
+
 Coverage target: 60%+ of email_service.py
 """
 
@@ -44,11 +59,11 @@ def mock_sendgrid_client():
 @pytest.fixture
 def email_service(mock_sendgrid_client):
     """Create an EmailService instance with mocked dependencies"""
-    with patch("email_service.SendGridClient", return_value=mock_sendgrid_client):
+    with patch("mailer.email_service.SendGridClient", return_value=mock_sendgrid_client):
         with patch.object(EmailService, "_init_template_environment") as mock_env:
             mock_template_env = Mock(spec=Environment)
             mock_env.return_value = mock_template_env
-            service = EmailService()
+            service = EmailService(check_feature_flag=False)
             service.mail_enabled = True
             service.template_env = mock_template_env
             return service
@@ -69,9 +84,9 @@ class TestEmailServiceInitialization:
 
     def test_init_with_default_values(self, mock_sendgrid_client):
         """Test initialization with default environment values"""
-        with patch("email_service.SendGridClient", return_value=mock_sendgrid_client):
+        with patch("mailer.email_service.SendGridClient", return_value=mock_sendgrid_client):
             with patch.object(EmailService, "_init_template_environment", return_value=Mock()):
-                service = EmailService()
+                service = EmailService(check_feature_flag=False)
 
                 assert service.from_email == "noreply@what-a-benger.net"
                 assert service.from_name == "BenGER Platform"
@@ -84,20 +99,20 @@ class TestEmailServiceInitialization:
         }
 
         with patch.dict(os.environ, env_vars):
-            with patch("email_service.SendGridClient", return_value=mock_sendgrid_client):
+            with patch("mailer.email_service.SendGridClient", return_value=mock_sendgrid_client):
                 with patch.object(
                     EmailService, "_init_template_environment", return_value=Mock()
                 ):
-                    service = EmailService()
+                    service = EmailService(check_feature_flag=False)
 
                     assert service.from_email == "custom@example.com"
                     assert service.from_name == "Custom Name"
 
     def test_init_with_mail_disabled(self, mock_sendgrid_client):
         """Test initialization when mail service is disabled"""
-        with patch("email_service.SendGridClient", return_value=mock_sendgrid_client):
+        with patch("mailer.email_service.SendGridClient", return_value=mock_sendgrid_client):
             with patch.object(EmailService, "_init_template_environment", return_value=Mock()):
-                service = EmailService()
+                service = EmailService(check_feature_flag=False)
                 service.mail_enabled = False
 
                 assert service.mail_enabled == False
@@ -107,27 +122,35 @@ class TestMailEnabledFlag:
     """Test mail_enabled flag behavior"""
 
     def test_mail_enabled_default_is_true(self):
-        """Test mail service is enabled by default"""
-        with patch("email_service.SendGridClient"):
+        """Test mail service is force-enabled when the feature-flag check is skipped.
+
+        The canonical (unified) ``EmailService`` consults the
+        ``API_MAIL_SERVICE`` feature flag by default. Workers historically had
+        no DB to query, so they construct with ``check_feature_flag=False`` —
+        which sets ``mail_enabled = True`` without touching the database. This
+        is the worker's original hardcoded behavior, now expressed as an
+        explicit constructor argument.
+        """
+        with patch("mailer.email_service.SendGridClient"):
             with patch.object(EmailService, "_init_template_environment", return_value=Mock()):
-                service = EmailService()
+                service = EmailService(check_feature_flag=False)
                 assert service.mail_enabled == True
 
     def test_mail_can_be_disabled(self):
         """Test mail service can be disabled"""
-        with patch("email_service.SendGridClient"):
+        with patch("mailer.email_service.SendGridClient"):
             with patch.object(EmailService, "_init_template_environment", return_value=Mock()):
-                service = EmailService()
+                service = EmailService(check_feature_flag=False)
                 service.mail_enabled = False
                 assert service.mail_enabled == False
 
     def test_mail_enabled_affects_sending(self):
         """Test that disabled mail prevents sending"""
-        with patch("email_service.SendGridClient") as mock_sg:
+        with patch("mailer.email_service.SendGridClient") as mock_sg:
             mock_client = Mock()
             mock_sg.return_value = mock_client
             with patch.object(EmailService, "_init_template_environment", return_value=Mock()):
-                service = EmailService()
+                service = EmailService(check_feature_flag=False)
                 service.mail_enabled = False
                 # mail_enabled = False should prevent sending in all send methods
 
@@ -137,10 +160,10 @@ class TestTemplateEnvironment:
 
     def test_init_template_environment_creates_directory(self):
         """Test that template directory is created if it doesn't exist"""
-        with patch("email_service.SendGridClient"):
+        with patch("mailer.email_service.SendGridClient"):
             with patch("pathlib.Path.exists", return_value=False):
                 with patch("pathlib.Path.mkdir") as mock_mkdir:
-                    service = EmailService()
+                    service = EmailService(check_feature_flag=False)
                     env = service._init_template_environment()
 
                     # mkdir should be called at least once
@@ -149,9 +172,9 @@ class TestTemplateEnvironment:
 
     def test_init_template_environment_existing_directory(self):
         """Test initialization with existing template directory"""
-        with patch("email_service.SendGridClient"):
+        with patch("mailer.email_service.SendGridClient"):
             with patch("pathlib.Path.exists", return_value=True):
-                service = EmailService()
+                service = EmailService(check_feature_flag=False)
                 env = service._init_template_environment()
 
                 assert isinstance(env, Environment)
@@ -159,8 +182,8 @@ class TestTemplateEnvironment:
 
     def test_template_environment_has_custom_filters(self):
         """Test that custom template filters are registered"""
-        with patch("email_service.SendGridClient"):
-            service = EmailService()
+        with patch("mailer.email_service.SendGridClient"):
+            service = EmailService(check_feature_flag=False)
             env = service._init_template_environment()
 
             # Check for format_date filter
@@ -182,8 +205,8 @@ class TestTemplateEnvironment:
             (tmp_path / name).write_text("Subject: x\n<html></html>")
 
         with patch.dict(os.environ, {"EMAIL_TEMPLATE_DIR": str(tmp_path)}), \
-             patch("email_service.SendGridClient"):
-            service = EmailService()
+             patch("mailer.email_service.SendGridClient"):
+            service = EmailService(check_feature_flag=False)
             env = service._init_template_environment()
             for name in ("default_notification.html", "task_assigned.html", "korrektur_assigned.html"):
                 tpl = env.get_template(name)

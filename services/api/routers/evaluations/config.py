@@ -7,16 +7,22 @@ from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 import extensions
 from app.core.authorization import Permission, auth_service
 from auth_module import User, require_user
-from database import get_db
-from evaluation_config import update_project_evaluation_config as generate_evaluation_config
+from database import get_async_db, get_db
+from services.evaluation.config import update_project_evaluation_config as generate_evaluation_config
 from project_models import Project
 from routers.evaluations.helpers import extract_metric_name
-from routers.projects.helpers import check_project_accessible, get_org_context_from_request
+from routers.projects.helpers import (
+    check_project_accessible,
+    check_project_accessible_async,
+    get_org_context_from_request,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +94,7 @@ async def get_project_evaluation_config(
     request: Request,
     force_regenerate: bool = False,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get evaluation configuration for a project.
@@ -99,7 +105,8 @@ async def get_project_evaluation_config(
     """
     try:
         # Verify project exists and user has access
-        project = db.query(Project).filter(Project.id == project_id).first()
+        result = await db.execute(select(Project).where(Project.id == project_id))
+        project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -108,7 +115,7 @@ async def get_project_evaluation_config(
 
         # Check if user can view this project's evaluation config
         org_context = get_org_context_from_request(request)
-        if not auth_service.check_project_access(
+        if not await auth_service.check_project_access_async(
             current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
         ):
             raise HTTPException(
@@ -148,7 +155,7 @@ async def get_project_evaluation_config(
 
             project.evaluation_config["label_config_version"] = project.label_config_version
             flag_modified(project, "evaluation_config")
-            db.commit()
+            await db.commit()
 
         if needs_regeneration:
             # Generate config based on label_config or return empty structure
@@ -165,7 +172,7 @@ async def get_project_evaluation_config(
                     existing_config=existing_config,
                     label_config_version=project.label_config_version,
                 )
-                db.commit()
+                await db.commit()
             else:
                 # Return empty config structure if no label_config
                 return {
@@ -185,7 +192,7 @@ async def get_project_evaluation_config(
             if derived:
                 config["evaluation_configs"] = derived
                 flag_modified(project, "evaluation_config")
-                db.commit()
+                await db.commit()
 
         return config
 
@@ -384,7 +391,7 @@ async def detect_answer_types(
     project_id: str,
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Detect answer types from the project's label configuration.
@@ -394,7 +401,8 @@ async def detect_answer_types(
     """
     try:
         # Get project
-        project = db.query(Project).filter(Project.id == project_id).first()
+        result = await db.execute(select(Project).where(Project.id == project_id))
+        project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -402,7 +410,7 @@ async def detect_answer_types(
             )
 
         org_context = get_org_context_from_request(request)
-        if not check_project_accessible(db, current_user, project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, project_id, org_context):
             raise HTTPException(status_code=403, detail="Access denied")
 
         if not project.label_config:
@@ -439,7 +447,7 @@ async def get_field_types_for_llm_judge(
     project_id: str,
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get field types with recommended LLM judge criteria for a project.
@@ -453,7 +461,8 @@ async def get_field_types_for_llm_judge(
         FieldTypesResponse with field_types mapping field names to their type info
     """
     try:
-        project = db.query(Project).filter(Project.id == project_id).first()
+        result = await db.execute(select(Project).where(Project.id == project_id))
+        project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -461,7 +470,7 @@ async def get_field_types_for_llm_judge(
             )
 
         org_context = get_org_context_from_request(request)
-        if not check_project_accessible(db, current_user, project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, project_id, org_context):
             raise HTTPException(status_code=403, detail="Access denied")
 
         if not project.label_config:

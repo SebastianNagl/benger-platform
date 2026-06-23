@@ -18,7 +18,7 @@ class TestEmailService:
     @pytest.fixture
     def email_service(self):
         """Create an email service instance for testing"""
-        with patch('services.email.email_service.SendGridClient') as mock_client:
+        with patch('mailer.email_service.SendGridClient') as mock_client:
             with patch('database.SessionLocal'):
                 service = EmailService()
                 service.mail_client = mock_client.return_value
@@ -67,13 +67,13 @@ class TestEmailService:
         assert email_service.template_env.autoescape == True  # noqa: E712
         assert 'format_date' in email_service.template_env.filters
 
-    @patch('services.email.email_service.Path.exists')
+    @patch('mailer.email_service.Path.exists')
     def test_template_directory_creation(self, mock_exists):
         """Test template directory creation if not exists"""
         mock_exists.return_value = False
 
-        with patch('services.email.email_service.Path.mkdir') as mock_mkdir:
-            with patch('services.email.email_service.SendGridClient'):
+        with patch('mailer.email_service.Path.mkdir') as mock_mkdir:
+            with patch('mailer.email_service.SendGridClient'):
                 with patch('database.SessionLocal'):
                     EmailService()
                     mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
@@ -234,7 +234,7 @@ class TestEmailService:
                 'EMAIL_FROM_NAME': 'BenGER Platform',
             },
         ):
-            with patch('services.email.email_service.SendGridClient'):
+            with patch('mailer.email_service.SendGridClient'):
                 with patch('database.SessionLocal'):
                     service = EmailService()
                     assert service.from_email == 'noreply@what-a-benger.net'
@@ -249,7 +249,7 @@ class TestEmailService:
                 'EMAIL_FROM_NAME': 'BenGER Staging',  # Different name to identify staging
             },
         ):
-            with patch('services.email.email_service.SendGridClient'):
+            with patch('mailer.email_service.SendGridClient'):
                 with patch('database.SessionLocal'):
                     service = EmailService()
                     assert service.from_email == 'noreply@what-a-benger.net'

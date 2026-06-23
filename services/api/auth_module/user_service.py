@@ -11,7 +11,8 @@ from typing import List, Optional
 
 import bcrypt
 from fastapi import HTTPException, status
-from sqlalchemy import inspect, or_, text
+from sqlalchemy import inspect, or_, select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from models import User
@@ -697,6 +698,10 @@ def init_demo_users(db: Session):
 
     from models import Organization, OrganizationMembership, User
 
+    # runtime-mutable by design (tests/unit/test_user_service.py uses
+    # monkeypatch.setenv("ENVIRONMENT", ...) then calls init_demo_users and
+    # asserts the dev/prod branch — the env var must be read per call, not
+    # frozen into settings at import time).
     environment = os.getenv("ENVIRONMENT", "development").lower()
 
     if environment not in ("development", "test", "e2e"):
@@ -1369,3 +1374,120 @@ def confirm_profile(db: Session, user_id: str):
 def initialize_database(db: Session):
     """Initialize database with demo users"""
     init_demo_users(db)
+
+
+# ---------------------------------------------------------------------------
+# Async twins (async DB lane).
+#
+# These mirror the sync helpers above for handlers migrated to
+# ``Depends(get_async_db)``. Each shares a pure ``_build_select_*`` builder
+# with its sync sibling so the QUERY semantics can never drift; the sync entry
+# points stay byte-identical (other sync callers + tests depend on them).
+#
+# One intentional difference: the sync ``get_user_by_{id,username,email}`` wrap
+# the query in a try/except that returns ``None`` on the SQLite-test
+# "no such column: users.is_superadmin" schema error (legacy bootstrap DBs).
+# The async twins OMIT that guard on purpose — the async lane runs exclusively on
+# real Postgres (asyncpg), which never raises that SQLite-phrased message, so the
+# guard would be unreachable dead code here. Behaviour is identical on every DB
+# the async lane actually uses.
+#
+# Complex helpers with raw-SQL FK cleanup / notification side effects
+# (``delete_user``, ``create_user``, ``update_user_profile``,
+# ``change_user_password``) deliberately have NO async twin — their callers
+# stay sync.
+# ---------------------------------------------------------------------------
+
+
+def _build_select_user_by_id(user_id: str):
+    return select(User).where(User.id == user_id)
+
+
+def _build_select_user_by_username(username: str):
+    return select(User).where(User.username == username)
+
+
+def _build_select_user_by_email(email: str):
+    return select(User).where(User.email == email)
+
+
+async def get_user_by_id_async(db: AsyncSession, user_id: str) -> Optional[User]:
+    """Async twin of :func:`get_user_by_id`."""
+    result = await db.execute(_build_select_user_by_id(user_id))
+    return result.scalar_one_or_none()
+
+
+async def get_user_by_username_async(db: AsyncSession, username: str) -> Optional[User]:
+    """Async twin of :func:`get_user_by_username`."""
+    result = await db.execute(_build_select_user_by_username(username))
+    return result.scalar_one_or_none()
+
+
+async def get_user_by_email_async(db: AsyncSession, email: str) -> Optional[User]:
+    """Async twin of :func:`get_user_by_email`."""
+    result = await db.execute(_build_select_user_by_email(email))
+    return result.scalar_one_or_none()
+
+
+async def update_user_superadmin_status_async(
+    db: AsyncSession, user_id: str, is_superadmin: bool
+) -> Optional[User]:
+    """Async twin of :func:`update_user_superadmin_status`."""
+    user = await get_user_by_id_async(db, user_id)
+    if not user:
+        return None
+
+    user.is_superadmin = is_superadmin
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def update_user_status_async(
+    db: AsyncSession, user_id: str, is_active: bool
+) -> Optional[User]:
+    """Async twin of :func:`update_user_status`."""
+    user = await get_user_by_id_async(db, user_id)
+    if not user:
+        return None
+
+    user.is_active = is_active
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def confirm_profile_async(db: AsyncSession, user_id: str):
+    """Async twin of :func:`confirm_profile`."""
+    from datetime import datetime, timezone
+    from models import UserProfileHistory
+
+    user = await get_user_by_id_async(db, user_id)
+    if not user:
+        return None
+
+    missing = get_mandatory_profile_fields(user)
+    if missing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot confirm profile with missing fields: {missing}",
+        )
+
+    now = datetime.now(timezone.utc)
+    snapshot = create_profile_snapshot(user)
+
+    history_entry = UserProfileHistory(
+        id=str(uuid.uuid4()),
+        user_id=user_id,
+        changed_at=now,
+        change_type="confirmation",
+        snapshot=snapshot,
+        changed_fields=["profile_confirmed_at"],
+    )
+    db.add(history_entry)
+
+    user.profile_confirmed_at = now
+    user.mandatory_profile_completed = True
+    await db.commit()
+    await db.refresh(user)
+    return user

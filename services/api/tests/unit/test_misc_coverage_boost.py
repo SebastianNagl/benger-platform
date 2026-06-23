@@ -1156,7 +1156,7 @@ class TestWebSocketClusteringInitBranches:
 
     @pytest.mark.asyncio
     async def test_initialize_with_connection_pool(self):
-        from websocket_clustering import WebSocketClusterManager
+        from services.websocket_clustering import WebSocketClusterManager
 
         manager = WebSocketClusterManager()
         mock_redis = AsyncMock()
@@ -1178,8 +1178,8 @@ class TestWebSocketClusteringInitBranches:
         # Remove _connection_pool so it falls through to connection_pool branch
         sync_redis._connection_pool = None
 
-        with patch("websocket_clustering.get_redis_client", return_value=sync_redis), \
-             patch("websocket_clustering.redis.Redis", return_value=mock_redis):
+        with patch("services.websocket_clustering.get_redis_client", return_value=sync_redis), \
+             patch("services.websocket_clustering.redis.Redis", return_value=mock_redis):
             # Mock hasattr check: _connection_pool returns False
             original_hasattr = hasattr
 
@@ -1194,7 +1194,7 @@ class TestWebSocketClusteringInitBranches:
     @pytest.mark.asyncio
     async def test_initialize_fallback_defaults(self):
         """Lines 73-80: fallback when no pool attributes exist."""
-        from websocket_clustering import WebSocketClusterManager
+        from services.websocket_clustering import WebSocketClusterManager
 
         manager = WebSocketClusterManager()
         mock_redis = AsyncMock()
@@ -1205,8 +1205,8 @@ class TestWebSocketClusteringInitBranches:
         # Client with no connection pool attributes
         sync_redis = MagicMock(spec=[])
 
-        with patch("websocket_clustering.get_redis_client", return_value=sync_redis), \
-             patch("websocket_clustering.redis.Redis", return_value=mock_redis):
+        with patch("services.websocket_clustering.get_redis_client", return_value=sync_redis), \
+             patch("services.websocket_clustering.redis.Redis", return_value=mock_redis):
             await manager.initialize()
             assert manager.is_listening == True  # noqa: E712
 
@@ -1216,7 +1216,7 @@ class TestWebSocketListenForMessages:
 
     @pytest.mark.asyncio
     async def test_listen_returns_when_no_pubsub(self):
-        from websocket_clustering import WebSocketClusterManager
+        from services.websocket_clustering import WebSocketClusterManager
 
         manager = WebSocketClusterManager()
         manager.pubsub = None
@@ -1226,7 +1226,7 @@ class TestWebSocketListenForMessages:
     @pytest.mark.asyncio
     async def test_handle_cluster_message_no_local_connections(self):
         """Lines 271-274: project_broadcast but no local connections."""
-        from websocket_clustering import WebSocketClusterManager
+        from services.websocket_clustering import WebSocketClusterManager
 
         manager = WebSocketClusterManager()
         manager._forward_to_local_connections = AsyncMock()
@@ -1245,7 +1245,7 @@ class TestWebSocketListenForMessages:
     @pytest.mark.asyncio
     async def test_handle_cluster_message_user_message_not_local(self):
         """Lines 282-286: user_message but user not in local connections."""
-        from websocket_clustering import WebSocketClusterManager
+        from services.websocket_clustering import WebSocketClusterManager
 
         manager = WebSocketClusterManager()
         manager._forward_to_local_user = AsyncMock()
@@ -1266,7 +1266,7 @@ class TestWebSocketGetProjectUsersError:
 
     @pytest.mark.asyncio
     async def test_get_project_users_parse_error(self):
-        from websocket_clustering import WebSocketClusterManager
+        from services.websocket_clustering import WebSocketClusterManager
 
         manager = WebSocketClusterManager()
         manager.redis_client = AsyncMock()
@@ -1287,7 +1287,7 @@ class TestWebSocketCleanupPartial:
 
     @pytest.mark.asyncio
     async def test_cleanup_without_pubsub(self):
-        from websocket_clustering import WebSocketClusterManager
+        from services.websocket_clustering import WebSocketClusterManager
 
         manager = WebSocketClusterManager()
         manager.is_listening = True
@@ -1299,7 +1299,7 @@ class TestWebSocketCleanupPartial:
 
     @pytest.mark.asyncio
     async def test_cleanup_with_redis_only(self):
-        from websocket_clustering import WebSocketClusterManager
+        from services.websocket_clustering import WebSocketClusterManager
 
         manager = WebSocketClusterManager()
         manager.is_listening = True

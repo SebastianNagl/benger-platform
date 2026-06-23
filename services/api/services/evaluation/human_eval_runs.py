@@ -22,8 +22,9 @@ from __future__ import annotations
 import uuid
 from typing import Final
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from models import EvaluationRun
@@ -47,31 +48,16 @@ def is_human_graded_metric(metric: str) -> bool:
     return metric in HUMAN_GRADED_METRICS
 
 
-def get_or_create_human_eval_run(
-    db: Session,
-    project_id: str,
-    metric: str,
-    created_by: str,
-) -> EvaluationRun:
-    """Return the singleton EvaluationRun for (project_id, metric).
+def _build_upsert_human_eval_run(project_id: str, metric: str, created_by: str):
+    """Shared upsert statement builder for the (project_id, metric) singleton.
 
-    Creates it on first call; on every subsequent call (including
-    concurrent ones from different graders) returns the same row via the
-    metric's partial unique index (`uq_human_eval_run_per_project_metric`
-    for korrektur_falloesung, `uq_human_eval_run_per_project_metric_custom`
-    for korrektur_custom).
-
-    `created_by` is the user who triggered this call and is recorded
-    only on first creation; it has no semantic meaning for the ongoing
-    run beyond auditability of who first opened the human-grading workflow.
+    Both the sync entry point and the async twin execute this exact INSERT …
+    ON CONFLICT … RETURNING so the two lanes are byte-identical in their SQL.
+    Caller is responsible for validating ``metric`` against
+    HUMAN_GRADED_METRICS before building (the index_where interpolation below
+    relies on that validation).
     """
-    if not is_human_graded_metric(metric):
-        raise ValueError(
-            "get_or_create_human_eval_run is only valid for human-graded metrics; "
-            f"got {metric!r} (allowed: {sorted(HUMAN_GRADED_METRICS)})"
-        )
-
-    stmt = (
+    return (
         pg_insert(EvaluationRun)
         .values(
             id=str(uuid.uuid4()),
@@ -122,5 +108,56 @@ def get_or_create_human_eval_run(
         .returning(EvaluationRun.id)
     )
 
+
+def get_or_create_human_eval_run(
+    db: Session,
+    project_id: str,
+    metric: str,
+    created_by: str,
+) -> EvaluationRun:
+    """Return the singleton EvaluationRun for (project_id, metric).
+
+    Creates it on first call; on every subsequent call (including
+    concurrent ones from different graders) returns the same row via the
+    metric's partial unique index (`uq_human_eval_run_per_project_metric`
+    for korrektur_falloesung, `uq_human_eval_run_per_project_metric_custom`
+    for korrektur_custom).
+
+    `created_by` is the user who triggered this call and is recorded
+    only on first creation; it has no semantic meaning for the ongoing
+    run beyond auditability of who first opened the human-grading workflow.
+    """
+    if not is_human_graded_metric(metric):
+        raise ValueError(
+            "get_or_create_human_eval_run is only valid for human-graded metrics; "
+            f"got {metric!r} (allowed: {sorted(HUMAN_GRADED_METRICS)})"
+        )
+
+    stmt = _build_upsert_human_eval_run(project_id, metric, created_by)
     run_id = db.execute(stmt).scalar_one()
     return db.query(EvaluationRun).filter(EvaluationRun.id == run_id).one()
+
+
+async def get_or_create_human_eval_run_async(
+    db: AsyncSession,
+    project_id: str,
+    metric: str,
+    created_by: str,
+) -> EvaluationRun:
+    """Async twin of :func:`get_or_create_human_eval_run`.
+
+    Shares the exact upsert statement so the persistence semantics (and the
+    partial-unique-index conflict resolution) are identical to the sync lane.
+    """
+    if not is_human_graded_metric(metric):
+        raise ValueError(
+            "get_or_create_human_eval_run is only valid for human-graded metrics; "
+            f"got {metric!r} (allowed: {sorted(HUMAN_GRADED_METRICS)})"
+        )
+
+    stmt = _build_upsert_human_eval_run(project_id, metric, created_by)
+    run_id = (await db.execute(stmt)).scalar_one()
+    result = await db.execute(
+        select(EvaluationRun).where(EvaluationRun.id == run_id)
+    )
+    return result.scalar_one()

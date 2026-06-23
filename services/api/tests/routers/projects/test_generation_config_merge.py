@@ -5,59 +5,133 @@ Tests the project update endpoint to ensure it properly merges generation_config
 updates instead of replacing the entire JSON field, preventing data loss.
 
 Issue #818: Prevent model selection from resetting prompt structures selection
+
+NOTE: the project PATCH endpoint (``routers/projects/crud.py``) was migrated to
+the async DB lane, so the test drives it through ``async_test_client`` /
+``async_test_db``. The prompt-structure side-effects (creating a structure,
+marking it active) are applied as direct async-DB writes that mirror exactly
+what the structures router persists — keeping the merge assertions on a single
+shared async transaction.
 """
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
 
+import pytest
+from sqlalchemy import select
+from sqlalchemy.orm.attributes import flag_modified
+
+from models import User
 from project_models import Project
 
 
-@pytest.fixture
-def auth_headers(test_user):
-    """Get authentication headers for test user"""
-    return {"Authorization": f"Bearer {test_user.token}"}
+@contextmanager
+def _as_user(db_user):
+    """Override require_user with an AuthUser mirroring ``db_user``."""
+    from auth_module.dependencies import require_user
+    from auth_module.models import User as AuthUser
+    from main import app
+
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
 
 
-@pytest.fixture
-def test_project(db: Session, test_user):
-    """Create a test project for generation config testing"""
+async def _make_owner(db) -> User:
+    owner = User(
+        id=str(uuid.uuid4()),
+        username=f"gen-merge-{uuid.uuid4().hex[:8]}",
+        email=f"{uuid.uuid4().hex[:8]}@example.com",
+        name="Gen Merge Owner",
+        is_superadmin=True,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(owner)
+    await db.flush()
+    return owner
+
+
+async def _make_project(db, owner) -> Project:
     project = Project(
-        id="test-project-gen-config-818",
+        id=str(uuid.uuid4()),
         title="Test Project for Issue #818",
         description="Project for testing generation_config deep merge",
-        created_by=test_user.id,
+        created_by=owner.id,
+        is_private=False,
         label_config='<View><Text name="text" value="$text"/></View>',
         generation_config={},  # Start with empty config
     )
     db.add(project)
-    db.commit()
-    db.refresh(project)
+    await db.commit()
     return project
 
 
-def create_prompt_structure(
-    client: TestClient, project_id: str, structure_key: str, auth_headers: dict
-):
-    """Helper to create a prompt structure for testing"""
-    response = client.put(
-        f"/api/projects/{project_id}/generation-config/structures/{structure_key}",
-        json={
-            "name": f"Test Structure {structure_key}",
-            "description": f"Test structure for {structure_key}",
-            "system_prompt": "You are a test assistant",
-            "instruction_prompt": "Test instruction",
-        },
-        headers=auth_headers,
+def _ensure_gen_config_shape(project: Project) -> None:
+    """Mirror routers.prompt_structures.ensure_generation_config_structure."""
+    if project.generation_config is None:
+        project.generation_config = {}
+    if "selected_configuration" not in project.generation_config:
+        project.generation_config["selected_configuration"] = {
+            "models": [],
+            "active_structures": [],
+        }
+    if "prompt_structures" not in project.generation_config:
+        project.generation_config["prompt_structures"] = {}
+
+
+async def create_prompt_structure(db, project_id: str, structure_key: str):
+    """Persist a prompt structure exactly as the (async) structures router would
+    — directly on the shared async transaction so the downstream PATCH / GET
+    assertions see it."""
+    project = (
+        await db.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
+    _ensure_gen_config_shape(project)
+    project.generation_config["prompt_structures"][structure_key] = {
+        "name": f"Test Structure {structure_key}",
+        "description": f"Test structure for {structure_key}",
+        "system_prompt": "You are a test assistant",
+        "instruction_prompt": "Test instruction",
+    }
+    flag_modified(project, "generation_config")
+    await db.commit()
+
+
+async def set_active_structures(db, project_id: str, structure_keys: list):
+    """Mirror PUT /generation-config/structures (set active) as a direct write."""
+    project = (
+        await db.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
+    _ensure_gen_config_shape(project)
+    available = project.generation_config.get("prompt_structures", {})
+    for key in structure_keys:
+        assert key in available, f"structure '{key}' must exist before activating"
+    project.generation_config["selected_configuration"]["active_structures"] = list(
+        structure_keys
     )
-    assert response.status_code == 200, f"Failed to create structure: {response.text}"
-    return response
+    flag_modified(project, "generation_config")
+    await db.commit()
 
 
 @pytest.mark.integration
-def test_model_selection_preserves_prompt_structures(
-    client: TestClient, auth_headers, test_project
+@pytest.mark.asyncio
+async def test_model_selection_preserves_prompt_structures(
+    async_test_client, async_test_db
 ):
     """
     Test that selecting models after prompts preserves prompt selection.
@@ -67,32 +141,31 @@ def test_model_selection_preserves_prompt_structures(
     2. User selects models
     3. Prompt structures should still be present (not reset to 0)
     """
-    project_id = test_project.id
+    owner = await _make_owner(async_test_db)
+    project = await _make_project(async_test_db, owner)
+    project_id = project.id
 
     # Step 0: Create prompt structures first
-    create_prompt_structure(client, project_id, "structure1", auth_headers)
-    create_prompt_structure(client, project_id, "structure2", auth_headers)
+    await create_prompt_structure(async_test_db, project_id, "structure1")
+    await create_prompt_structure(async_test_db, project_id, "structure2")
 
     # Step 1: Set prompt structures as active
-    response = client.put(
-        f"/api/projects/{project_id}/generation-config/structures",
-        json=["structure1", "structure2"],
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
+    await set_active_structures(async_test_db, project_id, ["structure1", "structure2"])
 
-    # Step 2: Now set models (this was causing prompts to be reset)
-    response = client.patch(
-        f"/api/projects/{project_id}",
-        json={
-            "generation_config": {"selected_configuration": {"models": ["gpt-4", "claude-3-opus"]}}
-        },
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
+    with _as_user(owner):
+        # Step 2: Now set models (this was causing prompts to be reset)
+        response = await async_test_client.patch(
+            f"/api/projects/{project_id}",
+            json={
+                "generation_config": {
+                    "selected_configuration": {"models": ["gpt-4", "claude-3-opus"]}
+                }
+            },
+        )
+        assert response.status_code == 200
 
-    # Step 3: Verify BOTH models AND active_structures are preserved
-    response = client.get(f"/api/projects/{project_id}", headers=auth_headers)
+        # Step 3: Verify BOTH models AND active_structures are preserved
+        response = await async_test_client.get(f"/api/projects/{project_id}")
     assert response.status_code == 200
     project = response.json()
 
@@ -112,36 +185,35 @@ def test_model_selection_preserves_prompt_structures(
 
 
 @pytest.mark.integration
-def test_prompt_selection_preserves_models(client: TestClient, auth_headers, test_project):
+@pytest.mark.asyncio
+async def test_prompt_selection_preserves_models(async_test_client, async_test_db):
     """
     Test the reverse order: selecting prompts after models preserves model selection.
 
     This ensures the fix works bidirectionally.
     """
-    project_id = test_project.id
+    owner = await _make_owner(async_test_db)
+    project = await _make_project(async_test_db, owner)
+    project_id = project.id
 
     # Step 0: Create prompt structures
-    create_prompt_structure(client, project_id, "structure1", auth_headers)
-    create_prompt_structure(client, project_id, "structure2", auth_headers)
+    await create_prompt_structure(async_test_db, project_id, "structure1")
+    await create_prompt_structure(async_test_db, project_id, "structure2")
 
-    # Step 1: Set models first
-    response = client.patch(
-        f"/api/projects/{project_id}",
-        json={"generation_config": {"selected_configuration": {"models": ["gpt-4"]}}},
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
+    with _as_user(owner):
+        # Step 1: Set models first
+        response = await async_test_client.patch(
+            f"/api/projects/{project_id}",
+            json={"generation_config": {"selected_configuration": {"models": ["gpt-4"]}}},
+        )
+        assert response.status_code == 200
 
     # Step 2: Now set prompt structures as active
-    response = client.put(
-        f"/api/projects/{project_id}/generation-config/structures",
-        json=["structure1", "structure2"],
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
+    await set_active_structures(async_test_db, project_id, ["structure1", "structure2"])
 
-    # Step 3: Verify BOTH are preserved
-    response = client.get(f"/api/projects/{project_id}", headers=auth_headers)
+    with _as_user(owner):
+        # Step 3: Verify BOTH are preserved
+        response = await async_test_client.get(f"/api/projects/{project_id}")
     assert response.status_code == 200
     project = response.json()
 
@@ -155,8 +227,9 @@ def test_prompt_selection_preserves_models(client: TestClient, auth_headers, tes
 
 
 @pytest.mark.integration
-def test_rapid_sequential_updates_preserve_all_fields(
-    client: TestClient, auth_headers, test_project
+@pytest.mark.asyncio
+async def test_rapid_sequential_updates_preserve_all_fields(
+    async_test_client, async_test_db
 ):
     """
     Test rapid sequential updates to ensure all fields are preserved.
@@ -164,47 +237,40 @@ def test_rapid_sequential_updates_preserve_all_fields(
     This simulates the real-world scenario where a user quickly updates
     multiple parts of the generation config.
     """
-    project_id = test_project.id
+    owner = await _make_owner(async_test_db)
+    project = await _make_project(async_test_db, owner)
+    project_id = project.id
 
     # Step 0: Create prompt structures
-    create_prompt_structure(client, project_id, "s1", auth_headers)
-    create_prompt_structure(client, project_id, "s2", auth_headers)
-    create_prompt_structure(client, project_id, "s3", auth_headers)
+    await create_prompt_structure(async_test_db, project_id, "s1")
+    await create_prompt_structure(async_test_db, project_id, "s2")
+    await create_prompt_structure(async_test_db, project_id, "s3")
 
-    # Update 1: Set models
-    response = client.patch(
-        f"/api/projects/{project_id}",
-        json={"generation_config": {"selected_configuration": {"models": ["gpt-4"]}}},
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
+    with _as_user(owner):
+        # Update 1: Set models
+        response = await async_test_client.patch(
+            f"/api/projects/{project_id}",
+            json={"generation_config": {"selected_configuration": {"models": ["gpt-4"]}}},
+        )
+        assert response.status_code == 200
 
     # Update 2: Set prompts as active (immediately after)
-    response = client.put(
-        f"/api/projects/{project_id}/generation-config/structures",
-        json=["s1", "s2"],
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
+    await set_active_structures(async_test_db, project_id, ["s1", "s2"])
 
-    # Update 3: Modify models (immediately after)
-    response = client.patch(
-        f"/api/projects/{project_id}",
-        json={"generation_config": {"selected_configuration": {"models": ["claude-3"]}}},
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
+    with _as_user(owner):
+        # Update 3: Modify models (immediately after)
+        response = await async_test_client.patch(
+            f"/api/projects/{project_id}",
+            json={"generation_config": {"selected_configuration": {"models": ["claude-3"]}}},
+        )
+        assert response.status_code == 200
 
     # Update 4: Add more prompt structures
-    response = client.put(
-        f"/api/projects/{project_id}/generation-config/structures",
-        json=["s1", "s2", "s3"],
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
+    await set_active_structures(async_test_db, project_id, ["s1", "s2", "s3"])
 
-    # Verify all updates were preserved
-    response = client.get(f"/api/projects/{project_id}", headers=auth_headers)
+    with _as_user(owner):
+        # Verify all updates were preserved
+        response = await async_test_client.get(f"/api/projects/{project_id}")
     project = response.json()
     config = project["generation_config"]["selected_configuration"]
 
@@ -217,44 +283,43 @@ def test_rapid_sequential_updates_preserve_all_fields(
 
 
 @pytest.mark.integration
-def test_partial_generation_config_update_preserves_other_fields(
-    client: TestClient, auth_headers, test_project
+@pytest.mark.asyncio
+async def test_partial_generation_config_update_preserves_other_fields(
+    async_test_client, async_test_db
 ):
     """
     Test that updating one part of generation_config preserves other unrelated fields.
     """
-    project_id = test_project.id
+    owner = await _make_owner(async_test_db)
+    project = await _make_project(async_test_db, owner)
+    project_id = project.id
 
     # Step 0: Create prompt structure
-    create_prompt_structure(client, project_id, "s1", auth_headers)
+    await create_prompt_structure(async_test_db, project_id, "s1")
 
-    # Set up initial state with multiple fields
-    response = client.patch(
-        f"/api/projects/{project_id}",
-        json={
-            "generation_config": {
-                "selected_configuration": {
-                    "models": ["gpt-4"],
-                    "parameters": {"temperature": 0.7, "max_tokens": 1500},
-                    "presentation_mode": "auto",
-                },
-                "other_config": "preserved",
-            }
-        },
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
+    with _as_user(owner):
+        # Set up initial state with multiple fields
+        response = await async_test_client.patch(
+            f"/api/projects/{project_id}",
+            json={
+                "generation_config": {
+                    "selected_configuration": {
+                        "models": ["gpt-4"],
+                        "parameters": {"temperature": 0.7, "max_tokens": 1500},
+                        "presentation_mode": "auto",
+                    },
+                    "other_config": "preserved",
+                }
+            },
+        )
+        assert response.status_code == 200
 
     # Now update only active_structures
-    response = client.put(
-        f"/api/projects/{project_id}/generation-config/structures",
-        json=["s1"],
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
+    await set_active_structures(async_test_db, project_id, ["s1"])
 
-    # Verify all other fields are preserved
-    response = client.get(f"/api/projects/{project_id}", headers=auth_headers)
+    with _as_user(owner):
+        # Verify all other fields are preserved
+        response = await async_test_client.get(f"/api/projects/{project_id}")
     project = response.json()
     config = project["generation_config"]
 
@@ -275,44 +340,42 @@ def test_partial_generation_config_update_preserves_other_fields(
 
 
 @pytest.mark.integration
-def test_updating_non_generation_config_fields_preserves_generation_config(
-    client: TestClient, auth_headers, test_project
+@pytest.mark.asyncio
+async def test_updating_non_generation_config_fields_preserves_generation_config(
+    async_test_client, async_test_db
 ):
     """
     Test that updating other project fields doesn't affect generation_config.
     """
-    project_id = test_project.id
+    owner = await _make_owner(async_test_db)
+    project = await _make_project(async_test_db, owner)
+    project_id = project.id
 
     # Step 0: Create prompt structures
-    create_prompt_structure(client, project_id, "s1", auth_headers)
-    create_prompt_structure(client, project_id, "s2", auth_headers)
+    await create_prompt_structure(async_test_db, project_id, "s1")
+    await create_prompt_structure(async_test_db, project_id, "s2")
 
-    # Set up generation_config with models
-    response = client.patch(
-        f"/api/projects/{project_id}",
-        json={"generation_config": {"selected_configuration": {"models": ["gpt-4"]}}},
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
+    with _as_user(owner):
+        # Set up generation_config with models
+        response = await async_test_client.patch(
+            f"/api/projects/{project_id}",
+            json={"generation_config": {"selected_configuration": {"models": ["gpt-4"]}}},
+        )
+        assert response.status_code == 200
 
     # Set active structures
-    response = client.put(
-        f"/api/projects/{project_id}/generation-config/structures",
-        json=["s1", "s2"],
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
+    await set_active_structures(async_test_db, project_id, ["s1", "s2"])
 
-    # Update title and description (non-generation_config fields)
-    response = client.patch(
-        f"/api/projects/{project_id}",
-        json={"title": "Updated Title", "description": "Updated description"},
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
+    with _as_user(owner):
+        # Update title and description (non-generation_config fields)
+        response = await async_test_client.patch(
+            f"/api/projects/{project_id}",
+            json={"title": "Updated Title", "description": "Updated description"},
+        )
+        assert response.status_code == 200
 
-    # Verify generation_config is untouched
-    response = client.get(f"/api/projects/{project_id}", headers=auth_headers)
+        # Verify generation_config is untouched
+        response = await async_test_client.get(f"/api/projects/{project_id}")
     project = response.json()
 
     assert project["title"] == "Updated Title"

@@ -1,21 +1,39 @@
 """Unit tests for the /api/runs single-run inventory router.
 
-Covers permission filtering (non-superadmin must not see runs from
-projects they can't access), generation/evaluation tab shapes, and
-the linked-evaluations expansion on the generation detail endpoint.
+Covers the pure metadata-extraction helpers and the permission-filtering /
+404 / 403 branches of the (async) handlers. The router was migrated to the
+async DB lane, so the handler-level tests call the coroutine handlers with a
+real ``async_test_db`` AsyncSession (seeding the rows they need) and patch the
+async access helper to drive the accessibility branch — ``db.query`` Mocks no
+longer model the ``await db.execute(...)`` surface the handlers use.
 """
 
+import uuid
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
+from auth_module.models import User as AuthUser
+from models import ResponseGeneration, User
+from project_models import Project, Task
 
-def _make_user(is_superadmin: bool = False, user_id: str = "u1"):
-    user = Mock()
-    user.id = user_id
-    user.is_superadmin = is_superadmin
-    return user
+
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+def _auth_user(is_superadmin: bool = False, user_id: str = "u1"):
+    return AuthUser(
+        id=user_id,
+        username="runs-unit",
+        email="runs-unit@test.com",
+        name="Runs Unit",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
 
 
 def _make_request():
@@ -24,39 +42,56 @@ def _make_request():
     return request
 
 
-def _gen_row(rid: str, project_id: str, model_id: str = "gpt-4o"):
-    g = Mock()
-    g.id = rid
-    g.project_id = project_id
-    g.model_id = model_id
-    g.task_id = None
-    g.structure_key = None
-    g.status = "completed"
-    g.created_at = datetime.now(timezone.utc)
-    g.completed_at = datetime.now(timezone.utc)
-    g.created_by = "u1"
-    g.error_message = None
-    g.runs_requested = 1
-    g.runs_completed = 1
-    g.runs_failed = 0
-    return g
+async def _seed_user(db):
+    u = User(
+        id=_uid(),
+        username=f"u-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Runs Unit User",
+        is_superadmin=False,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
 
 
-def _eval_row(rid: str, project_id: str):
-    e = Mock()
-    e.id = rid
-    e.project_id = project_id
-    e.model_id = "gpt-4o"
-    e.status = "completed"
-    e.created_at = datetime.now(timezone.utc)
-    e.completed_at = datetime.now(timezone.utc)
-    e.created_by = "u1"
-    e.error_message = None
-    e.samples_evaluated = 13
-    e.eval_metadata = {
-        "evaluation_configs": [{"metric": "llm_judge_classic", "metric_parameters": {}}],
-    }
-    return e
+async def _seed_project(db, creator):
+    proj = Project(
+        id=_uid(),
+        title=f"Runs Unit {uuid.uuid4().hex[:6]}",
+        created_by=creator.id,
+        label_config='<View><Text name="text" value="$text"/></View>',
+    )
+    db.add(proj)
+    await db.flush()
+    return proj
+
+
+async def _seed_generation(db, project, *, model_id="gpt-4o", status="completed"):
+    task = Task(
+        id=_uid(),
+        project_id=project.id,
+        inner_id=1,
+        data={"text": "t"},
+        created_by=project.created_by,
+        updated_by=project.created_by,
+    )
+    db.add(task)
+    await db.flush()
+    rg = ResponseGeneration(
+        id=_uid(),
+        project_id=project.id,
+        task_id=task.id,
+        model_id=model_id,
+        status=status,
+        created_by=project.created_by,
+    )
+    db.add(rg)
+    await db.flush()
+    return rg
 
 
 # ---------------------------------------------------------------------------
@@ -66,39 +101,51 @@ def _eval_row(rid: str, project_id: str):
 
 class TestListRunsPermissionFilter:
     @pytest.mark.asyncio
-    @patch("routers.runs.check_project_accessible")
+    @patch("routers.runs.check_project_accessible_async")
     @patch("routers.runs.get_org_context_from_request")
     async def test_evaluation_tab_filters_inaccessible_projects(
-        self, mock_org_ctx, mock_access
+        self, mock_org_ctx, mock_access, async_test_db
     ):
         """Non-superadmin must not see runs from projects they can't access."""
         from routers.runs import list_runs
 
         mock_org_ctx.return_value = "private"
-        # User can access project-A; project-B is forbidden.
-        mock_access.side_effect = lambda db, user, pid, ctx: pid == "project-A"
 
-        accessible = _eval_row("eval-1", "project-A")
-        forbidden = _eval_row("eval-2", "project-B")
+        from models import EvaluationRun
 
-        db = Mock()
-        # First query: count(); second: paginated rows; third: project titles map.
-        query_results = [  # noqa: F841
-            ([accessible, forbidden],),  # .all() for eval rows
-        ]
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.order_by.return_value = mock_q
-        mock_q.offset.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.count.return_value = 2
-        mock_q.all.return_value = [accessible, forbidden]
-        # The project titles map query that runs after permission filter
-        # also goes through db.query(...).filter(...).all() — return [].
-        mock_titles_q = MagicMock()
-        mock_titles_q.filter.return_value = mock_titles_q
-        mock_titles_q.all.return_value = []
-        db.query.side_effect = [mock_q, mock_titles_q]
+        creator = await _seed_user(async_test_db)
+        proj_a = await _seed_project(async_test_db, creator)
+        proj_b = await _seed_project(async_test_db, creator)
+        er_a = EvaluationRun(
+            id=_uid(),
+            project_id=proj_a.id,
+            model_id="gpt-4o",
+            evaluation_type_ids=["accuracy"],
+            metrics={"accuracy": 0.9},
+            status="completed",
+            samples_evaluated=5,
+            eval_metadata={"evaluation_configs": [{"metric": "accuracy"}]},
+            created_by=creator.id,
+        )
+        er_b = EvaluationRun(
+            id=_uid(),
+            project_id=proj_b.id,
+            model_id="gpt-4o",
+            evaluation_type_ids=["accuracy"],
+            metrics={"accuracy": 0.9},
+            status="completed",
+            samples_evaluated=5,
+            eval_metadata={"evaluation_configs": [{"metric": "accuracy"}]},
+            created_by=creator.id,
+        )
+        async_test_db.add_all([er_a, er_b])
+        await async_test_db.commit()
+
+        # User can access proj_a; proj_b is forbidden.
+        async def _access(db, user, pid, ctx):
+            return pid == proj_a.id
+
+        mock_access.side_effect = _access
 
         resp = await list_runs(
             request=_make_request(),
@@ -106,44 +153,36 @@ class TestListRunsPermissionFilter:
             project_id=None,
             status_filter=None,
             page=1,
-            page_size=25,
-            current_user=_make_user(is_superadmin=False),
-            db=db,
+            page_size=200,
+            current_user=_auth_user(is_superadmin=False),
+            db=async_test_db,
         )
 
-        # Total stays at the unfiltered count (the filter is applied in
-        # Python after the DB pull) — but items must only contain the
-        # accessible row.
         item_ids = {it.id for it in resp.items}
-        assert "eval-1" in item_ids
-        assert "eval-2" not in item_ids
+        assert er_a.id in item_ids
+        assert er_b.id not in item_ids
 
     @pytest.mark.asyncio
-    @patch("routers.runs.check_project_accessible")
+    @patch("routers.runs.check_project_accessible_async")
     @patch("routers.runs.get_org_context_from_request")
     async def test_generation_tab_filters_inaccessible_projects(
-        self, mock_org_ctx, mock_access
+        self, mock_org_ctx, mock_access, async_test_db
     ):
         from routers.runs import list_runs
 
         mock_org_ctx.return_value = "private"
-        mock_access.side_effect = lambda db, user, pid, ctx: pid == "project-A"
 
-        accessible = _gen_row("gen-1", "project-A")
-        forbidden = _gen_row("gen-2", "project-B")
+        creator = await _seed_user(async_test_db)
+        proj_a = await _seed_project(async_test_db, creator)
+        proj_b = await _seed_project(async_test_db, creator)
+        gen_a = await _seed_generation(async_test_db, proj_a)
+        gen_b = await _seed_generation(async_test_db, proj_b)
+        await async_test_db.commit()
 
-        db = Mock()
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.order_by.return_value = mock_q
-        mock_q.offset.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.count.return_value = 2
-        mock_q.all.return_value = [accessible, forbidden]
-        mock_titles_q = MagicMock()
-        mock_titles_q.filter.return_value = mock_titles_q
-        mock_titles_q.all.return_value = []
-        db.query.side_effect = [mock_q, mock_titles_q]
+        async def _access(db, user, pid, ctx):
+            return pid == proj_a.id
+
+        mock_access.side_effect = _access
 
         resp = await list_runs(
             request=_make_request(),
@@ -151,71 +190,64 @@ class TestListRunsPermissionFilter:
             project_id=None,
             status_filter=None,
             page=1,
-            page_size=25,
-            current_user=_make_user(is_superadmin=False),
-            db=db,
+            page_size=200,
+            current_user=_auth_user(is_superadmin=False),
+            db=async_test_db,
         )
 
         item_ids = {it.id for it in resp.items}
-        assert "gen-1" in item_ids
-        assert "gen-2" not in item_ids
+        assert gen_a.id in item_ids
+        assert gen_b.id not in item_ids
 
 
 # ---------------------------------------------------------------------------
-# get_generation_run — 403 on inaccessible project
+# get_generation_run — 403 on inaccessible project / 404 on missing
 # ---------------------------------------------------------------------------
 
 
 class TestGetGenerationRunPermission:
     @pytest.mark.asyncio
-    @patch("routers.runs.check_project_accessible", return_value=False)
+    @patch("routers.runs.check_project_accessible_async", return_value=False)
     @patch("routers.runs.get_org_context_from_request", return_value="private")
-    async def test_returns_403_when_project_inaccessible(self, *_):
+    async def test_returns_403_when_project_inaccessible(
+        self, _mock_ctx, _mock_access, async_test_db
+    ):
         from fastapi import HTTPException
 
         from routers.runs import get_generation_run
 
-        gen = _gen_row("gen-x", "project-Z")
-
-        db = Mock()
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = gen
-        db.query.return_value = mock_q
+        creator = await _seed_user(async_test_db)
+        proj = await _seed_project(async_test_db, creator)
+        rg = await _seed_generation(async_test_db, proj)
+        await async_test_db.commit()
 
         with pytest.raises(HTTPException) as exc:
             await get_generation_run(
-                generation_id="gen-x",
+                generation_id=rg.id,
                 request=_make_request(),
-                current_user=_make_user(is_superadmin=False),
-                db=db,
+                current_user=_auth_user(is_superadmin=False),
+                db=async_test_db,
             )
         assert exc.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_returns_404_when_generation_missing(self):
+    async def test_returns_404_when_generation_missing(self, async_test_db):
         from fastapi import HTTPException
 
         from routers.runs import get_generation_run
 
-        db = Mock()
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = None
-        db.query.return_value = mock_q
-
         with pytest.raises(HTTPException) as exc:
             await get_generation_run(
-                generation_id="missing",
+                generation_id="missing-" + _uid(),
                 request=_make_request(),
-                current_user=_make_user(),
-                db=db,
+                current_user=_auth_user(),
+                db=async_test_db,
             )
         assert exc.value.status_code == 404
 
 
 # ---------------------------------------------------------------------------
-# Helpers — judge model + metric extraction
+# Helpers — judge model + metric extraction (pure, no DB)
 # ---------------------------------------------------------------------------
 
 

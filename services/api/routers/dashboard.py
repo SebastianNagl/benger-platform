@@ -5,20 +5,20 @@ Dashboard and analytics endpoints.
 import logging
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy import func, select, text
-from sqlalchemy.orm import Session
+from sqlalchemy import cast, func, select, text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import User, require_user
-from database import get_db
-from models import EvaluationRun, Generation
+from database import get_async_db
+from models import EvaluationRun, Generation, TaskEvaluation
 from project_models import Annotation, Task
 from redis_cache import RedisCache
 from routers.projects.helpers import (
     _metric_key_is_real,
-    _scored_pairs_query,
     get_accessible_project_ids,
 )
-from aggregate_summaries import read_dashboard_sum
+from aggregate_summaries import read_dashboard_sum_async
 
 logger = logging.getLogger(__name__)
 
@@ -28,33 +28,68 @@ cache = RedisCache()
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
-def _live_evaluations_count(db: Session, accessible_ids):
-    """Fallback path when project_summaries hasn't been populated yet.
+def _build_scored_pairs_select(accessible_ids):
+    """Async-friendly select equivalent of routers.projects.helpers._scored_pairs_query.
 
-    Mirrors the original code at services/api/routers/dashboard.py — pulls
-    (subject, metric) pairs and applies the noise filter in Python. Kept
-    for new-project safety so brand-new projects show accurate stats before
-    the next `recompute_aggregates` cycle.
+    Yields DISTINCT (project_id, subject_id, metric_key) for every
+    (annotation|generation, metric) pair scored in a completed evaluation run.
+    The sync helper builds a `db.query(...)` Query that can't run on an
+    AsyncSession; this returns a plain `select()` so the async handler can
+    `await db.execute(...)` it. The noise filter (`_metric_key_is_real`) is
+    applied in Python by the caller, identical to the sync path.
     """
-    pairs_q = _scored_pairs_query(db).distinct()
+    subject_expr = func.coalesce(
+        TaskEvaluation.annotation_id, TaskEvaluation.generation_id
+    )
+    metrics_jsonb = cast(TaskEvaluation.metrics, JSONB)
+    stmt = (
+        select(
+            EvaluationRun.project_id,
+            subject_expr.label("subject_id"),
+            func.jsonb_object_keys(metrics_jsonb).label("metric_key"),
+        )
+        .select_from(TaskEvaluation)
+        .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
+        .where(
+            EvaluationRun.status == "completed",
+            subject_expr.isnot(None),
+            TaskEvaluation.metrics.isnot(None),
+            func.jsonb_typeof(metrics_jsonb) == "object",
+        )
+        .distinct()
+    )
     if accessible_ids is not None:
-        pairs_q = pairs_q.filter(EvaluationRun.project_id.in_(accessible_ids))
-    return sum(1 for _pid, _sub, mk in pairs_q.all() if _metric_key_is_real(mk))
+        stmt = stmt.where(EvaluationRun.project_id.in_(accessible_ids))
+    return stmt
 
 
-def _live_dashboard_counts(db: Session, accessible_ids):
-    """Belt-and-braces live counts for tasks / annotations / generations
-    when project_summaries hasn't been populated yet. Mirrors the per-
-    project predicates in services.aggregate_summaries._compute_project_summary
-    so the fallback values match what the beat task would write —
-    critically, generations counts only Generation rows with
-    parse_status="success", not raw ResponseGeneration rows.
+async def _live_evaluations_count_async(db: AsyncSession, accessible_ids):
+    """Async twin of the original `_live_evaluations_count` fallback.
+
+    Fallback path when project_summaries hasn't been populated yet — pulls
+    (subject, metric) pairs and applies the noise filter in Python. Kept for
+    new-project safety so brand-new projects show accurate stats before the
+    next `recompute_aggregates` cycle.
+    """
+    rows = (await db.execute(_build_scored_pairs_select(accessible_ids))).all()
+    return sum(1 for _pid, _sub, mk in rows if _metric_key_is_real(mk))
+
+
+async def _live_dashboard_counts_async(db: AsyncSession, accessible_ids):
+    """Async twin of the original `_live_dashboard_counts` fallback.
+
+    Belt-and-braces live counts for tasks / annotations / generations when
+    project_summaries hasn't been populated yet. Mirrors the per-project
+    predicates in aggregate_summaries._compute_project_summary so the fallback
+    values match what the beat task would write — critically, generations
+    counts only Generation rows with parse_status="success", not raw
+    ResponseGeneration rows.
 
     Brand-new projects (created since the last recompute_aggregates cycle)
-    have no project_summaries rows, so reads through read_dashboard_sum
-    return 0 across the board. Without this fallback the dashboard would
-    show flat-zero stats for hours until the 12h cron — confusing to users
-    and a regression vs. the original live-counting implementation.
+    have no project_summaries rows, so reads through read_dashboard_sum return
+    0 across the board. Without this fallback the dashboard would show
+    flat-zero stats for hours until the cron — confusing to users and a
+    regression vs. the original live-counting implementation.
     """
     task_q = select(func.count(Task.id))
     ann_q = select(func.count(Annotation.id)).where(
@@ -76,9 +111,9 @@ def _live_dashboard_counts(db: Session, accessible_ids):
         gen_q = gen_q.where(Task.project_id.in_(accessible_ids))
 
     return {
-        "total_tasks": int(db.execute(task_q).scalar() or 0),
-        "annotations_count": int(db.execute(ann_q).scalar() or 0),
-        "generations_count": int(db.execute(gen_q).scalar() or 0),
+        "total_tasks": int((await db.execute(task_q)).scalar() or 0),
+        "annotations_count": int((await db.execute(ann_q)).scalar() or 0),
+        "generations_count": int((await db.execute(gen_q)).scalar() or 0),
     }
 
 
@@ -86,7 +121,7 @@ def _live_dashboard_counts(db: Session, accessible_ids):
 async def get_dashboard_stats(
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Returns dashboard statistics scoped to the user's organization context:
@@ -117,8 +152,17 @@ async def get_dashboard_stats(
         # Dashboard is a global aggregate view; preserve the legacy "superadmin
         # sees everything" semantics here. The narrowing default introduced for
         # /api/projects only applies to the projects browser.
-        accessible_ids = get_accessible_project_ids(
-            db, current_user, org_context, include_all_private=True
+        #
+        # `get_accessible_project_ids` is sync-only (sync `db.query`, lives in
+        # the off-limits routers/projects/helpers.py with no async twin). Bridge
+        # it onto a sync Session bound to THIS async session's connection via
+        # `db.run_sync(...)` so it runs inside the same transaction without a
+        # second connection. Lambda is needed because `include_all_private` is a
+        # keyword-only-style arg the run_sync positional callable can't pass.
+        accessible_ids = await db.run_sync(
+            lambda sync_db: get_accessible_project_ids(
+                sync_db, current_user, org_context, include_all_private=True
+            )
         )
 
         if accessible_ids is not None and not accessible_ids:
@@ -133,7 +177,7 @@ async def get_dashboard_stats(
             return stats
 
         # All counters come from the precomputed project_summaries table.
-        sums = read_dashboard_sum(db, accessible_ids, period="overall")
+        sums = await read_dashboard_sum_async(db, accessible_ids, period="overall")
 
         # `project_count` from project_summaries reflects rows that have been
         # precomputed at least once. For brand-new projects we'd undercount
@@ -141,7 +185,9 @@ async def get_dashboard_stats(
         # the precomputed row count looks suspiciously low.
         project_count = sums["project_count"]
         if accessible_ids is None:
-            true_total = db.execute(text("SELECT COUNT(*) FROM projects")).scalar() or 0
+            true_total = (
+                await db.execute(text("SELECT COUNT(*) FROM projects"))
+            ).scalar() or 0
             if project_count < true_total:
                 project_count = int(true_total)
         else:
@@ -155,7 +201,7 @@ async def get_dashboard_stats(
         ):
             # Belt-and-braces: brand-new projects with no project_summaries
             # rows yet shouldn't render a flat zero if there ARE evaluations.
-            evaluations_count = _live_evaluations_count(db, accessible_ids)
+            evaluations_count = await _live_evaluations_count_async(db, accessible_ids)
 
         task_count = int(sums["total_tasks"])
         annotation_count = int(sums["annotations_count"])
@@ -170,7 +216,7 @@ async def get_dashboard_stats(
             (accessible_ids is None or len(accessible_ids) > 0)
             and (task_count == 0 or annotation_count == 0 or generations_count == 0)
         ):
-            live = _live_dashboard_counts(db, accessible_ids)
+            live = await _live_dashboard_counts_async(db, accessible_ids)
             task_count = max(task_count, live["total_tasks"])
             annotation_count = max(annotation_count, live["annotations_count"])
             generations_count = max(generations_count, live["generations_count"])

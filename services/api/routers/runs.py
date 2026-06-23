@@ -16,13 +16,17 @@ from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import User, require_user
-from database import get_db
+from database import get_async_db
 from models import EvaluationRun, ResponseGeneration
 from project_models import Project
-from routers.projects.helpers import check_project_accessible, get_org_context_from_request
+from routers.projects.helpers import (
+    check_project_accessible_async,
+    get_org_context_from_request,
+)
 
 
 router = APIRouter(prefix="/api/runs", tags=["Runs"])
@@ -67,17 +71,15 @@ class PaginatedRunsResponse(BaseModel):
     page_size: int
 
 
-def _project_titles_map(db: Session, project_ids: List[str]) -> Dict[str, str]:
+async def _project_titles_map(db: AsyncSession, project_ids: List[str]) -> Dict[str, str]:
     """Single batched lookup for project titles — avoids N+1 over the
     response page. An empty input returns an empty map."""
     if not project_ids:
         return {}
-    rows = (
-        db.query(Project.id, Project.title)
-        .filter(Project.id.in_(project_ids))
-        .all()
+    result = await db.execute(
+        select(Project.id, Project.title).where(Project.id.in_(project_ids))
     )
-    return {row.id: row.title for row in rows}
+    return {row.id: row.title for row in result.all()}
 
 
 def _extract_judge_models(eval_metadata: Optional[Dict[str, Any]]) -> List[str]:
@@ -209,7 +211,7 @@ async def get_generation_run(
     generation_id: str,
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ) -> GenerationRunDetail:
     """Single-run detail for the /runs page deep link.
 
@@ -220,11 +222,10 @@ async def get_generation_run(
     """
     from models import Generation as DBGeneration
 
-    parent = (
-        db.query(ResponseGeneration)
-        .filter(ResponseGeneration.id == generation_id)
-        .first()
+    parent_result = await db.execute(
+        select(ResponseGeneration).where(ResponseGeneration.id == generation_id)
     )
+    parent = parent_result.scalar_one_or_none()
     if not parent:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -232,7 +233,7 @@ async def get_generation_run(
         )
 
     org_context = get_org_context_from_request(request)
-    if parent.project_id and not check_project_accessible(
+    if parent.project_id and not await check_project_accessible_async(
         db, current_user, parent.project_id, org_context
     ):
         raise HTTPException(
@@ -240,12 +241,12 @@ async def get_generation_run(
             detail="No access to this project",
         )
 
-    children_rows = (
-        db.query(DBGeneration)
-        .filter(DBGeneration.generation_id == generation_id)
+    children_result = await db.execute(
+        select(DBGeneration)
+        .where(DBGeneration.generation_id == generation_id)
         .order_by(DBGeneration.run_index.asc())
-        .all()
     )
+    children_rows = children_result.scalars().all()
 
     def _preview(content: Any) -> Optional[str]:
         if content is None:
@@ -267,38 +268,38 @@ async def get_generation_run(
         for c in children_rows
     ]
 
-    titles = _project_titles_map(db, [parent.project_id] if parent.project_id else [])
+    titles = await _project_titles_map(
+        db, [parent.project_id] if parent.project_id else []
+    )
 
     # Linked evaluations: any EvaluationRun whose TaskEvaluation rows reference
     # one of this generation's children. Lets the user jump from a generation
     # to the evals that scored it. One row per evaluation_run; samples_evaluated
     # is the count of child task_evals that came from THIS generation.
     from models import TaskEvaluation as DBTaskEvaluation
-    from sqlalchemy import func as _sa_func
 
     child_ids = [c.id for c in children_rows]
     linked: List[LinkedEvaluation] = []
     if child_ids:
         eval_id_col = DBTaskEvaluation.evaluation_id
-        rows = (
-            db.query(
+        rows_result = await db.execute(
+            select(
                 eval_id_col.label("eval_id"),
-                _sa_func.count(DBTaskEvaluation.id).label("n"),
+                func.count(DBTaskEvaluation.id).label("n"),
             )
-            .filter(DBTaskEvaluation.generation_id.in_(child_ids))
+            .where(DBTaskEvaluation.generation_id.in_(child_ids))
             .group_by(eval_id_col)
-            .all()
         )
+        rows = rows_result.all()
         if rows:
             from models import EvaluationRun as DBEvaluationRun
 
             eval_ids = [r.eval_id for r in rows if r.eval_id]
             sample_counts = {r.eval_id: int(r.n) for r in rows if r.eval_id}
-            eval_rows = (
-                db.query(DBEvaluationRun)
-                .filter(DBEvaluationRun.id.in_(eval_ids))
-                .all()
+            eval_rows_result = await db.execute(
+                select(DBEvaluationRun).where(DBEvaluationRun.id.in_(eval_ids))
             )
+            eval_rows = eval_rows_result.scalars().all()
             for er in eval_rows:
                 # Pull the first evaluation_configs[*].metric as a label.
                 metric_name: Optional[str] = None
@@ -367,7 +368,7 @@ async def list_runs(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=200),
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ) -> PaginatedRunsResponse:
     """Paginated inventory of single runs (generation or evaluation).
 
@@ -377,41 +378,37 @@ async def list_runs(
     org_context = get_org_context_from_request(request)
 
     if type == "generation":
-        q = db.query(ResponseGeneration)
-        if project_id:
-            q = q.filter(ResponseGeneration.project_id == project_id)
-        if status_filter:
-            q = q.filter(ResponseGeneration.status == status_filter)
-        q = q.order_by(ResponseGeneration.created_at.desc())
-        total = q.count()
-        rows = q.offset((page - 1) * page_size).limit(page_size).all()
-        # Permission filter: keep only rows whose project the user can see.
-        # Done after fetch since check_project_accessible takes one project
-        # at a time; for typical inventory page sizes (≤200) the overhead is
-        # negligible compared to the upstream query.
-        accessible_ids = {
-            pid for pid in {row.project_id for row in rows if row.project_id}
-            if check_project_accessible(db, current_user, pid, org_context)
-        }
-        rows = [r for r in rows if r.project_id in accessible_ids]
-        titles = _project_titles_map(db, list(accessible_ids))
-        items = [_generation_to_summary(r, titles) for r in rows]
-        return PaginatedRunsResponse(items=items, total=total, page=page, page_size=page_size)
+        model = ResponseGeneration
+        to_summary = _generation_to_summary
+    else:  # type == "evaluation"
+        model = EvaluationRun
+        to_summary = _evaluation_to_summary
 
-    # type == "evaluation"
-    q = db.query(EvaluationRun)
+    stmt = select(model)
+    count_stmt = select(func.count()).select_from(model)
     if project_id:
-        q = q.filter(EvaluationRun.project_id == project_id)
+        stmt = stmt.where(model.project_id == project_id)
+        count_stmt = count_stmt.where(model.project_id == project_id)
     if status_filter:
-        q = q.filter(EvaluationRun.status == status_filter)
-    q = q.order_by(EvaluationRun.created_at.desc())
-    total = q.count()
-    rows = q.offset((page - 1) * page_size).limit(page_size).all()
-    accessible_ids = {
-        pid for pid in {row.project_id for row in rows if row.project_id}
-        if check_project_accessible(db, current_user, pid, org_context)
-    }
+        stmt = stmt.where(model.status == status_filter)
+        count_stmt = count_stmt.where(model.status == status_filter)
+    stmt = stmt.order_by(model.created_at.desc())
+
+    total = int((await db.execute(count_stmt)).scalar() or 0)
+    rows_result = await db.execute(
+        stmt.offset((page - 1) * page_size).limit(page_size)
+    )
+    rows = rows_result.scalars().all()
+
+    # Permission filter: keep only rows whose project the user can see.
+    # Done after fetch since check_project_accessible takes one project at a
+    # time; for typical inventory page sizes (≤200) the overhead is negligible
+    # compared to the upstream query.
+    accessible_ids = set()
+    for pid in {row.project_id for row in rows if row.project_id}:
+        if await check_project_accessible_async(db, current_user, pid, org_context):
+            accessible_ids.add(pid)
     rows = [r for r in rows if r.project_id in accessible_ids]
-    titles = _project_titles_map(db, list(accessible_ids))
-    items = [_evaluation_to_summary(r, titles) for r in rows]
+    titles = await _project_titles_map(db, list(accessible_ids))
+    items = [to_summary(r, titles) for r in rows]
     return PaginatedRunsResponse(items=items, total=total, page=page, page_size=page_size)

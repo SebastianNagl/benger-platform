@@ -6,9 +6,88 @@ including authentication, basic CRUD operations, and core business logic.
 """
 
 
+import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
+
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
+
+
+# ---------------------------------------------------------------------------
+# Async-lane helpers
+#
+# ``GET /api/auth/me`` and ``GET /api/evaluations/evaluation-types/{id}`` were
+# migrated to the async DB lane (``Depends(get_async_db)``). A sync TestClient
+# call into those handlers fails with "attached to a different loop" /
+# "Event loop is closed" because the async engine is bound to a different event
+# loop than TestClient's portal. These helpers drive those endpoints through
+# ``async_test_client`` + ``async_test_db`` per the canonical recipe in
+# tests/integration/test_auth_me_integration.py.
+# ---------------------------------------------------------------------------
+
+
+@contextmanager
+def _as_user(db_user):
+    """Override require_user with an AuthUser mirroring a seeded DB user row."""
+    from auth_module.dependencies import require_user
+    from auth_module.models import User as AuthUser
+    from main import app
+
+    au = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _aseed_user(db, *, is_superadmin=True):
+    from auth_module.user_service import get_password_hash
+    from models import User as DBUser
+
+    user = DBUser(
+        id=str(uuid.uuid4()),
+        username=f"core-{uuid.uuid4().hex[:8]}",
+        email=f"{uuid.uuid4().hex[:8]}@example.com",
+        name="Core Test User",
+        hashed_password=get_password_hash("testpassword123"),
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(user)
+    await db.flush()
+    return user
+
+
+async def _aseed_eval_type(db):
+    from models import EvaluationType
+
+    et = EvaluationType(
+        id=f"core-et-{uuid.uuid4().hex[:8]}",
+        name="Core Accuracy",
+        description="Classification accuracy",
+        category="classification",
+        higher_is_better=True,
+        value_range={"min": 0, "max": 1},
+        applicable_project_types=["text_classification"],
+        is_active=True,
+    )
+    db.add(et)
+    await db.flush()
+    return et
 
 
 @pytest.mark.unit
@@ -62,15 +141,27 @@ class TestAuthentication:
         )
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_get_current_user_success(self, client: TestClient, auth_headers):
-        """Test getting current user info with valid token."""
-        response = client.get("/api/auth/me", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_get_current_user_success(self, async_test_client, async_test_db):
+        """Test getting current user info with valid token.
+
+        ``GET /api/auth/me`` is on the async DB lane; drive it through
+        ``async_test_client`` with the user seeded in the async transaction and
+        the identity supplied via the require_user override.
+        """
+        user = await _aseed_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.get("/api/auth/me")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert "id" in data
         assert "username" in data
         assert "email" in data
         assert "is_superadmin" in data
+        assert data["id"] == user.id
+        assert data["is_superadmin"] is True
 
     def test_get_current_user_invalid_token(self, client: TestClient):
         """Test getting current user with invalid token."""
@@ -95,14 +186,25 @@ class TestAuthentication:
 class TestRoleBasedAccess:
     """Test role-based access control."""
 
-    def test_admin_access_to_users(self, client: TestClient, auth_headers):
-        """Test that admin can access user management endpoints."""
-        response = client.get("/api/users", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_admin_access_to_users(self, async_test_client, async_test_db):
+        """Test that admin can access user management endpoints.
+
+        GET /api/users is async-lane (Depends(get_async_db)).
+        """
+        admin = await _aseed_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+        with _as_user(admin):
+            response = await async_test_client.get("/api/users")
         assert response.status_code == status.HTTP_200_OK
 
-    def test_non_admin_denied_user_access(self, client: TestClient, auth_headers):
+    @pytest.mark.asyncio
+    async def test_non_admin_denied_user_access(self, async_test_client, async_test_db):
         """Test that non-admin users cannot access user management."""
-        response = client.get("/api/users", headers=auth_headers["annotator"])
+        annotator = await _aseed_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
+        with _as_user(annotator):
+            response = await async_test_client.get("/api/users")
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_contributor_can_create_tasks(self, client: TestClient, auth_headers):
@@ -170,18 +272,28 @@ class TestEvaluationTypes:
         assert isinstance(data, list)
         assert len(data) >= 2  # We created 2 test evaluation types
 
-    def test_get_evaluation_type_by_id(
-        self, client: TestClient, auth_headers, test_evaluation_types
-    ):
-        """Test retrieving a specific evaluation type."""
-        eval_type_id = test_evaluation_types[0].id
-        response = client.get(
-            f"/api/evaluations/evaluation-types/{eval_type_id}", headers=auth_headers["annotator"]
-        )
+    @pytest.mark.asyncio
+    async def test_get_evaluation_type_by_id(self, async_test_client, async_test_db):
+        """Test retrieving a specific evaluation type.
+
+        ``GET /api/evaluations/evaluation-types/{id}`` is on the async DB lane;
+        seed the row + actor via ``async_test_db`` and drive the request through
+        ``async_test_client`` with require_user overridden.
+        """
+        user = await _aseed_user(async_test_db, is_superadmin=False)
+        eval_type = await _aseed_eval_type(async_test_db)
+        eval_type_id = eval_type.id
+        eval_type_name = eval_type.name
+        await async_test_db.commit()
+
+        with _as_user(user):
+            response = await async_test_client.get(
+                f"/api/evaluations/evaluation-types/{eval_type_id}"
+            )
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["id"] == eval_type_id
-        assert data["name"] == test_evaluation_types[0].name
+        assert data["name"] == eval_type_name
 
 
 @pytest.mark.unit
@@ -233,7 +345,7 @@ class TestPasswordSecurity:
 
     def test_password_hashing(self):
         """Test password hashing functionality."""
-        from user_service import get_password_hash, verify_password
+        from auth_module.user_service import get_password_hash, verify_password
 
         password = "test_password_123"
         hashed = get_password_hash(password)
@@ -244,7 +356,7 @@ class TestPasswordSecurity:
 
     def test_different_passwords_different_hashes(self):
         """Test that different passwords produce different hashes."""
-        from user_service import get_password_hash
+        from auth_module.user_service import get_password_hash
 
         password1 = "password123"
         password2 = "password456"

@@ -5,12 +5,14 @@ import uuid
 from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 import extensions
 from auth_module import require_user
 from auth_module.models import User as AuthUser
-from database import get_db
+from database import get_async_db, get_db
 from models import NotificationType, OrganizationMembership, User
 from notification_service import NotificationService
 from project_models import (
@@ -21,7 +23,12 @@ from project_models import (
     Task,
     TaskAssignment,
 )
-from routers.projects.helpers import check_project_accessible, get_org_context_from_request, get_user_with_memberships
+from routers.projects.helpers import (
+    check_project_accessible,
+    check_project_accessible_async,
+    get_org_context_from_request,
+    get_user_with_memberships,
+)
 
 router = APIRouter()
 
@@ -389,27 +396,37 @@ async def list_task_assignments(
     task_id: str,
     request: Request,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """List all assignments for a specific task"""
 
     # Verify task exists in project
-    task = db.query(Task).filter(Task.id == task_id, Task.project_id == project_id).first()
+    task = (
+        await db.execute(
+            select(Task).where(Task.id == task_id, Task.project_id == project_id)
+        )
+    ).scalar_one_or_none()
 
     if not task:
         raise HTTPException(status_code=404, detail="Task not found in project")
 
     org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, project_id, org_context):
+    if not await check_project_accessible_async(db, current_user, project_id, org_context):
         raise HTTPException(status_code=403, detail="Access denied")
 
-    assignments = db.query(TaskAssignment).filter(TaskAssignment.task_id == task_id).all()
+    assignments = (
+        await db.execute(
+            select(TaskAssignment).where(TaskAssignment.task_id == task_id)
+        )
+    ).scalars().all()
 
     # Bulk-fetch assignees in one query instead of per-row.
     user_ids = {a.user_id for a in assignments if a.user_id}
     users_by_id: Dict[str, User] = {}
     if user_ids:
-        for row in db.query(User).filter(User.id.in_(user_ids)).all():
+        for row in (
+            await db.execute(select(User).where(User.id.in_(user_ids)))
+        ).scalars().all():
             users_by_id[row.id] = row
 
     result = []

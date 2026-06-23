@@ -96,6 +96,38 @@ class TestSelectExportGenerator:
         assert parsed["project"]["id"] == project.id
         assert len(parsed["tasks"]) == 3
 
+    def test_json_generator_reports_progress(self, test_db, populated_project):
+        """`progress_cb` is threaded into the json stream and fires per streamed
+        task batch with (tasks_streamed, total_tasks). This is what lets the
+        async worker persist real incremental progress instead of jumping
+        0 -> 100 (the download-progress-bar bug)."""
+        project = populated_project
+        calls: list = []
+        gen = select_export_generator(
+            test_db,
+            project,
+            "json",
+            progress_cb=lambda done, total: calls.append((done, total)),
+        )
+        # Progress fires during iteration, not at construction — drain the stream.
+        "".join(gen)
+
+        assert calls, "progress_cb was never called"
+        # Total is the project's task count; counts are monotonic non-decreasing
+        # and the final call reports every task streamed.
+        assert all(total == 3 and 0 <= done <= 3 for done, total in calls)
+        assert calls[-1] == (3, 3)
+        dones = [done for done, _ in calls]
+        assert dones == sorted(dones)
+
+    def test_json_generator_without_progress_cb_skips_count(self, test_db, populated_project):
+        """The default (no progress_cb) path must still produce a complete export
+        — the count query is only paid for when a caller wants progress."""
+        joined = "".join(select_export_generator(test_db, populated_project, "json"))
+        parsed = json.loads(joined)
+        assert parsed["export_complete"] is True
+        assert len(parsed["tasks"]) == 3
+
     def test_dispatch_csv_and_tsv(self, test_db, populated_project):
         csv_out = "".join(select_export_generator(test_db, populated_project, "csv"))
         tsv_out = "".join(select_export_generator(test_db, populated_project, "tsv"))

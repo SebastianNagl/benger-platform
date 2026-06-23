@@ -6,19 +6,91 @@ Uses real PostgreSQL with per-test transaction rollback.
 """
 
 import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
 
 import pytest
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
+from models import User
 from project_models import (
     Annotation,
     Project,
     ProjectOrganization,
     Task,
+    TaskAssignment,
 )
 
 
 def _uid() -> str:
     return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user: User):
+    """Override ``require_user`` to return an auth User matching the seeded DB
+    user. ``list_task_assignments`` is on the async DB lane, so it authenticates
+    via this override rather than the sync token-based auth (which can't see the
+    async test transaction)."""
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_user(db, *, is_superadmin=True):
+    u = User(
+        id=_uid(),
+        username=f"asg-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Assign User",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _setup_async(db, owner_id, *, num_tasks=4):
+    """Async twin of ``_setup`` — project with tasks via ``async_test_db``."""
+    project = Project(
+        id=_uid(),
+        title=f"Assign Test {uuid.uuid4().hex[:6]}",
+        created_by=owner_id,
+        label_config='<View><Text name="text" value="$text"/></View>',
+        assignment_mode="manual",
+    )
+    db.add(project)
+    await db.flush()
+    tasks = []
+    for i in range(num_tasks):
+        task = Task(
+            id=_uid(),
+            project_id=project.id,
+            data={"text": f"Assignment task #{i}"},
+            inner_id=i + 1,
+            created_by=owner_id,
+        )
+        db.add(task)
+        tasks.append(task)
+    await db.flush()
+    return project, tasks
 
 
 def _setup(db, admin, org, *, num_tasks=4, users=None):
@@ -176,19 +248,27 @@ class TestAssignTasks:
 class TestListTaskAssignments:
     """GET /api/projects/{project_id}/tasks/{task_id}/assignments"""
 
-    def test_list_assignments(self, client, test_db, test_users, auth_headers, test_org):
-        project, tasks = _setup(test_db, test_users[0], test_org)
-        # Assign first
-        client.post(
-            f"/api/projects/{project.id}/tasks/assign",
-            json={"task_ids": [tasks[0].id], "user_ids": [test_users[2].id], "distribution": "manual"},
-            headers=auth_headers["admin"],
+    @pytest.mark.asyncio
+    async def test_list_assignments(self, async_test_client, async_test_db):
+        # list_task_assignments is on the async DB lane — seed + drive async.
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project, tasks = await _setup_async(async_test_db, admin.id)
+        annotator = await _make_user(async_test_db, is_superadmin=False)
+        async_test_db.add(
+            TaskAssignment(
+                id=_uid(),
+                task_id=tasks[0].id,
+                user_id=annotator.id,
+                assigned_by=admin.id,
+                status="assigned",
+            )
         )
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/projects/{project.id}/tasks/{tasks[0].id}/assignments",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{project.id}/tasks/{tasks[0].id}/assignments",
+            )
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)
@@ -208,19 +288,22 @@ class TestRemoveAssignment:
     """DELETE /api/projects/{project_id}/tasks/{task_id}/assignments/{assignment_id}"""
 
     def test_remove_assignment(self, client, test_db, test_users, auth_headers, test_org):
+        # remove_task_assignment is a SYNC handler (stays on get_db), so this
+        # test stays sync. It previously fetched the assignment_id via the
+        # now-async list_task_assignments GET (which the sync test_db
+        # transaction is invisible to → 404). Seed the assignment directly via
+        # test_db and DELETE it, keeping the whole test on the sync lane.
         project, tasks = _setup(test_db, test_users[0], test_org)
-        # Assign
-        client.post(
-            f"/api/projects/{project.id}/tasks/assign",
-            json={"task_ids": [tasks[0].id], "user_ids": [test_users[2].id], "distribution": "manual"},
-            headers=auth_headers["admin"],
+        assignment = TaskAssignment(
+            id=_uid(),
+            task_id=tasks[0].id,
+            user_id=test_users[2].id,
+            assigned_by=test_users[0].id,
+            status="assigned",
         )
-        # Get assignment ID
-        list_resp = client.get(
-            f"/api/projects/{project.id}/tasks/{tasks[0].id}/assignments",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
-        assignment_id = list_resp.json()[0]["id"]
+        test_db.add(assignment)
+        test_db.commit()
+        assignment_id = assignment.id
 
         # Remove
         resp = client.delete(
@@ -228,6 +311,14 @@ class TestRemoveAssignment:
             headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
+
+        # Row removed from DB.
+        gone = (
+            test_db.query(TaskAssignment)
+            .filter(TaskAssignment.id == assignment_id)
+            .first()
+        )
+        assert gone is None
 
     def test_remove_nonexistent_assignment(self, client, test_db, test_users, auth_headers, test_org):
         project, tasks = _setup(test_db, test_users[0], test_org)

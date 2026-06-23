@@ -1,16 +1,17 @@
 """Member management endpoints for projects."""
 
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import func
-from sqlalchemy.orm import Session, joinedload
+from fastapi import APIRouter, Depends
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from auth_module import require_user
 from auth_module.models import User as AuthUser
-from database import get_db
+from database import get_async_db
 from models import OrganizationMembership, User
-from project_models import Annotation, Project, ProjectMember, ProjectOrganization
-from routers.projects.helpers import check_project_accessible, get_org_context_from_request
+from project_models import Annotation, ProjectMember, ProjectOrganization
+from routers.projects.deps import ProjectAccess, require_project_access
 
 router = APIRouter()
 
@@ -18,53 +19,46 @@ router = APIRouter()
 @router.get("/{project_id}/members")
 async def list_project_members(
     project_id: str,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
+    _access: ProjectAccess = Depends(require_project_access()),
 ):
     """List all members of a project"""
 
-    # Verify project exists
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    # Check access
-    org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, project_id, org_context):
-        raise HTTPException(status_code=403, detail="Access denied")
+    # Project existence + read access enforced by require_project_access
+    # (404 "Project not found" / 403 "Access denied").
 
     # Get direct project members
-    direct_members = (
-        db.query(ProjectMember)
+    direct_result = await db.execute(
+        select(ProjectMember)
         .options(joinedload(ProjectMember.user))
-        .filter(ProjectMember.project_id == project_id, ProjectMember.is_active == True)  # noqa: E712
-        .all()
+        .where(ProjectMember.project_id == project_id, ProjectMember.is_active == True)  # noqa: E712
     )
+    direct_members = direct_result.scalars().unique().all()
 
     # Get organization IDs assigned to the project
-    project_org_ids = [
-        org_id[0]
-        for org_id in db.query(ProjectOrganization.organization_id)
-        .filter(ProjectOrganization.project_id == project_id)
-        .all()
-    ]
+    org_ids_result = await db.execute(
+        select(ProjectOrganization.organization_id).where(
+            ProjectOrganization.project_id == project_id
+        )
+    )
+    project_org_ids = [row[0] for row in org_ids_result.all()]
 
     # Get members from project organizations only
     org_members = []
     if project_org_ids:
-        org_members = (
-            db.query(OrganizationMembership)
+        org_result = await db.execute(
+            select(OrganizationMembership)
             .options(
                 joinedload(OrganizationMembership.user),
                 joinedload(OrganizationMembership.organization),
             )
-            .filter(
+            .where(
                 OrganizationMembership.organization_id.in_(project_org_ids),
                 OrganizationMembership.is_active == True,  # noqa: E712
             )
-            .all()
         )
+        org_members = org_result.scalars().unique().all()
 
     # Combine results
     members = []
@@ -110,28 +104,21 @@ async def list_project_members(
 @router.get("/{project_id}/annotators")
 async def get_project_annotators(
     project_id: str,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
+    _access: ProjectAccess = Depends(require_project_access()),
 ):
     """Get users who have actually annotated this project.
 
     Returns users who have created at least one non-cancelled annotation
     in this project, along with their annotation count.
     """
-    # Verify project exists
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    # Check access
-    org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, project_id, org_context):
-        raise HTTPException(status_code=403, detail="Access denied")
+    # Project existence + read access enforced by require_project_access
+    # (404 "Project not found" / 403 "Access denied").
 
     # Query users who have annotated this project
-    query = (
-        db.query(
+    stmt = (
+        select(
             User.id.label("user_id"),
             User.name,
             User.pseudonym,
@@ -139,7 +126,7 @@ async def get_project_annotators(
             func.count(Annotation.id).label("annotation_count"),
         )
         .join(Annotation, Annotation.completed_by == User.id)
-        .filter(
+        .where(
             Annotation.project_id == project_id,
             Annotation.was_cancelled == False,  # noqa: E712
         )
@@ -147,7 +134,7 @@ async def get_project_annotators(
         .order_by(func.count(Annotation.id).desc())
     )
 
-    results = query.all()
+    results = (await db.execute(stmt)).all()
 
     annotators = []
     for r in results:

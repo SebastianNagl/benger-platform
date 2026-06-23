@@ -3,23 +3,46 @@
 import logging
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from fastapi.concurrency import run_in_threadpool
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import require_user
 from auth_module.models import User as AuthUser
-from database import get_db
+from database import SessionLocal, get_async_db
 from notification_service import notify_project_archived, notify_project_deleted
 from project_models import Project, ProjectMember, ProjectOrganization, Task
-from routers.projects.helpers import check_user_can_edit_project
+from routers.projects.helpers import check_user_can_edit_project_async
 
 router = APIRouter()
+
+
+def _notify_project_deleted_sync(**kwargs) -> None:
+    """Run the sync ``notify_project_deleted`` on a fresh short-lived sync
+    session so the async handler never hands its ``AsyncSession`` to the sync
+    notification path (which queries + commits on ``db``)."""
+    sync_db = SessionLocal()
+    try:
+        notify_project_deleted(db=sync_db, **kwargs)
+    finally:
+        sync_db.close()
+
+
+def _notify_project_archived_sync(**kwargs) -> None:
+    """Run the sync ``notify_project_archived`` on a fresh short-lived sync
+    session (see :func:`_notify_project_deleted_sync`)."""
+    sync_db = SessionLocal()
+    try:
+        notify_project_archived(db=sync_db, **kwargs)
+    finally:
+        sync_db.close()
 
 
 @router.post("/bulk-delete")
 async def bulk_delete_projects(
     data: dict,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Bulk delete multiple projects"""
 
@@ -35,7 +58,9 @@ async def bulk_delete_projects(
     for project_id in project_ids:
         try:
             # Each project deletion in its own transaction block
-            project = db.query(Project).filter(Project.id == project_id).first()
+            project = (
+                await db.execute(select(Project).where(Project.id == project_id))
+            ).scalar_one_or_none()
             if not project:
                 logger.warning(f"Project {project_id} not found")
                 failed_projects.append({"id": project_id, "reason": "Project not found"})
@@ -54,45 +79,52 @@ async def bulk_delete_projects(
             # Store project info for notification before deletion
             project_title = project.title
             # Get organization_id from ProjectOrganization table
-            project_org = (
-                db.query(ProjectOrganization.organization_id)
-                .filter(ProjectOrganization.project_id == project_id)
-                .first()
-            )
-            organization_id = project_org[0] if project_org else None
+            organization_id = (
+                await db.execute(
+                    select(ProjectOrganization.organization_id)
+                    .where(ProjectOrganization.project_id == project_id)
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
 
             # Delete associated records first to avoid foreign key constraint violations
             # ProjectMember and ProjectOrganization are already imported at the top of the file
 
             # Delete project organizations
-            db.query(ProjectOrganization).filter(
-                ProjectOrganization.project_id == project_id
-            ).delete(synchronize_session=False)
-
-            # Delete project members
-            db.query(ProjectMember).filter(ProjectMember.project_id == project_id).delete(
-                synchronize_session=False
+            await db.execute(
+                ProjectOrganization.__table__.delete().where(
+                    ProjectOrganization.project_id == project_id
+                )
             )
 
-            # Delete associated tasks and annotations
-            # NOTE: Annotation table doesn't exist yet - skipping deletion
-            # db.query(Annotation).filter(Annotation.project_id == project_id).delete(
-            #     synchronize_session=False
-            # )
-            db.query(Task).filter(Task.project_id == project_id).delete(synchronize_session=False)
+            # Delete project members
+            await db.execute(
+                ProjectMember.__table__.delete().where(
+                    ProjectMember.project_id == project_id
+                )
+            )
+
+            # Delete associated tasks. Annotations (annotations table) are
+            # removed automatically by the DB: their task_id and project_id FKs
+            # both carry ON DELETE CASCADE (migration 001_complete_baseline), so
+            # this raw DELETE on tasks (and the project delete below) cascades to
+            # annotations. No explicit annotation delete is needed.
+            await db.execute(Task.__table__.delete().where(Task.project_id == project_id))
 
             # Delete the project
-            db.delete(project)
+            await db.delete(project)
 
             # Commit this individual project deletion
-            db.commit()
+            await db.commit()
             deleted_count += 1
             logger.info(f"Successfully deleted project {project_id}")
 
-            # Send notification about project deletion
+            # Send notification about project deletion (sync-only path; run on a
+            # short-lived sync session off the event loop). Failures don't fail
+            # the deletion.
             try:
-                notify_project_deleted(
-                    db=db,
+                await run_in_threadpool(
+                    _notify_project_deleted_sync,
                     project_id=project_id,
                     project_title=project_title,
                     deleted_by_user_id=current_user.id,
@@ -107,7 +139,7 @@ async def bulk_delete_projects(
             logger.error(f"Failed to delete project {project_id}: {project_error}")
             failed_projects.append({"id": project_id, "reason": str(project_error)})
             try:
-                db.rollback()
+                await db.rollback()
             except Exception as rollback_error:
                 logger.error(
                     f"Failed to rollback transaction for project {project_id}: {rollback_error}"
@@ -129,7 +161,7 @@ async def bulk_delete_projects(
 async def bulk_archive_projects(
     data: dict,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Bulk archive multiple projects"""
 
@@ -137,42 +169,46 @@ async def bulk_archive_projects(
     archived_count = 0
 
     for project_id in project_ids:
-        project = db.query(Project).filter(Project.id == project_id).first()
+        project = (
+            await db.execute(select(Project).where(Project.id == project_id))
+        ).scalar_one_or_none()
         if not project:
             continue
 
         # Check permission - creator, superadmin, org admin, or contributor
-        if not check_user_can_edit_project(db, current_user, project.id):
+        if not await check_user_can_edit_project_async(db, current_user, project.id):
             continue
 
         project.is_archived = True
         archived_count += 1
 
-        # Send notification about project archival
+        # Resolve the first org assignment for the notification (backward
+        # compatibility) before dispatching to the sync notification path.
+        first_org_id = (
+            await db.execute(
+                select(ProjectOrganization.organization_id)
+                .where(ProjectOrganization.project_id == project_id)
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
+        # Send notification about project archival (sync-only path; run on a
+        # short-lived sync session off the event loop).
         try:
-            notify_project_archived(
-                db=db,
+            await run_in_threadpool(
+                _notify_project_archived_sync,
                 project_id=project.id,
                 project_title=project.title,
                 archived_by_user_id=current_user.id,
                 archived_by_username=current_user.name,
-                # Get first organization for backward compatibility
-                organization_id=(
-                    db.query(ProjectOrganization.organization_id)
-                    .filter(ProjectOrganization.project_id == project_id)
-                    .first()[0]
-                    if db.query(ProjectOrganization)
-                    .filter(ProjectOrganization.project_id == project_id)
-                    .first()
-                    else None
-                ),
+                organization_id=first_org_id,
             )
         except Exception as e:
             # Log notification error but don't fail archival
             logger = logging.getLogger(__name__)
             logger.error(f"Failed to send project archival notification: {e}")
 
-    db.commit()
+    await db.commit()
 
     return {"archived": archived_count}
 
@@ -181,7 +217,7 @@ async def bulk_archive_projects(
 async def bulk_unarchive_projects(
     data: dict,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Bulk unarchive multiple projects"""
 
@@ -189,17 +225,19 @@ async def bulk_unarchive_projects(
     unarchived_count = 0
 
     for project_id in project_ids:
-        project = db.query(Project).filter(Project.id == project_id).first()
+        project = (
+            await db.execute(select(Project).where(Project.id == project_id))
+        ).scalar_one_or_none()
         if not project:
             continue
 
         # Check permission - creator, superadmin, org admin, or contributor
-        if not check_user_can_edit_project(db, current_user, project.id):
+        if not await check_user_can_edit_project_async(db, current_user, project.id):
             continue
 
         project.is_archived = False
         unarchived_count += 1
 
-    db.commit()
+    await db.commit()
 
     return {"unarchived": unarchived_count}

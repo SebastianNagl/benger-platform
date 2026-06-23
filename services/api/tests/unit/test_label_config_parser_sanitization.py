@@ -6,7 +6,7 @@ to prevent XSS attacks (Issue #798)
 """
 
 
-from label_config_parser import LabelConfigParser
+from services.label_config.parser import LabelConfigParser
 
 
 class TestParserSanitization:

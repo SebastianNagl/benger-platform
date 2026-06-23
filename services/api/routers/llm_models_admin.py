@@ -39,6 +39,13 @@ def reseed_llm_models(
     Useful after editing `seeds/llm_models.yaml` on a running deployment.
     Clears the per-hash flag file so the next normal startup also re-runs
     if needed.
+
+    Kept sync (Tier 3.1): the body's only DB work is the sync seed routine
+    ``initialize_llm_models(db)`` (a `db: Session` consumer with its own
+    psycopg2 transaction semantics). There is no async twin of the seed
+    path, and wrapping the whole handler in ``run_in_threadpool`` would buy
+    nothing over leaving it sync. The companion ``get_catalog_version``
+    endpoint takes no DB session at all, so neither needs the async lane.
     """
     catalog = load_catalog()
     rows_changed = initialize_llm_models(db)

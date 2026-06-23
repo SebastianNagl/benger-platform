@@ -1,28 +1,64 @@
 """
 Comprehensive tests for the dashboard router endpoints.
 Tests the current router architecture mounted at /api/dashboard/*.
+
+The dashboard handler was migrated to the async DB lane (Depends(get_async_db),
+AsyncSession). These tests drive an httpx AsyncClient and override
+`get_async_db` with an async-session double whose `run_sync` invokes the passed
+callable (so the sync `get_accessible_project_ids` shims keep working) and whose
+`execute` is awaitable. The read/fallback helpers are patched under their new
+`*_async` names.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+from httpx import ASGITransport, AsyncClient
 
 from main import app
 from models import User
 from project_models import Project
 
 
+def _mock_async_db(scalar_value=None):
+    """Async-session double for the dashboard handler."""
+    mock_db = MagicMock()
+
+    result = MagicMock()
+    result.scalar.return_value = scalar_value
+    result.all.return_value = []
+    result.first.return_value = None
+
+    async def _execute(*_args, **_kwargs):
+        return result
+
+    async def _run_sync(fn, *args, **kwargs):
+        return fn(Mock(), *args, **kwargs)
+
+    mock_db.execute = _execute
+    mock_db.run_sync = _run_sync
+    return mock_db
+
+
+def _override_async_db(mock_db):
+    from database import get_async_db
+
+    async def _override():
+        yield mock_db
+
+    app.dependency_overrides[get_async_db] = _override
+
+
+async def _async_client():
+    transport = ASGITransport(app=app)
+    return AsyncClient(transport=transport, base_url="http://testserver")
+
+
 class TestDashboardRouter:
     """Test dashboard router endpoints mounted at /api/dashboard/"""
-
-    @pytest.fixture
-    def client(self):
-        """Create test client"""
-        return TestClient(app)
 
     @pytest.fixture
     def mock_regular_user(self):
@@ -68,43 +104,35 @@ class TestDashboardRouter:
         project.created_at = datetime.now(timezone.utc)
         return project
 
-    def test_get_dashboard_stats_as_superadmin(self, client, mock_superadmin_user):
+    @pytest.mark.asyncio
+    async def test_get_dashboard_stats_as_superadmin(self, mock_superadmin_user):
         """Test getting dashboard stats as superadmin at /api/dashboard/stats with new metrics.
 
         The endpoint now reads from the precomputed `project_summaries` table
-        via `read_dashboard_sum`; mock that helper rather than raw SQL.
+        via `read_dashboard_sum_async`; mock that helper rather than raw SQL.
         """
-        from database import get_db
-        from main import app
         from routers.dashboard import require_user
 
-        def override_require_user():
-            return mock_superadmin_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            # The dashboard fall-back queries `SELECT COUNT(*) FROM projects`
-            # via db.execute(text(...)).scalar() to make sure brand-new
-            # projects show up before the next recompute cycle. Make that
-            # return a value consistent with the precomputed project_count.
-            mock_db.execute.return_value.scalar.return_value = 10
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[require_user] = lambda: mock_superadmin_user
+        # COUNT(*) backstop returns a value consistent with project_count.
+        _override_async_db(_mock_async_db(scalar_value=10))
 
         try:
-            with patch("routers.dashboard.read_dashboard_sum") as mock_sums:
-                mock_sums.return_value = {
-                    "project_count": 10,
-                    "total_tasks": 50,
-                    "labeled_tasks": 30,
-                    "annotations_count": 150,
-                    "generations_count": 8,
-                    "response_generations_count": 12,
-                    "evaluation_pairs_count": 5,
-                }
-                response = client.get("/api/dashboard/stats")
+            with patch("routers.dashboard.read_dashboard_sum_async") as mock_sums:
+                async def _sums(*_a, **_k):
+                    return {
+                        "project_count": 10,
+                        "total_tasks": 50,
+                        "labeled_tasks": 30,
+                        "annotations_count": 150,
+                        "generations_count": 8,
+                        "response_generations_count": 12,
+                        "evaluation_pairs_count": 5,
+                    }
+
+                mock_sums.side_effect = _sums
+                async with await _async_client() as client:
+                    response = await client.get("/api/dashboard/stats")
 
             assert response.status_code == status.HTTP_200_OK
             data = response.json()
@@ -121,36 +149,33 @@ class TestDashboardRouter:
         finally:
             app.dependency_overrides.clear()
 
-    def test_get_dashboard_stats_as_regular_user(self, client, mock_regular_user):
+    @pytest.mark.asyncio
+    async def test_get_dashboard_stats_as_regular_user(self, mock_regular_user):
         """Test getting dashboard stats as regular user with organization filtering and new metrics."""
-        from database import get_db
-        from main import app
         from routers.dashboard import require_user
 
-        def override_require_user():
-            return mock_regular_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[require_user] = lambda: mock_regular_user
+        _override_async_db(_mock_async_db())
 
         try:
             with patch("routers.dashboard.get_accessible_project_ids") as mock_get_ids, \
-                 patch("routers.dashboard.read_dashboard_sum") as mock_sums:
+                 patch("routers.dashboard.read_dashboard_sum_async") as mock_sums:
                 mock_get_ids.return_value = ["proj-1", "proj-2", "proj-3", "proj-4", "proj-5"]
-                mock_sums.return_value = {
-                    "project_count": 5,
-                    "total_tasks": 25,
-                    "labeled_tasks": 12,
-                    "annotations_count": 75,
-                    "generations_count": 3,
-                    "response_generations_count": 4,
-                    "evaluation_pairs_count": 2,
-                }
-                response = client.get("/api/dashboard/stats")
+
+                async def _sums(*_a, **_k):
+                    return {
+                        "project_count": 5,
+                        "total_tasks": 25,
+                        "labeled_tasks": 12,
+                        "annotations_count": 75,
+                        "generations_count": 3,
+                        "response_generations_count": 4,
+                        "evaluation_pairs_count": 2,
+                    }
+
+                mock_sums.side_effect = _sums
+                async with await _async_client() as client:
+                    response = await client.get("/api/dashboard/stats")
 
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
@@ -162,34 +187,23 @@ class TestDashboardRouter:
         finally:
             app.dependency_overrides.clear()
 
-    def test_get_dashboard_stats_database_error(self, client, mock_regular_user):
+    @pytest.mark.asyncio
+    async def test_get_dashboard_stats_database_error(self, mock_regular_user):
         """Test dashboard stats with database error returns default values for new metrics"""
-        from database import get_db
-        from main import app
         from routers.dashboard import require_user
 
-        def override_require_user():
-            return mock_regular_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            # Mock database error
-            mock_db.execute.side_effect = Exception("Database connection failed")
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[require_user] = lambda: mock_regular_user
+        _override_async_db(_mock_async_db())
 
         try:
-            # Mock the cache to return None (no cached value)
-            # Mock get_accessible_project_ids to simulate error scenario
             with patch("routers.dashboard.cache") as mock_cache, patch(
                 "routers.dashboard.get_accessible_project_ids",
                 side_effect=Exception("Database connection failed"),
             ):
                 mock_cache.get.return_value = None
 
-                response = client.get("/api/dashboard/stats")
+                async with await _async_client() as client:
+                    response = await client.get("/api/dashboard/stats")
 
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
@@ -202,55 +216,54 @@ class TestDashboardRouter:
         finally:
             app.dependency_overrides.clear()
 
-    def test_get_dashboard_stats_edge_case_no_generations(self, client, mock_superadmin_user):
+    @pytest.mark.asyncio
+    async def test_get_dashboard_stats_edge_case_no_generations(self, mock_superadmin_user):
         """Test dashboard stats when no projects have generations"""
-        from database import get_db
-        from main import app
         from routers.dashboard import require_user
 
-        def override_require_user():
-            return mock_superadmin_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            # _live_evaluations_count fallback runs when evaluation_pairs_count
-            # is 0 — give it an empty pairs query result so the fallback
-            # also returns 0.
-            mock_db.query.return_value.distinct.return_value.filter.return_value.all.return_value = []
-            mock_db.query.return_value.distinct.return_value.all.return_value = []
-            mock_db.execute.return_value.scalar.return_value = 5
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[require_user] = lambda: mock_superadmin_user
+        _override_async_db(_mock_async_db(scalar_value=5))
 
         try:
             with patch("routers.dashboard.cache") as mock_cache, \
-                 patch("routers.dashboard.read_dashboard_sum") as mock_sums, \
-                 patch("routers.dashboard._live_evaluations_count") as mock_live_eval, \
-                 patch("routers.dashboard._live_dashboard_counts") as mock_live_dash:
+                 patch("routers.dashboard.read_dashboard_sum_async") as mock_sums, \
+                 patch("routers.dashboard._live_evaluations_count_async") as mock_live_eval, \
+                 patch("routers.dashboard._live_dashboard_counts_async") as mock_live_dash:
                 mock_cache.get.return_value = None
-                mock_sums.return_value = {
-                    "project_count": 5,
-                    "total_tasks": 20,
-                    "labeled_tasks": 0,
-                    "annotations_count": 0,
-                    "generations_count": 0,
-                    "response_generations_count": 0,
-                    "evaluation_pairs_count": 0,
-                }
-                mock_live_eval.return_value = 0
-                # `_live_dashboard_counts` is the brand-new-project fallback
-                # for task / annotation / generation counts. With everything
-                # else mocked to 0 it fires; the edge-case-no-generations
-                # scenario also wants those to stay 0.
-                mock_live_dash.return_value = {
-                    "total_tasks": 0,
-                    "annotations_count": 0,
-                    "generations_count": 0,
-                }
 
-                response = client.get("/api/dashboard/stats")
+                async def _sums(*_a, **_k):
+                    return {
+                        "project_count": 5,
+                        "total_tasks": 20,
+                        "labeled_tasks": 0,
+                        "annotations_count": 0,
+                        "generations_count": 0,
+                        "response_generations_count": 0,
+                        "evaluation_pairs_count": 0,
+                    }
+
+                mock_sums.side_effect = _sums
+
+                async def _live_eval(*_a, **_k):
+                    return 0
+
+                mock_live_eval.side_effect = _live_eval
+
+                # `_live_dashboard_counts_async` is the brand-new-project
+                # fallback for task / annotation / generation counts. With
+                # everything else mocked to 0 it fires; the
+                # edge-case-no-generations scenario wants those to stay 0.
+                async def _live_dash(*_a, **_k):
+                    return {
+                        "total_tasks": 0,
+                        "annotations_count": 0,
+                        "generations_count": 0,
+                    }
+
+                mock_live_dash.side_effect = _live_dash
+
+                async with await _async_client() as client:
+                    response = await client.get("/api/dashboard/stats")
 
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()
@@ -262,36 +275,22 @@ class TestDashboardRouter:
         finally:
             app.dependency_overrides.clear()
 
-    def test_get_dashboard_stats_edge_case_empty_database(self, client, mock_superadmin_user):
+    @pytest.mark.asyncio
+    async def test_get_dashboard_stats_edge_case_empty_database(self, mock_superadmin_user):
         """Test dashboard stats with completely empty database"""
-        from database import get_db
-        from main import app
         from routers.dashboard import require_user
 
-        def override_require_user():
-            return mock_superadmin_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            # Mock result with all zeros
-            mock_result = Mock()
-            mock_result.project_count = 0
-            mock_result.task_count = 0
-            mock_result.annotation_count = 0
-            mock_result.projects_with_generations = 0
-            mock_result.projects_with_evaluations = 0
-            mock_db.execute.return_value.fetchone.return_value = mock_result
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[require_user] = lambda: mock_superadmin_user
+        # No accessible projects -> all-zeros short circuit.
+        _override_async_db(_mock_async_db())
 
         try:
-            # Mock the cache to return None (no cached value)
-            with patch("routers.dashboard.cache") as mock_cache:
+            with patch("routers.dashboard.cache") as mock_cache, \
+                 patch("routers.dashboard.get_accessible_project_ids", return_value=[]):
                 mock_cache.get.return_value = None
 
-                response = client.get("/api/dashboard/stats")
+                async with await _async_client() as client:
+                    response = await client.get("/api/dashboard/stats")
 
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()

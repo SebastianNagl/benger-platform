@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from models import User
-from user_service import get_password_hash
+from auth_module.user_service import get_password_hash
 
 
 @pytest.fixture(scope="function")

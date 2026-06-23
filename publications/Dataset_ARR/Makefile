@@ -3,8 +3,10 @@
 derive:
 	uv run python scripts/derive_zjs_summary.py
 	uv run python scripts/derive_paper_exports.py
+	uv run python scripts/derive_error_analysis.py
 	uv run python scripts/derive_inter_judge_agreement.py
 	uv run python scripts/derive_grundprinzipien_summary.py
+	uv run python scripts/derive_leaderboard_csvs.py
 	uv run python scripts/compute_agreement.py
 
 render:

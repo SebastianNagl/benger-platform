@@ -41,11 +41,15 @@ def mock_sendgrid_client():
 
 @pytest.fixture
 def email_service(mock_sendgrid_client):
-    with patch("email_service.SendGridClient", return_value=mock_sendgrid_client):
+    # EmailService is now the canonical impl in mailer.email_service; the
+    # name SendGridClient is resolved in that module's namespace, so patch it
+    # there (not on the worker email_service re-export shim). check_feature_flag
+    # is False to skip the DB-backed flag lookup the worker has no session for.
+    with patch("mailer.email_service.SendGridClient", return_value=mock_sendgrid_client):
         with patch.object(EmailService, "_init_template_environment") as mock_env:
             mock_template_env = Mock(spec=Environment)
             mock_env.return_value = mock_template_env
-            service = EmailService()
+            service = EmailService(check_feature_flag=False)
             service.mail_enabled = True
             service.template_env = mock_template_env
             return service
@@ -221,7 +225,7 @@ class TestInitTemplateEnvironmentReadOnly:
         """When the template dir is missing AND mkdir raises OSError (read-only
         rootfs), the warning arm (lines 53-54) runs and an Environment is still
         returned — initialization must not crash."""
-        with patch("email_service.SendGridClient", return_value=mock_sendgrid_client):
+        with patch("mailer.email_service.SendGridClient", return_value=mock_sendgrid_client):
             service = EmailService.__new__(EmailService)
             # Point at a path that "doesn't exist", and make mkdir fail.
             with patch.dict(

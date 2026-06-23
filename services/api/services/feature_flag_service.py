@@ -7,19 +7,19 @@ No user or organization-specific overrides.
 
 import json
 import logging
-import os
 from typing import Optional
 
 import redis
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from models import FeatureFlag, User
 from redis_cache import get_redis_client
 
 logger = logging.getLogger(__name__)
 
 # Environment detection
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+ENVIRONMENT = get_settings().environment
 
 # Cache configuration
 CACHE_PREFIX = "feature_flag"

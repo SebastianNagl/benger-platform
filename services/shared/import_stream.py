@@ -69,6 +69,10 @@ from project_models import (
 )
 from serializers import _parse_iso
 
+# Shared batch helper extracted alongside the export side. See
+# stream_io/__init__.py for why the package is named stream_io and not io.
+from stream_io.batch_utils import flush_every, stream_array_rows
+
 logger = logging.getLogger(__name__)
 
 # Spool incoming import bodies in RAM up to this size; spill to disk above it.
@@ -100,6 +104,39 @@ _NESTED_SMALL_KEYS = frozenset({
 _VALUE_OPENING_EVENTS = frozenset(
     {"start_map", "start_array", "null", "boolean", "number", "string"}
 )
+
+
+def _add_catchall_judge_run(db, evaluation_id: str) -> str:
+    """Add one synthetic catch-all judge run for an evaluation run, return its id.
+
+    Single source for the synthetic judge-run row shape (migration 043's
+    backfill): legacy exports and any task_evaluation whose judge_run_id didn't
+    resolve attach to this. Both the nested-clone path and the get-or-create
+    catch-all helper build the identical row.
+    """
+    jr_id = str(uuid.uuid4())
+    db.add(EvaluationJudgeRun(
+        id=jr_id,
+        evaluation_id=evaluation_id,
+        judge_model_id=None,
+        run_index=0,
+        status="completed",
+    ))
+    return jr_id
+
+
+def _deduplicate_project_title(db, original_title: str) -> str:
+    """Return ``original_title`` or the first ``"<title> (N)"`` not already taken.
+
+    Both import entry points (single-pass NDJSON and multi-pass nested) avoid a
+    title clash with the same incrementing-suffix probe.
+    """
+    new_title = original_title
+    counter = 1
+    while db.query(Project).filter(Project.title == new_title).first():
+        new_title = f"{original_title} ({counter})"
+        counter += 1
+    return new_title
 
 
 class ImportValidationError(Exception):
@@ -194,21 +231,13 @@ def iter_array(fileobj, path: str) -> Iterator[Any]:
 def _stream_rows(db, spooled, path: str, batch: int = _IMPORT_BATCH):
     """Yield each element of a top-level array in the spooled JSON one at a time.
 
-    Every ``batch`` rows the session is flushed then expunged so the SQLAlchemy
-    identity map (and thus peak heap) stays O(batch) rather than O(file) on a
-    multi-GB import. Flushing *before* expunging is load-bearing: it guarantees
-    any rows still pending from an earlier entity loop are INSERTed (rather than
-    silently dropped by ``expunge_all``) before a later loop's children
-    FK-reference them. Cross-references travel via string id maps, never live
-    ORM objects, so detaching the just-inserted rows is safe.
+    Thin wrapper over the shared ``stream_io.batch_utils.stream_array_rows``: the
+    flush+expunge-every-``batch`` memory bound (and the load-bearing
+    flush-before-expunge ordering) lives there now, shared with the export side.
+    ``iter_array`` is passed in as the array reader so the ijson dependency stays
+    local to this module.
     """
-    n = 0
-    for row in iter_array(spooled, path):
-        yield row
-        n += 1
-        if n % batch == 0:
-            db.flush()
-            db.expunge_all()
+    yield from stream_array_rows(db, iter_array, spooled, path, batch)
 
 
 def convert_from_label_studio_format(results: list) -> list:
@@ -376,11 +405,7 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
                 created_by=er_data.get("created_by", user_id),
             )
             db.add(er)
-            jr_id = str(uuid.uuid4())
-            db.add(EvaluationJudgeRun(
-                id=jr_id, evaluation_id=new_er_id, judge_model_id=None,
-                run_index=0, status="completed",
-            ))
+            jr_id = _add_catchall_judge_run(db, new_er_id)
             evaluation_run_judge_run[new_er_id] = jr_id
             created_evaluation_runs += 1
             if old_er_id:
@@ -681,13 +706,10 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
             db.add(te)
             created_task_evaluations += 1
 
-        # Bound peak heap: once a batch of tasks is inserted, flush so the rows
-        # hit the DB, then drop them from the session identity map. Everything
-        # downstream cross-references via string id maps (not ORM objects), so
-        # detaching is safe and keeps memory O(batch), not O(file).
-        if created_tasks % _IMPORT_BATCH == 0:
-            db.flush()
-            db.expunge_all()
+        # Bound peak heap to O(batch): flush each batch of tasks to the DB then
+        # detach them from the identity map (downstream cross-references travel
+        # via string id maps, not ORM objects — see flush_every).
+        flush_every(db, created_tasks, _IMPORT_BATCH)
 
     # Top-level human-evaluation import (mirrors clone path). Skip silently if
     # the payload doesn't carry any of these arrays — backward-compatible with
@@ -1135,14 +1157,7 @@ def _get_or_create_catchall_judge_run(
     existing = ctx.catchall_judge_runs.get(evaluation_id)
     if existing:
         return existing
-    jr_id = str(uuid.uuid4())
-    ctx.db.add(EvaluationJudgeRun(
-        id=jr_id,
-        evaluation_id=evaluation_id,
-        judge_model_id=None,
-        run_index=0,
-        status="completed",
-    ))
+    jr_id = _add_catchall_judge_run(ctx.db, evaluation_id)
     ctx.catchall_judge_runs[evaluation_id] = jr_id
     return jr_id
 
@@ -1749,11 +1764,7 @@ def run_ndjson_import(db, fileobj, user_id: str) -> dict:
 
     # Handle project name conflicts (same rename loop as the multi-pass path).
     original_title = project_data.get("title", "Imported Project")
-    new_title = original_title
-    counter = 1
-    while db.query(Project).filter(Project.title == new_title).first():
-        new_title = f"{original_title} ({counter})"
-        counter += 1
+    new_title = _deduplicate_project_title(db, original_title)
 
     ctx = _FullImportContext(db, user_id)
     # Create the project (+ ProjectOrganization). Raises 400 if the importing
@@ -1784,12 +1795,10 @@ def run_ndjson_import(db, fileobj, user_id: str) -> dict:
                 continue
             handler(ctx, record)
             inserted += 1
-            # Bound heap O(batch): flush so rows hit the DB, then detach them
-            # from the identity map. Cross-references travel via ctx id maps
-            # (strings), never live ORM objects, so expunging is safe.
-            if inserted % _IMPORT_BATCH == 0:
-                db.flush()
-                db.expunge_all()
+            # Bound heap O(batch): flush rows to the DB then detach them from the
+            # identity map (cross-references travel via ctx string id maps, not
+            # live ORM objects — see flush_every).
+            flush_every(db, inserted, _IMPORT_BATCH)
     except ValueError as exc:
         # A corrupt / truncated line mid-stream → treat as a malformed export.
         raise ImportValidationError(400, f"Invalid JSON in NDJSON record: {exc}")
@@ -1864,12 +1873,7 @@ def run_full_project_import(db, fileobj, user_id: str) -> dict:
 
     # Handle project name conflicts
     original_title = project_data.get("title", "Imported Project")
-    new_title = original_title
-    counter = 1
-
-    while db.query(Project).filter(Project.title == new_title).first():
-        new_title = f"{original_title} ({counter})"
-        counter += 1
+    new_title = _deduplicate_project_title(db, original_title)
 
     # Stream the per-entity passes through the shared insert helpers so this
     # multi-pass importer and the single-pass NDJSON importer drive identical

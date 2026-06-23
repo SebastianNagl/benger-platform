@@ -9,6 +9,8 @@ import logging
 from typing import Dict, List, Optional, Tuple
 
 import httpx
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from models import User
@@ -37,6 +39,18 @@ class UserApiKeyService:
         "grok": "encrypted_grok_api_key",
         "mistral": "encrypted_mistral_api_key",
         "cohere": "encrypted_cohere_api_key",
+    }
+
+    # Display names for the supported providers — shared by the sync and async
+    # get_user_available_providers methods (was inlined in both).
+    PROVIDER_DISPLAY_NAMES = {
+        "openai": "OpenAI",
+        "anthropic": "Anthropic",
+        "google": "Google",
+        "deepinfra": "DeepInfra",
+        "grok": "Grok",
+        "mistral": "Mistral",
+        "cohere": "Cohere",
     }
 
     def __init__(self, encryption_service):
@@ -207,16 +221,147 @@ class UserApiKeyService:
             list: Available provider names (properly capitalized)
         """
         status = self.get_user_api_key_status(db, user_id)
-        provider_names = {
-            "openai": "OpenAI",
-            "anthropic": "Anthropic",
-            "google": "Google",
-            "deepinfra": "DeepInfra",
-            "grok": "Grok",
-            "mistral": "Mistral",
-            "cohere": "Cohere",
-        }
-        return [provider_names[provider] for provider, has_key in status.items() if has_key]
+        return [
+            self.PROVIDER_DISPLAY_NAMES[provider]
+            for provider, has_key in status.items()
+            if has_key
+        ]
+
+    # ------------------------------------------------------------------
+    # Async twins (async DB lane). Share the ``_build_select_user`` builder
+    # with the sync methods above; the sync methods stay byte-identical.
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_select_user(user_id: str):
+        return select(User).where(User.id == user_id)
+
+    async def set_user_api_key_async(
+        self, db: AsyncSession, user_id: str, provider: str, api_key: str
+    ) -> bool:
+        """Async twin of :meth:`set_user_api_key`."""
+        try:
+            provider = provider.lower()
+            if provider not in self.SUPPORTED_PROVIDERS:
+                logger.error(f"Unsupported provider: {provider}")
+                return False
+
+            if not self.encryption_service.is_valid_api_key_format(api_key, provider):
+                logger.error(f"Invalid API key format for provider {provider}")
+                return False
+
+            result = await db.execute(self._build_select_user(user_id))
+            user = result.scalar_one_or_none()
+            if not user:
+                logger.error(f"User not found: {user_id}")
+                return False
+
+            encrypted_key = self.encryption_service.encrypt_api_key(api_key)
+            if not encrypted_key:
+                logger.error("Failed to encrypt API key")
+                return False
+
+            field_name = self.API_KEY_FIELDS[provider]
+            setattr(user, field_name, encrypted_key)
+
+            await db.commit()
+            logger.info(f"API key set successfully for user {user_id}, provider {provider}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to set API key: {e}")
+            await db.rollback()
+            return False
+
+    async def get_user_api_key_async(
+        self, db: AsyncSession, user_id: str, provider: str
+    ) -> Optional[str]:
+        """Async twin of :meth:`get_user_api_key`."""
+        try:
+            provider = provider.lower()
+            if provider not in self.SUPPORTED_PROVIDERS:
+                logger.error(f"Unsupported provider: {provider}")
+                return None
+
+            result = await db.execute(self._build_select_user(user_id))
+            user = result.scalar_one_or_none()
+            if not user:
+                logger.error(f"User not found: {user_id}")
+                return None
+
+            field_name = self.API_KEY_FIELDS[provider]
+            encrypted_key = getattr(user, field_name)
+
+            if not encrypted_key:
+                return None
+
+            return self.encryption_service.decrypt_api_key(encrypted_key)
+
+        except Exception as e:
+            logger.error(f"Failed to get API key: {e}")
+            return None
+
+    async def remove_user_api_key_async(
+        self, db: AsyncSession, user_id: str, provider: str
+    ) -> bool:
+        """Async twin of :meth:`remove_user_api_key`."""
+        try:
+            provider = provider.lower()
+            if provider not in self.SUPPORTED_PROVIDERS:
+                logger.error(f"Unsupported provider: {provider}")
+                return False
+
+            result = await db.execute(self._build_select_user(user_id))
+            user = result.scalar_one_or_none()
+            if not user:
+                logger.error(f"User not found: {user_id}")
+                return False
+
+            field_name = self.API_KEY_FIELDS[provider]
+            setattr(user, field_name, None)
+
+            await db.commit()
+            logger.info(f"API key removed for user {user_id}, provider {provider}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to remove API key: {e}")
+            await db.rollback()
+            return False
+
+    async def get_user_api_key_status_async(
+        self, db: AsyncSession, user_id: str
+    ) -> Dict[str, bool]:
+        """Async twin of :meth:`get_user_api_key_status`."""
+        try:
+            result = await db.execute(self._build_select_user(user_id))
+            user = result.scalar_one_or_none()
+            if not user:
+                logger.error(f"User not found: {user_id}")
+                return {}
+
+            status = {}
+            for provider in self.SUPPORTED_PROVIDERS:
+                field_name = self.API_KEY_FIELDS[provider]
+                encrypted_key = getattr(user, field_name)
+                status[provider] = bool(encrypted_key)
+
+            return status
+
+        except Exception as e:
+            logger.error(f"Failed to get API key status: {e}")
+            return {}
+
+    async def get_user_available_providers_async(
+        self, db: AsyncSession, user_id: str
+    ) -> List[str]:
+        """Async twin of :meth:`get_user_available_providers`."""
+        status = await self.get_user_api_key_status_async(db, user_id)
+        return [
+            self.PROVIDER_DISPLAY_NAMES[provider]
+            for provider, has_key in status.items()
+            if has_key
+        ]
 
     async def validate_api_key(
         self, api_key: str, provider: str

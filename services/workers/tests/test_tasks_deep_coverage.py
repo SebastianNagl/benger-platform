@@ -15,6 +15,7 @@ Targets uncovered lines across:
 import asyncio
 import os
 import sys
+import types
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -732,6 +733,34 @@ class TestGenerateResponseBridge:
         )
         assert result["status"] == "error"
         assert "not found" in result["message"].lower()
+
+    @pytest.mark.parametrize(
+        "terminal_status", ["stopped", "cancelled", "completed", "paused"]
+    )
+    @patch("tasks.HAS_DATABASE", True)
+    @patch("tasks.SessionLocal")
+    def test_terminal_generation_self_aborts(self, mock_session_cls, terminal_status):
+        """A trial whose parent generation is already terminal self-aborts
+        BEFORE any LLM call — the DB-status backstop that stops API-budget burn
+        when the in-memory Celery revoke was lost (worker recycle / restart).
+        'stopped' (stop), 'cancelled' (supersede), and 'paused' (pause) must all
+        skip just like 'completed'."""
+        gen = types.SimpleNamespace(
+            id="gen-x", status=terminal_status, structure_key=None
+        )
+        db = _mock_db()
+        db.query.return_value.filter.return_value.first.return_value = gen
+        mock_session_cls.return_value = db
+
+        from tasks import generate_response
+        result = generate_response(
+            generation_id="gen-x",
+            project_id="p1",
+            task_id="t1",
+            model_id="m1",
+        )
+        assert result["status"] == terminal_status
+        assert "skipping" in result["message"].lower()
 
 
 # ===========================================================================

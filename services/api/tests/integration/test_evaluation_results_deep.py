@@ -1,29 +1,47 @@
 """
 Deep integration tests for evaluation results, per-sample analysis, and export.
 
-Covers routers/evaluations/results.py:
+Covers routers/evaluations/results/ (core.py, distributions.py):
 - GET /evaluations/results/{project_id} — automated + human results
 - POST /evaluations/export/{project_id} — JSON and CSV export
 - GET /evaluations/{evaluation_id}/samples — per-sample with filters
 - GET /evaluations/{evaluation_id}/metrics/{metric}/distribution — histogram, quartiles
 - GET /evaluations/{evaluation_id}/confusion-matrix — classification confusion matrix
+
+The results router package is now fully async (every endpoint is
+``async def`` with ``db: AsyncSession = Depends(get_async_db)`` and
+``await check_project_accessible_async(...)``). These tests therefore seed
+real rows via ``async_test_db`` and drive the surface through
+``async_test_client``. ``require_user`` is overridden per-request to return a
+superadmin auth User matching the seeded owner (the sync auth dependency
+can't see the async test transaction); a superadmin satisfies
+``check_project_accessible_async`` so no org-context header is needed. The
+two access-denied tests instead use a non-superadmin override plus a patched
+access helper that returns False, to exercise the 403 branch deterministically.
 """
 
 import json
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
     Generation,
     HumanEvaluationSession,
     LikertScaleEvaluation,
+    Organization,
     PreferenceRanking,
     ResponseGeneration,
     TaskEvaluation,
+    User,
 )
 from project_models import (
     Annotation,
@@ -39,8 +57,53 @@ def _uid():
     return str(uuid.uuid4())
 
 
-def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=True):
-    """Build a complete evaluation data graph."""
+@contextmanager
+def _as_user(db_user, *, is_superadmin=None):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin if is_superadmin is None else is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_owner(db):
+    """Seed a superadmin owner + a minimal org, independent of sync fixtures."""
+    org = Organization(
+        id=_uid(),
+        name=f"EvalOrg {uuid.uuid4().hex[:6]}",
+        display_name=f"EvalOrg {uuid.uuid4().hex[:6]}",
+        slug=f"evalorg-{uuid.uuid4().hex[:8]}",
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(org)
+    owner = User(
+        id=_uid(),
+        username=f"eval-owner-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Eval Owner",
+        is_superadmin=True,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(owner)
+    await db.flush()
+    return owner, org
+
+
+async def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=True):
+    """Build a complete evaluation data graph (async)."""
     project = Project(
         id=_uid(),
         title=f"EvalResult {uuid.uuid4().hex[:6]}",
@@ -50,14 +113,14 @@ def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=Tr
         '<Choice value="Ja"/><Choice value="Nein"/></Choices></View>',
     )
     db.add(project)
-    db.flush()
+    await db.flush()
 
     po = ProjectOrganization(
         id=_uid(), project_id=project.id,
         organization_id=org.id, assigned_by=admin.id,
     )
     db.add(po)
-    db.flush()
+    await db.flush()
 
     tasks = []
     for i in range(num_tasks):
@@ -68,7 +131,7 @@ def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=Tr
         )
         db.add(t)
         tasks.append(t)
-    db.flush()
+    await db.flush()
 
     # Annotations
     annotations = []
@@ -82,7 +145,7 @@ def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=Tr
         )
         db.add(ann)
         annotations.append(ann)
-    db.flush()
+    await db.flush()
 
     # Generations
     generations = []
@@ -95,7 +158,7 @@ def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=Tr
                 completed_at=datetime.now(timezone.utc),
             )
             db.add(rg)
-            db.flush()
+            await db.flush()
             for i, t in enumerate(tasks):
                 gen = Generation(
                     id=_uid(), generation_id=rg.id, task_id=t.id,
@@ -106,7 +169,7 @@ def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=Tr
                 )
                 db.add(gen)
                 generations.append(gen)
-        db.flush()
+        await db.flush()
 
     # Evaluation runs with per-sample results
     eval_runs = []
@@ -123,7 +186,7 @@ def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=Tr
             completed_at=datetime.now(timezone.utc),
         )
         db.add(er)
-        db.flush()
+        await db.flush()
         eval_runs.append(er)
 
         # Migration 043 made TaskEvaluation.judge_run_id NOT NULL; use the
@@ -133,7 +196,7 @@ def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=Tr
             run_index=0, status="completed",
         )
         db.add(judge_run)
-        db.flush()
+        await db.flush()
         er._test_judge_run = judge_run
 
         # Per-sample TaskEvaluations
@@ -156,7 +219,7 @@ def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=Tr
             )
             db.add(te)
             task_evals.append(te)
-    db.flush()
+    await db.flush()
 
     # Human evaluation sessions
     human_sessions = []
@@ -170,7 +233,7 @@ def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=Tr
             completed_at=datetime.now(timezone.utc),
         )
         db.add(hs)
-        db.flush()
+        await db.flush()
         human_sessions.append(hs)
 
         # Likert evaluations
@@ -183,7 +246,7 @@ def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=Tr
                     dimension=dim, rating=rating_val,
                 )
                 db.add(le)
-        db.flush()
+        await db.flush()
 
         # Preference rankings
         pr = PreferenceRanking(
@@ -200,10 +263,11 @@ def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=Tr
             winner="b", confidence=0.7,
         )
         db.add(pr2)
-        db.flush()
+        await db.flush()
 
-    db.commit()
+    await db.commit()
     return {
+        "owner": admin,
         "project": project,
         "tasks": tasks,
         "annotations": annotations,
@@ -214,8 +278,11 @@ def _setup(db, admin, org, *, num_tasks=5, with_human=False, with_generations=Tr
     }
 
 
-def _h(auth_headers, org):
-    return {**auth_headers["admin"], "X-Organization-Context": org.id}
+async def _seeded(db, **kwargs):
+    """Seed an owner + org, then the full graph; return (data, owner)."""
+    owner, org = await _make_owner(db)
+    data = await _setup(db, owner, org, **kwargs)
+    return data, owner
 
 
 # ===================================================================
@@ -226,78 +293,85 @@ def _h(auth_headers, org):
 class TestGetEvaluationResultsDeep:
     """GET /api/evaluations/results/{project_id}"""
 
-    def test_results_automated_only(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org, with_human=False)
-        resp = client.get(
-            f"{BASE}/results/{data['project'].id}?include_human=false",
-            headers=_h(auth_headers, test_org),
-        )
+    @pytest.mark.asyncio
+    async def test_results_automated_only(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db, with_human=False)
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/results/{data['project'].id}?include_human=false",
+            )
         assert resp.status_code == 200
         results = resp.json()
         assert isinstance(results, list)
         assert all(r["results"]["type"] == "automated" for r in results)
 
-    def test_results_human_only(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org, with_human=True)
-        resp = client.get(
-            f"{BASE}/results/{data['project'].id}?include_automated=false",
-            headers=_h(auth_headers, test_org),
-        )
+    @pytest.mark.asyncio
+    async def test_results_human_only(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db, with_human=True)
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/results/{data['project'].id}?include_automated=false",
+            )
         assert resp.status_code == 200
         results = resp.json()
         human_types = [r["results"]["type"] for r in results if r["results"]["type"].startswith("human")]
         assert len(human_types) >= 1
 
-    def test_results_both_automated_and_human(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org, with_human=True)
-        resp = client.get(
-            f"{BASE}/results/{data['project'].id}",
-            headers=_h(auth_headers, test_org),
-        )
+    @pytest.mark.asyncio
+    async def test_results_both_automated_and_human(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db, with_human=True)
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/results/{data['project'].id}",
+            )
         assert resp.status_code == 200
         results = resp.json()
         types = {r["results"]["type"] for r in results}
         assert "automated" in types
 
-    def test_results_with_limit(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org)
-        resp = client.get(
-            f"{BASE}/results/{data['project'].id}?limit=1",
-            headers=_h(auth_headers, test_org),
-        )
+    @pytest.mark.asyncio
+    async def test_results_with_limit(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db)
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/results/{data['project'].id}?limit=1",
+            )
         assert resp.status_code == 200
         results = resp.json()
         # Limited to 1 automated result
         automated = [r for r in results if r["results"]["type"] == "automated"]
         assert len(automated) <= 1
 
-    def test_results_empty_project(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_results_empty_project(self, async_test_client, async_test_db):
+        owner, org = await _make_owner(async_test_db)
         project = Project(
-            id=_uid(), title="Empty Eval", created_by=test_users[0].id,
+            id=_uid(), title="Empty Eval", created_by=owner.id,
             label_config="<View/>",
         )
-        test_db.add(project)
-        test_db.flush()
+        async_test_db.add(project)
+        await async_test_db.flush()
         po = ProjectOrganization(
             id=_uid(), project_id=project.id,
-            organization_id=test_org.id, assigned_by=test_users[0].id,
+            organization_id=org.id, assigned_by=owner.id,
         )
-        test_db.add(po)
-        test_db.commit()
+        async_test_db.add(po)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{BASE}/results/{project.id}",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/results/{project.id}",
+            )
         assert resp.status_code == 200
         assert resp.json() == []
 
-    def test_results_likert_aggregation(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org, with_human=True)
-        resp = client.get(
-            f"{BASE}/results/{data['project'].id}?include_automated=false",
-            headers=_h(auth_headers, test_org),
-        )
+    @pytest.mark.asyncio
+    async def test_results_likert_aggregation(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db, with_human=True)
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/results/{data['project'].id}?include_automated=false",
+            )
         assert resp.status_code == 200
         results = resp.json()
         likert = [r for r in results if r["results"]["type"] == "human_likert"]
@@ -309,12 +383,13 @@ class TestGetEvaluationResultsDeep:
             # Average of 3, 4, 5 = 4.0
             assert dims["fluency"]["average_rating"] == pytest.approx(4.0, abs=0.1)
 
-    def test_results_preference_aggregation(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org, with_human=True)
-        resp = client.get(
-            f"{BASE}/results/{data['project'].id}?include_automated=false",
-            headers=_h(auth_headers, test_org),
-        )
+    @pytest.mark.asyncio
+    async def test_results_preference_aggregation(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db, with_human=True)
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/results/{data['project'].id}?include_automated=false",
+            )
         assert resp.status_code == 200
         results = resp.json()
         prefs = [r for r in results if r["results"]["type"] == "human_preference"]
@@ -323,14 +398,18 @@ class TestGetEvaluationResultsDeep:
             assert "a" in counts or "b" in counts
             assert prefs[0]["results"]["total_comparisons"] == 2
 
-    def test_results_access_denied(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org)
-        # No org context header for non-superadmin
-        resp = client.get(
-            f"{BASE}/results/{data['project'].id}",
-            headers=auth_headers["annotator"],
-        )
-        assert resp.status_code in (200, 403)
+    @pytest.mark.asyncio
+    async def test_results_access_denied(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db)
+        # Non-superadmin user + denied access helper exercises the 403 branch.
+        with _as_user(owner, is_superadmin=False), patch(
+            "routers.evaluations.results.core.check_project_accessible_async",
+            new=AsyncMock(return_value=False),
+        ):
+            resp = await async_test_client.get(
+                f"{BASE}/results/{data['project'].id}",
+            )
+        assert resp.status_code == 403
 
 
 # ===================================================================
@@ -341,60 +420,65 @@ class TestGetEvaluationResultsDeep:
 class TestExportEvaluationResultsDeep:
     """POST /api/evaluations/export/{project_id}"""
 
-    def test_export_json_with_metrics(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org)
-        resp = client.post(
-            f"{BASE}/export/{data['project'].id}?format=json",
-            headers=_h(auth_headers, test_org),
-        )
+    @pytest.mark.asyncio
+    async def test_export_json_with_metrics(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db)
+        with _as_user(owner):
+            resp = await async_test_client.post(
+                f"{BASE}/export/{data['project'].id}?format=json",
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["project_id"] == data["project"].id
         assert "results" in body
         assert len(body["results"]) >= 1
 
-    def test_export_csv_format(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org)
-        resp = client.post(
-            f"{BASE}/export/{data['project'].id}?format=csv",
-            headers=_h(auth_headers, test_org),
-        )
+    @pytest.mark.asyncio
+    async def test_export_csv_format(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db)
+        with _as_user(owner):
+            resp = await async_test_client.post(
+                f"{BASE}/export/{data['project'].id}?format=csv",
+            )
         assert resp.status_code == 200
         assert "text/csv" in resp.headers.get("content-type", "")
         lines = resp.text.strip().split("\n")
         assert "timestamp" in lines[0]
         assert len(lines) >= 2  # header + data
 
-    def test_export_csv_with_human_data(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org, with_human=True)
-        resp = client.post(
-            f"{BASE}/export/{data['project'].id}?format=csv",
-            headers=_h(auth_headers, test_org),
-        )
+    @pytest.mark.asyncio
+    async def test_export_csv_with_human_data(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db, with_human=True)
+        with _as_user(owner):
+            resp = await async_test_client.post(
+                f"{BASE}/export/{data['project'].id}?format=csv",
+            )
         assert resp.status_code == 200
         # Should include human evaluation rows
         content = resp.text
         # Human likert or preference data should be present
         assert len(content.strip().split("\n")) >= 2
 
-    def test_export_empty_project(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_export_empty_project(self, async_test_client, async_test_db):
+        owner, org = await _make_owner(async_test_db)
         project = Project(
-            id=_uid(), title="Empty Export", created_by=test_users[0].id,
+            id=_uid(), title="Empty Export", created_by=owner.id,
             label_config="<View/>",
         )
-        test_db.add(project)
-        test_db.flush()
+        async_test_db.add(project)
+        await async_test_db.flush()
         po = ProjectOrganization(
             id=_uid(), project_id=project.id,
-            organization_id=test_org.id, assigned_by=test_users[0].id,
+            organization_id=org.id, assigned_by=owner.id,
         )
-        test_db.add(po)
-        test_db.commit()
+        async_test_db.add(po)
+        await async_test_db.commit()
 
-        resp = client.post(
-            f"{BASE}/export/{project.id}?format=json",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.post(
+                f"{BASE}/export/{project.id}?format=json",
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["results"] == []
@@ -408,64 +492,69 @@ class TestExportEvaluationResultsDeep:
 class TestGetEvaluationSamples:
     """GET /api/evaluations/{evaluation_id}/samples"""
 
-    def test_get_samples_basic(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org)
+    @pytest.mark.asyncio
+    async def test_get_samples_basic(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db)
         eval_id = data["eval_runs"][0].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/samples",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/samples",
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["total"] == 5
         assert len(body["items"]) == 5
 
-    def test_get_samples_filter_by_passed(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org)
+    @pytest.mark.asyncio
+    async def test_get_samples_filter_by_passed(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db)
         eval_id = data["eval_runs"][0].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/samples?passed=true",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/samples?passed=true",
+            )
         assert resp.status_code == 200
         body = resp.json()
         # All returned should be passed
         for item in body["items"]:
             assert item["passed"] == True  # noqa: E712
 
-    def test_get_samples_filter_by_failed(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org)
+    @pytest.mark.asyncio
+    async def test_get_samples_filter_by_failed(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db)
         eval_id = data["eval_runs"][0].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/samples?passed=false",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/samples?passed=false",
+            )
         assert resp.status_code == 200
         body = resp.json()
         for item in body["items"]:
             assert item["passed"] == False  # noqa: E712
 
-    def test_get_samples_filter_by_field_name(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org)
+    @pytest.mark.asyncio
+    async def test_get_samples_filter_by_field_name(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db)
         eval_id = data["eval_runs"][0].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/samples?field_name=answer",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/samples?field_name=answer",
+            )
         assert resp.status_code == 200
         body = resp.json()
         for item in body["items"]:
             assert item["field_name"] == "answer"
 
-    def test_get_samples_pagination(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org, num_tasks=10)
+    @pytest.mark.asyncio
+    async def test_get_samples_pagination(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db, num_tasks=10)
         eval_id = data["eval_runs"][0].id
 
         # Page 1
-        resp1 = client.get(
-            f"{BASE}/{eval_id}/samples?page=1&page_size=3",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp1 = await async_test_client.get(
+                f"{BASE}/{eval_id}/samples?page=1&page_size=3",
+            )
         assert resp1.status_code == 200
         body1 = resp1.json()
         assert len(body1["items"]) == 3
@@ -473,10 +562,10 @@ class TestGetEvaluationSamples:
         assert body1["total"] == 10
 
         # Page 2
-        resp2 = client.get(
-            f"{BASE}/{eval_id}/samples?page=2&page_size=3",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp2 = await async_test_client.get(
+                f"{BASE}/{eval_id}/samples?page=2&page_size=3",
+            )
         assert resp2.status_code == 200
         body2 = resp2.json()
         assert len(body2["items"]) == 3
@@ -486,20 +575,24 @@ class TestGetEvaluationSamples:
         ids2 = {item["id"] for item in body2["items"]}
         assert ids1.isdisjoint(ids2)
 
-    def test_get_samples_nonexistent_evaluation(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get(
-            f"{BASE}/nonexistent-eval-id/samples",
-            headers=_h(auth_headers, test_org),
-        )
+    @pytest.mark.asyncio
+    async def test_get_samples_nonexistent_evaluation(self, async_test_client, async_test_db):
+        owner, _org = await _make_owner(async_test_db)
+        await async_test_db.commit()
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/nonexistent-eval-id/samples",
+            )
         assert resp.status_code == 404
 
-    def test_get_samples_response_structure(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org)
+    @pytest.mark.asyncio
+    async def test_get_samples_response_structure(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db)
         eval_id = data["eval_runs"][0].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/samples?page_size=1",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/samples?page_size=1",
+            )
         assert resp.status_code == 200
         body = resp.json()
         item = body["items"][0]
@@ -521,13 +614,14 @@ class TestGetEvaluationSamples:
 class TestMetricDistribution:
     """GET /api/evaluations/{evaluation_id}/metrics/{metric}/distribution"""
 
-    def test_distribution_accuracy(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org, num_tasks=10)
+    @pytest.mark.asyncio
+    async def test_distribution_accuracy(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db, num_tasks=10)
         eval_id = data["eval_runs"][0].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/metrics/accuracy/distribution",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/metrics/accuracy/distribution",
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["metric_name"] == "accuracy"
@@ -541,42 +635,48 @@ class TestMetricDistribution:
         assert body["min"] >= 0.0
         assert body["max"] <= 1.0
 
-    def test_distribution_f1(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org, num_tasks=8)
+    @pytest.mark.asyncio
+    async def test_distribution_f1(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db, num_tasks=8)
         eval_id = data["eval_runs"][0].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/metrics/f1/distribution",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/metrics/f1/distribution",
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["metric_name"] == "f1"
         # Histogram should have 10 buckets
         assert len(body["histogram"]) == 10
 
-    def test_distribution_filter_by_field(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org, num_tasks=6)
+    @pytest.mark.asyncio
+    async def test_distribution_filter_by_field(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db, num_tasks=6)
         eval_id = data["eval_runs"][0].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/metrics/accuracy/distribution?field_name=answer",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/metrics/accuracy/distribution?field_name=answer",
+            )
         assert resp.status_code == 200
 
-    def test_distribution_nonexistent_metric(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org)
+    @pytest.mark.asyncio
+    async def test_distribution_nonexistent_metric(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db)
         eval_id = data["eval_runs"][0].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/metrics/nonexistent_metric/distribution",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/metrics/nonexistent_metric/distribution",
+            )
         assert resp.status_code == 404
 
-    def test_distribution_nonexistent_evaluation(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get(
-            f"{BASE}/nonexistent/metrics/accuracy/distribution",
-            headers=_h(auth_headers, test_org),
-        )
+    @pytest.mark.asyncio
+    async def test_distribution_nonexistent_evaluation(self, async_test_client, async_test_db):
+        owner, _org = await _make_owner(async_test_db)
+        await async_test_db.commit()
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/nonexistent/metrics/accuracy/distribution",
+            )
         assert resp.status_code == 404
 
 
@@ -588,13 +688,14 @@ class TestMetricDistribution:
 class TestConfusionMatrix:
     """GET /api/evaluations/{evaluation_id}/confusion-matrix"""
 
-    def test_confusion_matrix_basic(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org, num_tasks=6)
+    @pytest.mark.asyncio
+    async def test_confusion_matrix_basic(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db, num_tasks=6)
         eval_id = data["eval_runs"][0].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/confusion-matrix?field_name=answer",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/confusion-matrix?field_name=answer",
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["field_name"] == "answer"
@@ -604,13 +705,14 @@ class TestConfusionMatrix:
         # Should have labels "ja" and "nein"
         assert len(body["labels"]) >= 1
 
-    def test_confusion_matrix_metrics(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org, num_tasks=8)
+    @pytest.mark.asyncio
+    async def test_confusion_matrix_metrics(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db, num_tasks=8)
         eval_id = data["eval_runs"][0].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/confusion-matrix?field_name=answer",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/confusion-matrix?field_name=answer",
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert "precision_per_class" in body
@@ -618,39 +720,49 @@ class TestConfusionMatrix:
         assert "f1_per_class" in body
         assert 0 <= body["accuracy"] <= 1.0
 
-    def test_confusion_matrix_nonexistent_field(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org)
+    @pytest.mark.asyncio
+    async def test_confusion_matrix_nonexistent_field(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db)
         eval_id = data["eval_runs"][0].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/confusion-matrix?field_name=nonexistent",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/confusion-matrix?field_name=nonexistent",
+            )
         assert resp.status_code == 404
 
-    def test_confusion_matrix_access_denied(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org)
+    @pytest.mark.asyncio
+    async def test_confusion_matrix_access_denied(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db)
         eval_id = data["eval_runs"][0].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/confusion-matrix?field_name=answer",
-            headers=auth_headers["annotator"],  # No org context
-        )
-        assert resp.status_code in (200, 403)
+        # Non-superadmin user + denied access helper exercises the 403 branch.
+        with _as_user(owner, is_superadmin=False), patch(
+            "routers.evaluations.results.distributions.check_project_accessible_async",
+            new=AsyncMock(return_value=False),
+        ):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/confusion-matrix?field_name=answer",
+            )
+        assert resp.status_code == 403
 
-    def test_confusion_matrix_nonexistent_eval(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get(
-            f"{BASE}/nonexistent/confusion-matrix?field_name=answer",
-            headers=_h(auth_headers, test_org),
-        )
+    @pytest.mark.asyncio
+    async def test_confusion_matrix_nonexistent_eval(self, async_test_client, async_test_db):
+        owner, _org = await _make_owner(async_test_db)
+        await async_test_db.commit()
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/nonexistent/confusion-matrix?field_name=answer",
+            )
         assert resp.status_code == 404
 
-    def test_confusion_matrix_labels_lowercase(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_confusion_matrix_labels_lowercase(self, async_test_client, async_test_db):
         """Labels in the confusion matrix should be normalized to lowercase."""
-        data = _setup(test_db, test_users[0], test_org, num_tasks=8)
+        data, owner = await _seeded(async_test_db, num_tasks=8)
         eval_id = data["eval_runs"][0].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/confusion-matrix?field_name=answer",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/confusion-matrix?field_name=answer",
+            )
         assert resp.status_code == 200
         body = resp.json()
         for label in body["labels"]:
@@ -665,45 +777,49 @@ class TestConfusionMatrix:
 class TestMultipleEvaluationRuns:
     """Test behavior with multiple evaluation runs for the same project."""
 
-    def test_results_multiple_models(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_results_multiple_models(self, async_test_client, async_test_db):
         """Results should include data from all models."""
-        data = _setup(test_db, test_users[0], test_org, num_tasks=5)
-        resp = client.get(
-            f"{BASE}/results/{data['project'].id}",
-            headers=_h(auth_headers, test_org),
-        )
+        data, owner = await _seeded(async_test_db, num_tasks=5)
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/results/{data['project'].id}",
+            )
         assert resp.status_code == 200
         results = resp.json()
         # Should have results from both gpt-4o and claude-3-sonnet
         assert len([r for r in results if r["results"]["type"] == "automated"]) >= 2
 
-    def test_samples_from_second_run(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_samples_from_second_run(self, async_test_client, async_test_db):
         """Per-sample results for the second evaluation run."""
-        data = _setup(test_db, test_users[0], test_org, num_tasks=5)
+        data, owner = await _seeded(async_test_db, num_tasks=5)
         eval_id = data["eval_runs"][1].id  # claude-3-sonnet
-        resp = client.get(
-            f"{BASE}/{eval_id}/samples",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/samples",
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["total"] == 5
 
-    def test_distribution_from_second_run(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org, num_tasks=8)
+    @pytest.mark.asyncio
+    async def test_distribution_from_second_run(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db, num_tasks=8)
         eval_id = data["eval_runs"][1].id
-        resp = client.get(
-            f"{BASE}/{eval_id}/metrics/f1/distribution",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/{eval_id}/metrics/f1/distribution",
+            )
         assert resp.status_code == 200
 
-    def test_export_includes_all_runs(self, client, test_db, test_users, auth_headers, test_org):
-        data = _setup(test_db, test_users[0], test_org)
-        resp = client.post(
-            f"{BASE}/export/{data['project'].id}?format=json",
-            headers=_h(auth_headers, test_org),
-        )
+    @pytest.mark.asyncio
+    async def test_export_includes_all_runs(self, async_test_client, async_test_db):
+        data, owner = await _seeded(async_test_db)
+        with _as_user(owner):
+            resp = await async_test_client.post(
+                f"{BASE}/export/{data['project'].id}?format=json",
+            )
         assert resp.status_code == 200
         body = resp.json()
         # Export should have >= 2 automated results

@@ -1,76 +1,187 @@
 """
 Integration tests for generation flow
 Issue #482: Test the complete generation workflow from configuration to results
+
+The generation routers were migrated to the async DB lane:
+  - ``routers/projects/generation.py``   (generation-config / generation-status,
+    under ``/api/projects/.../generation*``)
+  - ``routers/generation.py``            (``/api/generation/...`` — status, stop,
+    pause, resume, retry, delete, parse-metrics)
+  - ``routers/generation_task_list.py``  (``/api/generation-tasks/...``)
+
+Because the migrated handlers open a SEPARATE async connection, the old sync
+``client`` + ``test_db`` fixtures can no longer see rows seeded through the sync
+session. Every HTTP-driving test below therefore seeds via ``async_test_db`` and
+drives the surface through ``async_test_client``, with ``require_user`` overridden
+per-test via the ``_as_user`` context manager (copied from
+``test_reports_branches.py``) so the auth User matches a seeded DB user.
+
+The one exception is the WebSocket suite: the WS endpoint
+(``/api/ws/projects/{id}/generation-progress``) is still on the sync lane
+(``Depends(get_db)``) and httpx's ``AsyncClient`` cannot speak the WS protocol,
+so those tests keep the sync ``client`` + ``test_user`` fixtures.
 """
 
-from datetime import datetime
+import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
 from main import app
 from models import Generation as DBGeneration
 from models import ResponseGeneration as DBResponseGeneration
-from project_models import Project, Task
+from models import Organization, OrganizationMembership, User
+from project_models import Project, ProjectOrganization, Task
 
 
-# Module-level fixtures accessible to all test classes
-@pytest.fixture
-def auth_headers(test_user):
-    """Get authentication headers for test user"""
-    return {"Authorization": f"Bearer {test_user.token}"}
+# ---------------------------------------------------------------------------
+# Helpers (mirrors test_reports_branches.py)
+# ---------------------------------------------------------------------------
 
 
-@pytest.fixture
-def test_project(db: Session, test_user):
-    """Create a test project"""
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_user(db, *, is_superadmin=True, username_prefix="gen") -> User:
+    u = User(
+        id=_uid(),
+        username=f"{username_prefix}-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Generation User",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _make_org(db, *, name="Org") -> Organization:
+    org = Organization(
+        id=_uid(),
+        name=name,
+        display_name=name,
+        slug=f"{name.lower().replace(' ', '-')}-{_uid()[:8]}",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(org)
+    await db.flush()
+    return org
+
+
+async def _add_membership(db, user: User, org: Organization, *, role="CONTRIBUTOR"):
+    db.add(
+        OrganizationMembership(
+            id=_uid(),
+            user_id=user.id,
+            organization_id=org.id,
+            role=role,
+            is_active=True,
+            joined_at=datetime.now(timezone.utc),
+        )
+    )
+    await db.flush()
+
+
+async def _create_project(
+    db,
+    creator: User,
+    *,
+    title: str = "Test Project",
+    generation_config: dict = None,
+    org: Organization = None,
+    num_tasks: int = 0,
+) -> Project:
+    """Create a project, optionally linked to an org and seeded with N tasks."""
     project = Project(
-        id="test-project-123",
-        title="Test Project",
+        id=_uid(),
+        title=title,
         description="Project for testing generation",
-        created_by=test_user.id,
+        created_by=creator.id,
         label_config='<View><Text name="text" value="$text"/></View>',
+        generation_config=generation_config,
     )
     db.add(project)
+    await db.flush()
 
-    # Add test tasks
-    for i in range(3):
-        task = Task(
-            id=f"task-{i}",
-            project_id=project.id,
-            data={"text": f"Sample text {i}", "id": f"task-{i}"},
-            created_by=test_user.id,
-            inner_id=i,
+    if org is not None:
+        db.add(
+            ProjectOrganization(
+                id=_uid(),
+                project_id=project.id,
+                organization_id=org.id,
+                assigned_by=creator.id,
+            )
         )
-        db.add(task)
+        await db.flush()
 
-    db.commit()
+    for i in range(num_tasks):
+        db.add(
+            Task(
+                id=_uid(),
+                project_id=project.id,
+                data={"text": f"Sample text {i}", "id": f"task-{i}"},
+                created_by=creator.id,
+                inner_id=i,
+            )
+        )
+    if num_tasks:
+        await db.flush()
+
     return project
 
 
-@pytest.fixture
-def test_generations_with_parse_data(db: Session, test_project):
-    """Create test generations with various parse statuses"""
-    # Create response generation
-    response_gen = DBResponseGeneration(
-        id="response-gen-1",
-        project_id=test_project.id,
-        model_id="gpt-4o",
-        status="completed",
-        created_by="test-user",
-        started_at=datetime.now(),
-        completed_at=datetime.now(),
+async def _seed_parse_data(db, project: Project) -> str:
+    """Create one parent ResponseGeneration + 6 child Generation rows with the
+    parse-status mix the parse-metrics assertions expect:
+      3 success (retry_count 1, 2, 1), 2 failed (same error), 1 validation_error.
+    Returns the parent response_generation id.
+    """
+    parent_id = _uid()
+    db.add(
+        DBResponseGeneration(
+            id=parent_id,
+            project_id=project.id,
+            model_id="gpt-4o",
+            status="completed",
+            created_by=project.created_by,
+            started_at=datetime.now(),
+            completed_at=datetime.now(),
+        )
     )
-    db.add(response_gen)
+    await db.flush()
 
-    # Create individual generations with different parse statuses
-    generations = [
-        # Successful parses
+    rows = [
         DBGeneration(
-            id="gen-success-1",
-            generation_id="response-gen-1",
+            id=_uid(),
+            generation_id=parent_id,
             task_id="task-1",
             model_id="gpt-4o",
             run_index=0,
@@ -80,8 +191,8 @@ def test_generations_with_parse_data(db: Session, test_project):
             parse_metadata={"retry_count": 1},
         ),
         DBGeneration(
-            id="gen-success-2",
-            generation_id="response-gen-1",
+            id=_uid(),
+            generation_id=parent_id,
             task_id="task-2",
             model_id="gpt-4o",
             run_index=1,
@@ -91,8 +202,8 @@ def test_generations_with_parse_data(db: Session, test_project):
             parse_metadata={"retry_count": 2},
         ),
         DBGeneration(
-            id="gen-success-3",
-            generation_id="response-gen-1",
+            id=_uid(),
+            generation_id=parent_id,
             task_id="task-3",
             model_id="gpt-4o",
             run_index=2,
@@ -101,10 +212,9 @@ def test_generations_with_parse_data(db: Session, test_project):
             parse_status="success",
             parse_metadata={"retry_count": 1},
         ),
-        # Failed parses
         DBGeneration(
-            id="gen-failed-1",
-            generation_id="response-gen-1",
+            id=_uid(),
+            generation_id=parent_id,
             task_id="task-4",
             model_id="gpt-4o",
             run_index=3,
@@ -114,8 +224,8 @@ def test_generations_with_parse_data(db: Session, test_project):
             parse_error="JSON decode error",
         ),
         DBGeneration(
-            id="gen-failed-2",
-            generation_id="response-gen-1",
+            id=_uid(),
+            generation_id=parent_id,
             task_id="task-5",
             model_id="gpt-4o",
             run_index=4,
@@ -124,10 +234,9 @@ def test_generations_with_parse_data(db: Session, test_project):
             parse_status="failed",
             parse_error="JSON decode error",
         ),
-        # Validation errors
         DBGeneration(
-            id="gen-validation-1",
-            generation_id="response-gen-1",
+            id=_uid(),
+            generation_id=parent_id,
             task_id="task-6",
             model_id="gpt-4o",
             run_index=5,
@@ -137,28 +246,80 @@ def test_generations_with_parse_data(db: Session, test_project):
             parse_error="Missing required field: label",
         ),
     ]
+    db.add_all(rows)
+    await db.flush()
+    return parent_id
 
-    db.add_all(generations)
+
+_CONFIGURED_GENERATION = {
+    "selected_configuration": {
+        "models": ["gpt-4o", "claude-3-opus-20240229"],
+        "prompts": {"system": "Test system prompt", "instruction": "Test instruction"},
+        "parameters": {"temperature": 0.7, "max_tokens": 1500, "batch_size": 10},
+    }
+}
+
+
+# Sync project fixture for the WebSocket suite (the WS endpoint still reads the
+# sync `test_db` session via Depends(get_db); the async-lane HTTP tests above
+# seed their own projects through `async_test_db`).
+@pytest.fixture
+def test_project(db, test_user):
+    """Create a test project + tasks in the sync test session for WS tests."""
+    project = Project(
+        id="test-project-123",
+        title="Test Project",
+        description="Project for testing generation",
+        created_by=test_user.id,
+        label_config='<View><Text name="text" value="$text"/></View>',
+    )
+    db.add(project)
+    for i in range(3):
+        db.add(
+            Task(
+                id=f"task-{i}",
+                project_id=project.id,
+                data={"text": f"Sample text {i}", "id": f"task-{i}"},
+                created_by=test_user.id,
+                inner_id=i,
+            )
+        )
     db.commit()
-    return generations
+    return project
+
+
+# ===========================================================================
+# Generation configuration  (routers/projects/generation.py)
+# ===========================================================================
 
 
 class TestGenerationConfiguration:
     """Test generation configuration endpoints"""
 
-    def test_get_generation_config_empty(self, client: TestClient, auth_headers, test_project):
+    @pytest.mark.asyncio
+    async def test_get_generation_config_empty(self, async_test_client, async_test_db):
         """Test getting generation config when none exists"""
-        response = client.get(
-            f"/api/projects/{test_project.id}/generation-config", headers=auth_headers
-        )
+        admin = await _make_user(async_test_db)
+        project = await _create_project(async_test_db, admin)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            response = await async_test_client.get(
+                f"/api/projects/{project.id}/generation-config"
+            )
 
         assert response.status_code == 200
         data = response.json()
         assert "available_options" in data
         assert "selected_configuration" not in data or data["selected_configuration"] is None
 
-    def test_update_generation_config(self, client: TestClient, auth_headers, test_project):
+    @pytest.mark.asyncio
+    async def test_update_generation_config(self, async_test_client, async_test_db):
         """Test updating generation configuration"""
+        admin = await _make_user(async_test_db)
+        project = await _create_project(async_test_db, admin)
+        await async_test_db.commit()
+
         config = {
             "detected_data_types": [{"name": "text", "type": "string"}],
             "available_options": {
@@ -181,155 +342,289 @@ class TestGenerationConfiguration:
             "last_updated": datetime.now().isoformat(),
         }
 
-        response = client.put(
-            f"/api/projects/{test_project.id}/generation-config", json=config, headers=auth_headers
-        )
+        with _as_user(admin):
+            response = await async_test_client.put(
+                f"/api/projects/{project.id}/generation-config", json=config
+            )
 
         assert response.status_code == 200
         data = response.json()
         assert "message" in data
         assert "config" in data
 
-    def test_update_generation_config_unauthorized(self, client: TestClient, test_project):
+    @pytest.mark.asyncio
+    async def test_update_generation_config_unauthorized(self, async_test_client, async_test_db):
         """Test updating config without authentication"""
-        response = client.put(f"/api/projects/{test_project.id}/generation-config", json={})
+        admin = await _make_user(async_test_db)
+        project = await _create_project(async_test_db, admin)
+        await async_test_db.commit()
+
+        # No _as_user override → require_user gate rejects with 401.
+        response = await async_test_client.put(
+            f"/api/projects/{project.id}/generation-config", json={}
+        )
 
         assert response.status_code == 401
 
-    def test_clear_generation_config(
-        self, client: TestClient, auth_headers, test_project, db: Session
-    ):
+    @pytest.mark.asyncio
+    async def test_clear_generation_config(self, async_test_client, async_test_db):
         """Test clearing generation configuration"""
-        # First set a config
-        test_project.generation_config = {"test": "config"}
-        db.commit()
-
-        # Clear it
-        response = client.delete(
-            f"/api/projects/{test_project.id}/generation-config", headers=auth_headers
+        admin = await _make_user(async_test_db)
+        project = await _create_project(
+            async_test_db, admin, generation_config={"test": "config"}
         )
+        project_id = project.id
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            response = await async_test_client.delete(
+                f"/api/projects/{project_id}/generation-config"
+            )
 
         assert response.status_code == 204
 
-        # Verify it's cleared
-        db.refresh(test_project)
-        assert test_project.generation_config == None  # noqa: E711
+        # Verify it's cleared in the persisted row.
+        async_test_db.expire_all()
+        refreshed = (
+            await async_test_db.execute(
+                select(Project).where(Project.id == project_id)
+            )
+        ).scalar_one_or_none()
+        assert refreshed.generation_config is None
+
+
+# ===========================================================================
+# Generation execution
+# ===========================================================================
 
 
 class TestGenerationExecution:
     """Test generation execution endpoints"""
 
-    @pytest.fixture
-    def configured_project(self, db: Session, test_project):
-        """Create a project with generation configuration"""
-        test_project.generation_config = {
-            "selected_configuration": {
-                "models": ["gpt-4o", "claude-3-opus-20240229"],
-                "prompts": {"system": "Test system prompt", "instruction": "Test instruction"},
-                "parameters": {"temperature": 0.7, "max_tokens": 1500, "batch_size": 10},
-            }
-        }
-        db.commit()
-        return test_project
-
-    def test_get_generation_status(
-        self, client: TestClient, auth_headers, configured_project, db: Session
-    ):
-        """Test getting generation status"""
-        # Create test generation records
+    @pytest.mark.asyncio
+    async def test_get_generation_status(self, async_test_client, async_test_db):
+        """Test getting generation status (routers/projects/generation.py)"""
+        admin = await _make_user(async_test_db)
+        project = await _create_project(
+            async_test_db, admin, generation_config=_CONFIGURED_GENERATION
+        )
         gen1 = DBResponseGeneration(
-            id="gen-1",
-            project_id=configured_project.id,
+            id=_uid(),
+            project_id=project.id,
             model_id="gpt-4o",
             status="running",
-            created_by="test-user",
+            created_by=admin.id,
             started_at=datetime.now(),
         )
         gen2 = DBResponseGeneration(
-            id="gen-2",
-            project_id=configured_project.id,
+            id=_uid(),
+            project_id=project.id,
             model_id="claude-3-opus-20240229",
             status="completed",
-            created_by="test-user",
+            created_by=admin.id,
             started_at=datetime.now(),
             completed_at=datetime.now(),
         )
-        db.add_all([gen1, gen2])
-        db.commit()
+        async_test_db.add_all([gen1, gen2])
+        await async_test_db.commit()
 
-        response = client.get(
-            f"/api/projects/{configured_project.id}/generation-status", headers=auth_headers
-        )
+        with _as_user(admin):
+            response = await async_test_client.get(
+                f"/api/projects/{project.id}/generation-status"
+            )
 
         assert response.status_code == 200
         data = response.json()
         assert "generations" in data
         assert len(data["generations"]) == 2
-        assert data["is_running"] == True  # noqa: E712
+        assert data["is_running"] is True
         assert data["latest_status"] == "completed"  # Most recent first
 
-    def test_stop_generation(self, client: TestClient, auth_headers, db: Session):
-        """Test stopping a running generation"""
-        # Create a running generation
-        generation = DBResponseGeneration(
-            id="gen-to-stop",
-            project_id="test-project",
-            model_id="gpt-4o",
-            status="running",
-            created_by="test-user",
-            started_at=datetime.now(),
+    @pytest.mark.asyncio
+    async def test_stop_generation(self, async_test_client, async_test_db):
+        """Test stopping a running generation (routers/generation.py)"""
+        admin = await _make_user(async_test_db)
+        gen_id = _uid()
+        async_test_db.add(
+            DBResponseGeneration(
+                id=gen_id,
+                project_id="test-project",
+                model_id="gpt-4o",
+                status="running",
+                created_by=admin.id,
+                started_at=datetime.now(),
+            )
         )
-        db.add(generation)
-        db.commit()
+        await async_test_db.commit()
 
-        with patch('routers.generation.celery_app.control.revoke') as mock_revoke:  # noqa: F841
-            response = client.post("/api/generation/gen-to-stop/stop", headers=auth_headers)
+        with patch("routers.generation.celery_app.control.revoke") as mock_revoke:  # noqa: F841
+            with _as_user(admin):
+                response = await async_test_client.post(f"/api/generation/{gen_id}/stop")
 
             assert response.status_code == 200
             data = response.json()
             assert data["status"] == "stopped"
 
-            # Verify generation status updated
-            db.refresh(generation)
-            assert generation.status == "stopped"
+        # Verify the persisted generation status updated.
+        async_test_db.expire_all()
+        refreshed = (
+            await async_test_db.execute(
+                select(DBResponseGeneration).where(DBResponseGeneration.id == gen_id)
+            )
+        ).scalar_one_or_none()
+        assert refreshed.status == "stopped"
 
-    def test_delete_generation(self, client: TestClient, auth_headers, db: Session):
-        """Test deleting generation and its responses"""
-        # Create generation with responses
-        generation = DBResponseGeneration(
-            id="gen-to-delete",
-            project_id="test-project",
-            model_id="gpt-4o",
-            status="completed",
-            created_by="test-user",
-            started_at=datetime.now(),
-            completed_at=datetime.now(),
+    @pytest.mark.asyncio
+    async def test_delete_generation(self, async_test_client, async_test_db):
+        """Test deleting generation and its responses (routers/generation.py)"""
+        admin = await _make_user(async_test_db)
+        gen_id = _uid()
+        async_test_db.add(
+            DBResponseGeneration(
+                id=gen_id,
+                project_id="test-project",
+                model_id="gpt-4o",
+                status="completed",
+                created_by=admin.id,
+                started_at=datetime.now(),
+                completed_at=datetime.now(),
+            )
         )
-        response1 = DBGeneration(
-            id="resp-1",
-            generation_id="gen-to-delete",
-            task_id="task-1",
-            model_id="gpt-4o",
-            run_index=0,
-            case_data="test data",
-            response_content="test response",
+        async_test_db.add(
+            DBGeneration(
+                id=_uid(),
+                generation_id=gen_id,
+                task_id="task-1",
+                model_id="gpt-4o",
+                run_index=0,
+                case_data="test data",
+                response_content="test response",
+            )
         )
-        db.add_all([generation, response1])
-        db.commit()
+        await async_test_db.commit()
 
-        response = client.delete("/api/generation/gen-to-delete", headers=auth_headers)
+        with _as_user(admin):
+            response = await async_test_client.delete(f"/api/generation/{gen_id}")
 
         assert response.status_code == 200
         data = response.json()
         assert data["deleted_responses"] == 1
 
-        # Verify deletion
-        assert db.query(DBResponseGeneration).filter_by(id="gen-to-delete").first() is None
-        assert db.query(DBGeneration).filter_by(generation_id="gen-to-delete").first() is None
+        # Verify deletion of both the parent and child rows.
+        async_test_db.expire_all()
+        parent = (
+            await async_test_db.execute(
+                select(DBResponseGeneration).where(DBResponseGeneration.id == gen_id)
+            )
+        ).scalar_one_or_none()
+        assert parent is None
+        child = (
+            await async_test_db.execute(
+                select(DBGeneration).where(DBGeneration.generation_id == gen_id)
+            )
+        ).scalar_one_or_none()
+        assert child is None
+
+
+# ===========================================================================
+# Generation start  (routers/generation_task_list.py)
+# ===========================================================================
+
+
+class TestStartGeneration:
+    """Test the start_generation endpoint persists ResponseGeneration rows and
+    returns the expected response shape. Celery dispatch is patched out so no
+    real broker call fires."""
+
+    @pytest.mark.asyncio
+    async def test_start_generation_persists_rows(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db)
+        admin_id = admin.id
+        org = await _make_org(async_test_db)
+        project = await _create_project(
+            async_test_db,
+            admin,
+            generation_config={
+                "selected_configuration": {"models": ["gpt-4o", "claude-3-opus-20240229"]}
+            },
+            org=org,
+            num_tasks=3,
+        )
+        project_id = project.id
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery:
+            with _as_user(admin):
+                response = await async_test_client.post(
+                    f"/api/generation-tasks/projects/{project_id}/generate",
+                    json={"mode": "all"},
+                )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["project_id"] == project_id
+        assert data["mode"] == "all"
+        assert data["models_count"] == 2
+        # 3 tasks x 2 models x 1 (no structures) = 6 cells queued.
+        assert data["tasks_queued"] == 6
+        assert len(data["generation_job_ids"]) == 6
+
+        # A Celery send_task was attempted per dispatched run (patched away).
+        assert mock_celery.send_task.call_count == 6
+
+        # ResponseGeneration rows were persisted for the project. Select the
+        # columns explicitly (rather than ORM objects) so the assertions don't
+        # trigger a lazy expired-attribute refresh inside the async session.
+        async_test_db.expire_all()
+        rows = (
+            await async_test_db.execute(
+                select(
+                    DBResponseGeneration.status,
+                    DBResponseGeneration.created_by,
+                ).where(DBResponseGeneration.project_id == project_id)
+            )
+        ).all()
+        assert len(rows) == 6
+        assert all(status == "pending" for status, _ in rows)
+        assert all(created_by == admin_id for _, created_by in rows)
+
+    @pytest.mark.asyncio
+    async def test_start_generation_no_models_400(self, async_test_client, async_test_db):
+        """A project with no configured models cannot start generation -> 400."""
+        admin = await _make_user(async_test_db)
+        org = await _make_org(async_test_db)
+        project = await _create_project(
+            async_test_db,
+            admin,
+            generation_config={"selected_configuration": {"models": []}},
+            org=org,
+            num_tasks=1,
+        )
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app"):
+            with _as_user(admin):
+                response = await async_test_client.post(
+                    f"/api/generation-tasks/projects/{project.id}/generate",
+                    json={"mode": "all"},
+                )
+
+        assert response.status_code == 400
+        assert "no models configured" in response.json()["detail"].lower()
+
+
+# ===========================================================================
+# WebSocket (still sync lane — Depends(get_db))
+# ===========================================================================
 
 
 class TestWebSocketGeneration:
-    """Test WebSocket functionality for real-time updates"""
+    """Test WebSocket functionality for real-time updates.
+
+    The WS endpoint is still on the sync DB lane and httpx's AsyncClient cannot
+    speak the WS protocol, so these keep the sync ``client`` + ``test_user``
+    fixtures (the WS auth check reads the sync test session).
+    """
 
     @pytest.mark.asyncio
     async def test_websocket_connection(self, client, test_project, test_user):
@@ -387,16 +682,26 @@ class TestWebSocketGeneration:
             assert progress_message["generations"][0]["status"] == "running"
 
 
+# ===========================================================================
+# Parse metrics  (routers/generation.py)
+# ===========================================================================
+
+
 class TestParseMetrics:
     """Test parse metrics endpoint"""
 
-    def test_get_parse_metrics_no_filters(
-        self, client: TestClient, auth_headers, test_project, test_generations_with_parse_data
-    ):
-        """Test getting parse metrics scoped to fixture project for exact counts"""
-        response = client.get(
-            f"/api/generation/parse-metrics?project_id={test_project.id}", headers=auth_headers
-        )
+    @pytest.mark.asyncio
+    async def test_get_parse_metrics_no_filters(self, async_test_client, async_test_db):
+        """Test getting parse metrics scoped to project for exact counts"""
+        admin = await _make_user(async_test_db)
+        project = await _create_project(async_test_db, admin)
+        await _seed_parse_data(async_test_db, project)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            response = await async_test_client.get(
+                f"/api/generation/parse-metrics?project_id={project.id}"
+            )
 
         assert response.status_code == 200
         data = response.json()
@@ -410,13 +715,18 @@ class TestParseMetrics:
         assert data["avg_retries_until_success"] == pytest.approx(4 / 3, rel=0.01)
         assert len(data["common_parse_errors"]) == 2
 
-    def test_get_parse_metrics_by_project(
-        self, client: TestClient, auth_headers, test_project, test_generations_with_parse_data
-    ):
+    @pytest.mark.asyncio
+    async def test_get_parse_metrics_by_project(self, async_test_client, async_test_db):
         """Test getting parse metrics filtered by project"""
-        response = client.get(
-            f"/api/generation/parse-metrics?project_id={test_project.id}", headers=auth_headers
-        )
+        admin = await _make_user(async_test_db)
+        project = await _create_project(async_test_db, admin)
+        await _seed_parse_data(async_test_db, project)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            response = await async_test_client.get(
+                f"/api/generation/parse-metrics?project_id={project.id}"
+            )
 
         assert response.status_code == 200
         data = response.json()
@@ -424,14 +734,18 @@ class TestParseMetrics:
         assert data["total_generations"] == 6
         assert "common_parse_errors" in data
 
-    def test_get_parse_metrics_by_model(
-        self, client: TestClient, auth_headers, test_project, test_generations_with_parse_data
-    ):
+    @pytest.mark.asyncio
+    async def test_get_parse_metrics_by_model(self, async_test_client, async_test_db):
         """Test getting parse metrics filtered by model and project"""
-        response = client.get(
-            f"/api/generation/parse-metrics?project_id={test_project.id}&model_id=gpt-4o",
-            headers=auth_headers,
-        )
+        admin = await _make_user(async_test_db)
+        project = await _create_project(async_test_db, admin)
+        await _seed_parse_data(async_test_db, project)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            response = await async_test_client.get(
+                f"/api/generation/parse-metrics?project_id={project.id}&model_id=gpt-4o"
+            )
 
         assert response.status_code == 200
         data = response.json()
@@ -439,11 +753,16 @@ class TestParseMetrics:
         assert data["total_generations"] == 6
         assert data["parse_success"] == 3
 
-    def test_get_parse_metrics_empty(self, client: TestClient, auth_headers):
+    @pytest.mark.asyncio
+    async def test_get_parse_metrics_empty(self, async_test_client, async_test_db):
         """Test getting parse metrics when no generations exist"""
-        response = client.get(
-            "/api/generation/parse-metrics?project_id=nonexistent-project", headers=auth_headers
-        )
+        admin = await _make_user(async_test_db)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            response = await async_test_client.get(
+                "/api/generation/parse-metrics?project_id=nonexistent-project"
+            )
 
         assert response.status_code == 200
         data = response.json()
@@ -454,13 +773,18 @@ class TestParseMetrics:
         assert data["avg_retries_until_success"] == 0
         assert data["common_parse_errors"] == []
 
-    def test_get_parse_metrics_common_errors(
-        self, client: TestClient, auth_headers, test_project, test_generations_with_parse_data
-    ):
+    @pytest.mark.asyncio
+    async def test_get_parse_metrics_common_errors(self, async_test_client, async_test_db):
         """Test that common parse errors are sorted by count"""
-        response = client.get(
-            f"/api/generation/parse-metrics?project_id={test_project.id}", headers=auth_headers
-        )
+        admin = await _make_user(async_test_db)
+        project = await _create_project(async_test_db, admin)
+        await _seed_parse_data(async_test_db, project)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            response = await async_test_client.get(
+                f"/api/generation/parse-metrics?project_id={project.id}"
+            )
 
         assert response.status_code == 200
         data = response.json()

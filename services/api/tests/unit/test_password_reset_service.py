@@ -46,7 +46,7 @@ async def test_send_password_reset_email_end_to_end(mock_db, mock_user, monkeypa
     """
     monkeypatch.setenv("FRONTEND_URL", "https://what-a-benger.net")
 
-    with patch("services.email.email_service.SendGridClient") as mock_sg_class, \
+    with patch("mailer.email_service.SendGridClient") as mock_sg_class, \
          patch("database.SessionLocal"):
         sg_instance = MagicMock()
         sg_instance.send_message = MagicMock(return_value={"status": "success"})
@@ -86,7 +86,7 @@ async def test_send_password_reset_email_propagates_sendgrid_failure(
     be re-issued without rotating the row)."""
     monkeypatch.setenv("FRONTEND_URL", "https://what-a-benger.net")
 
-    with patch("services.email.email_service.SendGridClient") as mock_sg_class, \
+    with patch("mailer.email_service.SendGridClient") as mock_sg_class, \
          patch("database.SessionLocal"):
         sg_instance = MagicMock()
         sg_instance.send_message = MagicMock(
@@ -111,7 +111,7 @@ async def test_send_password_reset_email_uses_username_when_name_missing(
     monkeypatch.setenv("FRONTEND_URL", "https://what-a-benger.net")
     mock_user.name = None
 
-    with patch("services.email.email_service.SendGridClient") as mock_sg_class, \
+    with patch("mailer.email_service.SendGridClient") as mock_sg_class, \
          patch("database.SessionLocal"):
         sg_instance = MagicMock()
         sg_instance.send_message = MagicMock(return_value={"status": "success"})
@@ -136,7 +136,7 @@ async def test_send_password_reset_email_falls_back_to_base_url(
     """When FRONTEND_URL is unset the caller-supplied base_url is used."""
     monkeypatch.delenv("FRONTEND_URL", raising=False)
 
-    with patch("services.email.email_service.SendGridClient") as mock_sg_class, \
+    with patch("mailer.email_service.SendGridClient") as mock_sg_class, \
          patch("database.SessionLocal"):
         sg_instance = MagicMock()
         sg_instance.send_message = MagicMock(return_value={"status": "success"})

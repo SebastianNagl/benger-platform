@@ -7,7 +7,7 @@ Run this to create tables and insert demo users
 import sys
 
 from database import SessionLocal, init_db
-from user_service import init_demo_users
+from auth_module.user_service import init_demo_users
 
 
 def main():

@@ -21,52 +21,52 @@ class TestPasswordHashing:
     """Tests for get_password_hash / verify_password in user_service."""
 
     def test_hash_returns_string(self):
-        from user_service import get_password_hash
+        from auth_module.user_service import get_password_hash
         result = get_password_hash("testpassword")
         assert isinstance(result, str)
 
     def test_hash_is_bcrypt(self):
-        from user_service import get_password_hash
+        from auth_module.user_service import get_password_hash
         result = get_password_hash("testpassword")
         assert result.startswith("$2b$") or result.startswith("$2a$")
 
     def test_verify_correct_password(self):
-        from user_service import get_password_hash, verify_password
+        from auth_module.user_service import get_password_hash, verify_password
         hashed = get_password_hash("secure_pass_123")
         assert verify_password("secure_pass_123", hashed) == True  # noqa: E712
 
     def test_verify_wrong_password(self):
-        from user_service import get_password_hash, verify_password
+        from auth_module.user_service import get_password_hash, verify_password
         hashed = get_password_hash("correct_password")
         assert verify_password("wrong_password", hashed) == False  # noqa: E712
 
     def test_verify_empty_password(self):
-        from user_service import get_password_hash, verify_password
+        from auth_module.user_service import get_password_hash, verify_password
         hashed = get_password_hash("notempty")
         assert verify_password("", hashed) == False  # noqa: E712
 
     def test_hash_different_each_time(self):
-        from user_service import get_password_hash
+        from auth_module.user_service import get_password_hash
         h1 = get_password_hash("samepassword")
         h2 = get_password_hash("samepassword")
         assert h1 != h2  # Different salts
 
     def test_verify_with_invalid_hash(self):
-        from user_service import verify_password
+        from auth_module.user_service import verify_password
         assert verify_password("anything", "not_a_valid_hash") == False  # noqa: E712
 
     def test_aliases_exist(self):
-        from user_service import hash_password, check_password
+        from auth_module.user_service import hash_password, check_password
         hashed = hash_password("alias_test")
         assert check_password("alias_test", hashed) == True  # noqa: E712
 
     def test_unicode_password(self):
-        from user_service import get_password_hash, verify_password
+        from auth_module.user_service import get_password_hash, verify_password
         hashed = get_password_hash("Passwort123!")
         assert verify_password("Passwort123!", hashed) == True  # noqa: E712
 
     def test_long_password(self):
-        from user_service import get_password_hash, verify_password
+        from auth_module.user_service import get_password_hash, verify_password
         long_pw = "a" * 72  # bcrypt truncates at 72 bytes
         hashed = get_password_hash(long_pw)
         assert verify_password(long_pw, hashed) == True  # noqa: E712
@@ -76,41 +76,41 @@ class TestSanitizeUserInput:
     """Tests for sanitize_user_input in user_service."""
 
     def test_basic_sanitization(self):
-        from user_service import sanitize_user_input
+        from auth_module.user_service import sanitize_user_input
         assert sanitize_user_input("  hello  ") == "hello"
 
     def test_html_escape(self):
-        from user_service import sanitize_user_input
+        from auth_module.user_service import sanitize_user_input
         result = sanitize_user_input("<b>bold</b>")
         assert "<b>" not in result
         assert "&lt;" in result
 
     def test_script_removal(self):
-        from user_service import sanitize_user_input
+        from auth_module.user_service import sanitize_user_input
         result = sanitize_user_input("<script>alert('xss')</script>")
         assert "script" not in result.lower() or "&lt;" in result
 
     def test_empty_string(self):
-        from user_service import sanitize_user_input
+        from auth_module.user_service import sanitize_user_input
         assert sanitize_user_input("") == ""
 
     def test_none_input(self):
-        from user_service import sanitize_user_input
+        from auth_module.user_service import sanitize_user_input
         assert sanitize_user_input(None) is None
 
     def test_max_length_truncation(self):
-        from user_service import sanitize_user_input
+        from auth_module.user_service import sanitize_user_input
         long_input = "a" * 200
         result = sanitize_user_input(long_input)
         assert len(result) <= 100
 
     def test_iframe_removal(self):
-        from user_service import sanitize_user_input
+        from auth_module.user_service import sanitize_user_input
         result = sanitize_user_input("normal text<iframe src='evil'></iframe>more")
         assert "iframe" not in result.lower() or "&lt;" in result
 
     def test_javascript_protocol(self):
-        from user_service import sanitize_user_input
+        from auth_module.user_service import sanitize_user_input
         result = sanitize_user_input("javascript:alert(1)")
         # Should be stripped or escaped
         assert "javascript:" not in result

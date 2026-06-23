@@ -12,18 +12,23 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy import String, case, func
+from sqlalchemy import String, case, func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from auth_module import User, require_user
-from database import get_db
+from database import get_async_db
 from models import Generation as DBGeneration
 from models import ResponseGeneration as DBResponseGeneration
 from models import User as DBUser
 from project_models import Project, ProjectOrganization, Task
+from routers.generation_revoke import (
+    generation_run_task_ids,
+    send_generation_trial,
+)
 from routers.projects.helpers import (
-    check_project_accessible,
-    check_project_write_access,
+    check_project_accessible_async,
+    check_project_write_access_async,
     get_org_context_from_request,
 )
 
@@ -168,12 +173,17 @@ class MultipleGenerationResultsResponse(BaseModel):
 # ============= Helper Functions =============
 
 
-def get_project_with_permissions(
-    project_id: str, current_user: User, db: Session, request: Optional[Request] = None
+async def get_project_with_permissions(
+    project_id: str,
+    current_user: User,
+    db: AsyncSession,
+    request: Optional[Request] = None,
 ) -> Project:
     """Get project and verify user permissions using centralized access check."""
 
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = (
+        await db.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
 
     if not project:
         raise HTTPException(
@@ -181,7 +191,9 @@ def get_project_with_permissions(
         )
 
     org_context = get_org_context_from_request(request) if request else None
-    if not check_project_accessible(db, current_user, project_id, org_context, project=project):
+    if not await check_project_accessible_async(
+        db, current_user, project_id, org_context, project=project
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have access to this project",
@@ -227,8 +239,8 @@ def _status_from_row(
     )
 
 
-def _bulk_latest_generations(
-    db: Session,
+async def _bulk_latest_generations(
+    db: AsyncSession,
     project_id: str,
     task_ids: List[str],
     model_ids: List[str],
@@ -244,25 +256,26 @@ def _bulk_latest_generations(
         return {}
 
     rows = (
-        db.query(DBResponseGeneration)
-        .filter(
-            DBResponseGeneration.project_id == project_id,
-            DBResponseGeneration.task_id.in_(task_ids),
-            DBResponseGeneration.model_id.in_(model_ids),
+        await db.execute(
+            select(DBResponseGeneration)
+            .where(
+                DBResponseGeneration.project_id == project_id,
+                DBResponseGeneration.task_id.in_(task_ids),
+                DBResponseGeneration.model_id.in_(model_ids),
+            )
+            .distinct(
+                DBResponseGeneration.task_id,
+                DBResponseGeneration.model_id,
+                DBResponseGeneration.structure_key,
+            )
+            .order_by(
+                DBResponseGeneration.task_id,
+                DBResponseGeneration.model_id,
+                DBResponseGeneration.structure_key,
+                DBResponseGeneration.created_at.desc(),
+            )
         )
-        .distinct(
-            DBResponseGeneration.task_id,
-            DBResponseGeneration.model_id,
-            DBResponseGeneration.structure_key,
-        )
-        .order_by(
-            DBResponseGeneration.task_id,
-            DBResponseGeneration.model_id,
-            DBResponseGeneration.structure_key,
-            DBResponseGeneration.created_at.desc(),
-        )
-        .all()
-    )
+    ).scalars().all()
     return {(r.task_id, r.model_id, r.structure_key): r for r in rows}
 
 
@@ -291,7 +304,12 @@ def get_single_task_generation_status(
 ) -> TaskGenerationStatus:
     """Per-cell helper kept for compatibility with code paths that only need
     one status (e.g. tests, ad-hoc lookups). The list endpoint uses
-    `_bulk_latest_generations` to avoid the per-cell SELECT."""
+    `_bulk_latest_generations` to avoid the per-cell SELECT.
+
+    Stays SYNC (``db: Session``): no migrated request handler calls this —
+    it is exercised only by ``db.query``-mocking unit tests and ad-hoc
+    lookups. Migrating it would break those mock-based tests for no runtime
+    benefit, so the sync compatibility shim is intentionally retained."""
 
     # Query for the most recent generation for this task-model-structure combination
     base_filter = db.query(DBResponseGeneration).filter(
@@ -337,7 +355,7 @@ async def get_task_generation_status(
     search: Optional[str] = Query(None, description="Search in task data"),
     status_filter: Optional[str] = Query(None, description="Filter by generation status"),
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get paginated list of tasks with generation status for each configured model.
@@ -345,7 +363,7 @@ async def get_task_generation_status(
     """
 
     # Get project and verify permissions
-    project = get_project_with_permissions(project_id, current_user, db, request)
+    project = await get_project_with_permissions(project_id, current_user, db, request)
 
     # Get configured models and structures for this project
     generation_config = project.generation_config or {}
@@ -380,14 +398,15 @@ async def get_task_generation_status(
             structures=[],
         )
 
-    # Build base query for tasks
-    query = db.query(Task).filter(Task.project_id == project_id)
+    # Build base query for tasks. Accumulate WHERE clauses so the same set of
+    # filters drives both the COUNT and the paginated row fetch.
+    task_where = [Task.project_id == project_id]
 
     # Apply search filter if provided
     if search:
         # Escape ILIKE wildcards in user input
         escaped_search = search.replace('%', r'\%').replace('_', r'\_')
-        query = query.filter(func.cast(Task.data, String).ilike(f"%{escaped_search}%"))
+        task_where.append(func.cast(Task.data, String).ilike(f"%{escaped_search}%"))
 
     if status_filter and status_filter != "not_generated":
         # Narrow the task set to ids that have at least one cell whose *latest*
@@ -395,11 +414,11 @@ async def get_task_generation_status(
         # task scan keeps its pagination shape — no need to load every matching
         # task into memory like the legacy code did.
         latest_subq = (
-            db.query(
+            select(
                 DBResponseGeneration.task_id.label("task_id"),
                 DBResponseGeneration.status.label("status"),
             )
-            .filter(
+            .where(
                 DBResponseGeneration.project_id == project_id,
                 DBResponseGeneration.model_id.in_(model_ids),
             )
@@ -417,30 +436,48 @@ async def get_task_generation_status(
             .subquery()
         )
         matching_ids_subq = (
-            db.query(latest_subq.c.task_id)
-            .filter(latest_subq.c.status == status_filter)
+            select(latest_subq.c.task_id)
+            .where(latest_subq.c.status == status_filter)
             .distinct()
         )
-        query = query.filter(Task.id.in_(matching_ids_subq))
-        total = query.count()
+        task_where.append(Task.id.in_(matching_ids_subq))
+        total = (
+            await db.execute(
+                select(func.count()).select_from(Task).where(*task_where)
+            )
+        ).scalar() or 0
         offset = (page - 1) * page_size
-        tasks = query.offset(offset).limit(page_size).all()
+        tasks = (
+            await db.execute(
+                select(Task).where(*task_where).offset(offset).limit(page_size)
+            )
+        ).scalars().all()
     elif status_filter == "not_generated":
         # "Missing somewhere" can't be expressed cleanly in SQL (we need to
         # enumerate (task, model, structure) absences). Load all candidate
         # tasks once, bulk-fetch their latest rows, filter, paginate. Single
         # bulk query instead of per-cell SELECTs.
-        tasks = query.all()
+        tasks = (
+            await db.execute(select(Task).where(*task_where))
+        ).scalars().all()
     else:
-        total = query.count()
+        total = (
+            await db.execute(
+                select(func.count()).select_from(Task).where(*task_where)
+            )
+        ).scalar() or 0
         offset = (page - 1) * page_size
-        tasks = query.offset(offset).limit(page_size).all()
+        tasks = (
+            await db.execute(
+                select(Task).where(*task_where).offset(offset).limit(page_size)
+            )
+        ).scalars().all()
 
     # Bulk-fetch latest ResponseGeneration rows for the resolved task page in
     # one round-trip — replaces the per-cell loop that fired
     # `rows × models × structures` SELECTs.
     page_task_ids = [t.id for t in tasks]
-    bulk = _bulk_latest_generations(db, project_id, page_task_ids, model_ids)
+    bulk = await _bulk_latest_generations(db, project_id, page_task_ids, model_ids)
 
     task_responses = []
     for task in tasks:
@@ -515,20 +552,29 @@ async def start_generation(
     request: GenerationRequest,
     raw_request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Start bulk generation for all or missing task-model combinations.
     Uses parallel processing for optimal performance.
     Feature flag: generation
+
+    Celery dispatch note: the per-cell ``celery_app.send_task`` /
+    ``celery_app.control.revoke`` calls are non-blocking broker operations
+    (no request-DB session). They are called directly from this async handler
+    AFTER the awaited ``db.commit()`` that persists the ResponseGeneration
+    rows, preserving the sync version's "commit rows, then dispatch" ordering
+    so workers can always find the rows they are sent.
     """
 
     # Get project and verify permissions
-    project = get_project_with_permissions(project_id, current_user, db, raw_request)
+    project = await get_project_with_permissions(
+        project_id, current_user, db, raw_request
+    )
 
     # Starting generation is a contribute-level action — block public-tier
     # ANNOTATOR visitors, allow CONTRIBUTOR / org members / creator / superadmin.
-    if not check_project_write_access(db, current_user, project_id):
+    if not await check_project_write_access_async(db, current_user, project_id):
         raise HTTPException(
             status_code=403,
             detail="Only contributors or admins can start generation for this project",
@@ -545,9 +591,13 @@ async def start_generation(
     if org_id is None:
         linked_org_ids = [
             row[0]
-            for row in db.query(ProjectOrganization.organization_id)
-            .filter(ProjectOrganization.project_id == project_id)
-            .all()
+            for row in (
+                await db.execute(
+                    select(ProjectOrganization.organization_id).where(
+                        ProjectOrganization.project_id == project_id
+                    )
+                )
+            ).all()
         ]
         if len(linked_org_ids) == 1:
             org_id = linked_org_ids[0]
@@ -599,7 +649,7 @@ async def start_generation(
         # every parameter — silently dropping the per-trigger override.
         flag_modified(project, "generation_config")
         db.add(project)
-        db.commit()
+        await db.commit()
 
     # Get models to use
     if request.model_ids:
@@ -670,14 +720,20 @@ async def start_generation(
     if request.task_ids:
         task_ids = [
             row[0]
-            for row in db.query(Task.id)
-            .filter(Task.project_id == project_id, Task.id.in_(request.task_ids))
-            .all()
+            for row in (
+                await db.execute(
+                    select(Task.id).where(
+                        Task.project_id == project_id, Task.id.in_(request.task_ids)
+                    )
+                )
+            ).all()
         ]
     else:
         task_count = (
-            db.query(func.count(Task.id)).filter(Task.project_id == project_id).scalar()
-        )
+            await db.execute(
+                select(func.count(Task.id)).where(Task.project_id == project_id)
+            )
+        ).scalar()
         if task_count > GENERATION_FALLBACK_MAX_TASKS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -689,7 +745,11 @@ async def start_generation(
             )
         task_ids = [
             row[0]
-            for row in db.query(Task.id).filter(Task.project_id == project_id).all()
+            for row in (
+                await db.execute(
+                    select(Task.id).where(Task.project_id == project_id)
+                )
+            ).all()
         ]
 
     if not task_ids:
@@ -707,30 +767,31 @@ async def start_generation(
     latest_status: Dict[tuple, str] = {}
     if request.mode == "missing":
         latest_rows = (
-            db.query(
-                DBResponseGeneration.task_id,
-                DBResponseGeneration.model_id,
-                DBResponseGeneration.structure_key,
-                DBResponseGeneration.status,
+            await db.execute(
+                select(
+                    DBResponseGeneration.task_id,
+                    DBResponseGeneration.model_id,
+                    DBResponseGeneration.structure_key,
+                    DBResponseGeneration.status,
+                )
+                .where(
+                    DBResponseGeneration.project_id == project_id,
+                    DBResponseGeneration.task_id.in_(task_ids),
+                    DBResponseGeneration.model_id.in_(model_ids),
+                )
+                .distinct(
+                    DBResponseGeneration.task_id,
+                    DBResponseGeneration.model_id,
+                    DBResponseGeneration.structure_key,
+                )
+                .order_by(
+                    DBResponseGeneration.task_id,
+                    DBResponseGeneration.model_id,
+                    DBResponseGeneration.structure_key,
+                    DBResponseGeneration.created_at.desc(),
+                )
             )
-            .filter(
-                DBResponseGeneration.project_id == project_id,
-                DBResponseGeneration.task_id.in_(task_ids),
-                DBResponseGeneration.model_id.in_(model_ids),
-            )
-            .distinct(
-                DBResponseGeneration.task_id,
-                DBResponseGeneration.model_id,
-                DBResponseGeneration.structure_key,
-            )
-            .order_by(
-                DBResponseGeneration.task_id,
-                DBResponseGeneration.model_id,
-                DBResponseGeneration.structure_key,
-                DBResponseGeneration.created_at.desc(),
-            )
-            .all()
-        )
+        ).all()
         latest_status = {
             (r.task_id, r.model_id, r.structure_key): r.status for r in latest_rows
         }
@@ -751,41 +812,54 @@ async def start_generation(
     # to avoid wasting API costs on duplicates that will be overwritten
     cancelled_count = 0
     if request.mode == "all":
-        # Get all pending/running generation IDs for this project to revoke from Celery
+        # Get all pending/running generations for this project to revoke from
+        # Celery. We need ``runs_requested`` AND ``dispatch_epoch`` because the
+        # fan-out task ids are ``{gen_id}:{run_idx}:{epoch}`` (not the bare
+        # generation id — revoking the bare id was a silent no-op). The epoch
+        # pins the revoke to the CURRENT dispatch generation.
         pending_generations = (
-            db.query(DBResponseGeneration)
-            .filter(
-                DBResponseGeneration.project_id == project_id,
-                DBResponseGeneration.status.in_(["pending", "running"]),
+            await db.execute(
+                select(
+                    DBResponseGeneration.id,
+                    DBResponseGeneration.runs_requested,
+                    DBResponseGeneration.dispatch_epoch,
+                ).where(
+                    DBResponseGeneration.project_id == project_id,
+                    DBResponseGeneration.status.in_(["pending", "running"]),
+                )
             )
-            .all()
-        )
+        ).all()
 
-        # Revoke tasks from Celery queue
-        for gen in pending_generations:
+        # Revoke tasks from Celery queue (non-blocking broker control call —
+        # no request-DB session, stays a direct call from the async handler).
+        for gen_id, runs_requested, dispatch_epoch in pending_generations:
             try:
-                # Revoke the task - this removes it from queue if not started
-                celery_app.control.revoke(gen.id, terminate=False)
+                # Revoke the whole fan-out — removes queued tasks and SIGTERMs
+                # in-flight ones, so superseded runs stop burning API budget.
+                celery_app.control.revoke(
+                    generation_run_task_ids(gen_id, runs_requested, dispatch_epoch),
+                    terminate=True,
+                )
             except Exception as e:
-                logger.warning(f"Failed to revoke task {gen.id}: {e}")
+                logger.warning(f"Failed to revoke tasks for generation {gen_id}: {e}")
 
         # Mark all pending/running generations as cancelled in database
         cancelled_count = (
-            db.query(DBResponseGeneration)
-            .filter(
-                DBResponseGeneration.project_id == project_id,
-                DBResponseGeneration.status.in_(["pending", "running"]),
+            await db.execute(
+                update(DBResponseGeneration)
+                .where(
+                    DBResponseGeneration.project_id == project_id,
+                    DBResponseGeneration.status.in_(["pending", "running"]),
+                )
+                .values(
+                    status="cancelled",
+                    error_message="Cancelled - superseded by new generation run",
+                    completed_at=datetime.now(),
+                )
+                .execution_options(synchronize_session=False)
             )
-            .update(
-                {
-                    "status": "cancelled",
-                    "error_message": "Cancelled - superseded by new generation run",
-                    "completed_at": datetime.now(),
-                },
-                synchronize_session=False,
-            )
-        )
-        db.commit()
+        ).rowcount
+        await db.commit()
         logger.info(
             f"Cancelled {cancelled_count} existing pending/running generations for project {project_id}"
         )
@@ -839,14 +913,27 @@ async def start_generation(
 
     # Commit all generation records BEFORE dispatching Celery tasks
     # This ensures workers can find the records in the database
-    db.commit()
+    await db.commit()
 
-    # Now dispatch all Celery tasks after records are committed
+    # Now dispatch all Celery tasks after records are committed (non-blocking
+    # enqueue calls — no request-DB session, so they stay direct calls). Each
+    # job gets a deterministic task id (``{gen_id}:{run_idx}:{epoch}``) so the
+    # stop and supersede paths can revoke the whole fan-out from the persisted
+    # ``runs_requested`` count — see generation_revoke.py. The initial fan-out is
+    # always ``epoch=0`` (the row's ``dispatch_epoch`` default); resume/retry bump
+    # it.
     for gen_id, proj_id, t_id, m_id, s_key, force, o_id, run_idx in celery_tasks_to_dispatch:
-        celery_app.send_task(
-            "tasks.generate_response",
-            args=[gen_id, proj_id, t_id, m_id, s_key, force, o_id, run_idx],
-            queue="generation",
+        send_generation_trial(
+            celery_app,
+            generation_id=gen_id,
+            project_id=proj_id,
+            task_id=t_id,
+            model_id=m_id,
+            structure_key=s_key,
+            force_rerun=force,
+            organization_id=o_id,
+            run_index=run_idx,
+            epoch=0,
         )
 
     # Estimate completion time (rough estimate for parallel processing)
@@ -877,7 +964,7 @@ async def get_generation_result(
     structure_key: Optional[str] = Query(None, description="Structure key (optional)"),
     include_history: bool = Query(False, description="Include all historical generations, not just the most recent per structure"),
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get generation results for a task-model combination.
@@ -889,27 +976,34 @@ async def get_generation_result(
     """
 
     # Get task to check project permissions
-    task = db.query(Task).filter(Task.id == task_id).first()
+    task = (
+        await db.execute(select(Task).where(Task.id == task_id))
+    ).scalar_one_or_none()
     if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Task {task_id} not found"
         )
 
     # Verify user has access to the project
-    get_project_with_permissions(task.project_id, current_user, db, request)
+    await get_project_with_permissions(task.project_id, current_user, db, request)
 
     # Get generation records for this task-model combination
-    query = db.query(DBResponseGeneration).filter(
+    gen_stmt = select(DBResponseGeneration).where(
         DBResponseGeneration.task_id == task_id,
         DBResponseGeneration.model_id == model_id,
     )
 
     if structure_key is not None:
-        query = query.filter(DBResponseGeneration.structure_key == structure_key)
+        gen_stmt = gen_stmt.where(DBResponseGeneration.structure_key == structure_key)
 
-    generations = query.order_by(
-        DBResponseGeneration.structure_key, DBResponseGeneration.created_at.desc()
-    ).all()
+    generations = (
+        await db.execute(
+            gen_stmt.order_by(
+                DBResponseGeneration.structure_key,
+                DBResponseGeneration.created_at.desc(),
+            )
+        )
+    ).scalars().all()
 
     if not generations:
         return MultipleGenerationResultsResponse(
@@ -932,11 +1026,12 @@ async def get_generation_result(
     individual_map: Dict[str, list] = defaultdict(list)
     if completed_ids:
         all_individual = (
-            db.query(DBGeneration)
-            .filter(DBGeneration.generation_id.in_(completed_ids))
-            .order_by(DBGeneration.created_at)
-            .all()
-        )
+            await db.execute(
+                select(DBGeneration)
+                .where(DBGeneration.generation_id.in_(completed_ids))
+                .order_by(DBGeneration.created_at)
+            )
+        ).scalars().all()
         for g in all_individual:
             individual_map[g.generation_id].append(g)
 
@@ -944,7 +1039,9 @@ async def get_generation_result(
     user_ids = {g.created_by for g in generations_to_process if g.created_by}
     user_map = {}
     if user_ids:
-        users = db.query(DBUser).filter(DBUser.id.in_(user_ids)).all()
+        users = (
+            await db.execute(select(DBUser).where(DBUser.id.in_(user_ids)))
+        ).scalars().all()
         user_map = {u.id: u.name for u in users}
 
     # Build response

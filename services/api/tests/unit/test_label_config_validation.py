@@ -16,7 +16,7 @@ Total: 25 tests
 """
 
 
-from label_config_validator import LabelConfigValidator
+from services.label_config.validator import LabelConfigValidator
 
 
 class TestExtensionFieldTypes:

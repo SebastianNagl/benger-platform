@@ -22,16 +22,27 @@ from fastapi import (
     status,
 )
 from pydantic import BaseModel, Field
+from sqlalchemy import case as sa_case, delete, func as sa_func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from auth_module import User, WebSocketAuthError, require_user, verify_token_for_websocket
 from auth_module.user_service import get_user_by_id
-from database import get_db
+from database import get_async_db, get_db
 from models import Generation as DBLLMResponse
 from models import ResponseGeneration as DBResponseGeneration
-from project_models import Project, Task
+from project_models import Task
 from redis_cache import get_redis_client
-from routers.projects.helpers import check_project_accessible, get_accessible_project_ids, get_org_context_from_request
+from routers.generation_revoke import (
+    generation_run_task_ids,
+    send_generation_trial,
+)
+from routers.projects.helpers import (
+    check_project_accessible,
+    check_project_accessible_async,
+    get_accessible_project_ids_async,
+    get_org_context_from_request,
+)
 
 
 router = APIRouter(prefix="/api/generation", tags=["generation"])
@@ -45,11 +56,11 @@ from celery_client import get_celery_app  # noqa: E402
 celery_app = get_celery_app()
 
 # Environment configuration
-import os  # noqa: E402
+from app.core.config import get_settings  # noqa: E402
 
 
 logger = logging.getLogger(__name__)
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+ENVIRONMENT = get_settings().environment
 
 
 # ============= Helper Functions =============
@@ -141,14 +152,16 @@ async def get_generation_status(
     generation_id: str,
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get the status of a specific response generation job
     """
     generation = (
-        db.query(DBResponseGeneration).filter(DBResponseGeneration.id == generation_id).first()
-    )
+        await db.execute(
+            select(DBResponseGeneration).where(DBResponseGeneration.id == generation_id)
+        )
+    ).scalar_one_or_none()
 
     if not generation:
         raise HTTPException(
@@ -157,9 +170,13 @@ async def get_generation_status(
         )
 
     # Check project access via the generation's task
-    task = db.query(Task).filter(Task.id == generation.task_id).first()
+    task = (
+        await db.execute(select(Task).where(Task.id == generation.task_id))
+    ).scalar_one_or_none()
     org_context = get_org_context_from_request(request)
-    if task and not check_project_accessible(db, current_user, task.project_id, org_context):
+    if task and not await check_project_accessible_async(
+        db, current_user, task.project_id, org_context
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have access to this generation's project",
@@ -177,16 +194,22 @@ async def get_generation_status(
 async def stop_generation(
     generation_id: str,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Stop a running or pending generation
+
+    Celery dispatch note: ``celery_app.control.revoke`` is a non-blocking
+    broker control call (no request-DB session); it stays a direct call after
+    the awaited DB commit, exactly as the sync version ordered it.
     """
     try:
         # Get the generation record
         generation = (
-            db.query(DBResponseGeneration).filter(DBResponseGeneration.id == generation_id).first()
-        )
+            await db.execute(
+                select(DBResponseGeneration).where(DBResponseGeneration.id == generation_id).with_for_update()
+            )
+        ).scalar_one_or_none()
 
         if not generation:
             raise HTTPException(
@@ -212,13 +235,23 @@ async def stop_generation(
         generation.completed_at = datetime.now()
         generation.error_message = f"Stopped by user {current_user.username}"
 
-        db.commit()
+        await db.commit()
 
-        # Try to revoke the Celery task if it exists
+        # Revoke the whole fan-out so a stopped generation actually stops
+        # burning API budget. Every dispatch path (initial + resume/retry) fans
+        # out ``tasks.generate_response`` jobs with deterministic ids
+        # (``{gen_id}:{run_idx}:{epoch}``); reconstruct them from
+        # ``runs_requested`` + the CURRENT ``dispatch_epoch``. ``terminate=True``
+        # SIGTERMs in-flight trials and drops queued ones.
         try:
-            celery_app.control.revoke(generation.celery_task_id, terminate=True)
+            celery_app.control.revoke(
+                generation_run_task_ids(
+                    generation_id, generation.runs_requested, generation.dispatch_epoch
+                ),
+                terminate=True,
+            )
         except Exception as revoke_error:
-            logger.warning(f"Could not revoke Celery task: {revoke_error}")
+            logger.warning(f"Could not revoke Celery tasks: {revoke_error}")
 
         return {
             "message": "Generation stopped successfully",
@@ -240,7 +273,7 @@ async def stop_generation(
 async def pause_generation(
     generation_id: str,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Pause a running generation
@@ -248,8 +281,10 @@ async def pause_generation(
     try:
         # Get the generation record
         generation = (
-            db.query(DBResponseGeneration).filter(DBResponseGeneration.id == generation_id).first()
-        )
+            await db.execute(
+                select(DBResponseGeneration).where(DBResponseGeneration.id == generation_id).with_for_update()
+            )
+        ).scalar_one_or_none()
 
         if not generation:
             raise HTTPException(
@@ -274,22 +309,23 @@ async def pause_generation(
         generation.status = "paused"
         generation.paused_at = datetime.now()
 
-        db.commit()
+        await db.commit()
 
-        # Store task progress in Redis for later resume
-        redis_client = get_redis_client()
-        if redis_client:
-            redis_client.set(
-                f"generation_pause_{generation_id}",
-                json.dumps(
-                    {
-                        "progress": generation.current_progress,
-                        "completed_tasks": generation.completed_tasks,
-                        "paused_at": datetime.now().isoformat(),
-                    }
+        # Actually stop the in-flight work — pause is a no-op otherwise: the
+        # worker would run to completion and the derived finalization would
+        # overwrite "paused" with "completed"/"failed". Revoke the whole fan-out
+        # (same deterministic-id scheme as stop, pinned to the CURRENT epoch); the
+        # worker also honors the "paused" DB status as a backstop, and resume
+        # bumps the epoch and re-dispatches whatever run_indices aren't yet done.
+        try:
+            celery_app.control.revoke(
+                generation_run_task_ids(
+                    generation_id, generation.runs_requested, generation.dispatch_epoch
                 ),
-                ex=86400,  # Expire after 24 hours
+                terminate=True,
             )
+        except Exception as revoke_error:
+            logger.warning(f"Could not revoke Celery tasks on pause: {revoke_error}")
 
         return {
             "message": "Generation paused successfully",
@@ -307,20 +343,145 @@ async def pause_generation(
         )
 
 
+async def _prepare_missing_trials(db: AsyncSession, generation) -> list:
+    """Reconcile a generation's DB state for a re-run and return the run_indices
+    still to generate. The caller bumps ``dispatch_epoch`` and commits BEFORE
+    dispatching (via :func:`_commit_and_dispatch`) so the worker reads the
+    reconciled state, never a half-written one.
+
+    Both resume and retry use this so a multi-run generation
+    (``runs_requested > 1``) regenerates ALL its missing trials — not just
+    ``run_index=0``, which is all the old single-job dispatch did.
+
+    "Missing" == a run_index with NO child row yet. A run_index that produced a
+    child of ANY status (``completed``, ``parse_failed``, …) is considered
+    present — exactly how the worker's ``COUNT(DISTINCT run_index)`` derivation
+    counts it. So we re-dispatch only the truly-missing (failed-without-a-row)
+    trials and never DELETE an existing child: parse-failure provenance and the
+    ``TaskEvaluation.generation_id`` links of kept trials survive a retry, and
+    there is no stale child to collide with on ``uq(generation_id, run_index)``.
+
+    Revoking the prior fan-out's survivors is the CALLER's job, done AFTER the
+    commit (off the row lock) — see :func:`_commit_and_dispatch`. We do not revoke
+    here: that would hold the ``FOR UPDATE`` lock across a synchronous broker call
+    on the event loop.
+
+    ``runs_completed`` is reconciled to the count of present trials and
+    ``runs_failed`` reset to 0; the worker re-derives both as the re-dispatched
+    trials finish.
+    """
+    runs_requested = generation.runs_requested or 1
+
+    present_run_indices = set(
+        (
+            await db.execute(
+                select(DBLLMResponse.run_index)
+                .where(DBLLMResponse.generation_id == generation.id)
+                .distinct()
+            )
+        ).scalars().all()
+    )
+    missing = [i for i in range(runs_requested) if i not in present_run_indices]
+
+    # Clamp to runs_requested so a corrupt over-count can't leave the parent
+    # stuck (a prior bug could persist a run_index >= runs_requested).
+    generation.runs_completed = min(len(present_run_indices), runs_requested)
+    generation.runs_failed = 0
+    return missing
+
+
+def _dispatch_generation_trials(generation, run_indices: list) -> None:
+    """Fan out one ``tasks.generate_response`` per run_index with the
+    deterministic, epoch-stamped task id ``{gen_id}:{run_idx}:{epoch}`` (revocable
+    by stop/pause/supersede). Reads ``generation.dispatch_epoch`` — the caller must
+    have bumped it to the NEW epoch before commit so these ids weren't in the
+    prior epoch's revoked set. ``force_rerun=True`` because the runs are
+    known-missing; a residual race where a slow survivor re-writes the run_index
+    is caught idempotently by the worker's ``uq(generation_id, run_index)``
+    collision handling. Call AFTER the DB commit (``AsyncSessionLocal`` is
+    ``expire_on_commit=False``, so the generation's attributes stay loaded)."""
+    epoch = generation.dispatch_epoch or 0
+    for run_index in run_indices:
+        send_generation_trial(
+            celery_app,
+            generation_id=generation.id,
+            project_id=generation.project_id,
+            task_id=generation.task_id,
+            model_id=generation.model_id,
+            structure_key=generation.structure_key,
+            force_rerun=True,  # the run is known-missing
+            organization_id=generation.organization_id,
+            run_index=run_index,
+            epoch=epoch,
+        )
+
+
+async def _commit_and_dispatch(
+    db: AsyncSession, generation, missing: list, prior_epoch: int
+) -> None:
+    """Commit the reconciled state, then (off the row lock) revoke the prior
+    epoch's survivors and fan out the missing trials at the new epoch.
+
+    Ordering matters:
+    1. ``commit`` first — releases the ``FOR UPDATE`` lock so the subsequent
+       synchronous broker calls don't pin it on the event loop (and the worker
+       reads a fully reconciled row).
+    2. Revoke the PRIOR epoch's fan-out (best-effort) to stop any survivor still
+       burning API budget. This can't discard the re-dispatch below: that runs at
+       ``dispatch_epoch`` (already bumped), a different id than ``prior_epoch``.
+    3. Dispatch the missing trials. If the broker fails mid-dispatch, flip the
+       generation to ``failed`` (retry-eligible) and commit that — otherwise a
+       partial dispatch would strand it in ``running`` with no API recovery path
+       (retry only accepts failed/stopped).
+    """
+    await db.commit()
+
+    try:
+        celery_app.control.revoke(
+            generation_run_task_ids(
+                generation.id, generation.runs_requested, prior_epoch
+            ),
+            terminate=True,
+        )
+    except Exception as revoke_error:
+        logger.warning(
+            f"Could not revoke prior fan-out (epoch {prior_epoch}) for "
+            f"{generation.id}: {revoke_error}"
+        )
+
+    try:
+        _dispatch_generation_trials(generation, missing)
+    except Exception as dispatch_error:
+        logger.error(
+            f"Dispatch failed for generation {generation.id}: {dispatch_error}"
+        )
+        generation.status = "failed"
+        generation.error_message = f"Dispatch failed: {dispatch_error}"
+        generation.completed_at = datetime.now()
+        await db.commit()
+        raise
+
+
 @router.post("/{generation_id}/resume")
 async def resume_generation(
     generation_id: str,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Resume a paused generation
+
+    Celery dispatch note: ``celery_app.send_task`` is a non-blocking enqueue
+    (no request-DB session); it is called directly between the awaited DB
+    commits, exactly as the sync version ordered it.
     """
     try:
         # Get the generation record
         generation = (
-            db.query(DBResponseGeneration).filter(DBResponseGeneration.id == generation_id).first()
-        )
+            await db.execute(
+                select(DBResponseGeneration).where(DBResponseGeneration.id == generation_id).with_for_update()
+            )
+        ).scalar_one_or_none()
 
         if not generation:
             raise HTTPException(
@@ -341,49 +502,37 @@ async def resume_generation(
                 detail=f"Cannot resume generation with status: {generation.status}",
             )
 
-        # Restore task progress from Redis
-        redis_client = get_redis_client()
-        saved_progress = None
-        if redis_client:
-            saved_data = redis_client.get(f"generation_pause_{generation_id}")
-            if saved_data:
-                saved_progress = json.loads(saved_data)
-
-        # Update generation status
         generation.status = "running"
         generation.resumed_at = datetime.now()
 
-        db.commit()
+        # Compute the run_indices with no child yet (handles multi-run: the old
+        # code re-ran only run_index=0).
+        missing = await _prepare_missing_trials(db, generation)
+        if not missing:
+            # Nothing left to generate — the run is already complete. Short-circuit
+            # WITHOUT bumping the epoch or hitting the broker: every run_index
+            # already produced a child, so there are no survivors to revoke and no
+            # trials to dispatch.
+            generation.status = "completed"
+            generation.completed_at = datetime.now()
+            await db.commit()
+            return {
+                "message": "Generation resumed successfully",
+                "generation_id": generation_id,
+                "status": generation.status,
+            }
 
-        # Re-dispatch the generation task with saved progress
-        # Fetch project with generation already loaded
-        project = db.query(Project).filter(Project.id == generation.project_id).first()
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Project '{generation.project_id}' not found",
-            )
-        config_data = {
-            "project_id": generation.project_id,
-            "generation_config": project.generation_config,
-            "force_rerun": False,
-            "user_id": current_user.id,
-            "resume_from": saved_progress,
-        }
-
-        task = celery_app.send_task(
-            "tasks.generate_llm_responses",
-            args=[generation_id, config_data, generation.model_id, current_user.id],
-            queue="celery",
-        )
-
-        generation.celery_task_id = task.id
-        db.commit()
+        # Bump the dispatch epoch so the re-dispatched trials get FRESH task ids
+        # the prior (paused) epoch's revoke can't discard. Capture the prior epoch
+        # so _commit_and_dispatch can revoke its survivors off the lock.
+        prior_epoch = generation.dispatch_epoch or 0
+        generation.dispatch_epoch = prior_epoch + 1
+        await _commit_and_dispatch(db, generation, missing, prior_epoch)
 
         return {
             "message": "Generation resumed successfully",
             "generation_id": generation_id,
-            "status": "running",
+            "status": generation.status,
         }
 
     except HTTPException:
@@ -400,16 +549,22 @@ async def resume_generation(
 async def retry_generation(
     generation_id: str,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Retry a failed or stopped generation
+
+    Celery dispatch note: ``celery_app.send_task`` is a non-blocking enqueue
+    (no request-DB session); it is called directly between the awaited DB
+    commits, exactly as the sync version ordered it.
     """
     try:
         # Get the generation record
         generation = (
-            db.query(DBResponseGeneration).filter(DBResponseGeneration.id == generation_id).first()
-        )
+            await db.execute(
+                select(DBResponseGeneration).where(DBResponseGeneration.id == generation_id).with_for_update()
+            )
+        ).scalar_one_or_none()
 
         if not generation:
             raise HTTPException(
@@ -430,51 +585,40 @@ async def retry_generation(
                 detail=f"Cannot retry generation with status: {generation.status}",
             )
 
-        # Reset generation status. Multi-run feature (migration 041): also
-        # reset the per-trial counters so the worker's status fan-in
-        # (failed-on-first-failure / completed-on-all-succeeded) computes
-        # against a fresh attempt instead of inheriting the previous run's
-        # numbers. Existing child Generation rows are left in place — the
-        # uq_generations_parent_run_index unique constraint makes
-        # re-dispatch idempotent at the row level.
-        generation.status = "pending"
+        # Reset the lifecycle fields, then re-dispatch every run_index that has
+        # no child yet (multi-run: the old code re-ran only run_index=0 via a
+        # single umbrella job). _prepare_missing_trials reconciles the counters;
+        # _commit_and_dispatch revokes the prior epoch's survivors off the lock.
+        generation.status = "running"
         generation.error_message = None
         generation.completed_at = None
-        generation.current_progress = 0
-        generation.completed_tasks = 0
-        generation.runs_completed = 0
-        generation.runs_failed = 0
         generation.retry_count = (generation.retry_count or 0) + 1
 
-        db.commit()
+        missing = await _prepare_missing_trials(db, generation)
+        if not missing:
+            # Every trial already produced a row — nothing to retry. Short-circuit
+            # WITHOUT bumping the epoch or hitting the broker (no survivors, no
+            # dispatch). retry_count still increments (the user did request it).
+            generation.status = "completed"
+            generation.completed_at = datetime.now()
+            await db.commit()
+            return {
+                "message": "Generation retry started successfully",
+                "generation_id": generation_id,
+                "status": generation.status,
+                "retry_count": generation.retry_count,
+            }
 
-        # Re-dispatch the generation task
-        project = db.query(Project).filter(Project.id == generation.project_id).first()
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Project '{generation.project_id}' not found",
-            )
-        config_data = {
-            "project_id": generation.project_id,
-            "generation_config": project.generation_config,
-            "force_rerun": True,
-            "user_id": current_user.id,
-        }
-
-        task = celery_app.send_task(
-            "tasks.generate_llm_responses",
-            args=[generation_id, config_data, generation.model_id, current_user.id],
-            queue="celery",
-        )
-
-        generation.celery_task_id = task.id
-        db.commit()
+        # Bump the dispatch epoch so re-dispatched trials get fresh, un-revoked
+        # task ids; capture the prior epoch for the survivor revoke.
+        prior_epoch = generation.dispatch_epoch or 0
+        generation.dispatch_epoch = prior_epoch + 1
+        await _commit_and_dispatch(db, generation, missing, prior_epoch)
 
         return {
             "message": "Generation retry started successfully",
             "generation_id": generation_id,
-            "status": "pending",
+            "status": generation.status,
             "retry_count": generation.retry_count,
         }
 
@@ -492,7 +636,7 @@ async def retry_generation(
 async def delete_generation(
     generation_id: str,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Delete a generation record and its associated responses
@@ -500,8 +644,10 @@ async def delete_generation(
     try:
         # Get the generation record
         generation = (
-            db.query(DBResponseGeneration).filter(DBResponseGeneration.id == generation_id).first()
-        )
+            await db.execute(
+                select(DBResponseGeneration).where(DBResponseGeneration.id == generation_id).with_for_update()
+            )
+        ).scalar_one_or_none()
 
         if not generation:
             raise HTTPException(
@@ -524,12 +670,16 @@ async def delete_generation(
 
         # Delete associated LLM responses
         deleted_responses = (
-            db.query(DBLLMResponse).filter(DBLLMResponse.generation_id == generation_id).delete()
-        )
+            await db.execute(
+                delete(DBLLMResponse)
+                .where(DBLLMResponse.generation_id == generation_id)
+                .execution_options(synchronize_session=False)
+            )
+        ).rowcount
 
         # Delete the generation record
-        db.delete(generation)
-        db.commit()
+        await db.delete(generation)
+        await db.commit()
 
         return {
             "message": "Generation deleted successfully",
@@ -555,7 +705,7 @@ async def get_parse_metrics(
     request: Request,
     project_id: Optional[str] = None,
     model_id: Optional[str] = None,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_user),
 ):
     """Get parsing success/failure metrics for LLM responses
@@ -570,26 +720,31 @@ async def get_parse_metrics(
     """
     # Verify project access if project_id is provided
     org_context = get_org_context_from_request(request)
-    if project_id and not check_project_accessible(db, current_user, project_id, org_context):
+    if project_id and not await check_project_accessible_async(
+        db, current_user, project_id, org_context
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have access to this project",
         )
 
     try:
-        query = db.query(DBLLMResponse)
+        # Build the shared WHERE-clause filters once; reuse across the three
+        # aggregation selects below. A `.join(DBResponseGeneration)` is added
+        # only on the project-scoped branches (mirrors the sync query chain).
+        needs_join = False
+        where_clauses = []
 
         # Apply filters if provided
         if project_id:
-            query = query.join(DBResponseGeneration).filter(
-                DBResponseGeneration.project_id == project_id
-            )
+            needs_join = True
+            where_clauses.append(DBResponseGeneration.project_id == project_id)
         else:
             # Scope by org context when no specific project_id provided
             org_context = request.headers.get("X-Organization-Context", "private")
             # Cross-project metrics view; preserve legacy "superadmin sees
             # everything" semantics. Narrowing only applies to /api/projects.
-            accessible_ids = get_accessible_project_ids(
+            accessible_ids = await get_accessible_project_ids_async(
                 db, current_user, org_context, include_all_private=True
             )
             if accessible_ids is not None:
@@ -604,51 +759,64 @@ async def get_parse_metrics(
                         "avg_retries_until_success": 0,
                         "common_parse_errors": [],
                     }
-                query = query.join(DBResponseGeneration).filter(
+                needs_join = True
+                where_clauses.append(
                     DBResponseGeneration.project_id.in_(accessible_ids)
                 )
 
         if model_id:
-            query = query.filter(DBLLMResponse.model_id == model_id)
+            where_clauses.append(DBLLMResponse.model_id == model_id)
+
+        def _apply_scope(stmt):
+            """Attach the shared join + filters to a select() over DBLLMResponse."""
+            if needs_join:
+                stmt = stmt.join(
+                    DBResponseGeneration,
+                    DBLLMResponse.generation_id == DBResponseGeneration.id,
+                )
+            if where_clauses:
+                stmt = stmt.where(*where_clauses)
+            return stmt
 
         # All five counts in one aggregation pass — previously ran as five
         # separate `query.filter(...).count()` calls, each a full scan of
         # the filtered set. `SUM(CASE WHEN ...)` collapses them to one row.
-        from sqlalchemy import case as sa_case, func as sa_func
-
-        agg_row = query.with_entities(
-            sa_func.count(DBLLMResponse.id).label("total"),
-            sa_func.coalesce(
-                sa_func.sum(
-                    sa_case((DBLLMResponse.parse_status == "success", 1), else_=0)
-                ),
-                0,
-            ).label("success"),
-            sa_func.coalesce(
-                sa_func.sum(
-                    sa_case((DBLLMResponse.parse_status == "failed", 1), else_=0)
-                ),
-                0,
-            ).label("failed"),
-            sa_func.coalesce(
-                sa_func.sum(
-                    sa_case(
-                        (DBLLMResponse.parse_status == "validation_error", 1),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("validation_error"),
-            sa_func.coalesce(
-                sa_func.sum(
-                    sa_case(
-                        (DBLLMResponse.status == "parse_failed_max_retries", 1),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("max_retries"),
-        ).one()
+        agg_stmt = _apply_scope(
+            select(
+                sa_func.count(DBLLMResponse.id).label("total"),
+                sa_func.coalesce(
+                    sa_func.sum(
+                        sa_case((DBLLMResponse.parse_status == "success", 1), else_=0)
+                    ),
+                    0,
+                ).label("success"),
+                sa_func.coalesce(
+                    sa_func.sum(
+                        sa_case((DBLLMResponse.parse_status == "failed", 1), else_=0)
+                    ),
+                    0,
+                ).label("failed"),
+                sa_func.coalesce(
+                    sa_func.sum(
+                        sa_case(
+                            (DBLLMResponse.parse_status == "validation_error", 1),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("validation_error"),
+                sa_func.coalesce(
+                    sa_func.sum(
+                        sa_case(
+                            (DBLLMResponse.status == "parse_failed_max_retries", 1),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("max_retries"),
+            ).select_from(DBLLMResponse)
+        )
+        agg_row = (await db.execute(agg_stmt)).one()
 
         total = int(agg_row.total or 0)
         success = int(agg_row.success or 0)
@@ -672,11 +840,12 @@ async def get_parse_metrics(
         # need, not the full row (parse_metadata can be a heavy JSON blob).
         avg_retries = 0
         if success:
-            metadata_rows = (
-                query.filter(DBLLMResponse.parse_status == "success")
-                .with_entities(DBLLMResponse.parse_metadata)
-                .all()
+            metadata_stmt = _apply_scope(
+                select(DBLLMResponse.parse_metadata)
+                .select_from(DBLLMResponse)
+                .where(DBLLMResponse.parse_status == "success")
             )
+            metadata_rows = (await db.execute(metadata_stmt)).all()
             total_retries = sum(
                 (md or {}).get("retry_count", 1) for (md,) in metadata_rows
             )
@@ -693,21 +862,25 @@ async def get_parse_metrics(
         # Common parse errors — group in SQL instead of streaming every
         # failed row to Python. ORDER BY DESC + LIMIT keeps the top-5 in
         # the database.
-        error_rows = (
-            query.filter(
-                DBLLMResponse.parse_status.in_(["failed", "validation_error"])
-            )
-            .with_entities(
-                sa_func.coalesce(DBLLMResponse.parse_error, "Unknown error").label(
-                    "error"
-                ),
-                sa_func.count(DBLLMResponse.id).label("count"),
+        error_label = sa_func.coalesce(
+            DBLLMResponse.parse_error, "Unknown error"
+        ).label("error")
+        error_stmt = (
+            _apply_scope(
+                select(
+                    error_label,
+                    sa_func.count(DBLLMResponse.id).label("count"),
+                )
+                .select_from(DBLLMResponse)
+                .where(
+                    DBLLMResponse.parse_status.in_(["failed", "validation_error"])
+                )
             )
             .group_by("error")
             .order_by(sa_func.count(DBLLMResponse.id).desc())
             .limit(5)
-            .all()
         )
+        error_rows = (await db.execute(error_stmt)).all()
         common_errors = [{"error": e, "count": int(c)} for e, c in error_rows]
 
         return {
@@ -749,6 +922,14 @@ async def generation_progress_websocket(
     after the access check so it does NOT linger for the WS lifetime.
     The polling fallback opens fresh sessions per iteration instead of
     holding one across `await asyncio.sleep(2)` (see 2026-05-18 postmortem).
+
+    Stays SYNC (``Depends(get_db)``): this handler owns its own session
+    lifecycle — it ``db.close()``es the auth session before the upgrade and
+    spins up a fresh per-iteration sync session (``next(get_db())``) inside
+    the polling loop so no connection is held across ``asyncio.sleep``. That
+    explicit open/close-per-iteration model + the sync ``get_user_by_id`` /
+    ``check_project_accessible`` calls don't have async twins that fit the WS
+    lifecycle cleanly, so it is left on the sync lane.
     """
     # Authenticate + authorize BEFORE the upgrade.
     try:

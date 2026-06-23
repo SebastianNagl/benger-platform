@@ -7,11 +7,9 @@ Covers three integration points end-to-end:
 """
 
 from datetime import datetime, timezone
-from unittest.mock import Mock
 
+import pytest
 from fastapi import status
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
 
 # ─── 1. Loader round-trip ─────────────────────────────────────────────────
@@ -82,90 +80,84 @@ def test_drift_checker_compares_recommended_parameters():
 
 
 # ─── 3. Public endpoint exposure ──────────────────────────────────────────
-def _mock_model_with_recommendations():
-    m = Mock()
-    m.id = "gpt-4o"
-    m.name = "GPT-4o"
-    m.description = "Multimodal model"
-    m.provider = "openai"
-    m.model_type = "chat"
-    m.capabilities = ["text-generation"]
-    m.config_schema = None
-    m.default_config = None
-    m.input_cost_per_million = 2.5
-    m.output_cost_per_million = 10.0
-    m.parameter_constraints = None
-    m.recommended_parameters = {
-        "default": {"max_tokens": 4000},
-        "generation": {"temperature": 0.7},
-        "evaluation": {"temperature": 0.0},
-        "provenance": {
-            "source": "https://platform.openai.com/docs/models/gpt-4o",
-            "retrieved": "2026-05-07",
+#
+# The /public/models endpoint was migrated to the async DB lane, so these
+# tests seed real LLMModel rows through async_test_db and read them back via
+# async_test_client (the old Mock(spec=Session).query(...) shape no longer
+# matches the async handler's `await db.execute(select(...))`).
+def _model_with_recommendations(**overrides):
+    from models import LLMModel as DBLLMModel
+
+    # Use a test-only id to avoid colliding with real catalog rows that may
+    # already be committed in the shared test DB (e.g. a seeded "gpt-4o").
+    data = dict(
+        id="test-gpt-4o-rec",
+        name="GPT-4o",
+        description="Multimodal model",
+        provider="openai",
+        model_type="chat",
+        capabilities=["text-generation"],
+        config_schema=None,
+        default_config=None,
+        input_cost_per_million=2.5,
+        output_cost_per_million=10.0,
+        parameter_constraints=None,
+        recommended_parameters={
+            "default": {"max_tokens": 4000},
+            "generation": {"temperature": 0.7},
+            "evaluation": {"temperature": 0.0},
+            "provenance": {
+                "source": "https://platform.openai.com/docs/models/gpt-4o",
+                "retrieved": "2026-05-07",
+            },
         },
-    }
-    m.is_active = True
-    m.created_at = datetime.now(timezone.utc)
-    m.updated_at = None
-    return m
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+        updated_at=None,
+    )
+    data.update(overrides)
+    return DBLLMModel(**data)
 
 
-def test_public_models_endpoint_returns_recommended_parameters():
+@pytest.mark.asyncio
+async def test_public_models_endpoint_returns_recommended_parameters(
+    async_test_client, async_test_db
+):
     """The frontend reads recommended_parameters off this endpoint to
     render the "Empfehlung / Verschiedene / Keine" badges next to each
     parameter input. If the response model omits the field, the badges
     silently degrade to "no recommendation" for every model."""
-    from database import get_db
-    from main import app
+    async_test_db.add(_model_with_recommendations())
+    await async_test_db.commit()
 
-    mock_db = Mock(spec=Session)
-    mock_filter = Mock()
-    mock_filter.all.return_value = [_mock_model_with_recommendations()]
-    mock_query = Mock()
-    mock_query.filter.return_value = mock_filter
-    mock_db.query.return_value = mock_query
-
-    app.dependency_overrides[get_db] = lambda: mock_db
-    try:
-        client = TestClient(app)
-        response = client.get("/api/llm_models/public/models")
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert len(data) == 1
-        rec = data[0]["recommended_parameters"]
-        assert rec is not None
-        assert rec["generation"]["temperature"] == 0.7
-        assert rec["evaluation"]["temperature"] == 0.0
-        assert rec["provenance"]["source"].startswith("https://")
-    finally:
-        app.dependency_overrides.clear()
+    response = await async_test_client.get("/api/llm_models/public/models")
+    assert response.status_code == status.HTTP_200_OK
+    by_id = {m["id"]: m for m in response.json()}
+    assert "test-gpt-4o-rec" in by_id
+    rec = by_id["test-gpt-4o-rec"]["recommended_parameters"]
+    assert rec is not None
+    assert rec["generation"]["temperature"] == 0.7
+    assert rec["evaluation"]["temperature"] == 0.0
+    assert rec["provenance"]["source"].startswith("https://")
 
 
-def test_public_models_endpoint_returns_none_for_models_without_recommendations():
-    """Inactive / unstudied models don't carry a recommendation. The
-    field should serialize as null (not omitted), so the UI's
-    `getRecommendedParam` helper can branch on it cleanly."""
-    from database import get_db
-    from main import app
+@pytest.mark.asyncio
+async def test_public_models_endpoint_returns_none_for_models_without_recommendations(
+    async_test_client, async_test_db
+):
+    """Models without a studied recommendation carry NULL. The field should
+    serialize as null (not omitted), so the UI's `getRecommendedParam`
+    helper can branch on it cleanly."""
+    async_test_db.add(
+        _model_with_recommendations(
+            id="obscure-community-model", recommended_parameters=None
+        )
+    )
+    await async_test_db.commit()
 
-    m = _mock_model_with_recommendations()
-    m.id = "obscure-community-model"
-    m.recommended_parameters = None
-
-    mock_db = Mock(spec=Session)
-    mock_filter = Mock()
-    mock_filter.all.return_value = [m]
-    mock_query = Mock()
-    mock_query.filter.return_value = mock_filter
-    mock_db.query.return_value = mock_query
-
-    app.dependency_overrides[get_db] = lambda: mock_db
-    try:
-        client = TestClient(app)
-        response = client.get("/api/llm_models/public/models")
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert "recommended_parameters" in data[0]
-        assert data[0]["recommended_parameters"] is None
-    finally:
-        app.dependency_overrides.clear()
+    response = await async_test_client.get("/api/llm_models/public/models")
+    assert response.status_code == status.HTTP_200_OK
+    by_id = {m["id"]: m for m in response.json()}
+    assert "obscure-community-model" in by_id
+    assert "recommended_parameters" in by_id["obscure-community-model"]
+    assert by_id["obscure-community-model"]["recommended_parameters"] is None

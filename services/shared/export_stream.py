@@ -32,7 +32,7 @@ import io
 import json
 from datetime import datetime
 from itertools import chain
-from typing import Iterable, Iterator, List, Optional
+from typing import Callable, Iterable, Iterator, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -74,7 +74,33 @@ from serializers import (
     serialize_task_evaluation,
 )
 from sqlalchemy import func as sa_func
-from sqlalchemy import select
+
+# Shared, behavior-preserving extract of the row->dict serializers, batch
+# helpers, and query builders this module previously duplicated inline (and
+# across its two comprehensive generators). See stream_io/__init__.py for why
+# the package is named stream_io and not io.
+from stream_io.batch_utils import drain_expunge, fetch_batch_children
+from stream_io.query_builders import (
+    build_eval_run_ids,
+    build_gen_counts,
+    build_task_id_subquery,
+)
+from stream_io.serialization import (
+    build_project_export_data,
+    empty_export_stats,
+    serialize_evaluation_judge_run_row,
+    serialize_evaluation_metric_row,
+    serialize_human_evaluation_config_row,
+    serialize_human_evaluation_result_row,
+    serialize_human_evaluation_session_row,
+    serialize_likert_scale_evaluation_row,
+    serialize_post_annotation_response_row,
+    serialize_preference_ranking_row,
+    serialize_project_member_row,
+    serialize_response_generation_row,
+    serialize_task_assignment_row,
+    serialize_user_row,
+)
 
 BATCH_SIZE = 50
 
@@ -149,26 +175,12 @@ def build_batch_objs(
         return []
     batch_ids = [t.id for t in batch]
 
-    anns_all = db.query(Annotation).filter(Annotation.task_id.in_(batch_ids)).all()
-    qrs_all = db.query(PostAnnotationResponse).filter(
-        PostAnnotationResponse.task_id.in_(batch_ids)
-    ).all()
-    gens_all = db.query(Generation).filter(Generation.task_id.in_(batch_ids)).all()
-    if eval_run_by_id:
-        te_all = db.query(TaskEvaluation).filter(
-            TaskEvaluation.task_id.in_(batch_ids),
-            TaskEvaluation.evaluation_id.in_(eval_run_by_id.keys()),
-        ).all()
-    else:
-        te_all = []
-
-    anns_by_task: dict = {}
-    for a in anns_all:
-        anns_by_task.setdefault(a.task_id, []).append(a)
-    qr_by_annotation = {qr.annotation_id: qr for qr in qrs_all}
-    gens_by_task: dict = {}
-    for g in gens_all:
-        gens_by_task.setdefault(g.task_id, []).append(g)
+    (
+        anns_all, qrs_all, gens_all, te_all,
+        anns_by_task, qr_by_annotation, gens_by_task,
+    ) = fetch_batch_children(
+        db, batch_ids, list(eval_run_by_id.keys()) if eval_run_by_id else []
+    )
     te_by_task_id, te_by_gen_id = build_evaluation_indexes(te_all)
 
     out = []
@@ -225,6 +237,7 @@ def stream_export_json(
     project_id: str,
     task_ids: Optional[Iterable[str]],
     header_fields: dict,
+    progress_cb: Optional[Callable[[int, int], None]] = None,
 ) -> Iterator[str]:
     """Yield a complete JSON export as string chunks.
 
@@ -240,6 +253,13 @@ def stream_export_json(
     only the specified subset is included. The eval_runs / korrektur
     blocks are always project-wide; human-eval is filtered to the same
     task set we end up streaming.
+
+    `progress_cb`, when supplied, is called once per streamed task batch with
+    `(tasks_streamed_so_far, total_tasks)` so the async worker can persist
+    incremental progress. It is best-effort: any exception it raises is
+    swallowed so a progress hiccup can never sever the export stream. The
+    tasks block dominates the export, so task count is a faithful progress
+    signal; the trailing korrektur/human-eval blocks finish near 100%.
     """
     eval_runs = db.query(EvaluationRun).filter(
         EvaluationRun.project_id == project_id
@@ -258,6 +278,11 @@ def stream_export_json(
     if task_ids is not None:
         task_q = task_q.filter(Task.id.in_(list(task_ids)))
 
+    # Only pay for the count when a caller actually wants progress. `.count()`
+    # issues its own statement and is fully drained before the streaming
+    # cursor opens, so it doesn't disturb the `yield_per` iteration below.
+    total_tasks = task_q.count() if progress_cb is not None else 0
+
     streamed_task_ids: list = []
     eval_run_ids = list(eval_run_by_id.keys())
     for batch in iter_eval_bounded_batches(db, task_q, eval_run_ids):
@@ -265,6 +290,12 @@ def stream_export_json(
         for obj in build_batch_objs(db, batch, eval_run_by_id, judge_model_lookup):
             yield ("" if first else ",") + json.dumps(obj)
             first = False
+        if progress_cb is not None:
+            try:
+                progress_cb(len(streamed_task_ids), total_tasks)
+            except Exception:
+                # Progress is best-effort; never let it break the export.
+                pass
 
     yield "], "
 
@@ -423,30 +454,12 @@ def stream_export_label_studio(
         if not task_batch:
             return []
         batch_ids = [t.id for t in task_batch]
-        anns_all = db.query(Annotation).filter(
-            Annotation.task_id.in_(batch_ids)
-        ).all()
-        qrs_all = db.query(PostAnnotationResponse).filter(
-            PostAnnotationResponse.task_id.in_(batch_ids)
-        ).all()
-        gens_all = db.query(Generation).filter(
-            Generation.task_id.in_(batch_ids)
-        ).all()
-        if eval_run_by_id:
-            te_all = db.query(TaskEvaluation).filter(
-                TaskEvaluation.task_id.in_(batch_ids),
-                TaskEvaluation.evaluation_id.in_(eval_run_by_id.keys()),
-            ).all()
-        else:
-            te_all = []
-
-        anns_by_task: dict = {}
-        for a in anns_all:
-            anns_by_task.setdefault(a.task_id, []).append(a)
-        qr_by_annotation = {qr.annotation_id: qr for qr in qrs_all}
-        gens_by_task: dict = {}
-        for g in gens_all:
-            gens_by_task.setdefault(g.task_id, []).append(g)
+        (
+            anns_all, qrs_all, gens_all, te_all,
+            anns_by_task, qr_by_annotation, gens_by_task,
+        ) = fetch_batch_children(
+            db, batch_ids, list(eval_run_by_id.keys()) if eval_run_by_id else []
+        )
         # Legacy LS export emits every task_evaluation (both task- and
         # gen-level) into the task's `evaluations` array; mirror that here.
         te_by_task: dict = {}
@@ -623,87 +636,22 @@ def stream_comprehensive_project_data_json(
         .filter(ProjectOrganization.project_id == project.id)
         .first()
     )
-    project_data = {
-        "id": project.id,
-        "title": project.title,
-        "description": project.description,
-        "label_config": project.label_config,
-        "expert_instruction": project.expert_instruction,
-        "show_instruction": project.show_instruction,
-        "show_skip_button": project.show_skip_button,
-        "enable_empty_annotation": project.enable_empty_annotation,
-        "created_by": project.created_by,
-        "organization_id": org_row[0] if org_row else None,
-        "min_annotations_per_task": project.min_annotations_per_task,
-        "is_published": project.is_published,
-        "created_at": project.created_at.isoformat() if project.created_at else None,
-        "updated_at": project.updated_at.isoformat() if project.updated_at else None,
-        "generation_config": project.generation_config,
-        "evaluation_config": project.evaluation_config,
-        "label_config_version": project.label_config_version,
-        "label_config_history": project.label_config_history,
-        "maximum_annotations": project.maximum_annotations,
-        "assignment_mode": project.assignment_mode,
-        "show_submit_button": project.show_submit_button,
-        "require_comment_on_skip": project.require_comment_on_skip,
-        "require_confirm_before_submit": project.require_confirm_before_submit,
-        "is_archived": project.is_archived,
-        "questionnaire_enabled": project.questionnaire_enabled,
-        "questionnaire_config": project.questionnaire_config,
-        "randomize_task_order": project.randomize_task_order,
-        "instructions_always_visible": project.instructions_always_visible,
-        "conditional_instructions": project.conditional_instructions,
-        "review_enabled": project.review_enabled,
-        "review_mode": project.review_mode,
-        "allow_self_review": project.allow_self_review,
-        "korrektur_enabled": project.korrektur_enabled,
-        "korrektur_config": project.korrektur_config,
-    }
+    project_data = build_project_export_data(
+        project, org_row[0] if org_row else None
+    )
 
     user_ids: set[str] = set()
     if project.created_by:
         user_ids.add(project.created_by)
-    stats: dict[str, int] = {
-        "total_tasks": 0,
-        "total_annotations": 0,
-        "total_generations": 0,
-        "total_evaluations": 0,
-        "total_evaluation_metrics": 0,
-        "total_evaluation_judge_runs": 0,
-        "total_task_evaluations": 0,
-        "total_human_evaluation_configs": 0,
-        "total_human_evaluation_sessions": 0,
-        "total_human_evaluation_results": 0,
-        "total_preference_rankings": 0,
-        "total_likert_scale_evaluations": 0,
-        "total_members": 0,
-        "total_assignments": 0,
-        "total_post_annotation_responses": 0,
-    }
+    stats: dict[str, int] = empty_export_stats()
 
     # Per-task generation counts for serialize_task(mode="full", total_generations=...).
     # task_id_subq is a SELECT used inside IN() filters across this function.
-    gen_counts: dict[str, int] = {}
-    task_id_subq = select(Task.id).where(Task.project_id == project_id)
-    gen_count_rows = (
-        db.query(Generation.task_id, sa_func.count(Generation.id))
-        .filter(Generation.task_id.in_(task_id_subq))
-        .group_by(Generation.task_id)
-        .all()
-    )
-    for tid, n in gen_count_rows:
-        gen_counts[tid] = n
+    task_id_subq = build_task_id_subquery(project_id)
+    gen_counts: dict[str, int] = build_gen_counts(db, task_id_subq)
 
     def _drain(query, batch_size: int = BATCH_SIZE):
-        """Yield rows under `yield_per`, detaching each once the consumer is
-        done with it. `yield_per` bounds the cursor buffer; the `expunge`
-        bounds the identity map. Without the latter, every row this clone
-        touches stays resident and peak RAM scales with the whole project
-        instead of one batch — the same trap that OOMKilled the data export.
-        """
-        for row in query.yield_per(batch_size):
-            yield row
-            db.expunge(row)
+        return drain_expunge(db, query, batch_size)
 
     yield '{"format_version": "1.0.0",'
     yield '"exported_at": ' + json.dumps(datetime.utcnow().isoformat()) + ','
@@ -763,21 +711,9 @@ def stream_comprehensive_project_data_json(
         ResponseGeneration.task_id.in_(task_id_subq)
     )
     for rg in _drain(rg_q):
-        rg_data = {
-            "id": rg.id,
-            "task_id": rg.task_id,
-            "model_id": rg.model_id,
-            "config_id": rg.config_id,
-            "status": rg.status,
-            "responses_generated": rg.responses_generated,
-            "error_message": rg.error_message,
-            "generation_metadata": rg.generation_metadata,
-            "created_by": rg.created_by,
-            "created_at": rg.created_at.isoformat() if rg.created_at else None,
-            "started_at": rg.started_at.isoformat() if rg.started_at else None,
-            "completed_at": rg.completed_at.isoformat() if rg.completed_at else None,
-        }
-        yield ("" if first else ",") + json.dumps(rg_data, ensure_ascii=False)
+        yield ("" if first else ",") + json.dumps(
+            serialize_response_generation_row(rg), ensure_ascii=False
+        )
         first = False
     yield "],"
 
@@ -790,16 +726,9 @@ def stream_comprehensive_project_data_json(
     for member in members:
         if member.user_id:
             user_ids.add(member.user_id)
-        m_data = {
-            "id": member.id,
-            "project_id": member.project_id,
-            "user_id": member.user_id,
-            "role": member.role,
-            "is_active": member.is_active,
-            "created_at": member.created_at.isoformat() if member.created_at else None,
-            "updated_at": member.updated_at.isoformat() if member.updated_at else None,
-        }
-        yield ("" if first else ",") + json.dumps(m_data, ensure_ascii=False)
+        yield ("" if first else ",") + json.dumps(
+            serialize_project_member_row(member), ensure_ascii=False
+        )
         first = False
         stats["total_members"] += 1
     yield "],"
@@ -815,29 +744,15 @@ def stream_comprehensive_project_data_json(
             user_ids.add(a.user_id)
         if a.assigned_by:
             user_ids.add(a.assigned_by)
-        a_data = {
-            "id": a.id,
-            "task_id": a.task_id,
-            "user_id": a.user_id,
-            "assigned_by": a.assigned_by,
-            "status": a.status,
-            "priority": a.priority,
-            "due_date": a.due_date.isoformat() if a.due_date else None,
-            "notes": a.notes,
-            "assigned_at": a.assigned_at.isoformat() if a.assigned_at else None,
-            "started_at": a.started_at.isoformat() if a.started_at else None,
-            "completed_at": a.completed_at.isoformat() if a.completed_at else None,
-        }
-        yield ("" if first else ",") + json.dumps(a_data, ensure_ascii=False)
+        yield ("" if first else ",") + json.dumps(
+            serialize_task_assignment_row(a), ensure_ascii=False
+        )
         first = False
         stats["total_assignments"] += 1
     yield "],"
 
     # --- evaluations (small: eval_runs themselves) ---
-    eval_runs = (
-        db.query(EvaluationRun).filter(EvaluationRun.project_id == project_id).all()
-    )
-    eval_run_ids = [er.id for er in eval_runs]
+    eval_runs, eval_run_ids = build_eval_run_ids(db, project_id)
     yield '"evaluations": ['
     first = True
     for er in eval_runs:
@@ -856,14 +771,9 @@ def stream_comprehensive_project_data_json(
             EvaluationRunMetric.evaluation_id.in_(eval_run_ids)
         )
         for m in _drain(em_q):
-            m_data = {
-                "id": m.id,
-                "evaluation_id": m.evaluation_id,
-                "evaluation_type_id": m.evaluation_type_id,
-                "value": m.value,
-                "created_at": m.created_at.isoformat() if m.created_at else None,
-            }
-            yield ("" if first else ",") + json.dumps(m_data, ensure_ascii=False)
+            yield ("" if first else ",") + json.dumps(
+                serialize_evaluation_metric_row(m), ensure_ascii=False
+            )
             first = False
             stats["total_evaluation_metrics"] += 1
     yield "],"
@@ -879,17 +789,9 @@ def stream_comprehensive_project_data_json(
             EvaluationJudgeRun.evaluation_id.in_(eval_run_ids)
         )
         for jr in _drain(jr_q):
-            jr_data = {
-                "id": jr.id,
-                "evaluation_id": jr.evaluation_id,
-                "judge_model_id": jr.judge_model_id,
-                "run_index": jr.run_index,
-                "status": jr.status,
-                "samples_evaluated": jr.samples_evaluated,
-                "error_message": jr.error_message,
-                "metric_parameters_snapshot": jr.metric_parameters_snapshot,
-            }
-            yield ("" if first else ",") + json.dumps(jr_data, ensure_ascii=False)
+            yield ("" if first else ",") + json.dumps(
+                serialize_evaluation_judge_run_row(jr), ensure_ascii=False
+            )
             first = False
             stats["total_evaluation_judge_runs"] += 1
     yield "],"
@@ -918,19 +820,9 @@ def stream_comprehensive_project_data_json(
     )
     for c in _drain(hec_q):
         hec_ids.append(c.id)
-        c_data = {
-            "id": c.id,
-            "task_id": c.task_id,
-            "evaluation_project_id": c.evaluation_project_id,
-            "evaluator_count": c.evaluator_count,
-            "randomization_seed": c.randomization_seed,
-            "blinding_enabled": c.blinding_enabled,
-            "include_human_responses": c.include_human_responses,
-            "status": c.status,
-            "created_at": c.created_at.isoformat() if c.created_at else None,
-            "updated_at": c.updated_at.isoformat() if c.updated_at else None,
-        }
-        yield ("" if first else ",") + json.dumps(c_data, ensure_ascii=False)
+        yield ("" if first else ",") + json.dumps(
+            serialize_human_evaluation_config_row(c), ensure_ascii=False
+        )
         first = False
         stats["total_human_evaluation_configs"] += 1
     yield "],"
@@ -944,20 +836,9 @@ def stream_comprehensive_project_data_json(
     )
     for s in _drain(hes_q):
         hes_ids.append(s.id)
-        s_data = {
-            "id": s.id,
-            "project_id": s.project_id,
-            "evaluator_id": s.evaluator_id,
-            "session_type": s.session_type,
-            "items_evaluated": s.items_evaluated,
-            "total_items": s.total_items,
-            "status": s.status,
-            "session_config": s.session_config,
-            "created_at": s.created_at.isoformat() if s.created_at else None,
-            "updated_at": s.updated_at.isoformat() if s.updated_at else None,
-            "completed_at": s.completed_at.isoformat() if s.completed_at else None,
-        }
-        yield ("" if first else ",") + json.dumps(s_data, ensure_ascii=False)
+        yield ("" if first else ",") + json.dumps(
+            serialize_human_evaluation_session_row(s), ensure_ascii=False
+        )
         first = False
         stats["total_human_evaluation_sessions"] += 1
     yield "],"
@@ -970,21 +851,9 @@ def stream_comprehensive_project_data_json(
             HumanEvaluationResult.config_id.in_(hec_ids)
         )
         for r in _drain(her_q):
-            r_data = {
-                "id": r.id,
-                "config_id": r.config_id,
-                "task_id": r.task_id,
-                "response_id": r.response_id,
-                "evaluator_id": r.evaluator_id,
-                "correctness_score": r.correctness_score,
-                "completeness_score": r.completeness_score,
-                "style_score": r.style_score,
-                "usability_score": r.usability_score,
-                "comments": r.comments,
-                "evaluation_time_seconds": r.evaluation_time_seconds,
-                "created_at": r.created_at.isoformat() if r.created_at else None,
-            }
-            yield ("" if first else ",") + json.dumps(r_data, ensure_ascii=False)
+            yield ("" if first else ",") + json.dumps(
+                serialize_human_evaluation_result_row(r), ensure_ascii=False
+            )
             first = False
             stats["total_human_evaluation_results"] += 1
     yield "],"
@@ -997,19 +866,9 @@ def stream_comprehensive_project_data_json(
             PreferenceRanking.session_id.in_(hes_ids)
         )
         for p in _drain(pr_q):
-            p_data = {
-                "id": p.id,
-                "session_id": p.session_id,
-                "task_id": p.task_id,
-                "response_a_id": p.response_a_id,
-                "response_b_id": p.response_b_id,
-                "winner": p.winner,
-                "confidence": p.confidence,
-                "reasoning": p.reasoning,
-                "time_spent_seconds": p.time_spent_seconds,
-                "created_at": p.created_at.isoformat() if p.created_at else None,
-            }
-            yield ("" if first else ",") + json.dumps(p_data, ensure_ascii=False)
+            yield ("" if first else ",") + json.dumps(
+                serialize_preference_ranking_row(p), ensure_ascii=False
+            )
             first = False
             stats["total_preference_rankings"] += 1
     yield "],"
@@ -1022,18 +881,9 @@ def stream_comprehensive_project_data_json(
             LikertScaleEvaluation.session_id.in_(hes_ids)
         )
         for lk in _drain(ls_q):
-            lk_data = {
-                "id": lk.id,
-                "session_id": lk.session_id,
-                "task_id": lk.task_id,
-                "response_id": lk.response_id,
-                "dimension": lk.dimension,
-                "rating": lk.rating,
-                "comment": lk.comment,
-                "time_spent_seconds": lk.time_spent_seconds,
-                "created_at": lk.created_at.isoformat() if lk.created_at else None,
-            }
-            yield ("" if first else ",") + json.dumps(lk_data, ensure_ascii=False)
+            yield ("" if first else ",") + json.dumps(
+                serialize_likert_scale_evaluation_row(lk), ensure_ascii=False
+            )
             first = False
             stats["total_likert_scale_evaluations"] += 1
     yield "],"
@@ -1058,16 +908,9 @@ def stream_comprehensive_project_data_json(
     for r in _drain(par_q):
         if r.user_id:
             user_ids.add(r.user_id)
-        r_data = {
-            "id": r.id,
-            "annotation_id": r.annotation_id,
-            "task_id": r.task_id,
-            "project_id": r.project_id,
-            "user_id": r.user_id,
-            "result": r.result,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-        }
-        yield ("" if first else ",") + json.dumps(r_data, ensure_ascii=False)
+        yield ("" if first else ",") + json.dumps(
+            serialize_post_annotation_response_row(r), ensure_ascii=False
+        )
         first = False
         stats["total_post_annotation_responses"] += 1
     yield "],"
@@ -1077,15 +920,9 @@ def stream_comprehensive_project_data_json(
     first = True
     if user_ids:
         for u in db.query(User).filter(User.id.in_(user_ids)).all():
-            u_data = {
-                "id": u.id,
-                "email": u.email,
-                "username": u.username,
-                "name": u.name,
-                "is_active": u.is_active,
-                "is_superadmin": u.is_superadmin,
-            }
-            yield ("" if first else ",") + json.dumps(u_data, ensure_ascii=False)
+            yield ("" if first else ",") + json.dumps(
+                serialize_user_row(u), ensure_ascii=False
+            )
             first = False
     yield "],"
 
@@ -1133,79 +970,21 @@ def stream_export_ndjson(
         .filter(ProjectOrganization.project_id == project.id)
         .first()
     )
-    project_data = {
-        "id": project.id,
-        "title": project.title,
-        "description": project.description,
-        "label_config": project.label_config,
-        "expert_instruction": project.expert_instruction,
-        "show_instruction": project.show_instruction,
-        "show_skip_button": project.show_skip_button,
-        "enable_empty_annotation": project.enable_empty_annotation,
-        "created_by": project.created_by,
-        "organization_id": org_row[0] if org_row else None,
-        "min_annotations_per_task": project.min_annotations_per_task,
-        "is_published": project.is_published,
-        "created_at": project.created_at.isoformat() if project.created_at else None,
-        "updated_at": project.updated_at.isoformat() if project.updated_at else None,
-        "generation_config": project.generation_config,
-        "evaluation_config": project.evaluation_config,
-        "label_config_version": project.label_config_version,
-        "label_config_history": project.label_config_history,
-        "maximum_annotations": project.maximum_annotations,
-        "assignment_mode": project.assignment_mode,
-        "show_submit_button": project.show_submit_button,
-        "require_comment_on_skip": project.require_comment_on_skip,
-        "require_confirm_before_submit": project.require_confirm_before_submit,
-        "is_archived": project.is_archived,
-        "questionnaire_enabled": project.questionnaire_enabled,
-        "questionnaire_config": project.questionnaire_config,
-        "randomize_task_order": project.randomize_task_order,
-        "instructions_always_visible": project.instructions_always_visible,
-        "conditional_instructions": project.conditional_instructions,
-        "review_enabled": project.review_enabled,
-        "review_mode": project.review_mode,
-        "allow_self_review": project.allow_self_review,
-        "korrektur_enabled": project.korrektur_enabled,
-        "korrektur_config": project.korrektur_config,
-    }
+    project_data = build_project_export_data(
+        project, org_row[0] if org_row else None
+    )
 
-    stats: dict[str, int] = {
-        "total_tasks": 0,
-        "total_annotations": 0,
-        "total_generations": 0,
-        "total_evaluations": 0,
-        "total_evaluation_metrics": 0,
-        "total_evaluation_judge_runs": 0,
-        "total_task_evaluations": 0,
-        "total_human_evaluation_configs": 0,
-        "total_human_evaluation_sessions": 0,
-        "total_human_evaluation_results": 0,
-        "total_preference_rankings": 0,
-        "total_likert_scale_evaluations": 0,
-        "total_members": 0,
-        "total_assignments": 0,
-        "total_post_annotation_responses": 0,
-    }
+    stats: dict[str, int] = empty_export_stats()
 
     def _emit(record_type: str, payload: dict) -> str:
         return json.dumps({"_type": record_type, **payload}, ensure_ascii=False) + "\n"
 
     def _drain(query, batch_size: int = BATCH_SIZE):
-        for row in query.yield_per(batch_size):
-            yield row
-            db.expunge(row)
+        return drain_expunge(db, query, batch_size)
 
     # Per-task generation counts for serialize_task(mode="full", total_generations=...).
-    gen_counts: dict[str, int] = {}
-    task_id_subq = select(Task.id).where(Task.project_id == project_id)
-    for tid, n in (
-        db.query(Generation.task_id, sa_func.count(Generation.id))
-        .filter(Generation.task_id.in_(task_id_subq))
-        .group_by(Generation.task_id)
-        .all()
-    ):
-        gen_counts[tid] = n
+    task_id_subq = build_task_id_subquery(project_id)
+    gen_counts: dict[str, int] = build_gen_counts(db, task_id_subq)
 
     # --- meta (project header + version) ---
     yield _emit("meta", {
@@ -1259,14 +1038,7 @@ def stream_export_ndjson(
 
     if user_ids:
         for u in db.query(User).filter(User.id.in_(user_ids)).all():
-            yield _emit("user", {
-                "id": u.id,
-                "email": u.email,
-                "username": u.username,
-                "name": u.name,
-                "is_active": u.is_active,
-                "is_superadmin": u.is_superadmin,
-            })
+            yield _emit("user", serialize_user_row(u))
 
     # --- tasks (heavy) ---
     for task in _drain(db.query(Task).filter(Task.project_id == project_id)):
@@ -1284,20 +1056,7 @@ def stream_export_ndjson(
     for rg in _drain(
         db.query(ResponseGeneration).filter(ResponseGeneration.task_id.in_(task_id_subq))
     ):
-        yield _emit("response_generation", {
-            "id": rg.id,
-            "task_id": rg.task_id,
-            "model_id": rg.model_id,
-            "config_id": rg.config_id,
-            "status": rg.status,
-            "responses_generated": rg.responses_generated,
-            "error_message": rg.error_message,
-            "generation_metadata": rg.generation_metadata,
-            "created_by": rg.created_by,
-            "created_at": rg.created_at.isoformat() if rg.created_at else None,
-            "started_at": rg.started_at.isoformat() if rg.started_at else None,
-            "completed_at": rg.completed_at.isoformat() if rg.completed_at else None,
-        })
+        yield _emit("response_generation", serialize_response_generation_row(rg))
 
     # --- generations (very heavy: response_content) ---
     for gen in _drain(db.query(Generation).filter(Generation.task_id.in_(task_id_subq))):
@@ -1305,10 +1064,7 @@ def stream_export_ndjson(
         stats["total_generations"] += 1
 
     # --- evaluations (small: eval_runs themselves) ---
-    eval_runs = (
-        db.query(EvaluationRun).filter(EvaluationRun.project_id == project_id).all()
-    )
-    eval_run_ids = [er.id for er in eval_runs]
+    eval_runs, eval_run_ids = build_eval_run_ids(db, project_id)
     for er in eval_runs:
         yield _emit("evaluation", serialize_evaluation_run(er, mode="full"))
         stats["total_evaluations"] += 1
@@ -1320,13 +1076,7 @@ def stream_export_ndjson(
                 EvaluationRunMetric.evaluation_id.in_(eval_run_ids)
             )
         ):
-            yield _emit("evaluation_metric", {
-                "id": m.id,
-                "evaluation_id": m.evaluation_id,
-                "evaluation_type_id": m.evaluation_type_id,
-                "value": m.value,
-                "created_at": m.created_at.isoformat() if m.created_at else None,
-            })
+            yield _emit("evaluation_metric", serialize_evaluation_metric_row(m))
             stats["total_evaluation_metrics"] += 1
 
     # --- evaluation_judge_runs (small) ---
@@ -1339,16 +1089,7 @@ def stream_export_ndjson(
                 EvaluationJudgeRun.evaluation_id.in_(eval_run_ids)
             )
         ):
-            yield _emit("evaluation_judge_run", {
-                "id": jr.id,
-                "evaluation_id": jr.evaluation_id,
-                "judge_model_id": jr.judge_model_id,
-                "run_index": jr.run_index,
-                "status": jr.status,
-                "samples_evaluated": jr.samples_evaluated,
-                "error_message": jr.error_message,
-                "metric_parameters_snapshot": jr.metric_parameters_snapshot,
-            })
+            yield _emit("evaluation_judge_run", serialize_evaluation_judge_run_row(jr))
             stats["total_evaluation_judge_runs"] += 1
 
     # --- task_evaluations (very heavy: thousands of rows) ---
@@ -1369,18 +1110,7 @@ def stream_export_ndjson(
         )
     ):
         hec_ids.append(c.id)
-        yield _emit("human_evaluation_config", {
-            "id": c.id,
-            "task_id": c.task_id,
-            "evaluation_project_id": c.evaluation_project_id,
-            "evaluator_count": c.evaluator_count,
-            "randomization_seed": c.randomization_seed,
-            "blinding_enabled": c.blinding_enabled,
-            "include_human_responses": c.include_human_responses,
-            "status": c.status,
-            "created_at": c.created_at.isoformat() if c.created_at else None,
-            "updated_at": c.updated_at.isoformat() if c.updated_at else None,
-        })
+        yield _emit("human_evaluation_config", serialize_human_evaluation_config_row(c))
         stats["total_human_evaluation_configs"] += 1
 
     # --- human_evaluation_sessions (small) ---
@@ -1391,19 +1121,7 @@ def stream_export_ndjson(
         )
     ):
         hes_ids.append(s.id)
-        yield _emit("human_evaluation_session", {
-            "id": s.id,
-            "project_id": s.project_id,
-            "evaluator_id": s.evaluator_id,
-            "session_type": s.session_type,
-            "items_evaluated": s.items_evaluated,
-            "total_items": s.total_items,
-            "status": s.status,
-            "session_config": s.session_config,
-            "created_at": s.created_at.isoformat() if s.created_at else None,
-            "updated_at": s.updated_at.isoformat() if s.updated_at else None,
-            "completed_at": s.completed_at.isoformat() if s.completed_at else None,
-        })
+        yield _emit("human_evaluation_session", serialize_human_evaluation_session_row(s))
         stats["total_human_evaluation_sessions"] += 1
 
     # --- human_evaluation_results (medium) ---
@@ -1413,20 +1131,7 @@ def stream_export_ndjson(
                 HumanEvaluationResult.config_id.in_(hec_ids)
             )
         ):
-            yield _emit("human_evaluation_result", {
-                "id": r.id,
-                "config_id": r.config_id,
-                "task_id": r.task_id,
-                "response_id": r.response_id,
-                "evaluator_id": r.evaluator_id,
-                "correctness_score": r.correctness_score,
-                "completeness_score": r.completeness_score,
-                "style_score": r.style_score,
-                "usability_score": r.usability_score,
-                "comments": r.comments,
-                "evaluation_time_seconds": r.evaluation_time_seconds,
-                "created_at": r.created_at.isoformat() if r.created_at else None,
-            })
+            yield _emit("human_evaluation_result", serialize_human_evaluation_result_row(r))
             stats["total_human_evaluation_results"] += 1
 
     # --- preference_rankings (medium) ---
@@ -1436,18 +1141,7 @@ def stream_export_ndjson(
                 PreferenceRanking.session_id.in_(hes_ids)
             )
         ):
-            yield _emit("preference_ranking", {
-                "id": p.id,
-                "session_id": p.session_id,
-                "task_id": p.task_id,
-                "response_a_id": p.response_a_id,
-                "response_b_id": p.response_b_id,
-                "winner": p.winner,
-                "confidence": p.confidence,
-                "reasoning": p.reasoning,
-                "time_spent_seconds": p.time_spent_seconds,
-                "created_at": p.created_at.isoformat() if p.created_at else None,
-            })
+            yield _emit("preference_ranking", serialize_preference_ranking_row(p))
             stats["total_preference_rankings"] += 1
 
     # --- likert_scale_evaluations (medium) ---
@@ -1457,17 +1151,7 @@ def stream_export_ndjson(
                 LikertScaleEvaluation.session_id.in_(hes_ids)
             )
         ):
-            yield _emit("likert_scale_evaluation", {
-                "id": lk.id,
-                "session_id": lk.session_id,
-                "task_id": lk.task_id,
-                "response_id": lk.response_id,
-                "dimension": lk.dimension,
-                "rating": lk.rating,
-                "comment": lk.comment,
-                "time_spent_seconds": lk.time_spent_seconds,
-                "created_at": lk.created_at.isoformat() if lk.created_at else None,
-            })
+            yield _emit("likert_scale_evaluation", serialize_likert_scale_evaluation_row(lk))
             stats["total_likert_scale_evaluations"] += 1
 
     # --- korrektur_comments (roots first, then replies, for single-pass import) ---
@@ -1483,34 +1167,14 @@ def stream_export_ndjson(
     for member in (
         db.query(ProjectMember).filter(ProjectMember.project_id == project_id).all()
     ):
-        yield _emit("project_member", {
-            "id": member.id,
-            "project_id": member.project_id,
-            "user_id": member.user_id,
-            "role": member.role,
-            "is_active": member.is_active,
-            "created_at": member.created_at.isoformat() if member.created_at else None,
-            "updated_at": member.updated_at.isoformat() if member.updated_at else None,
-        })
+        yield _emit("project_member", serialize_project_member_row(member))
         stats["total_members"] += 1
 
     # --- task_assignments (medium; join through Task) ---
     for a in (
         db.query(TaskAssignment).join(Task).filter(Task.project_id == project_id).all()
     ):
-        yield _emit("task_assignment", {
-            "id": a.id,
-            "task_id": a.task_id,
-            "user_id": a.user_id,
-            "assigned_by": a.assigned_by,
-            "status": a.status,
-            "priority": a.priority,
-            "due_date": a.due_date.isoformat() if a.due_date else None,
-            "notes": a.notes,
-            "assigned_at": a.assigned_at.isoformat() if a.assigned_at else None,
-            "started_at": a.started_at.isoformat() if a.started_at else None,
-            "completed_at": a.completed_at.isoformat() if a.completed_at else None,
-        })
+        yield _emit("task_assignment", serialize_task_assignment_row(a))
         stats["total_assignments"] += 1
 
     # --- post_annotation_responses (medium) ---
@@ -1519,15 +1183,7 @@ def stream_export_ndjson(
             PostAnnotationResponse.project_id == project_id
         )
     ):
-        yield _emit("post_annotation_response", {
-            "id": r.id,
-            "annotation_id": r.annotation_id,
-            "task_id": r.task_id,
-            "project_id": r.project_id,
-            "user_id": r.user_id,
-            "result": r.result,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-        })
+        yield _emit("post_annotation_response", serialize_post_annotation_response_row(r))
         stats["total_post_annotation_responses"] += 1
 
     # --- end (structural completeness marker; replaces the byte-tail sentinel) ---
@@ -1644,7 +1300,11 @@ def build_json_export_header_fields(db: Session, project) -> dict:
 
 
 def select_export_generator(
-    db: Session, project, fmt: str, task_ids: Optional[List[str]] = None
+    db: Session,
+    project,
+    fmt: str,
+    task_ids: Optional[List[str]] = None,
+    progress_cb: Optional[Callable[[int, int], None]] = None,
 ) -> Iterator[str]:
     """Return the chunk-yielding generator for ``fmt`` against ``project``.
 
@@ -1656,6 +1316,10 @@ def select_export_generator(
     export). It is only supported for the ``json`` format — the other formats
     have no subset path — so a non-empty ``task_ids`` with any other format
     raises ``ValueError``. Raises ``ValueError`` for an unknown format too.
+
+    ``progress_cb`` is only wired into the ``json`` generator (the path the UI
+    Download uses); other formats stream without a progress signal, so their
+    callers keep an indeterminate bar.
     """
     project_id = project.id
     if task_ids and fmt != "json":
@@ -1665,7 +1329,11 @@ def select_export_generator(
     if fmt == "json":
         header_fields = build_json_export_header_fields(db, project)
         return stream_export_json(
-            db, project_id, task_ids=task_ids, header_fields=header_fields
+            db,
+            project_id,
+            task_ids=task_ids,
+            header_fields=header_fields,
+            progress_cb=progress_cb,
         )
     if fmt in ("csv", "tsv"):
         delimiter = "," if fmt == "csv" else "\t"

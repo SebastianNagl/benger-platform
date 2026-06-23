@@ -1,3 +1,11 @@
+# NOTE: this file is the api TEST/DEV dep source (Dockerfile.test, `make`).
+# The PROD api image installs from pyproject.toml (api/Dockerfile -> uv pip
+# install -r pyproject.toml), so runtime dep bounds MUST be kept in sync with
+# pyproject.toml's `dependencies`. Several deps here are also shared with
+# services/workers (cryptography, sqlalchemy, scipy, tiktoken, numpy, boto3,
+# httpx, redis, celery, the AI-provider SDKs) — keep those aligned with
+# services/workers/requirements.txt. A structural single constraints file is not
+# feasible (per-service Docker build contexts); a CI drift-check is the follow-up.
 fastapi==0.137.0
 uvicorn[standard]==0.49.0
 pydantic>=2.9.0
@@ -12,7 +20,9 @@ python-dotenv==1.2.2
 httpx==0.28.1
 celery==5.6.3
 redis>=5.0.0,<5.4.0
-sqlalchemy>=2.0.36
+# api prod installs SQLAlchemy from pyproject.toml (pinned ==2.0.50); this
+# test/dev floor is kept in sync with services/workers (>=2.0.49) to avoid drift.
+sqlalchemy>=2.0.49
 psycopg2-binary>=2.9.10
 # asyncpg is the asyncio Postgres driver used by the new async engine
 # (database.async_engine). Pre-flight 2026-05-18 confirmed the 0.30.x

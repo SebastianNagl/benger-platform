@@ -3,16 +3,17 @@ Unit tests for routers/evaluations/results.py to increase coverage.
 Tests score extraction, per-sample results, export, and comparison endpoints.
 """
 
+import uuid
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+import pytest
 
 from main import app
 from auth_module.models import User
-from database import get_db
 from auth_module.dependencies import require_user
+from models import EvaluationRun, User as DBUser
+from project_models import Project
 
 
 def _make_user(is_superadmin=True, user_id="user-123"):
@@ -29,20 +30,40 @@ def _make_user(is_superadmin=True, user_id="user-123"):
     )
 
 
-def _mock_db():
-    mock_db = Mock(spec=Session)
-    mock_q = MagicMock()
-    mock_q.filter.return_value = mock_q
-    mock_q.join.return_value = mock_q
-    mock_q.order_by.return_value = mock_q
-    mock_q.group_by.return_value = mock_q
-    mock_q.offset.return_value = mock_q
-    mock_q.limit.return_value = mock_q
-    mock_q.first.return_value = None
-    mock_q.all.return_value = []
-    mock_q.count.return_value = 0
-    mock_db.query.return_value = mock_q
-    return mock_db
+async def _seed_eval_run(async_test_db, project_id=None):
+    """Insert an owner User + Project + a minimal valid EvaluationRun (FKs:
+    evaluation_runs.project_id -> projects.id, projects.created_by -> users.id)
+    and return the EvaluationRun.
+    """
+    if project_id is None:
+        project_id = f"p-{uuid.uuid4()}"
+    owner_id = f"seed-user-{uuid.uuid4()}"
+
+    owner = DBUser(
+        id=owner_id,
+        username=f"seed_{owner_id}",
+        email=f"{owner_id}@example.com",
+        name="Seed User",
+    )
+    async_test_db.add(owner)
+    await async_test_db.flush()
+
+    project = Project(id=project_id, title="Seed Project", created_by=owner_id)
+    async_test_db.add(project)
+    await async_test_db.flush()
+
+    er = EvaluationRun(
+        id=str(uuid.uuid4()),
+        project_id=project_id,
+        model_id="gpt-4",
+        evaluation_type_ids=[],
+        metrics={},
+        status="completed",
+        created_by=owner_id,
+    )
+    async_test_db.add(er)
+    await async_test_db.commit()
+    return er
 
 
 # ---------------------------------------------------------------------------
@@ -100,40 +121,31 @@ class TestExtractPrimaryScore:
 
 
 class TestGetProjectEvaluationResults:
-    def test_access_denied(self):
-        client = TestClient(app)
+    @pytest.mark.asyncio
+    async def test_access_denied(self, async_test_client, async_test_db):
+        # Access is checked FIRST, before any DB lookup — the patch alone drives 403.
         user = _make_user(is_superadmin=False)
-        mock_db = _mock_db()
-
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.evaluations.results.check_project_accessible", return_value=False):
-                resp = client.get("/api/evaluations/results/p-1")
+            with patch(
+                "routers.evaluations.results.core.check_project_accessible_async",
+                new=AsyncMock(return_value=False),
+            ):
+                resp = await async_test_client.get("/api/evaluations/results/p-1")
                 assert resp.status_code == 403
         finally:
-            app.dependency_overrides.clear()
+            app.dependency_overrides.pop(require_user, None)
 
-    def test_returns_ok_for_accessible_project(self):
-        client = TestClient(app)
+    @pytest.mark.asyncio
+    async def test_returns_ok_for_accessible_project(self, async_test_client, async_test_db):
+        # Superadmin short-circuits access to True; empty results is a valid 200 ([]).
         user = _make_user()
-        mock_db = _mock_db()
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.order_by.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.all.return_value = []
-        mock_db.query.return_value = mock_q
-
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.evaluations.results.check_project_accessible", return_value=True):
-                resp = client.get("/api/evaluations/results/p-1")
-                assert resp.status_code == 200
+            resp = await async_test_client.get("/api/evaluations/results/p-1")
+            assert resp.status_code == 200
         finally:
-            app.dependency_overrides.clear()
+            app.dependency_overrides.pop(require_user, None)
 
 
 # ---------------------------------------------------------------------------
@@ -142,82 +154,66 @@ class TestGetProjectEvaluationResults:
 
 
 class TestGetEvaluationSamples:
-    def test_evaluation_not_found(self):
-        client = TestClient(app)
+    @pytest.mark.asyncio
+    async def test_evaluation_not_found(self, async_test_client, async_test_db):
         user = _make_user()
-        mock_db = _mock_db()
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.get("/api/evaluations/nonexistent/samples")
+            resp = await async_test_client.get("/api/evaluations/nonexistent/samples")
             assert resp.status_code == 404
         finally:
-            app.dependency_overrides.clear()
+            app.dependency_overrides.pop(require_user, None)
 
-    def test_access_denied(self):
-        client = TestClient(app)
+    @pytest.mark.asyncio
+    async def test_access_denied(self, async_test_client, async_test_db):
+        er = await _seed_eval_run(async_test_db)
         user = _make_user(is_superadmin=False)
-        mock_db = _mock_db()
-
-        evaluation = Mock()
-        evaluation.id = "eval-1"
-        evaluation.project_id = "p-1"
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = evaluation
-        mock_db.query.return_value = mock_q
-
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.evaluations.results.check_project_accessible", return_value=False):
-                resp = client.get("/api/evaluations/eval-1/samples")
+            with patch(
+                "routers.evaluations.results.core.check_project_accessible_async",
+                new=AsyncMock(return_value=False),
+            ):
+                resp = await async_test_client.get(f"/api/evaluations/{er.id}/samples")
                 assert resp.status_code == 403
         finally:
-            app.dependency_overrides.clear()
+            app.dependency_overrides.pop(require_user, None)
 
 
 # ---------------------------------------------------------------------------
-# GET /evaluations/{evaluation_id}/confusion-matrix
+# GET /evaluations/{evaluation_id}/metrics/{metric}/distribution
 # ---------------------------------------------------------------------------
 
 
 class TestGetMetricDistribution:
-    def test_evaluation_not_found(self):
-        client = TestClient(app)
+    @pytest.mark.asyncio
+    async def test_evaluation_not_found(self, async_test_client, async_test_db):
         user = _make_user()
-        mock_db = _mock_db()
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.get("/api/evaluations/nonexistent/metrics/bleu/distribution")
+            resp = await async_test_client.get(
+                "/api/evaluations/nonexistent/metrics/bleu/distribution"
+            )
             assert resp.status_code == 404
         finally:
-            app.dependency_overrides.clear()
+            app.dependency_overrides.pop(require_user, None)
 
-    def test_access_denied(self):
-        client = TestClient(app)
+    @pytest.mark.asyncio
+    async def test_access_denied(self, async_test_client, async_test_db):
+        er = await _seed_eval_run(async_test_db)
         user = _make_user(is_superadmin=False)
-        mock_db = _mock_db()
-
-        evaluation = Mock()
-        evaluation.id = "eval-1"
-        evaluation.project_id = "p-1"
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = evaluation
-        mock_db.query.return_value = mock_q
-
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.evaluations.results.check_project_accessible", return_value=False):
-                resp = client.get("/api/evaluations/eval-1/metrics/bleu/distribution")
+            with patch(
+                "routers.evaluations.results.distributions.check_project_accessible_async",
+                new=AsyncMock(return_value=False),
+            ):
+                resp = await async_test_client.get(
+                    f"/api/evaluations/{er.id}/metrics/bleu/distribution"
+                )
                 assert resp.status_code == 403
         finally:
-            app.dependency_overrides.clear()
+            app.dependency_overrides.pop(require_user, None)
 
 
 # ---------------------------------------------------------------------------
@@ -226,19 +222,20 @@ class TestGetMetricDistribution:
 
 
 class TestExportEvaluations:
-    def test_access_denied(self):
-        client = TestClient(app)
+    @pytest.mark.asyncio
+    async def test_access_denied(self, async_test_client, async_test_db):
+        # Export checks access first — the patch alone drives 403, no seeding needed.
         user = _make_user(is_superadmin=False)
-        mock_db = _mock_db()
-
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.evaluations.results.check_project_accessible", return_value=False):
-                resp = client.post("/api/evaluations/export/p-1")
+            with patch(
+                "routers.evaluations.results.core.check_project_accessible_async",
+                new=AsyncMock(return_value=False),
+            ):
+                resp = await async_test_client.post("/api/evaluations/export/p-1")
                 assert resp.status_code == 403
         finally:
-            app.dependency_overrides.clear()
+            app.dependency_overrides.pop(require_user, None)
 
 
 # ---------------------------------------------------------------------------
@@ -247,37 +244,31 @@ class TestExportEvaluations:
 
 
 class TestResultsByTaskModel:
-    def test_evaluation_not_found(self):
-        client = TestClient(app)
+    @pytest.mark.asyncio
+    async def test_evaluation_not_found(self, async_test_client, async_test_db):
         user = _make_user()
-        mock_db = _mock_db()
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            resp = client.get("/api/evaluations/nonexistent/results/by-task-model")
+            resp = await async_test_client.get(
+                "/api/evaluations/nonexistent/results/by-task-model"
+            )
             assert resp.status_code == 404
         finally:
-            app.dependency_overrides.clear()
+            app.dependency_overrides.pop(require_user, None)
 
-    def test_access_denied(self):
-        client = TestClient(app)
+    @pytest.mark.asyncio
+    async def test_access_denied(self, async_test_client, async_test_db):
+        er = await _seed_eval_run(async_test_db)
         user = _make_user(is_superadmin=False)
-        mock_db = _mock_db()
-
-        evaluation = Mock()
-        evaluation.id = "eval-1"
-        evaluation.project_id = "p-1"
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = evaluation
-        mock_db.query.return_value = mock_q
-
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.evaluations.results.check_project_accessible", return_value=False):
-                resp = client.get("/api/evaluations/eval-1/results/by-task-model")
+            with patch(
+                "routers.evaluations.results.by_task_model.check_project_accessible_async",
+                new=AsyncMock(return_value=False),
+            ):
+                resp = await async_test_client.get(
+                    f"/api/evaluations/{er.id}/results/by-task-model"
+                )
                 assert resp.status_code == 403
         finally:
-            app.dependency_overrides.clear()
+            app.dependency_overrides.pop(require_user, None)

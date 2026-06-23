@@ -8,7 +8,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-import refresh_token_service
+from services import refresh_token_service
 
 from .models import User
 from .service import create_tokens_with_refresh

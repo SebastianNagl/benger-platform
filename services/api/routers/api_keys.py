@@ -7,17 +7,18 @@ import sys
 from typing import Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import User, require_user
-from database import get_db
+from database import get_async_db
 from models import LLMModel as DBLLMModel
 
 # Add shared services to path
 sys.path.append('/shared')
 
 from encryption_service import encryption_service  # noqa: E402
-from user_api_key_service import create_user_api_key_service  # noqa: E402
+from services.user_api_key_service import create_user_api_key_service  # noqa: E402
 
 # Create service instance with dependency
 user_api_key_service = create_user_api_key_service(encryption_service)
@@ -32,7 +33,7 @@ async def set_user_api_key(
     provider: str,
     request: Dict[str, str],
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Set API key for a provider"""
     api_key = request.get("api_key")
@@ -67,7 +68,9 @@ async def set_user_api_key(
         logger.warning(f"API key validation failed, but proceeding with storage: {e}")
 
     # Store the API key
-    success = user_api_key_service.set_user_api_key(db, current_user.id, provider, api_key)
+    success = await user_api_key_service.set_user_api_key_async(
+        db, current_user.id, provider, api_key
+    )
 
     if success:
         return {"message": f"API key for {provider} set successfully"}
@@ -80,11 +83,13 @@ async def set_user_api_key(
 
 @router.get("/status")
 async def get_user_api_key_status(
-    current_user: User = Depends(require_user), db: Session = Depends(get_db)
+    current_user: User = Depends(require_user), db: AsyncSession = Depends(get_async_db)
 ):
     """Get status of user's API keys"""
-    status_data = user_api_key_service.get_user_api_key_status(db, current_user.id)
-    available_providers = user_api_key_service.get_user_available_providers(db, current_user.id)
+    status_data = await user_api_key_service.get_user_api_key_status_async(db, current_user.id)
+    available_providers = await user_api_key_service.get_user_available_providers_async(
+        db, current_user.id
+    )
 
     return {"api_key_status": status_data, "available_providers": available_providers}
 
@@ -93,10 +98,10 @@ async def get_user_api_key_status(
 async def remove_user_api_key(
     provider: str,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Remove API key for a provider"""
-    success = user_api_key_service.remove_user_api_key(db, current_user.id, provider)
+    success = await user_api_key_service.remove_user_api_key_async(db, current_user.id, provider)
 
     if success:
         return {"message": f"API key for {provider} removed successfully"}
@@ -155,7 +160,7 @@ async def test_user_api_key(
 async def test_saved_user_api_key(
     provider: str,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Test saved API key connection for a provider"""
     # Validate provider
@@ -175,7 +180,7 @@ async def test_saved_user_api_key(
         )
 
     # Get the saved API key
-    api_key = user_api_key_service.get_user_api_key(db, current_user.id, provider)
+    api_key = await user_api_key_service.get_user_api_key_async(db, current_user.id, provider)
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -203,7 +208,7 @@ async def test_saved_user_api_key(
 async def get_available_models_for_user(
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Get available models based on user's API keys or org keys"""
     # Check if org context should override key resolution
@@ -211,20 +216,23 @@ async def get_available_models_for_user(
     org_id = org_context if org_context and org_context != "private" else None
 
     if org_id:
-        from org_api_key_service import org_api_key_service
+        from services.org_api_key_service import org_api_key_service
 
-        available_providers = org_api_key_service.get_available_providers_for_context(
+        available_providers = await org_api_key_service.get_available_providers_for_context_async(
             db, current_user.id, org_id
         )
     else:
-        available_providers = user_api_key_service.get_user_available_providers(db, current_user.id)
+        available_providers = await user_api_key_service.get_user_available_providers_async(
+            db, current_user.id
+        )
 
     # Development debugging
     logger.info(f"🔍 User {current_user.username} requesting available models")
     logger.info(f"📋 Available providers for user: {available_providers}")
 
     # Get all models from database
-    models = db.query(DBLLMModel).filter(DBLLMModel.is_active == True).all()  # noqa: E712
+    result = await db.execute(select(DBLLMModel).where(DBLLMModel.is_active == True))  # noqa: E712
+    models = result.scalars().all()
     logger.info(f"🗃️ Total active models in database: {len(models)}")
 
     # Filter models based on user's available providers

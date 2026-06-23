@@ -2,15 +2,72 @@
 Tests for Feature Flags API Router
 """
 
+import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from main import app
+from auth_module.dependencies import require_superadmin
+from auth_module.models import User as AuthUser
 from models import FeatureFlag as DBFeatureFlag
 from models import User
 from schemas.feature_flag_schemas import FeatureFlagStatusResponse
+
+
+@contextmanager
+def _as_admin(db_user):
+    """Grant superadmin via require_superadmin override (migrated list/delete
+    handlers run on the real async-DB stack through async_test_client)."""
+    au = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=True,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_superadmin] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_superadmin, None)
+
+
+async def _seed_user(db):
+    u = User(
+        id=str(uuid.uuid4()),
+        username=f"ff-{uuid.uuid4().hex[:8]}",
+        email=f"{uuid.uuid4().hex[:8]}@x.com",
+        name="FF",
+        hashed_password="x",
+        is_superadmin=True,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _seed_flag(db, creator, *, name=None, is_enabled=True):
+    f = DBFeatureFlag(
+        id=str(uuid.uuid4()),
+        name=name or f"flag-{uuid.uuid4().hex[:8]}",
+        is_enabled=is_enabled,
+        created_by=creator.id,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(f)
+    await db.flush()
+    return f
 
 
 @pytest.fixture
@@ -57,29 +114,21 @@ def sample_feature_flag():
 class TestFeatureFlagsRouter:
     """Test suite for feature flags router"""
 
-    def test_list_feature_flags_success(self, mock_db, mock_superadmin, sample_feature_flag):
+    @pytest.mark.asyncio
+    async def test_list_feature_flags_success(self, async_test_client, async_test_db):
         """Test successful listing of feature flags by superadmin"""
-        # Setup
-        mock_db.query.return_value.all.return_value = [sample_feature_flag]
+        admin = await _seed_user(async_test_db)
+        flag = await _seed_flag(async_test_db, admin, name="test_feature")
+        fid, fname = flag.id, flag.name
+        await async_test_db.commit()
 
-        with patch(
-            'routers.feature_flags.require_superadmin', return_value=mock_superadmin
-        ):
-            with patch('routers.feature_flags.get_db', return_value=mock_db):
-                # Test the endpoint would be called correctly
-                # Note: In a real test, we'd use TestClient, but for unit testing we verify the logic
-                import asyncio
-
-                from routers.feature_flags import list_feature_flags
-
-                # Run the async function
-                result = asyncio.run(list_feature_flags(mock_superadmin, mock_db))
-
-                # Verify
-                assert len(result) == 1
-                assert result[0].id == "flag-123"
-                assert result[0].name == "test_feature"
-                mock_db.query.assert_called_once()
+        with _as_admin(admin):
+            resp = await async_test_client.get("/api/feature-flags")
+            assert resp.status_code == 200
+            rows = {row["id"]: row for row in resp.json()}
+            # Base DB carries seeded flags; assert the one we seeded is present.
+            assert fid in rows
+            assert rows[fid]["name"] == fname
 
     def test_list_feature_flags_unauthorized(self, mock_db, mock_regular_user):
         """Test that regular users cannot list feature flags"""
@@ -192,31 +241,16 @@ class TestFeatureFlagsRouter:
                     assert result.is_enabled == True  # noqa: E712
                     mock_service.is_enabled.assert_called_once()
 
-    def test_delete_feature_flag_not_found(self, mock_db, mock_superadmin):
+    @pytest.mark.asyncio
+    async def test_delete_feature_flag_not_found(self, async_test_client, async_test_db):
         """Test deleting a non-existent feature flag returns 404"""
-        flag_id = "non-existent-flag"
+        admin = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        with patch(
-            'routers.feature_flags.require_superadmin', return_value=mock_superadmin
-        ):
-            with patch('routers.feature_flags.get_db', return_value=mock_db):
-                with patch('routers.feature_flags.FeatureFlagService') as MockService:
-                    # Setup - flag doesn't exist
-                    mock_db.query.return_value.filter.return_value.first.return_value = None
-                    mock_service = MagicMock()
-                    MockService.return_value = mock_service
-
-                    # Test
-                    import asyncio
-
-                    from routers.feature_flags import delete_feature_flag
-
-                    with pytest.raises(HTTPException) as exc_info:
-                        asyncio.run(delete_feature_flag(flag_id, mock_superadmin, mock_db))
-
-                    # Verify
-                    assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
-                    assert "not found" in str(exc_info.value.detail).lower()
+        with _as_admin(admin):
+            resp = await async_test_client.delete(f"/api/feature-flags/{uuid.uuid4()}")
+            assert resp.status_code == status.HTTP_404_NOT_FOUND
+            assert "not found" in resp.json()["detail"].lower()
 
 
 if __name__ == "__main__":

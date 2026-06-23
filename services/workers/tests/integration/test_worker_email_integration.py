@@ -16,12 +16,16 @@ from sendgrid_client import SendGridClient
 @pytest.fixture
 def email_service_integration():
     """Create EmailService with real dependencies mocked at integration points"""
-    with patch('email_service.SendGridClient') as mock_sg_class:
+    # EmailService is the canonical impl in mailer.email_service; patch the
+    # SendGridClient name in that module's namespace (the local email_service
+    # module is a re-export shim). check_feature_flag=False skips the DB-backed
+    # feature-flag lookup the worker has no session for.
+    with patch('mailer.email_service.SendGridClient') as mock_sg_class:
         mock_sg_client = Mock()
         mock_sg_client.api_key = "test_api_key"
         mock_sg_class.return_value = mock_sg_client
 
-        service = EmailService()
+        service = EmailService(check_feature_flag=False)
         service.mail_enabled = True
         service.mail_client = mock_sg_client
         return service

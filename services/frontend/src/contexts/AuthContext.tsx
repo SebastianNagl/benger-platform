@@ -1,6 +1,12 @@
 'use client'
 
-import apiClientSingleton, { ApiClient, Organization, User } from '@/lib/api'
+import apiClientSingleton, {
+  ApiClient,
+  createApiClient,
+  Organization,
+  User,
+} from '@/lib/api'
+import { ApiClientContextProvider } from '@/contexts/ApiClientContext'
 import { devAuthHelper } from '@/lib/auth/devAuthHelper'
 import { logger } from '@/lib/utils/logger'
 import { OrganizationManager } from '@/lib/auth/organizationManager'
@@ -81,9 +87,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authCheckDebounceTimer = useRef<NodeJS.Timeout | null>(null)
   const orgSwitchNavigating = useRef(false)
 
-  // Initialize API client and managers with stable references
-  const apiClient = useMemo(() => new ApiClient(), [])
+  // Initialize API client and managers with stable references.
+  // The org manager owns the org-context source of truth; create it first so
+  // the API client can be built via the factory with the org-context provider
+  // threaded in explicitly at construction time (rather than relying solely on
+  // post-hoc global mutation). The auth-failure handler is still applied via
+  // the effect below because it's a useCallback that changes with deps.
   const orgManager = useMemo(() => new OrganizationManager(), [])
+  const apiClient = useMemo(
+    () =>
+      createApiClient({
+        orgContextProvider: () => orgManager.getOrganizationContext(),
+      }),
+    [orgManager]
+  )
 
   // Set up auth failure handler with stable callback
   const handleAuthFailure = useCallback(() => {
@@ -772,7 +789,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>
+      {/*
+        Expose the org-wired client to descendants via useApiClient() so new
+        call sites can thread the API client explicitly instead of importing
+        the global singleton. The singleton path stays fully functional for
+        everything not yet migrated.
+      */}
+      <ApiClientContextProvider client={apiClient}>
+        {children}
+      </ApiClientContextProvider>
+    </AuthContext.Provider>
   )
 }
 

@@ -1,19 +1,30 @@
-"""Tests for notification_service.py - notification helpers and NotificationService.
+"""Tests for notification_service.py — notification helpers and NotificationService.
 
-Covers:
-- notify_task_completed logging
-- notify_llm_generation_failed logging
-- notify_model_api_key_invalid logging
-- NotificationService.create_notification with mocked DB
-- Notification type conversion (enum, string, other)
-- DB commit failure handling
+As of the mailer consolidation, the worker's ``notification_service`` is a thin
+re-export shim over the canonical ORM implementation in
+``services/shared/mailer/notification_service.py``. The worker's former 198-line
+raw-SQL stub (``db.execute(text("INSERT ... CAST(:type AS notificationtype)"))``
+returning ``[{"id": ..., "user_id": ...}]`` dicts, with **no** in_app preference
+gating) is gone. These tests therefore assert the **ORM** behavior:
+
+* ``create_notification`` builds ``Notification`` ORM objects and ``db.add``s
+  them (it no longer calls ``db.execute`` with raw SQL),
+* it now **respects the in_app preference** — recipients are gated through
+  ``NotificationService._user_wants_channel(db, user_id, type, "in_app")``,
+* it returns the list of created ``Notification`` ORM objects,
+* it coerces / validates the type via ``NotificationType(...)`` (invalid strings
+  and non-str/non-enum types return ``[]``),
+* it dispatches the email batch via
+  ``mailer.notification_service.get_celery_app().send_task(...)`` after commit.
+
+The worker-only logging helpers (``notify_task_completed`` etc.) remain defined
+on the worker shim and are covered unchanged.
 """
 
-import json
 import logging
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
-
+from models import NotificationType
 from notification_service import (
     NotificationService,
     notify_llm_generation_failed,
@@ -23,7 +34,7 @@ from notification_service import (
 
 
 # ---------------------------------------------------------------------------
-# Logging helpers
+# Logging helpers (worker-only, defined on the shim)
 # ---------------------------------------------------------------------------
 
 class TestNotifyTaskCompleted:
@@ -64,205 +75,286 @@ class TestNotifyModelApiKeyInvalid:
 
 
 # ---------------------------------------------------------------------------
-# NotificationService.create_notification
+# NotificationService.create_notification (ORM behavior)
 # ---------------------------------------------------------------------------
+#
+# The canonical create_notification:
+#   1. validates/coerces notification_type (str -> NotificationType, else [])
+#   2. for each user, gates on _user_wants_channel(db, uid, type, "in_app")
+#   3. builds Notification(...) ORM objects and db.add()s them
+#   4. db.commit() (rollback + [] on failure)
+#   5. dispatches the email batch via get_celery_app().send_task(...)
+#
+# We use a MagicMock db. By default a MagicMock _user_wants_channel returns a
+# truthy MagicMock, but to keep the assertions explicit (and to exercise the
+# gating) we patch _user_wants_channel and get_celery_app per test.
+
+
+def _mock_db(commit_side_effect=None):
+    db = MagicMock()
+    db.add = Mock()
+    if commit_side_effect is not None:
+        db.commit = Mock(side_effect=commit_side_effect)
+    else:
+        db.commit = Mock()
+    db.rollback = Mock()
+    return db
+
 
 class TestCreateNotification:
 
-    def _make_mock_db(self, commit_side_effect=None):
-        db = MagicMock()
-        if commit_side_effect:
-            db.commit.side_effect = commit_side_effect
-        return db
-
-    def test_single_user(self):
-        db = self._make_mock_db()
+    @patch("mailer.notification_service.get_celery_app")
+    @patch("mailer.notification_service.NotificationService._user_wants_channel")
+    def test_single_user_adds_orm_object(self, mock_wants, mock_celery):
+        mock_wants.return_value = True
+        db = _mock_db()
         result = NotificationService.create_notification(
             db=db,
             user_ids=["user-1"],
-            notification_type="info",
+            notification_type=NotificationType.PROJECT_CREATED,
             title="Test",
             message="Hello",
         )
         assert len(result) == 1
-        assert result[0]["user_id"] == "user-1"
-        assert "id" in result[0]
-        db.execute.assert_called_once()
+        # ORM object, not a raw-SQL dict
+        assert result[0].user_id == "user-1"
+        assert result[0].type == NotificationType.PROJECT_CREATED.value
+        # ORM path: db.add was used, NOT raw db.execute(INSERT ...)
+        db.add.assert_called_once()
         db.commit.assert_called_once()
 
-    def test_multiple_users(self):
-        db = self._make_mock_db()
+    @patch("mailer.notification_service.get_celery_app")
+    @patch("mailer.notification_service.NotificationService._user_wants_channel")
+    def test_multiple_users(self, mock_wants, mock_celery):
+        mock_wants.return_value = True
+        db = _mock_db()
         result = NotificationService.create_notification(
             db=db,
             user_ids=["u1", "u2", "u3"],
-            notification_type="alert",
+            notification_type=NotificationType.PROJECT_CREATED,
             title="Alert",
             message="Something happened",
         )
         assert len(result) == 3
-        assert db.execute.call_count == 3
+        assert db.add.call_count == 3
+        assert {n.user_id for n in result} == {"u1", "u2", "u3"}
 
-    def test_enum_type_converted(self):
-        """notification_type with a .value attribute should use its value."""
-        db = self._make_mock_db()
-        enum_type = MagicMock()
-        enum_type.value = "evaluation_completed"
-        NotificationService.create_notification(
+    @patch("mailer.notification_service.get_celery_app")
+    @patch("mailer.notification_service.NotificationService._user_wants_channel")
+    def test_enum_type_stored_as_value(self, mock_wants, mock_celery):
+        """A NotificationType enum is stored as its lowercase .value."""
+        mock_wants.return_value = True
+        db = _mock_db()
+        result = NotificationService.create_notification(
             db=db,
             user_ids=["u1"],
-            notification_type=enum_type,
+            notification_type=NotificationType.EVALUATION_COMPLETED,
             title="Done",
             message="Eval done",
         )
-        # Verify the SQL params use the .value string
-        call_args = db.execute.call_args
-        params = call_args[0][1]
-        assert params["type"] == "evaluation_completed"
+        assert result[0].type == "evaluation_completed"
 
-    def test_string_type_lowered(self):
-        db = self._make_mock_db()
-        NotificationService.create_notification(
+    @patch("mailer.notification_service.get_celery_app")
+    @patch("mailer.notification_service.NotificationService._user_wants_channel")
+    def test_valid_string_type_used_directly(self, mock_wants, mock_celery):
+        """A valid type string is accepted and stored verbatim."""
+        mock_wants.return_value = True
+        db = _mock_db()
+        result = NotificationService.create_notification(
             db=db,
             user_ids=["u1"],
-            notification_type="ALERT",
+            notification_type="evaluation_completed",
             title="T",
             message="M",
         )
-        params = db.execute.call_args[0][1]
-        assert params["type"] == "alert"
+        assert len(result) == 1
+        assert result[0].type == "evaluation_completed"
 
-    def test_other_type_stringified(self):
-        db = self._make_mock_db()
-        NotificationService.create_notification(
+    def test_invalid_string_type_returns_empty(self):
+        """An unknown type string returns [] without touching the session."""
+        db = _mock_db()
+        result = NotificationService.create_notification(
+            db=db,
+            user_ids=["u1"],
+            notification_type="totally_bogus_type",
+            title="T",
+            message="M",
+        )
+        assert result == []
+        db.add.assert_not_called()
+
+    def test_non_string_non_enum_type_returns_empty(self):
+        """A non-str / non-enum type returns [] (was previously stringified by
+        the raw-SQL stub; the ORM path rejects it)."""
+        db = _mock_db()
+        result = NotificationService.create_notification(
             db=db,
             user_ids=["u1"],
             notification_type=42,
             title="T",
             message="M",
         )
-        params = db.execute.call_args[0][1]
-        assert params["type"] == "42"
+        assert result == []
+        db.add.assert_not_called()
 
-    def test_data_serialized_as_json(self):
-        db = self._make_mock_db()
+    @patch("mailer.notification_service.get_celery_app")
+    @patch("mailer.notification_service.NotificationService._user_wants_channel")
+    def test_data_attached_to_orm_object(self, mock_wants, mock_celery):
+        mock_wants.return_value = True
+        db = _mock_db()
         data = {"project_id": "p1", "model": "gpt-4"}
-        NotificationService.create_notification(
+        result = NotificationService.create_notification(
             db=db,
             user_ids=["u1"],
-            notification_type="info",
+            notification_type=NotificationType.PROJECT_CREATED,
             title="T",
             message="M",
             data=data,
         )
-        params = db.execute.call_args[0][1]
-        assert json.loads(params["data"]) == data
+        assert result[0].data == data
 
-    def test_none_data_serialized_as_empty_dict(self):
-        db = self._make_mock_db()
-        NotificationService.create_notification(
+    @patch("mailer.notification_service.get_celery_app")
+    @patch("mailer.notification_service.NotificationService._user_wants_channel")
+    def test_none_data_becomes_empty_dict(self, mock_wants, mock_celery):
+        mock_wants.return_value = True
+        db = _mock_db()
+        result = NotificationService.create_notification(
             db=db,
             user_ids=["u1"],
-            notification_type="info",
+            notification_type=NotificationType.PROJECT_CREATED,
             title="T",
             message="M",
             data=None,
         )
-        params = db.execute.call_args[0][1]
-        assert json.loads(params["data"]) == {}
+        assert result[0].data == {}
 
-    def test_organization_id_passed(self):
-        db = self._make_mock_db()
-        NotificationService.create_notification(
+    @patch("mailer.notification_service.get_celery_app")
+    @patch("mailer.notification_service.NotificationService._user_wants_channel")
+    def test_organization_id_attached(self, mock_wants, mock_celery):
+        mock_wants.return_value = True
+        db = _mock_db()
+        result = NotificationService.create_notification(
             db=db,
             user_ids=["u1"],
-            notification_type="info",
+            notification_type=NotificationType.PROJECT_CREATED,
             title="T",
             message="M",
             organization_id="org-1",
         )
-        params = db.execute.call_args[0][1]
-        assert params["organization_id"] == "org-1"
+        assert result[0].organization_id == "org-1"
 
-    def test_commit_failure_returns_empty(self):
-        db = self._make_mock_db(commit_side_effect=Exception("DB down"))
+    @patch("mailer.notification_service.get_celery_app")
+    @patch("mailer.notification_service.NotificationService._user_wants_channel")
+    def test_commit_failure_rolls_back_and_returns_empty(self, mock_wants, mock_celery):
+        mock_wants.return_value = True
+        db = _mock_db(commit_side_effect=Exception("DB down"))
         result = NotificationService.create_notification(
             db=db,
             user_ids=["u1"],
-            notification_type="info",
+            notification_type=NotificationType.PROJECT_CREATED,
             title="T",
             message="M",
         )
         assert result == []
         db.rollback.assert_called_once()
 
-    def test_empty_user_ids(self):
-        db = self._make_mock_db()
+    @patch("mailer.notification_service.get_celery_app")
+    @patch("mailer.notification_service.NotificationService._user_wants_channel")
+    def test_empty_user_ids(self, mock_wants, mock_celery):
+        mock_wants.return_value = True
+        db = _mock_db()
         result = NotificationService.create_notification(
             db=db,
             user_ids=[],
-            notification_type="info",
+            notification_type=NotificationType.PROJECT_CREATED,
             title="T",
             message="M",
         )
         assert result == []
-        db.execute.assert_not_called()
+        db.add.assert_not_called()
 
-    def test_dispatches_email_batch_after_commit(self):
-        """Regression: the worker-side NotificationService used to commit
-        the in-app row and then return — silently skipping the email send.
-        Users with email_enabled=True saw the bell light up but never got
-        an email for any worker-triggered notification (evaluation
-        completed/failed, llm generation completed). Mirrors the API-side
-        dispatch added 2026-05-18.
+    @patch("mailer.notification_service.get_celery_app")
+    @patch("mailer.notification_service.NotificationService._user_wants_channel")
+    def test_in_app_preference_gates_insert(self, mock_wants, mock_celery):
+        """BEHAVIOR CHANGE: the worker path now respects the in_app preference.
+
+        The former raw-SQL stub inserted a row for every recipient
+        unconditionally. The ORM path skips recipients whose in_app channel is
+        disabled — so a user who turned in-app off for this type gets no row.
         """
-        db = self._make_mock_db()
-        with patch("celery.current_app") as mock_app:
-            NotificationService.create_notification(
-                db=db,
-                user_ids=["u1", "u2"],
-                notification_type="evaluation_completed",
-                title="Done",
-                message="x",
-                data={"project_id": "p1"},
-            )
+        # u1 wants in_app, u2 does not
+        mock_wants.side_effect = lambda db, uid, ntype, channel: uid == "u1"
+        db = _mock_db()
+        result = NotificationService.create_notification(
+            db=db,
+            user_ids=["u1", "u2"],
+            notification_type=NotificationType.PROJECT_CREATED,
+            title="T",
+            message="M",
+        )
+        assert len(result) == 1
+        assert result[0].user_id == "u1"
+        db.add.assert_called_once()
+
+    @patch("mailer.notification_service.get_celery_app")
+    @patch("mailer.notification_service.NotificationService._user_wants_channel")
+    def test_dispatches_email_batch_after_commit(self, mock_wants, mock_celery):
+        """The in-app commit is followed by an emails.send_notification_batch
+        dispatch (mirrors the api side; the former worker stub used
+        celery.current_app directly)."""
+        mock_wants.return_value = True
+        mock_app = MagicMock()
+        mock_celery.return_value = mock_app
+        db = _mock_db()
+
+        NotificationService.create_notification(
+            db=db,
+            user_ids=["u1", "u2"],
+            notification_type=NotificationType.EVALUATION_COMPLETED,
+            title="Done",
+            message="x",
+            data={"project_id": "p1"},
+        )
         mock_app.send_task.assert_called_once()
         args, kwargs = mock_app.send_task.call_args
         assert args[0] == "emails.send_notification_batch"
         assert kwargs["queue"] == "emails"
-        # Each recipient gets a payload entry
         payload = kwargs["args"][0]
         assert len(payload) == 2
         assert {p["user_id"] for p in payload} == {"u1", "u2"}
         assert payload[0]["type"] == "evaluation_completed"
         assert payload[0]["title"] == "Done"
 
-    def test_email_dispatch_failure_does_not_break_notification(self):
-        """A failing send_task must not roll back the in-app commit."""
-        db = self._make_mock_db()
-        with patch("celery.current_app") as mock_app:
-            mock_app.send_task.side_effect = Exception("Redis down")
-            result = NotificationService.create_notification(
-                db=db,
-                user_ids=["u1"],
-                notification_type="info",
-                title="T",
-                message="M",
-            )
-        # The commit still happened and the function returned the recipients
+    @patch("mailer.notification_service.get_celery_app")
+    @patch("mailer.notification_service.NotificationService._user_wants_channel")
+    def test_email_dispatch_failure_does_not_break_notification(self, mock_wants, mock_celery):
+        """A failing send_task must not roll back the committed in-app rows."""
+        mock_wants.return_value = True
+        mock_celery.return_value.send_task.side_effect = Exception("Redis down")
+        db = _mock_db()
+        result = NotificationService.create_notification(
+            db=db,
+            user_ids=["u1"],
+            notification_type=NotificationType.PROJECT_CREATED,
+            title="T",
+            message="M",
+        )
         assert len(result) == 1
         db.rollback.assert_not_called()
 
-    def test_no_email_dispatch_when_commit_failed(self):
-        """If the in-app commit raises, we must not enqueue an email for
-        a notification the user can't see — return [] without dispatch."""
-        db = self._make_mock_db(commit_side_effect=Exception("DB down"))
-        with patch("celery.current_app") as mock_app:
-            result = NotificationService.create_notification(
-                db=db,
-                user_ids=["u1"],
-                notification_type="info",
-                title="T",
-                message="M",
-            )
+    @patch("mailer.notification_service.get_celery_app")
+    @patch("mailer.notification_service.NotificationService._user_wants_channel")
+    def test_no_email_dispatch_when_commit_failed(self, mock_wants, mock_celery):
+        """If the in-app commit raises, we must not enqueue an email for a
+        notification the user can't see — return [] without dispatch."""
+        mock_wants.return_value = True
+        db = _mock_db(commit_side_effect=Exception("DB down"))
+        result = NotificationService.create_notification(
+            db=db,
+            user_ids=["u1"],
+            notification_type=NotificationType.PROJECT_CREATED,
+            title="T",
+            message="M",
+        )
         assert result == []
-        mock_app.send_task.assert_not_called()
+        mock_celery.return_value.send_task.assert_not_called()

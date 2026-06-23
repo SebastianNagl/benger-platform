@@ -2,32 +2,58 @@
 Unit tests for routers/evaluations/results.py covering uncovered lines.
 
 Covers:
-- _extract_primary_score helper (lines 31-75)
-- get_evaluation_results endpoint (lines 127-254)
-- export_evaluation_results endpoint (lines 257-347)
-- get_evaluation_samples endpoint (lines 350-426)
-- get_metric_distribution endpoint (lines 429-537)
-- get_confusion_matrix endpoint (lines 540-666)
-- get_results_by_task_model endpoint (lines 669-872)
-- _get_task_data_availability helper (lines 875-903)
-- _build_all_tasks_response helper (lines 906-921)
-- get_project_results_by_task_model endpoint (lines 937-1175)
-- _metric_display_name helper (lines 1483-1492)
-- _build_field_results helper (lines 1495-1552)
-- get_sample_result_by_task_model endpoint (lines 1555-1679)
+- _extract_primary_score helper (pure)
+- get_evaluation_results endpoint (core.py)
+- get_evaluation_samples endpoint (core.py)
+- get_metric_distribution endpoint (distributions.py)
+- get_confusion_matrix endpoint (distributions.py)
+- get_results_by_task_model endpoint (by_task_model.py)
+- get_sample_result_by_task_model endpoint (by_task_model.py)
+
+The results package was migrated sync->async: every handler takes
+``db: AsyncSession = Depends(get_async_db)`` and does
+``await db.execute(select(...))`` then ``.scalar_one_or_none()`` /
+``.scalars().all()``, and awaits ``check_project_accessible_async(...)``.
+A ``MagicMock(spec=Session)`` no longer models the ``await db.execute(...)``
+surface, so the handler-level tests below call the coroutine handlers with a
+real ``async_test_db`` AsyncSession (seeding the rows they need) and patch the
+async access helper with an AsyncMock to drive the accessibility branch.
 """
 
+import uuid
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from sqlalchemy.orm import Session
+
+from models import (
+    EvaluationJudgeRun,
+    EvaluationRun,
+    Generation,
+    HumanEvaluationSession,
+    LikertScaleEvaluation,
+    PreferenceRanking,
+    ResponseGeneration,
+    TaskEvaluation,
+    User,
+)
+from project_models import Project, Task
 
 
-def _mock_request(headers=None):
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+def _make_request(org_context="org-123"):
+    """A plain request whose state carries the org context.
+
+    ``get_org_context_from_request`` is a sync helper that reads
+    ``request.state.organization_context`` — we don't patch it, we just feed
+    it a real-looking request.
+    """
     r = Mock()
-    r.headers = headers or {}
-    r.state = Mock(spec=[])
+    r.headers = {}
+    r.state.organization_context = org_context
     return r
 
 
@@ -39,6 +65,162 @@ def _mock_user(user_id="user-123", is_superadmin=False):
     user.name = "Test User"
     user.is_superadmin = is_superadmin
     return user
+
+
+# ---------------------------------------------------------------------------
+# Async seed helpers
+# ---------------------------------------------------------------------------
+
+
+async def _seed_user(db, *, username=None):
+    u = User(
+        id=_uid(),
+        username=username or f"u-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Results Unit User",
+        is_superadmin=False,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _seed_project(db, creator):
+    p = Project(
+        id=_uid(),
+        title=f"Results Unit {uuid.uuid4().hex[:6]}",
+        created_by=creator.id,
+        label_config='<View><Text name="text" value="$text"/></View>',
+    )
+    db.add(p)
+    await db.flush()
+    return p
+
+
+async def _seed_task(db, project, *, inner_id=1):
+    t = Task(
+        id=_uid(),
+        project_id=project.id,
+        inner_id=inner_id,
+        data={"text": f"Eval task {inner_id}", "content": f"Content {inner_id}"},
+        created_by=project.created_by,
+    )
+    db.add(t)
+    await db.flush()
+    return t
+
+
+async def _seed_eval_run(db, project, creator, *, status="completed", metrics=None):
+    er = EvaluationRun(
+        id=_uid(),
+        project_id=project.id,
+        model_id="gpt-4",
+        evaluation_type_ids=["accuracy", "f1"],
+        status=status,
+        metrics=metrics or {"accuracy": 0.9, "f1": 0.82},
+        samples_evaluated=10,
+        eval_metadata={"type": "test"},
+        created_by=creator.id,
+    )
+    db.add(er)
+    await db.flush()
+    # Migration 043 made TaskEvaluation.judge_run_id NOT NULL. Rows that
+    # insert TaskEvaluations need a parent judge run; use the catch-all
+    # shape (judge_model_id=NULL, run_index=0) that orphan backfill uses.
+    judge_run = EvaluationJudgeRun(
+        id=_uid(),
+        evaluation_id=er.id,
+        judge_model_id=None,
+        run_index=0,
+        status="completed",
+    )
+    db.add(judge_run)
+    await db.flush()
+    er._test_judge_run = judge_run
+    return er
+
+
+async def _seed_generation(db, task, *, model_id="gpt-4"):
+    """A minimal, FK-valid generation (ResponseGeneration parent + Generation child)."""
+    rg = ResponseGeneration(
+        id=_uid(),
+        project_id=task.project_id,
+        task_id=task.id,
+        model_id=model_id,
+        status="completed",
+        created_by=task.created_by,
+    )
+    db.add(rg)
+    await db.flush()
+    gen = Generation(
+        id=_uid(),
+        generation_id=rg.id,
+        task_id=task.id,
+        model_id=model_id,
+        run_index=0,
+        case_data="{}",
+        response_content="x",
+        status="completed",
+        parse_status="success",
+    )
+    db.add(gen)
+    await db.flush()
+    return gen
+
+
+async def _seed_task_evaluation(
+    db,
+    eval_run,
+    task,
+    *,
+    metrics=None,
+    generation=None,
+    annotation=None,
+    field_name="answer",
+    answer_type="choices",
+    ground_truth=None,
+    prediction=None,
+    passed=True,
+):
+    # uq_task_evaluations_cell keys a row on its scored subject
+    # (generation_id / annotation_id / created_by), not its task_id. Synthesize
+    # a distinct generation when no subject is supplied so sibling rows in the
+    # same run+field don't collapse to one cell and collide.
+    if generation is None and annotation is None:
+        generation = await _seed_generation(db, task)
+    te = TaskEvaluation(
+        id=_uid(),
+        evaluation_id=eval_run.id,
+        judge_run_id=eval_run._test_judge_run.id,
+        task_id=task.id,
+        generation_id=generation.id if generation else None,
+        annotation_id=annotation.id if annotation else None,
+        field_name=field_name,
+        answer_type=answer_type,
+        metrics=metrics if metrics is not None else {"score": 0.9},
+        passed=passed,
+        ground_truth=ground_truth if ground_truth is not None else {"value": "Ja"},
+        prediction=prediction if prediction is not None else {"value": "Ja"},
+    )
+    db.add(te)
+    await db.flush()
+    return te
+
+
+async def _seed_human_session(db, project, evaluator, *, session_type="likert"):
+    s = HumanEvaluationSession(
+        id=_uid(),
+        project_id=project.id,
+        evaluator_id=evaluator.id,
+        session_type=session_type,
+        status="completed",
+    )
+    db.add(s)
+    await db.flush()
+    return s
 
 
 # ============= _extract_primary_score =============
@@ -105,161 +287,149 @@ class TestExtractPrimaryScore:
         assert result == 0.8
 
 
-# ============= _build_field_results =============
-
-
 # ============= get_evaluation_results =============
 
 
 class TestGetEvaluationResults:
     """Test get_evaluation_results endpoint."""
 
-    @pytest.fixture
-    def mock_db(self):
-        return MagicMock(spec=Session)
-
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=False)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_access_denied(self, mock_org, mock_access, mock_db):
+    async def test_access_denied(self, async_test_db):
         from routers.evaluations.results import get_evaluation_results
 
-        with pytest.raises(Exception) as exc_info:
-            await get_evaluation_results(
-                project_id="proj-1",
-                request=_mock_request(),
-                limit=10,
-                include_human=True,
-                include_automated=True,
-                current_user=_mock_user(),
-                db=mock_db,
-            )
+        with patch(
+            "routers.evaluations.results.core.check_project_accessible_async",
+            new=AsyncMock(return_value=False),
+        ):
+            with pytest.raises(Exception) as exc_info:
+                await get_evaluation_results(
+                    project_id="proj-1",
+                    request=_make_request(),
+                    limit=10,
+                    include_human=True,
+                    include_automated=True,
+                    current_user=_mock_user(),
+                    db=async_test_db,
+                )
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_automated_results_only(self, mock_org, mock_access, mock_db):
+    async def test_automated_results_only(self, async_test_db):
         from routers.evaluations.results import get_evaluation_results
 
-        eval_run = Mock()
-        eval_run.metrics = {"accuracy": 0.9}
-        eval_run.status = "completed"
-        eval_run.samples_evaluated = 10
-        eval_run.eval_metadata = {"type": "test"}
-        eval_run.created_at = datetime.now(timezone.utc)
-
-        mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [eval_run]
-
-        result = await get_evaluation_results(
-            project_id="proj-1",
-            request=_mock_request(),
-            limit=10,
-            include_human=False,
-            include_automated=True,
-            current_user=_mock_user(),
-            db=mock_db,
+        creator = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, creator)
+        await _seed_eval_run(
+            async_test_db, project, creator, metrics={"accuracy": 0.9}
         )
+        await async_test_db.commit()
+
+        with patch(
+            "routers.evaluations.results.core.check_project_accessible_async",
+            new=AsyncMock(return_value=True),
+        ):
+            result = await get_evaluation_results(
+                project_id=project.id,
+                request=_make_request(),
+                limit=10,
+                include_human=False,
+                include_automated=True,
+                current_user=_mock_user(),
+                db=async_test_db,
+            )
 
         assert len(result) == 1
         assert result[0].results["type"] == "automated"
 
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_human_likert_results(self, mock_org, mock_access, mock_db):
+    async def test_human_likert_results(self, async_test_db):
         from routers.evaluations.results import get_evaluation_results
 
-        # Mock automated query (empty)
-        mock_auto_chain = MagicMock()
-        mock_auto_chain.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
-
-        # Mock likert query
-        likert_result = Mock()
-        likert_result.dimension = "quality"
-        likert_result.avg_rating = 4.2
-        likert_result.count = 10
-
-        mock_likert_chain = MagicMock()
-        mock_likert_chain.join.return_value.filter.return_value.group_by.return_value.all.return_value = [likert_result]
-
-        # Mock preference query (empty)
-        mock_pref_chain = MagicMock()
-        mock_pref_chain.join.return_value.filter.return_value.group_by.return_value.all.return_value = []
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            if call_count["n"] == 1:
-                return mock_auto_chain
-            elif call_count["n"] == 2:
-                return mock_likert_chain
-            else:
-                return mock_pref_chain
-
-        mock_db.query.side_effect = query_side_effect
-
-        result = await get_evaluation_results(
-            project_id="proj-1",
-            request=_mock_request(),
-            limit=10,
-            include_human=True,
-            include_automated=True,
-            current_user=_mock_user(),
-            db=mock_db,
+        creator = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, creator)
+        task = await _seed_task(async_test_db, project)
+        session = await _seed_human_session(
+            async_test_db, project, creator, session_type="likert"
         )
+        # A few likert ratings on the "quality" dimension -> aggregated row.
+        for rating in (4, 5, 4, 4):
+            async_test_db.add(
+                LikertScaleEvaluation(
+                    id=_uid(),
+                    session_id=session.id,
+                    task_id=task.id,
+                    response_id="resp-1",
+                    dimension="quality",
+                    rating=rating,
+                )
+            )
+        await async_test_db.commit()
+
+        with patch(
+            "routers.evaluations.results.core.check_project_accessible_async",
+            new=AsyncMock(return_value=True),
+        ):
+            result = await get_evaluation_results(
+                project_id=project.id,
+                request=_make_request(),
+                limit=10,
+                include_human=True,
+                include_automated=False,
+                current_user=_mock_user(),
+                db=async_test_db,
+            )
 
         assert len(result) == 1
         assert result[0].results["type"] == "human_likert"
 
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_human_preference_results(self, mock_org, mock_access, mock_db):
+    async def test_human_preference_results(self, async_test_db):
         from routers.evaluations.results import get_evaluation_results
 
-        # Mock automated query (empty)
-        mock_auto_chain = MagicMock()
-        mock_auto_chain.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
-
-        # Mock likert query (empty)
-        mock_likert_chain = MagicMock()
-        mock_likert_chain.join.return_value.filter.return_value.group_by.return_value.all.return_value = []
-
-        # Mock preference query
-        pref_a = Mock()
-        pref_a.winner = "response_a"
-        pref_a.count = 60
-        pref_b = Mock()
-        pref_b.winner = "response_b"
-        pref_b.count = 40
-
-        mock_pref_chain = MagicMock()
-        mock_pref_chain.join.return_value.filter.return_value.group_by.return_value.all.return_value = [pref_a, pref_b]
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            if call_count["n"] == 1:
-                return mock_auto_chain
-            elif call_count["n"] == 2:
-                return mock_likert_chain
-            else:
-                return mock_pref_chain
-
-        mock_db.query.side_effect = query_side_effect
-
-        result = await get_evaluation_results(
-            project_id="proj-1",
-            request=_mock_request(),
-            limit=10,
-            include_human=True,
-            include_automated=True,
-            current_user=_mock_user(),
-            db=mock_db,
+        creator = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, creator)
+        task = await _seed_task(async_test_db, project)
+        session = await _seed_human_session(
+            async_test_db, project, creator, session_type="preference"
         )
+        # 60 "a" winners + 40 "b" winners -> total_comparisons == 100.
+        for _ in range(60):
+            async_test_db.add(
+                PreferenceRanking(
+                    id=_uid(),
+                    session_id=session.id,
+                    task_id=task.id,
+                    response_a_id="a",
+                    response_b_id="b",
+                    winner="a",
+                )
+            )
+        for _ in range(40):
+            async_test_db.add(
+                PreferenceRanking(
+                    id=_uid(),
+                    session_id=session.id,
+                    task_id=task.id,
+                    response_a_id="a",
+                    response_b_id="b",
+                    winner="b",
+                )
+            )
+        await async_test_db.commit()
+
+        with patch(
+            "routers.evaluations.results.core.check_project_accessible_async",
+            new=AsyncMock(return_value=True),
+        ):
+            result = await get_evaluation_results(
+                project_id=project.id,
+                request=_make_request(),
+                limit=10,
+                include_human=True,
+                include_automated=False,
+                current_user=_mock_user(),
+                db=async_test_db,
+            )
 
         assert len(result) == 1
         assert result[0].results["type"] == "human_preference"
@@ -272,44 +442,40 @@ class TestGetEvaluationResults:
 class TestGetEvaluationSamples:
     """Test get_evaluation_samples endpoint."""
 
-    @pytest.fixture
-    def mock_db(self):
-        return MagicMock(spec=Session)
-
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_evaluation_not_found(self, mock_org, mock_access, mock_db):
+    async def test_evaluation_not_found(self, async_test_db):
         from routers.evaluations.results import get_evaluation_samples
 
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-
+        # No eval run seeded -> scalar_one_or_none() is None -> 404.
         with pytest.raises(Exception) as exc_info:
             await get_evaluation_samples(
                 evaluation_id="nonexistent",
-                request=_mock_request(),
+                request=_make_request(),
                 current_user=_mock_user(),
-                db=mock_db,
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=False)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_access_denied(self, mock_org, mock_access, mock_db):
+    async def test_access_denied(self, async_test_db):
         from routers.evaluations.results import get_evaluation_samples
 
-        eval_run = Mock()
-        eval_run.project_id = "proj-1"
-        mock_db.query.return_value.filter.return_value.first.return_value = eval_run
+        creator = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, creator)
+        eval_run = await _seed_eval_run(async_test_db, project, creator)
+        await async_test_db.commit()
 
-        with pytest.raises(Exception) as exc_info:
-            await get_evaluation_samples(
-                evaluation_id="eval-1",
-                request=_mock_request(),
-                current_user=_mock_user(),
-                db=mock_db,
-            )
+        with patch(
+            "routers.evaluations.results.core.check_project_accessible_async",
+            new=AsyncMock(return_value=False),
+        ):
+            with pytest.raises(Exception) as exc_info:
+                await get_evaluation_samples(
+                    evaluation_id=eval_run.id,
+                    request=_make_request(),
+                    current_user=_mock_user(),
+                    db=async_test_db,
+                )
         assert exc_info.value.status_code == 403
 
 
@@ -319,131 +485,102 @@ class TestGetEvaluationSamples:
 class TestGetMetricDistribution:
     """Test get_metric_distribution endpoint."""
 
-    @pytest.fixture
-    def mock_db(self):
-        return MagicMock(spec=Session)
-
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_evaluation_not_found(self, mock_org, mock_access, mock_db):
+    async def test_evaluation_not_found(self, async_test_db):
         from routers.evaluations.results import get_metric_distribution
-
-        mock_db.query.return_value.filter.return_value.first.return_value = None
 
         with pytest.raises(Exception) as exc_info:
             await get_metric_distribution(
                 evaluation_id="nonexistent",
                 metric_name="accuracy",
-                request=_mock_request(),
+                request=_make_request(),
                 current_user=_mock_user(),
-                db=mock_db,
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_no_samples(self, mock_org, mock_access, mock_db):
+    async def test_no_samples(self, async_test_db):
         from routers.evaluations.results import get_metric_distribution
 
-        eval_run = Mock()
-        eval_run.project_id = "proj-1"
+        creator = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, creator)
+        eval_run = await _seed_eval_run(async_test_db, project, creator)
+        await async_test_db.commit()
 
-        # First query: find evaluation
-        # Second query: find samples
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            q = MagicMock()
-            if call_count["n"] == 1:
-                q.filter.return_value.first.return_value = eval_run
-            else:
-                q.filter.return_value.all.return_value = []
-                q.filter.return_value.filter.return_value.all.return_value = []
-            return q
-
-        mock_db.query.side_effect = query_side_effect
-
-        with pytest.raises(Exception) as exc_info:
-            await get_metric_distribution(
-                evaluation_id="eval-1",
-                metric_name="accuracy",
-                request=_mock_request(),
-                current_user=_mock_user(),
-                db=mock_db,
-            )
+        # Eval run exists but no TaskEvaluation rows -> 404 "No samples".
+        with patch(
+            "routers.evaluations.results.distributions.check_project_accessible_async",
+            new=AsyncMock(return_value=True),
+        ):
+            with pytest.raises(Exception) as exc_info:
+                await get_metric_distribution(
+                    evaluation_id=eval_run.id,
+                    metric_name="accuracy",
+                    request=_make_request(),
+                    field_name=None,
+                    current_user=_mock_user(),
+                    db=async_test_db,
+                )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_metric_not_found_in_samples(self, mock_org, mock_access, mock_db):
+    async def test_metric_not_found_in_samples(self, async_test_db):
         from routers.evaluations.results import get_metric_distribution
 
-        eval_run = Mock()
-        eval_run.project_id = "proj-1"
+        creator = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, creator)
+        task = await _seed_task(async_test_db, project)
+        eval_run = await _seed_eval_run(async_test_db, project, creator)
+        # Sample carries a different metric key, so "accuracy" is absent.
+        await _seed_task_evaluation(
+            async_test_db, eval_run, task, metrics={"other_metric": 0.5}
+        )
+        await async_test_db.commit()
 
-        sample = Mock()
-        sample.metrics = {"other_metric": 0.5}
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            q = MagicMock()
-            if call_count["n"] == 1:
-                q.filter.return_value.first.return_value = eval_run
-            else:
-                q.filter.return_value.all.return_value = [sample]
-                q.filter.return_value.filter.return_value.all.return_value = [sample]
-            return q
-
-        mock_db.query.side_effect = query_side_effect
-
-        with pytest.raises(Exception) as exc_info:
-            await get_metric_distribution(
-                evaluation_id="eval-1",
-                metric_name="accuracy",
-                request=_mock_request(),
-                current_user=_mock_user(),
-                db=mock_db,
-            )
+        with patch(
+            "routers.evaluations.results.distributions.check_project_accessible_async",
+            new=AsyncMock(return_value=True),
+        ):
+            with pytest.raises(Exception) as exc_info:
+                await get_metric_distribution(
+                    evaluation_id=eval_run.id,
+                    metric_name="accuracy",
+                    request=_make_request(),
+                    field_name=None,
+                    current_user=_mock_user(),
+                    db=async_test_db,
+                )
         assert "not found" in str(exc_info.value.detail).lower()
 
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_distribution_success(self, mock_org, mock_access, mock_db):
+    async def test_distribution_success(self, async_test_db):
         from routers.evaluations.results import get_metric_distribution
 
-        eval_run = Mock()
-        eval_run.project_id = "proj-1"
+        creator = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, creator)
+        eval_run = await _seed_eval_run(async_test_db, project, creator)
+        # >=5 rows each with metrics={"accuracy": v}; each gets a distinct
+        # generation via the seed helper so the cell-uniqueness constraint holds.
+        for i, v in enumerate([0.7, 0.8, 0.9, 0.85, 0.75]):
+            task = await _seed_task(async_test_db, project, inner_id=i + 1)
+            await _seed_task_evaluation(
+                async_test_db, eval_run, task, metrics={"accuracy": v}
+            )
+        await async_test_db.commit()
 
-        samples = [Mock(metrics={"accuracy": v}) for v in [0.7, 0.8, 0.9, 0.85, 0.75]]
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            q = MagicMock()
-            if call_count["n"] == 1:
-                q.filter.return_value.first.return_value = eval_run
-            else:
-                q.filter.return_value.all.return_value = samples
-                q.filter.return_value.filter.return_value.all.return_value = samples
-            return q
-
-        mock_db.query.side_effect = query_side_effect
-
-        result = await get_metric_distribution(
-            evaluation_id="eval-1",
-            metric_name="accuracy",
-            request=_mock_request(),
-            current_user=_mock_user(),
-            db=mock_db,
-        )
+        with patch(
+            "routers.evaluations.results.distributions.check_project_accessible_async",
+            new=AsyncMock(return_value=True),
+        ):
+            result = await get_metric_distribution(
+                evaluation_id=eval_run.id,
+                metric_name="accuracy",
+                request=_make_request(),
+                field_name=None,
+                current_user=_mock_user(),
+                db=async_test_db,
+            )
 
         assert result.metric_name == "accuracy"
         assert result.mean == pytest.approx(0.8, abs=0.01)
@@ -457,97 +594,81 @@ class TestGetMetricDistribution:
 class TestGetConfusionMatrix:
     """Test get_confusion_matrix endpoint."""
 
-    @pytest.fixture
-    def mock_db(self):
-        return MagicMock(spec=Session)
-
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_evaluation_not_found(self, mock_org, mock_access, mock_db):
+    async def test_evaluation_not_found(self, async_test_db):
         from routers.evaluations.results import get_confusion_matrix
-
-        mock_db.query.return_value.filter.return_value.first.return_value = None
 
         with pytest.raises(Exception) as exc_info:
             await get_confusion_matrix(
                 evaluation_id="nonexistent",
-                request=_mock_request(),
+                request=_make_request(),
                 field_name="label",
                 current_user=_mock_user(),
-                db=mock_db,
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_no_samples_for_field(self, mock_org, mock_access, mock_db):
+    async def test_no_samples_for_field(self, async_test_db):
         from routers.evaluations.results import get_confusion_matrix
 
-        eval_run = Mock()
-        eval_run.project_id = "proj-1"
+        creator = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, creator)
+        eval_run = await _seed_eval_run(async_test_db, project, creator)
+        await async_test_db.commit()
 
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            q = MagicMock()
-            if call_count["n"] == 1:
-                q.filter.return_value.first.return_value = eval_run
-            else:
-                q.filter.return_value.all.return_value = []
-            return q
-
-        mock_db.query.side_effect = query_side_effect
-
-        with pytest.raises(Exception) as exc_info:
-            await get_confusion_matrix(
-                evaluation_id="eval-1",
-                request=_mock_request(),
-                field_name="label",
-                current_user=_mock_user(),
-                db=mock_db,
-            )
+        # No TaskEvaluation rows for field "label" -> 404.
+        with patch(
+            "routers.evaluations.results.distributions.check_project_accessible_async",
+            new=AsyncMock(return_value=True),
+        ):
+            with pytest.raises(Exception) as exc_info:
+                await get_confusion_matrix(
+                    evaluation_id=eval_run.id,
+                    request=_make_request(),
+                    field_name="label",
+                    current_user=_mock_user(),
+                    db=async_test_db,
+                )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_confusion_matrix_success(self, mock_org, mock_access, mock_db):
+    async def test_confusion_matrix_success(self, async_test_db):
         from routers.evaluations.results import get_confusion_matrix
 
-        eval_run = Mock()
-        eval_run.project_id = "proj-1"
-
-        # Samples with ground_truth and prediction
-        samples = [
-            Mock(ground_truth={"value": "A"}, prediction={"value": "A"}),
-            Mock(ground_truth={"value": "A"}, prediction={"value": "B"}),
-            Mock(ground_truth={"value": "B"}, prediction={"value": "B"}),
-            Mock(ground_truth={"value": "B"}, prediction={"value": "A"}),
+        creator = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, creator)
+        eval_run = await _seed_eval_run(async_test_db, project, creator)
+        # 4 rows: (A,A) (A,B) (B,B) (B,A) -> 2 correct / 4 -> accuracy 0.5.
+        pairs = [
+            ({"value": "A"}, {"value": "A"}),
+            ({"value": "A"}, {"value": "B"}),
+            ({"value": "B"}, {"value": "B"}),
+            ({"value": "B"}, {"value": "A"}),
         ]
+        for i, (gt, pred) in enumerate(pairs):
+            task = await _seed_task(async_test_db, project, inner_id=i + 1)
+            await _seed_task_evaluation(
+                async_test_db,
+                eval_run,
+                task,
+                field_name="label",
+                ground_truth=gt,
+                prediction=pred,
+            )
+        await async_test_db.commit()
 
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            q = MagicMock()
-            if call_count["n"] == 1:
-                q.filter.return_value.first.return_value = eval_run
-            else:
-                q.filter.return_value.all.return_value = samples
-            return q
-
-        mock_db.query.side_effect = query_side_effect
-
-        result = await get_confusion_matrix(
-            evaluation_id="eval-1",
-            request=_mock_request(),
-            field_name="label",
-            current_user=_mock_user(),
-            db=mock_db,
-        )
+        with patch(
+            "routers.evaluations.results.distributions.check_project_accessible_async",
+            new=AsyncMock(return_value=True),
+        ):
+            result = await get_confusion_matrix(
+                evaluation_id=eval_run.id,
+                request=_make_request(),
+                field_name="label",
+                current_user=_mock_user(),
+                db=async_test_db,
+            )
 
         assert result.field_name == "label"
         assert "a" in result.labels
@@ -555,41 +676,46 @@ class TestGetConfusionMatrix:
         assert result.accuracy == 0.5
 
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_no_valid_pairs(self, mock_org, mock_access, mock_db):
+    async def test_no_valid_pairs(self, async_test_db):
         from routers.evaluations.results import get_confusion_matrix
 
-        eval_run = Mock()
-        eval_run.project_id = "proj-1"
-
-        # Samples with no valid ground_truth/prediction pairs
-        samples = [
-            Mock(ground_truth=None, prediction={"value": "A"}),
-            Mock(ground_truth={"value": "B"}, prediction=None),
+        creator = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, creator)
+        eval_run = await _seed_eval_run(async_test_db, project, creator)
+        # Rows present for the field, but each is missing a gt or a pred.
+        # ground_truth/prediction are NOT NULL columns, so model the "missing"
+        # side as an empty dict — falsy, so the handler's
+        # ``gt = sample.ground_truth.get("value") if sample.ground_truth else None``
+        # resolves to None and the (gt, pred) pair is dropped -> no valid
+        # pairs -> 400.
+        rows = [
+            ({}, {"value": "A"}),
+            ({"value": "B"}, {}),
         ]
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            q = MagicMock()
-            if call_count["n"] == 1:
-                q.filter.return_value.first.return_value = eval_run
-            else:
-                q.filter.return_value.all.return_value = samples
-            return q
-
-        mock_db.query.side_effect = query_side_effect
-
-        with pytest.raises(Exception) as exc_info:
-            await get_confusion_matrix(
-                evaluation_id="eval-1",
-                request=_mock_request(),
+        for i, (gt, pred) in enumerate(rows):
+            task = await _seed_task(async_test_db, project, inner_id=i + 1)
+            await _seed_task_evaluation(
+                async_test_db,
+                eval_run,
+                task,
                 field_name="label",
-                current_user=_mock_user(),
-                db=mock_db,
+                ground_truth=gt,
+                prediction=pred,
             )
+        await async_test_db.commit()
+
+        with patch(
+            "routers.evaluations.results.distributions.check_project_accessible_async",
+            new=AsyncMock(return_value=True),
+        ):
+            with pytest.raises(Exception) as exc_info:
+                await get_confusion_matrix(
+                    evaluation_id=eval_run.id,
+                    request=_make_request(),
+                    field_name="label",
+                    current_user=_mock_user(),
+                    db=async_test_db,
+                )
         assert exc_info.value.status_code == 400
 
 
@@ -599,184 +725,134 @@ class TestGetConfusionMatrix:
 class TestGetResultsByTaskModel:
     """Test get_results_by_task_model endpoint."""
 
-    @pytest.fixture
-    def mock_db(self):
-        return MagicMock(spec=Session)
-
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_evaluation_not_found(self, mock_org, mock_access, mock_db):
+    async def test_evaluation_not_found(self, async_test_db):
         from routers.evaluations.results import get_results_by_task_model
-
-        mock_db.query.return_value.filter.return_value.first.return_value = None
 
         with pytest.raises(Exception) as exc_info:
             await get_results_by_task_model(
                 evaluation_id="nonexistent",
-                request=_mock_request(),
+                request=_make_request(),
                 current_user=_mock_user(),
-                db=mock_db,
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_no_results(self, mock_org, mock_access, mock_db):
+    async def test_no_results(self, async_test_db):
         from routers.evaluations.results import get_results_by_task_model
 
-        eval_run = Mock()
-        eval_run.project_id = "proj-1"
+        creator = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, creator)
+        eval_run = await _seed_eval_run(async_test_db, project, creator)
+        await async_test_db.commit()
 
-        call_count = {"n": 0}
+        # Eval run exists but no TaskEvaluations -> empty-shape response.
+        with patch(
+            "routers.evaluations.results.by_task_model.check_project_accessible_async",
+            new=AsyncMock(return_value=True),
+        ):
+            result = await get_results_by_task_model(
+                evaluation_id=eval_run.id,
+                request=_make_request(),
+                current_user=_mock_user(),
+                db=async_test_db,
+            )
 
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            q = MagicMock()
-            if call_count["n"] == 1:
-                # Find evaluation
-                q.filter.return_value.first.return_value = eval_run
-            else:
-                # Sample results and annotation results - both empty
-                q.join.return_value.filter.return_value.all.return_value = []
-                q.filter.return_value.all.return_value = []
-            return q
-
-        mock_db.query.side_effect = query_side_effect
-
-        result = await get_results_by_task_model(
-            evaluation_id="eval-1",
-            request=_mock_request(),
-            current_user=_mock_user(),
-            db=mock_db,
-        )
-
-        assert result["evaluation_id"] == "eval-1"
+        assert result["evaluation_id"] == eval_run.id
         assert result["models"] == []
 
 
 class TestGetSampleResultByTaskModel:
     """Test get_sample_result_by_task_model endpoint."""
 
-    @pytest.fixture
-    def mock_db(self):
-        return MagicMock(spec=Session)
-
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_task_not_found(self, mock_org, mock_access, mock_db):
+    async def test_task_not_found(self, async_test_db):
         from routers.evaluations.results import get_sample_result_by_task_model
-
-        mock_db.query.return_value.filter.return_value.first.return_value = None
 
         with pytest.raises(Exception) as exc_info:
             await get_sample_result_by_task_model(
-                request=_mock_request(),
+                request=_make_request(),
                 task_id="nonexistent",
                 model_id="gpt-4",
                 current_user=_mock_user(),
-                db=mock_db,
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=False)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_access_denied(self, mock_org, mock_access, mock_db):
+    async def test_access_denied(self, async_test_db):
         from routers.evaluations.results import get_sample_result_by_task_model
 
-        task = Mock()
-        task.project_id = "proj-1"
-        mock_db.query.return_value.filter.return_value.first.return_value = task
+        creator = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, creator)
+        task = await _seed_task(async_test_db, project)
+        await async_test_db.commit()
 
-        with pytest.raises(Exception) as exc_info:
-            await get_sample_result_by_task_model(
-                request=_mock_request(),
-                task_id="task-1",
-                model_id="gpt-4",
-                current_user=_mock_user(),
-                db=mock_db,
-            )
+        with patch(
+            "routers.evaluations.results.by_task_model.check_project_accessible_async",
+            new=AsyncMock(return_value=False),
+        ):
+            with pytest.raises(Exception) as exc_info:
+                await get_sample_result_by_task_model(
+                    request=_make_request(),
+                    task_id=task.id,
+                    model_id="gpt-4",
+                    current_user=_mock_user(),
+                    db=async_test_db,
+                )
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_no_results(self, mock_org, mock_access, mock_db):
+    async def test_no_results(self, async_test_db):
         from routers.evaluations.results import get_sample_result_by_task_model
 
-        task = Mock()
-        task.project_id = "proj-1"
+        creator = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, creator)
+        task = await _seed_task(async_test_db, project)
+        await async_test_db.commit()
 
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            q = MagicMock()
-            if call_count["n"] == 1:
-                q.filter.return_value.first.return_value = task
-            else:
-                # Production chain: TaskEvaluation → Generation → EvaluationRun,
-                # then .filter().filter().order_by().all() — the second filter
-                # only fires when generation_id is truthy, which it is here
-                # because we pass an explicit empty string below to match what
-                # FastAPI would normalise an unset Query(None) to.
-                q.join.return_value.join.return_value.filter.return_value.order_by.return_value.all.return_value = []
-            return q
-
-        mock_db.query.side_effect = query_side_effect
-
-        # Pass include_history/generation_id explicitly — otherwise they hold
-        # the raw fastapi.Query sentinels (truthy), which makes the production
-        # code take the extra `.filter()` branch the mock chain wasn't shaped for.
-        result = await get_sample_result_by_task_model(
-            request=_mock_request(),
-            task_id="task-1",
-            model_id="gpt-4",
-            include_history=True,
-            generation_id=None,
-            current_user=_mock_user(),
-            db=mock_db,
-        )
+        # Task exists + access granted, but no TaskEvaluations for this
+        # task/model -> empty results with the "no results" message.
+        with patch(
+            "routers.evaluations.results.by_task_model.check_project_accessible_async",
+            new=AsyncMock(return_value=True),
+        ):
+            result = await get_sample_result_by_task_model(
+                request=_make_request(),
+                task_id=task.id,
+                model_id="gpt-4",
+                include_history=True,
+                generation_id=None,
+                current_user=_mock_user(),
+                db=async_test_db,
+            )
 
         assert result["results"] == []
         assert "No evaluation results" in result["message"]
 
     @pytest.mark.asyncio
-    @patch("routers.evaluations.results.check_project_accessible", return_value=True)
-    @patch("routers.evaluations.results.get_org_context_from_request", return_value="org-123")
-    async def test_annotator_model_id(self, mock_org, mock_access, mock_db):
-        """Test querying with annotator: model_id prefix."""
+    async def test_annotator_model_id(self, async_test_db):
+        """Test querying with annotator: model_id prefix for an unknown user."""
         from routers.evaluations.results import get_sample_result_by_task_model
 
-        task = Mock()
-        task.project_id = "proj-1"
+        creator = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, creator)
+        task = await _seed_task(async_test_db, project)
+        await async_test_db.commit()
 
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            q = MagicMock()
-            if call_count["n"] == 1:
-                q.filter.return_value.first.return_value = task
-            elif call_count["n"] == 2:
-                # User lookup
-                q.filter.return_value.first.return_value = None  # User not found
-            else:
-                q.join.return_value.filter.return_value.order_by.return_value.all.return_value = []
-            return q
-
-        mock_db.query.side_effect = query_side_effect
-
-        result = await get_sample_result_by_task_model(
-            request=_mock_request(),
-            task_id="task-1",
-            model_id="annotator:testuser",
-            current_user=_mock_user(),
-            db=mock_db,
-        )
+        # No user matches the "annotator:nobody" display name -> empty results.
+        with patch(
+            "routers.evaluations.results.by_task_model.check_project_accessible_async",
+            new=AsyncMock(return_value=True),
+        ):
+            result = await get_sample_result_by_task_model(
+                request=_make_request(),
+                task_id=task.id,
+                model_id="annotator:nobody",
+                current_user=_mock_user(),
+                db=async_test_db,
+            )
 
         # User not found -> empty results
         assert result["results"] == []

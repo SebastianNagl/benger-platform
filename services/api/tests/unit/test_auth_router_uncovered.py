@@ -11,12 +11,131 @@ Rewritten to call handler functions directly (no TestClient) so that pytest-cov
 tracks the router code.
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException, Response
 from sqlalchemy.orm import Session
+
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
+from models import (
+    Notification,
+    NotificationType,
+    Organization,
+    OrganizationMembership,
+    OrganizationRole,
+    UserProfileHistory,
+)
+from models import User as DBUser
+
+
+# ---------------------------------------------------------------------------
+# Async fixtures helpers (auth handlers migrated to the async DB lane)
+# ---------------------------------------------------------------------------
+
+def _uid():
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user):
+    """Override require_user with an AuthUser mirroring a seeded DB row.
+
+    Handlers query the real DB by current_user.id, so the seeded row's id
+    must equal this AuthUser id.
+    """
+    au = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+@contextmanager
+def _as_unseeded_user(user_id=None, is_superadmin=False):
+    """Override require_user with an AuthUser whose id is NOT in the DB.
+
+    Used to exercise the 'user not found' branches of handlers that read the
+    DB row by current_user.id.
+    """
+    uid = user_id or _uid()
+    au = AuthUser(
+        id=uid,
+        username=f"ghost-{uid[:8]}",
+        email=f"{uid[:8]}@ghost.com",
+        name="Ghost",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _seed_user(db, **over):
+    fields = dict(
+        id=_uid(),
+        username=f"u-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@e.com",
+        name="U",
+        hashed_password="x",
+        is_superadmin=False,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    fields.update(over)
+    u = DBUser(**fields)
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _seed_membership(db, user, org, role):
+    m = OrganizationMembership(
+        id=_uid(),
+        user_id=user.id,
+        organization_id=org.id,
+        role=role,
+        is_active=True,
+    )
+    db.add(m)
+    await db.flush()
+    return m
+
+
+async def _seed_org(db, **over):
+    suffix = _uid()[:8]
+    org = Organization(
+        id=over.get("id", _uid()),
+        name=over.get("name", f"Org {suffix}"),
+        display_name=over.get("display_name", f"Org {suffix}"),
+        slug=over.get("slug", f"org-{suffix}"),
+        description=over.get("description"),
+        is_active=over.get("is_active", True),
+    )
+    db.add(org)
+    await db.flush()
+    return org
 
 
 # ---------------------------------------------------------------------------
@@ -110,8 +229,8 @@ class TestLoginCookiePaths:
     """Cover lines 219-287: login body including cookie setting."""
 
     @pytest.mark.asyncio
-    @patch("routers.auth.create_tokens_with_refresh")
-    @patch("routers.auth.authenticate_user")
+    @patch("routers.auth.session.create_tokens_with_refresh")
+    @patch("routers.auth.session.authenticate_user")
     async def test_login_sets_access_and_refresh_cookies(self, mock_auth, mock_tokens):
         from routers.auth import login
         from auth_module import UserLogin
@@ -140,8 +259,8 @@ class TestLoginCookiePaths:
         assert result.access_token == "access-tok"
 
     @pytest.mark.asyncio
-    @patch("routers.auth.create_tokens_with_refresh")
-    @patch("routers.auth.authenticate_user")
+    @patch("routers.auth.session.create_tokens_with_refresh")
+    @patch("routers.auth.session.authenticate_user")
     async def test_login_no_refresh_token(self, mock_auth, mock_tokens):
         from routers.auth import login
         from auth_module import UserLogin
@@ -170,7 +289,7 @@ class TestLoginCookiePaths:
         assert result.access_token == "access-tok"
 
     @pytest.mark.asyncio
-    @patch("routers.auth.authenticate_user", side_effect=RuntimeError("DB boom"))
+    @patch("routers.auth.session.authenticate_user", side_effect=RuntimeError("DB boom"))
     async def test_login_exception_reraises(self, mock_auth):
         from routers.auth import login
         from auth_module import UserLogin
@@ -188,7 +307,7 @@ class TestLoginCookiePaths:
             )
 
     @pytest.mark.asyncio
-    @patch("routers.auth.authenticate_user", return_value=None)
+    @patch("routers.auth.session.authenticate_user", return_value=None)
     async def test_login_invalid_credentials(self, mock_auth):
         from routers.auth import login
         from auth_module import UserLogin
@@ -207,7 +326,7 @@ class TestLoginCookiePaths:
         assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
-    @patch("routers.auth.authenticate_user")
+    @patch("routers.auth.session.authenticate_user")
     async def test_login_unverified_email(self, mock_auth):
         from routers.auth import login
         from auth_module import UserLogin
@@ -237,7 +356,7 @@ class TestRefreshToken:
     """Cover lines 290-351: refresh token endpoint."""
 
     @pytest.mark.asyncio
-    @patch("routers.auth.refresh_access_token")
+    @patch("routers.auth.tokens.refresh_access_token")
     async def test_refresh_success(self, mock_refresh):
         from routers.auth import refresh_token_endpoint
 
@@ -266,7 +385,7 @@ class TestRefreshToken:
         assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
-    @patch("routers.auth.refresh_access_token", return_value=None)
+    @patch("routers.auth.tokens.refresh_access_token", return_value=None)
     async def test_refresh_invalid_token(self, mock_refresh):
         from routers.auth import refresh_token_endpoint
 
@@ -279,7 +398,7 @@ class TestRefreshToken:
         assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
-    @patch("routers.auth.refresh_access_token")
+    @patch("routers.auth.tokens.refresh_access_token")
     async def test_refresh_no_new_refresh_token(self, mock_refresh):
         from routers.auth import refresh_token_endpoint
 
@@ -301,33 +420,40 @@ class TestRefreshToken:
 # ---------------------------------------------------------------------------
 
 class TestLogout:
-    """Cover lines 354-383: logout endpoint."""
+    """Cover the logout endpoint (now async DB lane)."""
 
     @pytest.mark.asyncio
-    @patch("routers.auth.revoke_refresh_token")
-    async def test_logout_with_refresh_token(self, mock_revoke):
-        from routers.auth import logout
+    async def test_logout_with_refresh_token(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        request = _mock_request(cookies={"refresh_token": "some-token"})
-        response = Response()
-        user = _mock_user()
-        db = _mock_db()
+        with _as_user(user):
+            with patch(
+                "services.refresh_token_service.revoke_refresh_token_async",
+                new=AsyncMock(return_value=True),
+            ) as mock_revoke:
+                async_test_client.cookies.set("refresh_token", "some-token")
+                resp = await async_test_client.post("/api/auth/logout")
 
-        result = await logout(request=request, response=response, current_user=user, db=db)
-        assert result["message"] == "Logged out successfully"
-        mock_revoke.assert_called_once_with("some-token", db)
+        assert resp.status_code == 200
+        assert resp.json()["message"] == "Logged out successfully"
+        mock_revoke.assert_awaited_once()
+        # token is passed as the 2nd positional arg (db, token)
+        assert mock_revoke.await_args.args[1] == "some-token"
+        # access/refresh cookies cleared
+        assert "access_token" in resp.headers.get("set-cookie", "")
 
     @pytest.mark.asyncio
-    async def test_logout_no_refresh_token(self):
-        from routers.auth import logout
+    async def test_logout_no_refresh_token(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        request = _mock_request(cookies={})
-        response = Response()
-        user = _mock_user()
-        db = _mock_db()
+        with _as_user(user):
+            async_test_client.cookies.clear()
+            resp = await async_test_client.post("/api/auth/logout")
 
-        result = await logout(request=request, response=response, current_user=user, db=db)
-        assert result["message"] == "Logged out successfully"
+        assert resp.status_code == 200
+        assert resp.json()["message"] == "Logged out successfully"
 
 
 # ---------------------------------------------------------------------------
@@ -335,31 +461,41 @@ class TestLogout:
 # ---------------------------------------------------------------------------
 
 class TestLogoutAll:
-    """Cover lines 386-413: logout all devices."""
+    """Cover logout-all-devices (now async DB lane)."""
 
     @pytest.mark.asyncio
-    @patch("routers.auth.revoke_user_tokens", create=True)
-    async def test_logout_all_with_response(self, mock_revoke):
-        from routers.auth import logout_all_devices
+    async def test_logout_all_with_response(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        mock_revoke_inner = Mock(return_value=3)  # noqa: F841
-        user = _mock_user()
-        db = _mock_db()
-        response = Response()
+        with _as_user(user):
+            with patch(
+                "services.refresh_token_service.revoke_user_tokens_async",
+                new=AsyncMock(return_value=3),
+            ):
+                resp = await async_test_client.post("/api/auth/logout-all")
 
-        with patch("services.refresh_token_service.revoke_user_tokens", return_value=3):
-            result = await logout_all_devices(current_user=user, response=response, db=db)
-        assert result["revoked_sessions"] == 3
+        assert resp.status_code == 200
+        assert resp.json()["revoked_sessions"] == 3
 
     @pytest.mark.asyncio
-    async def test_logout_all_no_response(self):
+    async def test_logout_all_no_response(self, async_test_client, async_test_db):
+        # The HTTP endpoint always supplies a Response, so the no-cookie-clear
+        # branch is exercised by directly invoking the handler with response=None
+        # while still patching the async revoke twin.
         from routers.auth import logout_all_devices
 
-        user = _mock_user()
-        db = _mock_db()
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        with patch("services.refresh_token_service.revoke_user_tokens", return_value=2):
-            result = await logout_all_devices(current_user=user, response=None, db=db)
+        with _as_user(user) as au:
+            with patch(
+                "services.refresh_token_service.revoke_user_tokens_async",
+                new=AsyncMock(return_value=2),
+            ):
+                result = await logout_all_devices(
+                    current_user=au, response=None, db=async_test_db
+                )
         assert result["revoked_sessions"] == 2
 
 
@@ -371,8 +507,8 @@ class TestSignup:
     """Cover signup paths."""
 
     @pytest.mark.asyncio
-    @patch("routers.auth.email_verification_service")
-    @patch("routers.auth.create_user")
+    @patch("routers.auth.verification.email_verification_service")
+    @patch("routers.auth.session.create_user")
     async def test_signup_regular(self, mock_create, mock_email_svc):
         from routers.auth import signup
 
@@ -392,8 +528,8 @@ class TestSignup:
         mock_create.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch("routers.auth.email_verification_service")
-    @patch("routers.auth.create_user")
+    @patch("routers.auth.verification.email_verification_service")
+    @patch("routers.auth.session.create_user")
     async def test_signup_invitation_flow(self, mock_create, mock_email_svc):
         from routers.auth import signup
 
@@ -419,7 +555,7 @@ class TestSignup:
         assert result.id == "user-123"
 
     @pytest.mark.asyncio
-    @patch("routers.auth.create_user")
+    @patch("routers.auth.session.create_user")
     async def test_signup_invitation_invalid(self, mock_create):
         from routers.auth import signup
 
@@ -435,7 +571,7 @@ class TestSignup:
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
-    @patch("routers.auth.create_user")
+    @patch("routers.auth.session.create_user")
     async def test_signup_invitation_expired(self, mock_create):
         from routers.auth import signup
 
@@ -457,7 +593,7 @@ class TestSignup:
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
-    @patch("routers.auth.create_user", side_effect=RuntimeError("DB crash"))
+    @patch("routers.auth.session.create_user", side_effect=RuntimeError("DB crash"))
     async def test_signup_unexpected_error(self, mock_create):
         from routers.auth import signup
 
@@ -479,7 +615,7 @@ class TestSignup:
 
 class TestRegister:
     @pytest.mark.asyncio
-    @patch("routers.auth.create_user")
+    @patch("routers.auth.session.create_user")
     async def test_register_success(self, mock_create):
         from routers.auth import register
 
@@ -503,77 +639,68 @@ class TestRegister:
 
 class TestUserInfoEndpoints:
     @pytest.mark.asyncio
-    @patch("routers.auth.get_user_primary_role", return_value="CONTRIBUTOR")
-    async def test_get_current_user(self, mock_role):
-        from routers.auth import get_current_user
+    async def test_get_current_user(self, async_test_client, async_test_db):
+        # Seed a CONTRIBUTOR membership so the role resolves from the DB.
+        user = await _seed_user(async_test_db)
+        org = await _seed_org(async_test_db)
+        await _seed_membership(async_test_db, user, org, OrganizationRole.CONTRIBUTOR)
+        await async_test_db.commit()
 
-        user = _mock_user()
-        db = _mock_db()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/me")
 
-        result = await get_current_user(current_user=user, db=db)
-        assert result["id"] == "user-123"
-        assert result["role"] == "CONTRIBUTOR"
-
-    @pytest.mark.asyncio
-    @patch("routers.auth.get_user_primary_role", return_value=None)
-    async def test_get_user_contexts_superadmin(self, mock_role):
-        from routers.auth import get_user_contexts
-
-        user = _mock_user(is_superadmin=True)
-        db = _mock_db()
-
-        # Mock organizations query
-        org = Mock()
-        org.id = "org-1"
-        org.name = "Test Org"
-        org.display_name = "Test Org"
-        org.slug = "test-org"
-        org.description = None
-        org.is_active = True
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.all.side_effect = [
-            [org],   # organizations query
-            [],      # member_counts query
-            [],      # user_roles query
-        ]
-        db.query.return_value = mock_q
-
-        result = await get_user_contexts(current_user=user, db=db)
-        assert result["private_mode_available"] == True  # noqa: E712
-        assert "organizations" in result
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == user.id
+        assert data["role"] == "CONTRIBUTOR"
 
     @pytest.mark.asyncio
-    @patch("routers.auth.get_user_primary_role", return_value="ANNOTATOR")
-    async def test_get_user_contexts_regular_user(self, mock_role):
-        from routers.auth import get_user_contexts
+    async def test_get_current_user_no_role(self, async_test_client, async_test_db):
+        # No membership -> role is None.
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        user = _mock_user(is_superadmin=False)
-        db = _mock_db()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/me")
 
-        org = Mock()
-        org.id = "org-1"
-        org.name = "Test Org"
-        org.display_name = "Test Org"
-        org.slug = "test-org"
-        org.description = None
-        org.is_active = True
-        role = Mock()
-        role.value = "ANNOTATOR"
+        assert resp.status_code == 200
+        assert resp.json()["role"] is None
 
-        mock_q = MagicMock()
-        mock_q.join.return_value = mock_q
-        mock_q.filter.return_value = mock_q
-        mock_q.all.side_effect = [
-            [(org, role)],  # user_orgs_with_roles query
-            [],             # member_counts query
-        ]
-        mock_q.group_by.return_value = mock_q
-        db.query.return_value = mock_q
+    @pytest.mark.asyncio
+    async def test_get_user_contexts_superadmin(self, async_test_client, async_test_db):
+        # Superadmin sees all active orgs.
+        user = await _seed_user(async_test_db, is_superadmin=True)
+        org = await _seed_org(async_test_db, name="Test Org", display_name="Test Org")
+        await async_test_db.commit()
 
-        result = await get_user_contexts(current_user=user, db=db)
-        assert result["private_mode_available"] == True  # noqa: E712
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/me/contexts")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["private_mode_available"] == True  # noqa: E712
+        assert "organizations" in data
+        assert data["user"]["is_superadmin"] is True
+        org_ids = {o["id"] for o in data["organizations"]}
+        assert org.id in org_ids
+
+    @pytest.mark.asyncio
+    async def test_get_user_contexts_regular_user(self, async_test_client, async_test_db):
+        # Regular user sees only orgs they belong to, with their role.
+        user = await _seed_user(async_test_db, is_superadmin=False)
+        org = await _seed_org(async_test_db, name="Test Org", display_name="Test Org")
+        await _seed_membership(async_test_db, user, org, OrganizationRole.ANNOTATOR)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/me/contexts")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["private_mode_available"] == True  # noqa: E712
+        ctx = {o["id"]: o for o in data["organizations"]}
+        assert org.id in ctx
+        assert ctx[org.id]["role"] == "ANNOTATOR"
 
 
 # ---------------------------------------------------------------------------
@@ -582,48 +709,51 @@ class TestUserInfoEndpoints:
 
 class TestProfileEndpoints:
     @pytest.mark.asyncio
-    @patch("routers.auth._build_user_profile_response")
-    async def test_get_profile_success(self, mock_build):
-        from routers.auth import get_user_profile
+    async def test_get_profile_success(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db, name="Profile User")
+        await async_test_db.commit()
 
-        user = _mock_user()
-        db = _mock_db()
-        db_user = _mock_user()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/profile")
 
-        db.query.return_value.filter.return_value.first.return_value = db_user
-        mock_build.return_value = Mock()
-
-        result = await get_user_profile(current_user=user, db=db)  # noqa: F841
-        mock_build.assert_called_once()
-
-    @pytest.mark.asyncio
-    @patch("routers.auth.get_user_primary_role", return_value=None)
-    async def test_get_profile_user_not_found(self, mock_role):
-        from routers.auth import get_user_profile
-
-        user = _mock_user()
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = None
-
-        result = await get_user_profile(current_user=user, db=db)
-        assert result.id == "user-123"
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == user.id
+        assert data["username"] == user.username
+        assert data["name"] == "Profile User"
 
     @pytest.mark.asyncio
-    @patch("routers.auth.get_user_primary_role", return_value=None)
-    async def test_get_profile_exception_fallback(self, mock_role):
-        from routers.auth import get_user_profile
+    async def test_get_profile_user_not_found(self, async_test_client, async_test_db):
+        # current_user.id is not in the DB -> handler returns the fallback
+        # UserProfile built from current_user (200).
+        with _as_unseeded_user() as au:
+            resp = await async_test_client.get("/api/auth/profile")
 
-        user = _mock_user()
-        db = _mock_db()
-        db.query.side_effect = RuntimeError("DB error")
-
-        result = await get_user_profile(current_user=user, db=db)
-        assert result.id == "user-123"
-        assert result.is_active == True  # noqa: E712
+        assert resp.status_code == 200
+        assert resp.json()["id"] == au.id
 
     @pytest.mark.asyncio
-    @patch("routers.auth._build_user_profile_response")
-    @patch("routers.auth.update_user_profile")
+    async def test_get_profile_exception_fallback(self, async_test_client, async_test_db):
+        # Force the async profile builder to raise so the except branch fires;
+        # the handler falls back to a current_user-derived UserProfile (200).
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
+
+        with _as_user(user) as au:
+            with patch(
+                "routers.auth.user._build_user_profile_response_async",
+                new=AsyncMock(side_effect=RuntimeError("DB error")),
+            ):
+                resp = await async_test_client.get("/api/auth/profile")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == au.id
+        assert data["is_active"] == True  # noqa: E712
+
+    @pytest.mark.asyncio
+    @patch("routers.auth.user._build_user_profile_response")
+    @patch("routers.auth.user.update_user_profile")
     async def test_update_profile_success(self, mock_update, mock_build):
         from routers.auth import update_profile
         from schemas.auth_schemas import UserUpdate
@@ -642,7 +772,7 @@ class TestProfileEndpoints:
         mock_build.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch("routers.auth.update_user_profile", return_value=None)
+    @patch("routers.auth.user.update_user_profile", return_value=None)
     async def test_update_profile_not_found(self, mock_update):
         from routers.auth import update_profile
         from schemas.auth_schemas import UserUpdate
@@ -665,7 +795,7 @@ class TestProfileEndpoints:
 
 class TestChangePassword:
     @pytest.mark.asyncio
-    @patch("routers.auth.change_user_password", return_value=True)
+    @patch("routers.auth.password.change_user_password", return_value=True)
     async def test_change_password_success(self, mock_change):
         from routers.auth import change_password
         from schemas.auth_schemas import PasswordUpdate
@@ -701,7 +831,7 @@ class TestChangePassword:
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
-    @patch("routers.auth.change_user_password", return_value=False)
+    @patch("routers.auth.password.change_user_password", return_value=False)
     async def test_change_password_failure(self, mock_change):
         from routers.auth import change_password
         from schemas.auth_schemas import PasswordUpdate
@@ -837,7 +967,7 @@ class TestResetPassword:
 
 class TestVerifyEmail:
     @pytest.mark.asyncio
-    @patch("routers.auth.email_verification_service")
+    @patch("routers.auth.verification.email_verification_service")
     async def test_verify_email_success(self, mock_svc):
         from routers.auth import verify_email
         from schemas.auth_schemas import EmailVerificationRequest
@@ -852,7 +982,7 @@ class TestVerifyEmail:
         assert result["success"] == True  # noqa: E712
 
     @pytest.mark.asyncio
-    @patch("routers.auth.email_verification_service")
+    @patch("routers.auth.verification.email_verification_service")
     async def test_verify_email_failure(self, mock_svc):
         from routers.auth import verify_email
         from schemas.auth_schemas import EmailVerificationRequest
@@ -868,7 +998,7 @@ class TestVerifyEmail:
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
-    @patch("routers.auth.email_verification_service")
+    @patch("routers.auth.verification.email_verification_service")
     async def test_verify_email_with_path_token_success(self, mock_svc):
         from routers.auth import verify_email_with_token
 
@@ -879,7 +1009,7 @@ class TestVerifyEmail:
         assert result["success"] == True  # noqa: E712
 
     @pytest.mark.asyncio
-    @patch("routers.auth.email_verification_service")
+    @patch("routers.auth.verification.email_verification_service")
     async def test_verify_email_with_path_token_failure(self, mock_svc):
         from routers.auth import verify_email_with_token
 
@@ -891,7 +1021,7 @@ class TestVerifyEmail:
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
-    @patch("routers.auth.email_verification_service")
+    @patch("routers.auth.verification.email_verification_service")
     async def test_verify_email_with_path_token_exception(self, mock_svc):
         from routers.auth import verify_email_with_token
 
@@ -909,7 +1039,7 @@ class TestVerifyEmail:
 
 class TestVerifyEmailEnhanced:
     @pytest.mark.asyncio
-    @patch("routers.auth.email_verification_service")
+    @patch("routers.auth.verification.email_verification_service")
     async def test_enhanced_failure(self, mock_svc):
         from routers.auth import verify_email_enhanced
 
@@ -921,7 +1051,7 @@ class TestVerifyEmailEnhanced:
         assert result.user_type == "unknown"
 
     @pytest.mark.asyncio
-    @patch("routers.auth.email_verification_service")
+    @patch("routers.auth.verification.email_verification_service")
     async def test_enhanced_success_no_token_data(self, mock_svc):
         from routers.auth import verify_email_enhanced
 
@@ -935,7 +1065,7 @@ class TestVerifyEmailEnhanced:
         assert result.redirect_url == "/login"
 
     @pytest.mark.asyncio
-    @patch("routers.auth.email_verification_service")
+    @patch("routers.auth.verification.email_verification_service")
     async def test_enhanced_success_self_registered(self, mock_svc):
         from routers.auth import verify_email_enhanced
 
@@ -955,7 +1085,7 @@ class TestVerifyEmailEnhanced:
         assert result.redirect_url == "/login"
 
     @pytest.mark.asyncio
-    @patch("routers.auth.email_verification_service")
+    @patch("routers.auth.verification.email_verification_service")
     async def test_enhanced_invited_not_completed(self, mock_svc):
         from routers.auth import verify_email_enhanced
 
@@ -998,85 +1128,62 @@ class TestVerifyEmailEnhanced:
 
 class TestCompleteProfile:
     @pytest.mark.asyncio
-    async def test_complete_profile_user_not_found(self):
-        from routers.auth import complete_profile
-        from schemas.profile_completion_schemas import ProfileCompletionRequest
-
-        user = _mock_user()
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = None
-
-        with pytest.raises(HTTPException) as exc_info:
-            await complete_profile(
-                profile_data=ProfileCompletionRequest(username="new", password="password123"),
-                current_user=user,
-                db=db,
+    async def test_complete_profile_user_not_found(self, async_test_client, async_test_db):
+        # current_user.id not in DB -> 404.
+        with _as_unseeded_user():
+            resp = await async_test_client.post(
+                "/api/auth/complete-profile",
+                json={"username": "newname1", "password": "password123"},
             )
-        assert exc_info.value.status_code == 404
+        assert resp.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_complete_profile_not_invited(self):
-        from routers.auth import complete_profile
-        from schemas.profile_completion_schemas import ProfileCompletionRequest
-
-        user = _mock_user()
-        db_user = _mock_user()
-        db_user.created_via_invitation = False
-
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = db_user
-
-        with pytest.raises(HTTPException) as exc_info:
-            await complete_profile(
-                profile_data=ProfileCompletionRequest(username="new", password="password123"),
-                current_user=user,
-                db=db,
-            )
-        assert exc_info.value.status_code == 400
-
-    @pytest.mark.asyncio
-    async def test_complete_profile_already_completed(self):
-        from routers.auth import complete_profile
-        from schemas.profile_completion_schemas import ProfileCompletionRequest
-
-        user = _mock_user()
-        db_user = _mock_user()
-        db_user.created_via_invitation = True
-        db_user.profile_completed = True
-
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = db_user
-
-        result = await complete_profile(
-            profile_data=ProfileCompletionRequest(username="new", password="password123"),
-            current_user=user,
-            db=db,
+    async def test_complete_profile_not_invited(self, async_test_client, async_test_db):
+        user = await _seed_user(
+            async_test_db, created_via_invitation=False, profile_completed=False
         )
-        assert result.message == "Profile already completed"
+        await async_test_db.commit()
+
+        with _as_user(user):
+            resp = await async_test_client.post(
+                "/api/auth/complete-profile",
+                json={"username": "newname2", "password": "password123"},
+            )
+        assert resp.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_complete_profile_success(self):
-        from routers.auth import complete_profile
-        from schemas.profile_completion_schemas import ProfileCompletionRequest
+    async def test_complete_profile_already_completed(self, async_test_client, async_test_db):
+        user = await _seed_user(
+            async_test_db, created_via_invitation=True, profile_completed=True
+        )
+        await async_test_db.commit()
 
-        user = _mock_user()
-        db_user = _mock_user()
-        db_user.created_via_invitation = True
-        db_user.profile_completed = False
-
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = db_user
-
-        with patch("auth_module.user_service.get_user_by_username", return_value=None), \
-             patch("auth_module.user_service.get_password_hash", return_value="hashed"):
-            result = await complete_profile(
-                profile_data=ProfileCompletionRequest(
-                    username="newname", password="password123", name="New Name"
-                ),
-                current_user=user,
-                db=db,
+        with _as_user(user):
+            resp = await async_test_client.post(
+                "/api/auth/complete-profile",
+                json={"username": "newname3", "password": "password123"},
             )
-        assert result.success == True  # noqa: E712
+        assert resp.status_code == 200
+        assert resp.json()["message"] == "Profile already completed"
+
+    @pytest.mark.asyncio
+    async def test_complete_profile_success(self, async_test_client, async_test_db):
+        user = await _seed_user(
+            async_test_db, created_via_invitation=True, profile_completed=False
+        )
+        await async_test_db.commit()
+
+        with _as_user(user):
+            resp = await async_test_client.post(
+                "/api/auth/complete-profile",
+                json={
+                    "username": f"newname-{_uid()[:6]}",
+                    "password": "password123",
+                    "name": "New Name",
+                },
+            )
+        assert resp.status_code == 200
+        assert resp.json()["success"] == True  # noqa: E712
 
 
 # ---------------------------------------------------------------------------
@@ -1085,59 +1192,61 @@ class TestCompleteProfile:
 
 class TestMandatoryProfileStatus:
     @pytest.mark.asyncio
-    async def test_mandatory_profile_not_due(self):
-        from routers.auth import get_mandatory_profile_status
+    async def test_mandatory_profile_not_due(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        user = _mock_user()
-        db_user = _mock_user()
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = db_user
+        # check_confirmation_due / get_mandatory_profile_fields are imported
+        # inside the handler from auth_module.user_service -> patch there.
+        with _as_user(user):
+            with patch(
+                "auth_module.user_service.get_mandatory_profile_fields", return_value=[]
+            ), patch(
+                "auth_module.user_service.check_confirmation_due", return_value=(False, None)
+            ):
+                resp = await async_test_client.get("/api/auth/mandatory-profile-status")
 
-        with patch("auth_module.user_service.get_mandatory_profile_fields", return_value=[]), \
-             patch("auth_module.user_service.check_confirmation_due", return_value=(False, None)):
-            result = await get_mandatory_profile_status(current_user=user, db=db)
-        assert result.confirmation_due == False  # noqa: E712
+        assert resp.status_code == 200
+        assert resp.json()["confirmation_due"] == False  # noqa: E712
 
     @pytest.mark.asyncio
-    async def test_mandatory_profile_due_creates_notification(self):
-        from routers.auth import get_mandatory_profile_status
+    async def test_mandatory_profile_due_creates_notification(
+        self, async_test_client, async_test_db
+    ):
+        from sqlalchemy import select
 
-        user = _mock_user()
-        db_user = _mock_user()
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
         deadline = datetime.now(timezone.utc) + timedelta(days=7)
 
-        db = _mock_db()
+        with _as_user(user):
+            with patch(
+                "auth_module.user_service.get_mandatory_profile_fields", return_value=[]
+            ), patch(
+                "auth_module.user_service.check_confirmation_due",
+                return_value=(True, deadline),
+            ):
+                resp = await async_test_client.get("/api/auth/mandatory-profile-status")
 
-        call_count = [0]
+        assert resp.status_code == 200
+        assert resp.json()["confirmation_due"] == True  # noqa: E712
 
-        def query_side_effect(*args):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = db_user  # user lookup
-            else:
-                q.first.return_value = None  # no existing notification
-            return q
-        db.query.side_effect = query_side_effect
-
-        with patch("auth_module.user_service.get_mandatory_profile_fields", return_value=["gender"]), \
-             patch("auth_module.user_service.check_confirmation_due", return_value=(True, deadline)):
-            result = await get_mandatory_profile_status(current_user=user, db=db)
-        assert result.confirmation_due == True  # noqa: E712
-        db.add.assert_called_once()
+        # A PROFILE_CONFIRMATION_DUE notification row was created for the user.
+        rows = (
+            await async_test_db.execute(
+                select(Notification).where(
+                    Notification.user_id == user.id,
+                    Notification.type == NotificationType.PROFILE_CONFIRMATION_DUE,
+                )
+            )
+        ).scalars().all()
+        assert len(rows) == 1
 
     @pytest.mark.asyncio
-    async def test_mandatory_profile_user_not_found(self):
-        from routers.auth import get_mandatory_profile_status
-
-        user = _mock_user()
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = None
-
-        with pytest.raises(HTTPException) as exc_info:
-            await get_mandatory_profile_status(current_user=user, db=db)
-        assert exc_info.value.status_code == 404
+    async def test_mandatory_profile_user_not_found(self, async_test_client, async_test_db):
+        with _as_unseeded_user():
+            resp = await async_test_client.get("/api/auth/mandatory-profile-status")
+        assert resp.status_code == 404
 
 
 # ---------------------------------------------------------------------------
@@ -1146,30 +1255,39 @@ class TestMandatoryProfileStatus:
 
 class TestConfirmProfile:
     @pytest.mark.asyncio
-    async def test_confirm_profile_success(self):
-        from routers.auth import confirm_profile_endpoint
+    async def test_confirm_profile_success(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        user = _mock_user()
-        db = _mock_db()
+        confirmed = Mock()
+        confirmed.profile_confirmed_at = datetime.now(timezone.utc)
 
-        updated = Mock()
-        updated.profile_confirmed_at = datetime.now(timezone.utc)
+        # confirm_profile_async is imported inside the handler from
+        # auth_module.user_service -> patch there with an async twin.
+        with _as_user(user):
+            with patch(
+                "auth_module.user_service.confirm_profile_async",
+                new=AsyncMock(return_value=confirmed),
+            ):
+                resp = await async_test_client.post("/api/auth/confirm-profile")
 
-        with patch("auth_module.user_service.confirm_profile", return_value=updated):
-            result = await confirm_profile_endpoint(current_user=user, db=db)
-        assert result.success == True  # noqa: E712
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] == True  # noqa: E712
+        assert body["confirmed_at"] is not None
 
     @pytest.mark.asyncio
-    async def test_confirm_profile_not_found(self):
-        from routers.auth import confirm_profile_endpoint
+    async def test_confirm_profile_not_found(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        user = _mock_user()
-        db = _mock_db()
-
-        with patch("auth_module.user_service.confirm_profile", return_value=None):
-            with pytest.raises(HTTPException) as exc_info:
-                await confirm_profile_endpoint(current_user=user, db=db)
-            assert exc_info.value.status_code == 404
+        with _as_user(user):
+            with patch(
+                "auth_module.user_service.confirm_profile_async",
+                new=AsyncMock(return_value=None),
+            ):
+                resp = await async_test_client.post("/api/auth/confirm-profile")
+        assert resp.status_code == 404
 
 
 # ---------------------------------------------------------------------------
@@ -1177,83 +1295,63 @@ class TestConfirmProfile:
 # ---------------------------------------------------------------------------
 
 class TestProfileHistory:
-    @pytest.mark.asyncio
-    async def test_profile_history_own(self):
-        from routers.auth import get_profile_history
-
-        user = _mock_user()
-        db = _mock_db()
-
-        entry = Mock()
-        entry.id = "entry-1"
-        entry.changed_at = datetime.now(timezone.utc)
-        entry.change_type = "update"
-        entry.snapshot = {}
-        entry.changed_fields = ["name"]
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.order_by.return_value = mock_q
-        mock_q.offset.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.all.return_value = [entry]
-        mock_q.first.return_value = None
-        db.query.return_value = mock_q
-
-        result = await get_profile_history(
-            user_id=None, limit=50, offset=0, current_user=user, db=db,
+    async def _seed_history(self, db, user, change_type="update", changed_fields=None):
+        entry = UserProfileHistory(
+            id=_uid(),
+            user_id=user.id,
+            changed_at=datetime.now(timezone.utc),
+            change_type=change_type,
+            snapshot={},
+            changed_fields=changed_fields or ["name"],
         )
-        assert len(result) == 1
-        assert result[0]["id"] == "entry-1"
+        db.add(entry)
+        await db.flush()
+        return entry
 
     @pytest.mark.asyncio
-    async def test_profile_history_other_user_superadmin(self):
-        from routers.auth import get_profile_history
+    async def test_profile_history_own(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db)
+        entry = await self._seed_history(async_test_db, user)
+        await async_test_db.commit()
 
-        user = _mock_user(is_superadmin=True)
-        db = _mock_db()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/profile-history")
 
-        db_current = Mock()
-        db_current.is_superadmin = True
-
-        entry = Mock()
-        entry.id = "entry-2"
-        entry.changed_at = datetime.now(timezone.utc)
-        entry.change_type = "update"
-        entry.snapshot = {}
-        entry.changed_fields = ["email"]
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.order_by.return_value = mock_q
-        mock_q.offset.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.first.return_value = db_current
-        mock_q.all.return_value = [entry]
-        db.query.return_value = mock_q
-
-        result = await get_profile_history(
-            user_id="other-user", limit=50, offset=0, current_user=user, db=db,
-        )
-        assert len(result) == 1
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["id"] == entry.id
 
     @pytest.mark.asyncio
-    async def test_profile_history_other_user_denied(self):
-        from routers.auth import get_profile_history
+    async def test_profile_history_other_user_superadmin(
+        self, async_test_client, async_test_db
+    ):
+        # Superadmin requester can view another user's history.
+        requester = await _seed_user(async_test_db, is_superadmin=True)
+        target = await _seed_user(async_test_db)
+        await self._seed_history(async_test_db, target, changed_fields=["email"])
+        await async_test_db.commit()
 
-        user = _mock_user(is_superadmin=False)
-        db = _mock_db()
-
-        db_current = Mock()
-        db_current.is_superadmin = False
-
-        db.query.return_value.filter.return_value.first.return_value = db_current
-
-        with pytest.raises(HTTPException) as exc_info:
-            await get_profile_history(
-                user_id="other-user", limit=50, offset=0, current_user=user, db=db,
+        with _as_user(requester):
+            resp = await async_test_client.get(
+                f"/api/auth/profile-history?user_id={target.id}"
             )
-        assert exc_info.value.status_code == 403
+
+        assert resp.status_code == 200
+        assert len(resp.json()) == 1
+
+    @pytest.mark.asyncio
+    async def test_profile_history_other_user_denied(self, async_test_client, async_test_db):
+        # Non-superadmin requester asking for another user's history -> 403.
+        requester = await _seed_user(async_test_db, is_superadmin=False)
+        target = await _seed_user(async_test_db)
+        await async_test_db.commit()
+
+        with _as_user(requester):
+            resp = await async_test_client.get(
+                f"/api/auth/profile-history?user_id={target.id}"
+            )
+        assert resp.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -1293,7 +1391,7 @@ class TestResendVerification:
         assert "verification link" in result["message"]
 
     @pytest.mark.asyncio
-    @patch("routers.auth.email_verification_service")
+    @patch("routers.auth.verification.email_verification_service")
     async def test_resend_success(self, mock_svc):
         from routers.auth import resend_verification_email
         from schemas.auth_schemas import ResendVerificationRequest
@@ -1318,30 +1416,25 @@ class TestResendVerification:
 
 class TestCheckProfileStatus:
     @pytest.mark.asyncio
-    async def test_check_profile_status_success(self):
-        from routers.auth import check_profile_status
+    async def test_check_profile_status_success(self, async_test_client, async_test_db):
+        user = await _seed_user(
+            async_test_db,
+            hashed_password="hashed",
+            created_via_invitation=False,
+            profile_completed=True,
+        )
+        await async_test_db.commit()
 
-        user = _mock_user()
-        db_user = _mock_user()
-        db_user.hashed_password = "hashed"
-        db_user.created_via_invitation = False
-        db_user.profile_completed = True
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/check-profile-status")
 
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = db_user
-
-        result = await check_profile_status(current_user=user, db=db)
-        assert result.has_password == True  # noqa: E712
-        assert result.needs_profile_completion == False  # noqa: E712
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["has_password"] == True  # noqa: E712
+        assert data["needs_profile_completion"] == False  # noqa: E712
 
     @pytest.mark.asyncio
-    async def test_check_profile_status_not_found(self):
-        from routers.auth import check_profile_status
-
-        user = _mock_user()
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = None
-
-        with pytest.raises(HTTPException) as exc_info:
-            await check_profile_status(current_user=user, db=db)
-        assert exc_info.value.status_code == 404
+    async def test_check_profile_status_not_found(self, async_test_client, async_test_db):
+        with _as_unseeded_user():
+            resp = await async_test_client.get("/api/auth/check-profile-status")
+        assert resp.status_code == 404

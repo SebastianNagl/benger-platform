@@ -2,7 +2,7 @@
 Unit tests for routers/projects/helpers.py — covers all uncovered branches.
 """
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -920,68 +920,71 @@ class TestGetProjectOrganizations:
 
 
 class TestRequireProjectAccess:
-    """Tests for require_project_access FastAPI dependency."""
+    """Tests for the canonical ``require_project_access`` FastAPI dependency
+    (``routers.projects.deps`` — a factory returning the dependency callable;
+    yields a ``ProjectAccess`` container)."""
+
+    @staticmethod
+    def _async_db(scalar):
+        """Fake AsyncSession whose ``await db.execute(...).scalar_one_or_none()``
+        returns ``scalar`` — covers the project-load in the dependency."""
+        result = Mock()
+        result.scalar_one_or_none.return_value = scalar
+        db = Mock()
+        db.execute = AsyncMock(return_value=result)
+        return db
 
     @pytest.mark.asyncio
     async def test_project_not_found(self):
-        from routers.projects.helpers import require_project_access
+        from routers.projects.deps import require_project_access
 
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
+        dep = require_project_access()
+        db = self._async_db(None)
         user = Mock()
         request = Mock()
         request.state.organization_context = None
 
         with pytest.raises(HTTPException) as exc_info:
-            await require_project_access(
-                project_id="proj-1",
-                request=request,
-                current_user=user,
-                db=db,
-            )
+            await dep(project_id="proj-1", request=request, current_user=user, db=db)
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
     async def test_access_denied(self):
-        from routers.projects.helpers import require_project_access
+        from routers.projects.deps import require_project_access
 
-        db = Mock()
+        dep = require_project_access()
         project = Mock()
-        db.query.return_value.filter.return_value.first.return_value = project
-        user = Mock()
+        db = self._async_db(project)
+        user = Mock(is_superadmin=False)
         request = Mock()
         request.state.organization_context = None
 
         with patch(
-            "routers.projects.helpers.check_project_accessible", return_value=False
+            "routers.projects.deps.check_project_accessible_async",
+            new=AsyncMock(return_value=False),
         ):
             with pytest.raises(HTTPException) as exc_info:
-                await require_project_access(
-                    project_id="proj-1",
-                    request=request,
-                    current_user=user,
-                    db=db,
-                )
+                await dep(project_id="proj-1", request=request, current_user=user, db=db)
             assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
     async def test_success(self):
-        from routers.projects.helpers import require_project_access
+        from routers.projects.deps import ProjectAccess, require_project_access
 
-        db = Mock()
+        dep = require_project_access()
         project = Mock(id="proj-1")
-        db.query.return_value.filter.return_value.first.return_value = project
+        db = self._async_db(project)
         user = Mock(is_superadmin=True)
         request = Mock()
         request.state.organization_context = None
 
         with patch(
-            "routers.projects.helpers.check_project_accessible", return_value=True
+            "routers.projects.deps.check_project_accessible_async",
+            new=AsyncMock(return_value=True),
         ):
-            result = await require_project_access(
-                project_id="proj-1",
-                request=request,
-                current_user=user,
-                db=db,
+            result = await dep(
+                project_id="proj-1", request=request, current_user=user, db=db
             )
-            assert result == project
+            assert isinstance(result, ProjectAccess)
+            assert result.project == project
+            assert result.user == user

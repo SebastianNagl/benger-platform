@@ -3,16 +3,23 @@ Unit tests for routers/evaluations/status.py to increase coverage.
 Tests evaluation status, SSE streaming, evaluation types, and supported metrics.
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from main import app
+from auth_module.models import User as AuthUser
 from auth_module.models import User
 from database import get_db
 from auth_module.dependencies import require_user
+from models import EvaluationRun as DBEvaluationRun
+from models import EvaluationType as DBEvaluationType
+from models import User as DBUser
 
 
 def _make_user(is_superadmin=True, user_id="user-123"):
@@ -42,76 +49,125 @@ def _mock_db():
     return mock_db
 
 
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user, *, is_superadmin=True):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_db_user(db, *, is_superadmin=True):
+    u = DBUser(
+        id=_uid(),
+        username=f"evste-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Eval Status User",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _seed_eval_run(db, *, project_id=None, status="completed", error_message=None):
+    run = DBEvaluationRun(
+        id=_uid(),
+        project_id=project_id,
+        model_id="gpt-4",
+        evaluation_type_ids=[],
+        metrics={},
+        status=status,
+        error_message=error_message,
+        samples_evaluated=10,
+        created_by="owner",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(run)
+    await db.commit()
+    return run
+
+
+async def _seed_eval_type(db, *, type_id, name="BLEU", category="text", is_active=True):
+    et = DBEvaluationType(
+        id=type_id,
+        name=name,
+        description=f"{name} score",
+        category=category,
+        higher_is_better=True,
+        value_range={"min": 0, "max": 1},
+        applicable_project_types=[],
+        is_active=is_active,
+    )
+    db.add(et)
+    await db.commit()
+    return et
+
+
 # ---------------------------------------------------------------------------
 # get_evaluation_status
 # ---------------------------------------------------------------------------
 
 
 class TestGetEvaluationStatus:
-    def test_evaluation_not_found(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/evaluations/evaluation/status/nonexistent")
-            assert resp.status_code == 404
-        finally:
-            app.dependency_overrides.clear()
+    """get_evaluation_status is async (Depends(get_async_db))."""
 
-    def test_access_denied(self):
-        client = TestClient(app)
-        user = _make_user(is_superadmin=False)
-        mock_db = _mock_db()
+    @pytest.mark.asyncio
+    async def test_evaluation_not_found(self, async_test_client, async_test_db):
+        user = await _make_db_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user):
+            resp = await async_test_client.get(
+                "/api/evaluations/evaluation/status/nonexistent"
+            )
+        assert resp.status_code == 404
 
-        evaluation = Mock()
-        evaluation.id = "eval-1"
-        evaluation.project_id = "p-1"
-        evaluation.status = "running"
-        evaluation.error_message = None
+    @pytest.mark.asyncio
+    async def test_access_denied(self, async_test_client, async_test_db):
+        user = await _make_db_user(async_test_db, is_superadmin=False)
+        run = await _seed_eval_run(async_test_db, project_id=None, status="running")
+        with _as_user(user, is_superadmin=False), patch(
+            "routers.evaluations.status.check_project_accessible_async",
+            return_value=False,
+        ):
+            resp = await async_test_client.get(
+                f"/api/evaluations/evaluation/status/{run.id}"
+            )
+        assert resp.status_code == 403
 
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = evaluation
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.evaluations.status.check_project_accessible", return_value=False):
-                resp = client.get("/api/evaluations/evaluation/status/eval-1")
-                assert resp.status_code == 403
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_success(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-
-        evaluation = Mock()
-        evaluation.id = "eval-1"
-        evaluation.project_id = "p-1"
-        evaluation.status = "completed"
-        evaluation.error_message = "Done"
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = evaluation
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.evaluations.status.check_project_accessible", return_value=True):
-                resp = client.get("/api/evaluations/evaluation/status/eval-1")
-                assert resp.status_code == 200
-                data = resp.json()
-                assert data["id"] == "eval-1"
-                assert data["status"] == "completed"
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_success(self, async_test_client, async_test_db):
+        user = await _make_db_user(async_test_db)
+        run = await _seed_eval_run(
+            async_test_db, project_id=None, status="completed", error_message="Done"
+        )
+        # Superadmin short-circuits the access check to True.
+        with _as_user(user):
+            resp = await async_test_client.get(
+                f"/api/evaluations/evaluation/status/{run.id}"
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == run.id
+        assert data["status"] == "completed"
 
 
 # ---------------------------------------------------------------------------
@@ -331,53 +387,30 @@ class TestGetEvaluationTypes:
 
 
 class TestGetEvaluationType:
-    def test_not_found(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
+    """get_evaluation_type (single, by id) is async (Depends(get_async_db))."""
 
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = None
-        mock_db.query.return_value = mock_q
+    @pytest.mark.asyncio
+    async def test_not_found(self, async_test_client, async_test_db):
+        user = await _make_db_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user):
+            resp = await async_test_client.get(
+                "/api/evaluations/evaluation-types/nonexistent"
+            )
+        assert resp.status_code == 404
 
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/evaluations/evaluation-types/nonexistent")
-            assert resp.status_code == 404
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_found(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-
-        eval_type = Mock()
-        eval_type.id = "bleu"
-        eval_type.name = "BLEU"
-        eval_type.description = "BLEU score"
-        eval_type.category = "text"
-        eval_type.higher_is_better = True
-        eval_type.value_range = {"min": 0, "max": 1}
-        eval_type.applicable_project_types = []
-        eval_type.is_active = True
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = eval_type
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/evaluations/evaluation-types/bleu")
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["id"] == "bleu"
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_found(self, async_test_client, async_test_db):
+        user = await _make_db_user(async_test_db)
+        type_id = f"bleu-{_uid()[:8]}"
+        await _seed_eval_type(async_test_db, type_id=type_id, name="BLEU")
+        with _as_user(user):
+            resp = await async_test_client.get(
+                f"/api/evaluations/evaluation-types/{type_id}"
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == type_id
 
 
 # ---------------------------------------------------------------------------

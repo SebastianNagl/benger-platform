@@ -113,6 +113,8 @@ describe('ProjectStore', () => {
         totalProjects: 0,
         totalPages: 0,
         labelConfigVersion: 0,
+        lastIsArchived: false,
+        lastIncludeAllPrivate: false,
       })
     })
   })
@@ -179,12 +181,14 @@ describe('ProjectStore', () => {
         await useProjectStore.getState().fetchProjects(2, 50)
       })
 
+      // Omitted filter args resolve to the persisted defaults (false), not
+      // undefined — so a bare paginate call never drops the archive scope.
       expect(mockProjectsAPI.list).toHaveBeenCalledWith(
         2,
         50,
         '',
-        undefined,
-        undefined,
+        false,
+        false,
       )
       const state = useProjectStore.getState()
       expect(state.currentPage).toBe(2)
@@ -212,8 +216,8 @@ describe('ProjectStore', () => {
         1,
         30,
         'test search',
-        undefined,
-        undefined,
+        false,
+        false,
       )
     })
 
@@ -235,8 +239,32 @@ describe('ProjectStore', () => {
         30,
         '',
         true,
-        undefined,
+        false,
       )
+    })
+
+    it('reuses the last-used archive + visibility filters when omitted (pagination)', async () => {
+      mockProjectsAPI.list.mockResolvedValue({
+        items: [],
+        total: 0,
+        page: 1,
+        page_size: 30,
+        pages: 0,
+      })
+
+      // First call establishes the filter scope (archived view + superadmin
+      // include-all-private).
+      await act(async () => {
+        await useProjectStore.getState().fetchProjects(1, 30, true, true)
+      })
+      expect(mockProjectsAPI.list).toHaveBeenLastCalledWith(1, 30, '', true, true)
+
+      // A bare paginate call (the setCurrentPage path) must keep that scope
+      // instead of dropping isArchived/includeAllPrivate back to undefined.
+      await act(async () => {
+        await useProjectStore.getState().fetchProjects(2)
+      })
+      expect(mockProjectsAPI.list).toHaveBeenLastCalledWith(2, 30, '', true, true)
     })
 
     it('should handle undefined response gracefully', async () => {
@@ -1276,12 +1304,14 @@ describe('ProjectStore', () => {
 
         const state = useProjectStore.getState()
         expect(state.currentPage).toBe(2)
+        // Pagination preserves the persisted archive/visibility filters (default
+        // false) instead of dropping them to undefined.
         expect(mockProjectsAPI.list).toHaveBeenCalledWith(
           2,
           30,
           '',
-          undefined,
-          undefined,
+          false,
+          false,
         )
       })
     })
@@ -1311,8 +1341,8 @@ describe('ProjectStore', () => {
           1,
           50,
           '',
-          undefined,
-          undefined,
+          false,
+          false,
         )
       })
     })

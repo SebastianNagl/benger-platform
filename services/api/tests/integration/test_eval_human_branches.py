@@ -1,11 +1,9 @@
 """Behavioral integration tests for the human-evaluation session router.
 
 Target: ``services/api/routers/evaluations/human.py`` (mounted at prefix
-``/api/evaluations`` via ``routers/evaluations/__init__.py``). The existing
-``tests/unit/test_evaluation_human_endpoints.py`` only covers the in-process
-logic snippets (config dicts, progress arithmetic) — it never drives an HTTP
-round-trip or asserts persisted DB rows. This file fills the uncovered
-endpoint branches end-to-end:
+``/api/evaluations`` via ``routers/evaluations/__init__.py``). This file drives
+end-to-end HTTP round-trips and asserts persisted DB rows for the uncovered
+endpoint branches:
 
   POST   /human/session/start ....... 403 (non-editor), 404 (missing project),
                                       happy-path persist (likert + preference).
@@ -32,31 +30,48 @@ endpoint branches end-to-end:
                                       cascade delete of likert + preference
                                       rows.
 
-Every test calls the endpoint via ``client`` and asserts the HTTP status +
-response JSON; data-shaping tests also re-read the seeded rows from
-``test_db`` to assert persisted state.
+Async migration note
+--------------------
+Every human handler except ``start_human_evaluation_session`` was moved to the
+async DB lane (``Depends(get_async_db)``). The sync ``client`` / ``test_db``
+fixtures only override ``get_db``, so they no longer reach those handlers (the
+async handlers read through a separate ``get_async_db``-bound connection that
+never sees the rolled-back sync savepoint). The async classes here therefore
+seed rows through ``async_test_db`` and drive the surface via
+``async_test_client``; the current user is set with the ``_as_user``
+contextmanager (overriding ``require_user``).
+
+``TestStartSession`` keeps the sync ``client`` / ``test_db`` approach because
+``start_human_evaluation_session`` is still a sync handler.
 
 Access model recap (routers/projects/helpers):
-  * ``test_users[0]`` = admin (superadmin) — always allowed / can edit.
-  * ``test_users[1]`` = contributor, ``[2]`` = annotator, ``[3]`` = org_admin.
-  * A private project is accessible only to its creator (or a superadmin);
-    a non-private project linked to ``test_org`` is accessible to its
-    members under the org-context header.
+  * A superadmin always passes ``check_project_accessible_async`` /
+    ``auth_service.check_project_access_async`` (used for the 200 paths).
+  * A private project owned by another user is unreachable by a non-creator
+    non-superadmin (used for the 403 paths).
+  * Session ownership (``evaluator_id == current_user.id``) governs next-item,
+    progress, and delete — independent of project access.
 """
 
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from auth_module.models import User as AuthUser
+from auth_module.dependencies import require_user
+from main import app
 from models import (
     HumanEvaluationSession,
     LikertScaleEvaluation,
     PreferenceRanking,
+    User as DBUser,
 )
 from project_models import Project, ProjectOrganization, Task
+from sqlalchemy import select
 
 BASE = "/api/evaluations"
 
@@ -70,15 +85,105 @@ def _uid() -> str:
     return str(uuid.uuid4())
 
 
-def _setup_project(db, admin, org, *, num_tasks=2, is_private=False, link_org=True,
-                   evaluation_config=None):
-    """Create a project owned by ``admin`` with ``num_tasks`` tasks.
+@contextmanager
+def _as_user(db_user, *, is_superadmin=True):
+    """Override require_user with an auth User mirroring ``db_user``."""
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=getattr(db_user, "created_at", None) or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
 
-    ``is_private=True`` + ``link_org=False`` builds the 403 fixture (a private
-    project a non-creator non-superadmin cannot reach). ``link_org=True``
-    attaches the project to ``org`` so org-context members pass the access
-    check.
-    """
+
+async def _make_user(db, *, is_superadmin=True):
+    u = DBUser(
+        id=_uid(),
+        username=f"hu-int-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Human Eval Int User",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _setup_project(db, owner, *, num_tasks=2, is_private=False,
+                         evaluation_config=None):
+    """Create a project owned by ``owner`` with ``num_tasks`` tasks."""
+    pid = _uid()
+    p = Project(
+        id=pid,
+        title=f"Human Eval {pid[:6]}",
+        created_by=owner.id,
+        is_private=is_private,
+        label_config=(
+            '<View><Text name="text" value="$text"/>'
+            '<Choices name="answer" toName="text">'
+            '<Choice value="Ja"/><Choice value="Nein"/></Choices></View>'
+        ),
+        evaluation_config=evaluation_config,
+    )
+    db.add(p)
+    await db.flush()
+
+    tasks = []
+    for i in range(num_tasks):
+        t = Task(
+            id=_uid(), project_id=pid,
+            data={"text": f"Human task #{i}", "content": f"Content {i}"},
+            inner_id=i + 1, created_by=owner.id,
+        )
+        db.add(t)
+        tasks.append(t)
+    await db.flush()
+    return p, tasks
+
+
+async def _make_session(db, project, evaluator_id, *, session_type="likert",
+                        status="active", items_evaluated=0, total_items=2,
+                        session_config=None):
+    s = HumanEvaluationSession(
+        id=_uid(),
+        project_id=project.id,
+        evaluator_id=evaluator_id,
+        session_type=session_type,
+        items_evaluated=items_evaluated,
+        total_items=total_items,
+        status=status,
+        session_config=session_config or {"field_name": "answer"},
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(s)
+    await db.flush()
+    return s
+
+
+# ===========================================================================
+# POST /human/session/start  (SYNC handler — keeps sync fixtures)
+# ===========================================================================
+
+
+def _h(auth_headers, org, role="admin"):
+    return {**auth_headers[role], "X-Organization-Context": org.id}
+
+
+def _setup_project_sync(db, admin, org, *, num_tasks=2, is_private=False, link_org=True,
+                        evaluation_config=None):
+    """Sync seeding helper for the still-sync start-session endpoint."""
     pid = _uid()
     p = Project(
         id=pid,
@@ -115,40 +220,12 @@ def _setup_project(db, admin, org, *, num_tasks=2, is_private=False, link_org=Tr
     return p, tasks
 
 
-def _make_session(db, project, evaluator_id, *, session_type="likert",
-                  status="active", items_evaluated=0, total_items=2,
-                  session_config=None):
-    s = HumanEvaluationSession(
-        id=_uid(),
-        project_id=project.id,
-        evaluator_id=evaluator_id,
-        session_type=session_type,
-        items_evaluated=items_evaluated,
-        total_items=total_items,
-        status=status,
-        session_config=session_config or {"field_name": "answer"},
-        created_at=datetime.now(timezone.utc),
-    )
-    db.add(s)
-    db.flush()
-    return s
-
-
-def _h(auth_headers, org, role="admin"):
-    return {**auth_headers[role], "X-Organization-Context": org.id}
-
-
-# ===========================================================================
-# POST /human/session/start
-# ===========================================================================
-
-
 @pytest.mark.integration
 class TestStartSession:
     def test_non_editor_gets_403(self, client, test_db, test_users, auth_headers, test_org):
         """An annotator (only PROJECT_VIEW, not editor) cannot start a
         session — check_user_can_edit_project returns False → 403."""
-        p, _ = _setup_project(test_db, test_users[0], test_org)
+        p, _ = _setup_project_sync(test_db, test_users[0], test_org)
         test_db.commit()
 
         resp = client.post(
@@ -175,7 +252,7 @@ class TestStartSession:
     ):
         """A likert session stamps the requested dimensions into session_config
         and sets total_items to the project's task count."""
-        p, tasks = _setup_project(test_db, test_users[0], test_org, num_tasks=3)
+        p, tasks = _setup_project_sync(test_db, test_users[0], test_org, num_tasks=3)
         test_db.commit()
 
         resp = client.post(
@@ -207,7 +284,7 @@ class TestStartSession:
     ):
         """A preference session forces session_config.dimensions to None (the
         ``if session_type == 'likert'`` ternary's False arm)."""
-        p, tasks = _setup_project(test_db, test_users[0], test_org, num_tasks=2)
+        p, tasks = _setup_project_sync(test_db, test_users[0], test_org, num_tasks=2)
         test_db.commit()
 
         resp = client.post(
@@ -229,76 +306,87 @@ class TestStartSession:
 
 
 # ===========================================================================
-# GET /human/next-item
+# GET /human/next-item  (ASYNC)
 # ===========================================================================
 
 
 @pytest.mark.integration
 class TestNextItem:
-    def test_foreign_session_404(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_foreign_session_404(self, async_test_client, async_test_db):
         """A session owned by another user is invisible (the query filters on
         evaluator_id == current_user.id) → 404."""
-        p, _ = _setup_project(test_db, test_users[0], test_org)
-        # Session owned by admin; the contributor asks for it.
-        s = _make_session(test_db, p, test_users[0].id)
-        test_db.commit()
+        owner = await _make_user(async_test_db)
+        requester = await _make_user(async_test_db, is_superadmin=False)
+        p, _ = await _setup_project(async_test_db, owner)
+        s = await _make_session(async_test_db, p, owner.id)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{BASE}/human/next-item?session_id={s.id}",
-            headers=_h(auth_headers, test_org, role="contributor"),
-        )
+        with _as_user(requester, is_superadmin=False):
+            resp = await async_test_client.get(
+                f"{BASE}/human/next-item?session_id={s.id}"
+            )
         assert resp.status_code == 404, resp.text
         assert "not found or unauthorized" in resp.json()["detail"]
 
-    def test_inactive_session_400(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_inactive_session_400(self, async_test_client, async_test_db):
         """A completed session is not active → the 400 branch."""
-        p, _ = _setup_project(test_db, test_users[0], test_org)
-        s = _make_session(test_db, p, test_users[0].id, status="completed")
-        test_db.commit()
+        owner = await _make_user(async_test_db)
+        p, _ = await _setup_project(async_test_db, owner)
+        s = await _make_session(async_test_db, p, owner.id, status="completed")
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{BASE}/human/next-item?session_id={s.id}",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/human/next-item?session_id={s.id}"
+            )
         assert resp.status_code == 400, resp.text
         assert "not active" in resp.json()["detail"]
 
-    def test_no_more_tasks_completes_session_404(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_no_more_tasks_completes_session_404(
+        self, async_test_client, async_test_db
     ):
         """An active session on a project with zero tasks hits the
         ``not next_task`` branch: status flips to 'completed', completed_at is
         stamped, and a 404 'session completed' is raised."""
-        p, _ = _setup_project(test_db, test_users[0], test_org, num_tasks=0)
-        s = _make_session(test_db, p, test_users[0].id, total_items=0)
-        test_db.commit()
+        owner = await _make_user(async_test_db)
+        p, _ = await _setup_project(async_test_db, owner, num_tasks=0)
+        s = await _make_session(async_test_db, p, owner.id, total_items=0)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{BASE}/human/next-item?session_id={s.id}",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/human/next-item?session_id={s.id}"
+            )
         assert resp.status_code == 404, resp.text
         assert "session completed" in resp.json()["detail"]
 
         # Side-effect: the session was flipped to completed + timestamped.
-        test_db.expire_all()
-        row = test_db.query(HumanEvaluationSession).filter_by(id=s.id).one()
-        assert row.status == "completed"
-        assert row.completed_at is not None
+        # Refresh within the async path so attribute reads don't trigger a
+        # lazy (sync) reload on an expired instance.
+        await async_test_db.refresh(s)
+        assert s.status == "completed"
+        assert s.completed_at is not None
 
-    def test_returns_next_task_without_llm_responses(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_returns_next_task_without_llm_responses(
+        self, async_test_client, async_test_db
     ):
         """With tasks present and no LLM generations, the next unevaluated task
         is returned with an empty responses list and item_number = evaluated+1."""
-        p, tasks = _setup_project(test_db, test_users[0], test_org, num_tasks=2)
-        s = _make_session(test_db, p, test_users[0].id, items_evaluated=0, total_items=2)
-        test_db.commit()
-
-        resp = client.get(
-            f"{BASE}/human/next-item?session_id={s.id}",
-            headers=_h(auth_headers, test_org),
+        owner = await _make_user(async_test_db)
+        p, tasks = await _setup_project(async_test_db, owner, num_tasks=2)
+        s = await _make_session(
+            async_test_db, p, owner.id, items_evaluated=0, total_items=2
         )
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/human/next-item?session_id={s.id}"
+            )
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["session_id"] == s.id
@@ -309,53 +397,57 @@ class TestNextItem:
 
 
 # ===========================================================================
-# POST /human/likert
+# POST /human/likert  (ASYNC)
 # ===========================================================================
 
 
 @pytest.mark.integration
 class TestSubmitLikert:
-    def test_wrong_type_session_404(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_wrong_type_session_404(self, async_test_client, async_test_db):
         """Submitting likert to a preference session misses the
         session_type=='likert' filter → 404."""
-        p, tasks = _setup_project(test_db, test_users[0], test_org, num_tasks=1)
-        s = _make_session(test_db, p, test_users[0].id, session_type="preference")
-        test_db.commit()
+        owner = await _make_user(async_test_db)
+        p, tasks = await _setup_project(async_test_db, owner, num_tasks=1)
+        s = await _make_session(async_test_db, p, owner.id, session_type="preference")
+        await async_test_db.commit()
 
-        resp = client.post(
-            f"{BASE}/human/likert",
-            json={
-                "session_id": s.id,
-                "task_id": tasks[0].id,
-                "response_id": "resp-1",
-                "ratings": {"correctness": 4},
-            },
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.post(
+                f"{BASE}/human/likert",
+                json={
+                    "session_id": s.id,
+                    "task_id": tasks[0].id,
+                    "response_id": "resp-1",
+                    "ratings": {"correctness": 4},
+                },
+            )
         assert resp.status_code == 404, resp.text
         assert "not found or unauthorized" in resp.json()["detail"]
 
-    def test_persists_one_row_per_dimension_and_bumps_progress(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_persists_one_row_per_dimension_and_bumps_progress(
+        self, async_test_client, async_test_db
     ):
         """Each rated dimension yields a LikertScaleEvaluation row; comments map
         per-dimension; the session's items_evaluated increments by one."""
-        p, tasks = _setup_project(test_db, test_users[0], test_org, num_tasks=1)
-        s = _make_session(test_db, p, test_users[0].id, items_evaluated=2)
-        test_db.commit()
+        owner = await _make_user(async_test_db)
+        p, tasks = await _setup_project(async_test_db, owner, num_tasks=1)
+        s = await _make_session(async_test_db, p, owner.id, items_evaluated=2)
+        await async_test_db.commit()
 
-        resp = client.post(
-            f"{BASE}/human/likert",
-            json={
-                "session_id": s.id,
-                "task_id": tasks[0].id,
-                "response_id": "resp-A",
-                "ratings": {"correctness": 5, "style": 3},
-                "comments": {"correctness": "spot on"},
-                "time_spent_seconds": 42,
-            },
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.post(
+                f"{BASE}/human/likert",
+                json={
+                    "session_id": s.id,
+                    "task_id": tasks[0].id,
+                    "response_id": "resp-A",
+                    "ratings": {"correctness": 5, "style": 3},
+                    "comments": {"correctness": "spot on"},
+                    "time_spent_seconds": 42,
+                },
+            )
         assert resp.status_code == 200, resp.text
         body = resp.json()
         # items_evaluated bumped from 2 to 3 (one item, not one per dimension).
@@ -364,10 +456,12 @@ class TestSubmitLikert:
         # DB state: two rows (one per dimension); the comment only attaches to
         # the dimension that had one.
         rows = (
-            test_db.query(LikertScaleEvaluation)
-            .filter(LikertScaleEvaluation.session_id == s.id)
-            .all()
-        )
+            await async_test_db.execute(
+                select(LikertScaleEvaluation).where(
+                    LikertScaleEvaluation.session_id == s.id
+                )
+            )
+        ).scalars().all()
         assert len(rows) == 2
         by_dim = {r.dimension: r for r in rows}
         assert by_dim["correctness"].rating == 5
@@ -376,69 +470,74 @@ class TestSubmitLikert:
         assert by_dim["style"].rating == 3
         assert by_dim["style"].comment is None
 
-        test_db.expire_all()
-        assert test_db.query(HumanEvaluationSession).filter_by(id=s.id).one().items_evaluated == 3
+        await async_test_db.refresh(s)
+        assert s.items_evaluated == 3
 
 
 # ===========================================================================
-# POST /human/preference
+# POST /human/preference  (ASYNC)
 # ===========================================================================
 
 
 @pytest.mark.integration
 class TestSubmitPreference:
-    def test_wrong_type_session_404(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_wrong_type_session_404(self, async_test_client, async_test_db):
         """Submitting preference to a likert session misses the
         session_type=='preference' filter → 404."""
-        p, tasks = _setup_project(test_db, test_users[0], test_org, num_tasks=1)
-        s = _make_session(test_db, p, test_users[0].id, session_type="likert")
-        test_db.commit()
+        owner = await _make_user(async_test_db)
+        p, tasks = await _setup_project(async_test_db, owner, num_tasks=1)
+        s = await _make_session(async_test_db, p, owner.id, session_type="likert")
+        await async_test_db.commit()
 
-        resp = client.post(
-            f"{BASE}/human/preference",
-            json={
-                "session_id": s.id,
-                "task_id": tasks[0].id,
-                "response_a_id": "a",
-                "response_b_id": "b",
-                "winner": "a",
-            },
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.post(
+                f"{BASE}/human/preference",
+                json={
+                    "session_id": s.id,
+                    "task_id": tasks[0].id,
+                    "response_a_id": "a",
+                    "response_b_id": "b",
+                    "winner": "a",
+                },
+            )
         assert resp.status_code == 404, resp.text
 
-    def test_persists_ranking_and_bumps_progress(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_persists_ranking_and_bumps_progress(
+        self, async_test_client, async_test_db
     ):
         """A preference submission writes one PreferenceRanking row carrying the
         winner/confidence/reasoning and bumps items_evaluated."""
-        p, tasks = _setup_project(test_db, test_users[0], test_org, num_tasks=1)
-        s = _make_session(test_db, p, test_users[0].id,
-                          session_type="preference", items_evaluated=0)
-        test_db.commit()
-
-        resp = client.post(
-            f"{BASE}/human/preference",
-            json={
-                "session_id": s.id,
-                "task_id": tasks[0].id,
-                "response_a_id": "resp-a",
-                "response_b_id": "resp-b",
-                "winner": "b",
-                "confidence": 0.8,
-                "reasoning": "B is more complete",
-                "time_spent_seconds": 30,
-            },
-            headers=_h(auth_headers, test_org),
+        owner = await _make_user(async_test_db)
+        p, tasks = await _setup_project(async_test_db, owner, num_tasks=1)
+        s = await _make_session(
+            async_test_db, p, owner.id, session_type="preference", items_evaluated=0
         )
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.post(
+                f"{BASE}/human/preference",
+                json={
+                    "session_id": s.id,
+                    "task_id": tasks[0].id,
+                    "response_a_id": "resp-a",
+                    "response_b_id": "resp-b",
+                    "winner": "b",
+                    "confidence": 0.8,
+                    "reasoning": "B is more complete",
+                    "time_spent_seconds": 30,
+                },
+            )
         assert resp.status_code == 200, resp.text
         assert resp.json()["items_evaluated"] == 1
 
         rows = (
-            test_db.query(PreferenceRanking)
-            .filter(PreferenceRanking.session_id == s.id)
-            .all()
-        )
+            await async_test_db.execute(
+                select(PreferenceRanking).where(PreferenceRanking.session_id == s.id)
+            )
+        ).scalars().all()
         assert len(rows) == 1
         r = rows[0]
         assert r.winner == "b"
@@ -449,49 +548,54 @@ class TestSubmitPreference:
 
 
 # ===========================================================================
-# GET /human/session/{session_id}/progress
+# GET /human/session/{session_id}/progress  (ASYNC)
 # ===========================================================================
 
 
 @pytest.mark.integration
 class TestProgress:
-    def test_missing_session_404(self, client, test_db, test_users, auth_headers):
-        resp = client.get(
-            f"{BASE}/human/session/missing-{uuid.uuid4().hex}/progress",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_missing_session_404(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user):
+            resp = await async_test_client.get(
+                f"{BASE}/human/session/missing-{uuid.uuid4().hex}/progress"
+            )
         assert resp.status_code == 404, resp.text
         assert "not found" in resp.json()["detail"]
 
-    def test_non_owner_non_superadmin_403(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        """A session owned by admin, requested by the contributor (not owner,
-        not superadmin) → 403."""
-        p, _ = _setup_project(test_db, test_users[0], test_org)
-        s = _make_session(test_db, p, test_users[0].id)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_non_owner_non_superadmin_403(self, async_test_client, async_test_db):
+        """A session owned by one user, requested by another (not owner, not
+        superadmin) → 403."""
+        owner = await _make_user(async_test_db)
+        requester = await _make_user(async_test_db, is_superadmin=False)
+        p, _ = await _setup_project(async_test_db, owner)
+        s = await _make_session(async_test_db, p, owner.id)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{BASE}/human/session/{s.id}/progress",
-            headers=_h(auth_headers, test_org, role="contributor"),
-        )
+        with _as_user(requester, is_superadmin=False):
+            resp = await async_test_client.get(
+                f"{BASE}/human/session/{s.id}/progress"
+            )
         assert resp.status_code == 403, resp.text
         assert "permission" in resp.json()["detail"]
 
-    def test_partial_progress_percentage(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
+    @pytest.mark.asyncio
+    async def test_partial_progress_percentage(self, async_test_client, async_test_db):
         """items_evaluated=15 / total_items=30 → 50.0 percent."""
-        p, _ = _setup_project(test_db, test_users[0], test_org)
-        s = _make_session(test_db, p, test_users[0].id,
-                          items_evaluated=15, total_items=30)
-        test_db.commit()
-
-        resp = client.get(
-            f"{BASE}/human/session/{s.id}/progress",
-            headers=_h(auth_headers, test_org),
+        owner = await _make_user(async_test_db)
+        p, _ = await _setup_project(async_test_db, owner)
+        s = await _make_session(
+            async_test_db, p, owner.id, items_evaluated=15, total_items=30
         )
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/human/session/{s.id}/progress"
+            )
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["items_evaluated"] == 15
@@ -499,61 +603,60 @@ class TestProgress:
         assert body["progress_percentage"] == pytest.approx(50.0)
         assert body["session_id"] == s.id
 
-    def test_zero_total_items_gives_zero_percentage(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_zero_total_items_gives_zero_percentage(
+        self, async_test_client, async_test_db
     ):
         """total_items=0 short-circuits the percentage to 0.0 (avoids div-by-0)."""
-        p, _ = _setup_project(test_db, test_users[0], test_org)
-        s = _make_session(test_db, p, test_users[0].id,
-                          items_evaluated=0, total_items=0)
-        test_db.commit()
-
-        resp = client.get(
-            f"{BASE}/human/session/{s.id}/progress",
-            headers=_h(auth_headers, test_org),
+        owner = await _make_user(async_test_db)
+        p, _ = await _setup_project(async_test_db, owner)
+        s = await _make_session(
+            async_test_db, p, owner.id, items_evaluated=0, total_items=0
         )
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/human/session/{s.id}/progress"
+            )
         assert resp.status_code == 200, resp.text
         assert resp.json()["progress_percentage"] == pytest.approx(0.0)
 
 
 # ===========================================================================
-# GET /human/sessions/{project_id}
+# GET /human/sessions/{project_id}  (ASYNC)
 # ===========================================================================
 
 
 @pytest.mark.integration
 class TestListSessions:
-    def test_no_project_access_403(self, client, test_db, test_users, auth_headers, test_org):
-        """A private project the contributor cannot reach → 403."""
-        p, _ = _setup_project(
-            test_db, test_users[0], test_org, is_private=True, link_org=False,
-        )
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_no_project_access_403(self, async_test_client, async_test_db):
+        """A private project the requester cannot reach → 403."""
+        owner = await _make_user(async_test_db)
+        requester = await _make_user(async_test_db, is_superadmin=False)
+        p, _ = await _setup_project(async_test_db, owner, is_private=True)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{BASE}/human/sessions/{p.id}",
-            headers=_h(auth_headers, test_org, role="contributor"),
-        )
+        with _as_user(requester, is_superadmin=False):
+            resp = await async_test_client.get(f"{BASE}/human/sessions/{p.id}")
         assert resp.status_code == 403, resp.text
         assert "access" in resp.json()["detail"]
 
-    def test_lists_sessions_newest_first(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
+    @pytest.mark.asyncio
+    async def test_lists_sessions_newest_first(self, async_test_client, async_test_db):
         """All sessions for the project come back ordered created_at DESC."""
-        p, _ = _setup_project(test_db, test_users[0], test_org)
-        s_old = _make_session(test_db, p, test_users[0].id, session_type="likert")
+        owner = await _make_user(async_test_db)
+        p, _ = await _setup_project(async_test_db, owner)
+        s_old = await _make_session(async_test_db, p, owner.id, session_type="likert")
         s_old.created_at = datetime.now(timezone.utc).replace(microsecond=0)
         # Newer one by forcing a strictly larger created_at.
-        s_new = _make_session(test_db, p, test_users[0].id, session_type="preference")
-        from datetime import timedelta
+        s_new = await _make_session(async_test_db, p, owner.id, session_type="preference")
         s_new.created_at = datetime.now(timezone.utc) + timedelta(minutes=5)
-        test_db.commit()
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{BASE}/human/sessions/{p.id}",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(f"{BASE}/human/sessions/{p.id}")
         assert resp.status_code == 200, resp.text
         body = resp.json()
         ids = [row["id"] for row in body]
@@ -563,45 +666,47 @@ class TestListSessions:
 
 
 # ===========================================================================
-# GET /human/config/{project_id}
+# GET /human/config/{project_id}  (ASYNC)
 # ===========================================================================
 
 
 @pytest.mark.integration
 class TestHumanConfig:
-    def test_missing_project_404(self, client, test_db, test_users, auth_headers):
-        resp = client.get(
-            f"{BASE}/human/config/missing-{uuid.uuid4().hex}",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_missing_project_404(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user):
+            resp = await async_test_client.get(
+                f"{BASE}/human/config/missing-{uuid.uuid4().hex}"
+            )
         assert resp.status_code == 404, resp.text
         assert "not found" in resp.json()["detail"]
 
-    def test_access_denied_403(self, client, test_db, test_users, auth_headers, test_org):
-        p, _ = _setup_project(
-            test_db, test_users[0], test_org, is_private=True, link_org=False,
-        )
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_access_denied_403(self, async_test_client, async_test_db):
+        owner = await _make_user(async_test_db)
+        requester = await _make_user(async_test_db, is_superadmin=False)
+        p, _ = await _setup_project(async_test_db, owner, is_private=True)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{BASE}/human/config/{p.id}",
-            headers=_h(auth_headers, test_org, role="annotator"),
-        )
+        with _as_user(requester, is_superadmin=False):
+            resp = await async_test_client.get(f"{BASE}/human/config/{p.id}")
         assert resp.status_code == 403, resp.text
         assert "permission" in resp.json()["detail"]
 
-    def test_no_eval_config_returns_empty_shape(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_no_eval_config_returns_empty_shape(
+        self, async_test_client, async_test_db
     ):
         """A project with evaluation_config=None returns the empty-config
         envelope (no available_dimensions default kicks in here)."""
-        p, _ = _setup_project(test_db, test_users[0], test_org, evaluation_config=None)
-        test_db.commit()
+        owner = await _make_user(async_test_db)
+        p, _ = await _setup_project(async_test_db, owner, evaluation_config=None)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{BASE}/human/config/{p.id}",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(f"{BASE}/human/config/{p.id}")
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body == {
@@ -610,8 +715,9 @@ class TestHumanConfig:
             "available_dimensions": [],
         }
 
-    def test_extracts_human_methods_and_likert_dimensions(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_extracts_human_methods_and_likert_dimensions(
+        self, async_test_client, async_test_db
     ):
         """selected_methods with human entries surface in human_methods; a
         likert_scale method carrying parameters.dimensions lifts those into
@@ -631,13 +737,12 @@ class TestHumanConfig:
                 "summary": {"automated": ["rouge"]},
             }
         }
-        p, _ = _setup_project(test_db, test_users[0], test_org, evaluation_config=cfg)
-        test_db.commit()
+        owner = await _make_user(async_test_db)
+        p, _ = await _setup_project(async_test_db, owner, evaluation_config=cfg)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{BASE}/human/config/{p.id}",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(f"{BASE}/human/config/{p.id}")
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert "answer" in body["human_methods"]
@@ -645,8 +750,9 @@ class TestHumanConfig:
         assert set(body["available_dimensions"]) == {"correctness", "completeness"}
         assert body["evaluation_config"] == cfg
 
-    def test_default_dimensions_when_no_likert_params(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_default_dimensions_when_no_likert_params(
+        self, async_test_client, async_test_db
     ):
         """A human method without likert dimensions falls back to the four
         canonical defaults."""
@@ -655,13 +761,12 @@ class TestHumanConfig:
                 "answer": {"human": ["preference"]},
             }
         }
-        p, _ = _setup_project(test_db, test_users[0], test_org, evaluation_config=cfg)
-        test_db.commit()
+        owner = await _make_user(async_test_db)
+        p, _ = await _setup_project(async_test_db, owner, evaluation_config=cfg)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{BASE}/human/config/{p.id}",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(f"{BASE}/human/config/{p.id}")
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert "answer" in body["human_methods"]
@@ -671,83 +776,118 @@ class TestHumanConfig:
 
 
 # ===========================================================================
-# DELETE /human/session/{session_id}
+# DELETE /human/session/{session_id}  (ASYNC)
 # ===========================================================================
 
 
 @pytest.mark.integration
 class TestDeleteSession:
-    def test_missing_session_404(self, client, test_db, test_users, auth_headers):
-        resp = client.delete(
-            f"{BASE}/human/session/missing-{uuid.uuid4().hex}",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_missing_session_404(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(user):
+            resp = await async_test_client.delete(
+                f"{BASE}/human/session/missing-{uuid.uuid4().hex}"
+            )
         assert resp.status_code == 404, resp.text
         assert "not found" in resp.json()["detail"]
 
-    def test_non_owner_non_superadmin_403(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
-        p, _ = _setup_project(test_db, test_users[0], test_org)
-        s = _make_session(test_db, p, test_users[0].id)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_non_owner_non_superadmin_403(self, async_test_client, async_test_db):
+        owner = await _make_user(async_test_db)
+        requester = await _make_user(async_test_db, is_superadmin=False)
+        p, _ = await _setup_project(async_test_db, owner)
+        s = await _make_session(async_test_db, p, owner.id)
+        await async_test_db.commit()
 
-        resp = client.delete(
-            f"{BASE}/human/session/{s.id}",
-            headers=_h(auth_headers, test_org, role="contributor"),
-        )
+        with _as_user(requester, is_superadmin=False):
+            resp = await async_test_client.delete(f"{BASE}/human/session/{s.id}")
         assert resp.status_code == 403, resp.text
         assert "permission" in resp.json()["detail"]
 
-    def test_delete_cascades_likert_and_preference(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_delete_cascades_likert_and_preference(
+        self, async_test_client, async_test_db
     ):
         """Deleting a session also removes its child Likert + Preference rows,
         then the session itself."""
-        p, tasks = _setup_project(test_db, test_users[0], test_org, num_tasks=1)
-        s = _make_session(test_db, p, test_users[0].id)
+        owner = await _make_user(async_test_db)
+        p, tasks = await _setup_project(async_test_db, owner, num_tasks=1)
+        s = await _make_session(async_test_db, p, owner.id)
         # Seed one likert and one preference row under the session.
-        test_db.add(LikertScaleEvaluation(
+        async_test_db.add(LikertScaleEvaluation(
             id=_uid(), session_id=s.id, task_id=tasks[0].id,
             response_id="r1", dimension="correctness", rating=4,
         ))
-        test_db.add(PreferenceRanking(
+        async_test_db.add(PreferenceRanking(
             id=_uid(), session_id=s.id, task_id=tasks[0].id,
             response_a_id="a", response_b_id="b", winner="a",
         ))
-        test_db.commit()
+        await async_test_db.commit()
 
         # Sanity: children exist before delete.
-        assert test_db.query(LikertScaleEvaluation).filter_by(session_id=s.id).count() == 1
-        assert test_db.query(PreferenceRanking).filter_by(session_id=s.id).count() == 1
+        likert_before = (
+            await async_test_db.execute(
+                select(LikertScaleEvaluation).where(
+                    LikertScaleEvaluation.session_id == s.id
+                )
+            )
+        ).scalars().all()
+        pref_before = (
+            await async_test_db.execute(
+                select(PreferenceRanking).where(PreferenceRanking.session_id == s.id)
+            )
+        ).scalars().all()
+        assert len(likert_before) == 1
+        assert len(pref_before) == 1
 
-        resp = client.delete(
-            f"{BASE}/human/session/{s.id}",
-            headers=_h(auth_headers, test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.delete(f"{BASE}/human/session/{s.id}")
         assert resp.status_code == 200, resp.text
         assert resp.json()["session_id"] == s.id
 
         # DB state: everything gone.
-        test_db.expire_all()
-        assert test_db.query(HumanEvaluationSession).filter_by(id=s.id).first() is None
-        assert test_db.query(LikertScaleEvaluation).filter_by(session_id=s.id).count() == 0
-        assert test_db.query(PreferenceRanking).filter_by(session_id=s.id).count() == 0
+        async_test_db.expire_all()
+        sess_after = (
+            await async_test_db.execute(
+                select(HumanEvaluationSession).where(HumanEvaluationSession.id == s.id)
+            )
+        ).scalar_one_or_none()
+        likert_after = (
+            await async_test_db.execute(
+                select(LikertScaleEvaluation).where(
+                    LikertScaleEvaluation.session_id == s.id
+                )
+            )
+        ).scalars().all()
+        pref_after = (
+            await async_test_db.execute(
+                select(PreferenceRanking).where(PreferenceRanking.session_id == s.id)
+            )
+        ).scalars().all()
+        assert sess_after is None
+        assert likert_after == []
+        assert pref_after == []
 
-    def test_owner_can_delete_own_session(
-        self, client, test_db, test_users, auth_headers, test_org
-    ):
+    @pytest.mark.asyncio
+    async def test_owner_can_delete_own_session(self, async_test_client, async_test_db):
         """A non-superadmin session owner can delete their own session (the
         ``evaluator_id == current_user.id`` arm of the permission check)."""
-        p, _ = _setup_project(test_db, test_users[0], test_org)
-        # Session owned by the contributor; the contributor deletes it.
-        s = _make_session(test_db, p, test_users[1].id)
-        test_db.commit()
+        owner = await _make_user(async_test_db)
+        actor = await _make_user(async_test_db, is_superadmin=False)
+        p, _ = await _setup_project(async_test_db, owner)
+        # Session owned by the (non-superadmin) actor; the actor deletes it.
+        s = await _make_session(async_test_db, p, actor.id)
+        await async_test_db.commit()
 
-        resp = client.delete(
-            f"{BASE}/human/session/{s.id}",
-            headers=_h(auth_headers, test_org, role="contributor"),
-        )
+        with _as_user(actor, is_superadmin=False):
+            resp = await async_test_client.delete(f"{BASE}/human/session/{s.id}")
         assert resp.status_code == 200, resp.text
-        test_db.expire_all()
-        assert test_db.query(HumanEvaluationSession).filter_by(id=s.id).first() is None
+        async_test_db.expire_all()
+        sess_after = (
+            await async_test_db.execute(
+                select(HumanEvaluationSession).where(HumanEvaluationSession.id == s.id)
+            )
+        ).scalar_one_or_none()
+        assert sess_after is None

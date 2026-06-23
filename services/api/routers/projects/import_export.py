@@ -67,12 +67,14 @@ from fastapi.responses import (  # noqa: E402
     RedirectResponse,
     Response,
 )
+from sqlalchemy import select  # noqa: E402
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from auth_module import require_user  # noqa: E402
 from auth_module.models import User as AuthUser  # noqa: E402
 from celery_client import send_task_safe  # noqa: E402
-from database import get_db  # noqa: E402
+from database import get_async_db, get_db  # noqa: E402
 from object_storage import object_storage  # noqa: E402
 from routers.projects._export_stream import (  # noqa: E402
     EXPORT_FORMAT_MEDIA_TYPES,
@@ -96,7 +98,8 @@ from project_models import (  # noqa: E402
 )
 from routers.projects.helpers import (  # noqa: E402
     check_project_accessible,
-    check_project_write_access,
+    check_project_accessible_async,
+    check_project_write_access_async,
     get_org_context_from_request,
 )
 
@@ -130,8 +133,8 @@ def _serialize_export_job(job: ExportJob) -> dict:
     }
 
 
-def _load_export_job_for_read(
-    db: Session, request: Request, current_user: AuthUser, project_id: str, job_id: str
+async def _load_export_job_for_read(
+    db: AsyncSession, request: Request, current_user: AuthUser, project_id: str, job_id: str
 ) -> ExportJob:
     """Fetch an ExportJob enforcing scope + authz, or raise the right HTTP error.
 
@@ -140,10 +143,12 @@ def _load_export_job_for_read(
     job belongs to a different project so we don't leak job-id existence across
     projects.
     """
-    job = db.query(ExportJob).filter(ExportJob.id == job_id).first()
+    job = (
+        await db.execute(select(ExportJob).where(ExportJob.id == job_id))
+    ).scalar_one_or_none()
     if job is None or job.project_id != project_id:
         raise HTTPException(status_code=404, detail="Export job not found")
-    if str(job.requested_by) != str(current_user.id) and not check_project_write_access(
+    if str(job.requested_by) != str(current_user.id) and not await check_project_write_access_async(
         db, current_user, project_id
     ):
         raise HTTPException(status_code=403, detail="Access denied")
@@ -160,7 +165,7 @@ async def create_export_job(
     ),
     data: Optional[dict] = Body(default=None),
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Create an async export job and enqueue the worker that streams it.
 
@@ -171,12 +176,16 @@ async def create_export_job(
     (selected/filtered export). Subset export is json-only — a non-empty
     ``task_ids`` with any other format is rejected (422).
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = (
+        await db.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, project_id, org_context):
+    if not await check_project_accessible_async(
+        db, current_user, project_id, org_context, project=project
+    ):
         raise HTTPException(status_code=403, detail="Access denied")
 
     task_ids = (data or {}).get("task_ids")
@@ -205,22 +214,22 @@ async def create_export_job(
         progress=0,
     )
     db.add(job)
-    db.commit()
-    db.refresh(job)
+    await db.commit()
+    await db.refresh(job)
 
     try:
         result = send_task_safe(
             "tasks.export_project", args=[job.id], queue="default"
         )
         job.celery_task_id = getattr(result, "id", None)
-        db.commit()
+        await db.commit()
     except Exception as exc:
         # Enqueue failed even after the client's reconnect retry — mark the job
         # failed so it isn't left pending forever, and surface 503.
         logger.error("Failed to enqueue export job %s: %s", job.id, exc)
         job.status = JobStatus.FAILED.value
         job.error_message = f"Failed to enqueue export: {exc}"
-        db.commit()
+        await db.commit()
         raise HTTPException(
             status_code=503, detail="Export queue unavailable, please retry"
         )
@@ -237,10 +246,10 @@ async def get_export_job(
     job_id: str,
     request: Request,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Return the status of an export job (poll target for the client)."""
-    job = _load_export_job_for_read(db, request, current_user, project_id, job_id)
+    job = await _load_export_job_for_read(db, request, current_user, project_id, job_id)
     return _serialize_export_job(job)
 
 
@@ -251,7 +260,7 @@ async def download_export_job(
     request: Request,
     json: bool = Query(False),
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Redirect to a short-lived presigned download URL for a finished export.
 
@@ -260,7 +269,7 @@ async def download_export_job(
     ``?json=1`` the presigned URL is returned in the body instead of a 302 (lets
     the frontend trigger an anchor download without following the redirect).
     """
-    job = _load_export_job_for_read(db, request, current_user, project_id, job_id)
+    job = await _load_export_job_for_read(db, request, current_user, project_id, job_id)
 
     if job.status != JobStatus.COMPLETED.value or not job.object_key:
         raise HTTPException(status_code=404, detail="Export not ready")
@@ -270,7 +279,9 @@ async def download_export_job(
     _media_type, ext = EXPORT_FORMAT_MEDIA_TYPES.get(
         job.format or "json", ("application/octet-stream", "dat")
     )
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = (
+        await db.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
     safe_title = ((project.title if project else None) or "project").replace(" ", "_")
     filename = f"{safe_title}_export.{ext}"
 
@@ -323,8 +334,8 @@ def _serialize_import_job(job: ImportJob) -> dict:
     }
 
 
-def _load_import_job_for_read(
-    db: Session, current_user: AuthUser, project_id: str, job_id: str
+async def _load_import_job_for_read(
+    db: AsyncSession, current_user: AuthUser, project_id: str, job_id: str
 ) -> ImportJob:
     """Fetch an ImportJob enforcing scope + authz, or raise the right HTTP error.
 
@@ -332,10 +343,12 @@ def _load_import_job_for_read(
     with write access to the project. 404 (not 403) when the job belongs to a
     different project so job-id existence doesn't leak across projects.
     """
-    job = db.query(ImportJob).filter(ImportJob.id == job_id).first()
+    job = (
+        await db.execute(select(ImportJob).where(ImportJob.id == job_id))
+    ).scalar_one_or_none()
     if job is None or job.project_id != project_id:
         raise HTTPException(status_code=404, detail="Import job not found")
-    if str(job.requested_by) != str(current_user.id) and not check_project_write_access(
+    if str(job.requested_by) != str(current_user.id) and not await check_project_write_access_async(
         db, current_user, project_id
     ):
         raise HTTPException(status_code=403, detail="Access denied")
@@ -348,7 +361,7 @@ async def create_import_upload_url(
     request: Request,
     filename: str = Query("import.json"),
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Hand the client a presigned URL to upload a nested-import artifact.
 
@@ -356,11 +369,13 @@ async def create_import_upload_url(
     ``imports/.../{project_id}/`` so the later POST .../imports can verify the
     uploaded object belongs to this project.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = (
+        await db.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    if not check_project_write_access(db, current_user, project_id):
+    if not await check_project_write_access_async(db, current_user, project_id):
         raise HTTPException(
             status_code=403,
             detail="Only contributors or admins can import tasks into this project",
@@ -382,7 +397,7 @@ async def create_import_job(
     data: dict,
     request: Request,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Create an async import job for an already-uploaded artifact and enqueue it.
 
@@ -391,11 +406,13 @@ async def create_import_job(
     here so a client can't point the worker at an arbitrary object. Returns 202
     with the job id.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = (
+        await db.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    if not check_project_write_access(db, current_user, project_id):
+    if not await check_project_write_access_async(db, current_user, project_id):
         raise HTTPException(
             status_code=403,
             detail="Only contributors or admins can import tasks into this project",
@@ -419,20 +436,20 @@ async def create_import_job(
         progress=0,
     )
     db.add(job)
-    db.commit()
-    db.refresh(job)
+    await db.commit()
+    await db.refresh(job)
 
     try:
         result = send_task_safe(
             "tasks.import_project", args=[job.id], queue="default"
         )
         job.celery_task_id = getattr(result, "id", None)
-        db.commit()
+        await db.commit()
     except Exception as exc:
         logger.error("Failed to enqueue import job %s: %s", job.id, exc)
         job.status = JobStatus.FAILED.value
         job.error_message = f"Failed to enqueue import: {exc}"
-        db.commit()
+        await db.commit()
         raise HTTPException(
             status_code=503, detail="Import queue unavailable, please retry"
         )
@@ -449,10 +466,10 @@ async def get_import_job(
     job_id: str,
     request: Request,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Return the status of an import job (poll target for the client)."""
-    job = _load_import_job_for_read(db, current_user, project_id, job_id)
+    job = await _load_import_job_for_read(db, current_user, project_id, job_id)
     return _serialize_import_job(job)
 
 
@@ -466,15 +483,17 @@ async def get_import_job(
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _load_full_import_job_for_read(
-    db: Session, current_user: AuthUser, job_id: str
+async def _load_full_import_job_for_read(
+    db: AsyncSession, current_user: AuthUser, job_id: str
 ) -> ImportJob:
     """Fetch a full-project ImportJob (project-creating) enforcing requester authz.
 
     Until the worker creates the project there's no project to scope access to,
     so a full-project import job is readable only by the user who requested it.
     """
-    job = db.query(ImportJob).filter(ImportJob.id == job_id).first()
+    job = (
+        await db.execute(select(ImportJob).where(ImportJob.id == job_id))
+    ).scalar_one_or_none()
     if job is None:
         raise HTTPException(status_code=404, detail="Import job not found")
     if str(job.requested_by) != str(current_user.id):
@@ -487,7 +506,7 @@ async def create_full_import_upload_url(
     request: Request,
     filename: str = Query("import.json"),
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Hand the client a presigned URL to upload a full-project import artifact.
 
@@ -510,7 +529,7 @@ async def create_full_import_job(
     data: dict,
     request: Request,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Create a full-project (create-new) import job and enqueue it.
 
@@ -534,20 +553,20 @@ async def create_full_import_job(
         progress=0,
     )
     db.add(job)
-    db.commit()
-    db.refresh(job)
+    await db.commit()
+    await db.refresh(job)
 
     try:
         result = send_task_safe(
             "tasks.import_project", args=[job.id], queue="default"
         )
         job.celery_task_id = getattr(result, "id", None)
-        db.commit()
+        await db.commit()
     except Exception as exc:
         logger.error("Failed to enqueue full-project import job %s: %s", job.id, exc)
         job.status = JobStatus.FAILED.value
         job.error_message = f"Failed to enqueue import: {exc}"
-        db.commit()
+        await db.commit()
         raise HTTPException(
             status_code=503, detail="Import queue unavailable, please retry"
         )
@@ -563,10 +582,10 @@ async def get_full_import_job(
     job_id: str,
     request: Request,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Return the status of a full-project import job (poll target)."""
-    job = _load_full_import_job_for_read(db, current_user, job_id)
+    job = await _load_full_import_job_for_read(db, current_user, job_id)
     return _serialize_import_job(job)
 
 
@@ -584,6 +603,13 @@ async def bulk_export_projects(
     db: Session = Depends(get_db),
 ):
     """Bulk export multiple projects (multi-project admin export).
+
+    NOTE (async migration): this handler stays on the SYNC DB lane
+    (``Depends(get_db)`` + sync ``check_project_accessible``). Its memory-bound
+    design streams tasks with ``db.query(...).yield_per(...)`` + ``db.expunge``,
+    a server-side-cursor pattern that the asyncpg ``AsyncSession`` does not
+    support cleanly. Per the migration playbook (rule 5) it is left fully sync
+    rather than half-migrated.
 
     Stays synchronous by design (see CLAUDE.md "Object storage"), but must not
     hold the selection in RAM: the JSON body is spooled to a tempfile with each
@@ -753,6 +779,12 @@ async def bulk_export_full_projects(
 ):
     """
     Export complete projects as individual JSON files in a ZIP archive.
+
+    NOTE (async migration): stays on the SYNC DB lane (``Depends(get_db)``). It
+    calls ``stream_comprehensive_project_data_json``, a sync-only ``yield_per``
+    streaming generator in /shared with no async twin (and which I may not
+    modify). Per the migration playbook (rule 5) it is left fully sync rather
+    than half-migrated.
 
     This endpoint provides full project migration capabilities by exporting
     all project data including tasks, annotations, generations, evaluations,
