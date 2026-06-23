@@ -3,14 +3,19 @@ Unit tests for routers/auth.py to increase branch coverage.
 Focuses on pure function tests and simple endpoint error paths.
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from main import app
+from auth_module.dependencies import require_user
 from auth_module.models import User
+from models import User as DBUser
 
 
 def _make_user(is_superadmin=False, user_id="user-123"):
@@ -27,6 +32,49 @@ def _make_user(is_superadmin=False, user_id="user-123"):
     )
 
 
+def _uid():
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user):
+    """Override require_user with an AuthUser mirroring a seeded DB row."""
+    au = User(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _seed_user(db, **over):
+    fields = dict(
+        id=_uid(),
+        username=f"u-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@e.com",
+        name="U",
+        hashed_password="x",
+        is_superadmin=False,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    fields.update(over)
+    u = DBUser(**fields)
+    db.add(u)
+    await db.flush()
+    return u
+
+
 class TestLoginEndpoint:
     def test_invalid_credentials(self):
         client = TestClient(app)
@@ -37,7 +85,7 @@ class TestLoginEndpoint:
         app.dependency_overrides[get_db] = lambda: mock_db
 
         try:
-            with patch("routers.auth.authenticate_user") as mock_auth:
+            with patch("routers.auth.session.authenticate_user") as mock_auth:
                 mock_auth.return_value = None
                 resp = client.post(
                     "/api/auth/login",
@@ -49,50 +97,34 @@ class TestLoginEndpoint:
 
 
 class TestLogoutEndpoint:
-    def test_logout(self):
-        client = TestClient(app)
-        user = _make_user()
+    @pytest.mark.asyncio
+    async def test_logout(self, async_test_client, async_test_db):
+        # Logout migrated to the async DB lane; revoke twin lives in
+        # services.refresh_token_service. With no refresh cookie the handler
+        # just clears cookies and returns 200.
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        from database import get_db
-        from auth_module.dependencies import require_user
-
-        mock_db = Mock(spec=Session)
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-
-        try:
-            with patch("routers.auth.logout_user") as mock_logout:
-                mock_logout.return_value = True
-                resp = client.post("/api/auth/logout")
-                assert resp.status_code == 200
-        finally:
-            app.dependency_overrides.clear()
+        with _as_user(user):
+            with patch(
+                "services.refresh_token_service.revoke_refresh_token_async",
+                new=AsyncMock(return_value=True),
+            ):
+                resp = await async_test_client.post("/api/auth/logout")
+        assert resp.status_code == 200
 
 
 class TestMeEndpoint:
-    def test_get_me(self):
-        client = TestClient(app)
-        user = _make_user()
+    @pytest.mark.asyncio
+    async def test_get_me(self, async_test_client, async_test_db):
+        # /me migrated to the async DB lane; query a real seeded user.
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        from database import get_db
-        from auth_module.dependencies import require_user
-
-        mock_db = Mock(spec=Session)
-        mock_q = Mock()
-        mock_q.filter.return_value = mock_q
-        mock_q.options.return_value = mock_q
-        mock_q.first.return_value = user
-        mock_q.all.return_value = []
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-
-        try:
-            resp = client.get("/api/auth/me")
-            assert resp.status_code == 200
-        finally:
-            app.dependency_overrides.clear()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/me")
+        assert resp.status_code == 200
+        assert resp.json()["id"] == user.id
 
 
 class TestUnauthenticatedEndpoints:

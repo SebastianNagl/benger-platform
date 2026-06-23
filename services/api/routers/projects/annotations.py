@@ -4,12 +4,13 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import String, cast
+from sqlalchemy import String, cast, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from auth_module import require_user
 from auth_module.models import User as AuthUser
-from database import get_db
+from database import get_async_db, get_db
 from project_models import Annotation, Project, Task
 from project_schemas import AnnotationCreate, AnnotationResponse
 from utils.assignment_helpers import (
@@ -17,7 +18,9 @@ from utils.assignment_helpers import (
 )
 from routers.projects.helpers import (
     check_project_accessible,
+    check_project_accessible_async,
     check_task_assigned_to_user,
+    check_task_assigned_to_user_async,
     get_org_context_from_request,
 )
 
@@ -196,7 +199,7 @@ async def list_task_annotations(
     completed_by_username: Optional[str] = Query(None, description="Filter by annotator username"),
     latest_only: bool = Query(False, description="Return only the latest annotation per annotator"),
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """List annotations for a task.
 
@@ -209,21 +212,25 @@ async def list_task_annotations(
     Drafts are local-only (stored in browser localStorage), not on server.
     """
 
-    task = db.query(Task).filter(Task.id == task_id).first()
+    task = (
+        await db.execute(select(Task).where(Task.id == task_id))
+    ).scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, task.project_id, org_context):
+    if not await check_project_accessible_async(db, current_user, task.project_id, org_context):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Enforce task assignment in manual/auto mode (Label Studio aligned: task is invisible)
-    project = db.query(Project).filter(Project.id == task.project_id).first()
-    if project and not check_task_assigned_to_user(db, current_user, task_id, project):
+    project = (
+        await db.execute(select(Project).where(Project.id == task.project_id))
+    ).scalar_one_or_none()
+    if project and not await check_task_assigned_to_user_async(db, current_user, task_id, project):
         raise HTTPException(status_code=404, detail="Task not found")
 
-    query = (
-        db.query(Annotation)
-        .filter(
+    stmt = (
+        select(Annotation)
+        .where(
             Annotation.task_id == task_id,
             Annotation.result != None,  # noqa: E711
             cast(Annotation.result, String) != "[]",
@@ -241,27 +248,29 @@ async def list_task_annotations(
         from sqlalchemy import or_, and_
         from models import User as DBUser
         target_user = (
-            db.query(DBUser)
-            .filter(
-                or_(
-                    and_(
-                        DBUser.use_pseudonym == True,  # noqa: E712
-                        DBUser.pseudonym == completed_by_username,
-                    ),
-                    DBUser.name == completed_by_username,
-                    DBUser.username == completed_by_username,
+            await db.execute(
+                select(DBUser).where(
+                    or_(
+                        and_(
+                            DBUser.use_pseudonym == True,  # noqa: E712
+                            DBUser.pseudonym == completed_by_username,
+                        ),
+                        DBUser.name == completed_by_username,
+                        DBUser.username == completed_by_username,
+                    )
                 )
             )
-            .first()
-        )
+            # .first(): DBUser.name is non-unique, so a display-name collision
+            # would make scalar_one_or_none raise MultipleResultsFound (500).
+        ).scalars().first()
         if not target_user:
             return []
-        query = query.filter(Annotation.completed_by == target_user.id)
+        stmt = stmt.where(Annotation.completed_by == target_user.id)
     elif not all_users:
-        query = query.filter(Annotation.completed_by == current_user.id)
+        stmt = stmt.where(Annotation.completed_by == current_user.id)
 
-    query = query.order_by(Annotation.created_at.desc())
-    annotations = query.all()
+    stmt = stmt.order_by(Annotation.created_at.desc())
+    annotations = (await db.execute(stmt)).scalars().all()
 
     if latest_only:
         seen = set()
@@ -281,22 +290,30 @@ async def update_annotation(
     annotation_update: AnnotationCreate,
     request: Request,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Update an existing annotation"""
 
     # Find the annotation
-    db_annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
+    db_annotation = (
+        await db.execute(select(Annotation).where(Annotation.id == annotation_id))
+    ).scalar_one_or_none()
     if not db_annotation:
         raise HTTPException(status_code=404, detail="Annotation not found")
 
     org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, db_annotation.project_id, org_context):
+    if not await check_project_accessible_async(
+        db, current_user, db_annotation.project_id, org_context
+    ):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Enforce task assignment in manual/auto mode
-    project = db.query(Project).filter(Project.id == db_annotation.project_id).first()
-    if project and not check_task_assigned_to_user(db, current_user, db_annotation.task_id, project):
+    project = (
+        await db.execute(select(Project).where(Project.id == db_annotation.project_id))
+    ).scalar_one_or_none()
+    if project and not await check_task_assigned_to_user_async(
+        db, current_user, db_annotation.task_id, project
+    ):
         raise HTTPException(status_code=404, detail="Annotation not found")
 
     # Check if user owns this annotation or has admin rights
@@ -319,7 +336,9 @@ async def update_annotation(
 
     # Update task counters if cancelled status changed
     if was_cancelled_changed:
-        task = db.query(Task).filter(Task.id == db_annotation.task_id).first()
+        task = (
+            await db.execute(select(Task).where(Task.id == db_annotation.task_id))
+        ).scalar_one_or_none()
         if task:
             if annotation_update.was_cancelled and not old_was_cancelled:
                 # Changed from not cancelled to cancelled
@@ -331,8 +350,8 @@ async def update_annotation(
     # Update timestamp
     db_annotation.updated_at = datetime.now(timezone.utc)
 
-    db.commit()
-    db.refresh(db_annotation)
+    await db.commit()
+    await db.refresh(db_annotation)
 
     # Report annotation section refresh — same Celery dispatch as the create
     # path. Update routes through the same hot edit loop, so we keep the

@@ -479,6 +479,12 @@ services:
     volumes:
       - ../services/workers:/app
       - ../services/shared:/shared:ro
+      # Persist ML model downloads (HF/torch cache under /root/.cache) across
+      # `make test-workers` runs — same volume the long-running `test-worker`
+      # service uses. Without it every `--rm` runner re-downloads multilingual
+      # BERT etc., and the German BERTScore test blows its 180s timeout on a cold
+      # cache. First run warms it; subsequent runs load from cache.
+      - test-model-cache:/root/.cache
     environment:
       DATABASE_URI: postgresql://postgres:postgres_test@test-db:5432/test_benger
       REDIS_URL: redis://test-redis:6379

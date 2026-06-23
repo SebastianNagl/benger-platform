@@ -6,14 +6,11 @@ These functions provide common operations used across multiple project endpoints
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import Depends, HTTPException, Request
-from sqlalchemy import case, cast, func, or_
+from fastapi import HTTPException, Request
+from sqlalchemy import case, cast, func, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, joinedload
-
-from auth_module import require_user
-from auth_module.models import User as AuthUser
-from database import get_db
 
 from models import (
     EvaluationRun,
@@ -63,6 +60,34 @@ def _scored_pairs_query(db: Session):
         .select_from(TaskEvaluation)
         .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
         .filter(
+            EvaluationRun.status == "completed",
+            subject_expr.isnot(None),
+            TaskEvaluation.metrics.isnot(None),
+            func.jsonb_typeof(metrics_jsonb) == "object",
+        )
+    )
+
+
+def _async_scored_pairs_select():
+    """select()-based twin of :func:`_scored_pairs_query` for the async lane.
+
+    Yields (project_id, subject_id, metric_key) for every (subject, metric)
+    pair with a scored row in a completed run. Caller adds project filters +
+    ``.distinct()`` exactly like the sync builder.
+    """
+    subject_expr = func.coalesce(
+        TaskEvaluation.annotation_id, TaskEvaluation.generation_id
+    )
+    metrics_jsonb = cast(TaskEvaluation.metrics, JSONB)
+    return (
+        select(
+            EvaluationRun.project_id,
+            subject_expr.label("subject_id"),
+            func.jsonb_object_keys(metrics_jsonb).label("metric_key"),
+        )
+        .select_from(TaskEvaluation)
+        .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
+        .where(
             EvaluationRun.status == "completed",
             subject_expr.isnot(None),
             TaskEvaluation.metrics.isnot(None),
@@ -242,6 +267,106 @@ def calculate_project_stats(
     apply_mixed_progress(project, response, completed_generations)
 
 
+def _build_select_task_count(project_id: str):
+    return select(func.count()).select_from(Task).where(Task.project_id == project_id)
+
+
+def _build_select_annotation_count(project_id: str):
+    return (
+        select(func.count())
+        .select_from(Annotation)
+        .where(
+            Annotation.project_id == project_id,
+            Annotation.was_cancelled == False,  # noqa: E712
+        )
+    )
+
+
+def _build_select_completed_task_count(project_id: str):
+    return (
+        select(func.count())
+        .select_from(Task)
+        .where(Task.project_id == project_id, Task.is_labeled == True)  # noqa: E712
+    )
+
+
+def _build_select_completed_generations(project_id: str):
+    return (
+        select(func.count())
+        .select_from(ResponseGeneration)
+        .join(Task, ResponseGeneration.task_id == Task.id)
+        .where(
+            Task.project_id == project_id,
+            ResponseGeneration.status == "completed",
+        )
+    )
+
+
+def _build_select_project_summary(project_id: str, period: str = "overall"):
+    from models import ProjectSummary
+
+    return select(ProjectSummary).where(
+        ProjectSummary.project_id == project_id,
+        ProjectSummary.period == period,
+    )
+
+
+async def calculate_project_stats_async(
+    db: AsyncSession,
+    project_id: str,
+    response: ProjectResponse,
+    project: Optional[Project] = None,
+) -> None:
+    """Async equivalent of :func:`calculate_project_stats`.
+
+    Mirrors the sync logic exactly: per-stage counts + precomputed-summary
+    read with a live fallback for brand-new projects. The summary read is
+    inlined (rather than calling ``read_project_summary``) because that
+    helper lives in /shared on the sync API.
+    """
+    if project is None:
+        result = await db.execute(select(Project).where(Project.id == project_id))
+        project = result.scalar_one_or_none()
+
+    response.task_count = (
+        await db.execute(_build_select_task_count(project_id))
+    ).scalar() or 0
+    response.annotation_count = (
+        await db.execute(_build_select_annotation_count(project_id))
+    ).scalar() or 0
+    response.completed_tasks_count = (
+        await db.execute(_build_select_completed_task_count(project_id))
+    ).scalar() or 0
+
+    completed_generations = 0
+    gen_models = _generation_models_count(project) if project is not None else 0
+    if response.task_count > 0 and gen_models > 0:
+        completed_generations = (
+            await db.execute(_build_select_completed_generations(project_id))
+        ).scalar() or 0
+
+    summary = (
+        await db.execute(_build_select_project_summary(project_id))
+    ).scalar_one_or_none()
+    if summary is not None:
+        response.evaluation_count = int(summary.evaluation_pairs_count or 0)
+    else:
+        pairs_result = await db.execute(
+            _async_scored_pairs_select()
+            .where(EvaluationRun.project_id == project_id)
+            .distinct()
+        )
+        response.evaluation_count = sum(
+            1 for _pid, sub_id, mk in pairs_result.all() if _metric_key_is_real(mk)
+        )
+    response.evaluations_completed_count = response.evaluation_count
+
+    response.num_tasks = response.task_count
+    response.num_annotations = response.annotation_count
+
+    apply_mixed_progress(project, response, completed_generations)
+
+
 def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[str, Dict[str, int]]:
     """Calculate project statistics for multiple projects.
 
@@ -404,6 +529,56 @@ def calculate_generation_stats(db: Session, project: Project, response: ProjectR
             response.generation_completed = completed_generations >= expected_generations
 
 
+async def calculate_generation_stats_async(
+    db: AsyncSession, project: Project, response: ProjectResponse
+) -> None:
+    """Async equivalent of :func:`calculate_generation_stats`."""
+    generation_config = project.generation_config or {}
+    prompt_structures = generation_config.get("prompt_structures", {})
+    response.generation_config_ready = bool(prompt_structures)
+    response.generation_prompts_ready = bool(prompt_structures)
+
+    response.generation_count = (
+        await db.execute(
+            select(func.count(Generation.id))
+            .join(Task, Generation.task_id == Task.id)
+            .where(Task.project_id == project.id)
+        )
+    ).scalar() or 0
+
+    response.generation_models_count = 0
+    if (
+        project.generation_config
+        and project.generation_config.get('selected_configuration')
+        and project.generation_config['selected_configuration'].get('models')
+    ):
+        response.generation_models_count = len(
+            project.generation_config['selected_configuration']['models']
+        )
+
+    response.generation_completed = False
+    if response.task_count > 0 and response.generation_models_count > 0:
+        task_id_result = await db.execute(
+            select(Task.id).where(Task.project_id == project.id)
+        )
+        project_task_ids = [row[0] for row in task_id_result.all()]
+
+        if project_task_ids:
+            completed_generations = (
+                await db.execute(
+                    select(func.count())
+                    .select_from(ResponseGeneration)
+                    .where(
+                        ResponseGeneration.task_id.in_(project_task_ids),
+                        ResponseGeneration.status == 'completed',
+                    )
+                )
+            ).scalar() or 0
+
+            expected_generations = response.task_count * response.generation_models_count
+            response.generation_completed = completed_generations >= expected_generations
+
+
 def calculate_generation_stats_batch(
     db: Session, projects: List[Project]
 ) -> Dict[str, Dict[str, int]]:
@@ -507,13 +682,59 @@ def apply_generation_stats(
 
 
 def get_user_with_memberships(db: Session, user_id: str) -> User:
-    """Get user with organization memberships loaded"""
+    """Get user with organization memberships loaded (sync).
+
+    Sync body intentionally kept on the legacy ``db.query`` API so the
+    extensive ``db.query``-mocking unit tests keep passing; the async lane
+    has its own ``select``-based twin below.
+    """
     return (
         db.query(User)
         .options(joinedload(User.organization_memberships))
         .filter(User.id == user_id)
         .first()
     )
+
+
+def _build_select_user_with_memberships(user_id: str):
+    """Shared SQL builder for the async user + memberships eager load.
+
+    joinedload keeps the memberships eagerly populated so callers can read
+    ``user.organization_memberships`` in the async lane without a lazy load
+    (which would raise MissingGreenlet under the async engine).
+    """
+    return (
+        select(User)
+        .options(joinedload(User.organization_memberships))
+        .where(User.id == user_id)
+    )
+
+
+async def get_user_with_memberships_async(db: AsyncSession, user_id: str) -> User:
+    """Async equivalent of :func:`get_user_with_memberships`."""
+    result = await db.execute(_build_select_user_with_memberships(user_id))
+    return result.unique().scalar_one_or_none()
+
+
+async def get_org_membership_role_async(
+    db: AsyncSession, user, org_context: Optional[str]
+) -> Optional[str]:
+    """Resolve the user's active role within ``org_context`` (async).
+
+    Returns the ``OrganizationRole`` value (e.g. ``"ANNOTATOR"``) for the user's
+    active membership in that org, or ``None`` when there is no org context
+    (private/legacy) or no active membership. Superadmin is not special-cased
+    here — callers needing the bypass should check ``user.is_superadmin`` first.
+    """
+    if not org_context or org_context == "private":
+        return None
+    user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
+    if not user_with_memberships or not user_with_memberships.organization_memberships:
+        return None
+    for membership in user_with_memberships.organization_memberships:
+        if membership.organization_id == org_context and membership.is_active:
+            return membership.role
+    return None
 
 
 def get_accessible_project_ids(
@@ -626,6 +847,88 @@ def get_accessible_project_ids(
     return result
 
 
+def _dedup_preserve_order(ids, extra=()):
+    """Dedup an id list preserving first-seen order, then append `extra` ids
+    that weren't already present (also order-preserving). Shared by the
+    sync/async accessible-project-id helpers."""
+    seen = set()
+    result = []
+    for i in ids:
+        if i not in seen:
+            seen.add(i)
+            result.append(i)
+    for i in extra:
+        if i not in seen:
+            seen.add(i)
+            result.append(i)
+    return result
+
+
+async def get_accessible_project_ids_async(
+    db: AsyncSession,
+    user,
+    org_context: Optional[str] = None,
+    include_all_private: bool = False,
+) -> Optional[List[str]]:
+    """Async equivalent of :func:`get_accessible_project_ids`."""
+    if user.is_superadmin:
+        if include_all_private:
+            return None
+        rows = (
+            await db.execute(
+                select(Project.id).where(
+                    or_(
+                        Project.is_private == False,  # noqa: E712
+                        Project.created_by == str(user.id),
+                    )
+                )
+            )
+        ).all()
+        return _dedup_preserve_order([r.id for r in rows])
+
+    public_rows = (
+        await db.execute(
+            select(Project.id).where(Project.is_public == True)  # noqa: E712
+        )
+    ).all()
+    public_ids = [r.id for r in public_rows]
+
+    if not org_context or org_context == "private":
+        rows = (
+            await db.execute(
+                select(Project.id).where(
+                    Project.is_private == True,  # noqa: E712
+                    Project.created_by == str(user.id),
+                )
+            )
+        ).all()
+        return _dedup_preserve_order([r.id for r in rows], public_ids)
+
+    user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
+    user_org_ids = []
+    if user_with_memberships and user_with_memberships.organization_memberships:
+        user_org_ids = [
+            m.organization_id
+            for m in user_with_memberships.organization_memberships
+            if m.is_active
+        ]
+
+    if org_context not in user_org_ids:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not a member of this organization",
+        )
+
+    rows = (
+        await db.execute(
+            select(ProjectOrganization.project_id).where(
+                ProjectOrganization.organization_id == org_context
+            )
+        )
+    ).all()
+    return _dedup_preserve_order([r.project_id for r in rows], public_ids)
+
+
 def get_org_context_from_request(request: Request) -> Optional[str]:
     """Extract organization context from request.
 
@@ -637,6 +940,47 @@ def get_org_context_from_request(request: Request) -> Optional[str]:
     return request.headers.get("X-Organization-Context")
 
 
+def _decide_project_accessible_context_mode(
+    user, project, org_context, project_org_ids, user_with_memberships
+) -> bool:
+    """Org-context-mode decision (pure; no DB). Mirrors the inline logic."""
+    if getattr(project, "is_private", False):
+        return str(user.id) == str(project.created_by)
+
+    if org_context == "private":
+        return False
+
+    if org_context not in project_org_ids:
+        return False
+
+    if not user_with_memberships or not user_with_memberships.organization_memberships:
+        return False
+
+    return any(
+        m.organization_id == org_context and m.is_active
+        for m in user_with_memberships.organization_memberships
+    )
+
+
+def _decide_project_accessible_legacy_mode(
+    user, project, project_org_ids, user_with_memberships
+) -> bool:
+    """Legacy-mode (org_context=None) decision (pure; no DB)."""
+    if getattr(project, "is_private", False):
+        return str(user.id) == str(project.created_by)
+
+    if not project_org_ids:
+        return str(user.id) == str(project.created_by)
+
+    if not user_with_memberships or not user_with_memberships.organization_memberships:
+        return False
+
+    user_org_ids = {
+        m.organization_id for m in user_with_memberships.organization_memberships if m.is_active
+    }
+    return bool(user_org_ids & set(project_org_ids))
+
+
 def check_project_accessible(
     db: Session,
     user,
@@ -644,7 +988,7 @@ def check_project_accessible(
     org_context: Optional[str] = None,
     project: Optional[Project] = None,
 ) -> bool:
-    """Check if a user can access a specific project.
+    """Check if a user can access a specific project (sync).
 
     Args:
         db: Database session
@@ -734,6 +1078,56 @@ def check_project_accessible(
     return bool(user_org_ids & set(project_org_ids))
 
 
+async def check_project_accessible_async(
+    db: AsyncSession,
+    user,
+    project_id: str,
+    org_context: Optional[str] = None,
+    project: Optional[Project] = None,
+) -> bool:
+    """Async equivalent of :func:`check_project_accessible`."""
+    if user.is_superadmin:
+        return True
+
+    if project is None:
+        result = await db.execute(select(Project).where(Project.id == project_id))
+        project = result.scalar_one_or_none()
+    if not project:
+        return False
+
+    if getattr(project, "is_archived", False):
+        if await get_effective_project_role_async(db, user, project) == "ANNOTATOR":
+            return False
+
+    if getattr(project, "is_public", False) is True:
+        return True
+
+    org_result = await db.execute(_build_select_project_org_ids(project_id))
+    project_org_ids = list(org_result.scalars().all())
+    user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
+
+    if org_context is not None:
+        return _decide_project_accessible_context_mode(
+            user, project, org_context, project_org_ids, user_with_memberships
+        )
+    return _decide_project_accessible_legacy_mode(
+        user, project, project_org_ids, user_with_memberships
+    )
+
+
+def _build_select_org_admin_membership(user_id, project_org_ids):
+    """Shared SQL builder: is `user` an active ORG_ADMIN of any of these orgs?"""
+    return (
+        select(OrganizationMembership.id)
+        .where(
+            OrganizationMembership.user_id == user_id,
+            OrganizationMembership.organization_id.in_(project_org_ids),
+            OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
+            OrganizationMembership.is_active == True,  # noqa: E712
+        )
+    )
+
+
 def check_user_can_edit_task_data(db: Session, user, project: Project) -> bool:
     """Whether a user may edit the `data` of a task within the given project.
 
@@ -767,6 +1161,24 @@ def check_user_can_edit_task_data(db: Session, user, project: Project) -> bool:
         .first()
     )
     return admin_membership is not None
+
+
+async def check_user_can_edit_task_data_async(db: AsyncSession, user, project: Project) -> bool:
+    """Async equivalent of :func:`check_user_can_edit_task_data`."""
+    if user.is_superadmin:
+        return True
+    if str(user.id) == str(project.created_by):
+        return True
+
+    org_result = await db.execute(_build_select_project_org_ids(project.id))
+    project_org_ids = list(org_result.scalars().all())
+    if not project_org_ids:
+        return False
+
+    admin_result = await db.execute(
+        _build_select_org_admin_membership(user.id, project_org_ids)
+    )
+    return admin_result.first() is not None
 
 
 def check_task_assigned_to_user(
@@ -828,31 +1240,66 @@ def check_task_assigned_to_user(
     return assignment is not None
 
 
-def get_effective_project_role(
-    db: Session,
+def _build_select_task_assignment(task_id, user_id):
+    """Shared SQL builder: active/read-granting assignment of task to user."""
+    return select(TaskAssignment).where(
+        TaskAssignment.task_id == task_id,
+        TaskAssignment.user_id == str(user_id),
+        TaskAssignment.status.in_(["assigned", "in_progress", "completed"]),
+    )
+
+
+async def check_task_assigned_to_user_async(
+    db: AsyncSession,
     user,
+    task_id: str,
     project: Project,
-) -> Optional[str]:
-    """Resolve the effective role a user holds within a project.
+) -> bool:
+    """Async equivalent of :func:`check_task_assigned_to_user`."""
+    if getattr(project, "assignment_mode", "open") == "open":
+        return True
 
-    Returns one of: "ORG_ADMIN", "CONTRIBUTOR", "ANNOTATOR", or None.
-    Resolution order:
-      1. Superadmin or project creator → ORG_ADMIN.
-      2. Active org membership in any org assigned to this project → that role.
-      3. Project is public and user has no other claim → project.public_role.
-      4. Otherwise → None.
-    """
-    if user.is_superadmin or str(project.created_by) == str(user.id):
-        return "ORG_ADMIN"
+    if user.is_superadmin:
+        return True
 
-    user_with_memberships = get_user_with_memberships(db, str(user.id))
+    user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
+    user_role = None
     if user_with_memberships and user_with_memberships.organization_memberships:
-        project_org_ids = [
-            r.organization_id
-            for r in db.query(ProjectOrganization.organization_id)
-            .filter(ProjectOrganization.project_id == project.id)
-            .all()
-        ]
+        org_result = await db.execute(_build_select_project_org_ids(project.id))
+        project_org_ids = list(org_result.scalars().all())
+        for membership in user_with_memberships.organization_memberships:
+            if membership.organization_id in project_org_ids and membership.is_active:
+                user_role = membership.role
+                break
+
+    if user_role and user_role.upper() not in ["ANNOTATOR"]:
+        return True
+
+    # .scalars().first() (NOT scalar_one_or_none): the (task_id, user_id) key is
+    # only partially unique (WHERE target_type='task'); item-level Korrektur
+    # assignments allow multiple rows per (task_id, user_id), so one_or_none
+    # would raise MultipleResultsFound → 500. Matches the sync twin's .first().
+    assignment_result = await db.execute(_build_select_task_assignment(task_id, user.id))
+    return assignment_result.scalars().first() is not None
+
+
+def _build_select_project_org_ids(project_id: str):
+    """Shared SQL builder for the org ids a project is assigned to."""
+    return select(ProjectOrganization.organization_id).where(
+        ProjectOrganization.project_id == project_id
+    )
+
+
+def _resolve_effective_role(
+    user, project: Project, user_with_memberships, project_org_ids
+) -> Optional[str]:
+    """Pure resolution logic shared by the sync/async role helpers.
+
+    Takes already-loaded data (no DB access) so both lanes share identical
+    semantics — only the two reads (memberships + project org ids) differ
+    between sync and async.
+    """
+    if user_with_memberships and user_with_memberships.organization_memberships:
         for membership in user_with_memberships.organization_memberships:
             if membership.organization_id in project_org_ids and membership.is_active:
                 return membership.role
@@ -861,6 +1308,55 @@ def get_effective_project_role(
         return project.public_role
 
     return None
+
+
+def get_effective_project_role(
+    db: Session,
+    user,
+    project: Project,
+) -> Optional[str]:
+    """Resolve the effective role a user holds within a project (sync).
+
+    Returns one of: "ORG_ADMIN", "CONTRIBUTOR", "ANNOTATOR", or None.
+    Resolution order:
+      1. Superadmin or project creator → ORG_ADMIN.
+      2. Active org membership in any org assigned to this project → that role.
+      3. Project is public and user has no other claim → project.public_role.
+      4. Otherwise → None.
+
+    Sync body kept on the legacy ``db.query`` API to preserve the existing
+    ``db.query``-mocking unit tests; the async twin lives below.
+    """
+    if user.is_superadmin or str(project.created_by) == str(user.id):
+        return "ORG_ADMIN"
+
+    user_with_memberships = get_user_with_memberships(db, str(user.id))
+    project_org_ids = [
+        r.organization_id
+        for r in db.query(ProjectOrganization.organization_id)
+        .filter(ProjectOrganization.project_id == project.id)
+        .all()
+    ]
+    return _resolve_effective_role(
+        user, project, user_with_memberships, project_org_ids
+    )
+
+
+async def get_effective_project_role_async(
+    db: AsyncSession,
+    user,
+    project: Project,
+) -> Optional[str]:
+    """Async equivalent of :func:`get_effective_project_role`."""
+    if user.is_superadmin or str(project.created_by) == str(user.id):
+        return "ORG_ADMIN"
+
+    user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
+    result = await db.execute(_build_select_project_org_ids(project.id))
+    project_org_ids = list(result.scalars().all())
+    return _resolve_effective_role(
+        user, project, user_with_memberships, project_org_ids
+    )
 
 
 def check_project_write_access(
@@ -890,6 +1386,25 @@ def check_project_write_access(
         return False
 
     role = get_effective_project_role(db, user, project)
+    return role in allowed_roles
+
+
+async def check_project_write_access_async(
+    db: AsyncSession,
+    user,
+    project_id: str,
+    allowed_roles: tuple = ("ORG_ADMIN", "CONTRIBUTOR"),
+) -> bool:
+    """Async equivalent of :func:`check_project_write_access`."""
+    if user.is_superadmin:
+        return True
+
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if not project:
+        return False
+
+    role = await get_effective_project_role_async(db, user, project)
     return role in allowed_roles
 
 
@@ -932,20 +1447,52 @@ def check_user_can_edit_project(
     return False
 
 
-async def require_project_access(
+async def check_user_can_edit_project_async(
+    db: AsyncSession,
+    user,
     project_id: str,
-    request: Request,
-    current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
-) -> Project:
-    """FastAPI dependency: load project and verify access based on org context."""
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, project_id, org_context):
-        raise HTTPException(status_code=403, detail="Access denied")
-    return project
+    allowed_roles: tuple = ("ORG_ADMIN", "CONTRIBUTOR"),
+) -> bool:
+    """Async equivalent of :func:`check_user_can_edit_project`."""
+    if user.is_superadmin:
+        return True
+
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if project and str(project.created_by) == str(user.id):
+        return True
+
+    user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
+    if user_with_memberships and user_with_memberships.organization_memberships:
+        org_result = await db.execute(_build_select_project_org_ids(project_id))
+        project_org_ids = list(org_result.scalars().all())
+        for membership in user_with_memberships.organization_memberships:
+            if (
+                membership.organization_id in project_org_ids
+                and membership.is_active
+                and membership.role in allowed_roles
+            ):
+                return True
+
+    return False
+
+
+# NOTE: the canonical project-access dependency is `require_project_access` in
+# routers/projects/deps.py (returns a ProjectAccess container, supports
+# min_role="edit"). An earlier, simpler view-only variant that lived here was
+# removed — every router adopts the deps.py one.
+
+
+def _format_project_organizations(project_orgs) -> List[Dict[str, Any]]:
+    """Pure shaping shared by the sync/async org-list helpers."""
+    return [
+        {
+            "id": po.organization.id,
+            "name": po.organization.name,
+        }
+        for po in project_orgs
+        if po.organization  # Filter out any with missing organization references
+    ]
 
 
 def get_project_organizations(db: Session, project_id: str) -> List[Dict[str, Any]]:
@@ -957,11 +1504,16 @@ def get_project_organizations(db: Session, project_id: str) -> List[Dict[str, An
         .all()
     )
 
-    return [
-        {
-            "id": po.organization.id,
-            "name": po.organization.name,
-        }
-        for po in project_orgs
-        if po.organization  # Filter out any with missing organization references
-    ]
+    return _format_project_organizations(project_orgs)
+
+
+async def get_project_organizations_async(
+    db: AsyncSession, project_id: str
+) -> List[Dict[str, Any]]:
+    """Async equivalent of :func:`get_project_organizations`."""
+    result = await db.execute(
+        select(ProjectOrganization)
+        .options(joinedload(ProjectOrganization.organization))
+        .where(ProjectOrganization.project_id == project_id)
+    )
+    return _format_project_organizations(result.scalars().unique().all())

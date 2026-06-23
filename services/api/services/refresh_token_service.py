@@ -9,11 +9,17 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from models import RefreshToken
 
 # Configuration
+# runtime-mutable by design (tests patch os.environ + importlib.reload this
+# module to re-evaluate the env var — see
+# tests/unit/test_refresh_token_service.py). Routing through frozen settings
+# would defeat that reload-based test mechanism.
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
 
@@ -221,6 +227,141 @@ def revoke_token_by_id(db: Session, token_id: str, user_id: str) -> bool:
     if db_token:
         db_token.is_active = False
         db.commit()
+        return True
+
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Async twins (async DB lane).
+#
+# Each twin shares a pure ``_build_select_*`` builder with its sync sibling so
+# the WHERE/ORDER semantics can never drift. The sync entry points above stay
+# byte-identical — other sync callers and ``importlib.reload`` tests depend on
+# them. See CLAUDE.md "Converting an existing sync service to dual-mode".
+# ---------------------------------------------------------------------------
+
+
+def _build_select_token_by_hash_active(token_hash: str):
+    return select(RefreshToken).where(
+        RefreshToken.token_hash == token_hash,
+        RefreshToken.is_active == True,  # noqa: E712
+        RefreshToken.expires_at > datetime.now(timezone.utc),
+    )
+
+
+def _build_select_token_by_hash_for_revoke(token_hash: str):
+    return select(RefreshToken).where(
+        RefreshToken.token_hash == token_hash,
+        RefreshToken.is_active == True,  # noqa: E712
+    )
+
+
+def _build_select_user_active_tokens(user_id: str):
+    return (
+        select(RefreshToken)
+        .where(
+            RefreshToken.user_id == user_id,
+            RefreshToken.is_active == True,  # noqa: E712
+            RefreshToken.expires_at > datetime.now(timezone.utc),
+        )
+        .order_by(RefreshToken.last_used_at.desc())
+    )
+
+
+def _build_select_token_by_id(token_id: str, user_id: str):
+    return select(RefreshToken).where(
+        RefreshToken.id == token_id,
+        RefreshToken.user_id == user_id,
+        RefreshToken.is_active == True,  # noqa: E712
+    )
+
+
+async def create_refresh_token_async(
+    db: AsyncSession,
+    user_id: str,
+    user_agent: Optional[str] = None,
+    ip_address: Optional[str] = None,
+) -> tuple[str, RefreshToken]:
+    """Async twin of :func:`create_refresh_token`."""
+    token_id = secrets.token_urlsafe(32)
+    plain_token = generate_refresh_token()
+    token_hash = hash_token(plain_token)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+
+    db_token = RefreshToken(
+        id=token_id,
+        token_hash=token_hash,
+        user_id=user_id,
+        expires_at=expires_at,
+        is_active=True,
+        user_agent=user_agent,
+        ip_address=ip_address,
+    )
+
+    db.add(db_token)
+    await db.commit()
+    await db.refresh(db_token)
+
+    return plain_token, db_token
+
+
+async def validate_refresh_token_async(db: AsyncSession, token: str) -> Optional[RefreshToken]:
+    """Async twin of :func:`validate_refresh_token`."""
+    token_hash = hash_token(token)
+    result = await db.execute(_build_select_token_by_hash_active(token_hash))
+    db_token = result.scalar_one_or_none()
+
+    if db_token:
+        db_token.last_used_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(db_token)
+
+    return db_token
+
+
+async def revoke_refresh_token_async(db: AsyncSession, token: str) -> bool:
+    """Async twin of :func:`revoke_refresh_token`."""
+    token_hash = hash_token(token)
+    result = await db.execute(_build_select_token_by_hash_for_revoke(token_hash))
+    db_token = result.scalar_one_or_none()
+
+    if db_token:
+        db_token.is_active = False
+        await db.commit()
+        return True
+
+    return False
+
+
+async def revoke_user_tokens_async(db: AsyncSession, user_id: str) -> int:
+    """Async twin of :func:`revoke_user_tokens`."""
+    result = await db.execute(
+        update(RefreshToken)
+        .where(
+            RefreshToken.user_id == user_id,
+            RefreshToken.is_active == True,  # noqa: E712
+        )
+        .values(is_active=False)
+    )
+    await db.commit()
+    return result.rowcount
+
+
+async def get_user_active_tokens_async(db: AsyncSession, user_id: str) -> list[RefreshToken]:
+    """Async twin of :func:`get_user_active_tokens`."""
+    result = await db.execute(_build_select_user_active_tokens(user_id))
+    return list(result.scalars().all())
+
+
+async def revoke_token_by_id_async(db: AsyncSession, token_id: str, user_id: str) -> bool:
+    """Async twin of :func:`revoke_token_by_id`."""
+    result = await db.execute(_build_select_token_by_id(token_id, user_id))
+    db_token = result.scalar_one_or_none()
+
+    if db_token:
+        db_token.is_active = False
+        await db.commit()
         return True
 
     return False

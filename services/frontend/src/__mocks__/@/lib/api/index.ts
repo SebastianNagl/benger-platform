@@ -86,6 +86,7 @@ class MockApiClient {
   patch = patch
 
   setAuthFailureHandler = jest.fn()
+  setOrganizationContextProvider = jest.fn()
 }
 
 // Default export for singleton usage
@@ -94,3 +95,6 @@ export default mockApiClient
 
 // Named export for API class
 export const ApiClient = MockApiClient
+
+// Factory mirroring the real createApiClient — returns a fresh mock client.
+export const createApiClient = jest.fn(() => new MockApiClient())

@@ -17,15 +17,18 @@ Targets uncovered branches in:
 - app/core/authorization.py
 """
 
-import json
 import uuid
-from datetime import datetime
+from contextlib import contextmanager
+from datetime import datetime, timezone
+
+import pytest
 
 
 from models import (
     EvaluationRun,
     Organization,
     OrganizationMembership,
+    User,
 )
 from project_models import (
     Annotation,
@@ -33,6 +36,89 @@ from project_models import (
     ProjectOrganization,
     Task,
 )
+
+
+@contextmanager
+def _as_user(db_user):
+    """Override require_user with an AuthUser mirroring ``db_user`` so async
+    endpoint tests authenticate as a seeded DB user."""
+    from auth_module.dependencies import require_user
+    from auth_module.models import User as AuthUser
+    from main import app
+
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _seed_helper_owner_async(db):
+    """Seed a superadmin owner only (no project) for async 404-path tests."""
+    owner = User(
+        id=str(uuid.uuid4()),
+        username=f"helper-{uuid.uuid4().hex[:8]}",
+        email=f"{uuid.uuid4().hex[:8]}@example.com",
+        name="Helper Owner",
+        is_superadmin=True,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(owner)
+    await db.commit()
+    return owner
+
+
+async def _seed_helper_project_async(db, *, num_tasks=3):
+    """Async twin of :func:`_setup_helper_project`: seeds a superadmin owner +
+    org + public project + tasks through ``async_test_db`` so async endpoint
+    handlers (which read via ``get_async_db``) can see the rows."""
+    owner = User(
+        id=str(uuid.uuid4()),
+        username=f"helper-{uuid.uuid4().hex[:8]}",
+        email=f"{uuid.uuid4().hex[:8]}@example.com",
+        name="Helper Owner",
+        is_superadmin=True,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(owner)
+    await db.flush()
+
+    pid = str(uuid.uuid4())
+    project = Project(
+        id=pid,
+        title=f"Helper Project {uuid.uuid4().hex[:6]}",
+        description="For testing helpers",
+        created_by=owner.id,
+        is_private=False,
+        label_config="<View><Text name='text' value='$text'/></View>",
+        assignment_mode="open",
+    )
+    db.add(project)
+    await db.flush()
+
+    for i in range(num_tasks):
+        db.add(Task(
+            id=str(uuid.uuid4()),
+            project_id=pid,
+            data={"text": f"Task {i}"},
+            inner_id=i + 1,
+        ))
+    await db.commit()
+    return {"owner": owner, "project": project}
 
 
 def _setup_helper_project(db, users, *, num_tasks=3):
@@ -169,7 +255,7 @@ class TestProjectHelpers:
     def test_check_project_accessible_non_member(self, test_db, test_users):
         from routers.projects.helpers import check_project_accessible
         from models import User
-        from user_service import get_password_hash
+        from auth_module.user_service import get_password_hash
 
         data = _setup_helper_project(test_db, test_users)
         pid = data["project"].id
@@ -283,33 +369,45 @@ class TestEvaluationHelpers:
 # =================== Evaluation Config Tests ===================
 
 class TestEvaluationConfig:
-    """Test evaluation config endpoints."""
+    """Test evaluation config endpoints.
 
-    def test_get_evaluation_config(self, client, test_users, test_db, auth_headers):
-        data = _setup_helper_project(test_db, test_users)
+    ``get_project_evaluation_config`` migrated to the async DB lane — seed via
+    async_test_db and drive through async_test_client.
+    """
+
+    @pytest.mark.asyncio
+    async def test_get_evaluation_config(self, async_test_client, async_test_db):
+        data = await _seed_helper_project_async(async_test_db)
         pid = data["project"].id
 
-        resp = client.get(
-            f"/api/evaluations/projects/{pid}/evaluation-config",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(data["owner"]):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{pid}/evaluation-config",
+            )
         assert resp.status_code == 200
 
-    def test_get_evaluation_config_not_found(self, client, test_users, test_db, auth_headers):
-        resp = client.get(
-            "/api/evaluations/projects/nonexistent/evaluation-config",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_get_evaluation_config_not_found(self, async_test_client, async_test_db):
+        owner = await _seed_helper_owner_async(async_test_db)
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                "/api/evaluations/projects/nonexistent/evaluation-config",
+            )
         assert resp.status_code == 404
 
 
 # =================== Evaluation Status Tests ===================
 
 class TestEvaluationStatus:
-    """Test evaluation status endpoints."""
+    """Test evaluation status endpoints.
 
-    def test_get_evaluation_status(self, client, test_users, test_db, auth_headers):
-        data = _setup_helper_project(test_db, test_users)
+    ``get_evaluation_status`` migrated to the async DB lane — seed via
+    async_test_db and drive through async_test_client.
+    """
+
+    @pytest.mark.asyncio
+    async def test_get_evaluation_status(self, async_test_client, async_test_db):
+        data = await _seed_helper_project_async(async_test_db)
         pid = data["project"].id
 
         er = EvaluationRun(
@@ -319,22 +417,24 @@ class TestEvaluationStatus:
             evaluation_type_ids=["test"],
             metrics={"acc": 0.9},
             status="completed",
-            created_by=test_users[0].id,
+            created_by=data["owner"].id,
         )
-        test_db.add(er)
-        test_db.commit()
+        async_test_db.add(er)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/evaluation/status/{er.id}",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(data["owner"]):
+            resp = await async_test_client.get(
+                f"/api/evaluations/evaluation/status/{er.id}",
+            )
         assert resp.status_code == 200
 
-    def test_get_evaluation_status_not_found(self, client, test_users, test_db, auth_headers):
-        resp = client.get(
-            "/api/evaluations/evaluation/status/nonexistent",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_get_evaluation_status_not_found(self, async_test_client, async_test_db):
+        owner = await _seed_helper_owner_async(async_test_db)
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                "/api/evaluations/evaluation/status/nonexistent",
+            )
         assert resp.status_code == 404
 
 
@@ -357,34 +457,37 @@ class TestEvaluationMetadata:
         )
         assert resp.status_code == 200
 
-    def test_list_evaluated_models(self, client, test_users, test_db, auth_headers):
-        data = _setup_helper_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_list_evaluated_models(self, async_test_client, async_test_db):
+        data = await _seed_helper_project_async(async_test_db)
         pid = data["project"].id
 
-        resp = client.get(
-            f"/api/evaluations/projects/{pid}/evaluated-models",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(data["owner"]):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{pid}/evaluated-models",
+            )
         assert resp.status_code == 200
 
-    def test_list_configured_methods(self, client, test_users, test_db, auth_headers):
-        data = _setup_helper_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_list_configured_methods(self, async_test_client, async_test_db):
+        data = await _seed_helper_project_async(async_test_db)
         pid = data["project"].id
 
-        resp = client.get(
-            f"/api/evaluations/projects/{pid}/configured-methods",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(data["owner"]):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{pid}/configured-methods",
+            )
         assert resp.status_code == 200
 
-    def test_evaluation_history(self, client, test_users, test_db, auth_headers):
-        data = _setup_helper_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_evaluation_history(self, async_test_client, async_test_db):
+        data = await _seed_helper_project_async(async_test_db)
         pid = data["project"].id
 
-        resp = client.get(
-            f"/api/evaluations/projects/{pid}/evaluation-history?model_ids=gpt-4o&metrics=accuracy",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(data["owner"]):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{pid}/evaluation-history?model_ids=gpt-4o&metrics=accuracy",
+            )
         assert resp.status_code == 200
         # Issue #111: response shape is ``{series: [...]}`` (was
         # ``{metric, data: [...]}`` before).
@@ -409,21 +512,25 @@ class TestProjectOrganization:
 class TestLabelConfigVersions:
     """Test label config version endpoints."""
 
-    def test_get_label_config_versions(self, client, test_users, test_db, auth_headers):
-        data = _setup_helper_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_get_label_config_versions(self, async_test_client, async_test_db):
+        # Endpoint migrated to the async DB lane — drive it via async fixtures.
+        data = await _seed_helper_project_async(async_test_db)
         pid = data["project"].id
 
-        resp = client.get(
-            f"/api/projects/{pid}/label-config/versions",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(data["owner"]):
+            resp = await async_test_client.get(
+                f"/api/projects/{pid}/label-config/versions",
+            )
         assert resp.status_code == 200
 
-    def test_get_label_config_versions_not_found(self, client, test_users, test_db, auth_headers):
-        resp = client.get(
-            "/api/projects/nonexistent/label-config/versions",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_get_label_config_versions_not_found(self, async_test_client, async_test_db):
+        owner = await _seed_helper_owner_async(async_test_db)
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                "/api/projects/nonexistent/label-config/versions",
+            )
         assert resp.status_code == 404
 
 
@@ -432,14 +539,16 @@ class TestLabelConfigVersions:
 class TestProjectGeneration:
     """Test project generation endpoints."""
 
-    def test_get_generation_config(self, client, test_users, test_db, auth_headers):
-        data = _setup_helper_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_get_generation_config(self, async_test_client, async_test_db):
+        # Endpoint migrated to the async DB lane — drive it via async fixtures.
+        data = await _seed_helper_project_async(async_test_db)
         pid = data["project"].id
 
-        resp = client.get(
-            f"/api/projects/{pid}/generation-config",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(data["owner"]):
+            resp = await async_test_client.get(
+                f"/api/projects/{pid}/generation-config",
+            )
         assert resp.status_code == 200
 
 
@@ -448,14 +557,16 @@ class TestProjectGeneration:
 class TestTaskFields:
     """Test task fields endpoint."""
 
-    def test_get_task_fields(self, client, test_users, test_db, auth_headers):
-        data = _setup_helper_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_get_task_fields(self, async_test_client, async_test_db):
+        # Endpoint migrated to the async DB lane — drive it via async fixtures.
+        data = await _seed_helper_project_async(async_test_db)
         pid = data["project"].id
 
-        resp = client.get(
-            f"/api/projects/{pid}/task-fields",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(data["owner"]):
+            resp = await async_test_client.get(
+                f"/api/projects/{pid}/task-fields",
+            )
         assert resp.status_code == 200
 
 
@@ -498,15 +609,40 @@ class TestBulkExportTasks:
 class TestTaskMetadata:
     """Test task metadata endpoints."""
 
-    def test_update_task_metadata(self, client, test_users, test_db, auth_headers):
-        data = _setup_helper_project(test_db, test_users)
-        tid = data["tasks"][0].id
-
-        resp = client.patch(
-            f"/api/projects/tasks/{tid}/metadata",
-            json={"meta": {"custom_field": "value"}},
-            headers=auth_headers["admin"],
+    @pytest.mark.asyncio
+    async def test_update_task_metadata(self, async_test_client, async_test_db):
+        # Endpoint migrated to the async DB lane — drive it via async fixtures.
+        owner = User(
+            id=str(uuid.uuid4()),
+            username=f"meta-{uuid.uuid4().hex[:8]}",
+            email=f"{uuid.uuid4().hex[:8]}@example.com",
+            name="Meta Owner",
+            is_superadmin=True,
+            is_active=True,
+            email_verified=True,
+            created_at=datetime.now(timezone.utc),
         )
+        async_test_db.add(owner)
+        await async_test_db.flush()
+        pid = str(uuid.uuid4())
+        async_test_db.add(Project(
+            id=pid,
+            title=f"Meta Project {uuid.uuid4().hex[:6]}",
+            created_by=owner.id,
+            is_private=False,
+            label_config="<View><Text name='text' value='$text'/></View>",
+            assignment_mode="open",
+        ))
+        await async_test_db.flush()
+        tid = str(uuid.uuid4())
+        async_test_db.add(Task(id=tid, project_id=pid, data={"text": "T"}, inner_id=1))
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.patch(
+                f"/api/projects/tasks/{tid}/metadata",
+                json={"meta": {"custom_field": "value"}},
+            )
         assert resp.status_code == 200
 
 
@@ -541,7 +677,7 @@ class TestAuthorization:
 
         # Create outsider user who is not superadmin
         from models import User
-        from user_service import get_password_hash
+        from auth_module.user_service import get_password_hash
         outsider = User(
             id=str(uuid.uuid4()),
             username=f"outsider2_{uuid.uuid4().hex[:8]}@test.com",
@@ -562,16 +698,68 @@ class TestAuthorization:
 # =================== Prompt Structures Tests ===================
 
 class TestPromptStructures:
-    """Test prompt structures endpoint."""
+    """Test prompt structures endpoint.
 
-    def test_list_prompt_structures(self, client, test_users, test_db, auth_headers):
-        data = _setup_helper_project(test_db, test_users)
-        pid = data["project"].id
+    The prompt_structures router was migrated to the async DB lane, so this
+    seeds via async_test_db and drives through async_test_client with a
+    superadmin require_user override.
+    """
 
-        resp = client.get(
-            f"/api/projects/{pid}/generation-config/structures",
-            headers=auth_headers["admin"],
+    @pytest.mark.asyncio
+    async def test_list_prompt_structures(self, async_test_client, async_test_db):
+        import contextlib
+
+        from auth_module.dependencies import require_user
+        from auth_module.models import User as AuthUser
+        from main import app
+
+        creator = User(
+            id=str(uuid.uuid4()),
+            username=f"ps-{uuid.uuid4().hex[:8]}",
+            email=f"{uuid.uuid4().hex[:8]}@test.com",
+            name="PS Creator",
+            is_superadmin=True,
+            is_active=True,
+            email_verified=True,
+            created_at=datetime.utcnow(),
         )
+        async_test_db.add(creator)
+        await async_test_db.flush()
+        pid = str(uuid.uuid4())
+        async_test_db.add(
+            Project(
+                id=pid,
+                title=f"Helper Project {uuid.uuid4().hex[:6]}",
+                created_by=creator.id,
+                label_config="<View><Text name='text' value='$text'/></View>",
+                generation_config={},
+            )
+        )
+        await async_test_db.commit()
+
+        auth = AuthUser(
+            id=creator.id,
+            username=creator.username,
+            email=creator.email,
+            name=creator.name,
+            is_superadmin=True,
+            is_active=True,
+            email_verified=True,
+            created_at=creator.created_at,
+        )
+
+        @contextlib.contextmanager
+        def _as_admin():
+            app.dependency_overrides[require_user] = lambda: auth
+            try:
+                yield
+            finally:
+                app.dependency_overrides.pop(require_user, None)
+
+        with _as_admin():
+            resp = await async_test_client.get(
+                f"/api/projects/{pid}/generation-config/structures",
+            )
         assert resp.status_code == 200
 
 
@@ -580,22 +768,24 @@ class TestPromptStructures:
 class TestDetectAnswerTypes:
     """Test detect answer types endpoint."""
 
-    def test_detect_answer_types(self, client, test_users, test_db, auth_headers):
-        data = _setup_helper_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_detect_answer_types(self, async_test_client, async_test_db):
+        data = await _seed_helper_project_async(async_test_db)
         pid = data["project"].id
 
-        resp = client.get(
-            f"/api/evaluations/projects/{pid}/detect-answer-types",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(data["owner"]):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{pid}/detect-answer-types",
+            )
         assert resp.status_code == 200
 
-    def test_field_types(self, client, test_users, test_db, auth_headers):
-        data = _setup_helper_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_field_types(self, async_test_client, async_test_db):
+        data = await _seed_helper_project_async(async_test_db)
         pid = data["project"].id
 
-        resp = client.get(
-            f"/api/evaluations/projects/{pid}/field-types",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(data["owner"]):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{pid}/field-types",
+            )
         assert resp.status_code == 200

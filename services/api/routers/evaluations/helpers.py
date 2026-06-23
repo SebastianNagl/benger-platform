@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from models import EvaluationType as DBEvaluationType
@@ -54,40 +54,48 @@ def resolve_user_org_for_project(user, project, db: Session) -> Optional[str]:
     return str(project.organizations[0].id)
 
 
+def _build_select_evaluation_types_for_task_type(dialect_name: str, task_type: str):
+    """Shared ``select`` builder for the dialect-aware task-type filter.
+
+    PostgreSQL uses the jsonb ``?`` membership operator; SQLite falls back to
+    a ``JSON_EXTRACT(...) LIKE`` scan. Both lanes (sync + async) execute the
+    statement this returns so the SQL is identical between them.
+    """
+    if dialect_name == "postgresql":
+        return select(DBEvaluationType).where(
+            text("applicable_project_types::jsonb ? :task_type").params(
+                task_type=task_type
+            ),
+            DBEvaluationType.is_active.is_(True),
+        )
+    return select(DBEvaluationType).where(
+        text("JSON_EXTRACT(applicable_project_types, '$') LIKE :pattern").params(
+            pattern=f'%"{task_type}"%'
+        ),
+        DBEvaluationType.is_active.is_(True),
+    )
+
+
+def _build_select_active_evaluation_types():
+    """Fallback ``select`` for all active evaluation types (used when the
+    dialect-specific JSON filter raises)."""
+    return select(DBEvaluationType).where(DBEvaluationType.is_active.is_(True))
+
+
 def get_evaluation_types_for_task_type(db: Session, task_type: str):
     """
     Get evaluation types that are applicable for a given task type.
     Database-agnostic function that works with both PostgreSQL and SQLite.
     """
     try:
-        if db.bind.dialect.name == "postgresql":
-            # PostgreSQL: use jsonb ? operator
-            return (
-                db.query(DBEvaluationType)
-                .filter(
-                    text("applicable_project_types::jsonb ? :task_type").params(
-                        task_type=task_type
-                    ),
-                    DBEvaluationType.is_active.is_(True),
-                )
-                .all()
-            )
-        else:
-            # SQLite: use JSON functions with LIKE for array membership
-            return (
-                db.query(DBEvaluationType)
-                .filter(
-                    text("JSON_EXTRACT(applicable_project_types, '$') LIKE :pattern").params(
-                        pattern=f'%"{task_type}"%'
-                    ),
-                    DBEvaluationType.is_active.is_(True),
-                )
-                .all()
-            )
+        stmt = _build_select_evaluation_types_for_task_type(
+            db.bind.dialect.name, task_type
+        )
+        return db.execute(stmt).scalars().all()
     except Exception as e:
         # Fallback: return all evaluation types if JSON query fails
         logger.warning(f"Failed to query evaluation types by task type: {e}")
-        return db.query(DBEvaluationType).filter(DBEvaluationType.is_active.is_(True)).all()
+        return db.execute(_build_select_active_evaluation_types()).scalars().all()
 
 
 def extract_metric_name(metric_selection: Union[str, Dict[str, Any]]) -> str:

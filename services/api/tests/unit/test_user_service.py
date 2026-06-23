@@ -17,7 +17,7 @@ from fastapi import HTTPException  # noqa: E402
 from sqlalchemy.exc import IntegrityError  # noqa: E402
 
 # UserRole enum removed - now using is_superadmin boolean
-from user_service import (  # noqa: E402
+from auth_module.user_service import (  # noqa: E402
     authenticate_user,
     create_user,
     get_password_hash,

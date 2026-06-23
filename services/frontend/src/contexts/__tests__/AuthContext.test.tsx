@@ -24,6 +24,11 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('@/lib/api', () => {
   const originalModule = jest.requireActual('@/lib/api')
+  // AuthContext now builds its client via createApiClient(); route the factory
+  // through the mocked ApiClient constructor so it yields the per-test
+  // mockApiClient (set via ApiClient.mockImplementation in beforeEach) rather
+  // than constructing a real client.
+  const MockApiClient = jest.fn()
   return {
     ...originalModule,
     __esModule: true,
@@ -32,7 +37,8 @@ jest.mock('@/lib/api', () => {
       setAuthFailureHandler: jest.fn(),
       clearCache: jest.fn(),
     },
-    ApiClient: jest.fn(),
+    ApiClient: MockApiClient,
+    createApiClient: jest.fn(() => new (MockApiClient as any)()),
   }
 })
 

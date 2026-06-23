@@ -11,11 +11,62 @@ Targets specific uncovered branches in routers/auth.py:
 """
 
 import uuid
-from datetime import datetime
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from unittest.mock import patch
 
+import pytest
 
+from main import app
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
 from models import Organization, OrganizationMembership
+from models import User as DBUser
+
+
+# ---------------------------------------------------------------------------
+# Async helper: GET /api/auth/me moved to the async DB lane (it runs
+# get_user_primary_role_async against the real test Postgres). Seed a real
+# user and override require_user with a matching-id AuthUser.
+# ---------------------------------------------------------------------------
+
+
+def _uid():
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user):
+    au = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _seed_user(db, is_superadmin=False, **over):
+    over.setdefault("id", _uid())
+    over.setdefault("username", f"u-{_uid()[:8]}")
+    over.setdefault("email", f"{_uid()[:8]}@e.com")
+    over.setdefault("name", "U")
+    over.setdefault("hashed_password", "x")
+    over.setdefault("is_active", True)
+    over.setdefault("email_verified", True)
+    over.setdefault("created_at", datetime.now(timezone.utc))
+    u = DBUser(is_superadmin=is_superadmin, **over)
+    db.add(u)
+    await db.flush()
+    return u
 
 
 class TestEnsureDict:
@@ -166,7 +217,7 @@ class TestLoginEndpoint:
 
     def test_login_unverified_email(self, client, test_users, test_db):
         # Create user with unverified email
-        from user_service import get_password_hash
+        from auth_module.user_service import get_password_hash
         from models import User
         user = User(
             id=str(uuid.uuid4()),
@@ -191,22 +242,37 @@ class TestLoginEndpoint:
 class TestProfileEndpoint:
     """Test GET /api/auth/profile"""
 
-    def test_get_profile(self, client, test_users, test_db, auth_headers):
-        resp = client.get("/api/auth/profile", headers=auth_headers["admin"])
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["email"] == "admin@test.com"
-        assert body["is_superadmin"] == True  # noqa: E712
+    @pytest.mark.asyncio
+    async def test_get_profile(self, async_test_client, async_test_db):
+        # GET /profile is on the async DB lane; seed a real superadmin and
+        # assert the returned email + superadmin flag.
+        user = await _seed_user(
+            async_test_db, email="admin@test.com", is_superadmin=True
+        )
+        await async_test_db.flush()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/profile")
+            assert resp.status_code == 200
+            body = resp.json()
+            assert body["email"] == "admin@test.com"
+            assert body["is_superadmin"] == True  # noqa: E712
 
 
 class TestMeEndpoint:
     """Test GET /api/auth/me"""
 
-    def test_get_me(self, client, test_users, test_db, auth_headers):
-        resp = client.get("/api/auth/me", headers=auth_headers["admin"])
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["id"] == test_users[0].id
+    @pytest.mark.asyncio
+    async def test_get_me(self, async_test_client, async_test_db):
+        # /me moved to the async DB lane; seed a real user and assert the
+        # returned id matches (replaces the auth_headers JWT round-trip,
+        # which seeds into the sync session the async handler can't see).
+        user = await _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/me")
+            assert resp.status_code == 200
+            body = resp.json()
+            assert body["id"] == user.id
 
     def test_get_me_unauthenticated(self, client, test_users, test_db):
         resp = client.get("/api/auth/me")
@@ -232,9 +298,15 @@ class TestRefreshEndpoint:
 class TestLogoutEndpoint:
     """Test POST /api/auth/logout"""
 
-    def test_logout(self, client, test_users, test_db, auth_headers):
-        resp = client.post("/api/auth/logout", headers=auth_headers["admin"])
-        assert resp.status_code == 200
+    @pytest.mark.asyncio
+    async def test_logout(self, async_test_client, async_test_db):
+        # logout is on the async DB lane (revoke_refresh_token_async); with no
+        # refresh_token cookie the async revoke is skipped but the route 200s.
+        user = await _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(user):
+            resp = await async_test_client.post("/api/auth/logout")
+            assert resp.status_code == 200
 
 
 class TestSignupEndpoint:
@@ -242,7 +314,7 @@ class TestSignupEndpoint:
 
     def test_signup_basic(self, client, test_users, test_db):
         email = f"newuser_{uuid.uuid4().hex[:8]}@test.com"
-        with patch("routers.auth.email_verification_service") as mock_email:
+        with patch("routers.auth.session.email_verification_service") as mock_email:
             mock_email.send_verification_email.return_value = True
             resp = client.post("/api/auth/signup", json={
                 "username": email,
@@ -256,7 +328,7 @@ class TestSignupEndpoint:
 
     def test_signup_with_all_fields(self, client, test_users, test_db):
         email = f"fulluser_{uuid.uuid4().hex[:8]}@test.com"
-        with patch("routers.auth.email_verification_service") as mock_email:
+        with patch("routers.auth.session.email_verification_service") as mock_email:
             mock_email.send_verification_email.return_value = True
             resp = client.post("/api/auth/signup", json={
                 "username": email,

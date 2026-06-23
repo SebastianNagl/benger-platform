@@ -11,7 +11,7 @@ from fastapi import HTTPException, Request, WebSocket, status
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
-import refresh_token_service
+from services import refresh_token_service
 from models import User as DBUser
 from .user_service import authenticate_user as db_authenticate_user
 

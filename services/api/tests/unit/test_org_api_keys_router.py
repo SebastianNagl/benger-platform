@@ -1,311 +1,367 @@
 """
 Tests for org API keys router.
 
-Targets: routers/org_api_keys.py lines 24-27, 35-49, 57-59, 75-81, 93-114, 128-136, 151-179, 194-216, 233-237, 248-270, 286-316
+Targets: routers/org_api_keys.py — the async permission helpers
+(``_require_org_admin`` / ``_require_org_member`` / ``_require_org_exists``)
+and the GET/POST/DELETE endpoints under ``/api/organizations/{org_id}/api-keys``.
+
+Migrated to the async DB lane (2026-06-19): the router and its private
+permission helpers now run ``await db.execute(select(...))`` against
+``Organization`` / ``OrganizationMembership`` via ``Depends(get_async_db)``.
+The previous ``app.dependency_overrides[get_db] = lambda: mock_db`` + sync
+service mocks no longer reach the handlers, so these tests:
+
+- exercise the helpers directly with a real ``async_test_db`` AsyncSession, and
+- drive the endpoints through ``async_test_client`` with a seeded superadmin
+  identity (superadmin bypasses every org membership check), patching the
+  specific async service twins where a deterministic result is needed.
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from fastapi import status
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
 from main import app
-from models import User
+from models import (
+    Organization,
+    OrganizationMembership,
+    OrganizationRole,
+    User as DBUser,
+)
+
+
+@contextmanager
+def _as_user(db_user):
+    """Override require_user with an auth identity built from a seeded DB row."""
+    au = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+def _uid():
+    return str(uuid.uuid4())
+
+
+async def _seed_user(db, *, is_superadmin=False):
+    u = DBUser(
+        id=_uid(),
+        username=f"u-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@e.com",
+        name="U",
+        hashed_password="x",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _seed_org(db, *, settings=None):
+    o = Organization(
+        id=_uid(),
+        name=f"org-{_uid()[:6]}",
+        display_name="Org",
+        slug=f"org-{_uid()[:8]}",
+        is_active=True,
+        settings=settings if settings is not None else {},
+    )
+    db.add(o)
+    await db.flush()
+    return o
+
+
+async def _seed_member(db, user, org, role):
+    m = OrganizationMembership(
+        id=_uid(),
+        user_id=user.id,
+        organization_id=org.id,
+        role=role,
+        is_active=True,
+    )
+    db.add(m)
+    await db.flush()
+    return m
 
 
 class TestOrgApiKeysHelpers:
-    """Test helper functions for org API key management."""
+    """Test the async permission helper functions directly.
 
-    def test_require_org_admin_denied(self):
+    These helpers now hit the DB, so they are exercised with a real
+    ``async_test_db`` AsyncSession + seeded rows rather than a mock session.
+    """
+
+    @pytest.mark.asyncio
+    async def test_require_org_admin_denied(self, async_test_db):
+        """A plain member (non-admin) is rejected with 403."""
         from routers.org_api_keys import _require_org_admin
-        from fastapi import HTTPException
 
-        mock_user = Mock()
-        mock_db = Mock(spec=Session)
+        org = await _seed_org(async_test_db)
+        member = await _seed_user(async_test_db, is_superadmin=False)
+        await _seed_member(async_test_db, member, org, OrganizationRole.ANNOTATOR)
 
-        with patch("routers.organizations.can_manage_organization") as mock_can:
-            mock_can.return_value = False
-            with pytest.raises(HTTPException) as exc_info:
-                _require_org_admin(mock_user, "org-1", mock_db)
-            assert exc_info.value.status_code == 403
-
-    def test_require_org_member_superadmin(self):
-        from routers.org_api_keys import _require_org_member
-        mock_user = Mock()
-        mock_user.is_superadmin = True
-        mock_db = Mock(spec=Session)
-        # Should not raise
-        _require_org_member(mock_user, "org-1", mock_db)
-
-    def test_require_org_member_denied(self):
-        from routers.org_api_keys import _require_org_member
-        from fastapi import HTTPException
-
-        mock_user = Mock()
-        mock_user.is_superadmin = False
-        mock_user.id = "user-1"
-
-        mock_db = Mock(spec=Session)
-        mock_query = Mock()
-        mock_filter = Mock()
-        mock_filter.first.return_value = None
-        mock_query.filter.return_value = mock_filter
-        mock_db.query.return_value = mock_query
-
+        au = AuthUser(
+            id=member.id,
+            username=member.username,
+            email=member.email,
+            name=member.name,
+            is_superadmin=False,
+            is_active=True,
+            email_verified=True,
+            created_at=datetime.now(timezone.utc),
+        )
         with pytest.raises(HTTPException) as exc_info:
-            _require_org_member(mock_user, "org-1", mock_db)
+            await _require_org_admin(au, org.id, async_test_db)
         assert exc_info.value.status_code == 403
 
-    def test_require_org_exists_not_found(self):
-        from routers.org_api_keys import _require_org_exists
-        from fastapi import HTTPException
+    @pytest.mark.asyncio
+    async def test_require_org_member_superadmin(self, async_test_db):
+        """A superadmin passes the member check without any membership row."""
+        from routers.org_api_keys import _require_org_member
 
-        mock_db = Mock(spec=Session)
-        mock_query = Mock()
-        mock_filter = Mock()
-        mock_filter.first.return_value = None
-        mock_query.filter.return_value = mock_filter
-        mock_db.query.return_value = mock_query
-
-        with pytest.raises(HTTPException) as exc_info:
-            _require_org_exists("nonexistent", mock_db)
-        assert exc_info.value.status_code == 404
-
-
-class TestOrgApiKeysEndpoints:
-    """Test org API key management endpoints."""
-
-    @pytest.fixture
-    def client(self):
-        return TestClient(app)
-
-    @pytest.fixture
-    def mock_superadmin(self):
-        return User(
-            id="org-ak-admin",
-            username="orgakadmin",
-            email="orgak@test.com",
-            name="Org AK Admin",
-            hashed_password="hashed",
+        org = await _seed_org(async_test_db)
+        au = AuthUser(
+            id=_uid(),
+            username="super",
+            email="super@e.com",
+            name="Super",
             is_superadmin=True,
             is_active=True,
             email_verified=True,
             created_at=datetime.now(timezone.utc),
         )
+        # Should not raise
+        await _require_org_member(au, org.id, async_test_db)
 
-    def _setup(self, mock_user, mock_db=None):
-        from database import get_db
-        from auth_module.dependencies import require_user
-        app.dependency_overrides[require_user] = lambda: mock_user
-        if mock_db:
-            app.dependency_overrides[get_db] = lambda: mock_db
+    @pytest.mark.asyncio
+    async def test_require_org_member_denied(self, async_test_db):
+        """A non-superadmin with no membership is rejected with 403."""
+        from routers.org_api_keys import _require_org_member
 
-    def _mock_db_with_org(self):
-        """Return mock_db that finds an organization."""
-        mock_db = Mock(spec=Session)
-        mock_org = Mock()
-        mock_org.id = "org-1"
-        mock_org.settings = {}
+        org = await _seed_org(async_test_db)
+        outsider = await _seed_user(async_test_db, is_superadmin=False)
 
-        # query().filter().first() returns the org
-        mock_query = Mock()
-        mock_filter = Mock()
-        mock_filter.first.return_value = mock_org
-        mock_filter.all.return_value = []
-        mock_query.filter.return_value = mock_filter
-        mock_db.query.return_value = mock_query
+        au = AuthUser(
+            id=outsider.id,
+            username=outsider.username,
+            email=outsider.email,
+            name=outsider.name,
+            is_superadmin=False,
+            is_active=True,
+            email_verified=True,
+            created_at=datetime.now(timezone.utc),
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            await _require_org_member(au, org.id, async_test_db)
+        assert exc_info.value.status_code == 403
 
-        return mock_db, mock_org
+    @pytest.mark.asyncio
+    async def test_require_org_exists_not_found(self, async_test_db):
+        """A missing org raises 404."""
+        from routers.org_api_keys import _require_org_exists
 
-    def test_get_org_api_key_status(self, client, mock_superadmin):
+        with pytest.raises(HTTPException) as exc_info:
+            await _require_org_exists("nonexistent", async_test_db)
+        assert exc_info.value.status_code == 404
+
+
+class TestOrgApiKeysEndpoints:
+    """Test org API key management endpoints (driven as a superadmin).
+
+    Superadmin bypasses the org membership checks, so a seeded org plus a
+    superadmin identity is enough to reach each handler. Service results are
+    pinned by patching the specific async twin on the singleton.
+    """
+
+    @pytest.mark.asyncio
+    async def test_get_org_api_key_status(self, async_test_client, async_test_db):
         """Test getting org API key status."""
-        mock_db, _ = self._mock_db_with_org()
-        self._setup(mock_superadmin, mock_db)
+        org = await _seed_org(async_test_db)
+        admin = await _seed_user(async_test_db, is_superadmin=True)
 
-        with patch("routers.org_api_keys.org_api_key_service") as mock_svc, \
-             patch("routers.organizations.can_manage_organization", return_value=True):
-            mock_svc.get_org_api_key_status.return_value = {"openai": True}
-            mock_svc.get_org_available_providers.return_value = ["openai"]
+        with _as_user(admin), patch(
+            "routers.org_api_keys.org_api_key_service.get_org_api_key_status_async",
+            new=AsyncMock(return_value={"openai": True}),
+        ), patch(
+            "routers.org_api_keys.org_api_key_service.get_org_available_providers_async",
+            new=AsyncMock(return_value=["openai"]),
+        ):
+            response = await async_test_client.get(
+                f"/api/organizations/{org.id}/api-keys/status"
+            )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "api_key_status" in data
 
-            try:
-                response = client.get("/api/organizations/org-1/api-keys/status")
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert "api_key_status" in data
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_set_org_api_key_success(self, client, mock_superadmin):
+    @pytest.mark.asyncio
+    async def test_set_org_api_key_success(self, async_test_client, async_test_db):
         """Test setting org API key."""
-        mock_db, _ = self._mock_db_with_org()
-        self._setup(mock_superadmin, mock_db)
+        org = await _seed_org(async_test_db)
+        admin = await _seed_user(async_test_db, is_superadmin=True)
 
-        with patch("routers.org_api_keys.org_api_key_service") as mock_svc, \
-             patch("routers.organizations.can_manage_organization", return_value=True):
-            mock_svc.SUPPORTED_PROVIDERS = ["openai", "anthropic", "google"]
-            mock_svc.set_org_api_key.return_value = True
+        with _as_user(admin), patch(
+            "routers.org_api_keys.org_api_key_service.set_org_api_key_async",
+            new=AsyncMock(return_value=True),
+        ):
+            response = await async_test_client.post(
+                f"/api/organizations/{org.id}/api-keys/openai",
+                json={"api_key": "sk-test"},
+            )
+        assert response.status_code == status.HTTP_200_OK
 
-            try:
-                response = client.post(
-                    "/api/organizations/org-1/api-keys/openai",
-                    json={"api_key": "sk-test"},
-                )
-                assert response.status_code == status.HTTP_200_OK
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_set_org_api_key_missing(self, client, mock_superadmin):
+    @pytest.mark.asyncio
+    async def test_set_org_api_key_missing(self, async_test_client, async_test_db):
         """Test setting org API key without api_key."""
-        mock_db, _ = self._mock_db_with_org()
-        self._setup(mock_superadmin, mock_db)
+        org = await _seed_org(async_test_db)
+        admin = await _seed_user(async_test_db, is_superadmin=True)
 
-        with patch("routers.organizations.can_manage_organization", return_value=True):
-            try:
-                response = client.post(
-                    "/api/organizations/org-1/api-keys/openai",
-                    json={},
-                )
-                assert response.status_code == status.HTTP_400_BAD_REQUEST
-            finally:
-                app.dependency_overrides.clear()
+        with _as_user(admin):
+            response = await async_test_client.post(
+                f"/api/organizations/{org.id}/api-keys/openai",
+                json={},
+            )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_set_org_api_key_invalid_provider(self, client, mock_superadmin):
+    @pytest.mark.asyncio
+    async def test_set_org_api_key_invalid_provider(self, async_test_client, async_test_db):
         """Test setting org API key for invalid provider."""
-        mock_db, _ = self._mock_db_with_org()
-        self._setup(mock_superadmin, mock_db)
+        org = await _seed_org(async_test_db)
+        admin = await _seed_user(async_test_db, is_superadmin=True)
 
-        with patch("routers.org_api_keys.org_api_key_service") as mock_svc, \
-             patch("routers.organizations.can_manage_organization", return_value=True):
-            mock_svc.SUPPORTED_PROVIDERS = ["openai"]
+        with _as_user(admin):
+            response = await async_test_client.post(
+                f"/api/organizations/{org.id}/api-keys/invalid",
+                json={"api_key": "test"},
+            )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-            try:
-                response = client.post(
-                    "/api/organizations/org-1/api-keys/invalid",
-                    json={"api_key": "test"},
-                )
-                assert response.status_code == status.HTTP_400_BAD_REQUEST
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_set_org_api_key_failure(self, client, mock_superadmin):
+    @pytest.mark.asyncio
+    async def test_set_org_api_key_failure(self, async_test_client, async_test_db):
         """Test setting org API key when storage fails."""
-        mock_db, _ = self._mock_db_with_org()
-        self._setup(mock_superadmin, mock_db)
+        org = await _seed_org(async_test_db)
+        admin = await _seed_user(async_test_db, is_superadmin=True)
 
-        with patch("routers.org_api_keys.org_api_key_service") as mock_svc, \
-             patch("routers.organizations.can_manage_organization", return_value=True):
-            mock_svc.SUPPORTED_PROVIDERS = ["openai"]
-            mock_svc.set_org_api_key.return_value = False
+        with _as_user(admin), patch(
+            "routers.org_api_keys.org_api_key_service.set_org_api_key_async",
+            new=AsyncMock(return_value=False),
+        ):
+            response = await async_test_client.post(
+                f"/api/organizations/{org.id}/api-keys/openai",
+                json={"api_key": "sk-test"},
+            )
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
-            try:
-                response = client.post(
-                    "/api/organizations/org-1/api-keys/openai",
-                    json={"api_key": "sk-test"},
-                )
-                assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_remove_org_api_key_success(self, client, mock_superadmin):
+    @pytest.mark.asyncio
+    async def test_remove_org_api_key_success(self, async_test_client, async_test_db):
         """Test removing org API key."""
-        mock_db, _ = self._mock_db_with_org()
-        self._setup(mock_superadmin, mock_db)
+        org = await _seed_org(async_test_db)
+        admin = await _seed_user(async_test_db, is_superadmin=True)
 
-        with patch("routers.org_api_keys.org_api_key_service") as mock_svc, \
-             patch("routers.organizations.can_manage_organization", return_value=True):
-            mock_svc.remove_org_api_key.return_value = True
+        with _as_user(admin), patch(
+            "routers.org_api_keys.org_api_key_service.remove_org_api_key_async",
+            new=AsyncMock(return_value=True),
+        ):
+            response = await async_test_client.delete(
+                f"/api/organizations/{org.id}/api-keys/openai"
+            )
+        assert response.status_code == status.HTTP_200_OK
 
-            try:
-                response = client.delete("/api/organizations/org-1/api-keys/openai")
-                assert response.status_code == status.HTTP_200_OK
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_remove_org_api_key_not_found(self, client, mock_superadmin):
+    @pytest.mark.asyncio
+    async def test_remove_org_api_key_not_found(self, async_test_client, async_test_db):
         """Test removing non-existent org API key."""
-        mock_db, _ = self._mock_db_with_org()
-        self._setup(mock_superadmin, mock_db)
+        org = await _seed_org(async_test_db)
+        admin = await _seed_user(async_test_db, is_superadmin=True)
 
-        with patch("routers.org_api_keys.org_api_key_service") as mock_svc, \
-             patch("routers.organizations.can_manage_organization", return_value=True):
-            mock_svc.remove_org_api_key.return_value = False
+        with _as_user(admin), patch(
+            "routers.org_api_keys.org_api_key_service.remove_org_api_key_async",
+            new=AsyncMock(return_value=False),
+        ):
+            response = await async_test_client.delete(
+                f"/api/organizations/{org.id}/api-keys/openai"
+            )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
-            try:
-                response = client.delete("/api/organizations/org-1/api-keys/openai")
-                assert response.status_code == status.HTTP_404_NOT_FOUND
-            finally:
-                app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_test_org_api_key_success(self, async_test_client, async_test_db):
+        """Test testing an unsaved org API key."""
+        org = await _seed_org(async_test_db)
+        admin = await _seed_user(async_test_db, is_superadmin=True)
 
-    def test_test_org_api_key_success(self, client, mock_superadmin):
-        """Test testing org API key."""
-        mock_db, _ = self._mock_db_with_org()
-        self._setup(mock_superadmin, mock_db)
+        with _as_user(admin), patch(
+            "services.user_api_key_service.user_api_key_service.validate_api_key",
+            new=AsyncMock(return_value=(True, "OK", None)),
+        ):
+            response = await async_test_client.post(
+                f"/api/organizations/{org.id}/api-keys/openai/test",
+                json={"api_key": "sk-test"},
+            )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["status"] == "success"
 
-        with patch("routers.org_api_keys.org_api_key_service") as mock_svc, \
-             patch("routers.organizations.can_manage_organization", return_value=True):
-            mock_svc.SUPPORTED_PROVIDERS = ["openai"]
+    @pytest.mark.asyncio
+    async def test_test_saved_org_api_key_not_found(self, async_test_client, async_test_db):
+        """Test testing a saved org API key when none is stored."""
+        org = await _seed_org(async_test_db)
+        admin = await _seed_user(async_test_db, is_superadmin=True)
 
-            with patch("user_api_key_service.user_api_key_service") as mock_uak:
-                mock_uak.validate_api_key = AsyncMock(
-                    return_value=(True, "OK", None)
-                )
-                try:
-                    response = client.post(
-                        "/api/organizations/org-1/api-keys/openai/test",
-                        json={"api_key": "sk-test"},
-                    )
-                    assert response.status_code == status.HTTP_200_OK
-                    assert response.json()["status"] == "success"
-                finally:
-                    app.dependency_overrides.clear()
+        with _as_user(admin), patch(
+            "routers.org_api_keys.org_api_key_service.get_org_api_key_async",
+            new=AsyncMock(return_value=None),
+        ):
+            response = await async_test_client.post(
+                f"/api/organizations/{org.id}/api-keys/openai/test-saved"
+            )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_test_saved_org_api_key_not_found(self, client, mock_superadmin):
-        """Test testing saved org API key when not found."""
-        mock_db, _ = self._mock_db_with_org()
-        self._setup(mock_superadmin, mock_db)
-
-        with patch("routers.org_api_keys.org_api_key_service") as mock_svc, \
-             patch("routers.organizations.can_manage_organization", return_value=True):
-            mock_svc.get_org_api_key.return_value = None
-
-            try:
-                response = client.post(
-                    "/api/organizations/org-1/api-keys/openai/test-saved"
-                )
-                assert response.status_code == status.HTTP_404_NOT_FOUND
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_get_org_api_key_settings(self, client, mock_superadmin):
+    @pytest.mark.asyncio
+    async def test_get_org_api_key_settings(self, async_test_client, async_test_db):
         """Test getting org API key settings."""
-        mock_db, _ = self._mock_db_with_org()
-        self._setup(mock_superadmin, mock_db)
+        org = await _seed_org(async_test_db)
+        admin = await _seed_user(async_test_db, is_superadmin=True)
 
-        with patch("routers.org_api_keys.org_api_key_service") as mock_svc:
-            mock_svc._get_org_setting_require_private_keys.return_value = False
+        with _as_user(admin), patch(
+            "routers.org_api_keys.org_api_key_service._get_org_setting_require_private_keys_async",
+            new=AsyncMock(return_value=False),
+        ):
+            response = await async_test_client.get(
+                f"/api/organizations/{org.id}/api-keys/settings"
+            )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "require_private_keys" in data
 
-            try:
-                response = client.get("/api/organizations/org-1/api-keys/settings")
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert "require_private_keys" in data
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_get_org_available_models(self, client, mock_superadmin):
+    @pytest.mark.asyncio
+    async def test_get_org_available_models(self, async_test_client, async_test_db):
         """Test getting available models for org."""
-        mock_db, _ = self._mock_db_with_org()
-        self._setup(mock_superadmin, mock_db)
+        org = await _seed_org(async_test_db)
+        admin = await _seed_user(async_test_db, is_superadmin=True)
 
-        with patch("routers.org_api_keys.org_api_key_service") as mock_svc:
-            mock_svc.get_available_providers_for_context.return_value = []
-
-            try:
-                response = client.get("/api/organizations/org-1/api-keys/available-models")
-                assert response.status_code == status.HTTP_200_OK
-                assert isinstance(response.json(), list)
-            finally:
-                app.dependency_overrides.clear()
+        with _as_user(admin), patch(
+            "routers.org_api_keys.org_api_key_service.get_available_providers_for_context_async",
+            new=AsyncMock(return_value=[]),
+        ):
+            response = await async_test_client.get(
+                f"/api/organizations/{org.id}/api-keys/available-models"
+            )
+        assert response.status_code == status.HTTP_200_OK
+        assert isinstance(response.json(), list)

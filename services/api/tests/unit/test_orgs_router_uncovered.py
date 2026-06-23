@@ -13,11 +13,59 @@ tracks the router code.
 """
 
 from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException
 from models import OrganizationRole
+
+
+# ---------------------------------------------------------------------------
+# Async-db mock helpers
+#
+# The handlers under test were migrated to the async lane: each does
+# ``result = await db.execute(stmt)`` then unpacks via
+# ``result.scalar_one_or_none()`` / ``result.scalars().all()`` /
+# ``result.scalar()`` / ``result.all()``. These helpers build result-mocks
+# shaped to match that access, and wire ``db.execute`` as an AsyncMock whose
+# side_effect yields them in call order.
+# ---------------------------------------------------------------------------
+
+
+def _result(
+    scalar_one_or_none=None,
+    scalars_all=None,
+    scalar=None,
+    all_=None,
+):
+    """Build a mock mirroring the object returned by ``await db.execute(stmt)``."""
+    res = MagicMock()
+    res.scalar_one_or_none.return_value = scalar_one_or_none
+    res.scalars.return_value.all.return_value = scalars_all or []
+    res.scalar.return_value = scalar
+    res.all.return_value = all_ or []
+    return res
+
+
+def _async_db(execute_results):
+    """Create a MagicMock db whose async surface is wired for the handlers.
+
+    ``execute_results`` is a list of result-mocks (from ``_result``) returned
+    by successive ``await db.execute(...)`` calls, in call order.
+    """
+    db = MagicMock()
+    db.execute = AsyncMock(side_effect=list(execute_results))
+    db.commit = AsyncMock()
+    db.flush = AsyncMock()
+    db.refresh = AsyncMock()
+    db.delete = AsyncMock()
+    # The org-management permission check runs ``can_manage_organization`` on a
+    # sync session bridged via ``await db.run_sync(lambda s: ...)``. Default to
+    # invoking the lambda with a stub sync session (superadmin -> True without a
+    # query; a non-superadmin's MagicMock membership query is truthy -> True).
+    # Authz-DENY tests override this with ``AsyncMock(return_value=False)``.
+    db.run_sync = AsyncMock(side_effect=lambda fn, *a, **k: fn(MagicMock()))
+    return db
 
 
 # ---------------------------------------------------------------------------
@@ -49,28 +97,18 @@ class TestGetOrganizationBySlugSuccess:
         """Cover lines 334-358: superadmin gets org by slug with member count."""
         from routers.organizations import get_organization_by_slug
 
-        db = MagicMock()
         user = Mock(is_superadmin=True, id="admin-1")
 
         org = _make_org_obj()
         membership = Mock()
         membership.role = OrganizationRole.ORG_ADMIN
 
-        call_count = [0]
-
-        def query_side_effect(*args, **kwargs):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = org  # org lookup
-            elif call_count[0] == 2:
-                q.scalar.return_value = 5  # member count
-            else:
-                q.first.return_value = membership  # user membership
-            return q
-
-        db.query.side_effect = query_side_effect
+        # Superadmin path: org lookup, member count, user_membership lookup.
+        db = _async_db([
+            _result(scalar_one_or_none=org),
+            _result(scalar=5),
+            _result(scalar_one_or_none=membership),
+        ])
 
         result = await get_organization_by_slug(
             slug="test-org", current_user=user, db=db,
@@ -83,27 +121,20 @@ class TestGetOrganizationBySlugSuccess:
         """Cover lines 320-332: non-superadmin member gets org."""
         from routers.organizations import get_organization_by_slug
 
-        db = MagicMock()
         user = Mock(is_superadmin=False, id="user-1")
 
         org = _make_org_obj()
         membership = Mock()
         membership.role = OrganizationRole.ANNOTATOR
 
-        call_count = [0]
-
-        def query_side_effect(*args, **kwargs):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = org  # org found
-            else:
-                q.first.return_value = membership  # membership checks
-                q.scalar.return_value = 3
-            return q
-
-        db.query.side_effect = query_side_effect
+        # Non-superadmin path: org lookup, access-membership check, member
+        # count, user_membership lookup.
+        db = _async_db([
+            _result(scalar_one_or_none=org),
+            _result(scalar_one_or_none=membership),
+            _result(scalar=3),
+            _result(scalar_one_or_none=membership),
+        ])
 
         result = await get_organization_by_slug(
             slug="test-org", current_user=user, db=db,
@@ -115,9 +146,8 @@ class TestGetOrganizationBySlugSuccess:
         """Cover: org not found by slug."""
         from routers.organizations import get_organization_by_slug
 
-        db = MagicMock()
         user = Mock(is_superadmin=True, id="admin-1")
-        db.query.return_value.filter.return_value.first.return_value = None
+        db = _async_db([_result(scalar_one_or_none=None)])
 
         with pytest.raises(HTTPException) as exc_info:
             await get_organization_by_slug(slug="missing", current_user=user, db=db)
@@ -128,23 +158,14 @@ class TestGetOrganizationBySlugSuccess:
         """Cover: non-superadmin, non-member denied."""
         from routers.organizations import get_organization_by_slug
 
-        db = MagicMock()
         user = Mock(is_superadmin=False, id="user-1")
 
         org = _make_org_obj()
-        call_count = [0]
-
-        def query_side_effect(*args, **kwargs):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = org
-            else:
-                q.first.return_value = None  # no membership
-            return q
-
-        db.query.side_effect = query_side_effect
+        # org lookup succeeds, access-membership check returns None -> 403.
+        db = _async_db([
+            _result(scalar_one_or_none=org),
+            _result(scalar_one_or_none=None),
+        ])
 
         with pytest.raises(HTTPException) as exc_info:
             await get_organization_by_slug(slug="test-org", current_user=user, db=db)
@@ -158,22 +179,30 @@ class TestGetOrganizationBySlugSuccess:
 
 class TestUpdateOrganizationSuccess:
     @pytest.mark.asyncio
-    @patch("routers.organizations.can_manage_organization", return_value=True)
+    @patch("routers.organizations.crud.can_manage_organization", return_value=True)
     async def test_update_org_success(self, mock_can_manage):
         """Cover lines 430-456: successful org update."""
         from routers.organizations import update_organization, OrganizationUpdate
 
-        db = MagicMock()
         user = Mock(is_superadmin=True, id="admin-1")
 
         org = _make_org_obj()
         org.name = "Old Name"
 
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = org
-        mock_q.scalar.return_value = 3
-        db.query.return_value = mock_q
+        # Handler order: org lookup (scalar_one_or_none), then member count
+        # (scalar). The permission check is bridged through ``db.run_sync``.
+        db = _async_db([
+            _result(scalar_one_or_none=org),
+            _result(scalar=3),
+        ])
+
+        # ``can_manage_organization`` runs on a sync session via db.run_sync;
+        # invoke the passed lambda with a stub sync session so the patched
+        # helper (return_value=True) is exercised.
+        async def _run_sync(fn, *args, **kwargs):
+            return fn(MagicMock())
+
+        db.run_sync = AsyncMock(side_effect=_run_sync)
 
         with patch("redis_cache.OrgSlugCache"):
             result = await update_organization(
@@ -196,7 +225,6 @@ class TestListMembersSuccess:
         """Cover lines 519-539: successful member listing."""
         from routers.organizations import list_organization_members
 
-        db = Mock()
         user = Mock(is_superadmin=True, id="admin-1")
 
         member_mock = Mock()
@@ -218,12 +246,9 @@ class TestListMembersSuccess:
         user_mock.email_verified = True
         user_mock.email_verification_method = "link"
 
-        members_query = MagicMock()
-        members_query.join.return_value = members_query
-        members_query.filter.return_value = members_query
-        members_query.all.return_value = [(member_mock, user_mock)]
-
-        db.query.return_value = members_query
+        # Superadmin path: single ``await db.execute(...).all()`` yielding
+        # (membership, user) row tuples.
+        db = _async_db([_result(all_=[(member_mock, user_mock)])])
 
         result = await list_organization_members(
             organization_id="org-1", current_user=user, db=db,
@@ -243,13 +268,13 @@ class TestUpdateMemberRoleSuccess:
         """Cover lines 594-600: successful role update."""
         from routers.organizations import update_member_role, UpdateMemberRole
 
-        db = Mock()
         user = Mock(is_superadmin=True, id="admin-1")
 
         target_membership = Mock()
         target_membership.role = OrganizationRole.ANNOTATOR
 
-        db.query.return_value.filter.return_value.first.return_value = target_membership
+        # Superadmin path: target_membership lookup then commit.
+        db = _async_db([_result(scalar_one_or_none=target_membership)])
 
         result = await update_member_role(
             organization_id="org-1",
@@ -273,13 +298,13 @@ class TestRemoveMemberSuccess:
         """Cover lines 654-660: successful member removal."""
         from routers.organizations import remove_member
 
-        db = Mock()
         user = Mock(is_superadmin=True, id="admin-1")
 
         target_membership = Mock()
         target_membership.is_active = True
 
-        db.query.return_value.filter.return_value.first.return_value = target_membership
+        # Superadmin path: target_membership lookup then commit.
+        db = _async_db([_result(scalar_one_or_none=target_membership)])
 
         result = await remove_member(
             organization_id="org-1",
@@ -302,7 +327,6 @@ class TestListAllUsersOrgFiltering:
         """Cover lines 708-724: non-superadmin sees org users."""
         from routers.organizations import list_all_users
 
-        db = MagicMock()
         user = Mock(is_superadmin=False, id="user-1", organizations=[{"id": "org-1"}])
 
         u1 = Mock()
@@ -313,20 +337,16 @@ class TestListAllUsersOrgFiltering:
             "created_at": datetime(2025, 1, 1), "updated_at": None,
         }
 
-        # The endpoint chains
-        # query.filter(...).filter(...).order_by(...).limit(...).all().
-        # Every link must return the same mock so the final .all() hits the
-        # seeded list. distinct/subquery exist on the nested member-id chain.
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.order_by.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.distinct.return_value = mock_q
-        mock_q.subquery.return_value = MagicMock()
-        mock_q.all.return_value = [u1]
-        db.query.return_value = mock_q
+        # Non-superadmin path: subqueries are built into the statement (pure
+        # SQLAlchemy, no execute), then a single ``await db.execute(stmt)``
+        # whose ``.scalars().all()`` yields the User rows. ``search`` defaults
+        # to None so the ilike branch is skipped.
+        db = _async_db([_result(scalars_all=[u1])])
 
-        result = await list_all_users(current_user=user, db=db)
+        # `limit` is a FastAPI Query(...) default; when calling the handler
+        # directly (no FastAPI param resolution) it must be passed an int,
+        # else the Query sentinel leaks into `.limit()` and SQLAlchemy raises.
+        result = await list_all_users(current_user=user, db=db, search=None, limit=500)
         assert len(result) >= 1
 
     @pytest.mark.asyncio
@@ -334,7 +354,6 @@ class TestListAllUsersOrgFiltering:
         """Cover: superadmin lists all users."""
         from routers.organizations import list_all_users
 
-        db = MagicMock()
         user = Mock(is_superadmin=True, id="admin-1")
 
         u1 = Mock()
@@ -345,15 +364,13 @@ class TestListAllUsersOrgFiltering:
             "created_at": datetime(2025, 1, 1), "updated_at": None,
         }
 
-        # Superadmin path: query.filter(is_active).order_by(...).limit(...).all().
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.order_by.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.all.return_value = [u1]
-        db.query.return_value = mock_q
+        # Superadmin path: single ``await db.execute(stmt).scalars().all()``.
+        db = _async_db([_result(scalars_all=[u1])])
 
-        result = await list_all_users(current_user=user, db=db)
+        # `limit` is a FastAPI Query(...) default; when calling the handler
+        # directly (no FastAPI param resolution) it must be passed an int,
+        # else the Query sentinel leaks into `.limit()` and SQLAlchemy raises.
+        result = await list_all_users(current_user=user, db=db, search=None, limit=500)
         assert len(result) >= 1
 
 
@@ -368,7 +385,6 @@ class TestUpdateSuperadminStatusSuccess:
         """Cover lines 749-768: successful superadmin promotion."""
         from routers.organizations import update_user_superadmin_status, UserSuperadminUpdate
 
-        db = Mock()
         admin = Mock(is_superadmin=True, id="admin-1")
 
         target_user = Mock()
@@ -383,7 +399,8 @@ class TestUpdateSuperadminStatusSuccess:
         target_user.created_at = datetime(2025, 1, 1)
         target_user.updated_at = None
 
-        db.query.return_value.filter.return_value.first.return_value = target_user
+        # Single user lookup (scalar_one_or_none) then commit/refresh.
+        db = _async_db([_result(scalar_one_or_none=target_user)])
 
         result = await update_user_superadmin_status(
             user_id="user-1",
@@ -413,7 +430,7 @@ class TestDeleteUserSuccess:
         db.execute.return_value.first.return_value = user_result
 
         with patch(
-            "routers.organizations.delete_user_service", return_value=True
+            "routers.organizations.manage.delete_user_service", return_value=True
         ) as svc:
             result = await delete_user(user_id="user-2", current_user=admin, db=db)
 
@@ -431,7 +448,7 @@ class TestDeleteUserSuccess:
             email="target@test.com", is_superadmin=False
         )
 
-        with patch("routers.organizations.delete_user_service", return_value=False):
+        with patch("routers.organizations.manage.delete_user_service", return_value=False):
             with pytest.raises(HTTPException) as exc_info:
                 await delete_user(user_id="user-2", current_user=admin, db=db)
         assert exc_info.value.status_code == 404
@@ -448,7 +465,7 @@ class TestDeleteUserSuccess:
         )
 
         with patch(
-            "routers.organizations.delete_user_service",
+            "routers.organizations.manage.delete_user_service",
             side_effect=RuntimeError("boom"),
         ):
             with pytest.raises(HTTPException) as exc_info:
@@ -481,26 +498,17 @@ class TestAddUserToOrgSuccess:
         """Cover lines 989-1001: successful user addition."""
         from routers.organizations import add_user_to_organization, AddUserToOrganization
 
-        db = Mock()
         admin = Mock(is_superadmin=True, id="admin-1")
         org = Mock()
         target_user = Mock()
 
-        call_count = [0]
-
-        def query_side_effect(*args):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = org  # org found
-            elif call_count[0] == 2:
-                q.first.return_value = target_user  # user found
-            elif call_count[0] == 3:
-                q.first.return_value = None  # not already member
-            return q
-
-        db.query.side_effect = query_side_effect
+        # Superadmin path: org lookup, user lookup, existing-membership lookup
+        # (None -> new membership created), then db.add + commit.
+        db = _async_db([
+            _result(scalar_one_or_none=org),
+            _result(scalar_one_or_none=target_user),
+            _result(scalar_one_or_none=None),
+        ])
 
         result = await add_user_to_organization(
             organization_id="org-1",
@@ -524,7 +532,6 @@ class TestVerifyMemberEmailSuccess:
         """Cover lines 1084-1090: user email already verified."""
         from routers.organizations import verify_member_email, VerifyEmailRequest
 
-        db = Mock()
         admin = Mock(is_superadmin=True, id="admin-1", email="admin@test.com")
 
         user_to_verify = Mock()
@@ -533,7 +540,9 @@ class TestVerifyMemberEmailSuccess:
         user_to_verify.email_verified_by_id = "prev-admin"
         user_to_verify.email_verification_method = "link"
 
-        db.query.return_value.filter.return_value.first.return_value = user_to_verify
+        # Superadmin path: single user_to_verify lookup; already verified
+        # returns early before any commit.
+        db = _async_db([_result(scalar_one_or_none=user_to_verify)])
 
         result = await verify_member_email(
             organization_id="org-1",
@@ -549,14 +558,14 @@ class TestVerifyMemberEmailSuccess:
         """Cover lines 1093-1119: successfully verify an unverified email."""
         from routers.organizations import verify_member_email, VerifyEmailRequest
 
-        db = Mock()
         admin = Mock(is_superadmin=True, id="admin-1", email="admin@test.com")
 
         user_to_verify = Mock()
         user_to_verify.email = "user@test.com"
         user_to_verify.email_verified = False
 
-        db.query.return_value.filter.return_value.first.return_value = user_to_verify
+        # Superadmin path: single user_to_verify lookup, then commit.
+        db = _async_db([_result(scalar_one_or_none=user_to_verify)])
 
         result = await verify_member_email(
             organization_id="org-1",
@@ -574,29 +583,20 @@ class TestVerifyMemberEmailSuccess:
         """Cover lines 1058-1073: non-superadmin checks membership."""
         from routers.organizations import verify_member_email, VerifyEmailRequest
 
-        db = Mock()
         user = Mock(is_superadmin=False, id="admin-1", email="admin@test.com")
 
-        admin_membership = Mock()
         user_to_verify = Mock()
         user_to_verify.email = "user@test.com"
         user_to_verify.email_verified = False
 
-        call_count = [0]
-
-        def query_side_effect(*args):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = admin_membership  # admin check
-            elif call_count[0] == 2:
-                q.first.return_value = Mock()  # target is member
-            elif call_count[0] == 3:
-                q.first.return_value = user_to_verify  # user found
-            return q
-
-        db.query.side_effect = query_side_effect
+        # Non-superadmin path: the admin-role authz check now runs via
+        # ``db.run_sync`` (default-wired to pass for this admin user), NOT via
+        # ``db.execute``. The remaining execute calls are the target-is-member
+        # check, then the user_to_verify lookup, then commit.
+        db = _async_db([
+            _result(scalar_one_or_none=Mock()),
+            _result(scalar_one_or_none=user_to_verify),
+        ])
 
         result = await verify_member_email(
             organization_id="org-1",
@@ -612,10 +612,10 @@ class TestVerifyMemberEmailSuccess:
         """Cover lines 1077-1081: user not found."""
         from routers.organizations import verify_member_email, VerifyEmailRequest
 
-        db = Mock()
         admin = Mock(is_superadmin=True, id="admin-1", email="admin@test.com")
 
-        db.query.return_value.filter.return_value.first.return_value = None
+        # Superadmin path: single user lookup returns None -> 404.
+        db = _async_db([_result(scalar_one_or_none=None)])
 
         with pytest.raises(HTTPException) as exc_info:
             await verify_member_email(
@@ -632,24 +632,16 @@ class TestVerifyMemberEmailSuccess:
         """Cover lines 1059-1073: non-superadmin, target not member of org."""
         from routers.organizations import verify_member_email, VerifyEmailRequest
 
-        db = Mock()
         user = Mock(is_superadmin=False, id="admin-1", email="admin@test.com")
 
         admin_membership = Mock()
 
-        call_count = [0]
-
-        def query_side_effect(*args):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = admin_membership  # admin check passed
-            elif call_count[0] == 2:
-                q.first.return_value = None  # target NOT a member
-            return q
-
-        db.query.side_effect = query_side_effect
+        # Non-superadmin path: admin-role check passes, target-member check
+        # returns None -> 404.
+        db = _async_db([
+            _result(scalar_one_or_none=admin_membership),
+            _result(scalar_one_or_none=None),
+        ])
 
         with pytest.raises(HTTPException) as exc_info:
             await verify_member_email(
@@ -673,7 +665,6 @@ class TestBulkVerifySuccess:
         """Cover lines 1157-1255: mix of success, skip, error."""
         from routers.organizations import bulk_verify_member_emails, BulkVerifyEmailRequest
 
-        db = Mock()
         admin = Mock(is_superadmin=True, id="admin-1", email="admin@test.com")
 
         # user1: already verified (skip)
@@ -686,21 +677,14 @@ class TestBulkVerifySuccess:
         user2.email = "u2@test.com"
         user2.email_verified = False
 
-        call_count = [0]
-
-        def query_side_effect(*args):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = user1  # user1 found
-            elif call_count[0] == 2:
-                q.first.return_value = user2  # user2 found
-            elif call_count[0] == 3:
-                q.first.return_value = None  # user3 not found
-            return q
-
-        db.query.side_effect = query_side_effect
+        # Superadmin path: per-user the member check is skipped, so one
+        # user-lookup execute per id: user1 (skip), user2 (success), None
+        # (error). Then a single commit.
+        db = _async_db([
+            _result(scalar_one_or_none=user1),
+            _result(scalar_one_or_none=user2),
+            _result(scalar_one_or_none=None),
+        ])
 
         result = await bulk_verify_member_emails(
             organization_id="org-1",
@@ -722,24 +706,16 @@ class TestBulkVerifySuccess:
         """Cover lines 1165-1185: non-superadmin, target not org member."""
         from routers.organizations import bulk_verify_member_emails, BulkVerifyEmailRequest
 
-        db = Mock()
         user = Mock(is_superadmin=False, id="org-admin-1", email="oadmin@test.com")
 
         admin_membership = Mock()
 
-        call_count = [0]
-
-        def query_side_effect(*args):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = admin_membership  # admin check
-            elif call_count[0] == 2:
-                q.first.return_value = None  # user not member
-            return q
-
-        db.query.side_effect = query_side_effect
+        # Non-superadmin path: admin-role check, then per-user member check
+        # (None -> error). One user id -> 2 executes, then commit.
+        db = _async_db([
+            _result(scalar_one_or_none=admin_membership),
+            _result(scalar_one_or_none=None),
+        ])
 
         result = await bulk_verify_member_emails(
             organization_id="org-1",
@@ -755,14 +731,14 @@ class TestBulkVerifySuccess:
         """Cover the fully successful path."""
         from routers.organizations import bulk_verify_member_emails, BulkVerifyEmailRequest
 
-        db = Mock()
         admin = Mock(is_superadmin=True, id="admin-1", email="admin@test.com")
 
         user1 = Mock()
         user1.email = "u1@test.com"
         user1.email_verified = False
 
-        db.query.return_value.filter.return_value.first.return_value = user1
+        # Superadmin path: single user lookup (unverified -> success), commit.
+        db = _async_db([_result(scalar_one_or_none=user1)])
 
         result = await bulk_verify_member_emails(
             organization_id="org-1",

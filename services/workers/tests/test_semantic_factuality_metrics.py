@@ -2,7 +2,8 @@
 Tests for Semantic and Factuality Metrics.
 
 Tests MoverScore, Coherence, QAGS, FactCC/SummaC with real implementations.
-Uses platform-aware backends: ONNX/POT on ARM64, PyTorch/pyemd on x86_64.
+Uses platform-aware backends: ONNX embeddings on ARM64, PyTorch on x86_64;
+POT EMD on all platforms.
 
 Scientific Rigor: All tests verify mathematical correctness with known expected values.
 """
@@ -335,30 +336,54 @@ class TestBackendSelection:
         expected = platform.machine().lower() in ('arm64', 'aarch64')
         assert SELECTOR_IS_ARM64 == expected
 
-    @pytest.mark.skipif(not IS_ARM64, reason="ARM64-specific test")
-    def test_arm64_uses_correct_embedding_backend(self):
-        """On ARM64, uses ONNX unless BENGER_USE_PYTORCH is set."""
+    def test_embedding_backend_matches_platform(self):
+        """Embedding backend selection follows the platform/env contract on
+        every arch — runs everywhere, no skip. The selection mirrors
+        ``BackendSelector._should_use_onnx``: ARM64 → ONNX, x86_64 → PyTorch,
+        with ``BENGER_USE_ONNX`` forcing ONNX on x86 and ``BENGER_USE_PYTORCH``
+        overriding both. Asserting the branch this container actually takes
+        (rather than skipping off-ARM64) is what gives the path real coverage.
+        """
         import os
 
-        from ml_evaluation.backends.onnx_backend import ONNXEmbeddingBackend
         from ml_evaluation.backends.selector import backend_selector
-        from ml_evaluation.backends.torch_backend import TorchEmbeddingBackend
+
+        force_pytorch = os.environ.get("BENGER_USE_PYTORCH", "").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
+        force_onnx = os.environ.get("BENGER_USE_ONNX", "").lower() in (
+            "true",
+            "1",
+            "yes",
+        )
+        expect_onnx = (not force_pytorch) and (IS_ARM64 or force_onnx)
 
         backend = backend_selector.get_embedding_backend()
 
-        # If BENGER_USE_PYTORCH is set, expect PyTorch backend
-        if os.environ.get("BENGER_USE_PYTORCH", "").lower() in ("true", "1", "yes"):
-            assert isinstance(
-                backend, TorchEmbeddingBackend
-            ), "With BENGER_USE_PYTORCH=true, should use PyTorch backend"
-        else:
-            assert isinstance(
-                backend, ONNXEmbeddingBackend
-            ), "Without BENGER_USE_PYTORCH, ARM64 should use ONNX backend"
+        if expect_onnx:
+            from ml_evaluation.backends.onnx_backend import ONNXEmbeddingBackend
 
-    @pytest.mark.skipif(not IS_ARM64, reason="ARM64-specific test")
-    def test_arm64_uses_pot_emd(self):
-        """On ARM64, POT EMD backend should be used."""
+            assert isinstance(backend, ONNXEmbeddingBackend), (
+                f"Expected ONNX embedding backend (arm64={IS_ARM64}, "
+                f"force_onnx={force_onnx}), got {type(backend).__name__}"
+            )
+        else:
+            from ml_evaluation.backends.torch_backend import TorchEmbeddingBackend
+
+            assert isinstance(backend, TorchEmbeddingBackend), (
+                f"Expected PyTorch embedding backend (arm64={IS_ARM64}, "
+                f"force_pytorch={force_pytorch}), got {type(backend).__name__}"
+            )
+
+    def test_pot_emd_backend_selected_on_all_platforms(self):
+        """POT is the EMD backend on every platform — runs everywhere, no skip.
+        ``get_emd_backend`` prefers POT unconditionally (pyemd >= 1.1.0 returns
+        incorrect EMD values and is no longer a dependency), falling back to
+        pyemd only if POT is unavailable. The old ``skipif(not IS_ARM64)``
+        masked the fact that the x86_64 container also selects POT.
+        """
         from ml_evaluation.backends.emd_backend import POTEMDBackend, get_emd_backend
 
         backend = get_emd_backend()

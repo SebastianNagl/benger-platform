@@ -4,18 +4,17 @@ import uuid
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import require_user
 from auth_module.models import User as AuthUser
-from database import get_db
-from project_models import Annotation, PostAnnotationResponse, Project, Task
+from database import get_async_db
+from project_models import Annotation, PostAnnotationResponse, Task
 from project_schemas import PostAnnotationResponseCreate, PostAnnotationResponseOut
+from routers.projects.deps import ProjectAccess, require_project_access
 from routers.projects.helpers import (
-    check_project_accessible,
-    check_task_assigned_to_user,
-    check_user_can_edit_project,
-    get_org_context_from_request,
+    check_task_assigned_to_user_async,
 )
 
 router = APIRouter()
@@ -31,48 +30,53 @@ async def submit_questionnaire_response(
     payload: PostAnnotationResponseCreate,
     request: Request,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
+    access: ProjectAccess = Depends(
+        require_project_access(access_denied_detail="You don't have access to this project")
+    ),
 ):
     """Submit a post-annotation questionnaire response."""
 
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    # Check org-context-aware project access
-    org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, project_id, org_context):
-        raise HTTPException(status_code=403, detail="You don't have access to this project")
+    project = access.project
 
     if not project.questionnaire_enabled:
         raise HTTPException(status_code=400, detail="Questionnaire is not enabled for this project")
 
-    task = db.query(Task).filter(Task.id == task_id, Task.project_id == project_id).first()
+    task = (
+        await db.execute(
+            select(Task).where(Task.id == task_id, Task.project_id == project_id)
+        )
+    ).scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
     # Enforce task assignment in manual/auto mode
-    if not check_task_assigned_to_user(db, current_user, task_id, project):
+    if not await check_task_assigned_to_user_async(db, current_user, task_id, project):
         raise HTTPException(status_code=404, detail="Task not found")
 
     annotation = (
-        db.query(Annotation)
-        .filter(
-            Annotation.id == payload.annotation_id,
-            Annotation.task_id == task_id,
-            Annotation.completed_by == current_user.id,
+        await db.execute(
+            select(Annotation).where(
+                Annotation.id == payload.annotation_id,
+                Annotation.task_id == task_id,
+                Annotation.completed_by == current_user.id,
+            )
         )
-        .first()
-    )
+    ).scalar_one_or_none()
     if not annotation:
         raise HTTPException(status_code=404, detail="Annotation not found")
 
     # Check for duplicate response
+    # .first(): annotation_id has no DB unique constraint (this guard is the
+    # only enforcement), so pre-existing duplicates must yield the 400 below,
+    # not a MultipleResultsFound 500. Matches the sync original's .first().
     existing = (
-        db.query(PostAnnotationResponse)
-        .filter(PostAnnotationResponse.annotation_id == payload.annotation_id)
-        .first()
-    )
+        await db.execute(
+            select(PostAnnotationResponse).where(
+                PostAnnotationResponse.annotation_id == payload.annotation_id
+            )
+        )
+    ).scalars().first()
     if existing:
         raise HTTPException(
             status_code=400, detail="Questionnaire response already submitted for this annotation"
@@ -88,8 +92,8 @@ async def submit_questionnaire_response(
     )
 
     db.add(db_response)
-    db.commit()
-    db.refresh(db_response)
+    await db.commit()
+    await db.refresh(db_response)
 
     return db_response
 
@@ -102,28 +106,23 @@ async def list_questionnaire_responses(
     project_id: str,
     request: Request,
     current_user: AuthUser = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
+    access: ProjectAccess = Depends(
+        require_project_access(
+            min_role="edit",
+            access_denied_detail="You don't have access to this project",
+            edit_denied_detail="Not authorized to view questionnaire responses",
+        )
+    ),
 ):
     """List all questionnaire responses for a project."""
 
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    # Check org-context-aware project access
-    org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, project_id, org_context):
-        raise HTTPException(status_code=403, detail="You don't have access to this project")
-
-    # Permission check: creator, superadmin, org admin, or contributor
-    if not check_user_can_edit_project(db, current_user, project_id):
-        raise HTTPException(status_code=403, detail="Not authorized to view questionnaire responses")
-
     responses = (
-        db.query(PostAnnotationResponse)
-        .filter(PostAnnotationResponse.project_id == project_id)
-        .order_by(PostAnnotationResponse.created_at.desc())
-        .all()
-    )
+        await db.execute(
+            select(PostAnnotationResponse)
+            .where(PostAnnotationResponse.project_id == project_id)
+            .order_by(PostAnnotationResponse.created_at.desc())
+        )
+    ).scalars().all()
 
     return responses

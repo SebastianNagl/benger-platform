@@ -84,8 +84,16 @@ def test_evaluation_types(test_db: Session) -> List[EvaluationType]:
         },
     ]
 
+    # Idempotent: the base evaluation-type catalog may already be seeded in the
+    # shared test DB (these fixed ids — accuracy/f1/exact_match/… — are part of
+    # it). Re-inserting would raise evaluation_types_pkey UniqueViolation, so
+    # reuse any existing row and only add the missing ones.
     eval_types = []
     for eval_type_data in eval_types_data:
+        existing = test_db.get(EvaluationType, eval_type_data["id"])
+        if existing is not None:
+            eval_types.append(existing)
+            continue
         eval_type = EvaluationType(**eval_type_data)
         test_db.add(eval_type)
         eval_types.append(eval_type)

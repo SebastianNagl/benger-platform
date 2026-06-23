@@ -6,13 +6,28 @@ history tracking, and the mandatory-profile-status / confirm-profile / profile-h
 endpoints.
 """
 
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
 import pytest
+from sqlalchemy import select
 
 from auth_module import create_access_token
 from models import User, UserProfileHistory
-from user_service import get_password_hash
+from auth_module.user_service import get_password_hash
+
+# NOTE: The HTTP endpoints exercised by TestMandatoryProfileStatus,
+# TestConfirmProfile and TestProfileHistory moved to the async DB lane
+# (GET /auth/mandatory-profile-status, POST /auth/confirm-profile,
+# GET /auth/profile-history all use Depends(get_async_db)). A sync TestClient
+# call into those async handlers fails with a cross-event-loop RuntimeError, so
+# those classes are driven with async_test_client + async_test_db, overriding
+# require_user. The remaining classes test sync service functions directly
+# (confirm_profile / update_user_profile / create_user) or PUT /auth/profile
+# (which deliberately stays sync) — they keep the sync test_db fixtures.
+from auth_module.dependencies import require_user  # noqa: E402
+from auth_module.models import User as AuthUser  # noqa: E402
+from main import app  # noqa: E402
 
 # === Fixtures ===
 
@@ -22,6 +37,101 @@ VALID_SCALES = {
     "ptt_a": {"item_1": 4, "item_2": 5, "item_3": 2, "item_4": 7},
     "ki_exp": {"item_1": 6, "item_2": 5, "item_3": 4, "item_4": 3},
 }
+
+
+@contextmanager
+def _as_user(db_user):
+    """Override require_user with an AuthUser mirroring a seeded DB user row."""
+    au = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _aseed_complete_user(db, *, id="complete-user-id"):
+    """Async twin of the ``complete_user`` fixture: all mandatory fields set."""
+    user = User(
+        id=id,
+        username="completeuser",
+        email="complete@test.com",
+        name="Complete User",
+        hashed_password=get_password_hash("password123"),
+        is_superadmin=False,
+        is_active=True,
+        email_verified=True,
+        legal_expertise_level="law_student",
+        german_proficiency="native",
+        gender="weiblich",
+        age=24,
+        subjective_competence_civil=5,
+        subjective_competence_public=4,
+        subjective_competence_criminal=3,
+        grade_zwischenpruefung=2.3,
+        grade_vorgeruecktenubung=2.5,
+        ati_s_scores=VALID_SCALES["ati_s"],
+        ptt_a_scores=VALID_SCALES["ptt_a"],
+        ki_experience_scores=VALID_SCALES["ki_exp"],
+        mandatory_profile_completed=True,
+        profile_confirmed_at=datetime(2025, 5, 1, tzinfo=timezone.utc),
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def _aseed_incomplete_user(db, *, id="incomplete-user-id"):
+    """Async twin of the ``incomplete_user`` fixture: missing mandatory fields."""
+    user = User(
+        id=id,
+        username="incompleteuser",
+        email="incomplete@test.com",
+        name="Incomplete User",
+        hashed_password=get_password_hash("password123"),
+        is_superadmin=False,
+        is_active=True,
+        email_verified=True,
+        legal_expertise_level="law_student",
+        german_proficiency="native",
+        mandatory_profile_completed=False,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def _aseed_admin_user(db, *, id="admin-integ-id"):
+    """Async twin of the ``admin_user`` fixture: a superadmin."""
+    user = User(
+        id=id,
+        username="admininteg",
+        email="admininteg@test.com",
+        name="Admin Integration",
+        hashed_password=get_password_hash("password123"),
+        is_superadmin=True,
+        is_active=True,
+        email_verified=True,
+        mandatory_profile_completed=False,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
 
 
 @pytest.fixture
@@ -106,11 +216,15 @@ def admin_user(test_db):
 
 
 class TestMandatoryProfileStatus:
-    def test_incomplete_user_returns_missing_fields(self, client, incomplete_user):
-        response = client.get(
-            "/api/auth/mandatory-profile-status",
-            headers={"Authorization": f"Bearer {incomplete_user.token}"},
-        )
+    """GET /auth/mandatory-profile-status is async — driven via async client."""
+
+    @pytest.mark.asyncio
+    async def test_incomplete_user_returns_missing_fields(
+        self, async_test_client, async_test_db
+    ):
+        incomplete_user = await _aseed_incomplete_user(async_test_db)
+        with _as_user(incomplete_user):
+            response = await async_test_client.get("/api/auth/mandatory-profile-status")
         assert response.status_code == 200
         data = response.json()
         assert data["mandatory_profile_completed"] == False  # noqa: E712
@@ -118,26 +232,29 @@ class TestMandatoryProfileStatus:
         assert "gender" in data["missing_fields"]
         assert "age" in data["missing_fields"]
 
-    def test_complete_user_no_missing_fields(self, client, complete_user):
-        response = client.get(
-            "/api/auth/mandatory-profile-status",
-            headers={"Authorization": f"Bearer {complete_user.token}"},
-        )
+    @pytest.mark.asyncio
+    async def test_complete_user_no_missing_fields(self, async_test_client, async_test_db):
+        complete_user = await _aseed_complete_user(async_test_db)
+        with _as_user(complete_user):
+            response = await async_test_client.get("/api/auth/mandatory-profile-status")
         assert response.status_code == 200
         data = response.json()
         assert data["mandatory_profile_completed"] == True  # noqa: E712
         assert data["missing_fields"] == []
 
-    def test_confirmation_due_when_never_confirmed(self, client, incomplete_user):
-        response = client.get(
-            "/api/auth/mandatory-profile-status",
-            headers={"Authorization": f"Bearer {incomplete_user.token}"},
-        )
+    @pytest.mark.asyncio
+    async def test_confirmation_due_when_never_confirmed(
+        self, async_test_client, async_test_db
+    ):
+        incomplete_user = await _aseed_incomplete_user(async_test_db)
+        with _as_user(incomplete_user):
+            response = await async_test_client.get("/api/auth/mandatory-profile-status")
         data = response.json()
         assert data["confirmation_due"] == True  # noqa: E712
 
-    def test_unauthenticated_returns_401(self, client):
-        response = client.get("/api/auth/mandatory-profile-status")
+    @pytest.mark.asyncio
+    async def test_unauthenticated_returns_401(self, async_test_client):
+        response = await async_test_client.get("/api/auth/mandatory-profile-status")
         assert response.status_code in (401, 403)
 
 
@@ -145,44 +262,51 @@ class TestMandatoryProfileStatus:
 
 
 class TestConfirmProfile:
-    def test_confirm_complete_profile(self, client, complete_user):
-        response = client.post(
-            "/api/auth/confirm-profile",
-            headers={"Authorization": f"Bearer {complete_user.token}"},
-        )
+    """POST /auth/confirm-profile is async — driven via async client."""
+
+    @pytest.mark.asyncio
+    async def test_confirm_complete_profile(self, async_test_client, async_test_db):
+        complete_user = await _aseed_complete_user(async_test_db)
+        with _as_user(complete_user):
+            response = await async_test_client.post("/api/auth/confirm-profile")
         assert response.status_code == 200
         data = response.json()
         assert data["success"] == True  # noqa: E712
         assert "confirmed_at" in data
 
-    def test_confirm_incomplete_profile_rejected(self, client, incomplete_user):
-        response = client.post(
-            "/api/auth/confirm-profile",
-            headers={"Authorization": f"Bearer {incomplete_user.token}"},
-        )
+    @pytest.mark.asyncio
+    async def test_confirm_incomplete_profile_rejected(
+        self, async_test_client, async_test_db
+    ):
+        incomplete_user = await _aseed_incomplete_user(async_test_db)
+        with _as_user(incomplete_user):
+            response = await async_test_client.post("/api/auth/confirm-profile")
         assert response.status_code == 400
         data = response.json()
         assert "missing fields" in data["detail"].lower() or "missing" in data["detail"].lower()
 
-    def test_confirm_creates_history_entry(self, client, test_db, complete_user):
-        response = client.post(
-            "/api/auth/confirm-profile",
-            headers={"Authorization": f"Bearer {complete_user.token}"},
-        )
+    @pytest.mark.asyncio
+    async def test_confirm_creates_history_entry(self, async_test_client, async_test_db):
+        complete_user = await _aseed_complete_user(async_test_db)
+        with _as_user(complete_user):
+            response = await async_test_client.post("/api/auth/confirm-profile")
         assert response.status_code == 200
 
         entries = (
-            test_db.query(UserProfileHistory)
-            .filter(UserProfileHistory.user_id == complete_user.id)
-            .all()
-        )
+            await async_test_db.execute(
+                select(UserProfileHistory).where(
+                    UserProfileHistory.user_id == complete_user.id
+                )
+            )
+        ).scalars().all()
         assert len(entries) >= 1
         confirmation_entry = [e for e in entries if e.change_type == "confirmation"]
         assert len(confirmation_entry) == 1
         assert "profile_confirmed_at" in confirmation_entry[0].changed_fields
 
-    def test_unauthenticated_returns_401(self, client):
-        response = client.post("/api/auth/confirm-profile")
+    @pytest.mark.asyncio
+    async def test_unauthenticated_returns_401(self, async_test_client):
+        response = await async_test_client.post("/api/auth/confirm-profile")
         assert response.status_code in (401, 403)
 
 
@@ -190,49 +314,58 @@ class TestConfirmProfile:
 
 
 class TestProfileHistory:
-    def test_empty_history(self, client, complete_user):
-        response = client.get(
-            "/api/auth/profile-history",
-            headers={"Authorization": f"Bearer {complete_user.token}"},
-        )
+    """GET /auth/profile-history is async — driven via async client."""
+
+    @pytest.mark.asyncio
+    async def test_empty_history(self, async_test_client, async_test_db):
+        complete_user = await _aseed_complete_user(async_test_db)
+        with _as_user(complete_user):
+            response = await async_test_client.get("/api/auth/profile-history")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
 
-    def test_history_after_confirmation(self, client, test_db, complete_user):
+    @pytest.mark.asyncio
+    async def test_history_after_confirmation(self, async_test_client, async_test_db):
+        complete_user = await _aseed_complete_user(async_test_db)
         # Confirm profile first
-        client.post(
-            "/api/auth/confirm-profile",
-            headers={"Authorization": f"Bearer {complete_user.token}"},
-        )
-        response = client.get(
-            "/api/auth/profile-history",
-            headers={"Authorization": f"Bearer {complete_user.token}"},
-        )
+        with _as_user(complete_user):
+            await async_test_client.post("/api/auth/confirm-profile")
+            response = await async_test_client.get("/api/auth/profile-history")
         assert response.status_code == 200
         data = response.json()
         assert len(data) >= 1
         assert data[0]["change_type"] == "confirmation"
 
-    def test_non_superadmin_cannot_view_others_history(
-        self, client, complete_user, incomplete_user
+    @pytest.mark.asyncio
+    async def test_non_superadmin_cannot_view_others_history(
+        self, async_test_client, async_test_db
     ):
-        response = client.get(
-            f"/api/auth/profile-history?user_id={incomplete_user.id}",
-            headers={"Authorization": f"Bearer {complete_user.token}"},
-        )
+        complete_user = await _aseed_complete_user(async_test_db)
+        incomplete_user = await _aseed_incomplete_user(async_test_db)
+        with _as_user(complete_user):
+            response = await async_test_client.get(
+                f"/api/auth/profile-history?user_id={incomplete_user.id}"
+            )
         assert response.status_code == 403
 
-    def test_superadmin_can_view_others_history(self, client, admin_user, complete_user):
-        response = client.get(
-            f"/api/auth/profile-history?user_id={complete_user.id}",
-            headers={"Authorization": f"Bearer {admin_user.token}"},
-        )
+    @pytest.mark.asyncio
+    async def test_superadmin_can_view_others_history(
+        self, async_test_client, async_test_db
+    ):
+        admin_user = await _aseed_admin_user(async_test_db)
+        complete_user = await _aseed_complete_user(async_test_db)
+        with _as_user(admin_user):
+            response = await async_test_client.get(
+                f"/api/auth/profile-history?user_id={complete_user.id}"
+            )
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
 
-    def test_pagination(self, client, test_db, complete_user):
+    @pytest.mark.asyncio
+    async def test_pagination(self, async_test_client, async_test_db):
+        complete_user = await _aseed_complete_user(async_test_db)
         # Create multiple history entries
         for i in range(5):
             entry = UserProfileHistory(
@@ -242,26 +375,27 @@ class TestProfileHistory:
                 snapshot={"age": 24 + i},
                 changed_fields=["age"],
             )
-            test_db.add(entry)
-        test_db.commit()
+            async_test_db.add(entry)
+        await async_test_db.commit()
 
-        response = client.get(
-            "/api/auth/profile-history?limit=2&offset=0",
-            headers={"Authorization": f"Bearer {complete_user.token}"},
-        )
+        with _as_user(complete_user):
+            response = await async_test_client.get(
+                "/api/auth/profile-history?limit=2&offset=0"
+            )
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 2
 
-        response2 = client.get(
-            "/api/auth/profile-history?limit=2&offset=2",
-            headers={"Authorization": f"Bearer {complete_user.token}"},
-        )
+        with _as_user(complete_user):
+            response2 = await async_test_client.get(
+                "/api/auth/profile-history?limit=2&offset=2"
+            )
         data2 = response2.json()
         assert len(data2) == 2
 
-    def test_unauthenticated_returns_401(self, client):
-        response = client.get("/api/auth/profile-history")
+    @pytest.mark.asyncio
+    async def test_unauthenticated_returns_401(self, async_test_client):
+        response = await async_test_client.get("/api/auth/profile-history")
         assert response.status_code in (401, 403)
 
 

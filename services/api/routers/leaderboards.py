@@ -10,11 +10,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from auth_module.dependencies import get_current_user
-from database import get_db
+from database import get_async_db
 from models import EvaluationRun, LLMModel, User
 from project_models import Annotation, Project, ProjectOrganization
 from routers.projects.helpers import check_project_accessible, get_org_context_from_request
@@ -65,6 +66,18 @@ def _intersect_with_allowlisted_org_projects(
         ProjectOrganization.organization_id.in_(_LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS)
     )
     allowed_set = {row[0] for row in allowed_q.all()}
+    return _intersect_allowlisted_result(allowed_set, project_ids)
+
+
+def _build_allowlisted_org_project_ids_select():
+    """Shared select for the allowlisted-org project ids (both twins)."""
+    return select(ProjectOrganization.project_id).where(
+        ProjectOrganization.organization_id.in_(_LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS)
+    )
+
+
+def _intersect_allowlisted_result(allowed_set, project_ids):
+    """Pure-Python tail shared by sync/async intersect twins."""
     if project_ids is None or not project_ids:
         return sorted(allowed_set)
     intersect = [pid for pid in project_ids if pid in allowed_set]
@@ -74,6 +87,17 @@ def _intersect_with_allowlisted_org_projects(
             detail="selected project(s) are not in the LLM leaderboard trust scope",
         )
     return intersect
+
+
+async def _intersect_with_allowlisted_org_projects_async(
+    db: AsyncSession, project_ids: Optional[List[str]]
+) -> Optional[List[str]]:
+    """Async twin of `_intersect_with_allowlisted_org_projects`."""
+    if not _LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS:
+        return project_ids
+    rows = (await db.execute(_build_allowlisted_org_project_ids_select())).all()
+    allowed_set = {row[0] for row in rows}
+    return _intersect_allowlisted_result(allowed_set, project_ids)
 
 
 def _filter_accessible_project_ids(
@@ -98,6 +122,44 @@ def _filter_accessible_project_ids(
     if user.is_superadmin:
         return project_ids
     kept = [pid for pid in project_ids if check_project_accessible(db, user, pid, org_context)]
+    if strict and not kept:
+        raise HTTPException(
+            status_code=400,
+            detail="project_ids include no accessible project for this user",
+        )
+    return kept
+
+
+async def _filter_accessible_project_ids_async(
+    db: AsyncSession,
+    user,
+    project_ids: Optional[List[str]],
+    org_context: Optional[str] = None,
+    *,
+    strict: bool = False,
+) -> Optional[List[str]]:
+    """Async twin of `_filter_accessible_project_ids`.
+
+    `check_project_accessible` is sync-only (sync `db.query`, lives in the
+    off-limits routers/projects/helpers.py with no async twin). Bridge the
+    whole per-project filter loop through a single `db.run_sync(...)` so it
+    executes on a sync Session bound to THIS async session's connection — one
+    round-trip into the sync world rather than N awaits, and it stays inside
+    the caller's transaction.
+    """
+    if not project_ids:
+        return project_ids
+    if user.is_superadmin:
+        return project_ids
+
+    def _keep(sync_db) -> List[str]:
+        return [
+            pid
+            for pid in project_ids
+            if check_project_accessible(sync_db, user, pid, org_context)
+        ]
+
+    kept = await db.run_sync(_keep)
     if strict and not kept:
         raise HTTPException(
             status_code=400,
@@ -271,7 +333,7 @@ async def get_leaderboard_statistics(
     request: Request,
     project_ids: Optional[List[str]] = Query(None),
     period: str = Query("overall", regex="^(overall|monthly|weekly)$"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -285,35 +347,39 @@ async def get_leaderboard_statistics(
     """
     # Filter project_ids to only include accessible ones
     org_context = get_org_context_from_request(request)
-    project_ids = _filter_accessible_project_ids(db, current_user, project_ids, org_context)
+    project_ids = await _filter_accessible_project_ids_async(
+        db, current_user, project_ids, org_context
+    )
 
     # Build query for annotation counts
-    query = db.query(
+    stmt = select(
         func.count(Annotation.id).label('total'),
         func.count(func.distinct(Annotation.completed_by)).label('unique_users'),
-    ).filter(
+    ).where(
         Annotation.was_cancelled == False,  # noqa: E712
         func.jsonb_array_length(Annotation.result) > 0,
     )
 
     # Apply filters
     if project_ids:
-        query = query.filter(Annotation.project_id.in_(project_ids))
+        stmt = stmt.where(Annotation.project_id.in_(project_ids))
 
     now = datetime.utcnow()
     if period == "monthly":
-        query = query.filter(Annotation.created_at >= now - timedelta(days=30))
+        stmt = stmt.where(Annotation.created_at >= now - timedelta(days=30))
     elif period == "weekly":
-        query = query.filter(Annotation.created_at >= now - timedelta(days=7))
+        stmt = stmt.where(Annotation.created_at >= now - timedelta(days=7))
 
-    result = query.first()
+    result = (await db.execute(stmt)).first()
     total_annotations = result.total or 0
     total_annotators = result.unique_users or 0
 
     # Get total active users count (regardless of annotations)
     total_users = (
-        db.query(func.count(User.id)).filter(User.is_active == True).scalar() or 0  # noqa: E712
-    )  # noqa: E712
+        await db.execute(
+            select(func.count(User.id)).where(User.is_active == True)  # noqa: E712
+        )
+    ).scalar() or 0
 
     # Calculate average
     average = total_annotations / total_annotators if total_annotators > 0 else 0
@@ -360,6 +426,33 @@ def _project_scope_key_for_request(
     return "public"
 
 
+def _build_evaluation_types_in_scope_select(
+    project_ids: Optional[List[str]], scope_key: Optional[str]
+):
+    """Shared select for `_evaluation_types_in_scope` and its async twin."""
+    stmt = select(EvaluationRun.evaluation_type_ids).where(
+        EvaluationRun.status == "completed"
+    )
+    if project_ids:
+        stmt = stmt.where(EvaluationRun.project_id.in_(project_ids))
+    elif scope_key == "public":
+        stmt = stmt.join(Project, EvaluationRun.project_id == Project.id).where(
+            Project.is_public.is_(True)
+        )
+    return stmt
+
+
+def _flatten_evaluation_type_ids(rows) -> List[str]:
+    """Pure-Python flatten of the (type_ids,) rows into a sorted unique list."""
+    seen: set = set()
+    for (type_ids,) in rows:
+        if isinstance(type_ids, list):
+            for t in type_ids:
+                if t:
+                    seen.add(t)
+    return sorted(seen)
+
+
 def _evaluation_types_in_scope(
     db: Session, project_ids: Optional[List[str]], scope_key: Optional[str]
 ) -> List[str]:
@@ -367,22 +460,22 @@ def _evaluation_types_in_scope(
 
     Cheap: scans EvaluationRun (a few hundred rows in prod), not task_evaluations.
     """
-    stmt = db.query(EvaluationRun.evaluation_type_ids).filter(
-        EvaluationRun.status == "completed"
-    )
-    if project_ids:
-        stmt = stmt.filter(EvaluationRun.project_id.in_(project_ids))
-    elif scope_key == "public":
-        stmt = stmt.join(Project, EvaluationRun.project_id == Project.id).filter(
-            Project.is_public.is_(True)
+    rows = db.execute(
+        _build_evaluation_types_in_scope_select(project_ids, scope_key)
+    ).all()
+    return _flatten_evaluation_type_ids(rows)
+
+
+async def _evaluation_types_in_scope_async(
+    db: AsyncSession, project_ids: Optional[List[str]], scope_key: Optional[str]
+) -> List[str]:
+    """Async twin of `_evaluation_types_in_scope`."""
+    rows = (
+        await db.execute(
+            _build_evaluation_types_in_scope_select(project_ids, scope_key)
         )
-    seen: set = set()
-    for (type_ids,) in stmt.all():
-        if isinstance(type_ids, list):
-            for t in type_ids:
-                if t:
-                    seen.add(t)
-    return sorted(seen)
+    ).all()
+    return _flatten_evaluation_type_ids(rows)
 
 
 @router.get("/llm-models", response_model=LLMLeaderboardResponse)
@@ -417,7 +510,7 @@ async def get_llm_leaderboard(
     ),
     limit: int = Query(50, le=200, description="Maximum results to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -453,12 +546,12 @@ async def get_llm_leaderboard(
                    (null for live-aggregation responses)
     """
     from aggregate_summaries import (
-        live_aggregate_leaderboard,
-        read_llm_leaderboard,
+        live_aggregate_leaderboard_async,
+        read_llm_leaderboard_async,
     )
 
     org_context = get_org_context_from_request(request)
-    project_ids = _filter_accessible_project_ids(
+    project_ids = await _filter_accessible_project_ids_async(
         db, current_user, project_ids, org_context, strict=True,
     )
     # Apply the leaderboard's trust gate AFTER accessibility filtering so
@@ -466,7 +559,7 @@ async def get_llm_leaderboard(
     # then the "not in trust scope" 400 if all their accessible projects
     # are excluded.
     caller_supplied_project_ids = bool(project_ids)
-    project_ids = _intersect_with_allowlisted_org_projects(db, project_ids)
+    project_ids = await _intersect_with_allowlisted_org_projects_async(db, project_ids)
 
     if not caller_supplied_project_ids:
         # Default request: caller wants "the leaderboard" with no project
@@ -494,13 +587,15 @@ async def get_llm_leaderboard(
     computed_at: Optional[datetime] = None
     entries: List[Dict[str, Any]]
     if use_precomputed:
-        entries, total_models, available_metrics, computed_at = read_llm_leaderboard(
-            db, scope_key, period, metric, limit, offset,
-            min_generation_count=min_generation_count,
-            min_samples_evaluated=min_samples_evaluated,
+        entries, total_models, available_metrics, computed_at = (
+            await read_llm_leaderboard_async(
+                db, scope_key, period, metric, limit, offset,
+                min_generation_count=min_generation_count,
+                min_samples_evaluated=min_samples_evaluated,
+            )
         )
     else:
-        rows = live_aggregate_leaderboard(
+        rows = await live_aggregate_leaderboard_async(
             db, project_ids, period, evaluation_types, aggregation=aggregation,
         )
         by_model: Dict[str, Dict[str, Any]] = {}
@@ -548,9 +643,13 @@ async def get_llm_leaderboard(
             sorted_entries_model_ids = [e["model_id"] for e in sorted_entries]
             search_model_info: Dict[str, str] = {}
             if sorted_entries_model_ids:
-                for m in db.query(LLMModel).filter(
-                    LLMModel.id.in_(sorted_entries_model_ids)
-                ).all():
+                for m in (
+                    await db.execute(
+                        select(LLMModel).where(
+                            LLMModel.id.in_(sorted_entries_model_ids)
+                        )
+                    )
+                ).scalars().all():
                     search_model_info[m.id] = m.name
             sorted_entries = [
                 e for e in sorted_entries
@@ -564,10 +663,16 @@ async def get_llm_leaderboard(
     model_ids_in_page = [e["model_id"] for e in entries]
     model_info: Dict[str, Dict[str, str]] = {}
     if model_ids_in_page:
-        for m in db.query(LLMModel).filter(LLMModel.id.in_(model_ids_in_page)).all():
+        for m in (
+            await db.execute(
+                select(LLMModel).where(LLMModel.id.in_(model_ids_in_page))
+            )
+        ).scalars().all():
             model_info[m.id] = {"name": m.name, "provider": m.provider}
 
-    available_evaluation_types = _evaluation_types_in_scope(db, project_ids, scope_key)
+    available_evaluation_types = await _evaluation_types_in_scope_async(
+        db, project_ids, scope_key
+    )
 
     leaderboard: List[LLMLeaderboardEntry] = []
     for rank, entry in enumerate(entries, start=offset + 1):
@@ -606,8 +711,12 @@ async def get_llm_leaderboard(
     # depth for raw API callers.
     if include_all_models and min_generation_count <= 0 and min_samples_evaluated <= 0:
         seen = {e.model_id for e in leaderboard}
-        catalog_q = db.query(LLMModel).filter(LLMModel.is_active == True)  # noqa: E712
-        for m in catalog_q.all():
+        catalog_rows = (
+            await db.execute(
+                select(LLMModel).where(LLMModel.is_active == True)  # noqa: E712
+            )
+        ).scalars().all()
+        for m in catalog_rows:
             if m.id in seen:
                 continue
             if search:
@@ -661,7 +770,7 @@ async def get_llm_model_details(
     request: Request,
     project_ids: Optional[List[str]] = Query(None),
     period: str = Query("overall", regex="^(overall|monthly|weekly)$"),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -680,14 +789,18 @@ async def get_llm_model_details(
     - computed_at: When the precomputed snapshot was built (null for live)
     """
     from aggregate_summaries import (
-        live_aggregate_leaderboard,
-        read_llm_model_aggregate,
+        live_aggregate_leaderboard_async,
+        read_llm_model_aggregate_async,
     )
 
     org_context = get_org_context_from_request(request)
-    project_ids = _filter_accessible_project_ids(db, current_user, project_ids, org_context)
+    project_ids = await _filter_accessible_project_ids_async(
+        db, current_user, project_ids, org_context
+    )
 
-    model = db.query(LLMModel).filter(LLMModel.id == model_id).first()
+    model = (
+        await db.execute(select(LLMModel).where(LLMModel.id == model_id))
+    ).scalar_one_or_none()
     model_info = (
         {"id": model.id, "name": model.name, "provider": model.provider}
         if model
@@ -701,11 +814,11 @@ async def get_llm_model_details(
     scope_key = _project_scope_key_for_request(project_ids, current_user)
 
     if scope_key is not None:
-        aggregate = read_llm_model_aggregate(db, model_id, scope_key, period)
+        aggregate = await read_llm_model_aggregate_async(db, model_id, scope_key, period)
     else:
         rows = [
             r
-            for r in live_aggregate_leaderboard(db, project_ids, period, None)
+            for r in await live_aggregate_leaderboard_async(db, project_ids, period, None)
             if r["model_id"] == model_id
         ]
         aggregate = {

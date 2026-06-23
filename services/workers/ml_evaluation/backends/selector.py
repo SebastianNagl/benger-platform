@@ -20,8 +20,8 @@ class BackendSelector:
     """
     Selects optimal backend for the current platform.
 
-    On ARM64: Uses ONNX Runtime + POT
-    On x86_64: Uses PyTorch + pyemd (with ONNX fallback if env var set)
+    On ARM64: Uses ONNX Runtime (embeddings) + POT (EMD)
+    On x86_64: Uses PyTorch (embeddings) + POT (EMD); ONNX if BENGER_USE_ONNX set
     """
 
     _instance = None

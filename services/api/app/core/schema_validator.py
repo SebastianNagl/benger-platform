@@ -292,7 +292,9 @@ def create_validator_from_env(mode: Optional[str] = None) -> SchemaValidator:
     if mode:
         validation_mode = ValidationMode(mode.lower())
     else:
-        mode_str = os.getenv("SCHEMA_VALIDATION_MODE", "strict").lower()
+        from app.core.config import get_settings
+
+        mode_str = get_settings().schema_validation_mode.lower()
         validation_mode = ValidationMode(mode_str)
 
     try:

@@ -11,11 +11,12 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import User, require_superadmin, require_user
 from cdn_service import cdn_service
-from database import get_db
+from database import get_async_db
 from models import OrganizationMembership, UploadedData
 from object_storage import object_storage
 from project_models import Project
@@ -83,7 +84,7 @@ async def upload_file_to_storage(
     file_type: str = Form("uploads"),
     metadata: Optional[str] = Form(None),
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Upload file to object storage (for environments without direct upload)"""
     try:
@@ -123,7 +124,7 @@ async def upload_file_to_storage(
         )
 
         db.add(uploaded_data)
-        db.commit()
+        await db.commit()
 
         return {
             "id": uploaded_data.id,
@@ -147,12 +148,14 @@ async def get_download_url(
     file_id: str,
     expires_in: Optional[int] = 86400,  # 24 hours default
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Generate presigned URL for file download"""
     try:
         # Get file record from database
-        uploaded_data = db.query(UploadedData).filter(UploadedData.id == file_id).first()
+        uploaded_data = (
+            await db.execute(select(UploadedData).where(UploadedData.id == file_id))
+        ).scalar_one_or_none()
 
         if not uploaded_data:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
@@ -163,7 +166,9 @@ async def get_download_url(
             pass  # Access granted
         elif uploaded_data.task_id:
             # If file is associated with a task, check if user has access to that task
-            task = db.query(Project).filter(Project.id == uploaded_data.task_id).first()
+            task = (
+                await db.execute(select(Project).where(Project.id == uploaded_data.task_id))
+            ).scalar_one_or_none()
             if not task:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -171,15 +176,13 @@ async def get_download_url(
                 )
 
             # Check if user has access to the task through organization membership
-            user_org_ids = (
-                db.query(OrganizationMembership.organization_id)
-                .filter(
+            user_org_rows = await db.execute(
+                select(OrganizationMembership.organization_id).where(
                     OrganizationMembership.user_id == current_user.id,
                     OrganizationMembership.is_active == True,  # noqa: E712
                 )
-                .all()
             )
-            user_org_ids = [org.organization_id for org in user_org_ids]
+            user_org_ids = [row[0] for row in user_org_rows.all()]
 
             # Check if user is in any of the task's organizations
             if task.organization_ids:
@@ -226,12 +229,14 @@ async def get_download_url(
 async def delete_file_from_storage(
     file_id: str,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Delete file from object storage"""
     try:
         # Get file record from database
-        uploaded_data = db.query(UploadedData).filter(UploadedData.id == file_id).first()
+        uploaded_data = (
+            await db.execute(select(UploadedData).where(UploadedData.id == file_id))
+        ).scalar_one_or_none()
 
         if not uploaded_data:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
@@ -245,8 +250,8 @@ async def delete_file_from_storage(
 
         if success:
             # Delete from database
-            db.delete(uploaded_data)
-            db.commit()
+            await db.delete(uploaded_data)
+            await db.commit()
 
             return {"message": "File deleted successfully"}
         else:
@@ -321,7 +326,7 @@ async def get_multipart_urls(
 async def complete_multipart_upload(
     request: MultipartCompleteRequest,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Complete multipart upload and create database record"""
     try:
@@ -351,7 +356,7 @@ async def complete_multipart_upload(
         )
 
         db.add(uploaded_data)
-        db.commit()
+        await db.commit()
 
         return {
             "id": uploaded_data.id,

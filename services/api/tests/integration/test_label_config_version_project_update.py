@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from label_config_version_service import LabelConfigVersionService
+from services.label_config.version_service import LabelConfigVersionService
 from models import User
 from project_models import Project
 

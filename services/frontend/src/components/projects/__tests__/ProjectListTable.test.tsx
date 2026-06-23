@@ -58,6 +58,8 @@ jest.mock('@/lib/api/projects', () => ({
 const mockConfirm = jest.fn()
 const mockAddToast = jest.fn()
 const mockRemoveToast = jest.fn()
+const mockStartProgress = jest.fn()
+const mockCompleteProgress = jest.fn()
 
 jest.mock('@/hooks/useDialogs', () => ({
   useConfirm: () => mockConfirm,
@@ -67,6 +69,14 @@ jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({
     addToast: mockAddToast,
     removeToast: mockRemoveToast,
+  }),
+}))
+
+jest.mock('@/contexts/ProgressContext', () => ({
+  useProgress: () => ({
+    startProgress: mockStartProgress,
+    updateProgress: jest.fn(),
+    completeProgress: mockCompleteProgress,
   }),
 }))
 
@@ -214,6 +224,59 @@ describe('ProjectListTable', () => {
     ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
       defaultStoreState
     )
+  })
+
+  describe('Archive filtering (flash guard)', () => {
+    // The store is shared with the archived view and persists across SPA
+    // navigation, so it can momentarily hold rows from the other view. The
+    // render must filter by archive status so archived rows never flash on the
+    // active page (and vice versa) regardless of stale store contents.
+    const archiveMix: Partial<Project>[] = [
+      {
+        id: 'a1',
+        title: 'Active One',
+        created_at: '2024-01-01T00:00:00Z',
+        task_count: 1,
+        annotation_count: 0,
+        progress_percentage: 0,
+        is_archived: false,
+      },
+      {
+        id: 'z1',
+        title: 'Archived One',
+        created_at: '2024-01-02T00:00:00Z',
+        task_count: 1,
+        annotation_count: 0,
+        progress_percentage: 0,
+        is_archived: true,
+      },
+    ]
+
+    it('hides archived projects on the active view even when the store holds them', () => {
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
+        ...defaultStoreState,
+        projects: archiveMix,
+        totalProjects: 2,
+      })
+
+      render(<ProjectListTable />)
+
+      expect(screen.getByText('Active One')).toBeInTheDocument()
+      expect(screen.queryByText('Archived One')).not.toBeInTheDocument()
+    })
+
+    it('shows only archived projects on the archived view', () => {
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
+        ...defaultStoreState,
+        projects: archiveMix,
+        totalProjects: 2,
+      })
+
+      render(<ProjectListTable showArchivedOnly={true} />)
+
+      expect(screen.getByText('Archived One')).toBeInTheDocument()
+      expect(screen.queryByText('Active One')).not.toBeInTheDocument()
+    })
   })
 
   describe('Table Rendering', () => {
@@ -1531,16 +1594,22 @@ describe('ProjectListTable', () => {
       )
       await user.click(exportOption)
 
-      // Should show loading toast
+      // Should show an indeterminate progress toast while the export runs
       await waitFor(() => {
-        expect(mockAddToast).toHaveBeenCalledWith(
+        expect(mockStartProgress).toHaveBeenCalledWith(
+          expect.any(String),
           expect.stringContaining('Exporting 1'),
-          'info',
-          0
+          { indeterminate: true }
         )
       })
 
-      // Should show success toast after export completes
+      // Should resolve the progress toast and show a success toast once done
+      await waitFor(() => {
+        expect(mockCompleteProgress).toHaveBeenCalledWith(
+          expect.any(String),
+          'success'
+        )
+      })
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
           expect.stringContaining('Exported 1 full project'),

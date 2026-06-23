@@ -253,7 +253,13 @@ export interface EvaluationRequest {
   metrics: string[]
 }
 
-export interface EvaluationResult {
+/**
+ * Per-row evaluation summary returned by the `/evaluations` list endpoint
+ * (see EvaluationsClient.getEvaluations). Distinct from the project-scoped
+ * `ProjectEvaluationResult` (evaluations list page) and the sample-level
+ * `SampleEvaluationResult` (evaluation results drill-down).
+ */
+export interface EvaluationResultSummary {
   id: string
   task_id: string
   model_id: string

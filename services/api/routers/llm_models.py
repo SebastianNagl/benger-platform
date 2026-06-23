@@ -8,9 +8,10 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from database import get_db
+from database import get_async_db
 from models import LLMModel as DBLLMModel
 
 try:
@@ -57,14 +58,17 @@ class LLMModelResponse(BaseModel):
 
 @router.get("/public/models", response_model=List[LLMModelResponse])
 async def get_public_llm_models(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get all active LLM models (public endpoint for Models page).
     No authentication required.
     """
     try:
-        models = db.query(DBLLMModel).filter(DBLLMModel.is_active.is_(True)).all()
+        result = await db.execute(
+            select(DBLLMModel).where(DBLLMModel.is_active.is_(True))
+        )
+        models = result.scalars().all()
 
         result = []
         for model in models:

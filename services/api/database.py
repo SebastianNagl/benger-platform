@@ -36,6 +36,13 @@ if not DATABASE_URL:
 # Create engine with connection pool configuration
 # Configure pool based on environment for E2E test performance
 is_e2e_test = os.getenv("ENVIRONMENT") == "test"
+# Under pytest, a request driven by the sync Starlette TestClient runs in a
+# fresh event loop per request (anyio portal). A pooled asyncpg connection
+# bound to a previous loop then raises "attached to a different loop" /
+# "Event loop is closed" when an async-lane endpoint is hit through that sync
+# client. NullPool opens a fresh connection per checkout (on the current loop),
+# eliminating that whole flake class. Test-only — production keeps its pool.
+is_testing = os.getenv("TESTING", "").lower() in ("1", "true", "yes")
 pool_config = {
     "pool_size": 20 if is_e2e_test else 10,
     "max_overflow": 30 if is_e2e_test else 20,
@@ -103,13 +110,19 @@ if DATABASE_URL and DATABASE_URL.startswith("postgresql"):
         },
     }
 
-    async_pool_config = {
-        "pool_size": 10 if is_e2e_test else 5,
-        "max_overflow": 20 if is_e2e_test else 10,
-        "pool_pre_ping": True,
-        "pool_recycle": 3600,
-        "pool_timeout": 5,
-    }
+    if is_testing:
+        # NullPool: no cross-loop connection reuse under the sync TestClient.
+        from sqlalchemy.pool import NullPool
+
+        async_pool_config = {"poolclass": NullPool}
+    else:
+        async_pool_config = {
+            "pool_size": 10 if is_e2e_test else 5,
+            "max_overflow": 20 if is_e2e_test else 10,
+            "pool_pre_ping": True,
+            "pool_recycle": 3600,
+            "pool_timeout": 5,
+        }
 
     async_engine = create_async_engine(
         ASYNC_DATABASE_URL,

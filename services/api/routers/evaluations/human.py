@@ -10,16 +10,22 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
+from sqlalchemy import delete as sa_delete
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.core.authorization import Permission, auth_service
 from auth_module import User, require_user
-from database import get_db
+from database import get_async_db, get_db
 from models import Generation as DBLLMResponse
 from models import HumanEvaluationSession, LikertScaleEvaluation, PreferenceRanking
 from project_models import Project, Task
 from routers.evaluations.helpers import extract_metric_name
-from routers.projects.helpers import check_project_accessible, get_org_context_from_request
+from routers.projects.helpers import (
+    check_project_accessible_async,
+    get_org_context_from_request,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -172,21 +178,20 @@ async def start_human_evaluation_session(
 async def get_next_evaluation_item(
     session_id: str,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get the next item to evaluate in a human evaluation session.
     """
     try:
         # Get the session
-        session = (
-            db.query(HumanEvaluationSession)
-            .filter(
+        session_result = await db.execute(
+            select(HumanEvaluationSession).where(
                 HumanEvaluationSession.id == session_id,
                 HumanEvaluationSession.evaluator_id == current_user.id,
             )
-            .first()
         )
+        session = session_result.scalar_one_or_none()
 
         if not session:
             raise HTTPException(
@@ -202,37 +207,32 @@ async def get_next_evaluation_item(
 
         # Get already evaluated tasks in this session
         if session.session_type == "likert":
-            evaluated_task_ids = (
-                db.query(LikertScaleEvaluation.task_id)
-                .filter(LikertScaleEvaluation.session_id == session_id)
+            evaluated_result = await db.execute(
+                select(LikertScaleEvaluation.task_id)
+                .where(LikertScaleEvaluation.session_id == session_id)
                 .distinct()
-                .all()
             )
-            evaluated_task_ids = [t[0] for t in evaluated_task_ids]
+            evaluated_task_ids = [t[0] for t in evaluated_result.all()]
         else:  # preference
-            evaluated_task_ids = (
-                db.query(PreferenceRanking.task_id)
-                .filter(PreferenceRanking.session_id == session_id)
+            evaluated_result = await db.execute(
+                select(PreferenceRanking.task_id)
+                .where(PreferenceRanking.session_id == session_id)
                 .distinct()
-                .all()
             )
-            evaluated_task_ids = [t[0] for t in evaluated_task_ids]
+            evaluated_task_ids = [t[0] for t in evaluated_result.all()]
 
         # Get next unevaluated task
-        next_task = (
-            db.query(Task)
-            .filter(
-                Task.project_id == session.project_id,
-                ~Task.id.in_(evaluated_task_ids) if evaluated_task_ids else True,
-            )
-            .first()
+        next_task_stmt = select(Task).where(
+            Task.project_id == session.project_id,
+            ~Task.id.in_(evaluated_task_ids) if evaluated_task_ids else True,
         )
+        next_task = (await db.execute(next_task_stmt)).scalars().first()
 
         if not next_task:
             # No more tasks to evaluate
             session.status = "completed"
             session.completed_at = datetime.now()
-            db.commit()
+            await db.commit()
 
             # HTTP 204 should not have a body, use 404 for "no more items"
             raise HTTPException(
@@ -244,7 +244,10 @@ async def get_next_evaluation_item(
         responses = []
 
         # Get LLM responses
-        llm_responses = db.query(DBLLMResponse).filter(DBLLMResponse.task_id == next_task.id).all()
+        llm_result = await db.execute(
+            select(DBLLMResponse).where(DBLLMResponse.task_id == next_task.id)
+        )
+        llm_responses = llm_result.scalars().all()
 
         for resp in llm_responses:
             responses.append(
@@ -286,22 +289,21 @@ async def get_next_evaluation_item(
 async def submit_likert_rating(
     request: LikertRatingSubmit,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Submit Likert scale ratings for a response.
     """
     try:
         # Verify session
-        session = (
-            db.query(HumanEvaluationSession)
-            .filter(
+        session_result = await db.execute(
+            select(HumanEvaluationSession).where(
                 HumanEvaluationSession.id == request.session_id,
                 HumanEvaluationSession.evaluator_id == current_user.id,
                 HumanEvaluationSession.session_type == "likert",
             )
-            .first()
         )
+        session = session_result.scalar_one_or_none()
 
         if not session:
             raise HTTPException(
@@ -328,7 +330,7 @@ async def submit_likert_rating(
         session.items_evaluated += 1
         session.updated_at = datetime.now()
 
-        db.commit()
+        await db.commit()
 
         return {
             "message": "Likert ratings submitted successfully",
@@ -338,7 +340,7 @@ async def submit_likert_rating(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to submit Likert rating: {str(e)}",
@@ -349,22 +351,21 @@ async def submit_likert_rating(
 async def submit_preference_ranking(
     request: PreferenceRankingSubmit,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Submit blind preference ranking between two responses.
     """
     try:
         # Verify session
-        session = (
-            db.query(HumanEvaluationSession)
-            .filter(
+        session_result = await db.execute(
+            select(HumanEvaluationSession).where(
                 HumanEvaluationSession.id == request.session_id,
                 HumanEvaluationSession.evaluator_id == current_user.id,
                 HumanEvaluationSession.session_type == "preference",
             )
-            .first()
         )
+        session = session_result.scalar_one_or_none()
 
         if not session:
             raise HTTPException(
@@ -392,7 +393,7 @@ async def submit_preference_ranking(
         session.items_evaluated += 1
         session.updated_at = datetime.now()
 
-        db.commit()
+        await db.commit()
 
         return {
             "message": "Preference ranking submitted successfully",
@@ -402,7 +403,7 @@ async def submit_preference_ranking(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to submit preference ranking: {str(e)}",
@@ -413,16 +414,17 @@ async def submit_preference_ranking(
 async def get_human_evaluation_progress(
     session_id: str,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get progress information for a human evaluation session.
     """
     try:
         # Get the session
-        session = (
-            db.query(HumanEvaluationSession).filter(HumanEvaluationSession.id == session_id).first()
+        session_result = await db.execute(
+            select(HumanEvaluationSession).where(HumanEvaluationSession.id == session_id)
         )
+        session = session_result.scalar_one_or_none()
 
         if not session:
             raise HTTPException(
@@ -468,25 +470,25 @@ async def get_human_evaluation_sessions(
     project_id: str,
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get all human evaluation sessions for a project.
     """
     # Check project access
-    if not check_project_accessible(db, current_user, project_id, get_org_context_from_request(request)):
+    if not await check_project_accessible_async(db, current_user, project_id, get_org_context_from_request(request)):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have access to this project",
         )
 
     try:
-        sessions = (
-            db.query(HumanEvaluationSession)
-            .filter(HumanEvaluationSession.project_id == project_id)
+        sessions_result = await db.execute(
+            select(HumanEvaluationSession)
+            .where(HumanEvaluationSession.project_id == project_id)
             .order_by(HumanEvaluationSession.created_at.desc())
-            .all()
         )
+        sessions = sessions_result.scalars().all()
 
         return [
             HumanEvaluationSessionResponse(
@@ -515,7 +517,7 @@ async def get_human_evaluation_config(
     project_id: str,
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get human evaluation configuration for a project.
@@ -524,7 +526,8 @@ async def get_human_evaluation_config(
     """
     try:
         # Verify project exists
-        project = db.query(Project).filter(Project.id == project_id).first()
+        project_result = await db.execute(select(Project).where(Project.id == project_id))
+        project = project_result.scalar_one_or_none()
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -533,7 +536,7 @@ async def get_human_evaluation_config(
 
         # Check access permissions
         org_context = get_org_context_from_request(request)
-        if not auth_service.check_project_access(
+        if not await auth_service.check_project_access_async(
             current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
         ):
             raise HTTPException(
@@ -594,7 +597,7 @@ async def get_human_evaluation_config(
 async def delete_human_evaluation_session(
     session_id: str,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Delete a human evaluation session and all associated evaluations.
@@ -603,9 +606,10 @@ async def delete_human_evaluation_session(
     """
     try:
         # Get the session
-        session = (
-            db.query(HumanEvaluationSession).filter(HumanEvaluationSession.id == session_id).first()
+        session_result = await db.execute(
+            select(HumanEvaluationSession).where(HumanEvaluationSession.id == session_id)
         )
+        session = session_result.scalar_one_or_none()
 
         if not session:
             raise HTTPException(
@@ -621,16 +625,20 @@ async def delete_human_evaluation_session(
             )
 
         # Delete associated Likert evaluations
-        db.query(LikertScaleEvaluation).filter(
-            LikertScaleEvaluation.session_id == session_id
-        ).delete()
+        await db.execute(
+            sa_delete(LikertScaleEvaluation).where(
+                LikertScaleEvaluation.session_id == session_id
+            )
+        )
 
         # Delete associated preference rankings
-        db.query(PreferenceRanking).filter(PreferenceRanking.session_id == session_id).delete()
+        await db.execute(
+            sa_delete(PreferenceRanking).where(PreferenceRanking.session_id == session_id)
+        )
 
         # Delete the session
-        db.delete(session)
-        db.commit()
+        await db.delete(session)
+        await db.commit()
 
         return {
             "message": "Human evaluation session deleted successfully",
@@ -640,7 +648,7 @@ async def delete_human_evaluation_session(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete session: {str(e)}",

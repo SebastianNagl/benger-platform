@@ -67,8 +67,8 @@ class TestAuthRouter:
 
     def test_login_success(self, client):
         """Test successful login at /api/auth/login"""
-        with patch("routers.auth.authenticate_user") as mock_auth, patch(
-            "routers.auth.create_tokens_with_refresh"
+        with patch("routers.auth.session.authenticate_user") as mock_auth, patch(
+            "routers.auth.session.create_tokens_with_refresh"
         ) as mock_create_tokens, patch("database.get_db") as mock_get_db:
             # Mock authenticated user
             mock_user = User(
@@ -108,7 +108,7 @@ class TestAuthRouter:
 
     def test_login_invalid_credentials(self, client):
         """Test login with invalid credentials"""
-        with patch("routers.auth.authenticate_user") as mock_auth, patch(
+        with patch("routers.auth.session.authenticate_user") as mock_auth, patch(
             "database.get_db"
         ) as mock_get_db:
             mock_auth.return_value = None  # Authentication failed
@@ -121,7 +121,7 @@ class TestAuthRouter:
 
     def test_login_unverified_email(self, client):
         """Test login with unverified email"""
-        with patch("routers.auth.authenticate_user") as mock_auth, patch(
+        with patch("routers.auth.session.authenticate_user") as mock_auth, patch(
             "database.get_db"
         ) as mock_get_db:
             # Mock unverified user
@@ -146,21 +146,29 @@ class TestAuthRouter:
             assert "verification" in response.json()["detail"].lower()
 
     def test_logout_success(self, client, mock_user):
-        """Test successful logout at /auth/logout"""
-        from database import get_db
+        """Test successful logout at /auth/logout.
+
+        ``/api/auth/logout`` is on the async DB lane and revokes via
+        ``revoke_refresh_token_async``. Override ``get_async_db`` with a no-op
+        async generator and patch the async revoke twin (imported inside the
+        handler from ``services.refresh_token_service``).
+        """
+        from database import get_async_db
         from main import app
         from routers.auth import require_user
 
         def override_require_user():
             return mock_user
 
-        def override_get_db():
-            return Mock(spec=Session)
+        async def override_get_async_db():
+            yield AsyncMock()
 
-        with patch("routers.auth.revoke_refresh_token") as mock_revoke:  # noqa: F841
-            # Override dependencies
+        with patch(
+            "services.refresh_token_service.revoke_refresh_token_async",
+            new=AsyncMock(return_value=True),
+        ):
             app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
+            app.dependency_overrides[get_async_db] = override_get_async_db
 
             try:
                 # Set cookies to simulate logged-in user
@@ -182,7 +190,7 @@ class TestAuthRouter:
         def override_get_db():
             return Mock(spec=Session)
 
-        with patch("routers.auth.refresh_access_token") as mock_refresh:
+        with patch("routers.auth.tokens.refresh_access_token") as mock_refresh:
             # Mock successful token refresh
             mock_token_response = Mock()
             mock_token_response.access_token = "new-access-token"
@@ -240,25 +248,33 @@ class TestAuthRouter:
             app.dependency_overrides.clear()
 
     def test_get_me_success(self, client, mock_user):
-        """Test get current user at /auth/me"""
-        from database import get_db
+        """Test get current user at /auth/me.
+
+        ``/api/auth/me`` is on the async DB lane: it resolves the role via
+        ``get_user_primary_role_async`` and depends on ``get_async_db``. We
+        override the async DB dependency with a no-op async generator (the
+        handler only forwards ``db`` to the patched async twin) and patch the
+        async role helper.
+        """
+        from database import get_async_db
         from main import app
         from routers.auth import require_user
 
         def override_require_user():
             return mock_user
 
-        def override_get_db():
-            return Mock(spec=Session)
+        async def override_get_async_db():
+            yield AsyncMock()
 
         # Override dependencies
         app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_async_db] = override_get_async_db
 
-        # Patch get_user_primary_role to avoid database access
-        with patch("routers.auth.get_user_primary_role") as mock_get_role:
-            mock_get_role.return_value = "user"
-
+        # Patch the async role helper to avoid real database access
+        with patch(
+            "routers.auth.user.get_user_primary_role_async",
+            new=AsyncMock(return_value="user"),
+        ):
             try:
                 response = client.get("/api/auth/me")
 
@@ -271,33 +287,39 @@ class TestAuthRouter:
                 app.dependency_overrides.clear()
 
     def test_get_profile_success(self, client, mock_user):
-        """Test get user profile at /auth/profile"""
-        from database import get_db
+        """Test get user profile at /auth/profile.
+
+        ``/api/auth/profile`` is on the async DB lane. We override
+        ``get_async_db`` with an ``AsyncMock`` session whose ``execute`` yields
+        a result with ``scalar_one_or_none() -> None``, so the handler takes
+        its "user not in DB" fallback and builds the profile straight from
+        ``current_user`` (200) — exercising the async path without a real DB.
+        ``get_user_primary_role_async`` is patched for the role lookup.
+        """
+        from database import get_async_db
         from main import app
         from routers.auth import require_user
 
         def override_require_user():
             return mock_user
 
-        # Create a mock db that returns mock_user when queried
-        mock_db = Mock(spec=Session)
-        mock_query = Mock()
-        mock_filter = Mock()
-        mock_filter.first.return_value = mock_user
-        mock_query.filter.return_value = mock_filter
-        mock_db.query.return_value = mock_query
+        result_mock = Mock()
+        result_mock.scalar_one_or_none.return_value = None
+        async_db = AsyncMock()
+        async_db.execute.return_value = result_mock
 
-        def override_get_db():
-            return mock_db
+        async def override_get_async_db():
+            yield async_db
 
         # Override dependencies
         app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_async_db] = override_get_async_db
 
-        # Patch get_user_primary_role to avoid database access
-        with patch("routers.auth.get_user_primary_role") as mock_get_role:
-            mock_get_role.return_value = "user"
-
+        # Patch the async role helper to avoid real database access
+        with patch(
+            "routers.auth.user.get_user_primary_role_async",
+            new=AsyncMock(return_value="user"),
+        ):
             try:
                 response = client.get("/api/auth/profile")
 
@@ -341,8 +363,8 @@ class TestAuthRouter:
         )
 
         # Patch functions where the router imports them
-        with patch("routers.auth.update_user_profile") as mock_update, patch(
-            "routers.auth.get_user_primary_role"
+        with patch("routers.auth.user.update_user_profile") as mock_update, patch(
+            "routers.auth.user.get_user_primary_role"
         ) as mock_get_role:
             mock_update.return_value = updated_user
             mock_get_role.return_value = "user"
@@ -375,7 +397,7 @@ class TestAuthRouter:
             return Mock(spec=Session)
 
         # Patch the change_user_password where the router imports it
-        with patch("routers.auth.change_user_password") as mock_change:
+        with patch("routers.auth.password.change_user_password") as mock_change:
             mock_change.return_value = True  # Success
 
             # Override dependencies
@@ -428,7 +450,7 @@ class TestAuthRouter:
     def test_verify_email_success(self, client):
         """Test email verification at /auth/verify-email/{token}"""
         with patch(
-            "routers.auth.email_verification_service.verify_email_with_token"
+            "routers.auth.verification.email_verification_service.verify_email_with_token"
         ) as mock_verify, patch("database.get_db") as mock_get_db:
             mock_verify.return_value = (True, "Email verified successfully")
             mock_get_db.return_value = Mock(spec=Session)
@@ -449,7 +471,7 @@ class TestAuthRouter:
             return Mock(spec=Session)
 
         with patch(
-            "routers.auth.email_verification_service.verify_email_with_token"
+            "routers.auth.verification.email_verification_service.verify_email_with_token"
         ) as mock_verify:
             # Mock the service to return failure - this will trigger the 400->500 conversion
             mock_verify.return_value = (False, "Invalid token")
@@ -501,7 +523,7 @@ class TestAuthRouter:
 
         # Use AsyncMock for the async email service call
         with patch(
-            "routers.auth.email_verification_service.send_verification_email",
+            "routers.auth.verification.email_verification_service.send_verification_email",
             new_callable=AsyncMock,
         ) as mock_send:
             mock_send.return_value = True
@@ -583,7 +605,7 @@ class TestAuthRouterIntegration:
             return Mock(spec=Session)
 
         # Mock authentication to fail gracefully rather than crash
-        with patch("routers.auth.authenticate_user") as mock_auth:
+        with patch("routers.auth.session.authenticate_user") as mock_auth:
             mock_auth.return_value = None  # Authentication failure
 
             # Override database dependency

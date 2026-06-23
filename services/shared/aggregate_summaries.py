@@ -38,6 +38,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import cast, func, select, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from models import (
@@ -532,29 +533,28 @@ def _upsert_leaderboard_score(db: Session, row: Dict[str, Any]) -> None:
 # Read helpers (API path)                                                     #
 # --------------------------------------------------------------------------- #
 
-def read_dashboard_sum(
-    db: Session,
-    accessible_project_ids: Optional[List[str]],
-    period: str = "overall",
-) -> Dict[str, int]:
-    """Sum ProjectSummary rows across accessible projects for a period.
+_DASHBOARD_SUM_ZEROS: Dict[str, int] = {
+    "project_count": 0,
+    "total_tasks": 0,
+    "labeled_tasks": 0,
+    "annotations_count": 0,
+    "generations_count": 0,
+    "response_generations_count": 0,
+    "completed_response_generations_count": 0,
+    "evaluation_pairs_count": 0,
+}
 
-    `accessible_project_ids=None` means "superadmin / unscoped" — sum all.
-    `accessible_project_ids=[]`   means "no access" — all zeros.
+
+def _build_dashboard_sum_stmt(
+    accessible_project_ids: Optional[List[str]], period: str
+):
+    """SQL builder shared by the sync `read_dashboard_sum` and its async twin.
+
+    Returns a `select()` summing every ProjectSummary counter for the given
+    period, scoped to `accessible_project_ids` when that is a concrete list
+    (None = unscoped/superadmin). The caller is responsible for the empty-list
+    short-circuit (all zeros) so the builder never has to special-case `[]`.
     """
-    zeros = {
-        "project_count": 0,
-        "total_tasks": 0,
-        "labeled_tasks": 0,
-        "annotations_count": 0,
-        "generations_count": 0,
-        "response_generations_count": 0,
-        "completed_response_generations_count": 0,
-        "evaluation_pairs_count": 0,
-    }
-    if accessible_project_ids == []:
-        return zeros
-
     stmt = select(
         func.count(ProjectSummary.id).label("project_count"),
         func.coalesce(func.sum(ProjectSummary.total_tasks), 0).label("total_tasks"),
@@ -577,7 +577,10 @@ def read_dashboard_sum(
     ).where(ProjectSummary.period == period)
     if accessible_project_ids is not None:
         stmt = stmt.where(ProjectSummary.project_id.in_(accessible_project_ids))
-    row = db.execute(stmt).one()
+    return stmt
+
+
+def _dashboard_sum_from_row(row) -> Dict[str, int]:
     return {
         "project_count": int(row.project_count or 0),
         "total_tasks": int(row.total_tasks or 0),
@@ -592,41 +595,78 @@ def read_dashboard_sum(
     }
 
 
+def read_dashboard_sum(
+    db: Session,
+    accessible_project_ids: Optional[List[str]],
+    period: str = "overall",
+) -> Dict[str, int]:
+    """Sum ProjectSummary rows across accessible projects for a period.
+
+    `accessible_project_ids=None` means "superadmin / unscoped" — sum all.
+    `accessible_project_ids=[]`   means "no access" — all zeros.
+    """
+    if accessible_project_ids == []:
+        return dict(_DASHBOARD_SUM_ZEROS)
+    row = db.execute(
+        _build_dashboard_sum_stmt(accessible_project_ids, period)
+    ).one()
+    return _dashboard_sum_from_row(row)
+
+
+async def read_dashboard_sum_async(
+    db: AsyncSession,
+    accessible_project_ids: Optional[List[str]],
+    period: str = "overall",
+) -> Dict[str, int]:
+    """Async twin of `read_dashboard_sum` — shares `_build_dashboard_sum_stmt`."""
+    if accessible_project_ids == []:
+        return dict(_DASHBOARD_SUM_ZEROS)
+    row = (
+        await db.execute(_build_dashboard_sum_stmt(accessible_project_ids, period))
+    ).one()
+    return _dashboard_sum_from_row(row)
+
+
+def _build_project_summary_stmt(project_id: str, period: str):
+    return select(ProjectSummary).where(
+        ProjectSummary.project_id == project_id,
+        ProjectSummary.period == period,
+    )
+
+
 def read_project_summary(
     db: Session, project_id: str, period: str = "overall"
 ) -> Optional[ProjectSummary]:
     return db.execute(
-        select(ProjectSummary).where(
-            ProjectSummary.project_id == project_id,
-            ProjectSummary.period == period,
-        )
+        _build_project_summary_stmt(project_id, period)
     ).scalar_one_or_none()
 
 
-def read_llm_leaderboard(
-    db: Session,
+async def read_project_summary_async(
+    db: AsyncSession, project_id: str, period: str = "overall"
+) -> Optional[ProjectSummary]:
+    """Async twin of `read_project_summary`."""
+    return (
+        await db.execute(_build_project_summary_stmt(project_id, period))
+    ).scalar_one_or_none()
+
+
+def _build_llm_leaderboard_stmts(
     project_scope_key: str,
     period: str,
     sort_metric: str,
     limit: int,
     offset: int,
-    *,
-    min_generation_count: int = 0,
-    min_samples_evaluated: int = 0,
-) -> Tuple[List[Dict[str, Any]], int, List[str], Optional[datetime]]:
-    """Read precomputed leaderboard rows for a single (scope, period).
+    min_generation_count: int,
+    min_samples_evaluated: int,
+):
+    """Build the four `select()`s `read_llm_leaderboard` needs, plus the
+    `base` builder for the per-detail second-pass query.
 
-    Returns (entries, total_models, available_metrics, computed_at) where:
-    - entries: pivoted list of {model_id, score, ci_*, samples_*, ..., metrics: {...}}
-    - total_models: COUNT(DISTINCT model_id) over the scope (before LIMIT)
-    - available_metrics: sorted distinct metric keys (excluding 'average')
-    - computed_at: max computed_at across the scope (UI staleness hint)
-
-    `min_generation_count` / `min_samples_evaluated` drop low-sample models
-    at SQL level so the precomputed path can honour the same thresholds the
-    live aggregator does — without it, the API would have to force live
-    aggregation whenever the user enabled the default UI threshold and pay
-    a multi-second round trip on every page load.
+    Returns `(total_count_stmt, metrics_stmt, top_stmt, make_detail_stmt)`
+    where `make_detail_stmt(model_ids)` produces the step-2 select once the
+    top-N model_ids are known. Sharing this between the sync and async read
+    twins keeps the (non-trivial) threshold/ordering SQL in one place.
     """
     # The threshold filters apply to every metric row of a qualifying model,
     # not just the sort-metric row. Implement that by computing the set of
@@ -650,7 +690,6 @@ def read_llm_leaderboard(
             )
         model_id_filter = LLMLeaderboardScore.model_id.in_(qualifier.distinct())
 
-    # Step 1: top-N model_ids by `sort_metric` score.
     base = select(LLMLeaderboardScore).where(
         LLMLeaderboardScore.project_scope_key == project_scope_key,
         LLMLeaderboardScore.period == period,
@@ -658,25 +697,22 @@ def read_llm_leaderboard(
     if model_id_filter is not None:
         base = base.where(model_id_filter)
 
-    total_count_stmt = select(func.count(func.distinct(LLMLeaderboardScore.model_id))).where(
+    total_count_stmt = select(
+        func.count(func.distinct(LLMLeaderboardScore.model_id))
+    ).where(
         LLMLeaderboardScore.project_scope_key == project_scope_key,
         LLMLeaderboardScore.period == period,
     )
     if model_id_filter is not None:
         total_count_stmt = total_count_stmt.where(model_id_filter)
-    total_models = db.execute(total_count_stmt).scalar() or 0
 
-    available_metrics = sorted(
-        m
-        for (m,) in db.execute(
-            select(LLMLeaderboardScore.metric)
-            .where(
-                LLMLeaderboardScore.project_scope_key == project_scope_key,
-                LLMLeaderboardScore.period == period,
-            )
-            .distinct()
-        ).all()
-        if m and m != "average"
+    metrics_stmt = (
+        select(LLMLeaderboardScore.metric)
+        .where(
+            LLMLeaderboardScore.project_scope_key == project_scope_key,
+            LLMLeaderboardScore.period == period,
+        )
+        .distinct()
     )
 
     top_stmt = (
@@ -689,20 +725,18 @@ def read_llm_leaderboard(
         .limit(limit)
         .offset(offset)
     )
-    top_rows = db.execute(top_stmt).scalars().all()
 
-    if not top_rows:
-        # If the requested sort_metric has no rows for this scope/period,
-        # bail with empty leaderboard rather than re-querying — the caller
-        # can fall back to a different metric if needed.
-        return [], int(total_models), available_metrics, None
+    def make_detail_stmt(model_ids):
+        return base.where(LLMLeaderboardScore.model_id.in_(model_ids))
 
-    model_ids = [r.model_id for r in top_rows]
+    return total_count_stmt, metrics_stmt, top_stmt, make_detail_stmt
 
-    # Step 2: pull all metric rows for those model_ids in one shot.
-    detail_stmt = base.where(LLMLeaderboardScore.model_id.in_(model_ids))
-    detail_rows = db.execute(detail_stmt).scalars().all()
 
+def _pivot_llm_leaderboard_details(
+    detail_rows, model_ids, sort_metric: str
+) -> Tuple[List[Dict[str, Any]], Optional[datetime]]:
+    """Pivot the step-2 detail rows into per-model entries, preserving the
+    top-N order. Shared by both read twins (pure Python, no DB)."""
     by_model: Dict[str, Dict[str, Any]] = {}
     for r in detail_rows:
         entry = by_model.setdefault(
@@ -740,24 +774,120 @@ def read_llm_leaderboard(
     # Preserve top-N order.
     ordered = [by_model[mid] for mid in model_ids if mid in by_model]
     computed_at = max((r.computed_at for r in detail_rows if r.computed_at), default=None)
+    return ordered, computed_at
+
+
+def _available_metrics_from_rows(metric_rows) -> List[str]:
+    """sorted distinct metric keys (excluding 'average') from a one-column
+    select over LLMLeaderboardScore.metric. Pure Python; shared by twins."""
+    return sorted(
+        m for (m,) in metric_rows if m and m != "average"
+    )
+
+
+def read_llm_leaderboard(
+    db: Session,
+    project_scope_key: str,
+    period: str,
+    sort_metric: str,
+    limit: int,
+    offset: int,
+    *,
+    min_generation_count: int = 0,
+    min_samples_evaluated: int = 0,
+) -> Tuple[List[Dict[str, Any]], int, List[str], Optional[datetime]]:
+    """Read precomputed leaderboard rows for a single (scope, period).
+
+    Returns (entries, total_models, available_metrics, computed_at) where:
+    - entries: pivoted list of {model_id, score, ci_*, samples_*, ..., metrics: {...}}
+    - total_models: COUNT(DISTINCT model_id) over the scope (before LIMIT)
+    - available_metrics: sorted distinct metric keys (excluding 'average')
+    - computed_at: max computed_at across the scope (UI staleness hint)
+
+    `min_generation_count` / `min_samples_evaluated` drop low-sample models
+    at SQL level so the precomputed path can honour the same thresholds the
+    live aggregator does — without it, the API would have to force live
+    aggregation whenever the user enabled the default UI threshold and pay
+    a multi-second round trip on every page load.
+    """
+    total_count_stmt, metrics_stmt, top_stmt, make_detail_stmt = (
+        _build_llm_leaderboard_stmts(
+            project_scope_key, period, sort_metric, limit, offset,
+            min_generation_count, min_samples_evaluated,
+        )
+    )
+
+    total_models = db.execute(total_count_stmt).scalar() or 0
+    available_metrics = _available_metrics_from_rows(db.execute(metrics_stmt).all())
+    top_rows = db.execute(top_stmt).scalars().all()
+
+    if not top_rows:
+        # If the requested sort_metric has no rows for this scope/period,
+        # bail with empty leaderboard rather than re-querying — the caller
+        # can fall back to a different metric if needed.
+        return [], int(total_models), available_metrics, None
+
+    model_ids = [r.model_id for r in top_rows]
+    detail_rows = db.execute(make_detail_stmt(model_ids)).scalars().all()
+    ordered, computed_at = _pivot_llm_leaderboard_details(
+        detail_rows, model_ids, sort_metric
+    )
     return ordered, int(total_models), available_metrics, computed_at
 
 
-def read_llm_model_aggregate(
-    db: Session, model_id: str, project_scope_key: str, period: str
-) -> Dict[str, Any]:
-    """Read one model's row set for /llm-models/{model_id}. Returns a dict with
-    `metrics` (dict, by metric → {mean, ci_lower, ci_upper, count}),
-    plus evaluation_count, samples_evaluated, generation_count, last_evaluated_at.
-    """
-    rows = db.execute(
-        select(LLMLeaderboardScore).where(
-            LLMLeaderboardScore.model_id == model_id,
-            LLMLeaderboardScore.project_scope_key == project_scope_key,
-            LLMLeaderboardScore.period == period,
-        )
-    ).scalars().all()
+async def read_llm_leaderboard_async(
+    db: AsyncSession,
+    project_scope_key: str,
+    period: str,
+    sort_metric: str,
+    limit: int,
+    offset: int,
+    *,
+    min_generation_count: int = 0,
+    min_samples_evaluated: int = 0,
+) -> Tuple[List[Dict[str, Any]], int, List[str], Optional[datetime]]:
+    """Async twin of `read_llm_leaderboard` — shares the statement builders.
 
+    Reads scalar columns off LLMLeaderboardScore only (no ORM relationship
+    walks), so no eager-loading is required despite running over many rows.
+    """
+    total_count_stmt, metrics_stmt, top_stmt, make_detail_stmt = (
+        _build_llm_leaderboard_stmts(
+            project_scope_key, period, sort_metric, limit, offset,
+            min_generation_count, min_samples_evaluated,
+        )
+    )
+
+    total_models = (await db.execute(total_count_stmt)).scalar() or 0
+    available_metrics = _available_metrics_from_rows(
+        (await db.execute(metrics_stmt)).all()
+    )
+    top_rows = (await db.execute(top_stmt)).scalars().all()
+
+    if not top_rows:
+        return [], int(total_models), available_metrics, None
+
+    model_ids = [r.model_id for r in top_rows]
+    detail_rows = (await db.execute(make_detail_stmt(model_ids))).scalars().all()
+    ordered, computed_at = _pivot_llm_leaderboard_details(
+        detail_rows, model_ids, sort_metric
+    )
+    return ordered, int(total_models), available_metrics, computed_at
+
+
+def _build_llm_model_aggregate_stmt(
+    model_id: str, project_scope_key: str, period: str
+):
+    return select(LLMLeaderboardScore).where(
+        LLMLeaderboardScore.model_id == model_id,
+        LLMLeaderboardScore.project_scope_key == project_scope_key,
+        LLMLeaderboardScore.period == period,
+    )
+
+
+def _rollup_llm_model_aggregate(rows) -> Dict[str, Any]:
+    """Pure-Python rollup of a model's LLMLeaderboardScore rows into the
+    /llm-models/{id} response shape. Shared by both read twins."""
     out: Dict[str, Any] = {
         "metrics": {},
         "evaluation_count": 0,
@@ -790,6 +920,32 @@ def read_llm_model_aggregate(
     return out
 
 
+def read_llm_model_aggregate(
+    db: Session, model_id: str, project_scope_key: str, period: str
+) -> Dict[str, Any]:
+    """Read one model's row set for /llm-models/{model_id}. Returns a dict with
+    `metrics` (dict, by metric → {mean, ci_lower, ci_upper, count}),
+    plus evaluation_count, samples_evaluated, generation_count, last_evaluated_at.
+    """
+    rows = db.execute(
+        _build_llm_model_aggregate_stmt(model_id, project_scope_key, period)
+    ).scalars().all()
+    return _rollup_llm_model_aggregate(rows)
+
+
+async def read_llm_model_aggregate_async(
+    db: AsyncSession, model_id: str, project_scope_key: str, period: str
+) -> Dict[str, Any]:
+    """Async twin of `read_llm_model_aggregate` — single select, pure-Python
+    rollup. Reads scalar columns only, so no eager-loading needed."""
+    rows = (
+        await db.execute(
+            _build_llm_model_aggregate_stmt(model_id, project_scope_key, period)
+        )
+    ).scalars().all()
+    return _rollup_llm_model_aggregate(rows)
+
+
 def live_aggregate_leaderboard(
     db: Session,
     project_ids: Optional[List[str]],
@@ -816,6 +972,31 @@ def live_aggregate_leaderboard(
     declaring `[bleu]` may still produce `{bleu, rouge_l, ...}` per
     TaskEvaluation; we now emit only `bleu`).
     """
+    run_ids = [row[0] for row in db.execute(
+        _build_live_run_ids_stmt(project_ids, period, evaluation_types)
+    ).all()]
+    if not run_ids:
+        return []
+    now = datetime.now(timezone.utc)
+    return _aggregate_leaderboard_rows(
+        db,
+        run_ids,
+        scope="live",
+        period=period,
+        computed_at=now,
+        aggregation=aggregation,
+        evaluation_types=evaluation_types,
+    )
+
+
+def _build_live_run_ids_stmt(
+    project_ids: Optional[List[str]],
+    period: str,
+    evaluation_types: Optional[List[str]],
+):
+    """Select for the cheap `run_ids` lookup shared by the sync and async
+    `live_aggregate_leaderboard`. Pulls completed-run ids narrowed by
+    project, period cutoff, and (OR-semantics) declared evaluation types."""
     stmt = select(EvaluationRun.id).where(EvaluationRun.status == "completed")
     if project_ids:
         stmt = stmt.where(EvaluationRun.project_id.in_(project_ids))
@@ -836,20 +1017,68 @@ def live_aggregate_leaderboard(
             for et in evaluation_types
         ]
         stmt = stmt.where(or_(*type_filters))
+    return stmt
 
-    run_ids = [row[0] for row in db.execute(stmt).all()]
+
+async def live_aggregate_leaderboard_async(
+    db: AsyncSession,
+    project_ids: Optional[List[str]],
+    period: str,
+    evaluation_types: Optional[List[str]] = None,
+    *,
+    aggregation: str = "average",
+) -> List[Dict[str, Any]]:
+    """Async twin of `live_aggregate_leaderboard`.
+
+    The cheap `run_ids` lookup runs as a clean async select. The heavy part —
+    `_aggregate_leaderboard_rows` — streams task_evaluations via `yield_per`
+    over a raw `text()` cursor, which is tightly coupled to the SYNC streaming
+    cursor API (asyncpg has no drop-in `yield_per` equivalent here, and
+    rewriting the streaming loop to async risks correctness/memory regressions
+    on the 60k-row scan). Per the migration playbook's sanctioned escape hatch
+    for genuinely sync-coupled heavy paths, we delegate that part to the
+    existing sync function inside `run_in_threadpool` with a short-lived
+    `SessionLocal()`. This keeps the API event loop unblocked while the heavy
+    scan runs on a worker thread.
+
+    NOTE: the threadpool opens its OWN sync connection, so it reads
+    last-committed data — it does NOT participate in the caller's async
+    transaction. That's fine for this read-only aggregation (no writes, and the
+    leaderboard always reads committed evaluation data); it is only reached for
+    the rare uncached filter combos that have no precomputed scope.
+    """
+    run_ids = [
+        row[0]
+        for row in (
+            await db.execute(
+                _build_live_run_ids_stmt(project_ids, period, evaluation_types)
+            )
+        ).all()
+    ]
     if not run_ids:
         return []
     now = datetime.now(timezone.utc)
-    return _aggregate_leaderboard_rows(
-        db,
-        run_ids,
-        scope="live",
-        period=period,
-        computed_at=now,
-        aggregation=aggregation,
-        evaluation_types=evaluation_types,
-    )
+
+    from starlette.concurrency import run_in_threadpool
+
+    from database import SessionLocal
+
+    def _heavy() -> List[Dict[str, Any]]:
+        sync_db = SessionLocal()
+        try:
+            return _aggregate_leaderboard_rows(
+                sync_db,
+                run_ids,
+                scope="live",
+                period=period,
+                computed_at=now,
+                aggregation=aggregation,
+                evaluation_types=evaluation_types,
+            )
+        finally:
+            sync_db.close()
+
+    return await run_in_threadpool(_heavy)
 
 
 def scope_key_for_project_ids(project_ids: Optional[List[str]]) -> Optional[str]:

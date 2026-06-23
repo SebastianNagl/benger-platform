@@ -46,6 +46,14 @@ jest.mock('@/components/shared/Toast', () => ({
   }),
 }))
 
+jest.mock('@/contexts/ProgressContext', () => ({
+  useProgress: () => ({
+    startProgress: jest.fn(),
+    updateProgress: jest.fn(),
+    completeProgress: jest.fn(),
+  }),
+}))
+
 // Mock i18n context
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({

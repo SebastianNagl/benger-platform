@@ -169,11 +169,22 @@ def test_inline_normalize_present_in_tasks_py():
         "tasks.py is missing the `_normalize_field_key` helper that the "
         "missing-only re-run logic depends on."
     )
-    # Both call sites use it — guards against silent regression where
-    # someone removes the normalize call but keeps the helper.
-    assert src.count("_normalize_field_key(") >= 4, (
-        "Expected _normalize_field_key calls at both lookup-set inserts "
-        "AND both skip-check sites (4 total) in tasks.py."
+    # Both call sites use it — guards against silent regression where someone
+    # removes a normalize call but keeps the helper. Assert each home's floor
+    # SEPARATELY (not a combined sum, which would let a developer delete an
+    # entire pair of sites and still pass on the slack):
+    #   - tasks.py: the def + the orchestrator's two lookup-set inserts (>= 3).
+    #   - cell_evaluator.py: each cell body normalizes at the already-done set
+    #     build AND the per-config skip check — 4 calls total (>= 4).
+    cell_src = (Path(__file__).parent.parent / "evaluation" / "cell_evaluator.py").read_text()
+    assert src.count("_normalize_field_key(") >= 3, (
+        "tasks.py must define _normalize_field_key and call it at both "
+        "orchestrator lookup-set inserts."
+    )
+    assert cell_src.count("_normalize_field_key(") >= 4, (
+        "both cell bodies must normalize at the already-done set build AND the "
+        "skip-check (4 calls) — else a missing-only re-run re-evaluates "
+        "everything after a field-name format change."
     )
 
 
@@ -281,8 +292,10 @@ def test_inline_terminal_error_helper_present_in_tasks_py():
     )
     # And the silent-fallthrough guard must exist at both LLM-judge sites
     # (writes a terminal-error row instead of falling through to
-    # sample_evaluator when the judge evaluator wasn't initialized).
-    assert src.count("LLM judge evaluator not initialized for config") >= 2, (
+    # sample_evaluator when the judge evaluator wasn't initialized). These
+    # sites live in the cell bodies, which moved to cell_evaluator.py.
+    cell_src = (Path(__file__).parent.parent / "evaluation" / "cell_evaluator.py").read_text()
+    assert cell_src.count("LLM judge evaluator not initialized for config") >= 2, (
         "Expected the silent-fallthrough guard to write a terminal-error "
         "row at both LLM-judge call sites (gen + ann), not just one."
     )

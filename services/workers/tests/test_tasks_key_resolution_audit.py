@@ -128,6 +128,13 @@ def _run(ai_service, *, organization_id, user_id="u1"):
 
     captured = []
     db.add.side_effect = lambda obj: captured.append(obj)
+    # Only the persisted LLMResponse rows are relevant to this audit. The
+    # generation-complete path also calls NotificationService.create_notification,
+    # which now persists its row via the ORM (``db.add(Notification)``) rather than
+    # the worker's former raw-SQL INSERT — so it shows up here too. Filter it out so
+    # the assertions stay scoped to the response objects (those carry
+    # ``response_metadata``); behavior under test is unchanged.
+    _response_objs = lambda: [o for o in captured if hasattr(o, "response_metadata")]
 
     mock_user_aware = MagicMock()
     mock_user_aware.get_ai_service_for_user.return_value = ai_service
@@ -147,7 +154,7 @@ def _run(ai_service, *, organization_id, user_id="u1"):
             organization_id=organization_id,
         )
 
-    return result, mock_user_aware, captured
+    return result, mock_user_aware, _response_objs()
 
 
 class TestKeyResolutionAuditTrail:

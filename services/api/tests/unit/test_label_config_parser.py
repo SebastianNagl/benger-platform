@@ -5,7 +5,7 @@ Issue #798: Label config parsing coverage
 """
 
 
-from label_config_parser import LabelConfigParser
+from services.label_config.parser import LabelConfigParser
 
 
 class TestFieldExtraction:

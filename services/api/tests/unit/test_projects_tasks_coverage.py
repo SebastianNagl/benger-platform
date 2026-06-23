@@ -1,107 +1,115 @@
 """
 Unit tests for routers/projects/tasks.py to increase branch coverage.
 Covers list tasks, skip task, next task, and error paths.
+
+The list/next/skip task handlers were migrated to the async DB lane
+(``Depends(get_async_db)`` + ``await db.execute``), so the old
+``Mock(spec=Session)`` / ``get_db``-override pattern no longer reaches them.
+The DB-touching cases now seed real rows via ``async_test_db`` and drive the
+HTTP surface through ``async_test_client``; the assertions are unchanged.
+The unauthenticated cases need no DB and stay on the plain ``TestClient``.
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch
 
+import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
 from main import app
-from auth_module.models import User
+from models import User
+from project_models import Project
 
 
-def _make_user(is_superadmin=False, user_id="user-123"):
-    return User(
-        id=user_id,
-        username="testuser",
-        email="test@example.com",
-        name="Test User",
-        hashed_password="hashed",
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_user(db, *, is_superadmin=False):
+    u = User(
+        id=_uid(),
+        username=f"tasks-unit-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Tasks Unit User",
         is_superadmin=is_superadmin,
         is_active=True,
         email_verified=True,
         created_at=datetime.now(timezone.utc),
     )
+    db.add(u)
+    await db.flush()
+    return u
 
 
+async def _make_project(db, creator, *, is_private=True):
+    p = Project(
+        id=_uid(),
+        title="Tasks Unit Project",
+        created_by=creator.id,
+        is_private=is_private,
+        label_config='<View><Text name="text" value="$text"/></View>',
+    )
+    db.add(p)
+    await db.flush()
+    return p
+
+
+@pytest.mark.asyncio
 class TestListProjectTasks:
-    def test_project_not_found(self):
-        client = TestClient(app)
-        user = _make_user()
+    async def test_project_not_found(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
 
-        from database import get_db
-        from auth_module.dependencies import require_user
-
-        mock_db = Mock(spec=Session)
-        mock_q = Mock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = None
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-
-        try:
-            resp = client.get("/api/projects/nonexistent/tasks")
+        with _as_user(user):
+            resp = await async_test_client.get("/api/projects/nonexistent/tasks")
             assert resp.status_code == 404
-        finally:
-            app.dependency_overrides.clear()
 
-    def test_access_denied(self):
-        client = TestClient(app)
-        user = _make_user(is_superadmin=False)
+    async def test_access_denied(self, async_test_client, async_test_db):
+        # Non-superadmin user who does not own the (private) project → 403.
+        owner = await _make_user(async_test_db, is_superadmin=False)
+        outsider = await _make_user(async_test_db, is_superadmin=False)
+        project = await _make_project(async_test_db, owner, is_private=True)
+        await async_test_db.commit()
 
-        from database import get_db
-        from auth_module.dependencies import require_user
-
-        mock_project = Mock()
-        mock_project.id = "proj-1"
-
-        mock_db = Mock(spec=Session)
-        mock_q = Mock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = mock_project
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-
-        try:
-            with patch("routers.projects.tasks.check_project_accessible", return_value=False):
-                resp = client.get("/api/projects/proj-1/tasks")
-                assert resp.status_code == 403
-        finally:
-            app.dependency_overrides.clear()
+        with _as_user(outsider):
+            resp = await async_test_client.get(f"/api/projects/{project.id}/tasks")
+            assert resp.status_code == 403
 
 
+@pytest.mark.asyncio
 class TestSkipTask:
-    def test_project_not_found(self):
-        client = TestClient(app)
-        user = _make_user()
+    async def test_project_not_found(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
 
-        from database import get_db
-        from auth_module.dependencies import require_user
-
-        mock_db = Mock(spec=Session)
-        mock_q = Mock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = None
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-
-        try:
-            resp = client.post(
+        with _as_user(user):
+            resp = await async_test_client.post(
                 "/api/projects/nonexistent/tasks/task-1/skip",
                 json={},
             )
             assert resp.status_code == 404
-        finally:
-            app.dependency_overrides.clear()
 
 
 class TestUnauthenticatedEndpoints:

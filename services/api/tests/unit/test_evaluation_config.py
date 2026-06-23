@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from evaluation_config import (
+from services.evaluation.config import (
     ANSWER_TYPE_TO_METRICS,
     AnswerType,
     AnswerTypeDetector,

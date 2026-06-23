@@ -1,17 +1,21 @@
 """
 Unit tests for routers/dashboard.py to increase coverage.
 Tests dashboard stats endpoint with various org contexts.
+
+Migrated to the async DB lane alongside the handler (Depends(get_async_db),
+AsyncSession). Drives an httpx AsyncClient with an async-session double; see
+test_dashboard_coverage.py for the same pattern and rationale.
 """
 
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+import pytest
+from httpx import ASGITransport, AsyncClient
 
 from main import app
 from auth_module.models import User
-from database import get_db
+from database import get_async_db
 from auth_module.dependencies import require_user
 
 
@@ -29,24 +33,48 @@ def _make_user(is_superadmin=True, user_id="user-123"):
     )
 
 
-def _mock_db():
-    mock_db = Mock(spec=Session)
-    mock_q = MagicMock()
-    mock_q.filter.return_value = mock_q
-    mock_q.first.return_value = None
-    mock_q.all.return_value = []
-    mock_db.query.return_value = mock_q
+def _mock_async_db(scalar_value=None):
+    """Async-session double: `await db.execute(...).scalar()` returns
+    `scalar_value`; `await db.run_sync(fn)` runs `fn(<dummy sync session>)` so
+    the patched sync `get_accessible_project_ids` resolves through it."""
+    mock_db = MagicMock()
+
+    result = MagicMock()
+    result.scalar.return_value = scalar_value
+    result.all.return_value = []
+    result.first.return_value = None
+
+    async def _execute(*_args, **_kwargs):
+        return result
+
+    async def _run_sync(fn, *args, **kwargs):
+        return fn(Mock(), *args, **kwargs)
+
+    mock_db.execute = _execute
+    mock_db.run_sync = _run_sync
     return mock_db
 
 
+async def _client():
+    transport = ASGITransport(app=app)
+    return AsyncClient(transport=transport, base_url="http://testserver")
+
+
+def _override_async_db(app, mock_db):
+    async def _override():
+        yield mock_db
+
+    app.dependency_overrides[get_async_db] = _override
+
+
 class TestGetDashboardStats:
-    def test_cache_hit(self):
-        client = TestClient(app)
+    @pytest.mark.asyncio
+    async def test_cache_hit(self):
         user = _make_user()
-        mock_db = _mock_db()
+        mock_db = _mock_async_db()
 
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
+        _override_async_db(app, mock_db)
         try:
             with patch("routers.dashboard.cache") as mock_cache:
                 mock_cache.get.return_value = {
@@ -56,25 +84,27 @@ class TestGetDashboardStats:
                     "projects_with_generations": 3,
                     "projects_with_evaluations": 2,
                 }
-                resp = client.get("/api/dashboard/stats")
+                async with await _client() as client:
+                    resp = await client.get("/api/dashboard/stats")
                 assert resp.status_code == 200
                 data = resp.json()
                 assert data["project_count"] == 5
         finally:
             app.dependency_overrides.clear()
 
-    def test_no_accessible_projects(self):
-        client = TestClient(app)
+    @pytest.mark.asyncio
+    async def test_no_accessible_projects(self):
         user = _make_user(is_superadmin=False)
-        mock_db = _mock_db()
+        mock_db = _mock_async_db()
 
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
+        _override_async_db(app, mock_db)
         try:
             with patch("routers.dashboard.cache") as mock_cache, \
                  patch("routers.dashboard.get_accessible_project_ids", return_value=[]):
                 mock_cache.get.return_value = None
-                resp = client.get("/api/dashboard/stats")
+                async with await _client() as client:
+                    resp = await client.get("/api/dashboard/stats")
                 assert resp.status_code == 200
                 data = resp.json()
                 assert data["project_count"] == 0
@@ -82,28 +112,32 @@ class TestGetDashboardStats:
         finally:
             app.dependency_overrides.clear()
 
-    def test_superadmin_all_projects(self):
-        client = TestClient(app)
+    @pytest.mark.asyncio
+    async def test_superadmin_all_projects(self):
         user = _make_user()
-        mock_db = _mock_db()
         # Superadmin path also calls `SELECT COUNT(*) FROM projects` scalar
         # to backstop a stale precomputed project_count.
-        mock_db.execute.return_value.scalar.return_value = 10
+        mock_db = _mock_async_db(scalar_value=10)
 
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
+        _override_async_db(app, mock_db)
         try:
             with patch("routers.dashboard.cache") as mock_cache, \
                  patch("routers.dashboard.get_accessible_project_ids", return_value=None), \
-                 patch("routers.dashboard.read_dashboard_sum") as mock_sums, \
-                 patch("routers.dashboard._live_evaluations_count", return_value=3):
+                 patch("routers.dashboard.read_dashboard_sum_async") as mock_sums, \
+                 patch("routers.dashboard._live_evaluations_count_async", return_value=3):
                 mock_cache.get.return_value = None
-                mock_sums.return_value = {
-                    "project_count": 10, "total_tasks": 200, "labeled_tasks": 80,
-                    "annotations_count": 100, "generations_count": 5,
-                    "response_generations_count": 6, "evaluation_pairs_count": 3,
-                }
-                resp = client.get("/api/dashboard/stats")
+
+                async def _sums(*_a, **_k):
+                    return {
+                        "project_count": 10, "total_tasks": 200, "labeled_tasks": 80,
+                        "annotations_count": 100, "generations_count": 5,
+                        "response_generations_count": 6, "evaluation_pairs_count": 3,
+                    }
+
+                mock_sums.side_effect = _sums
+                async with await _client() as client:
+                    resp = await client.get("/api/dashboard/stats")
                 assert resp.status_code == 200
                 data = resp.json()
                 assert data["project_count"] == 10
@@ -111,46 +145,52 @@ class TestGetDashboardStats:
         finally:
             app.dependency_overrides.clear()
 
-    def test_org_scoped_projects(self):
-        client = TestClient(app)
+    @pytest.mark.asyncio
+    async def test_org_scoped_projects(self):
         user = _make_user(is_superadmin=False)
-        mock_db = _mock_db()
+        mock_db = _mock_async_db()
 
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
+        _override_async_db(app, mock_db)
         try:
             with patch("routers.dashboard.cache") as mock_cache, \
                  patch("routers.dashboard.get_accessible_project_ids", return_value=["p-1", "p-2", "p-3"]), \
-                 patch("routers.dashboard.read_dashboard_sum") as mock_sums, \
-                 patch("routers.dashboard._live_evaluations_count", return_value=0):
+                 patch("routers.dashboard.read_dashboard_sum_async") as mock_sums, \
+                 patch("routers.dashboard._live_evaluations_count_async", return_value=0):
                 mock_cache.get.return_value = None
-                mock_sums.return_value = {
-                    "project_count": 3, "total_tasks": 50, "labeled_tasks": 20,
-                    "annotations_count": 20, "generations_count": 1,
-                    "response_generations_count": 2, "evaluation_pairs_count": 0,
-                }
-                resp = client.get(
-                    "/api/dashboard/stats",
-                    headers={"X-Organization-Context": "org-1"},
-                )
+
+                async def _sums(*_a, **_k):
+                    return {
+                        "project_count": 3, "total_tasks": 50, "labeled_tasks": 20,
+                        "annotations_count": 20, "generations_count": 1,
+                        "response_generations_count": 2, "evaluation_pairs_count": 0,
+                    }
+
+                mock_sums.side_effect = _sums
+                async with await _client() as client:
+                    resp = await client.get(
+                        "/api/dashboard/stats",
+                        headers={"X-Organization-Context": "org-1"},
+                    )
                 assert resp.status_code == 200
                 data = resp.json()
                 assert data["project_count"] == 3
         finally:
             app.dependency_overrides.clear()
 
-    def test_exception_returns_defaults(self):
-        client = TestClient(app)
+    @pytest.mark.asyncio
+    async def test_exception_returns_defaults(self):
         user = _make_user()
-        mock_db = _mock_db()
+        mock_db = _mock_async_db()
 
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
+        _override_async_db(app, mock_db)
         try:
             with patch("routers.dashboard.cache") as mock_cache, \
                  patch("routers.dashboard.get_accessible_project_ids", side_effect=Exception("DB error")):
                 mock_cache.get.return_value = None
-                resp = client.get("/api/dashboard/stats")
+                async with await _client() as client:
+                    resp = await client.get("/api/dashboard/stats")
                 assert resp.status_code == 200
                 data = resp.json()
                 assert data["project_count"] == 0

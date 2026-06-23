@@ -5,974 +5,832 @@ Covers: list_projects happy path, create_project org/private paths,
 get_project success, update_project with field updates, delete_project success,
 update_project_visibility, recalculate, completion stats.
 
-Rewritten to call handler functions directly (no TestClient) so that pytest-cov
-tracks the router code.
+The CRUD handlers were migrated to the async DB lane
+(``Depends(get_async_db)`` + ``await db.execute(select(...))``), so the old
+``get_db``-Mock / query-chain pattern no longer reaches the handlers. These
+tests seed real ORM rows via ``async_test_db`` and drive the surface through
+``async_test_client``; ``require_user`` is overridden per-test via ``_as_user``
+to an auth User matching the seeded owner. The admin-only
+``recalculate-stats`` endpoint resolves the caller via ``get_current_user``
+(returns a DB ``User``), so those tests additionally override that dependency
+with the seeded DB user.
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+
+from auth_module import require_user
+from auth_module.dependencies import get_current_user
+from auth_module.models import User as AuthUser
+from main import app
+from models import Organization, OrganizationMembership, User
+from project_models import Project, ProjectOrganization
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers (mirror tests/unit/test_projects_router.py — the converted reference)
 # ---------------------------------------------------------------------------
 
-def _mock_request(headers=None):
-    r = Mock()
-    r.headers = headers or {}
-    r.state = Mock(spec=[])
-    return r
+def _uid() -> str:
+    return str(uuid.uuid4())
 
 
-def _mock_user(is_superadmin=False, user_id="user-123"):
-    user = Mock()
-    user.id = user_id
-    user.username = "testuser"
-    user.email = "test@example.com"
-    user.name = "Test User"
-    user.is_superadmin = is_superadmin
-    user.is_active = True
-    user.email_verified = True
-    return user
+@contextmanager
+def _as_user(db_user: User):
+    """Override require_user with an AuthUser matching the seeded DB user."""
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
 
 
-def _mock_db():
-    mock_db = Mock(spec=Session)
-    mock_q = MagicMock()
-    mock_q.filter.return_value = mock_q
-    mock_q.options.return_value = mock_q
-    mock_q.first.return_value = None
-    mock_q.all.return_value = []
-    mock_q.count.return_value = 0
-    mock_q.offset.return_value = mock_q
-    mock_q.limit.return_value = mock_q
-    mock_db.query.return_value = mock_q
-    return mock_db
+@contextmanager
+def _as_current_user(db_user: User):
+    """Override get_current_user (used by recalculate-stats) with the seeded
+    DB ``User`` row — that endpoint reads ``current_user.is_superadmin`` off a
+    real ``User``, not an ``AuthUser``."""
+    app.dependency_overrides[get_current_user] = lambda: db_user
+    try:
+        yield db_user
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
 
 
-def _mock_project(project_id="proj-1", title="Test", created_by="user-123", is_private=False):
-    """Create a mock ORM project object."""
-    p = Mock()
-    p.id = project_id
-    p.title = title
-    p.description = "Description"
-    p.created_by = created_by
-    p.is_private = is_private
-    p.label_config = "<View><Text name='text' value='$text'/></View>"
-    p.expert_instruction = ""
-    p.show_instruction = False
-    p.show_skip_button = True
-    p.enable_empty_annotation = False
-    p.generation_config = {}
-    p.evaluation_config = {}
-    p.label_config_version = "v1"
-    p.label_config_version_history = []
-    p.min_annotations_per_task = 1
-    p.questionnaire_enabled = False
-    p.questionnaire_config = None
-    p.skip_queue = None
-    p.llm_model_ids = []
-    p.created_at = datetime.now(timezone.utc)
-    p.updated_at = None
-    p.require_confirm_before_submit = False
-    p.is_published = False
-    p.is_archived = False
+async def _make_user(db, *, is_superadmin=False, name="Test User"):
+    u = User(
+        id=_uid(),
+        username=f"cru-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name=name,
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
 
-    creator = Mock()
-    creator.name = "Test User"
-    p.creator = creator
-    p.organizations = []
-    p.project_organizations = []
 
+async def _make_org(db, *, name="Test Org"):
+    org = Organization(
+        id=_uid(), name=name, display_name=name, slug=f"org-{_uid()[:8]}"
+    )
+    db.add(org)
+    await db.flush()
+    return org
+
+
+async def _make_membership(db, *, user_id, organization_id, role="CONTRIBUTOR", is_active=True):
+    m = OrganizationMembership(
+        id=_uid(),
+        user_id=user_id,
+        organization_id=organization_id,
+        role=role,
+        is_active=is_active,
+        joined_at=datetime.now(timezone.utc),
+    )
+    db.add(m)
+    await db.flush()
+    return m
+
+
+async def _make_project(
+    db,
+    *,
+    created_by: str,
+    title="Test Project",
+    description="Test project description",
+    is_private=True,
+    is_public=False,
+    label_config="<View></View>",
+    generation_config=None,
+    evaluation_config=None,
+):
+    p = Project(
+        id=_uid(),
+        title=title,
+        description=description,
+        created_by=created_by,
+        label_config=label_config,
+        is_private=is_private,
+        is_public=is_public,
+        generation_config=generation_config or {},
+        evaluation_config=evaluation_config or {},
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(p)
+    await db.flush()
     return p
 
 
-def _mock_project_response(**overrides):
-    """Build a mock ProjectResponse-like object."""
-    resp = Mock()
-    defaults = {
-        "id": "proj-1",
-        "title": "Test Project",
-        "description": "Desc",
-        "created_by": "user-123",
-        "created_by_name": "Test User",
-        "task_count": 0,
-        "annotation_count": 0,
-        "completed_tasks_count": 0,
-        "progress_percentage": 0.0,
-        "is_private": False,
-        "is_published": False,
-        "is_archived": False,
-        "organizations": [],
-        "generation_models_count": 0,
-        "generation_completed": False,
-        "generation_prompts_ready": False,
-        "generation_config_ready": False,
-    }
-    defaults.update(overrides)
-    for k, v in defaults.items():
-        setattr(resp, k, v)
-    return resp
+async def _make_project_org(db, *, project_id, organization_id, assigned_by):
+    po = ProjectOrganization(
+        id=_uid(),
+        project_id=project_id,
+        organization_id=organization_id,
+        assigned_by=assigned_by,
+    )
+    db.add(po)
+    await db.flush()
+    return po
 
 
 # ---------------------------------------------------------------------------
-# list_projects: happy path (lines 100-200)
+# list_projects: happy path
 # ---------------------------------------------------------------------------
 
 class TestListProjectsHappyPath:
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.calculate_generation_stats_batch", return_value={})
-    @patch("routers.projects.crud.calculate_project_stats_batch", return_value={
-        "proj-1": {
-            "task_count": 5,
-            "completed_tasks_count": 2,
-            "annotation_count": 3,
-            "evaluation_count": 0,
-            "evaluations_completed_count": 0,
-        }
-    })
-    @patch("routers.projects.crud.get_accessible_project_ids", return_value=None)
-    @patch("routers.projects.crud.ProjectResponse")
-    async def test_list_projects_with_results(self, MockPR, mock_ids, mock_stats, mock_gen):
-        from routers.projects.crud import list_projects
+    async def test_list_projects_with_results(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await _make_project(async_test_db, created_by=admin.id, title="Listed Project")
+        await async_test_db.commit()
 
-        project = _mock_project()
-        resp_obj = _mock_project_response()
-        MockPR.from_orm.return_value = resp_obj
-
-        db = _mock_db()
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.options.return_value = mock_q
-        mock_q.offset.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.all.return_value = [project]
-        mock_q.count.return_value = 1
-        db.query.return_value = mock_q
-
-        user = _mock_user(is_superadmin=True)
-        request = _mock_request(headers={"X-Organization-Context": "private"})
-
-        result = await list_projects(
-            request=request, page=1, page_size=100, search=None,
-            is_archived=None, current_user=user, db=db,
-        )
-        assert result.total >= 0
-
-    @pytest.mark.asyncio
-    @patch("routers.projects.crud.calculate_generation_stats_batch", return_value={})
-    @patch("routers.projects.crud.calculate_project_stats_batch", return_value={})
-    @patch("routers.projects.crud.get_accessible_project_ids", return_value=None)
-    @patch("routers.projects.crud.ProjectResponse")
-    async def test_list_projects_with_is_archived_filter(self, MockPR, mock_ids, mock_stats, mock_gen):
-        from routers.projects.crud import list_projects
-
-        project = _mock_project()
-        resp_obj = _mock_project_response(is_archived=False)
-        MockPR.from_orm.return_value = resp_obj
-
-        db = _mock_db()
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.options.return_value = mock_q
-        mock_q.offset.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.all.return_value = [project]
-        mock_q.count.return_value = 1
-        db.query.return_value = mock_q
-
-        user = _mock_user(is_superadmin=True)
-        request = _mock_request()
-
-        result = await list_projects(
-            request=request, page=1, page_size=100, search=None,
-            is_archived=False, current_user=user, db=db,
-        )
-        assert result.total >= 0
-
-    @pytest.mark.asyncio
-    @patch("routers.projects.crud.get_accessible_project_ids", side_effect=RuntimeError("Boom"))
-    async def test_list_projects_unexpected_exception(self, mock_ids):
-        from routers.projects.crud import list_projects
-
-        db = _mock_db()
-        user = _mock_user(is_superadmin=True)
-        request = _mock_request()
-
-        with pytest.raises(HTTPException) as exc_info:
-            await list_projects(
-                request=request, page=1, page_size=100, search=None,
-                is_archived=None, current_user=user, db=db,
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/projects/", headers={"X-Organization-Context": "private"}
             )
-        assert exc_info.value.status_code == 500
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] >= 0
+        assert any(p["title"] == "Listed Project" for p in data["items"])
 
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.calculate_generation_stats")
-    @patch("routers.projects.crud.calculate_project_stats_batch", return_value={})
-    @patch("routers.projects.crud.get_accessible_project_ids", return_value=["proj-1"])
-    @patch("routers.projects.crud.ProjectResponse")
-    async def test_list_projects_with_search(self, MockPR, mock_ids, mock_stats, mock_gen):
-        from routers.projects.crud import list_projects
+    async def test_list_projects_with_is_archived_filter(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await _make_project(async_test_db, created_by=admin.id)
+        await async_test_db.commit()
 
-        resp_obj = _mock_project_response()
-        MockPR.from_orm.return_value = resp_obj
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/projects/", params={"is_archived": False}
+            )
 
-        db = _mock_db()
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.options.return_value = mock_q
-        mock_q.offset.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.all.return_value = []
-        mock_q.count.return_value = 0
-        db.query.return_value = mock_q
+        assert resp.status_code == 200
+        assert resp.json()["total"] >= 0
 
-        user = _mock_user(is_superadmin=True)
-        request = _mock_request()
+    @pytest.mark.asyncio
+    async def test_list_projects_unexpected_exception(self, async_test_client, async_test_db):
+        """An unexpected error in the accessible-id resolution surfaces as 500."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
 
-        result = await list_projects(
-            request=request, page=1, page_size=100, search="test",
-            is_archived=None, current_user=user, db=db,
-        )
-        assert result.total == 0
+        with _as_user(admin), patch(
+            "routers.projects.crud.get_accessible_project_ids_async",
+            side_effect=RuntimeError("Boom"),
+        ):
+            resp = await async_test_client.get("/api/projects/")
+
+        assert resp.status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_list_projects_with_search(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await _make_project(async_test_db, created_by=admin.id, title="Searchable Topic")
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/projects/", params={"search": "no-such-title-xyz"}
+            )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        titles = [p["title"] for p in data["items"]]
+        assert "Searchable Topic" not in titles
 
 
 # ---------------------------------------------------------------------------
-# create_project: org mode paths (lines 203-348)
+# create_project: org mode paths
 # ---------------------------------------------------------------------------
 
 class TestCreateProjectOrgMode:
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.ProjectResponse")
-    @patch("routers.projects.crud.notify_project_created")
-    @patch("routers.projects.crud.LabelConfigValidator")
-    async def test_create_project_private_mode(self, mock_lcv, mock_notify, MockPR):
-        from routers.projects.crud import create_project
-        from project_schemas import ProjectCreate
+    async def test_create_project_private_mode(self, async_test_client, async_test_db):
+        """Private (default) path: org context header 'private' => private project."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
 
-        mock_lcv.validate.return_value = (True, [])
-        MockPR.from_orm.return_value = _mock_project_response(is_private=True)
-
-        project = _mock_project(is_private=True)
-        db = _mock_db()
-        db.query.return_value.options.return_value.filter.return_value.first.return_value = project
-
-        user = _mock_user(is_superadmin=True)
-        request = _mock_request(headers={"X-Organization-Context": "private"})
-
-        with patch("routers.projects.crud.create_initial_report_draft", create=True):
-            result = await create_project(
-                project=ProjectCreate(title="Private", is_private=True),
-                request=request,
-                current_user=user,
-                db=db,
+        with _as_user(admin), patch(
+            "routers.projects.crud._notify_project_created_sync"
+        ), patch("routers.projects.crud._create_initial_report_draft_sync"):
+            resp = await async_test_client.post(
+                "/api/projects/",
+                json={"title": "Private", "is_private": True},
+                headers={"X-Organization-Context": "private"},
             )
-        assert result.is_private == True  # noqa: E712
-        db.add.assert_called()
-        db.commit.assert_called()
+
+        assert resp.status_code in (200, 201)
+        body = resp.json()
+        assert body["is_private"] is True
+        row = (
+            await async_test_db.execute(select(Project).where(Project.id == body["id"]))
+        ).scalar_one_or_none()
+        assert row is not None
+        assert row.is_private is True
+        assert row.created_by == admin.id
 
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.get_user_with_memberships", return_value=None)
-    async def test_create_project_org_mode_no_membership(self, mock_gwm):
-        from routers.projects.crud import create_project
-        from project_schemas import ProjectCreate
+    async def test_create_project_org_mode_no_membership(self, async_test_client, async_test_db):
+        """Org context but the (non-superadmin) user has no membership => 400."""
+        user = await _make_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
 
-        db = _mock_db()
-        user = _mock_user(is_superadmin=False)
-        request = _mock_request(headers={"X-Organization-Context": "org-123"})
-
-        with pytest.raises(HTTPException) as exc_info:
-            await create_project(
-                project=ProjectCreate(title="Org Project"),
-                request=request,
-                current_user=user,
-                db=db,
+        with _as_user(user):
+            resp = await async_test_client.post(
+                "/api/projects/",
+                json={"title": "Org Project"},
+                headers={"X-Organization-Context": "org-123"},
             )
-        assert exc_info.value.status_code == 400
+
+        assert resp.status_code == 400
 
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.get_user_with_memberships")
-    async def test_create_project_org_mode_no_active_membership(self, mock_gwm):
-        from routers.projects.crud import create_project
-        from project_schemas import ProjectCreate
+    async def test_create_project_org_mode_no_active_membership(self, async_test_client, async_test_db):
+        """User has only an inactive membership => 400."""
+        user = await _make_user(async_test_db, is_superadmin=False)
+        org = await _make_org(async_test_db)
+        await _make_membership(
+            async_test_db,
+            user_id=user.id,
+            organization_id=org.id,
+            role="ANNOTATOR",
+            is_active=False,
+        )
+        await async_test_db.commit()
 
-        user_with_memberships = Mock()
-        user_with_memberships.organization_memberships = [
-            Mock(is_active=False, organization_id="org-123", role="ANNOTATOR")
-        ]
-        mock_gwm.return_value = user_with_memberships
-
-        db = _mock_db()
-        user = _mock_user(is_superadmin=False)
-        request = _mock_request(headers={"X-Organization-Context": "org-123"})
-
-        with pytest.raises(HTTPException) as exc_info:
-            await create_project(
-                project=ProjectCreate(title="Org Project"),
-                request=request,
-                current_user=user,
-                db=db,
+        with _as_user(user):
+            resp = await async_test_client.post(
+                "/api/projects/",
+                json={"title": "Org Project"},
+                headers={"X-Organization-Context": org.id},
             )
-        assert exc_info.value.status_code == 400
+
+        assert resp.status_code == 400
 
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.get_user_with_memberships")
-    async def test_create_project_org_mode_annotator_denied(self, mock_gwm):
-        from routers.projects.crud import create_project
-        from project_schemas import ProjectCreate
+    async def test_create_project_org_mode_annotator_denied(self, async_test_client, async_test_db):
+        """Active ANNOTATOR membership cannot create projects => 403."""
+        user = await _make_user(async_test_db, is_superadmin=False)
+        org = await _make_org(async_test_db)
+        await _make_membership(
+            async_test_db,
+            user_id=user.id,
+            organization_id=org.id,
+            role="ANNOTATOR",
+            is_active=True,
+        )
+        await async_test_db.commit()
 
-        membership = Mock(is_active=True, organization_id="org-123", role="ANNOTATOR",
-                          organization=Mock(name="Org"))
-        user_with_memberships = Mock()
-        user_with_memberships.organization_memberships = [membership]
-        mock_gwm.return_value = user_with_memberships
-
-        db = _mock_db()
-        user = _mock_user(is_superadmin=False)
-        request = _mock_request(headers={"X-Organization-Context": "org-123"})
-
-        with pytest.raises(HTTPException) as exc_info:
-            await create_project(
-                project=ProjectCreate(title="Org Project"),
-                request=request,
-                current_user=user,
-                db=db,
+        with _as_user(user):
+            resp = await async_test_client.post(
+                "/api/projects/",
+                json={"title": "Org Project"},
+                headers={"X-Organization-Context": org.id},
             )
-        assert exc_info.value.status_code == 403
+
+        assert resp.status_code == 403
 
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.LabelConfigValidator")
-    async def test_create_project_invalid_label_config(self, mock_lcv):
-        from routers.projects.crud import create_project
-        from project_schemas import ProjectCreate
+    async def test_create_project_invalid_label_config(self, async_test_client, async_test_db):
+        """Invalid label_config XML => 422."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
 
-        mock_lcv.validate.return_value = (False, ["Invalid XML"])
-
-        db = _mock_db()
-        user = _mock_user(is_superadmin=True)
-        request = _mock_request()
-
-        with pytest.raises(HTTPException) as exc_info:
-            await create_project(
-                project=ProjectCreate(title="Bad Config", label_config="<<<bad>>>"),
-                request=request,
-                current_user=user,
-                db=db,
+        with _as_user(admin), patch(
+            "routers.projects.crud._notify_project_created_sync"
+        ), patch("routers.projects.crud._create_initial_report_draft_sync"):
+            resp = await async_test_client.post(
+                "/api/projects/",
+                json={"title": "Bad Config", "label_config": "<<<bad>>>"},
             )
-        assert exc_info.value.status_code == 422
+
+        assert resp.status_code == 422
 
 
 # ---------------------------------------------------------------------------
-# get_project: success path (lines 351-398)
+# get_project: success path
 # ---------------------------------------------------------------------------
 
 class TestGetProjectSuccess:
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.ProjectResponse")
-    @patch("routers.projects.crud.calculate_generation_stats")
-    @patch("routers.projects.crud.calculate_project_stats")
-    @patch("routers.projects.crud.get_org_context_from_request", return_value=None)
-    @patch("routers.projects.crud.check_project_accessible", return_value=True)
-    async def test_get_project_accessible(self, mock_access, mock_org, mock_stats, mock_gen, MockPR):
-        from routers.projects.crud import get_project
+    async def test_get_project_accessible(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, created_by=admin.id, title="Accessible")
+        await async_test_db.commit()
 
-        project = _mock_project()
-        resp_obj = _mock_project_response()
-        MockPR.from_orm.return_value = resp_obj
+        with _as_user(admin):
+            resp = await async_test_client.get(f"/api/projects/{project.id}")
 
-        db = _mock_db()
-        db.query.return_value.options.return_value.filter.return_value.first.return_value = project
-
-        user = _mock_user(is_superadmin=True)
-        request = _mock_request()
-
-        result = await get_project(
-            project_id="proj-1", request=request, current_user=user, db=db,
-        )
-        assert result.id == "proj-1"
-        assert result.title == "Test Project"
-        MockPR.from_orm.assert_called_once_with(project)
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["id"] == project.id
+        assert body["title"] == "Accessible"
 
     @pytest.mark.asyncio
-    async def test_get_project_not_found(self):
-        from routers.projects.crud import get_project
+    async def test_get_project_not_found(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
 
-        db = _mock_db()
-        db.query.return_value.options.return_value.filter.return_value.first.return_value = None
+        with _as_user(user):
+            resp = await async_test_client.get("/api/projects/missing")
 
-        user = _mock_user()
-        request = _mock_request()
-
-        with pytest.raises(HTTPException) as exc_info:
-            await get_project(
-                project_id="missing", request=request, current_user=user, db=db,
-            )
-        assert exc_info.value.status_code == 404
+        assert resp.status_code == 404
 
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.get_org_context_from_request", return_value=None)
-    @patch("routers.projects.crud.check_project_accessible", return_value=False)
-    async def test_get_project_access_denied(self, mock_access, mock_org):
-        from routers.projects.crud import get_project
+    async def test_get_project_access_denied(self, async_test_client, async_test_db):
+        """A non-owner of a private project is denied (403)."""
+        owner = await _make_user(async_test_db)
+        other = await _make_user(async_test_db)
+        project = await _make_project(async_test_db, created_by=owner.id, is_private=True)
+        await async_test_db.commit()
 
-        project = _mock_project()
-        db = _mock_db()
-        db.query.return_value.options.return_value.filter.return_value.first.return_value = project
+        with _as_user(other):
+            resp = await async_test_client.get(f"/api/projects/{project.id}")
 
-        user = _mock_user(is_superadmin=False)
-        request = _mock_request()
-
-        with pytest.raises(HTTPException) as exc_info:
-            await get_project(
-                project_id="proj-1", request=request, current_user=user, db=db,
-            )
-        assert exc_info.value.status_code == 403
+        assert resp.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# update_project: happy paths (lines 401-542)
+# update_project: happy paths
 # ---------------------------------------------------------------------------
 
 class TestUpdateProjectHappyPath:
-    async def _run_update(self, update_dict, project_overrides=None):
-        from routers.projects.crud import update_project
-        from project_schemas import ProjectUpdate
+    @pytest.mark.asyncio
+    async def test_update_instructions_mapping(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, created_by=admin.id)
+        await async_test_db.commit()
 
-        project = _mock_project()
-        if project_overrides:
-            for k, v in project_overrides.items():
-                setattr(project, k, v)
-
-        resp_obj = _mock_project_response()
-        db = _mock_db()
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.options.return_value = mock_q
-        mock_q.first.return_value = project
-        db.query.return_value = mock_q
-
-        user = _mock_user(is_superadmin=True)
-
-        with patch("routers.projects.crud.check_user_can_edit_project", return_value=True), \
-             patch("routers.projects.crud.calculate_project_stats"), \
-             patch("routers.projects.crud.calculate_generation_stats"), \
-             patch("routers.projects.crud.LabelConfigValidator") as mock_lcv, \
-             patch("routers.projects.crud.LabelConfigVersionService") as mock_lcvs, \
-             patch("routers.projects.crud.flag_modified"), \
-             patch("routers.projects.crud.ProjectResponse") as MockPR:
-            mock_lcv.validate.return_value = (True, [])
-            mock_lcvs.has_schema_changed.return_value = True
-            mock_lcvs.update_version_history.return_value = "v2"
-            MockPR.from_orm.return_value = resp_obj
-
-            result = await update_project(
-                project_id="proj-1",
-                update=ProjectUpdate(**update_dict),
-                current_user=user,
-                db=db,
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}",
+                json={"instructions": "New instructions"},
             )
-        return result
+
+        assert resp.status_code == 200
+        assert resp.json()["id"] == project.id
+        # 'instructions' maps to expert_instruction on the row.
+        await async_test_db.refresh(project)
+        assert project.expert_instruction == "New instructions"
 
     @pytest.mark.asyncio
-    async def test_update_instructions_mapping(self):
-        result = await self._run_update({"instructions": "New instructions"})
-        assert result.id == "proj-1"
-
-    @pytest.mark.asyncio
-    async def test_update_llm_model_ids_migration(self):
-        result = await self._run_update(
-            {"llm_model_ids": ["gpt-4o"]},
-            project_overrides={"generation_config": {}},
+    async def test_update_llm_model_ids_migration(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(
+            async_test_db, created_by=admin.id, generation_config={}
         )
-        assert result.id == "proj-1"
+        await async_test_db.commit()
 
-    @pytest.mark.asyncio
-    async def test_update_label_config_with_versioning(self):
-        new_config = "<View><Text name='text' value='$text'/><Choices name='c' toName='text'><Choice value='A'/></Choices></View>"
-        result = await self._run_update({"label_config": new_config})
-        assert result.id == "proj-1"
-
-    @pytest.mark.asyncio
-    @patch("routers.projects.crud.LabelConfigValidator")
-    @patch("routers.projects.crud.check_user_can_edit_project", return_value=True)
-    async def test_update_label_config_invalid(self, mock_edit, mock_lcv):
-        from routers.projects.crud import update_project
-        from project_schemas import ProjectUpdate
-
-        mock_lcv.validate.return_value = (False, ["Parse error"])
-
-        project = _mock_project()
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = project
-
-        user = _mock_user(is_superadmin=True)
-
-        with pytest.raises(HTTPException) as exc_info:
-            await update_project(
-                project_id="proj-1",
-                update=ProjectUpdate(label_config="<<<bad>>>"),
-                current_user=user,
-                db=db,
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}",
+                json={"llm_model_ids": ["gpt-4o"]},
             )
-        assert exc_info.value.status_code == 422
 
-    @pytest.mark.asyncio
-    async def test_update_generation_config_deep_merge(self):
-        result = await self._run_update(
-            {"generation_config": {"new_key": "val"}},
-            project_overrides={"generation_config": {"existing": "value"}, "evaluation_config": {}},
+        assert resp.status_code == 200
+        assert resp.json()["id"] == project.id
+        # llm_model_ids migrates into generation_config.selected_configuration.models
+        await async_test_db.refresh(project)
+        assert (
+            project.generation_config["selected_configuration"]["models"] == ["gpt-4o"]
         )
-        assert result.id == "proj-1"
 
     @pytest.mark.asyncio
-    async def test_update_evaluation_config_deep_merge(self):
-        result = await self._run_update(
-            {"evaluation_config": {"metric": "bleu"}},
-            project_overrides={"evaluation_config": {"temperature": 0.2}, "generation_config": {}},
+    async def test_update_label_config_with_versioning(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, created_by=admin.id)
+        await async_test_db.commit()
+
+        new_config = (
+            "<View><Text name='text' value='$text'/>"
+            "<Choices name='c' toName='text'><Choice value='A'/></Choices></View>"
         )
-        assert result.id == "proj-1"
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}",
+                json={"label_config": new_config},
+            )
+
+        assert resp.status_code == 200
+        assert resp.json()["id"] == project.id
 
     @pytest.mark.asyncio
-    async def test_update_not_found(self):
-        from routers.projects.crud import update_project
-        from project_schemas import ProjectUpdate
+    async def test_update_label_config_invalid(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, created_by=admin.id)
+        await async_test_db.commit()
 
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = _mock_user(is_superadmin=True)
-
-        with pytest.raises(HTTPException) as exc_info:
-            await update_project(
-                project_id="missing",
-                update=ProjectUpdate(title="New"),
-                current_user=user,
-                db=db,
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}",
+                json={"label_config": "<<<bad>>>"},
             )
-        assert exc_info.value.status_code == 404
+
+        assert resp.status_code == 422
 
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.check_user_can_edit_project", return_value=False)
-    async def test_update_permission_denied(self, mock_edit):
-        from routers.projects.crud import update_project
-        from project_schemas import ProjectUpdate
+    async def test_update_generation_config_deep_merge(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(
+            async_test_db,
+            created_by=admin.id,
+            generation_config={"existing": "value"},
+            evaluation_config={},
+        )
+        await async_test_db.commit()
 
-        project = _mock_project()
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = project
-        user = _mock_user(is_superadmin=False)
-
-        with pytest.raises(HTTPException) as exc_info:
-            await update_project(
-                project_id="proj-1",
-                update=ProjectUpdate(title="New"),
-                current_user=user,
-                db=db,
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}",
+                json={"generation_config": {"new_key": "val"}},
             )
-        assert exc_info.value.status_code == 403
+
+        assert resp.status_code == 200
+        assert resp.json()["id"] == project.id
+        # Deep merge preserves the existing key.
+        await async_test_db.refresh(project)
+        assert project.generation_config["existing"] == "value"
+        assert project.generation_config["new_key"] == "val"
+
+    @pytest.mark.asyncio
+    async def test_update_evaluation_config_deep_merge(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(
+            async_test_db,
+            created_by=admin.id,
+            evaluation_config={"temperature": 0.2},
+            generation_config={},
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}",
+                json={"evaluation_config": {"metric": "bleu"}},
+            )
+
+        assert resp.status_code == 200
+        assert resp.json()["id"] == project.id
+        await async_test_db.refresh(project)
+        assert project.evaluation_config["temperature"] == 0.2
+        assert project.evaluation_config["metric"] == "bleu"
+
+    @pytest.mark.asyncio
+    async def test_update_not_found(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                "/api/projects/missing", json={"title": "New"}
+            )
+
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_update_permission_denied(self, async_test_client, async_test_db):
+        owner = await _make_user(async_test_db)
+        other = await _make_user(async_test_db, is_superadmin=False)
+        project = await _make_project(async_test_db, created_by=owner.id)
+        await async_test_db.commit()
+
+        with _as_user(other):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}", json={"title": "New"}
+            )
+
+        assert resp.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# delete_project: success path (lines 545-614)
+# delete_project: success path
 # ---------------------------------------------------------------------------
 
 class TestDeleteProjectSuccess:
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.notify_project_deleted")
-    async def test_delete_superadmin(self, mock_notify):
-        from routers.projects.crud import delete_project
+    async def test_delete_superadmin(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, created_by=admin.id)
+        project_id = project.id
+        await async_test_db.commit()
 
-        project = _mock_project()
-        db = _mock_db()
+        with _as_user(admin), patch("routers.projects.crud._notify_project_deleted_sync"):
+            resp = await async_test_client.delete(f"/api/projects/{project_id}")
 
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = project
-        mock_q.delete.return_value = 0
-        db.query.return_value = mock_q
-
-        user = _mock_user(is_superadmin=True)
-
-        result = await delete_project(project_id="proj-1", current_user=user, db=db)
-        assert result["message"] == "Project deleted successfully"
+        assert resp.status_code in (200, 204)
+        assert resp.json()["message"] == "Project deleted successfully"
+        row = (
+            await async_test_db.execute(select(Project).where(Project.id == project_id))
+        ).scalar_one_or_none()
+        assert row is None
 
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.notify_project_deleted")
-    async def test_delete_private_by_creator(self, mock_notify):
-        from routers.projects.crud import delete_project
+    async def test_delete_private_by_creator(self, async_test_client, async_test_db):
+        creator = await _make_user(async_test_db, is_superadmin=False)
+        project = await _make_project(
+            async_test_db, created_by=creator.id, is_private=True
+        )
+        project_id = project.id
+        await async_test_db.commit()
 
-        project = _mock_project(is_private=True, created_by="user-123")
-        db = _mock_db()
+        with _as_user(creator), patch("routers.projects.crud._notify_project_deleted_sync"):
+            resp = await async_test_client.delete(f"/api/projects/{project_id}")
 
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = project
-        mock_q.delete.return_value = 0
-        db.query.return_value = mock_q
-
-        user = _mock_user(is_superadmin=False, user_id="user-123")
-
-        result = await delete_project(project_id="proj-1", current_user=user, db=db)
-        assert result["message"] == "Project deleted successfully"
-
-    @pytest.mark.asyncio
-    @patch("routers.projects.crud.notify_project_deleted", side_effect=RuntimeError("Notify fail"))
-    async def test_delete_notification_failure(self, mock_notify):
-        from routers.projects.crud import delete_project
-
-        project = _mock_project()
-        db = _mock_db()
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = project
-        mock_q.delete.return_value = 0
-        db.query.return_value = mock_q
-
-        user = _mock_user(is_superadmin=True)
-
-        result = await delete_project(project_id="proj-1", current_user=user, db=db)
-        assert result["message"] == "Project deleted successfully"
+        assert resp.status_code in (200, 204)
+        assert resp.json()["message"] == "Project deleted successfully"
+        row = (
+            await async_test_db.execute(select(Project).where(Project.id == project_id))
+        ).scalar_one_or_none()
+        assert row is None
 
     @pytest.mark.asyncio
-    async def test_delete_not_found(self):
-        from routers.projects.crud import delete_project
+    async def test_delete_notification_failure(self, async_test_client, async_test_db):
+        """A failing notification must not fail the deletion."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, created_by=admin.id)
+        project_id = project.id
+        await async_test_db.commit()
 
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = _mock_user(is_superadmin=True)
+        with _as_user(admin), patch(
+            "routers.projects.crud._notify_project_deleted_sync",
+            side_effect=RuntimeError("Notify fail"),
+        ):
+            resp = await async_test_client.delete(f"/api/projects/{project_id}")
 
-        with pytest.raises(HTTPException) as exc_info:
-            await delete_project(project_id="missing", current_user=user, db=db)
-        assert exc_info.value.status_code == 404
+        assert resp.status_code in (200, 204)
+        assert resp.json()["message"] == "Project deleted successfully"
+        row = (
+            await async_test_db.execute(select(Project).where(Project.id == project_id))
+        ).scalar_one_or_none()
+        assert row is None
 
     @pytest.mark.asyncio
-    async def test_delete_permission_denied(self):
-        from routers.projects.crud import delete_project
+    async def test_delete_not_found(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
 
-        project = _mock_project(is_private=False, created_by="other-user")
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = project
-        user = _mock_user(is_superadmin=False, user_id="user-123")
+        with _as_user(admin), patch("routers.projects.crud._notify_project_deleted_sync"):
+            resp = await async_test_client.delete("/api/projects/missing")
 
-        with pytest.raises(HTTPException) as exc_info:
-            await delete_project(project_id="proj-1", current_user=user, db=db)
-        assert exc_info.value.status_code == 403
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_delete_permission_denied(self, async_test_client, async_test_db):
+        """Non-superadmin, non-private (org) project => 403."""
+        owner = await _make_user(async_test_db)
+        regular = await _make_user(async_test_db, is_superadmin=False)
+        project = await _make_project(
+            async_test_db, created_by=owner.id, is_private=False
+        )
+        await async_test_db.commit()
+
+        with _as_user(regular):
+            resp = await async_test_client.delete(f"/api/projects/{project.id}")
+
+        assert resp.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# update_project_visibility: happy paths (lines 617-711)
+# update_project_visibility: happy paths
 # ---------------------------------------------------------------------------
 
 class TestVisibilityHappyPaths:
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.ProjectResponse")
-    @patch("routers.projects.crud.calculate_generation_stats")
-    @patch("routers.projects.crud.calculate_project_stats")
-    async def test_make_private_success(self, mock_stats, mock_gen, MockPR):
-        from routers.projects.crud import update_project_visibility
-
-        project = _mock_project(is_private=False)
-        owner = Mock(id="user-123")
-        resp_obj = _mock_project_response(is_private=True)
-        MockPR.from_orm.return_value = resp_obj
-
-        db = _mock_db()
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            q.options.return_value = q
-            q.delete.return_value = 0
-            if call_count["n"] == 1:
-                q.first.return_value = project
-            elif call_count["n"] == 2:
-                q.first.return_value = owner
-            else:
-                q.first.return_value = project
-            return q
-
-        db.query.side_effect = query_side_effect
-
-        user = _mock_user(is_superadmin=True)
-
-        result = await update_project_visibility(
-            project_id="proj-1",
-            visibility={"is_private": True, "owner_user_id": "user-123"},
-            current_user=user,
-            db=db,
+    async def test_make_private_success(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        owner = await _make_user(async_test_db)
+        project = await _make_project(
+            async_test_db, created_by=admin.id, is_private=False
         )
-        assert result.id == "proj-1"
-        db.commit.assert_called()
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}/visibility",
+                json={"is_private": True, "owner_user_id": owner.id},
+            )
+
+        assert resp.status_code == 200
+        assert resp.json()["id"] == project.id
+        await async_test_db.refresh(project)
+        assert project.is_private is True
+        assert project.created_by == owner.id
 
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.ProjectResponse")
-    @patch("routers.projects.crud.calculate_generation_stats")
-    @patch("routers.projects.crud.calculate_project_stats")
-    async def test_make_org_assigned_success(self, mock_stats, mock_gen, MockPR):
-        from routers.projects.crud import update_project_visibility
-
-        project = _mock_project(is_private=True)
-        org = Mock(id="org-1")
-        resp_obj = _mock_project_response(is_private=False)
-        MockPR.from_orm.return_value = resp_obj
-
-        db = _mock_db()
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            q.options.return_value = q
-            q.delete.return_value = 0
-            if call_count["n"] == 1:
-                q.first.return_value = project
-            elif call_count["n"] == 2:
-                q.first.return_value = org
-            else:
-                q.first.return_value = project
-            return q
-
-        db.query.side_effect = query_side_effect
-
-        user = _mock_user(is_superadmin=True)
-
-        result = await update_project_visibility(
-            project_id="proj-1",
-            visibility={"is_private": False, "organization_ids": ["org-1"]},
-            current_user=user,
-            db=db,
+    async def test_make_org_assigned_success(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db)
+        project = await _make_project(
+            async_test_db, created_by=admin.id, is_private=True
         )
-        assert result.id == "proj-1"
-        db.commit.assert_called()
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}/visibility",
+                json={"is_private": False, "organization_ids": [org.id]},
+            )
+
+        assert resp.status_code == 200
+        assert resp.json()["id"] == project.id
+        await async_test_db.refresh(project)
+        assert project.is_private is False
+        po = (
+            await async_test_db.execute(
+                select(ProjectOrganization).where(
+                    ProjectOrganization.project_id == project.id
+                )
+            )
+        ).scalars().all()
+        assert any(p.organization_id == org.id for p in po)
 
     @pytest.mark.asyncio
-    async def test_make_org_assigned_org_not_found(self):
-        from routers.projects.crud import update_project_visibility
+    async def test_make_org_assigned_org_not_found(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, created_by=admin.id)
+        await async_test_db.commit()
 
-        project = _mock_project()
-        db = _mock_db()
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count["n"] == 1:
-                q.first.return_value = project
-            else:
-                q.first.return_value = None
-            return q
-
-        db.query.side_effect = query_side_effect
-
-        user = _mock_user(is_superadmin=True)
-
-        with pytest.raises(HTTPException) as exc_info:
-            await update_project_visibility(
-                project_id="proj-1",
-                visibility={"is_private": False, "organization_ids": ["missing-org"]},
-                current_user=user,
-                db=db,
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}/visibility",
+                json={"is_private": False, "organization_ids": ["missing-org"]},
             )
-        assert exc_info.value.status_code == 404
+
+        assert resp.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_visibility_not_superadmin(self):
-        from routers.projects.crud import update_project_visibility
+    async def test_visibility_not_superadmin(self, async_test_client, async_test_db):
+        """Non-superadmin non-creator => 403."""
+        owner = await _make_user(async_test_db)
+        other = await _make_user(async_test_db, is_superadmin=False)
+        project = await _make_project(async_test_db, created_by=owner.id)
+        await async_test_db.commit()
 
-        # Mock project owned by a different user — non-superadmin non-creator should get 403.
-        project = _mock_project(created_by="some-other-user")
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = project
-        user = _mock_user(is_superadmin=False, user_id="not-the-creator")
-
-        with pytest.raises(HTTPException) as exc_info:
-            await update_project_visibility(
-                project_id="proj-1",
-                visibility={"is_private": True},
-                current_user=user,
-                db=db,
+        with _as_user(other):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}/visibility",
+                json={"is_private": True},
             )
-        assert exc_info.value.status_code == 403
+
+        assert resp.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_visibility_project_not_found(self):
-        from routers.projects.crud import update_project_visibility
+    async def test_visibility_project_not_found(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
 
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = _mock_user(is_superadmin=True)
-
-        with pytest.raises(HTTPException) as exc_info:
-            await update_project_visibility(
-                project_id="missing",
-                visibility={"is_private": True},
-                current_user=user,
-                db=db,
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                "/api/projects/missing/visibility",
+                json={"is_private": True},
             )
-        assert exc_info.value.status_code == 404
+
+        assert resp.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_visibility_no_org_ids(self):
-        from routers.projects.crud import update_project_visibility
+    async def test_visibility_no_org_ids(self, async_test_client, async_test_db):
+        """Making a project org-assigned with no org ids => 400."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, created_by=admin.id)
+        await async_test_db.commit()
 
-        project = _mock_project()
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = project
-        user = _mock_user(is_superadmin=True)
-
-        with pytest.raises(HTTPException) as exc_info:
-            await update_project_visibility(
-                project_id="proj-1",
-                visibility={"is_private": False, "organization_ids": []},
-                current_user=user,
-                db=db,
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project.id}/visibility",
+                json={"is_private": False, "organization_ids": []},
             )
-        assert exc_info.value.status_code == 400
+
+        assert resp.status_code == 400
 
 
 # ---------------------------------------------------------------------------
-# recalculate_project_statistics (lines 714-753) - sync function
+# recalculate_project_statistics — admin-only (uses get_current_user)
 # ---------------------------------------------------------------------------
 
 class TestRecalculateSuccess:
-    @patch("routers.projects.crud.calculate_project_stats")
-    @patch("routers.projects.crud.ProjectResponse")
-    def test_recalculate_stats_success(self, MockPR, mock_calc):
-        from routers.projects.crud import recalculate_project_statistics
+    @pytest.mark.asyncio
+    async def test_recalculate_stats_success(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, created_by=admin.id)
+        await async_test_db.commit()
 
-        project = _mock_project()
-        resp_obj = _mock_project_response(task_count=10, annotation_count=5, completed_tasks_count=3)
-        MockPR.from_orm.return_value = resp_obj
-
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = project
-
-        user = _mock_user(is_superadmin=True)
-
-        # Also patch the local import of ProjectResponse inside the function
-        with patch("project_schemas.ProjectResponse") as MockPR2:
-            MockPR2.from_orm.return_value = resp_obj
-            result = recalculate_project_statistics(
-                project_id="proj-1", db=db, current_user=user,
+        with _as_current_user(admin):
+            resp = await async_test_client.post(
+                f"/api/projects/{project.id}/recalculate-stats"
             )
-        assert result["task_count"] == 10
 
-    def test_recalculate_not_superadmin(self):
-        from routers.projects.crud import recalculate_project_statistics
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["project_id"] == project.id
+        assert "task_count" in body
+        assert body["task_count"] == 0
 
-        db = _mock_db()
-        user = _mock_user(is_superadmin=False)
+    @pytest.mark.asyncio
+    async def test_recalculate_not_superadmin(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db, is_superadmin=False)
+        project = await _make_project(async_test_db, created_by=user.id)
+        await async_test_db.commit()
 
-        with pytest.raises(HTTPException) as exc_info:
-            recalculate_project_statistics(project_id="proj-1", db=db, current_user=user)
-        assert exc_info.value.status_code == 403
+        with _as_current_user(user):
+            resp = await async_test_client.post(
+                f"/api/projects/{project.id}/recalculate-stats"
+            )
 
-    def test_recalculate_not_found(self):
-        from routers.projects.crud import recalculate_project_statistics
+        assert resp.status_code == 403
 
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = _mock_user(is_superadmin=True)
+    @pytest.mark.asyncio
+    async def test_recalculate_not_found(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
 
-        with pytest.raises(HTTPException) as exc_info:
-            recalculate_project_statistics(project_id="missing", db=db, current_user=user)
-        assert exc_info.value.status_code == 404
+        with _as_current_user(admin):
+            resp = await async_test_client.post(
+                "/api/projects/missing/recalculate-stats"
+            )
+
+        assert resp.status_code == 404
 
 
 # ---------------------------------------------------------------------------
-# get_project_completion_stats (lines 756-796)
+# get_project_completion_stats
 # ---------------------------------------------------------------------------
 
 class TestCompletionStatsSuccess:
     @pytest.mark.asyncio
-    @patch("routers.projects.crud.get_org_context_from_request", return_value=None)
-    @patch("routers.projects.crud.check_project_accessible", return_value=True)
-    async def test_completion_stats_with_tasks(self, mock_access, mock_org):
-        from routers.projects.crud import get_project_completion_stats
+    async def test_completion_stats_with_tasks(self, async_test_client, async_test_db):
+        from project_models import Task
 
-        project = _mock_project()
-        db = _mock_db()
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count["n"] == 1:
-                q.first.return_value = project
-            elif call_count["n"] == 2:
-                q.count.return_value = 10
-            elif call_count["n"] == 3:
-                q.count.return_value = 4
-            else:
-                q.count.return_value = 0
-            return q
-
-        db.query.side_effect = query_side_effect
-
-        user = _mock_user(is_superadmin=True)
-        request = _mock_request()
-
-        result = await get_project_completion_stats(
-            project_id="proj-1", request=request, current_user=user, db=db,
-        )
-        assert result["total"] == 10
-        assert result["completed"] == 4
-        assert result["completion_rate"] == 40.0
-
-    @pytest.mark.asyncio
-    @patch("routers.projects.crud.get_org_context_from_request", return_value=None)
-    @patch("routers.projects.crud.check_project_accessible", return_value=True)
-    async def test_completion_stats_no_tasks(self, mock_access, mock_org):
-        from routers.projects.crud import get_project_completion_stats
-
-        project = _mock_project()
-        db = _mock_db()
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count["n"] == 1:
-                q.first.return_value = project
-            else:
-                q.count.return_value = 0
-            return q
-
-        db.query.side_effect = query_side_effect
-
-        user = _mock_user(is_superadmin=True)
-        request = _mock_request()
-
-        result = await get_project_completion_stats(
-            project_id="proj-1", request=request, current_user=user, db=db,
-        )
-        assert result["completion_rate"] == 0.0
-
-    @pytest.mark.asyncio
-    async def test_completion_stats_not_found(self):
-        from routers.projects.crud import get_project_completion_stats
-
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = _mock_user()
-        request = _mock_request()
-
-        with pytest.raises(HTTPException) as exc_info:
-            await get_project_completion_stats(
-                project_id="missing", request=request, current_user=user, db=db,
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, created_by=admin.id)
+        # 10 tasks, 4 labeled.
+        for i in range(10):
+            async_test_db.add(
+                Task(
+                    id=_uid(),
+                    project_id=project.id,
+                    data={"text": f"t{i}"},
+                    is_labeled=(i < 4),
+                    inner_id=i + 1,
+                    created_at=datetime.now(timezone.utc),
+                )
             )
-        assert exc_info.value.status_code == 404
+        await async_test_db.flush()
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{project.id}/completion-stats"
+            )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 10
+        assert body["completed"] == 4
+        assert body["completion_rate"] == 40.0
+
+    @pytest.mark.asyncio
+    async def test_completion_stats_no_tasks(self, async_test_client, async_test_db):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, created_by=admin.id)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{project.id}/completion-stats"
+            )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["completion_rate"] == 0.0
+        assert body["total"] == 0
+
+    @pytest.mark.asyncio
+    async def test_completion_stats_not_found(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+
+        with _as_user(user):
+            resp = await async_test_client.get(
+                "/api/projects/missing/completion-stats"
+            )
+
+        assert resp.status_code == 404

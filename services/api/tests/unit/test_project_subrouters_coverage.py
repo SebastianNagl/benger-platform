@@ -1,12 +1,36 @@
 """
 Unit tests for routers/projects/ subrouters — covers access control branches.
 Tests use direct function calls with mocked DB to cover internal logic.
+
+Handlers on the async DB lane (``Depends(get_async_db)`` + ``await db.execute``)
+get an ``AsyncMock``-backed fake session via :func:`_async_db_returning`;
+handlers still on the sync DB lane keep the ``Mock``-``db.query`` style.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException
+
+
+def _async_db_returning(scalar=None, scalars_list=None):
+    """Build a fake AsyncSession whose ``await db.execute(...)`` resolves to a
+    result object yielding ``scalar`` from ``.scalar_one_or_none()`` and
+    ``scalars_list`` from ``.scalars().all()``. Mirrors just enough of the
+    async result API for the project-not-found / access preamble branches."""
+    result = Mock()
+    result.scalar_one_or_none.return_value = scalar
+    result.scalar.return_value = scalar
+    scalars = Mock()
+    scalars.all.return_value = scalars_list or []
+    scalars.unique.return_value = scalars
+    result.scalars.return_value = scalars
+    db = Mock()
+    db.execute = AsyncMock(return_value=result)
+    db.commit = AsyncMock()
+    db.refresh = AsyncMock()
+    db.get = AsyncMock(return_value=scalar)
+    return db
 
 
 # ============= projects/tasks.py =============
@@ -15,36 +39,33 @@ from fastapi import HTTPException
 class TestListProjectTasks:
     @pytest.mark.asyncio
     async def test_project_not_found(self):
-        from routers.projects.tasks import list_project_tasks
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
+        # list_project_tasks delegates project existence + read access to the
+        # `require_project_access` dependency, so the 404 now lives there.
+        from routers.projects.deps import require_project_access
+        dep = require_project_access()
+        db = _async_db_returning(scalar=None)
         user = Mock()
         request = Mock()
         request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
-            await list_project_tasks(
-                project_id="proj-1", request=request, page=1, page_size=30,
-                only_labeled=None, only_unlabeled=None, only_assigned=None,
-                exclude_my_annotations=None, current_user=user, db=db,
-            )
+            await dep(project_id="proj-1", request=request, current_user=user, db=db)
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
     async def test_access_denied(self):
-        from routers.projects.tasks import list_project_tasks
-        db = Mock()
+        from routers.projects.deps import require_project_access
+        dep = require_project_access()
         project = Mock()
-        db.query.return_value.filter.return_value.first.return_value = project
+        db = _async_db_returning(scalar=project)
         user = Mock()
         request = Mock()
         request.state.organization_context = None
-        with patch("routers.projects.tasks.check_project_accessible", return_value=False):
+        with patch(
+            "routers.projects.deps.check_project_accessible_async",
+            new=AsyncMock(return_value=False),
+        ):
             with pytest.raises(HTTPException) as exc_info:
-                await list_project_tasks(
-                    project_id="proj-1", request=request, page=1, page_size=30,
-                    only_labeled=None, only_unlabeled=None, only_assigned=None,
-                    exclude_my_annotations=None, current_user=user, db=db,
-                )
+                await dep(project_id="proj-1", request=request, current_user=user, db=db)
             assert exc_info.value.status_code == 403
 
 
@@ -53,8 +74,7 @@ class TestSkipTask:
     async def test_project_not_found(self):
         from routers.projects.tasks import skip_task
         from project_schemas import SkipTaskRequest
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
+        db = _async_db_returning(scalar=None)
         user = Mock()
         request = Mock()
         request.state.organization_context = None
@@ -84,9 +104,9 @@ class TestAssignTasks:
 class TestListTaskAssignments:
     @pytest.mark.asyncio
     async def test_project_not_found(self):
+        # list_task_assignments is on the async DB lane now.
         from routers.projects.assignments import list_task_assignments
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
+        db = _async_db_returning(scalar=None)
         user = Mock()
         request = Mock()
         request.state.organization_context = None
@@ -135,30 +155,30 @@ class TestGetMyTasks:
 class TestListProjectMembers:
     @pytest.mark.asyncio
     async def test_project_not_found(self):
-        from routers.projects.members import list_project_members
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
+        # list_project_members delegates the 404 to require_project_access.
+        from routers.projects.deps import require_project_access
+        dep = require_project_access()
+        db = _async_db_returning(scalar=None)
         user = Mock()
         request = Mock()
         request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
-            await list_project_members(project_id="proj-1", request=request,
-                                      current_user=user, db=db)  # noqa: E128
+            await dep(project_id="proj-1", request=request, current_user=user, db=db)
         assert exc_info.value.status_code == 404
 
 
 class TestGetProjectAnnotators:
     @pytest.mark.asyncio
     async def test_project_not_found(self):
-        from routers.projects.members import get_project_annotators
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
+        # get_project_annotators delegates the 404 to require_project_access.
+        from routers.projects.deps import require_project_access
+        dep = require_project_access()
+        db = _async_db_returning(scalar=None)
         user = Mock()
         request = Mock()
         request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
-            await get_project_annotators(project_id="proj-1", request=request,
-                                        current_user=user, db=db)  # noqa: E128
+            await dep(project_id="proj-1", request=request, current_user=user, db=db)
         assert exc_info.value.status_code == 404
 
 
@@ -168,17 +188,17 @@ class TestGetProjectAnnotators:
 class TestListQuestionnaireResponses:
     @pytest.mark.asyncio
     async def test_project_not_found(self):
-        from routers.projects.questionnaire import list_questionnaire_responses
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
+        # list_questionnaire_responses now delegates the project-existence /
+        # access preamble to the require_project_access dependency, so the 404
+        # is enforced there (not inline in the handler).
+        from routers.projects.deps import require_project_access
+        db = _async_db_returning(scalar=None)
         user = Mock()
         request = Mock()
         request.state.organization_context = None
+        dependency = require_project_access(min_role="edit")
         with pytest.raises(HTTPException) as exc_info:
-            await list_questionnaire_responses(
-                project_id="proj-1", request=request,
-                current_user=user, db=db,
-            )
+            await dependency(project_id="proj-1", request=request, current_user=user, db=db)
         assert exc_info.value.status_code == 404
 
 
@@ -189,8 +209,7 @@ class TestGetLabelConfigVersions:
     @pytest.mark.asyncio
     async def test_project_not_found(self):
         from routers.projects.label_config_versions import get_label_config_versions
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
+        db = _async_db_returning(scalar=None)
         user = Mock()
         request = Mock()
         request.state.organization_context = None
@@ -206,8 +225,7 @@ class TestGetLabelConfigVersion:
     @pytest.mark.asyncio
     async def test_project_not_found(self):
         from routers.projects.label_config_versions import get_label_config_version
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
+        db = _async_db_returning(scalar=None)
         user = Mock()
         request = Mock()
         request.state.organization_context = None

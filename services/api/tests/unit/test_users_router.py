@@ -3,6 +3,8 @@ Comprehensive tests for the users router endpoints.
 Tests the current router architecture mounted at /api/users/*.
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
@@ -11,8 +13,55 @@ from fastapi import status
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
 from main import app
 from models import User
+
+
+@contextmanager
+def _as_user(db_user):
+    """Override require_user with an auth identity built from a seeded DB row.
+
+    The migrated GET /api/users + PATCH .../role + .../status handlers run on
+    the real ASGI/async-DB stack, so the old `require_superadmin` + sync
+    `get_db` mock pattern no longer reaches them. `require_superadmin` is
+    `Depends(require_user)` plus an is_superadmin check, so overriding
+    `require_user` with a superadmin identity is sufficient.
+    """
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _seed_user(db, *, is_superadmin=False, is_active=True):
+    """Seed a real models.User row into the async test session."""
+    u = User(
+        id=str(uuid.uuid4()),
+        username=f"u-{uuid.uuid4().hex[:8]}",
+        email=f"{uuid.uuid4().hex[:8]}@e.com",
+        name="U",
+        hashed_password="x",
+        is_superadmin=is_superadmin,
+        is_active=is_active,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
 
 
 class TestUsersRouter:
@@ -58,44 +107,36 @@ class TestUsersRouter:
         """Create mock list of users"""
         return [mock_superadmin_user, mock_regular_user]
 
-    def test_get_all_users_success_as_superadmin(
-        self, client, mock_superadmin_user, mock_users_list
+    @pytest.mark.asyncio
+    async def test_get_all_users_success_as_superadmin(
+        self, async_test_client, async_test_db
     ):
-        """Test getting all users as superadmin at /api/users"""
-        from database import get_db
-        from main import app
-        from routers.users import require_superadmin
+        """Test getting all users as superadmin at /api/users.
 
-        def override_require_superadmin():
-            return mock_superadmin_user
+        Migrated to the async DB lane: GET /api/users now queries DBUser
+        directly via `await db.execute(select(...))`. The original asserted
+        a fixed count of 2 against a fully-mocked DB; against the real test
+        DB (which carries session-seeded demo rows) we instead seed two rows
+        sharing a unique marker and use the handler's server-side `?search=`
+        filter to scope the result deterministically — preserving the
+        "returns exactly the users that match" intent.
+        """
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        marker = f"getall-{uuid.uuid4().hex[:8]}"
+        u1 = await _seed_user(async_test_db, is_superadmin=False)
+        u2 = await _seed_user(async_test_db, is_superadmin=False)
+        u1.name = marker
+        u2.name = marker
+        await async_test_db.flush()
 
-        def override_get_db():
-            return Mock(spec=Session)
+        with _as_user(admin):
+            response = await async_test_client.get(f"/api/users?search={marker}")
 
-        # The handler now runs the query inline (so it can apply optional
-        # `?search=` filtering server-side); mock the DB chain directly.
-        mock_db = Mock(spec=Session)
-        mock_query = Mock()
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
-        mock_query.limit.return_value = mock_query
-        mock_query.all.return_value = mock_users_list
-        mock_db.query.return_value = mock_query
-
-        # Override dependencies
-        app.dependency_overrides[require_superadmin] = override_require_superadmin
-        app.dependency_overrides[get_db] = lambda: mock_db
-
-        try:
-            response = client.get("/api/users")
-
-            assert response.status_code == status.HTTP_200_OK
-            data = response.json()
-            assert isinstance(data, list)
-            assert len(data) == 2
-        finally:
-            # Clean up overrides
-            app.dependency_overrides.clear()
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) == 2
+        assert {row["id"] for row in data} == {u1.id, u2.id}
 
     def test_get_all_users_forbidden_as_regular_user(self, client, mock_regular_user):
         """Test that getting all users is forbidden for regular users"""
@@ -123,40 +164,27 @@ class TestUsersRouter:
         finally:
             app.dependency_overrides.clear()
 
-    def test_update_user_role_success_as_superadmin(
-        self, client, mock_superadmin_user, mock_regular_user
+    @pytest.mark.asyncio
+    async def test_update_user_role_success_as_superadmin(
+        self, async_test_client, async_test_db
     ):
-        """Test updating user role as superadmin at /api/users/{user_id}/role"""
-        from database import get_db
-        from main import app
-        from routers.users import require_superadmin
+        """Test updating user role as superadmin at /api/users/{user_id}/role.
 
-        mock_db = Mock(spec=Session)
+        Migrated to the async lane (calls update_user_superadmin_status_async).
+        Seed a non-admin target, PATCH it to superadmin, assert 200 and that
+        the change is reflected in the response — replacing the old
+        `mock_update_role.assert_called_once_with(...)` delegation check.
+        """
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        target = await _seed_user(async_test_db, is_superadmin=False)
 
-        def override_require_superadmin():
-            return mock_superadmin_user
+        with _as_user(admin):
+            response = await async_test_client.patch(
+                f"/api/users/{target.id}/role", json={"is_superadmin": True}
+            )
 
-        def override_get_db():
-            return mock_db
-
-        with patch("routers.users.update_user_superadmin_status") as mock_update_role:
-            # Mock successful role update
-            updated_user = mock_regular_user
-            updated_user.is_superadmin = True
-            mock_update_role.return_value = updated_user
-
-            # Override dependencies
-            app.dependency_overrides[require_superadmin] = override_require_superadmin
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                role_data = {"is_superadmin": True}
-                response = client.patch("/api/users/regular-user-123/role", json=role_data)
-
-                assert response.status_code == status.HTTP_200_OK
-                mock_update_role.assert_called_once_with(mock_db, "regular-user-123", True)
-            finally:
-                app.dependency_overrides.clear()
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["is_superadmin"] is True
 
     def test_update_user_role_invalid_data(self, client, mock_superadmin_user):
         """Test updating user role with invalid data"""
@@ -183,94 +211,63 @@ class TestUsersRouter:
         finally:
             app.dependency_overrides.clear()
 
-    def test_update_user_role_user_not_found(self, client, mock_superadmin_user):
-        """Test updating role for non-existent user"""
-        from database import get_db
-        from main import app
-        from routers.users import require_superadmin
-
-        def override_require_superadmin():
-            return mock_superadmin_user
-
-        def override_get_db():
-            return Mock(spec=Session)
-
-        with patch("routers.users.update_user_superadmin_status") as mock_update_role:
-            mock_update_role.return_value = None  # User not found
-
-            # Override dependencies
-            app.dependency_overrides[require_superadmin] = override_require_superadmin
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                role_data = {"is_superadmin": True}
-                response = client.patch("/api/users/nonexistent-user/role", json=role_data)
-
-                assert response.status_code == status.HTTP_404_NOT_FOUND
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_update_user_status_success_as_superadmin(
-        self, client, mock_superadmin_user, mock_regular_user
+    @pytest.mark.asyncio
+    async def test_update_user_role_user_not_found(
+        self, async_test_client, async_test_db
     ):
-        """Test updating user status as superadmin at /api/users/{user_id}/status"""
-        from database import get_db
-        from main import app
-        from routers.users import require_superadmin
+        """Test updating role for non-existent user.
 
-        mock_db = Mock(spec=Session)
+        Migrated to async lane: an unseeded user_id makes
+        update_user_superadmin_status_async return None → handler 404s.
+        No patching needed.
+        """
+        admin = await _seed_user(async_test_db, is_superadmin=True)
 
-        def override_require_superadmin():
-            return mock_superadmin_user
+        with _as_user(admin):
+            response = await async_test_client.patch(
+                "/api/users/nonexistent-user/role", json={"is_superadmin": True}
+            )
 
-        def override_get_db():
-            return mock_db
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
-        with patch("routers.users.update_user_status") as mock_update_status:
-            # Mock successful status update
-            updated_user = mock_regular_user
-            updated_user.is_active = False
-            mock_update_status.return_value = updated_user
+    @pytest.mark.asyncio
+    async def test_update_user_status_success_as_superadmin(
+        self, async_test_client, async_test_db
+    ):
+        """Test updating user status as superadmin at /api/users/{user_id}/status.
 
-            # Override dependencies
-            app.dependency_overrides[require_superadmin] = override_require_superadmin
-            app.dependency_overrides[get_db] = override_get_db
+        Migrated to the async lane (calls update_user_status_async). Seed an
+        active target, deactivate it, assert 200 + the reflected change —
+        replacing the old delegation `assert_called_once_with(...)`.
+        """
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        target = await _seed_user(async_test_db, is_active=True)
 
-            try:
-                status_data = {"is_active": False}
-                response = client.patch("/api/users/regular-user-123/status", json=status_data)
+        with _as_user(admin):
+            response = await async_test_client.patch(
+                f"/api/users/{target.id}/status", json={"is_active": False}
+            )
 
-                assert response.status_code == status.HTTP_200_OK
-                mock_update_status.assert_called_once_with(mock_db, "regular-user-123", False)
-            finally:
-                app.dependency_overrides.clear()
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["is_active"] is False
 
-    def test_update_user_status_user_not_found(self, client, mock_superadmin_user):
-        """Test updating status for non-existent user"""
-        from database import get_db
-        from main import app
-        from routers.users import require_superadmin
+    @pytest.mark.asyncio
+    async def test_update_user_status_user_not_found(
+        self, async_test_client, async_test_db
+    ):
+        """Test updating status for non-existent user.
 
-        def override_require_superadmin():
-            return mock_superadmin_user
+        Migrated to async lane: an unseeded user_id makes
+        update_user_status_async return None → handler 404s. No patching.
+        """
+        admin = await _seed_user(async_test_db, is_superadmin=True)
 
-        def override_get_db():
-            return Mock(spec=Session)
+        with _as_user(admin):
+            response = await async_test_client.patch(
+                "/api/users/nonexistent-user/status", json={"is_active": False}
+            )
 
-        with patch("routers.users.update_user_status") as mock_update_status:
-            mock_update_status.return_value = None  # User not found
-
-            # Override dependencies
-            app.dependency_overrides[require_superadmin] = override_require_superadmin
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                status_data = {"is_active": False}
-                response = client.patch("/api/users/nonexistent-user/status", json=status_data)
-
-                assert response.status_code == status.HTTP_404_NOT_FOUND
-            finally:
-                app.dependency_overrides.clear()
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_verify_user_email_success_as_superadmin(
         self, client, mock_superadmin_user, mock_regular_user
@@ -398,7 +395,7 @@ class TestUsersRouter:
         def override_get_db():
             return mock_db
 
-        with patch("user_service.delete_user") as mock_delete_user:
+        with patch("auth_module.user_service.delete_user") as mock_delete_user:
             mock_delete_user.return_value = True  # Successful deletion
 
             # Override dependencies
@@ -450,7 +447,7 @@ class TestUsersRouter:
         def override_get_db():
             return Mock(spec=Session)
 
-        with patch("user_service.delete_user") as mock_delete_user:
+        with patch("auth_module.user_service.delete_user") as mock_delete_user:
             mock_delete_user.return_value = False  # User not found
 
             # Override dependencies

@@ -4,7 +4,7 @@ Issue #482: Test task formatting for consistent presentation
 """
 
 
-from task_formatter import TaskFormatter
+from services.task_formatter import TaskFormatter
 
 
 class TestTaskFormatter:

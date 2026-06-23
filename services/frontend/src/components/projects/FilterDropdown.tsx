@@ -7,7 +7,8 @@
 import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
-import apiClient from '@/lib/api'
+import { useOptionalApiClient } from '@/contexts/ApiClientContext'
+import apiClientSingleton from '@/lib/api'
 import { Menu } from '@headlessui/react'
 import {
   AdjustmentsHorizontalIcon,
@@ -46,6 +47,10 @@ export function FilterDropdown({
   onMetadataChange,
 }: FilterDropdownProps) {
   const { t } = useI18n()
+  // Prefer the org-wired client from AuthProvider; fall back to the singleton
+  // when rendered outside the authenticated tree (e.g. isolated unit tests).
+  const contextClient = useOptionalApiClient()
+  const apiClient = contextClient ?? apiClientSingleton
 
   const filterOptions = [
     { value: 'all' as const, label: t('projects.filter.allTasks') },
@@ -120,7 +125,7 @@ export function FilterDropdown({
        
       setAvailableMetadata([])
     }
-  }, [projectId])
+  }, [projectId, apiClient])
 
   useEffect(() => {
     if (projectId) {

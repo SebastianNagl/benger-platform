@@ -400,6 +400,54 @@ describe('ProgressContext', () => {
       expect(result.current.progressItems[0].status).toBe('error')
     })
 
+    it('clears the indeterminate flag on success so a finished toast renders a determinate bar', () => {
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <ProgressProvider>{children}</ProgressProvider>
+      )
+
+      const { result } = renderHook(() => useProgress(), { wrapper })
+
+      act(() => {
+        result.current.startProgress('test-1', 'Indeterminate Operation', {
+          indeterminate: true,
+        })
+      })
+
+      expect(result.current.progressItems[0].indeterminate).toBe(true)
+
+      act(() => {
+        result.current.completeProgress('test-1', 'success')
+      })
+
+      // A finished operation is never indeterminate: the flag is cleared so the
+      // toast shows a filled 100% bar + icon instead of the running shimmer.
+      // (Regression guard for the download progress bar that "never completed".)
+      expect(result.current.progressItems[0].indeterminate).toBe(false)
+      expect(result.current.progressItems[0].progress).toBe(100)
+      expect(result.current.progressItems[0].status).toBe('success')
+    })
+
+    it('clears the indeterminate flag on error completion too', () => {
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <ProgressProvider>{children}</ProgressProvider>
+      )
+
+      const { result } = renderHook(() => useProgress(), { wrapper })
+
+      act(() => {
+        result.current.startProgress('test-1', 'Indeterminate Operation', {
+          indeterminate: true,
+        })
+      })
+
+      act(() => {
+        result.current.completeProgress('test-1', 'error')
+      })
+
+      expect(result.current.progressItems[0].indeterminate).toBe(false)
+      expect(result.current.progressItems[0].status).toBe('error')
+    })
+
     it('defaults to success status when not specified', () => {
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <ProgressProvider>{children}</ProgressProvider>

@@ -10,12 +10,23 @@ Tests build their own minimal fixture inline rather than calling the shared
 _build_graph harness in test_evaluation_metadata_coverage.py — that harness is
 out-of-step with several recent migrations (041 / 042 / 043) and fixing it is
 out of scope for the wrap-up.
+
+The handler was migrated to the async DB lane (``Depends(get_async_db)`` +
+``await db.execute(select(...))``), so these tests seed through ``async_test_db``
+and drive the surface through ``async_test_client``. Access goes through
+``check_project_accessible_async``, which short-circuits ``True`` for a
+superadmin — so the seeded admin is a superadmin and no patch is needed.
 """
 
 import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
 
 import pytest
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
 from models import (
     EvaluationJudgeRun,
     EvaluationRun,
@@ -25,7 +36,6 @@ from models import (
 from project_models import (
     Annotation,
     Project,
-    ProjectOrganization,
     Task,
 )
 
@@ -36,14 +46,55 @@ def _uid():
     return str(uuid.uuid4())
 
 
-def _h(auth_headers, org):
-    return {**auth_headers["admin"], "X-Organization-Context": org.id}
+@contextmanager
+def _as_user(db_user: User):
+    """Override ``require_user`` with an ``auth_module.models.User`` built from
+    a seeded DB ``User`` for the duration of the block."""
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
 
 
-def _seed_project_with_eval(db, admin, org):
+async def _seed_user(db, *, is_superadmin=True):
+    """Seed a real superadmin ``models.User`` so access passes via the
+    superadmin short-circuit in ``check_project_accessible_async``."""
+    u = User(
+        id=_uid(),
+        username=f"userid-contract-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="UserId Contract Admin",
+        hashed_password="hashed",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _seed_project_with_eval(db, admin):
     """Minimal project with one Task and one annotation-side EvaluationRun
     (no Generations needed — this exercises only the annotator-discovery
-    join path in metadata.py)."""
+    join path in metadata.py).
+
+    No ProjectOrganization row is seeded: access goes through the superadmin
+    short-circuit in ``check_project_accessible_async``, so org membership is
+    never consulted (and fabricating an org id would violate the
+    project_organizations FK)."""
     project = Project(
         id=_uid(),
         title=f"UserIdContract {uuid.uuid4().hex[:6]}",
@@ -53,12 +104,7 @@ def _seed_project_with_eval(db, admin, org):
         '<Choice value="Ja"/><Choice value="Nein"/></Choices></View>',
     )
     db.add(project)
-    db.flush()
-
-    db.add(ProjectOrganization(
-        id=_uid(), project_id=project.id,
-        organization_id=org.id, assigned_by=admin.id,
-    ))
+    await db.flush()
 
     task = Task(
         id=_uid(), project_id=project.id,
@@ -80,19 +126,19 @@ def _seed_project_with_eval(db, admin, org):
         has_sample_results=True, created_by=admin.id,
     )
     db.add(eval_run)
-    db.flush()
+    await db.flush()
 
     judge_run = EvaluationJudgeRun(
         id=_uid(), evaluation_id=eval_run.id,
         judge_model_id=None, run_index=0, status="completed",
     )
     db.add(judge_run)
-    db.flush()
+    await db.flush()
 
     return project, task, eval_run, judge_run
 
 
-def _add_annotator_eval(db, project, task, eval_run, judge_run, user):
+async def _add_annotator_eval(db, project, task, eval_run, judge_run, user):
     """Attach one Annotation + annotation-side TaskEvaluation for `user`
     so they surface in the /evaluated-models response as a provider=Annotator
     row."""
@@ -104,7 +150,7 @@ def _add_annotator_eval(db, project, task, eval_run, judge_run, user):
         was_cancelled=False,
     )
     db.add(ann)
-    db.flush()
+    await db.flush()
 
     db.add(TaskEvaluation(
         id=_uid(), evaluation_id=eval_run.id, judge_run_id=judge_run.id,
@@ -113,29 +159,35 @@ def _add_annotator_eval(db, project, task, eval_run, judge_run, user):
         ground_truth={"value": "Ja"}, prediction={"value": "Ja"},
         metrics={"accuracy": 1.0}, passed=True,
     ))
+    await db.flush()
 
 
 @pytest.mark.integration
 class TestEvaluatedModelsUserIdContract:
     """Issue #69 wrap-up: lock down the user_id wire-shape contract."""
 
-    def test_user_id_present_only_on_annotator_rows(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_user_id_present_only_on_annotator_rows(
+        self, async_test_client, async_test_db
     ):
         """`user_id` is emitted iff the row is an annotator row. The frontend
         modal keys annotator selection on this id and skips rows without it
         (EvaluationControlModal.tsx: `if (!row.user_id) continue`)."""
-        admin = test_users[0]
-        project, task, eval_run, judge_run = _seed_project_with_eval(
-            test_db, admin, test_org
+        db = async_test_db
+        admin = await _seed_user(db)
+        project, task, eval_run, judge_run = await _seed_project_with_eval(
+            db, admin
         )
-        _add_annotator_eval(test_db, project, task, eval_run, judge_run, admin)
-        test_db.commit()
+        await _add_annotator_eval(db, project, task, eval_run, judge_run, admin)
 
-        resp = client.get(
-            f"{BASE}/projects/{project.id}/evaluated-models",
-            headers=_h(auth_headers, test_org),
-        )
+        admin_id = admin.id
+        pid = project.id
+        await db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{BASE}/projects/{pid}/evaluated-models"
+            )
         assert resp.status_code == 200, resp.text
         models = resp.json()
 
@@ -149,9 +201,9 @@ class TestEvaluatedModelsUserIdContract:
                 "annotator rows must carry a non-empty user_id "
                 f"(got: {row.get('user_id')!r} in {row})"
             )
-            assert row["user_id"] == admin.id, (
+            assert row["user_id"] == admin_id, (
                 f"user_id {row['user_id']!r} should equal seeded admin.id "
-                f"{admin.id!r}"
+                f"{admin_id!r}"
             )
         for row in non_annotator_rows:
             assert "user_id" not in row, (
@@ -159,17 +211,19 @@ class TestEvaluatedModelsUserIdContract:
                 f"(D2 contract; got {row.get('user_id')!r} in {row})"
             )
 
-    def test_two_users_same_display_surface_distinctly(
-        self, client, test_db, test_users, auth_headers, test_org
+    @pytest.mark.asyncio
+    async def test_two_users_same_display_surface_distinctly(
+        self, async_test_client, async_test_db
     ):
         """Two distinct users sharing the same display name must each surface
         as their own row with a distinct `user_id`. Locks the multi-row
         expansion (Phase A2 alternative implementation in metadata.py:289-321,
         425-446) so a future refactor can't regress to silent overwrite of the
         second user's id by the first."""
-        admin = test_users[0]
-        project, task, eval_run, judge_run = _seed_project_with_eval(
-            test_db, admin, test_org
+        db = async_test_db
+        admin = await _seed_user(db)
+        project, task, eval_run, judge_run = await _seed_project_with_eval(
+            db, admin
         )
 
         # `User.name` is non-unique (only username/email/pseudonym carry
@@ -192,17 +246,22 @@ class TestEvaluatedModelsUserIdContract:
             name=shared_display, use_pseudonym=False,
             email_verified=True, is_active=True,
         )
-        test_db.add_all([user_a, user_b])
-        test_db.flush()
+        # AsyncSession.add_all is a SYNC method — do NOT await it.
+        db.add_all([user_a, user_b])
+        await db.flush()
 
-        _add_annotator_eval(test_db, project, task, eval_run, judge_run, user_a)
-        _add_annotator_eval(test_db, project, task, eval_run, judge_run, user_b)
-        test_db.commit()
+        await _add_annotator_eval(db, project, task, eval_run, judge_run, user_a)
+        await _add_annotator_eval(db, project, task, eval_run, judge_run, user_b)
 
-        resp = client.get(
-            f"{BASE}/projects/{project.id}/evaluated-models",
-            headers=_h(auth_headers, test_org),
-        )
+        pid = project.id
+        ua_id = user_a.id
+        ub_id = user_b.id
+        await db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"{BASE}/projects/{pid}/evaluated-models"
+            )
         assert resp.status_code == 200, resp.text
         models = resp.json()
 
@@ -216,8 +275,8 @@ class TestEvaluatedModelsUserIdContract:
             f"their own row (got {len(rows_for_anna)}: {rows_for_anna})"
         )
         user_ids = {row["user_id"] for row in rows_for_anna}
-        assert user_ids == {user_a.id, user_b.id}, (
+        assert user_ids == {ua_id, ub_id}, (
             "each Anna row must carry the underlying user's id, not a "
             f"silently-overwritten one (got {user_ids}, expected "
-            f"{{{user_a.id!r}, {user_b.id!r}}})"
+            f"{{{ua_id!r}, {ub_id!r}}})"
         )

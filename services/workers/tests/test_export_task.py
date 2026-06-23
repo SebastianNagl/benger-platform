@@ -62,6 +62,14 @@ class _FakeQuery:
     def first(self):
         return self._result
 
+    def update(self, values, synchronize_session=False):
+        # Mirror SQLAlchemy's bulk UPDATE against the single fixture row so the
+        # worker's separate-session progress UPDATE has somewhere to write.
+        if self._result is not None and isinstance(values, dict):
+            for key, val in values.items():
+                setattr(self._result, key, val)
+        return 1
+
 
 class _FakeSession:
     """Minimal Session stand-in: routes query(model) by class to a fixture."""
@@ -101,20 +109,34 @@ def _patched(tmp_path):
     project = _make_project()
     session = _FakeSession({ExportJob: job, Project: project})
 
-    gen_holder = {"chunks": [""], "task_ids": "__unset__"}
+    gen_holder = {"chunks": [""], "task_ids": "__unset__", "drive_progress": False}
 
-    def _fake_select_generator(db, proj, fmt, task_ids=None):
+    def _fake_select_generator(db, proj, fmt, task_ids=None, progress_cb=None):
         # Record the subset the worker forwarded so tests can assert that
         # job.task_ids reaches select_export_generator unchanged.
         gen_holder["task_ids"] = task_ids
         chunks = gen_holder["chunks"]
         if callable(chunks):
             return chunks()
+        if gen_holder["drive_progress"] and progress_cb is not None:
+            # Mimic stream_export_json calling progress_cb once per streamed task
+            # batch with (streamed_so_far, total), wrapped like the real generator
+            # so a progress hiccup can never sever the export.
+            def _driven():
+                total = len(chunks)
+                for idx, chunk in enumerate(chunks):
+                    yield chunk
+                    try:
+                        progress_cb(idx + 1, total)
+                    except Exception:
+                        pass
+
+            return _driven()
         return iter(chunks)
 
     with patch.object(workers_tasks, "SessionLocal", return_value=session), patch.object(
         workers_tasks, "_publish_progress"
-    ), patch("export_stream.select_export_generator", _fake_select_generator):
+    ) as mock_publish, patch("export_stream.select_export_generator", _fake_select_generator):
         # Patch the singleton the task imports lazily.
         with patch("storage.object_storage.object_storage", storage):
             def set_generator(chunks):
@@ -123,6 +145,12 @@ def _patched(tmp_path):
             # Lets a test read back the task_ids the worker forwarded to
             # select_export_generator (whole-project export forwards None).
             set_generator.forwarded_task_ids = lambda: gen_holder["task_ids"]
+            # Opt a test into having the fake generator drive progress_cb.
+            set_generator.drive_progress = lambda on=True: gen_holder.__setitem__(
+                "drive_progress", on
+            )
+            # Exposes the published progress events for assertions.
+            set_generator.publish_calls = lambda: list(mock_publish.call_args_list)
 
             yield workers_tasks, storage, job, project, session, set_generator
 
@@ -271,6 +299,36 @@ def test_export_idempotent_skip_when_already_completed(_patched):
 
     assert result["status"] == "skipped"
     assert called["n"] == 0
+
+
+def test_export_persists_incremental_progress(_patched):
+    """The worker threads a progress callback into the json generator that
+    persists a real percentage as tasks stream, so the polled status advances
+    instead of jumping 0 -> 100 (the download-progress-bar fix). Verified via the
+    published ``running`` events carrying a 0 < progress <= 99 percent."""
+    workers_tasks, storage, job, project, session, set_generator = _patched
+    set_generator([f'{{"t": {i}}}' for i in range(10)])
+    set_generator.drive_progress()
+
+    result = workers_tasks.export_project("job-1")
+
+    assert result["status"] == "completed"
+    # Completion still pins the final value to 100.
+    assert job.progress == 100
+
+    # `_publish_progress(channel, payload)` is called positionally.
+    running_pcts = [
+        c.args[1]["progress"]
+        for c in set_generator.publish_calls()
+        if len(c.args) >= 2
+        and isinstance(c.args[1], dict)
+        and c.args[1].get("status") == "running"
+    ]
+    assert running_pcts, "no running progress events were published"
+    # At least one mid-stream event reported genuine partial progress (not 0),
+    # and progress is capped at 99 until completion flips it to 100.
+    assert any(0 < p <= 99 for p in running_pcts)
+    assert max(running_pcts) <= 99
 
 
 def test_export_missing_job_returns_error(_patched):

@@ -5,12 +5,16 @@ Evaluation configuration validation endpoints.
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import User, require_user
-from database import get_db
+from database import get_async_db
 from project_models import Project
-from routers.projects.helpers import check_project_accessible, get_org_context_from_request
+from routers.projects.helpers import (
+    check_project_accessible_async,
+    get_org_context_from_request,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +26,7 @@ async def validate_evaluation_config(
     project_id: str,
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Validate alignment between generation_config and evaluation_config.
@@ -33,7 +37,8 @@ async def validate_evaluation_config(
         from schemas.evaluation_schemas import ConfigValidationResult
 
         # Get project
-        project = db.query(Project).filter(Project.id == project_id).first()
+        result = await db.execute(select(Project).where(Project.id == project_id))
+        project = result.scalar_one_or_none()
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -41,7 +46,7 @@ async def validate_evaluation_config(
             )
 
         org_context = get_org_context_from_request(request)
-        if not check_project_accessible(db, current_user, project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, project_id, org_context):
             raise HTTPException(status_code=403, detail="Access denied")
 
         errors = []

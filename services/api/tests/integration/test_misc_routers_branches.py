@@ -42,15 +42,97 @@ MinIO byte-streaming (upload + presigned download success) is out of scope.
 from __future__ import annotations
 
 import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from models import EvaluationRun, EvaluationType, Generation, Organization, ResponseGeneration, UploadedData
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
+from models import (
+    EvaluationRun,
+    EvaluationType,
+    Generation,
+    ResponseGeneration,
+    User,
+)
 from project_models import Annotation, Project, ProjectOrganization, Task
 
 
 def _uid() -> str:
     return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user, is_superadmin=None):
+    """Override ``require_user`` with a real seeded user for async-handler tests
+    driven through ``async_test_client`` (mirrors test_eval_results_branches.py)."""
+    sa = db_user.is_superadmin if is_superadmin is None else is_superadmin
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=sa,
+        is_active=True,
+        email_verified=True,
+        created_at=getattr(db_user, "created_at", None) or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_owner(db, *, name="Test Admin", is_superadmin=True):
+    """Seed a user via the async session for the async-handler tests."""
+    u = User(
+        id=_uid(),
+        username=f"misc-branch-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name=name,
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _make_project_async(db, creator):
+    """Seed a minimal project via the async session."""
+    p = Project(
+        id=_uid(),
+        title=f"Misc Branch {uuid.uuid4().hex[:6]}",
+        created_by=creator.id,
+        is_private=False,
+        label_config='<View><Text name="text" value="$text"/></View>',
+    )
+    db.add(p)
+    await db.flush()
+    return p
+
+
+async def _make_eval_run_async(db, project, creator, *, status="completed"):
+    er = EvaluationRun(
+        id=_uid(),
+        project_id=project.id,
+        model_id="gpt-4",
+        evaluation_type_ids=["accuracy"],
+        metrics={"accuracy": 0.9},
+        status=status,
+        samples_evaluated=7,
+        eval_metadata={"type": "automated"},
+        created_by=creator.id,
+    )
+    db.add(er)
+    await db.flush()
+    return er
 
 
 def _make_project(db, creator, org=None, *, is_private=False):
@@ -80,234 +162,12 @@ def _ctx(auth_headers, role, org):
     return {**auth_headers[role], "X-Organization-Context": org.id}
 
 
-# ===========================================================================
-# prompt_structures.py
-# ===========================================================================
-
-_STRUCT_BASE = "/api/projects/{pid}/generation-config/structures"
-
-
-def _struct_payload(name="My Structure"):
-    return {
-        "name": name,
-        "description": "branch coverage structure",
-        "system_prompt": "You are a helpful legal assistant.",
-        "instruction_prompt": "Answer the question: {question}",
-    }
-
-
-@pytest.mark.integration
-class TestPromptStructuresCreateAndValidate:
-    def test_create_structure_persists(
-        self, client, auth_headers, test_db, test_users, test_org
-    ):
-        project = _make_project(test_db, test_users[0], test_org)
-        test_db.commit()
-
-        resp = client.put(
-            _STRUCT_BASE.format(pid=project.id) + "/basic",
-            json=_struct_payload(),
-            headers=_ctx(auth_headers, "admin", test_org),
-        )
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["key"] == "basic"
-        assert body["name"] == "My Structure"
-
-        test_db.expire_all()
-        refreshed = test_db.query(Project).filter(Project.id == project.id).first()
-        structures = refreshed.generation_config["prompt_structures"]
-        assert "basic" in structures
-        assert structures["basic"]["name"] == "My Structure"
-
-    def test_invalid_key_too_long_400(
-        self, client, auth_headers, test_db, test_users, test_org
-    ):
-        """A key longer than 50 chars fails validate_structure_key with a 400
-        (the length guard, no URL-encoding ambiguity)."""
-        project = _make_project(test_db, test_users[0], test_org)
-        test_db.commit()
-
-        long_key = "a" * 60
-        resp = client.put(
-            _STRUCT_BASE.format(pid=project.id) + f"/{long_key}",
-            json=_struct_payload(),
-            headers=_ctx(auth_headers, "admin", test_org),
-        )
-        assert resp.status_code == 400
-        assert "1-50 characters" in resp.json()["detail"]
-
-    def test_invalid_key_chars_400(
-        self, client, auth_headers, test_db, test_users, test_org
-    ):
-        project = _make_project(test_db, test_users[0], test_org)
-        test_db.commit()
-
-        # '.' is not in [a-zA-Z0-9_-]; needs no URL-encoding and stays a single
-        # path segment, so it reaches validate_structure_key → 400.
-        resp = client.put(
-            _STRUCT_BASE.format(pid=project.id) + "/bad.key",
-            json=_struct_payload(),
-            headers=_ctx(auth_headers, "admin", test_org),
-        )
-        assert resp.status_code == 400
-        assert "alphanumeric" in resp.json()["detail"]
-
-    def test_project_not_found_404(
-        self, client, auth_headers, test_org
-    ):
-        missing = _uid()
-        resp = client.put(
-            _STRUCT_BASE.format(pid=missing) + "/basic",
-            json=_struct_payload(),
-            headers=_ctx(auth_headers, "admin", test_org),
-        )
-        assert resp.status_code == 404
-        assert missing in resp.json()["detail"]
-
-    def test_outsider_org_context_403(
-        self, client, auth_headers, test_db, test_users, test_org
-    ):
-        other_org = Organization(
-            id=_uid(),
-            name="Outsider Struct Org",
-            slug=f"outsider-struct-{uuid.uuid4().hex[:6]}",
-            display_name="Outsider Struct Org",
-        )
-        test_db.add(other_org)
-        test_db.flush()
-        project = _make_project(test_db, test_users[0], test_org)
-        test_db.commit()
-
-        resp = client.put(
-            _STRUCT_BASE.format(pid=project.id) + "/basic",
-            json=_struct_payload(),
-            headers={
-                **auth_headers["contributor"],
-                "X-Organization-Context": other_org.id,
-            },
-        )
-        assert resp.status_code == 403
-        assert "permission" in resp.json()["detail"]
-
-
-@pytest.mark.integration
-class TestPromptStructuresReadDeleteActivate:
-    def _seed_structure(self, client, auth_headers, project, org, key="basic"):
-        resp = client.put(
-            _STRUCT_BASE.format(pid=project.id) + f"/{key}",
-            json=_struct_payload(name=f"Struct {key}"),
-            headers=_ctx(auth_headers, "admin", org),
-        )
-        assert resp.status_code == 200
-
-    def test_list_and_get_structure(
-        self, client, auth_headers, test_db, test_users, test_org
-    ):
-        project = _make_project(test_db, test_users[0], test_org)
-        test_db.commit()
-        self._seed_structure(client, auth_headers, project, test_org, key="alpha")
-
-        list_resp = client.get(
-            _STRUCT_BASE.format(pid=project.id),
-            headers=_ctx(auth_headers, "admin", test_org),
-        )
-        assert list_resp.status_code == 200
-        assert "alpha" in list_resp.json()
-        assert list_resp.json()["alpha"]["key"] == "alpha"
-
-        get_resp = client.get(
-            _STRUCT_BASE.format(pid=project.id) + "/alpha",
-            headers=_ctx(auth_headers, "admin", test_org),
-        )
-        assert get_resp.status_code == 200
-        assert get_resp.json()["name"] == "Struct alpha"
-
-    def test_get_missing_structure_404(
-        self, client, auth_headers, test_db, test_users, test_org
-    ):
-        project = _make_project(test_db, test_users[0], test_org)
-        test_db.commit()
-
-        resp = client.get(
-            _STRUCT_BASE.format(pid=project.id) + "/nope",
-            headers=_ctx(auth_headers, "admin", test_org),
-        )
-        assert resp.status_code == 404
-        assert "nope" in resp.json()["detail"]
-
-    def test_set_active_unknown_key_400(
-        self, client, auth_headers, test_db, test_users, test_org
-    ):
-        project = _make_project(test_db, test_users[0], test_org)
-        test_db.commit()
-
-        resp = client.put(
-            _STRUCT_BASE.format(pid=project.id),
-            json=["ghost"],
-            headers=_ctx(auth_headers, "admin", test_org),
-        )
-        assert resp.status_code == 400
-        assert "does not exist" in resp.json()["detail"]
-
-    def test_set_active_persists(
-        self, client, auth_headers, test_db, test_users, test_org
-    ):
-        project = _make_project(test_db, test_users[0], test_org)
-        test_db.commit()
-        self._seed_structure(client, auth_headers, project, test_org, key="alpha")
-
-        resp = client.put(
-            _STRUCT_BASE.format(pid=project.id),
-            json=["alpha"],
-            headers=_ctx(auth_headers, "admin", test_org),
-        )
-        assert resp.status_code == 200
-        assert resp.json()["active_structures"] == ["alpha"]
-
-        test_db.expire_all()
-        refreshed = test_db.query(Project).filter(Project.id == project.id).first()
-        active = refreshed.generation_config["selected_configuration"]["active_structures"]
-        assert active == ["alpha"]
-
-    def test_delete_missing_structure_404(
-        self, client, auth_headers, test_db, test_users, test_org
-    ):
-        project = _make_project(test_db, test_users[0], test_org)
-        test_db.commit()
-
-        resp = client.delete(
-            _STRUCT_BASE.format(pid=project.id) + "/ghost",
-            headers=_ctx(auth_headers, "admin", test_org),
-        )
-        assert resp.status_code == 404
-        assert "ghost" in resp.json()["detail"]
-
-    def test_delete_drops_from_active(
-        self, client, auth_headers, test_db, test_users, test_org
-    ):
-        project = _make_project(test_db, test_users[0], test_org)
-        test_db.commit()
-        self._seed_structure(client, auth_headers, project, test_org, key="alpha")
-        # Mark it active.
-        client.put(
-            _STRUCT_BASE.format(pid=project.id),
-            json=["alpha"],
-            headers=_ctx(auth_headers, "admin", test_org),
-        )
-
-        resp = client.delete(
-            _STRUCT_BASE.format(pid=project.id) + "/alpha",
-            headers=_ctx(auth_headers, "admin", test_org),
-        )
-        assert resp.status_code == 200
-        assert "deleted successfully" in resp.json()["message"]
-
-        test_db.expire_all()
-        refreshed = test_db.query(Project).filter(Project.id == project.id).first()
-        gc = refreshed.generation_config
-        assert "alpha" not in gc.get("prompt_structures", {})
-        assert "alpha" not in gc["selected_configuration"]["active_structures"]
+# NOTE: The prompt_structures.py and file_uploads.py routers were migrated to
+# the async DB lane (Depends(get_async_db)). Their behavioral coverage moved to
+# the async-fixture suites that can see the AsyncSession transaction:
+#   - tests/unit/test_prompt_structures_router.py
+#   - tests/integration/test_file_uploads_coverage.py
+# This module keeps the still-sync dashboard.py + evaluations/status.py routers.
 
 
 # ===========================================================================
@@ -317,30 +177,32 @@ class TestPromptStructuresReadDeleteActivate:
 
 @pytest.mark.integration
 class TestDashboardStats:
-    def test_live_fallback_counts_real_rows(
-        self, client, auth_headers, test_db, test_users, test_org
+    @pytest.mark.asyncio
+    async def test_live_fallback_counts_real_rows(
+        self, async_test_client, async_test_db
     ):
         """With an empty project_summaries table, /stats falls back to the
         live counters. Seed a task + a real annotation + a parsed generation
         and assert each surfaces."""
-        project = _make_project(test_db, test_users[0], test_org)
+        owner = await _make_owner(async_test_db)
+        project = await _make_project_async(async_test_db, owner)
         task = Task(
             id=_uid(),
             project_id=project.id,
             inner_id=1,
             data={"text": "dash task"},
-            created_by=test_users[0].id,
+            created_by=owner.id,
         )
-        test_db.add(task)
-        test_db.flush()
+        async_test_db.add(task)
+        await async_test_db.flush()
 
         # Real (non-cancelled, non-empty result) annotation.
-        test_db.add(
+        async_test_db.add(
             Annotation(
                 id=_uid(),
                 task_id=task.id,
                 project_id=project.id,
-                completed_by=test_users[0].id,
+                completed_by=owner.id,
                 result=[{"value": "x"}],
                 was_cancelled=False,
             )
@@ -352,11 +214,11 @@ class TestDashboardStats:
             task_id=task.id,
             model_id="gpt-4",
             status="completed",
-            created_by=test_users[0].id,
+            created_by=owner.id,
         )
-        test_db.add(rg)
-        test_db.flush()
-        test_db.add(
+        async_test_db.add(rg)
+        await async_test_db.flush()
+        async_test_db.add(
             Generation(
                 id=_uid(),
                 generation_id=rg.id,
@@ -368,15 +230,10 @@ class TestDashboardStats:
                 parse_status="success",
             )
         )
-        test_db.commit()
+        await async_test_db.commit()
 
-        resp = client.get(
-            "/api/dashboard/stats",
-            headers={
-                **auth_headers["admin"],
-                "X-Organization-Context": test_org.id,
-            },
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get("/api/dashboard/stats")
         assert resp.status_code == 200
         stats = resp.json()
         assert stats["project_count"] >= 1
@@ -384,18 +241,20 @@ class TestDashboardStats:
         assert stats["annotation_count"] >= 1
         assert stats["projects_with_generations"] >= 1
 
-    def test_no_accessible_projects_all_zero(
-        self, client, auth_headers, test_db, test_users, test_org
+    @pytest.mark.asyncio
+    async def test_no_accessible_projects_all_zero(
+        self, async_test_client, async_test_db
     ):
         """A non-superadmin in private context with no own private projects
         has an empty accessible set → the all-zeros short-circuit."""
-        resp = client.get(
-            "/api/dashboard/stats",
-            headers={
-                **auth_headers["annotator"],
-                "X-Organization-Context": "private",
-            },
-        )
+        annotator = await _make_owner(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
+
+        with _as_user(annotator):
+            resp = await async_test_client.get(
+                "/api/dashboard/stats",
+                headers={"X-Organization-Context": "private"},
+            )
         assert resp.status_code == 200
         stats = resp.json()
         assert stats["project_count"] == 0
@@ -403,114 +262,6 @@ class TestDashboardStats:
         assert stats["annotation_count"] == 0
         assert stats["projects_with_generations"] == 0
         assert stats["projects_with_evaluations"] == 0
-
-
-# ===========================================================================
-# file_uploads.py
-# ===========================================================================
-
-
-def _make_upload(db, owner_id, *, task_id=None, storage_key=None, name="f.txt"):
-    rec = UploadedData(
-        id=_uid(),
-        name=name,
-        original_filename=name,
-        file_path="legacy/path",
-        size=10,
-        format="txt",
-        task_id=task_id,
-        uploaded_by=owner_id,
-        storage_key=storage_key,
-        storage_url="http://example/url" if storage_key is None else None,
-        storage_type="local",
-    )
-    db.add(rec)
-    db.flush()
-    return rec
-
-
-@pytest.mark.integration
-class TestFileUploadsList:
-    def test_empty_list(self, client, auth_headers, test_users):
-        resp = client.get("/api/files/", headers=auth_headers["admin"])
-        assert resp.status_code == 200
-        assert resp.json() == []
-
-    def test_lists_only_own_files_and_task_filter(
-        self, client, auth_headers, test_db, test_users
-    ):
-        admin = test_users[0]
-        # admin's files: one with a task_id, one without.
-        f_task = _make_upload(test_db, admin.id, task_id="task-xyz", name="a.txt")
-        _make_upload(test_db, admin.id, task_id=None, name="b.txt")
-        # contributor's file should never appear for admin.
-        _make_upload(test_db, test_users[1].id, name="other.txt")
-        test_db.commit()
-
-        # No filter → admin's two files only.
-        resp = client.get("/api/files/", headers=auth_headers["admin"])
-        assert resp.status_code == 200
-        ids = {r["id"] for r in resp.json()}
-        assert f_task.id in ids
-        assert len(resp.json()) == 2
-
-        # task_id filter narrows to the one tagged file.
-        resp2 = client.get("/api/files/?task_id=task-xyz", headers=auth_headers["admin"])
-        assert resp2.status_code == 200
-        assert {r["id"] for r in resp2.json()} == {f_task.id}
-        assert resp2.json()[0]["task_id"] == "task-xyz"
-
-
-@pytest.mark.integration
-class TestFileUploadsDownloadDelete:
-    def test_download_unknown_file_404(self, client, auth_headers):
-        resp = client.get(
-            f"/api/files/{_uid()}/download",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 404
-        assert resp.json()["detail"] == "File not found"
-
-    def test_download_not_owned_404(
-        self, client, auth_headers, test_db, test_users
-    ):
-        """A file owned by another user is invisible (the ownership filter
-        excludes it) → 404."""
-        rec = _make_upload(test_db, test_users[1].id, storage_key=None)
-        test_db.commit()
-
-        resp = client.get(
-            f"/api/files/{rec.id}/download",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 404
-
-    def test_delete_unknown_file_404(self, client, auth_headers):
-        resp = client.delete(
-            f"/api/files/{_uid()}",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 404
-        assert resp.json()["detail"] == "File not found"
-
-    def test_delete_owned_record_persists(
-        self, client, auth_headers, test_db, test_users
-    ):
-        """A record with no storage_key deletes cleanly (no MinIO call)."""
-        rec = _make_upload(test_db, test_users[0].id, storage_key=None)
-        test_db.commit()
-        rec_id = rec.id
-
-        resp = client.delete(
-            f"/api/files/{rec_id}",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-        assert "deleted successfully" in resp.json()["message"]
-
-        test_db.expire_all()
-        gone = test_db.query(UploadedData).filter(UploadedData.id == rec_id).first()
-        assert gone is None
 
 
 # ===========================================================================
@@ -539,54 +290,58 @@ def _make_eval_run(db, project, creator, *, status="completed", model_id="gpt-4"
 
 @pytest.mark.integration
 class TestEvaluationStatusEndpoint:
-    def test_status_not_found_404(self, client, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_status_not_found_404(self, async_test_client, async_test_db):
+        owner = await _make_owner(async_test_db)
+        await async_test_db.commit()
         missing = _uid()
-        resp = client.get(
-            f"{_EVAL_BASE}/evaluation/status/{missing}",
-            headers=_ctx(auth_headers, "admin", test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{_EVAL_BASE}/evaluation/status/{missing}",
+            )
         assert resp.status_code == 404
         assert missing in resp.json()["detail"]
 
-    def test_status_inaccessible_project_403(
-        self, client, auth_headers, test_db, test_users, test_org
+    @pytest.mark.asyncio
+    async def test_status_inaccessible_project_403(
+        self, async_test_client, async_test_db
     ):
-        other_org = Organization(
-            id=_uid(),
-            name="Outsider Status Org",
-            slug=f"outsider-status-{uuid.uuid4().hex[:6]}",
-            display_name="Outsider Status Org",
+        """The eval run exists (passes the 404 guard) but a non-superadmin
+        whose access check returns False hits the 403 branch."""
+        owner = await _make_owner(async_test_db)
+        outsider = await _make_owner(
+            async_test_db, name="Outsider", is_superadmin=False
         )
-        test_db.add(other_org)
-        test_db.flush()
-        hidden = _make_project(test_db, test_users[0], other_org)
-        er = _make_eval_run(test_db, hidden, test_users[0])
-        test_db.commit()
+        project = await _make_project_async(async_test_db, owner)
+        er = await _make_eval_run_async(async_test_db, project, owner)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{_EVAL_BASE}/evaluation/status/{er.id}",
-            headers={
-                **auth_headers["contributor"],
-                "X-Organization-Context": other_org.id,
-            },
-        )
+        with _as_user(outsider), patch(
+            "routers.evaluations.status.check_project_accessible_async",
+            new=AsyncMock(return_value=False),
+        ):
+            resp = await async_test_client.get(
+                f"{_EVAL_BASE}/evaluation/status/{er.id}",
+            )
         assert resp.status_code == 403
         assert "access" in resp.json()["detail"].lower()
 
-    def test_status_happy_path(
-        self, client, auth_headers, test_db, test_users, test_org
+    @pytest.mark.asyncio
+    async def test_status_happy_path(
+        self, async_test_client, async_test_db
     ):
-        project = _make_project(test_db, test_users[0], test_org)
-        er = _make_eval_run(
-            test_db, project, test_users[0], status="failed",
+        owner = await _make_owner(async_test_db)
+        project = await _make_project_async(async_test_db, owner)
+        er = await _make_eval_run_async(
+            async_test_db, project, owner, status="failed",
         )
         er.error_message = "boom"
-        test_db.commit()
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{_EVAL_BASE}/evaluation/status/{er.id}",
-            headers=_ctx(auth_headers, "admin", test_org),
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{_EVAL_BASE}/evaluation/status/{er.id}",
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["id"] == er.id
@@ -675,11 +430,13 @@ class TestEvaluationTypesEndpoint:
         ids = {t["id"] for t in resp.json()}
         assert ids == {target_id}
 
-    def test_get_inactive_type_404(
-        self, client, auth_headers, test_db, test_users
+    @pytest.mark.asyncio
+    async def test_get_inactive_type_404(
+        self, async_test_client, async_test_db
     ):
+        owner = await _make_owner(async_test_db)
         inactive_id = f"inactive-{uuid.uuid4().hex[:6]}"
-        test_db.add(
+        async_test_db.add(
             EvaluationType(
                 id=inactive_id,
                 name="Inactive Metric",
@@ -689,20 +446,22 @@ class TestEvaluationTypesEndpoint:
                 applicable_project_types=[],
             )
         )
-        test_db.commit()
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{_EVAL_BASE}/evaluation-types/{inactive_id}",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{_EVAL_BASE}/evaluation-types/{inactive_id}",
+            )
         assert resp.status_code == 404
         assert inactive_id in resp.json()["detail"]
 
-    def test_get_active_type_happy_path(
-        self, client, auth_headers, test_db, test_users
+    @pytest.mark.asyncio
+    async def test_get_active_type_happy_path(
+        self, async_test_client, async_test_db
     ):
+        owner = await _make_owner(async_test_db)
         active_id = f"active-{uuid.uuid4().hex[:6]}"
-        test_db.add(
+        async_test_db.add(
             EvaluationType(
                 id=active_id,
                 name="Active Metric",
@@ -713,12 +472,12 @@ class TestEvaluationTypesEndpoint:
                 applicable_project_types=["text_classification"],
             )
         )
-        test_db.commit()
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"{_EVAL_BASE}/evaluation-types/{active_id}",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{_EVAL_BASE}/evaluation-types/{active_id}",
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert body["id"] == active_id

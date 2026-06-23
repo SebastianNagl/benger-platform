@@ -42,7 +42,7 @@ def mock_redis():
     redis_cache.cache.is_available = True
 
     # Also mock websocket_clustering to prevent Redis connection errors
-    import websocket_clustering
+    import services.websocket_clustering as websocket_clustering
 
     original_cluster_redis = websocket_clustering.cluster_manager.redis_client
     websocket_clustering.cluster_manager.redis_client = None  # Disable clustering in tests
@@ -62,7 +62,7 @@ def mock_redis_async():
     fake_redis = fakeredis.FakeAsyncRedis(decode_responses=True)
 
     with (
-        patch("websocket_clustering.redis_client", fake_redis),
+        patch("services.websocket_clustering.redis_client", fake_redis),
         patch("main.async_redis_client", fake_redis),
     ):
         yield fake_redis

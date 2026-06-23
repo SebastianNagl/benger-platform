@@ -4,16 +4,99 @@ Covers login, signup, refresh, logout, profile, password, email verification,
 profile completion, mandatory profile, and profile history endpoints.
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from main import app
 from auth_module.models import User
+from auth_module.models import User as AuthUser
 from database import get_db
 from auth_module.dependencies import require_user, require_superadmin
+
+from models import (
+    User as DBUser,
+    OrganizationMembership,
+    Organization,
+    OrganizationRole,
+    UserProfileHistory,
+)
+
+
+# ---------------------------------------------------------------------------
+# Async helpers (handlers below were migrated to the async DB lane, so they
+# query the REAL test Postgres by current_user.id — we seed real rows and
+# override `require_user` with an AuthUser whose id matches the seeded row).
+# ---------------------------------------------------------------------------
+
+
+def _uid():
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user):
+    au = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _seed_user(db, is_superadmin=False, **over):
+    over.setdefault("id", _uid())
+    over.setdefault("username", f"u-{_uid()[:8]}")
+    over.setdefault("email", f"{_uid()[:8]}@e.com")
+    over.setdefault("name", "U")
+    over.setdefault("hashed_password", "x")
+    over.setdefault("is_active", True)
+    over.setdefault("email_verified", True)
+    over.setdefault("created_at", datetime.now(timezone.utc))
+    u = DBUser(is_superadmin=is_superadmin, **over)
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _seed_membership(db, user, role, org=None):
+    if org is None:
+        org = Organization(
+            id=_uid(),
+            name=f"Org {_uid()[:8]}",
+            display_name="Org",
+            slug=f"org-{_uid()[:8]}",
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
+        )
+        db.add(org)
+        await db.flush()
+    db.add(
+        OrganizationMembership(
+            id=_uid(),
+            user_id=user.id,
+            organization_id=org.id,
+            role=role,
+            is_active=True,
+            joined_at=datetime.now(timezone.utc),
+        )
+    )
+    await db.flush()
+    return org
 
 
 def _make_user(is_superadmin=False, user_id="user-123", email_verified=True):
@@ -57,7 +140,7 @@ class TestLogin:
         app.dependency_overrides[get_db] = lambda: mock_db
 
         try:
-            with patch("routers.auth.authenticate_user", return_value=None):
+            with patch("routers.auth.session.authenticate_user", return_value=None):
                 resp = client.post(
                     "/api/auth/login",
                     json={"username": "baduser", "password": "badpass"},
@@ -73,7 +156,7 @@ class TestLogin:
         unverified_user = _make_user(email_verified=False)
 
         try:
-            with patch("routers.auth.authenticate_user", return_value=unverified_user):
+            with patch("routers.auth.session.authenticate_user", return_value=unverified_user):
                 resp = client.post(
                     "/api/auth/login",
                     json={"username": "testuser", "password": "pass"},
@@ -105,8 +188,8 @@ class TestLogin:
         )
 
         try:
-            with patch("routers.auth.authenticate_user", return_value=user), \
-                 patch("routers.auth.create_tokens_with_refresh", return_value=token_resp):
+            with patch("routers.auth.session.authenticate_user", return_value=user), \
+                 patch("routers.auth.session.create_tokens_with_refresh", return_value=token_resp):
                 resp = client.post(
                     "/api/auth/login",
                     json={"username": "testuser", "password": "pass"},
@@ -138,7 +221,7 @@ class TestRefreshToken:
         mock_db = _mock_db()
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.auth.refresh_access_token", return_value=None):
+            with patch("routers.auth.tokens.refresh_access_token", return_value=None):
                 client.cookies.set("refresh_token", "invalid-token")
                 resp = client.post("/api/auth/refresh")
                 assert resp.status_code == 401
@@ -163,7 +246,7 @@ class TestRefreshToken:
         )
 
         try:
-            with patch("routers.auth.refresh_access_token", return_value=token_resp):
+            with patch("routers.auth.tokens.refresh_access_token", return_value=token_resp):
                 client.cookies.set("refresh_token", "valid-token")
                 resp = client.post("/api/auth/refresh")
                 assert resp.status_code == 200
@@ -177,33 +260,32 @@ class TestRefreshToken:
 
 
 class TestLogout:
-    def test_logout_success(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.auth.revoke_refresh_token"):
-                resp = client.post("/api/auth/logout")
-                assert resp.status_code == 200
-                assert resp.json()["message"] == "Logged out successfully"
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_logout_success(self, async_test_client, async_test_db):
+        # logout is async; with no refresh_token cookie the async revoke is
+        # skipped and the route returns the success message.
+        user = await _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(user):
+            resp = await async_test_client.post("/api/auth/logout")
+            assert resp.status_code == 200
+            assert resp.json()["message"] == "Logged out successfully"
 
-    def test_logout_all_devices(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("services.refresh_token_service.revoke_user_tokens", return_value=3):
-                resp = client.post("/api/auth/logout-all")
-                assert resp.status_code == 200
-                assert "revoked_sessions" in resp.json()
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_logout_all_devices(self, async_test_client, async_test_db):
+        # logout-all awaits revoke_user_tokens_async — patch the async twin
+        # (the old sync revoke_user_tokens is no longer called by this handler).
+        user = await _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(user), \
+             patch(
+                 "services.refresh_token_service.revoke_user_tokens_async",
+                 new=AsyncMock(return_value=3),
+             ):
+            resp = await async_test_client.post("/api/auth/logout-all")
+            assert resp.status_code == 200
+            assert "revoked_sessions" in resp.json()
+            assert resp.json()["revoked_sessions"] == 3
 
 
 # ---------------------------------------------------------------------------
@@ -219,8 +301,8 @@ class TestSignup:
 
         new_user = _make_user()
         try:
-            with patch("routers.auth.create_user", return_value=new_user), \
-                 patch("routers.auth.email_verification_service") as mock_evs:
+            with patch("routers.auth.session.create_user", return_value=new_user), \
+                 patch("routers.auth.session.email_verification_service") as mock_evs:
                 mock_evs.send_verification_email = AsyncMock(return_value=True)
                 resp = client.post(
                     "/api/auth/signup",
@@ -242,7 +324,7 @@ class TestSignup:
         mock_db = _mock_db()
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.auth.create_user", side_effect=Exception("DB error")):
+            with patch("routers.auth.session.create_user", side_effect=Exception("DB error")):
                 resp = client.post(
                     "/api/auth/signup",
                     json={
@@ -274,7 +356,7 @@ class TestRegister:
 
         new_user = _make_user()
         try:
-            with patch("routers.auth.create_user", return_value=new_user):
+            with patch("routers.auth.session.create_user", return_value=new_user):
                 resp = client.post(
                     "/api/auth/register",
                     json={
@@ -297,40 +379,34 @@ class TestRegister:
 
 
 class TestCurrentUser:
-    def test_get_me(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.auth.get_user_primary_role", return_value="annotator"):
-                resp = client.get("/api/auth/me")
-                assert resp.status_code == 200
-                assert resp.json()["username"] == "testuser"
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_get_me(self, async_test_client, async_test_db):
+        # Seed an ANNOTATOR-role user so the async primary-role lookup
+        # resolves to "annotator" off real rows (replaces the old
+        # get_user_primary_role patch on the now-async handler).
+        user = await _seed_user(async_test_db, username="testuser")
+        await _seed_membership(async_test_db, user, OrganizationRole.ANNOTATOR)
+        await async_test_db.flush()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/me")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["username"] == "testuser"
+            assert data["role"] == "ANNOTATOR"
 
-    def test_get_me_contexts_regular_user(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.join.return_value = mock_q
-        mock_q.group_by.return_value = mock_q
-        mock_q.all.return_value = []
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.auth.get_user_primary_role", return_value="annotator"):
-                resp = client.get("/api/auth/me/contexts")
-                assert resp.status_code == 200
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_get_me_contexts_regular_user(self, async_test_client, async_test_db):
+        # Regular (non-superadmin) user with one ANNOTATOR membership.
+        user = await _seed_user(async_test_db)
+        org = await _seed_membership(async_test_db, user, OrganizationRole.ANNOTATOR)
+        await async_test_db.flush()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/me/contexts")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["user"]["id"] == user.id
+            org_ids = [o["id"] for o in data["organizations"]]
+            assert org.id in org_ids
 
 
 # ---------------------------------------------------------------------------
@@ -357,70 +433,38 @@ class TestVerifyToken:
 
 
 class TestProfile:
-    def test_get_profile_user_in_db(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
+    @pytest.mark.asyncio
+    async def test_get_profile_user_in_db(self, async_test_client, async_test_db):
+        # User row present → handler builds the full profile response off the
+        # async DB read (_build_user_profile_response_async).
+        user = await _seed_user(async_test_db, email="test@example.com")
+        await async_test_db.flush()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/profile")
+            assert resp.status_code == 200
+            assert resp.json()["email"] == "test@example.com"
 
-        db_user = Mock()
-        db_user.id = "user-123"
-        db_user.username = "testuser"
-        db_user.email = "test@example.com"
-        db_user.name = "Test User"
-        db_user.is_superadmin = False
-        db_user.is_active = True
-        db_user.created_at = datetime.now(timezone.utc)
-        db_user.updated_at = None
-        db_user.legal_expertise_level = None
-        db_user.german_proficiency = None
-        db_user.age = None
-        db_user.job = None
-        db_user.years_of_experience = None
-        db_user.use_pseudonym = False
-        db_user.pseudonym = None
-        db_user.degree_program_type = None
-        db_user.current_semester = None
-        db_user.legal_specializations = None
-        db_user.german_state_exams_count = None
-        db_user.german_state_exams_data = None
-        db_user.gender = None
-        db_user.subjective_competence_civil = None
-        db_user.subjective_competence_public = None
-        db_user.subjective_competence_criminal = None
-        db_user.grade_zwischenpruefung = None
-        db_user.grade_vorgeruecktenubung = None
-        db_user.grade_first_staatsexamen = None
-        db_user.grade_second_staatsexamen = None
-        db_user.ati_s_scores = None
-        db_user.ptt_a_scores = None
-        db_user.ki_experience_scores = None
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = db_user
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
+    @pytest.mark.asyncio
+    async def test_get_profile_user_not_in_db(self, async_test_client, async_test_db):
+        # AuthUser whose id is not seeded → handler takes the "not found"
+        # branch and returns a 200 fallback profile from current_user.
+        au = AuthUser(
+            id=_uid(),
+            username="ghost",
+            email="ghost@e.com",
+            name="Ghost",
+            is_superadmin=False,
+            is_active=True,
+            email_verified=True,
+            created_at=datetime.now(timezone.utc),
+        )
+        app.dependency_overrides[require_user] = lambda: au
         try:
-            with patch("routers.auth.get_user_primary_role", return_value="annotator"):
-                resp = client.get("/api/auth/profile")
-                assert resp.status_code == 200
+            resp = await async_test_client.get("/api/auth/profile")
+            assert resp.status_code == 200
+            assert resp.json()["email"] == "ghost@e.com"
         finally:
-            app.dependency_overrides.clear()
-
-    def test_get_profile_user_not_in_db(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.auth.get_user_primary_role", return_value="annotator"):
-                resp = client.get("/api/auth/profile")
-                assert resp.status_code == 200
-        finally:
-            app.dependency_overrides.clear()
+            app.dependency_overrides.pop(require_user, None)
 
     def test_update_profile_not_found(self):
         client = TestClient(app)
@@ -429,7 +473,7 @@ class TestProfile:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.auth.update_user_profile", return_value=None):
+            with patch("routers.auth.user.update_user_profile", return_value=None):
                 resp = client.put(
                     "/api/auth/profile",
                     json={"name": "Updated"},
@@ -471,7 +515,7 @@ class TestPassword:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.auth.change_user_password", return_value=True):
+            with patch("routers.auth.password.change_user_password", return_value=True):
                 resp = client.post(
                     "/api/auth/change-password",
                     json={
@@ -491,7 +535,7 @@ class TestPassword:
         app.dependency_overrides[require_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.auth.change_user_password", return_value=False):
+            with patch("routers.auth.password.change_user_password", return_value=False):
                 resp = client.post(
                     "/api/auth/change-password",
                     json={
@@ -606,7 +650,7 @@ class TestEmailVerification:
         mock_db = _mock_db()
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.auth.email_verification_service") as mock_evs:
+            with patch("routers.auth.verification.email_verification_service") as mock_evs:
                 mock_evs.verify_email_with_token.return_value = (True, "Verified")
                 resp = client.post(
                     "/api/auth/verify-email",
@@ -622,7 +666,7 @@ class TestEmailVerification:
         mock_db = _mock_db()
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.auth.email_verification_service") as mock_evs:
+            with patch("routers.auth.verification.email_verification_service") as mock_evs:
                 mock_evs.verify_email_with_token.return_value = (False, "Invalid token")
                 resp = client.post(
                     "/api/auth/verify-email",
@@ -637,7 +681,7 @@ class TestEmailVerification:
         mock_db = _mock_db()
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.auth.email_verification_service") as mock_evs:
+            with patch("routers.auth.verification.email_verification_service") as mock_evs:
                 mock_evs.verify_email_with_token.return_value = (True, "OK")
                 resp = client.post("/api/auth/verify-email/token123")
                 assert resp.status_code == 200
@@ -649,7 +693,7 @@ class TestEmailVerification:
         mock_db = _mock_db()
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.auth.email_verification_service") as mock_evs:
+            with patch("routers.auth.verification.email_verification_service") as mock_evs:
                 mock_evs.verify_email_with_token.return_value = (False, "Bad token")
                 resp = client.post("/api/auth/verify-email/badtoken")
                 assert resp.status_code == 400
@@ -661,7 +705,7 @@ class TestEmailVerification:
         mock_db = _mock_db()
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.auth.email_verification_service") as mock_evs:
+            with patch("routers.auth.verification.email_verification_service") as mock_evs:
                 mock_evs.verify_email_with_token.side_effect = Exception("DB crash")
                 resp = client.post("/api/auth/verify-email/crashtoken")
                 assert resp.status_code == 500
@@ -713,7 +757,7 @@ class TestEmailVerification:
         mock_db.query.return_value = mock_q
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.auth.email_verification_service") as mock_evs:
+            with patch("routers.auth.verification.email_verification_service") as mock_evs:
                 mock_evs.send_verification_email = AsyncMock(return_value=True)
                 resp = client.post(
                     "/api/auth/resend-verification",
@@ -735,7 +779,7 @@ class TestEnhancedEmailVerification:
         mock_db = _mock_db()
         app.dependency_overrides[get_db] = lambda: mock_db
         try:
-            with patch("routers.auth.email_verification_service") as mock_evs:
+            with patch("routers.auth.verification.email_verification_service") as mock_evs:
                 mock_evs.verify_email_with_token.return_value = (False, "Invalid")
                 resp = client.post("/api/auth/verify-email-enhanced/bad-token")
                 assert resp.status_code == 200
@@ -757,44 +801,41 @@ class TestEnhancedEmailVerification:
 
 
 class TestCheckProfileStatus:
-    def test_check_profile_status_found(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-
-        db_user = Mock()
-        db_user.id = "user-123"
-        db_user.email = "test@example.com"
-        db_user.profile_completed = False
-        db_user.created_via_invitation = True
-        db_user.hashed_password = "hashed"
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = db_user
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/auth/check-profile-status")
+    @pytest.mark.asyncio
+    async def test_check_profile_status_found(self, async_test_client, async_test_db):
+        # Invited user who hasn't completed their profile → needs completion.
+        user = await _seed_user(
+            async_test_db,
+            created_via_invitation=True,
+            profile_completed=False,
+            hashed_password="hashed",
+        )
+        await async_test_db.flush()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/check-profile-status")
             assert resp.status_code == 200
             data = resp.json()
             assert data["needs_profile_completion"] == True  # noqa: E712
-        finally:
-            app.dependency_overrides.clear()
 
-    def test_check_profile_status_not_found(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
+    @pytest.mark.asyncio
+    async def test_check_profile_status_not_found(self, async_test_client, async_test_db):
+        # AuthUser whose id was never seeded → handler's DB lookup misses → 404.
+        au = AuthUser(
+            id=_uid(),
+            username="ghost",
+            email="ghost@e.com",
+            name="Ghost",
+            is_superadmin=False,
+            is_active=True,
+            email_verified=True,
+            created_at=datetime.now(timezone.utc),
+        )
+        app.dependency_overrides[require_user] = lambda: au
         try:
-            resp = client.get("/api/auth/check-profile-status")
+            resp = await async_test_client.get("/api/auth/check-profile-status")
             assert resp.status_code == 404
         finally:
-            app.dependency_overrides.clear()
+            app.dependency_overrides.pop(require_user, None)
 
 
 # ---------------------------------------------------------------------------
@@ -803,44 +844,39 @@ class TestCheckProfileStatus:
 
 
 class TestMandatoryProfileStatus:
-    def test_mandatory_profile_status_found(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
+    @pytest.mark.asyncio
+    async def test_mandatory_profile_status_found(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db, mandatory_profile_completed=False)
+        await async_test_db.flush()
+        # Patch the field-helpers (the handler imports them from
+        # auth_module.user_service) for deterministic missing-fields / not-due.
+        with _as_user(user), \
+             patch("auth_module.user_service.get_mandatory_profile_fields", return_value=["gender", "age"]), \
+             patch("auth_module.user_service.check_confirmation_due", return_value=(False, None)):
+            resp = await async_test_client.get("/api/auth/mandatory-profile-status")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["mandatory_profile_completed"] == False  # noqa: E712
+            assert "gender" in data["missing_fields"]
 
-        db_user = Mock()
-        db_user.id = "user-123"
-        db_user.mandatory_profile_completed = False
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = db_user
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
+    @pytest.mark.asyncio
+    async def test_mandatory_profile_status_not_found(self, async_test_client, async_test_db):
+        au = AuthUser(
+            id=_uid(),
+            username="ghost",
+            email="ghost@e.com",
+            name="Ghost",
+            is_superadmin=False,
+            is_active=True,
+            email_verified=True,
+            created_at=datetime.now(timezone.utc),
+        )
+        app.dependency_overrides[require_user] = lambda: au
         try:
-            with patch("auth_module.user_service.get_mandatory_profile_fields", return_value=["gender", "age"]), \
-                 patch("auth_module.user_service.check_confirmation_due", return_value=(False, None)):
-                resp = client.get("/api/auth/mandatory-profile-status")
-                assert resp.status_code == 200
-                data = resp.json()
-                assert data["mandatory_profile_completed"] == False  # noqa: E712
-                assert "gender" in data["missing_fields"]
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_mandatory_profile_status_not_found(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/auth/mandatory-profile-status")
+            resp = await async_test_client.get("/api/auth/mandatory-profile-status")
             assert resp.status_code == 404
         finally:
-            app.dependency_overrides.clear()
+            app.dependency_overrides.pop(require_user, None)
 
 
 # ---------------------------------------------------------------------------
@@ -849,36 +885,35 @@ class TestMandatoryProfileStatus:
 
 
 class TestConfirmProfile:
-    def test_confirm_profile_success(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
+    @pytest.mark.asyncio
+    async def test_confirm_profile_success(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db)
+        await async_test_db.flush()
 
         updated_user = Mock()
         updated_user.profile_confirmed_at = datetime.now(timezone.utc)
 
-        try:
-            with patch("auth_module.user_service.confirm_profile", return_value=updated_user):
-                resp = client.post("/api/auth/confirm-profile")
-                assert resp.status_code == 200
-                assert resp.json()["success"] == True  # noqa: E712
-        finally:
-            app.dependency_overrides.clear()
+        # Handler awaits confirm_profile_async — patch the async twin.
+        with _as_user(user), \
+             patch(
+                 "auth_module.user_service.confirm_profile_async",
+                 new=AsyncMock(return_value=updated_user),
+             ):
+            resp = await async_test_client.post("/api/auth/confirm-profile")
+            assert resp.status_code == 200
+            assert resp.json()["success"] == True  # noqa: E712
 
-    def test_confirm_profile_not_found(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("auth_module.user_service.confirm_profile", return_value=None):
-                resp = client.post("/api/auth/confirm-profile")
-                assert resp.status_code == 404
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_confirm_profile_not_found(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(user), \
+             patch(
+                 "auth_module.user_service.confirm_profile_async",
+                 new=AsyncMock(return_value=None),
+             ):
+            resp = await async_test_client.post("/api/auth/confirm-profile")
+            assert resp.status_code == 404
 
 
 # ---------------------------------------------------------------------------
@@ -887,79 +922,43 @@ class TestConfirmProfile:
 
 
 class TestProfileHistory:
-    def test_profile_history_own(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-
-        entry = Mock()
-        entry.id = "h-1"
-        entry.changed_at = datetime.now(timezone.utc)
-        entry.change_type = "update"
-        entry.snapshot = {"name": "old"}
-        entry.changed_fields = ["name"]
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.order_by.return_value = mock_q
-        mock_q.offset.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.all.return_value = [entry]
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/auth/profile-history")
+    @pytest.mark.asyncio
+    async def test_profile_history_own(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db)
+        async_test_db.add(
+            UserProfileHistory(
+                id=_uid(),
+                user_id=user.id,
+                changed_at=datetime.now(timezone.utc),
+                change_type="update",
+                snapshot={"name": "old"},
+                changed_fields=["name"],
+            )
+        )
+        await async_test_db.flush()
+        with _as_user(user):
+            resp = await async_test_client.get("/api/auth/profile-history")
             assert resp.status_code == 200
             assert len(resp.json()) == 1
-        finally:
-            app.dependency_overrides.clear()
 
-    def test_profile_history_other_user_as_superadmin(self):
-        client = TestClient(app)
-        admin = _make_admin()
-        mock_db = _mock_db()
-
-        db_admin = Mock()
-        db_admin.id = "admin-123"
-        db_admin.is_superadmin = True
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = db_admin
-        mock_q.order_by.return_value = mock_q
-        mock_q.offset.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.all.return_value = []
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: admin
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/auth/profile-history?user_id=other-user")
+    @pytest.mark.asyncio
+    async def test_profile_history_other_user_as_superadmin(self, async_test_client, async_test_db):
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        other = await _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/auth/profile-history?user_id={other.id}"
+            )
             assert resp.status_code == 200
-        finally:
-            app.dependency_overrides.clear()
 
-    def test_profile_history_other_user_as_non_admin(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-
-        db_user = Mock()
-        db_user.id = "user-123"
-        db_user.is_superadmin = False
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = db_user
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/auth/profile-history?user_id=other-user")
+    @pytest.mark.asyncio
+    async def test_profile_history_other_user_as_non_admin(self, async_test_client, async_test_db):
+        user = await _seed_user(async_test_db, is_superadmin=False)
+        other = await _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(user):
+            resp = await async_test_client.get(
+                f"/api/auth/profile-history?user_id={other.id}"
+            )
             assert resp.status_code == 403
-        finally:
-            app.dependency_overrides.clear()

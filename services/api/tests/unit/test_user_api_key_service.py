@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from models import User
-from user_api_key_service import UserApiKeyService, user_api_key_service
+from services.user_api_key_service import UserApiKeyService, user_api_key_service
 
 
 class TestUserApiKeyService:

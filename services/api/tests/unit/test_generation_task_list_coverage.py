@@ -1,22 +1,44 @@
 """
-Unit tests for routers/generation_task_list.py to increase branch coverage.
-Direct handler invocation (no TestClient) so pytest-cov tracks coverage.
+Tests for routers/generation_task_list.py to increase branch coverage.
 
-Covers: get_project_with_permissions, get_single_task_generation_status,
-get_task_generation_status, start_generation, get_generation_result.
+The router was migrated to the async DB lane (``Depends(get_async_db)``,
+``await db.execute(select(...))``). Its HTTP handlers
+(``get_task_generation_status``, ``start_generation``, ``get_generation_result``)
+and the helpers they use (``get_project_with_permissions``,
+``_bulk_latest_generations``) are now ``async def``, so the tests that drive
+them seed real rows via ``async_test_db`` and either call the async helper
+directly with that session or drive the HTTP surface through
+``async_test_client``. ``require_user`` is overridden per-test via the
+``_as_user`` context manager (the sync auth dependency can't see the async test
+transaction).
+
+The per-cell compatibility shim ``get_single_task_generation_status`` stays
+SYNC (``db: Session``) — it is exercised only by ``db.query``-mocking unit
+tests, which remain untouched. Sync (Mock-``db.query``) tests and async
+(real-fixture) tests coexist in this one file.
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 
-from auth_module.models import User
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
+from models import Generation as DBGeneration
+from models import Organization, OrganizationMembership
+from models import ResponseGeneration as DBResponseGeneration
+from models import User
+from project_models import Project, ProjectOrganization, Task
 
 
 def _make_user(is_superadmin=False, user_id="user-123"):
+    """Build a plain auth ``User`` (used only by the sync-shim unit tests)."""
     return User(
         id=user_id,
         username="testuser",
@@ -30,124 +52,324 @@ def _make_user(is_superadmin=False, user_id="user-123"):
     )
 
 
-def _mock_request(headers=None):
-    mock = Mock()
-    mock.headers = headers or {"X-Organization-Context": "private"}
-    mock.state = Mock(spec=[])
-    return mock
-
-
-def _is_project_org_query(args):
-    """True for db.query(ProjectOrganization.organization_id) — added in
-    b4cf252 to discover linked orgs when X-Organization-Context is missing."""
-    return bool(args) and getattr(args[0], "key", None) == "organization_id"
-
-
-def _empty_query():
-    """Mock query that returns [] for .all() — used for the project-org lookup
-    so org_id stays None and the existing user-key fallback path runs."""
-    mock_q = MagicMock()
-    mock_q.filter.return_value = mock_q
-    mock_q.all.return_value = []
-    return mock_q
-
-
-def _mock_db():
-    return MagicMock(spec=Session)
-
-
 # ---------------------------------------------------------------------------
-# get_project_with_permissions (helper function)
+# Real-fixture helpers (shared by the converted async tests)
 # ---------------------------------------------------------------------------
+
+
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user: User):
+    """Override ``require_user`` to return an auth User matching a seeded DB
+    user, so the async handler sees the same identity that owns the seeded
+    rows. Copied from tests/integration/test_reports_branches.py."""
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _seed_user(db, *, is_superadmin=False, username_prefix="gen") -> User:
+    u = User(
+        id=_uid(),
+        username=f"{username_prefix}-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Gen User",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _seed_org(db, *, name="Org") -> Organization:
+    org = Organization(
+        id=_uid(),
+        name=name,
+        display_name=name,
+        slug=f"{name.lower().replace(' ', '-')}-{_uid()[:8]}",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(org)
+    await db.flush()
+    return org
+
+
+async def _add_membership(db, user: User, org: Organization, *, role="CONTRIBUTOR"):
+    db.add(
+        OrganizationMembership(
+            id=_uid(),
+            user_id=user.id,
+            organization_id=org.id,
+            role=role,
+            is_active=True,
+            joined_at=datetime.now(timezone.utc),
+        )
+    )
+    await db.flush()
+
+
+async def _seed_project(
+    db,
+    creator: User,
+    *,
+    title: str = "Gen Project",
+    org: Organization = None,
+    is_private: bool = False,
+    generation_config: dict = None,
+) -> Project:
+    project_id = _uid()
+    project = Project(
+        id=project_id,
+        title=title,
+        description="Integration test project for generation",
+        created_by=creator.id,
+        label_config='<View><Text name="text" value="$text"/></View>',
+        is_private=is_private,
+        generation_config=generation_config,
+    )
+    db.add(project)
+    await db.flush()
+
+    if org is not None:
+        db.add(
+            ProjectOrganization(
+                id=_uid(),
+                project_id=project_id,
+                organization_id=org.id,
+                assigned_by=creator.id,
+            )
+        )
+        await db.flush()
+
+    return project
+
+
+async def _seed_task(db, project: Project, creator: User, *, inner_id=1, text="hello") -> Task:
+    task = Task(
+        id=_uid(),
+        project_id=project.id,
+        data={"text": text},
+        created_by=creator.id,
+        inner_id=inner_id,
+        created_at=datetime(2025, 6, 1, tzinfo=timezone.utc),
+    )
+    db.add(task)
+    await db.flush()
+    return task
+
+
+async def _seed_response_generation(
+    db,
+    project: Project,
+    task: Task,
+    creator: User,
+    *,
+    model_id="gpt-4",
+    structure_key=None,
+    status="completed",
+    result=None,
+    error_message=None,
+    prompt_used=None,
+    parameters=None,
+    completed_at=None,
+    created_at=None,
+) -> DBResponseGeneration:
+    rg = DBResponseGeneration(
+        id=_uid(),
+        project_id=project.id,
+        task_id=task.id,
+        model_id=model_id,
+        structure_key=structure_key,
+        status=status,
+        result=result,
+        error_message=error_message,
+        prompt_used=prompt_used,
+        parameters=parameters,
+        runs_requested=1,
+        runs_completed=1 if status == "completed" else 0,
+        runs_failed=1 if status == "failed" else 0,
+        created_by=creator.id,
+        created_at=created_at or datetime(2025, 6, 2, tzinfo=timezone.utc),
+        completed_at=completed_at,
+    )
+    db.add(rg)
+    await db.flush()
+    return rg
+
+
+async def _seed_individual_generation(
+    db,
+    parent: DBResponseGeneration,
+    *,
+    run_index=0,
+    response_content="Hello world",
+    usage_stats=None,
+    created_at=None,
+) -> DBGeneration:
+    g = DBGeneration(
+        id=_uid(),
+        generation_id=parent.id,
+        task_id=parent.task_id,
+        model_id=parent.model_id,
+        case_data="case data text",
+        response_content=response_content,
+        usage_stats=usage_stats if usage_stats is not None else {"tokens": 100},
+        status="completed",
+        run_index=run_index,
+        created_at=created_at or datetime(2025, 6, 2, tzinfo=timezone.utc),
+    )
+    db.add(g)
+    await db.flush()
+    return g
+
+
+# ===========================================================================
+# get_project_with_permissions (now async) — converted (C)
+# ===========================================================================
 
 
 class TestGetProjectWithPermissions:
-    def test_project_not_found(self):
+    """The helper is ``async def`` and runs real access checks against the DB,
+    so these direct-await the helper with the ``async_test_db`` session and
+    seed real rows for each access branch."""
+
+    @pytest.mark.asyncio
+    async def test_project_not_found(self, async_test_db):
         from routers.generation_task_list import get_project_with_permissions
 
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = _make_user(is_superadmin=False)
+        user = await _seed_user(async_test_db)
+        auth = AuthUser(
+            id=user.id, username=user.username, email=user.email, name=user.name,
+            is_superadmin=False, is_active=True, email_verified=True,
+            created_at=user.created_at,
+        )
+        await async_test_db.commit()
 
         with pytest.raises(HTTPException) as exc:
-            get_project_with_permissions("proj-1", user, db)
+            await get_project_with_permissions("proj-missing", auth, async_test_db, None)
         assert exc.value.status_code == 404
 
-    def test_superadmin_bypasses_checks(self):
+    @pytest.mark.asyncio
+    async def test_superadmin_bypasses_checks(self, async_test_db):
         from routers.generation_task_list import get_project_with_permissions
 
-        db = Mock()
-        project = Mock()
-        project.id = "proj-1"
-        db.query.return_value.filter.return_value.first.return_value = project
-        user = _make_user(is_superadmin=True)
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(async_test_db, admin)
+        pid = project.id
+        auth = AuthUser(
+            id=admin.id, username=admin.username, email=admin.email, name=admin.name,
+            is_superadmin=True, is_active=True, email_verified=True,
+            created_at=admin.created_at,
+        )
+        await async_test_db.commit()
 
-        result = get_project_with_permissions("proj-1", user, db)
-        assert result.id == "proj-1"
+        result = await get_project_with_permissions(pid, auth, async_test_db, None)
+        assert result.id == pid
 
-    def test_private_project_owner_access(self):
+    @pytest.mark.asyncio
+    async def test_private_project_owner_access(self, async_test_db):
+        """Creator can access their own private project even as a non-superadmin."""
         from routers.generation_task_list import get_project_with_permissions
 
-        db = Mock()
-        project = Mock()
-        project.id = "proj-1"
-        project.is_private = True
-        project.created_by = "user-123"
-        db.query.return_value.filter.return_value.first.return_value = project
-        user = _make_user(is_superadmin=False, user_id="user-123")
+        owner = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, owner, is_private=True)
+        pid = project.id
+        auth = AuthUser(
+            id=owner.id, username=owner.username, email=owner.email, name=owner.name,
+            is_superadmin=False, is_active=True, email_verified=True,
+            created_at=owner.created_at,
+        )
+        await async_test_db.commit()
 
-        result = get_project_with_permissions("proj-1", user, db)
-        assert result.id == "proj-1"
+        result = await get_project_with_permissions(pid, auth, async_test_db, None)
+        assert result.id == pid
 
-    @patch("routers.generation_task_list.check_project_accessible", return_value=False)
-    def test_private_project_non_owner_denied(self, mock_check):
+    @pytest.mark.asyncio
+    async def test_private_project_non_owner_denied(self, async_test_db):
+        """A non-owner, non-member of a private project is denied -> 403."""
         from routers.generation_task_list import get_project_with_permissions
 
-        db = Mock()
-        project = Mock()
-        project.id = "proj-1"
-        project.is_private = True
-        project.created_by = "other-user"
-        db.query.return_value.filter.return_value.first.return_value = project
-        user = _make_user(is_superadmin=False, user_id="user-123")
+        owner = await _seed_user(async_test_db)
+        outsider = await _seed_user(async_test_db)
+        project = await _seed_project(async_test_db, owner, is_private=True)
+        pid = project.id
+        auth = AuthUser(
+            id=outsider.id, username=outsider.username, email=outsider.email,
+            name=outsider.name, is_superadmin=False, is_active=True,
+            email_verified=True, created_at=outsider.created_at,
+        )
+        await async_test_db.commit()
 
         with pytest.raises(HTTPException) as exc:
-            get_project_with_permissions("proj-1", user, db)
+            await get_project_with_permissions(pid, auth, async_test_db, None)
         assert exc.value.status_code == 403
 
-    @patch("routers.generation_task_list.check_project_accessible", return_value=True)
-    def test_org_project_member_access(self, mock_check):
+    @pytest.mark.asyncio
+    async def test_org_project_member_access(self, async_test_db):
+        """An org member can access a project owned by their org."""
         from routers.generation_task_list import get_project_with_permissions
 
-        db = Mock()
-        project = Mock()
-        project.id = "proj-1"
-        project.is_private = False
-        db.query.return_value.filter.return_value.first.return_value = project
-        user = _make_user(is_superadmin=False)
+        owner = await _seed_user(async_test_db)
+        member = await _seed_user(async_test_db)
+        org = await _seed_org(async_test_db)
+        await _add_membership(async_test_db, member, org)
+        project = await _seed_project(async_test_db, owner, org=org)
+        pid = project.id
+        auth = AuthUser(
+            id=member.id, username=member.username, email=member.email,
+            name=member.name, is_superadmin=False, is_active=True,
+            email_verified=True, created_at=member.created_at,
+        )
+        await async_test_db.commit()
 
-        result = get_project_with_permissions("proj-1", user, db)
-        assert result.id == "proj-1"
-        mock_check.assert_called_once()
+        result = await get_project_with_permissions(pid, auth, async_test_db, None)
+        assert result.id == pid
 
-    @patch("routers.generation_task_list.check_project_accessible", return_value=False)
-    def test_org_project_non_member_denied(self, mock_check):
+    @pytest.mark.asyncio
+    async def test_org_project_non_member_denied(self, async_test_db):
+        """A user in an unrelated org cannot access a project owned by another
+        org -> 403."""
         from routers.generation_task_list import get_project_with_permissions
 
-        db = Mock()
-        project = Mock()
-        project.id = "proj-1"
-        project.is_private = False
-        db.query.return_value.filter.return_value.first.return_value = project
-        user = _make_user(is_superadmin=False)
+        owner = await _seed_user(async_test_db)
+        outsider = await _seed_user(async_test_db)
+        org_a = await _seed_org(async_test_db, name="Org A")
+        org_b = await _seed_org(async_test_db, name="Org B")
+        await _add_membership(async_test_db, outsider, org_b)
+        project = await _seed_project(async_test_db, owner, org=org_a)
+        pid = project.id
+        auth = AuthUser(
+            id=outsider.id, username=outsider.username, email=outsider.email,
+            name=outsider.name, is_superadmin=False, is_active=True,
+            email_verified=True, created_at=outsider.created_at,
+        )
+        await async_test_db.commit()
 
         with pytest.raises(HTTPException) as exc:
-            get_project_with_permissions("proj-1", user, db)
+            await get_project_with_permissions(pid, auth, async_test_db, None)
         assert exc.value.status_code == 403
 
 
 # ---------------------------------------------------------------------------
-# get_single_task_generation_status (helper function)
+# get_single_task_generation_status (SYNC compatibility shim) — UNCHANGED (A)
 # ---------------------------------------------------------------------------
 
 
@@ -259,1178 +481,733 @@ class TestGetSingleTaskGenerationStatus:
         assert result.status == None  # noqa: E711
 
 
-# ---------------------------------------------------------------------------
-# get_task_generation_status (endpoint)
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# GET /api/generation-tasks/projects/{project_id}/task-status — converted (D)
+# ===========================================================================
 
 
 class TestGetTaskGenerationStatusEndpoint:
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_no_models_configured(self, mock_perms):
-        from routers.generation_task_list import get_task_generation_status
-
-        db = _mock_db()
-        project = Mock()
-        project.id = "proj-1"
-        project.generation_config = {"selected_configuration": {"models": []}}
-        mock_perms.return_value = project
-
-        result = await get_task_generation_status(
-            project_id="proj-1",
-            request=_mock_request(),
-            page=1,
-            page_size=50,
-            search=None,
-            status_filter=None,
-            current_user=_make_user(is_superadmin=True),
-            db=db,
+    async def test_no_models_configured(self, async_test_client, async_test_db):
+        """No models configured -> empty response (early return branch)."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={"selected_configuration": {"models": []}},
         )
-        assert result.total == 0
-        assert result.models == []
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/generation-tasks/projects/{project.id}/task-status"
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 0
+        assert body["models"] == []
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    @patch("routers.generation_task_list.get_single_task_generation_status")
-    async def test_with_tasks_and_models(self, mock_gen_status, mock_perms):
-        from routers.generation_task_list import get_task_generation_status, TaskGenerationStatus
-
-        db = _mock_db()
-        project = Mock()
-        project.id = "proj-1"
-        project.generation_config = {
-            "selected_configuration": {"models": ["gpt-4"]},
-            "prompt_structures": {},
-        }
-        mock_perms.return_value = project
-
-        task = Mock()
-        task.id = "task-1"
-        task.data = {"text": "hello"}
-        task.meta = None
-        task.created_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.offset.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.count.return_value = 1
-        mock_q.all.return_value = [task]
-        db.query.return_value = mock_q
-
-        mock_gen_status.return_value = TaskGenerationStatus(
-            task_id="task-1", model_id="gpt-4", structure_key=None, status=None
+    async def test_with_tasks_and_models(self, async_test_client, async_test_db):
+        """A configured model + one task -> total 1, one task entry."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={
+                "selected_configuration": {"models": ["gpt-4"]},
+                "prompt_structures": {},
+            },
         )
+        await _seed_task(async_test_db, project, admin)
+        await async_test_db.commit()
 
-        result = await get_task_generation_status(
-            project_id="proj-1",
-            request=_mock_request(),
-            page=1,
-            page_size=50,
-            search=None,
-            status_filter=None,
-            current_user=_make_user(is_superadmin=True),
-            db=db,
-        )
-        assert result.total == 1
-        assert len(result.tasks) == 1
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/generation-tasks/projects/{project.id}/task-status"
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 1
+        assert len(body["tasks"]) == 1
+        assert body["models"] == ["gpt-4"]
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_with_prompt_structures(self, mock_perms):
-        from routers.generation_task_list import get_task_generation_status
-
-        db = _mock_db()
-        project = Mock()
-        project.id = "proj-1"
-        project.generation_config = {
-            "selected_configuration": {"models": ["gpt-4"]},
-            "prompt_structures": {"default": {}, "detailed": {}},
-        }
-        mock_perms.return_value = project
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.offset.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.count.return_value = 0
-        mock_q.all.return_value = []
-        db.query.return_value = mock_q
-
-        result = await get_task_generation_status(
-            project_id="proj-1",
-            request=_mock_request(),
-            page=1,
-            page_size=50,
-            search=None,
-            status_filter=None,
-            current_user=_make_user(is_superadmin=True),
-            db=db,
+    async def test_with_prompt_structures(self, async_test_client, async_test_db):
+        """prompt_structures keys surface in the response `structures` list."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={
+                "selected_configuration": {"models": ["gpt-4"]},
+                "prompt_structures": {"default": {}, "detailed": {}},
+            },
         )
-        assert set(result.structures) == {"default", "detailed"}
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/generation-tasks/projects/{project.id}/task-status"
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert set(body["structures"]) == {"default", "detailed"}
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_status_filter_excludes_non_matching(self, mock_perms):
-        """`status_filter='not_generated'` should drop tasks whose cells have a
-        status set. The branch that handles `not_generated` still filters in
-        Python (after the bulk fetch) because "missing somewhere" can't be
-        expressed cleanly in SQL. The previous version of this test asserted
-        the same behavior for `status_filter='completed'`, but that filter
-        now runs as a SQL subquery — the mock here can't simulate it, so we
-        exercise the surviving Python-side branch instead."""
-        from routers.generation_task_list import (
-            get_task_generation_status,
+    async def test_status_filter_excludes_non_matching(self, async_test_client, async_test_db):
+        """`status_filter='not_generated'` drops tasks whose every cell already
+        has a status set. A completed cell means the task is NOT in the
+        not_generated bucket, so it is filtered out -> 0 tasks."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={
+                "selected_configuration": {"models": ["gpt-4"]},
+                "prompt_structures": {},
+            },
         )
-
-        db = _mock_db()
-        project = Mock()
-        project.id = "proj-1"
-        project.generation_config = {
-            "selected_configuration": {"models": ["gpt-4"]},
-            "prompt_structures": {},
-        }
-        mock_perms.return_value = project
-
-        task = Mock()
-        task.id = "task-1"
-        task.data = {"text": "hello"}
-        task.meta = None
-        task.created_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
-
-        # A completed-row stub so `_bulk_latest_generations` reports the task
-        # as having a status of "completed" — i.e. NOT in the "not_generated"
-        # bucket, so the Python filter should drop it.
-        gen_row = Mock()
-        gen_row.task_id = "task-1"
-        gen_row.model_id = "gpt-4"
-        gen_row.structure_key = None
-        gen_row.status = "completed"
-        gen_row.id = "gen-1"
-        gen_row.result = {"text": "ok"}
-        gen_row.completed_at = datetime(2025, 6, 2, tzinfo=timezone.utc)
-        gen_row.created_at = datetime(2025, 6, 2, tzinfo=timezone.utc)
-        gen_row.error_message = None
-        gen_row.runs_requested = 1
-        gen_row.runs_completed = 1
-        gen_row.runs_failed = 0
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.offset.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.distinct.return_value = mock_q
-        mock_q.order_by.return_value = mock_q
-        mock_q.count.return_value = 1
-        # The two .all() consumers in this branch:
-        # 1) the initial Task fetch returns [task]
-        # 2) `_bulk_latest_generations` returns [gen_row]
-        mock_q.all.side_effect = [[task], [gen_row]]
-        db.query.return_value = mock_q
-
-        result = await get_task_generation_status(
-            project_id="proj-1",
-            request=_mock_request(),
-            page=1,
-            page_size=50,
-            search=None,
-            status_filter="not_generated",
-            current_user=_make_user(is_superadmin=True),
-            db=db,
+        task = await _seed_task(async_test_db, project, admin)
+        # A completed cell (structure_key None matches the [None] default) so
+        # the task has a status everywhere -> excluded from "not_generated".
+        await _seed_response_generation(
+            async_test_db, project, task, admin,
+            model_id="gpt-4", structure_key=None, status="completed",
+            result={"text": "ok"},
+            completed_at=datetime(2025, 6, 2, tzinfo=timezone.utc),
         )
-        assert len(result.tasks) == 0
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/generation-tasks/projects/{project.id}/task-status",
+                params={"status_filter": "not_generated"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["tasks"]) == 0
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    @patch("routers.generation_task_list.get_single_task_generation_status")
-    async def test_with_search_filter(self, mock_gen_status, mock_perms):
-        from routers.generation_task_list import get_task_generation_status, TaskGenerationStatus
-
-        db = _mock_db()
-        project = Mock()
-        project.id = "proj-1"
-        project.generation_config = {
-            "selected_configuration": {"models": ["gpt-4"]},
-            "prompt_structures": {},
-        }
-        mock_perms.return_value = project
-
-        task = Mock()
-        task.id = "task-1"
-        task.data = {"text": "hello"}
-        task.meta = None
-        task.created_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.offset.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.count.return_value = 1
-        mock_q.all.return_value = [task]
-        db.query.return_value = mock_q
-
-        mock_gen_status.return_value = TaskGenerationStatus(
-            task_id="task-1", model_id="gpt-4", structure_key=None, status=None
+    async def test_with_search_filter(self, async_test_client, async_test_db):
+        """A search term matching task data keeps the task in the results."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={
+                "selected_configuration": {"models": ["gpt-4"]},
+                "prompt_structures": {},
+            },
         )
+        await _seed_task(async_test_db, project, admin, text="hello")
+        await async_test_db.commit()
 
-        result = await get_task_generation_status(
-            project_id="proj-1",
-            request=_mock_request(),
-            page=1,
-            page_size=50,
-            search="hello",
-            status_filter=None,
-            current_user=_make_user(is_superadmin=True),
-            db=db,
-        )
-        assert result.total == 1
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/generation-tasks/projects/{project.id}/task-status",
+                params={"search": "hello"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total"] == 1
 
 
-# ---------------------------------------------------------------------------
-# start_generation (endpoint)
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# POST /api/generation-tasks/projects/{project_id}/generate — converted (D)
+# ===========================================================================
 
 
 class TestStartGeneration:
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_no_models_configured_error(self, mock_perms):
-        from routers.generation_task_list import start_generation, GenerationRequest
+    async def test_no_models_configured_error(self, async_test_client, async_test_db):
+        """No models configured -> 400 'No models configured'."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={"selected_configuration": {"models": []}},
+        )
+        await async_test_db.commit()
 
-        db = _mock_db()
-        project = Mock()
-        project.id = "proj-1"
-        project.generation_config = {"selected_configuration": {"models": []}}
-        mock_perms.return_value = project
-
-        with pytest.raises(HTTPException) as exc:
-            await start_generation(
-                project_id="proj-1",
-                request=GenerationRequest(mode="all"),
-                raw_request=_mock_request(),
-                current_user=_make_user(is_superadmin=True),
-                db=db,
+        with _as_user(admin):
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project.id}/generate",
+                json={"mode": "all"},
             )
-        assert exc.value.status_code == 400
-        assert "No models" in exc.value.detail
+        assert resp.status_code == 400
+        assert "No models" in resp.json()["detail"]
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_no_tasks_error(self, mock_perms):
-        from routers.generation_task_list import start_generation, GenerationRequest
+    async def test_no_tasks_error(self, async_test_client, async_test_db):
+        """Models configured but project has no tasks -> 400 'No tasks'."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={"selected_configuration": {"models": ["gpt-4"]}},
+        )
+        await async_test_db.commit()
 
-        db = _mock_db()
-        project = Mock()
-        project.id = "proj-1"
-        project.generation_config = {"selected_configuration": {"models": ["gpt-4"]}}
-        mock_perms.return_value = project
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.scalar.return_value = 0  # issue #106: fallback counts tasks first
-        mock_q.all.return_value = []
-        db.query.return_value = mock_q
-
-        with pytest.raises(HTTPException) as exc:
-            await start_generation(
-                project_id="proj-1",
-                request=GenerationRequest(mode="all"),
-                raw_request=_mock_request(),
-                current_user=_make_user(is_superadmin=True),
-                db=db,
+        with _as_user(admin):
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project.id}/generate",
+                json={"mode": "all"},
             )
-        assert exc.value.status_code == 400
-        assert "No tasks" in exc.value.detail
+        assert resp.status_code == 400
+        assert "No tasks" in resp.json()["detail"]
 
     @pytest.mark.asyncio
-    @patch("sqlalchemy.orm.attributes.flag_modified")
-    @patch("routers.generation_task_list.celery_app")
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_all_mode_with_cancellation_and_dispatch(self, mock_perms, mock_celery, _mock_flag):
-        # flag_modified introspects the ORM mapper; the test's project is a
-        # plain Mock with no mapper, so we patch it out for this branch.
-        from routers.generation_task_list import start_generation, GenerationRequest, GenerationParameters
-
-        db = _mock_db()
-        project = Mock()
-        project.id = "proj-1"
-        project.generation_config = {
-            "selected_configuration": {"models": ["gpt-4"], "parameters": {}}
-        }
-        mock_perms.return_value = project
-
-        task = Mock()
-        task.id = "task-1"
-
-        pending_gen = Mock()
-        pending_gen.id = "old-gen-1"
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            if _is_project_org_query(args):
-                return _empty_query()
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-            mock_q.order_by.return_value = mock_q
-
-            # Issue #106: the no-task_ids fallback counts tasks first, then
-            # selects bare id tuples instead of full Task rows.
-            if call_count["n"] == 1:
-                mock_q.scalar.return_value = 1
-            elif call_count["n"] == 2:
-                mock_q.all.return_value = [(task.id,)]
-            elif call_count["n"] == 3:
-                mock_q.all.return_value = [pending_gen]
-            elif call_count["n"] == 4:
-                mock_q.update.return_value = 1
-            else:
-                mock_q.first.return_value = None
-                mock_q.all.return_value = []
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-        mock_celery.control.revoke = Mock()
-        mock_celery.send_task = Mock()
-
-        result = await start_generation(
-            project_id="proj-1",
-            request=GenerationRequest(
-                mode="all",
-                parameters=GenerationParameters(temperature=0.5, max_tokens=2000),
-                model_configs={"gpt-4": {"max_tokens": 4000}},
-            ),
-            raw_request=_mock_request(),
-            current_user=_make_user(is_superadmin=True),
-            db=db,
-        )
-        assert result.mode == "all"
-        assert result.tasks_queued >= 1
-
-    @pytest.mark.asyncio
-    @patch("routers.generation_task_list.celery_app")
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_missing_mode_skips_completed(self, mock_perms, mock_celery):
-        from routers.generation_task_list import start_generation, GenerationRequest
-
-        db = _mock_db()
-        project = Mock()
-        project.id = "proj-1"
-        project.generation_config = {
-            "selected_configuration": {"models": ["gpt-4"]}
-        }
-        mock_perms.return_value = project
-
-        task1 = Mock()
-        task1.id = "task-1"
-        task2 = Mock()
-        task2.id = "task-2"
-
-        # Issue #83: missing-mode no longer issues one SELECT per cell — it
-        # issues a single DISTINCT ON bulk query that returns (task_id,
-        # model_id, structure_key, status) rows. Mock that shape directly.
-        latest_row_task1 = Mock()
-        latest_row_task1.task_id = "task-1"
-        latest_row_task1.model_id = "gpt-4"
-        latest_row_task1.structure_key = None
-        latest_row_task1.status = "completed"
-
-        latest_row_task2 = Mock()
-        latest_row_task2.task_id = "task-2"
-        latest_row_task2.model_id = "gpt-4"
-        latest_row_task2.structure_key = None
-        latest_row_task2.status = "failed"
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            if _is_project_org_query(args):
-                return _empty_query()
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-            mock_q.distinct.return_value = mock_q
-            mock_q.order_by.return_value = mock_q
-
-            # Issue #106: count first, then bare id tuples.
-            if call_count["n"] == 1:
-                mock_q.scalar.return_value = 2
-            elif call_count["n"] == 2:
-                mock_q.all.return_value = [(task1.id,), (task2.id,)]  # id tuples
-            elif call_count["n"] == 3:
-                # Single bulk DISTINCT ON returning latest per cell.
-                mock_q.all.return_value = [latest_row_task1, latest_row_task2]
-            else:
-                mock_q.first.return_value = None
-                mock_q.all.return_value = []
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-        mock_celery.send_task = Mock()
-
-        result = await start_generation(
-            project_id="proj-1",
-            request=GenerationRequest(mode="missing"),
-            raw_request=_mock_request(),
-            current_user=_make_user(is_superadmin=True),
-            db=db,
-        )
-        assert result.mode == "missing"
-        assert result.tasks_queued == 1
-
-    @pytest.mark.asyncio
-    @patch("routers.generation_task_list.celery_app")
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_with_specific_task_ids_and_model_ids(self, mock_perms, mock_celery):
-        from routers.generation_task_list import start_generation, GenerationRequest
-
-        db = _mock_db()
-        project = Mock()
-        project.id = "proj-1"
-        project.generation_config = {"selected_configuration": {"models": ["gpt-4", "claude-3"]}}
-        mock_perms.return_value = project
-
-        task = Mock()
-        task.id = "task-1"
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            if _is_project_org_query(args):
-                return _empty_query()
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-
-            if call_count["n"] == 1:
-                mock_q.all.return_value = [(task.id,)]  # issue #106: id tuples
-            else:
-                mock_q.first.return_value = None
-                mock_q.all.return_value = []
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-        mock_celery.send_task = Mock()
-
-        result = await start_generation(
-            project_id="proj-1",
-            request=GenerationRequest(
-                mode="all",
-                model_ids=["gpt-4"],
-                task_ids=["task-1"],
-                structure_keys=["default"],
-            ),
-            raw_request=_mock_request(),
-            current_user=_make_user(is_superadmin=True),
-            db=db,
-        )
-        assert result.tasks_queued == 1
-
-    @pytest.mark.asyncio
-    @patch("routers.generation_task_list.celery_app")
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_with_structure_keys_from_config(self, mock_perms, mock_celery):
-        from routers.generation_task_list import start_generation, GenerationRequest
-
-        db = _mock_db()
-        project = Mock()
-        project.id = "proj-1"
-        project.generation_config = {
-            "selected_configuration": {
-                "models": ["gpt-4"],
+    async def test_all_mode_with_cancellation_and_dispatch(
+        self, async_test_client, async_test_db
+    ):
+        """`mode='all'` cancels pending rows, recreates cells, dispatches.
+        celery_app is patched so no broker is contacted."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={
+                "selected_configuration": {"models": ["gpt-4"], "parameters": {}}
             },
-            "prompt_structures": {
-                "default": {"name": "Default"},
-                "detailed": {"name": "Detailed"},
-            },
-        }
-        mock_perms.return_value = project
-
-        task = Mock()
-        task.id = "task-1"
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            if _is_project_org_query(args):
-                return _empty_query()
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-
-            # Issue #106: count first, then bare id tuples.
-            if call_count["n"] == 1:
-                mock_q.scalar.return_value = 1
-            elif call_count["n"] == 2:
-                mock_q.all.return_value = [(task.id,)]
-            else:
-                mock_q.first.return_value = None
-                mock_q.all.return_value = []
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-        mock_celery.send_task = Mock()
-
-        result = await start_generation(
-            project_id="proj-1",
-            request=GenerationRequest(mode="all"),
-            raw_request=_mock_request(),
-            current_user=_make_user(is_superadmin=True),
-            db=db,
         )
-        assert result.tasks_queued == 2
+        task = await _seed_task(async_test_db, project, admin)
+        # A pre-existing pending row that "all" mode should cancel — supersede
+        # revokes its deterministic fan-out (reconstructed from runs_requested).
+        old_pending = await _seed_response_generation(
+            async_test_db, project, task, admin,
+            model_id="gpt-4", structure_key=None, status="pending",
+        )
+        old_pending.runs_requested = 2
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery, _as_user(admin):
+            mock_celery.control.revoke = Mock()
+            mock_celery.send_task = Mock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project.id}/generate",
+                json={
+                    "mode": "all",
+                    "parameters": {"temperature": 0.5, "max_tokens": 2000},
+                    "model_configs": {"gpt-4": {"max_tokens": 4000}},
+                },
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["mode"] == "all"
+        assert body["tasks_queued"] >= 1
+
+        # Dispatch uses a deterministic task id (gen_id:run_idx) so stop/
+        # supersede can revoke the fan-out without persisting every id.
+        assert mock_celery.send_task.call_count >= 1
+        for call in mock_celery.send_task.call_args_list:
+            tid = call.kwargs["task_id"]
+            # ``{generation_id}:{run_index}:{epoch}`` — initial fan-out at epoch 0.
+            rest, _, epoch = tid.rpartition(":")
+            gen_id, _, run_idx = rest.rpartition(":")
+            assert gen_id and run_idx.isdigit() and epoch.isdigit()
+
+        # Supersede revokes the OLD pending row's deterministic fan-out (2 ids
+        # from runs_requested + dispatch_epoch=0) — not the bare generation id
+        # (which matched no Celery task: a silent no-op).
+        assert mock_celery.control.revoke.call_count >= 1
+        revoke_args, revoke_kwargs = mock_celery.control.revoke.call_args
+        revoked = revoke_args[0]
+        assert isinstance(revoked, list)
+        assert sum(1 for t in revoked if t.endswith(":0:0") or t.endswith(":1:0")) == 2
+        assert revoke_kwargs.get("terminate") is True
+
+    @pytest.mark.asyncio
+    async def test_missing_mode_skips_completed(self, async_test_client, async_test_db):
+        """`mode='missing'` only queues cells whose latest row is absent or
+        failed. With one completed task and one failed task, only the failed
+        one re-queues -> tasks_queued == 1."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={"selected_configuration": {"models": ["gpt-4"]}},
+        )
+        task1 = await _seed_task(async_test_db, project, admin, inner_id=1)
+        task2 = await _seed_task(async_test_db, project, admin, inner_id=2)
+        # task1: completed (skip), task2: failed (re-queue).
+        await _seed_response_generation(
+            async_test_db, project, task1, admin,
+            model_id="gpt-4", structure_key=None, status="completed",
+        )
+        await _seed_response_generation(
+            async_test_db, project, task2, admin,
+            model_id="gpt-4", structure_key=None, status="failed",
+        )
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery, _as_user(admin):
+            mock_celery.send_task = Mock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project.id}/generate",
+                json={"mode": "missing"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["mode"] == "missing"
+        assert body["tasks_queued"] == 1
+
+    @pytest.mark.asyncio
+    async def test_with_specific_task_ids_and_model_ids(
+        self, async_test_client, async_test_db
+    ):
+        """Explicit task_ids + model_ids + structure_keys -> one queued cell."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={
+                "selected_configuration": {"models": ["gpt-4", "claude-3"]},
+                "prompt_structures": {"default": {"name": "Default"}},
+            },
+        )
+        task = await _seed_task(async_test_db, project, admin)
+        tid = task.id
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery, _as_user(admin):
+            mock_celery.send_task = Mock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project.id}/generate",
+                json={
+                    "mode": "all",
+                    "model_ids": ["gpt-4"],
+                    "task_ids": [tid],
+                    "structure_keys": ["default"],
+                },
+            )
+        assert resp.status_code == 200
+        assert resp.json()["tasks_queued"] == 1
+
+    @pytest.mark.asyncio
+    async def test_with_structure_keys_from_config(self, async_test_client, async_test_db):
+        """Structure keys default from prompt_structures (2 keys) -> 2 cells
+        for one task and one model."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={
+                "selected_configuration": {"models": ["gpt-4"]},
+                "prompt_structures": {
+                    "default": {"name": "Default"},
+                    "detailed": {"name": "Detailed"},
+                },
+            },
+        )
+        await _seed_task(async_test_db, project, admin)
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery, _as_user(admin):
+            mock_celery.send_task = Mock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project.id}/generate",
+                json={"mode": "all"},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["tasks_queued"] == 2
+
+    @pytest.mark.asyncio
+    async def test_org_context_resolved_from_single_linked_org(
+        self, async_test_client, async_test_db
+    ):
+        """When X-Organization-Context is absent/'private' and the project has
+        exactly one linked org, that org_id is stamped onto the created rows."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        org = await _seed_org(async_test_db)
+        project = await _seed_project(
+            async_test_db, admin, org=org,
+            generation_config={"selected_configuration": {"models": ["gpt-4"]}},
+        )
+        pid = project.id
+        org_id = org.id
+        await _seed_task(async_test_db, project, admin)
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery, _as_user(admin):
+            mock_celery.send_task = Mock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{pid}/generate",
+                json={"mode": "all"},
+                headers={"X-Organization-Context": "private"},
+            )
+        assert resp.status_code == 200
+        assert resp.json()["tasks_queued"] == 1
+
+        # The persisted ResponseGeneration carries the resolved org_id.
+        async_test_db.expire_all()
+        rows = (
+            await async_test_db.execute(
+                select(DBResponseGeneration).where(
+                    DBResponseGeneration.project_id == pid,
+                    DBResponseGeneration.status == "pending",
+                )
+            )
+        ).scalars().all()
+        assert rows
+        assert all(r.organization_id == org_id for r in rows)
+
+    @pytest.mark.asyncio
+    async def test_fallback_cap_blocks_huge_project(self, async_test_client, async_test_db):
+        """The no-task_ids fallback above GENERATION_FALLBACK_MAX_TASKS -> 400.
+        The cap is patched low so we don't need to seed 10k tasks."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={"selected_configuration": {"models": ["gpt-4"]}},
+        )
+        await _seed_task(async_test_db, project, admin, inner_id=1)
+        await _seed_task(async_test_db, project, admin, inner_id=2)
+        await async_test_db.commit()
+
+        with patch(
+            "routers.generation_task_list.GENERATION_FALLBACK_MAX_TASKS", 1
+        ), patch("routers.generation_task_list.celery_app"), _as_user(admin):
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project.id}/generate",
+                json={"mode": "all"},
+            )
+        assert resp.status_code == 400
+        assert "limit" in resp.json()["detail"].lower()
 
 
-# ---------------------------------------------------------------------------
-# get_generation_result (endpoint)
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# GET /api/generation-tasks/generation-result — converted (D)
+# ===========================================================================
 
 
 class TestGetGenerationResult:
     @pytest.mark.asyncio
-    async def test_task_not_found(self):
-        from routers.generation_task_list import get_generation_result
+    async def test_task_not_found(self, async_test_client, async_test_db):
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
 
-        db = _mock_db()
-        db.query.return_value.filter.return_value.first.return_value = None
-
-        with pytest.raises(HTTPException) as exc:
-            await get_generation_result(
-                request=_mock_request(),
-                task_id="t1",
-                model_id="gpt-4",
-                structure_key=None,
-                current_user=_make_user(is_superadmin=True),
-                db=db,
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/generation-tasks/generation-result",
+                params={"task_id": "no-such-task", "model_id": "gpt-4"},
             )
-        assert exc.value.status_code == 404
+        assert resp.status_code == 404
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_no_generations_found(self, mock_perms):
-        from routers.generation_task_list import get_generation_result
+    async def test_no_generations_found(self, async_test_client, async_test_db):
+        """Task exists but no generation rows -> empty results list."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(async_test_db, admin)
+        task = await _seed_task(async_test_db, project, admin)
+        tid = task.id
+        await async_test_db.commit()
 
-        db = _mock_db()
-        task = Mock()
-        task.id = "task-1"
-        task.project_id = "proj-1"
-
-        project = Mock()
-        project.id = "proj-1"
-        mock_perms.return_value = project
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-            mock_q.order_by.return_value = mock_q
-
-            if call_count["n"] == 1:
-                mock_q.first.return_value = task
-            else:
-                mock_q.all.return_value = []
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-
-        result = await get_generation_result(
-            request=_mock_request(),
-            task_id="task-1",
-            model_id="gpt-4",
-            structure_key=None,
-            current_user=_make_user(is_superadmin=True),
-            db=db,
-        )
-        assert result.task_id == "task-1"
-        assert result.model_id == "gpt-4"
-        assert result.results == []
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/generation-tasks/generation-result",
+                params={"task_id": tid, "model_id": "gpt-4"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["task_id"] == tid
+        assert body["model_id"] == "gpt-4"
+        assert body["results"] == []
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_completed_with_single_individual_generation(self, mock_perms):
-        from routers.generation_task_list import get_generation_result
-
-        db = _mock_db()
-        task = Mock()
-        task.id = "task-1"
-        task.project_id = "proj-1"
-
-        project = Mock()
-        project.id = "proj-1"
-        mock_perms.return_value = project
-
-        gen = Mock()
-        gen.id = "gen-1"
-        gen.status = "completed"
-        gen.result = None
-        gen.completed_at = datetime(2025, 6, 2, tzinfo=timezone.utc)
-        gen.created_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
-        gen.error_message = None
-        gen.structure_key = None
-        gen.prompt_used = "Translate the following text"
-        gen.parameters = {"temperature": 0.0}
-        gen.created_by = "user-123"
-
-        ind_gen = Mock()
-        ind_gen.response_content = "Hello world"
-        ind_gen.created_at = datetime(2025, 6, 2, tzinfo=timezone.utc)
-        ind_gen.usage_stats = {"tokens": 100}
-        ind_gen.generation_id = "gen-1"
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-            mock_q.order_by.return_value = mock_q
-
-            if call_count["n"] == 1:
-                mock_q.first.return_value = task
-            elif call_count["n"] == 2:
-                mock_q.all.return_value = [gen]
-            elif call_count["n"] == 3:
-                mock_q.all.return_value = [ind_gen]
-            elif call_count["n"] == 4:
-                mock_q.all.return_value = []  # DBUser batch query
-            else:
-                mock_q.all.return_value = []
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-
-        result = await get_generation_result(
-            request=_mock_request(),
-            task_id="task-1",
-            model_id="gpt-4",
-            structure_key=None,
-            current_user=_make_user(is_superadmin=True),
-            db=db,
+    async def test_completed_with_single_individual_generation(
+        self, async_test_client, async_test_db
+    ):
+        """One completed parent with one individual generation -> generated_text."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(async_test_db, admin)
+        task = await _seed_task(async_test_db, project, admin)
+        tid = task.id
+        parent = await _seed_response_generation(
+            async_test_db, project, task, admin,
+            model_id="gpt-4", structure_key=None, status="completed",
+            prompt_used="Translate the following text",
+            parameters={"temperature": 0.0},
+            created_at=datetime(2025, 6, 1, tzinfo=timezone.utc),
+            completed_at=datetime(2025, 6, 2, tzinfo=timezone.utc),
         )
-        assert result.task_id == "task-1"
-        assert len(result.results) == 1
-        assert result.results[0].status == "completed"
-        assert result.results[0].result["generated_text"] == "Hello world"
-        assert result.results[0].generation_time_seconds != None  # noqa: E711
+        await _seed_individual_generation(
+            async_test_db, parent, run_index=0, response_content="Hello world",
+            usage_stats={"tokens": 100},
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/generation-tasks/generation-result",
+                params={"task_id": tid, "model_id": "gpt-4"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["task_id"] == tid
+        assert len(body["results"]) == 1
+        assert body["results"][0]["status"] == "completed"
+        assert body["results"][0]["result"]["generated_text"] == "Hello world"
+        assert body["results"][0]["generation_time_seconds"] is not None
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_completed_with_multiple_individual_generations(self, mock_perms):
-        from routers.generation_task_list import get_generation_result
-
-        db = _mock_db()
-        task = Mock()
-        task.id = "task-1"
-        task.project_id = "proj-1"
-
-        project = Mock()
-        project.id = "proj-1"
-        mock_perms.return_value = project
-
-        gen = Mock()
-        gen.id = "gen-1"
-        gen.status = "completed"
-        gen.result = None
-        gen.completed_at = datetime(2025, 6, 2, tzinfo=timezone.utc)
-        gen.created_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
-        gen.error_message = None
-        gen.structure_key = None
-        gen.prompt_used = None
-        gen.parameters = None
-        gen.created_by = "user-123"
-
-        ind_gen1 = Mock()
-        ind_gen1.response_content = "First response"
-        ind_gen1.created_at = datetime(2025, 6, 2, 0, 0, 0, tzinfo=timezone.utc)
-        ind_gen1.usage_stats = {"tokens": 50}
-        ind_gen1.generation_id = "gen-1"
-
-        ind_gen2 = Mock()
-        ind_gen2.response_content = "Second response"
-        ind_gen2.created_at = datetime(2025, 6, 2, 1, 0, 0, tzinfo=timezone.utc)
-        ind_gen2.usage_stats = {"tokens": 60}
-        ind_gen2.generation_id = "gen-1"
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-            mock_q.order_by.return_value = mock_q
-
-            if call_count["n"] == 1:
-                mock_q.first.return_value = task
-            elif call_count["n"] == 2:
-                mock_q.all.return_value = [gen]
-            elif call_count["n"] == 3:
-                mock_q.all.return_value = [ind_gen1, ind_gen2]
-            elif call_count["n"] == 4:
-                mock_q.all.return_value = []  # DBUser batch query
-            else:
-                mock_q.all.return_value = []
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-
-        result = await get_generation_result(
-            request=_mock_request(),
-            task_id="task-1",
-            model_id="gpt-4",
-            structure_key=None,
-            current_user=_make_user(is_superadmin=True),
-            db=db,
+    async def test_completed_with_multiple_individual_generations(
+        self, async_test_client, async_test_db
+    ):
+        """One completed parent with two individual generations -> `generations`
+        list with two entries."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(async_test_db, admin)
+        task = await _seed_task(async_test_db, project, admin)
+        tid = task.id
+        parent = await _seed_response_generation(
+            async_test_db, project, task, admin,
+            model_id="gpt-4", structure_key=None, status="completed",
+            created_at=datetime(2025, 6, 1, tzinfo=timezone.utc),
+            completed_at=datetime(2025, 6, 2, tzinfo=timezone.utc),
         )
-        assert "generations" in result.results[0].result
-        assert len(result.results[0].result["generations"]) == 2
+        await _seed_individual_generation(
+            async_test_db, parent, run_index=0, response_content="First response",
+            usage_stats={"tokens": 50},
+            created_at=datetime(2025, 6, 2, 0, 0, 0, tzinfo=timezone.utc),
+        )
+        await _seed_individual_generation(
+            async_test_db, parent, run_index=1, response_content="Second response",
+            usage_stats={"tokens": 60},
+            created_at=datetime(2025, 6, 2, 1, 0, 0, tzinfo=timezone.utc),
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/generation-tasks/generation-result",
+                params={"task_id": tid, "model_id": "gpt-4"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "generations" in body["results"][0]["result"]
+        assert len(body["results"][0]["result"]["generations"]) == 2
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_failed_generation(self, mock_perms):
-        from routers.generation_task_list import get_generation_result
-
-        db = _mock_db()
-        task = Mock()
-        task.id = "task-1"
-        task.project_id = "proj-1"
-
-        project = Mock()
-        project.id = "proj-1"
-        mock_perms.return_value = project
-
-        gen = Mock()
-        gen.id = "gen-1"
-        gen.status = "failed"
-        gen.result = None
-        gen.completed_at = None
-        gen.created_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
-        gen.error_message = "API rate limit exceeded"
-        gen.structure_key = None
-        gen.prompt_used = None
-        gen.parameters = None
-        gen.created_by = "user-123"
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-            mock_q.order_by.return_value = mock_q
-
-            if call_count["n"] == 1:
-                mock_q.first.return_value = task
-            elif call_count["n"] == 2:
-                mock_q.all.return_value = [gen]
-            else:
-                mock_q.all.return_value = []  # DBUser batch query (no completed gens to batch)
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-
-        result = await get_generation_result(
-            request=_mock_request(),
-            task_id="task-1",
-            model_id="gpt-4",
-            structure_key=None,
-            current_user=_make_user(is_superadmin=True),
-            db=db,
+    async def test_failed_generation(self, async_test_client, async_test_db):
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(async_test_db, admin)
+        task = await _seed_task(async_test_db, project, admin)
+        tid = task.id
+        await _seed_response_generation(
+            async_test_db, project, task, admin,
+            model_id="gpt-4", structure_key=None, status="failed",
+            error_message="API rate limit exceeded",
+            created_at=datetime(2025, 6, 1, tzinfo=timezone.utc),
         )
-        assert result.results[0].status == "failed"
-        assert result.results[0].error_message == "API rate limit exceeded"
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/generation-tasks/generation-result",
+                params={"task_id": tid, "model_id": "gpt-4"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["results"][0]["status"] == "failed"
+        assert body["results"][0]["error_message"] == "API rate limit exceeded"
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_with_structure_key_filter(self, mock_perms):
-        from routers.generation_task_list import get_generation_result
-
-        db = _mock_db()
-        task = Mock()
-        task.id = "task-1"
-        task.project_id = "proj-1"
-
-        project = Mock()
-        project.id = "proj-1"
-        mock_perms.return_value = project
-
-        gen = Mock()
-        gen.id = "gen-1"
-        gen.status = "completed"
-        gen.result = {"text": "test"}
-        gen.completed_at = datetime(2025, 6, 2, tzinfo=timezone.utc)
-        gen.created_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
-        gen.error_message = None
-        gen.structure_key = "default"
-        gen.prompt_used = None
-        gen.parameters = None
-        gen.created_by = "user-123"
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-            mock_q.order_by.return_value = mock_q
-
-            if call_count["n"] == 1:
-                mock_q.first.return_value = task
-            elif call_count["n"] == 2:
-                mock_q.all.return_value = [gen]
-            elif call_count["n"] == 3:
-                mock_q.all.return_value = []  # batch DBGeneration
-            elif call_count["n"] == 4:
-                mock_q.all.return_value = []  # DBUser batch query
-            else:
-                mock_q.all.return_value = []
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-
-        result = await get_generation_result(
-            request=_mock_request(),
-            task_id="task-1",
-            model_id="gpt-4",
-            structure_key="default",
-            current_user=_make_user(is_superadmin=True),
-            db=db,
+    async def test_with_structure_key_filter(self, async_test_client, async_test_db):
+        """structure_key query narrows to that structure's rows."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(async_test_db, admin)
+        task = await _seed_task(async_test_db, project, admin)
+        tid = task.id
+        await _seed_response_generation(
+            async_test_db, project, task, admin,
+            model_id="gpt-4", structure_key="default", status="completed",
+            result={"text": "test"},
+            created_at=datetime(2025, 6, 1, tzinfo=timezone.utc),
+            completed_at=datetime(2025, 6, 2, tzinfo=timezone.utc),
         )
-        assert result.results[0].structure_key == "default"
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/generation-tasks/generation-result",
+                params={"task_id": tid, "model_id": "gpt-4", "structure_key": "default"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["results"][0]["structure_key"] == "default"
 
     # ---- Issue #1372: Generation history tests ----
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_default_deduplication_unchanged(self, mock_perms):
-        """Two generations for the same structure_key: default mode returns only the most recent."""
-        from routers.generation_task_list import get_generation_result
-
-        db = _mock_db()
-        task = Mock()
-        task.id = "task-1"
-        task.project_id = "proj-1"
-        mock_perms.return_value = Mock(id="proj-1")
-
-        # Two gens for same structure_key, ordered newest-first
-        gen_new = Mock()
-        gen_new.id = "gen-new"
-        gen_new.status = "completed"
-        gen_new.result = None
-        gen_new.completed_at = datetime(2025, 7, 2, tzinfo=timezone.utc)
-        gen_new.created_at = datetime(2025, 7, 1, tzinfo=timezone.utc)
-        gen_new.error_message = None
-        gen_new.structure_key = "default"
-        gen_new.prompt_used = None
-        gen_new.parameters = None
-        gen_new.created_by = "user-1"
-
-        gen_old = Mock()
-        gen_old.id = "gen-old"
-        gen_old.status = "completed"
-        gen_old.result = None
-        gen_old.completed_at = datetime(2025, 6, 2, tzinfo=timezone.utc)
-        gen_old.created_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
-        gen_old.error_message = None
-        gen_old.structure_key = "default"
-        gen_old.prompt_used = None
-        gen_old.parameters = None
-        gen_old.created_by = "user-1"
-
-        ind_gen = Mock()
-        ind_gen.response_content = "New response"
-        ind_gen.created_at = datetime(2025, 7, 2, tzinfo=timezone.utc)
-        ind_gen.usage_stats = {"tokens": 100}
-        ind_gen.generation_id = "gen-new"
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-            mock_q.order_by.return_value = mock_q
-
-            if call_count["n"] == 1:
-                mock_q.first.return_value = task
-            elif call_count["n"] == 2:
-                mock_q.all.return_value = [gen_new, gen_old]  # newest first
-            elif call_count["n"] == 3:
-                mock_q.all.return_value = [ind_gen]  # batch DBGeneration
-            elif call_count["n"] == 4:
-                mock_q.all.return_value = []  # batch DBUser
-            else:
-                mock_q.all.return_value = []
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-
-        result = await get_generation_result(
-            request=_mock_request(),
-            task_id="task-1",
-            model_id="gpt-4",
-            structure_key=None,
-            include_history=False,
-            current_user=_make_user(is_superadmin=True),
-            db=db,
+    async def test_default_deduplication_unchanged(self, async_test_client, async_test_db):
+        """Two generations for the same structure_key: default mode returns only
+        the most recent."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(async_test_db, admin)
+        task = await _seed_task(async_test_db, project, admin)
+        tid = task.id
+        # Older row first, then newer — handler dedups newest-first per structure.
+        await _seed_response_generation(
+            async_test_db, project, task, admin,
+            model_id="gpt-4", structure_key="default", status="completed",
+            created_at=datetime(2025, 6, 1, tzinfo=timezone.utc),
+            completed_at=datetime(2025, 6, 2, tzinfo=timezone.utc),
         )
-        # Default mode: dedup keeps only newest per structure_key
-        assert len(result.results) == 1
-        assert result.results[0].generation_id == "gen-new"
+        newer = await _seed_response_generation(
+            async_test_db, project, task, admin,
+            model_id="gpt-4", structure_key="default", status="completed",
+            created_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
+            completed_at=datetime(2025, 7, 2, tzinfo=timezone.utc),
+        )
+        newer_id = newer.id
+        await _seed_individual_generation(
+            async_test_db, newer, run_index=0, response_content="New response",
+            created_at=datetime(2025, 7, 2, tzinfo=timezone.utc),
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/generation-tasks/generation-result",
+                params={"task_id": tid, "model_id": "gpt-4", "include_history": "false"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["results"]) == 1
+        assert body["results"][0]["generation_id"] == newer_id
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_include_history_returns_all(self, mock_perms):
+    async def test_include_history_returns_all(self, async_test_client, async_test_db):
         """include_history=True returns all generations across structures."""
-        from routers.generation_task_list import get_generation_result
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(async_test_db, admin)
+        task = await _seed_task(async_test_db, project, admin)
+        tid = task.id
 
-        db = _mock_db()
-        task = Mock()
-        task.id = "task-1"
-        task.project_id = "proj-1"
-        mock_perms.return_value = Mock(id="proj-1")
-
-        def make_gen(gen_id, structure_key, status, created_at, completed_at=None, created_by="user-1"):
-            g = Mock()
-            g.id = gen_id
-            g.status = status
-            g.result = None
-            g.completed_at = completed_at
-            g.created_at = created_at
-            g.error_message = None
-            g.structure_key = structure_key
-            g.prompt_used = None
-            g.parameters = None
-            g.created_by = created_by
-            return g
-
-        gen1 = make_gen("gen-1", "default", "completed", datetime(2025, 7, 1, tzinfo=timezone.utc), datetime(2025, 7, 1, 1, tzinfo=timezone.utc))
-        gen2 = make_gen("gen-2", "default", "completed", datetime(2025, 6, 1, tzinfo=timezone.utc), datetime(2025, 6, 1, 1, tzinfo=timezone.utc))
-        gen3 = make_gen("gen-3", "custom", "completed", datetime(2025, 7, 1, tzinfo=timezone.utc), datetime(2025, 7, 1, 1, tzinfo=timezone.utc))
-
-        ind_gen1 = Mock(response_content="Resp 1", created_at=datetime(2025, 7, 1, tzinfo=timezone.utc), usage_stats={}, generation_id="gen-1")
-        ind_gen2 = Mock(response_content="Resp 2", created_at=datetime(2025, 6, 1, tzinfo=timezone.utc), usage_stats={}, generation_id="gen-2")
-        ind_gen3 = Mock(response_content="Resp 3", created_at=datetime(2025, 7, 1, tzinfo=timezone.utc), usage_stats={}, generation_id="gen-3")
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-            mock_q.order_by.return_value = mock_q
-
-            if call_count["n"] == 1:
-                mock_q.first.return_value = task
-            elif call_count["n"] == 2:
-                mock_q.all.return_value = [gen1, gen2, gen3]
-            elif call_count["n"] == 3:
-                mock_q.all.return_value = [ind_gen1, ind_gen2, ind_gen3]  # batch DBGeneration
-            elif call_count["n"] == 4:
-                mock_q.all.return_value = []  # batch DBUser
-            else:
-                mock_q.all.return_value = []
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-
-        result = await get_generation_result(
-            request=_mock_request(),
-            task_id="task-1",
-            model_id="gpt-4",
-            structure_key=None,
-            include_history=True,
-            current_user=_make_user(is_superadmin=True),
-            db=db,
+        g1 = await _seed_response_generation(
+            async_test_db, project, task, admin,
+            model_id="gpt-4", structure_key="default", status="completed",
+            created_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
+            completed_at=datetime(2025, 7, 1, 1, tzinfo=timezone.utc),
         )
-        # History mode: all 3 generations returned
-        assert len(result.results) == 3
-        gen_ids = [r.generation_id for r in result.results]
-        assert "gen-1" in gen_ids
-        assert "gen-2" in gen_ids
-        assert "gen-3" in gen_ids
+        g2 = await _seed_response_generation(
+            async_test_db, project, task, admin,
+            model_id="gpt-4", structure_key="default", status="completed",
+            created_at=datetime(2025, 6, 1, tzinfo=timezone.utc),
+            completed_at=datetime(2025, 6, 1, 1, tzinfo=timezone.utc),
+        )
+        g3 = await _seed_response_generation(
+            async_test_db, project, task, admin,
+            model_id="gpt-4", structure_key="custom", status="completed",
+            created_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
+            completed_at=datetime(2025, 7, 1, 1, tzinfo=timezone.utc),
+        )
+        id1, id2, id3 = g1.id, g2.id, g3.id
+        await _seed_individual_generation(async_test_db, g1, run_index=0, response_content="Resp 1", usage_stats={})
+        await _seed_individual_generation(async_test_db, g2, run_index=0, response_content="Resp 2", usage_stats={})
+        await _seed_individual_generation(async_test_db, g3, run_index=0, response_content="Resp 3", usage_stats={})
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/generation-tasks/generation-result",
+                params={"task_id": tid, "model_id": "gpt-4", "include_history": "true"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["results"]) == 3
+        gen_ids = [r["generation_id"] for r in body["results"]]
+        assert id1 in gen_ids
+        assert id2 in gen_ids
+        assert id3 in gen_ids
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_include_history_with_structure_filter(self, mock_perms):
-        """include_history=True combined with structure_key filter."""
-        from routers.generation_task_list import get_generation_result
+    async def test_include_history_with_structure_filter(self, async_test_client, async_test_db):
+        """include_history=True combined with a structure_key filter returns all
+        rows for that structure (completed + failed), newest first."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(async_test_db, admin)
+        task = await _seed_task(async_test_db, project, admin)
+        tid = task.id
 
-        db = _mock_db()
-        task = Mock()
-        task.id = "task-1"
-        task.project_id = "proj-1"
-        mock_perms.return_value = Mock(id="proj-1")
-
-        # Only "default" structure generations (pre-filtered by SQL WHERE)
-        gen1 = Mock(id="gen-1", status="completed", result=None,
-                    completed_at=datetime(2025, 7, 1, 1, tzinfo=timezone.utc),
-                    created_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
-                    error_message=None, structure_key="default", prompt_used=None,
-                    parameters=None, created_by="user-1")
-        gen2 = Mock(id="gen-2", status="failed", result=None,
-                    completed_at=None,
-                    created_at=datetime(2025, 6, 1, tzinfo=timezone.utc),
-                    error_message="Rate limit", structure_key="default", prompt_used=None,
-                    parameters=None, created_by="user-1")
-
-        ind_gen = Mock(response_content="Result", created_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
-                       usage_stats={}, generation_id="gen-1")
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-            mock_q.order_by.return_value = mock_q
-
-            if call_count["n"] == 1:
-                mock_q.first.return_value = task
-            elif call_count["n"] == 2:
-                mock_q.all.return_value = [gen1, gen2]
-            elif call_count["n"] == 3:
-                mock_q.all.return_value = [ind_gen]  # batch DBGeneration (only gen1 is completed)
-            elif call_count["n"] == 4:
-                mock_q.all.return_value = []  # batch DBUser
-            else:
-                mock_q.all.return_value = []
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-
-        result = await get_generation_result(
-            request=_mock_request(),
-            task_id="task-1",
-            model_id="gpt-4",
-            structure_key="default",
-            include_history=True,
-            current_user=_make_user(is_superadmin=True),
-            db=db,
+        g1 = await _seed_response_generation(
+            async_test_db, project, task, admin,
+            model_id="gpt-4", structure_key="default", status="completed",
+            created_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
+            completed_at=datetime(2025, 7, 1, 1, tzinfo=timezone.utc),
         )
-        assert len(result.results) == 2
-        assert result.results[0].generation_id == "gen-1"
-        assert result.results[1].generation_id == "gen-2"
-        assert result.results[1].status == "failed"
+        g2 = await _seed_response_generation(
+            async_test_db, project, task, admin,
+            model_id="gpt-4", structure_key="default", status="failed",
+            error_message="Rate limit",
+            created_at=datetime(2025, 6, 1, tzinfo=timezone.utc),
+        )
+        id1, id2 = g1.id, g2.id
+        await _seed_individual_generation(async_test_db, g1, run_index=0, response_content="Result", usage_stats={})
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/generation-tasks/generation-result",
+                params={
+                    "task_id": tid, "model_id": "gpt-4",
+                    "structure_key": "default", "include_history": "true",
+                },
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert len(body["results"]) == 2
+        # Ordered newest-first within the structure.
+        assert body["results"][0]["generation_id"] == id1
+        assert body["results"][1]["generation_id"] == id2
+        assert body["results"][1]["status"] == "failed"
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_created_by_name_populated(self, mock_perms):
-        """created_by and created_by_name are populated when user exists."""
-        from routers.generation_task_list import get_generation_result
-
-        db = _mock_db()
-        task = Mock()
-        task.id = "task-1"
-        task.project_id = "proj-1"
-        mock_perms.return_value = Mock(id="proj-1")
-
-        gen = Mock(id="gen-1", status="failed", result=None,
-                   completed_at=None,
-                   created_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
-                   error_message="Error", structure_key=None, prompt_used=None,
-                   parameters=None, created_by="user-42")
-
-        mock_user = Mock()
-        mock_user.id = "user-42"
-        mock_user.name = "Alice Smith"
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-            mock_q.order_by.return_value = mock_q
-
-            if call_count["n"] == 1:
-                mock_q.first.return_value = task
-            elif call_count["n"] == 2:
-                mock_q.all.return_value = [gen]
-            elif call_count["n"] == 3:
-                # No completed gens → this is the DBUser batch query
-                mock_q.all.return_value = [mock_user]
-            else:
-                mock_q.all.return_value = []
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-
-        result = await get_generation_result(
-            request=_mock_request(),
-            task_id="task-1",
-            model_id="gpt-4",
-            structure_key=None,
-            include_history=False,
-            current_user=_make_user(is_superadmin=True),
-            db=db,
+    async def test_created_by_name_populated(self, async_test_client, async_test_db):
+        """created_by and created_by_name are populated when the user exists."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        creator = await _seed_user(async_test_db, username_prefix="alice")
+        creator.name = "Alice Smith"
+        await async_test_db.flush()
+        creator_id = creator.id
+        project = await _seed_project(async_test_db, admin)
+        task = await _seed_task(async_test_db, project, admin)
+        tid = task.id
+        await _seed_response_generation(
+            async_test_db, project, task, creator,
+            model_id="gpt-4", structure_key=None, status="failed",
+            error_message="Error",
+            created_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
         )
-        assert result.results[0].created_by == "user-42"
-        assert result.results[0].created_by_name == "Alice Smith"
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/generation-tasks/generation-result",
+                params={"task_id": tid, "model_id": "gpt-4", "include_history": "false"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["results"][0]["created_by"] == creator_id
+        assert body["results"][0]["created_by_name"] == "Alice Smith"
 
     @pytest.mark.asyncio
-    @patch("routers.generation_task_list.get_project_with_permissions")
-    async def test_created_by_name_missing_user(self, mock_perms):
-        """created_by_name is None when user no longer exists in DB."""
-        from routers.generation_task_list import get_generation_result
-
-        db = _mock_db()
-        task = Mock()
-        task.id = "task-1"
-        task.project_id = "proj-1"
-        mock_perms.return_value = Mock(id="proj-1")
-
-        gen = Mock(id="gen-1", status="failed", result=None,
-                   completed_at=None,
-                   created_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
-                   error_message="Error", structure_key=None, prompt_used=None,
-                   parameters=None, created_by="deleted-user-99")
-
-        call_count = {"n": 0}
-
-        def query_side_effect(*args, **kwargs):
-            call_count["n"] += 1
-            mock_q = MagicMock()
-            mock_q.filter.return_value = mock_q
-            mock_q.order_by.return_value = mock_q
-
-            if call_count["n"] == 1:
-                mock_q.first.return_value = task
-            elif call_count["n"] == 2:
-                mock_q.all.return_value = [gen]
-            elif call_count["n"] == 3:
-                # DBUser query returns empty — user deleted
-                mock_q.all.return_value = []
-            else:
-                mock_q.all.return_value = []
-
-            return mock_q
-
-        db.query.side_effect = query_side_effect
-
-        result = await get_generation_result(
-            request=_mock_request(),
-            task_id="task-1",
-            model_id="gpt-4",
-            structure_key=None,
-            include_history=False,
-            current_user=_make_user(is_superadmin=True),
-            db=db,
+    async def test_created_by_name_missing_user(self, async_test_client, async_test_db):
+        """created_by_name is None when the created_by id has no matching user
+        row (e.g. a user that was deleted). created_by itself keeps the dangling
+        id; only the name resolution comes back empty."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(async_test_db, admin)
+        task = await _seed_task(async_test_db, project, admin)
+        tid = task.id
+        rg = await _seed_response_generation(
+            async_test_db, project, task, admin,
+            model_id="gpt-4", structure_key=None, status="failed",
+            error_message="Error",
+            created_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
         )
-        assert result.results[0].created_by == "deleted-user-99"
-        assert result.results[0].created_by_name == None  # noqa: E711
+        # Point created_by at an id with no matching users row (no FK on this
+        # column) so the batch name lookup finds nothing.
+        rg.created_by = "deleted-user-99"
+        await async_test_db.flush()
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/generation-tasks/generation-result",
+                params={"task_id": tid, "model_id": "gpt-4", "include_history": "false"},
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["results"][0]["created_by"] == "deleted-user-99"
+        assert body["results"][0]["created_by_name"] is None

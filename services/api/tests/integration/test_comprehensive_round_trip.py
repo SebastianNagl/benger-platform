@@ -80,9 +80,14 @@ class TestComprehensiveRoundTrip:
         )
         session.add(test_user)
 
-        # Create evaluation types referenced by metrics
+        # Create evaluation types referenced by metrics. Idempotent: ids like
+        # "accuracy" are part of the committed base catalog in the shared test
+        # DB; re-inserting would raise evaluation_types_pkey UniqueViolation, so
+        # only add the ones not already present.
         from models import EvaluationType
         for et_name in ["accuracy", "completeness", "style"]:
+            if session.get(EvaluationType, et_name) is not None:
+                continue
             et = EvaluationType(
                 id=et_name,
                 name=et_name.capitalize(),

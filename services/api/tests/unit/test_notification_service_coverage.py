@@ -103,7 +103,7 @@ class TestImportFallbacks:
 class TestCreateNotificationEdgeCases:
 
     @patch("notification_service.NotificationService._user_wants_notification")
-    @patch("services.email.notification_service.get_celery_app")
+    @patch("mailer.notification_service.get_celery_app")
     def test_create_notification_with_string_type(
         self, mock_task, mock_wants, mock_db, user_id
     ):
@@ -173,7 +173,7 @@ class TestCreateNotificationEdgeCases:
         assert result == []
         mock_db.rollback.assert_called_once()
 
-    @patch("services.email.notification_service.get_celery_app")
+    @patch("mailer.notification_service.get_celery_app")
     @patch("services.email.notification_service.NotificationService._user_wants_notification")
     def test_create_notification_email_service_unavailable(
         self, mock_wants, mock_task, mock_db, user_id
@@ -185,7 +185,7 @@ class TestCreateNotificationEdgeCases:
 
         from notification_service import NotificationService
 
-        with patch("services.email.notification_service.EMAIL_SERVICE_AVAILABLE", False):
+        with patch("mailer.notification_service.EMAIL_SERVICE_AVAILABLE", False):
             result = NotificationService.create_notification(
                 db=mock_db,
                 user_ids=[user_id],
@@ -495,7 +495,7 @@ class TestUserWantsEmailNotification:
 class TestSendEmailNotifications:
 
     @pytest.mark.asyncio
-    @patch("notification_service.send_notification_email", new_callable=AsyncMock)
+    @patch("mailer.notification_service.send_notification_email", new_callable=AsyncMock)
     @patch("notification_service.NotificationService._user_wants_email_notification")
     async def test_skips_user_without_email(
         self, mock_wants_email, mock_send, mock_db
@@ -512,7 +512,7 @@ class TestSendEmailNotifications:
         mock_send.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch("notification_service.send_notification_email", new_callable=AsyncMock)
+    @patch("mailer.notification_service.send_notification_email", new_callable=AsyncMock)
     @patch("notification_service.NotificationService._user_wants_email_notification")
     async def test_skips_when_user_not_found(
         self, mock_wants_email, mock_send, mock_db
@@ -528,7 +528,7 @@ class TestSendEmailNotifications:
         mock_send.assert_not_called()
 
     @pytest.mark.asyncio
-    @patch("notification_service.send_notification_email", new_callable=AsyncMock)
+    @patch("mailer.notification_service.send_notification_email", new_callable=AsyncMock)
     @patch("notification_service.NotificationService._user_wants_email_notification")
     async def test_skips_when_preference_disabled(
         self, mock_wants_email, mock_send, mock_db
@@ -547,7 +547,7 @@ class TestSendEmailNotifications:
 
     @pytest.mark.asyncio
     @patch("email_validation.is_valid_email", return_value=True)
-    @patch("services.email.notification_service.send_notification_email", new_callable=AsyncMock)
+    @patch("mailer.notification_service.send_notification_email", new_callable=AsyncMock)
     @patch("services.email.notification_service.NotificationService._user_wants_email_notification")
     async def test_sends_email_when_all_checks_pass(
         self, mock_wants_email, mock_send, mock_valid_email, mock_db
@@ -572,7 +572,7 @@ class TestSendEmailNotifications:
         mock_send.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch("notification_service.send_notification_email", new_callable=AsyncMock)
+    @patch("mailer.notification_service.send_notification_email", new_callable=AsyncMock)
     @patch("notification_service.NotificationService._user_wants_email_notification")
     async def test_handles_exception_in_loop(
         self, mock_wants_email, mock_send, mock_db
@@ -599,7 +599,7 @@ class TestSendEmailNotifications:
             with patch.dict("sys.modules", {"email_validation": None}):
                 # The fallback validator checks for "@" and "." in email
                 # "bademail" has neither, so it should be skipped
-                with patch("notification_service.send_notification_email", new_callable=AsyncMock) as mock_send:  # noqa: F841
+                with patch("mailer.notification_service.send_notification_email", new_callable=AsyncMock) as mock_send:  # noqa: F841
                     data = [{"id": "n1", "user_id": "u1", "type": NotificationType.PROJECT_CREATED}]
                     await NotificationService._send_email_notifications(mock_db, data)
                     # The function defines its own fallback validator inside the try/except

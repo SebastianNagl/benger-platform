@@ -12,6 +12,7 @@ import { ToggleSwitch } from '@/components/shared/ToggleSwitch'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useProgress } from '@/contexts/ProgressContext'
 import { useConfirm } from '@/hooks/useDialogs'
 import { projectsAPI } from '@/lib/api/projects'
 import { useProjectStore } from '@/stores/projectStore'
@@ -44,7 +45,8 @@ export function ProjectListTable({
   showArchivedOnly = false,
 }: ProjectListTableProps) {
   const router = useRouter()
-  const { addToast, removeToast } = useToast()
+  const { addToast } = useToast()
+  const { startProgress, completeProgress } = useProgress()
   const confirm = useConfirm()
   const { t } = useI18n()
   const { user } = useAuth()
@@ -219,20 +221,18 @@ export function ProjectListTable({
   const handleBulkExport = async (fullExport: boolean = false) => {
     if (selectedProjects.size === 0) return
 
-    // Create a loading toast message
     const loadingMessage = fullExport
       ? t('projects.list.exportingFullProjects', { count: selectedProjects.size })
       : t('projects.list.exportingProjectData', { count: selectedProjects.size })
-    let toastId: string | undefined
+    // Multi-project bulk export is a single synchronous request that returns the
+    // whole archive as one blob — there's no per-step progress signal, so the bar
+    // stays indeterminate until the download resolves (completeProgress then flips
+    // it to a filled ✓/✗).
+    const progressId = `bulk-export-projects-${Date.now()}`
 
     try {
       const projectIds = Array.from(selectedProjects)
-      // Show loading toast (now auto-removes duplicates with same message)
-      toastId = addToast(
-        loadingMessage,
-        'info',
-        0 // Keep toast until we update it
-      )
+      startProgress(progressId, loadingMessage, { indeterminate: true })
 
       const startTime = Date.now()
       const blob = fullExport
@@ -269,10 +269,7 @@ export function ProjectListTable({
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
 
-      // Remove the loading toast
-      if (toastId) {
-        removeToast(toastId)
-      }
+      completeProgress(progressId, 'success')
 
       // Success notification with timing (with normal duration)
       addToast(
@@ -286,10 +283,7 @@ export function ProjectListTable({
     } catch (error) {
       console.error('Failed to export projects:', error)
 
-      // Remove the loading toast on error
-      if (toastId) {
-        removeToast(toastId)
-      }
+      completeProgress(progressId, 'error')
       addToast(
         t('projects.list.exportFailed', { error: error instanceof Error ? error.message : t('projects.list.unknownError') }),
         'error'
@@ -447,8 +441,16 @@ export function ProjectListTable({
     }
   }
 
-  // Projects are already filtered by search and archive status on the backend
-  const sortedProjects = [...(projects || [])].sort((a, b) => {
+  // The backend filters by search + archive status, but the project store is
+  // shared with the archived view and persists across SPA navigation. Filter by
+  // archive status here too so a stale or in-flight store (e.g. the archived
+  // list still loaded from a previous visit) never flashes archived rows on the
+  // active page — or active rows on the archived page — before the fetch
+  // resolves. Only an *explicit* mismatch is dropped (is_archived is a
+  // non-nullable boolean in real data), so this filters nothing in steady state.
+  const sortedProjects = [...(projects || [])]
+    .filter((p) => (showArchivedOnly ? p.is_archived !== false : p.is_archived !== true))
+    .sort((a, b) => {
     let aValue: any
     let bValue: any
 

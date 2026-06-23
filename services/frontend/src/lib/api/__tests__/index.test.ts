@@ -367,6 +367,55 @@ describe('ApiClient', () => {
     })
   })
 
+  describe('createApiClient factory', () => {
+    it('should return an ApiClient instance', async () => {
+      const { createApiClient } = await import('../index')
+      const client = createApiClient()
+      expect(client).toBeInstanceOf(ApiClient)
+    })
+
+    it('should construct without config (backward compatible)', async () => {
+      const { createApiClient } = await import('../index')
+      expect(() => createApiClient()).not.toThrow()
+      expect(() => createApiClient({})).not.toThrow()
+    })
+
+    it('should thread the org context provider at construction time', async () => {
+      const { createApiClient } = await import('../index')
+      const spy = jest.spyOn(
+        ApiClient.prototype,
+        'setOrganizationContextProvider'
+      )
+      const orgContextProvider = () => 'org-123'
+      createApiClient({ orgContextProvider })
+      expect(spy).toHaveBeenCalledWith(orgContextProvider)
+      spy.mockRestore()
+    })
+
+    it('should thread the auth failure handler at construction time', async () => {
+      const { createApiClient } = await import('../index')
+      const spy = jest.spyOn(ApiClient.prototype, 'setAuthFailureHandler')
+      const onAuthFailure = jest.fn()
+      createApiClient({ onAuthFailure })
+      expect(spy).toHaveBeenCalledWith(onAuthFailure)
+      spy.mockRestore()
+    })
+
+    it('should not call setters when config fields are omitted', async () => {
+      const { createApiClient } = await import('../index')
+      const orgSpy = jest.spyOn(
+        ApiClient.prototype,
+        'setOrganizationContextProvider'
+      )
+      const authSpy = jest.spyOn(ApiClient.prototype, 'setAuthFailureHandler')
+      createApiClient()
+      expect(orgSpy).not.toHaveBeenCalled()
+      expect(authSpy).not.toHaveBeenCalled()
+      orgSpy.mockRestore()
+      authSpy.mockRestore()
+    })
+  })
+
   describe('Removed Annotation System', () => {
     it('should have annotations getter returning null', () => {
       expect(apiClient.annotations).toBeNull()

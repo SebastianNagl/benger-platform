@@ -32,7 +32,7 @@ import pytest
 # register_extended_metrics() mutates — `from x import *` does NOT re-export
 # underscore-prefixed names, so the shim has no `_extended_metrics` attribute.
 import services.evaluation.config as cfg
-from evaluation_config import (
+from services.evaluation.config import (
     ANSWER_TYPE_TO_METRICS,
     AnswerType,
     get_metric_defaults,

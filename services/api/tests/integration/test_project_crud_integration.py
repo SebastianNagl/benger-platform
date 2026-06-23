@@ -2,24 +2,84 @@
 Integration tests for project CRUD operations.
 
 Targets: routers/projects/crud.py lines 100-792
-Uses real PostgreSQL via test_db fixture.
+
+The CRUD handlers were migrated to the async DB lane (``Depends(get_async_db)``
++ ``await db.execute(select(...))``). Rows seeded into the sync ``test_db`` are
+invisible to the async engine, so these tests seed real ORM rows via
+``async_test_db`` and drive the surface through ``async_test_client`` with
+``require_user`` overridden per-test via ``_as_user`` to an auth user matching
+the seeded actor. Create/delete tests patch the sync notification/report
+wrappers to avoid the Redis-backed threadpool stall. The pure
+``deep_merge_dicts`` unit tests have no DB dependency and are unchanged.
 """
 
 import uuid
-from datetime import datetime
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from unittest.mock import patch
 
 import pytest
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import Organization, OrganizationMembership
+from auth_module import require_user
+from auth_module.models import User as AuthUser
+from main import app
+from models import Organization, OrganizationMembership, User
 from project_models import Project, ProjectOrganization, Task
+
+
+def _uid():
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+def _no_side_effects():
+    return (
+        patch("routers.projects.crud._notify_project_created_sync"),
+        patch("routers.projects.crud._notify_project_deleted_sync"),
+        patch("routers.projects.crud._create_initial_report_draft_sync"),
+    )
+
+
+async def _make_user(db, *, is_superadmin=False, name="Test User"):
+    u = User(
+        id=_uid(),
+        username=f"ci-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name=name,
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
 
 
 @pytest.mark.integration
 class TestProjectCrudIntegration:
     """Integration tests for project CRUD endpoints."""
 
-    def _create_org(self, db: Session, admin_user_id: str) -> Organization:
+    async def _create_org(self, db: AsyncSession, admin_user_id: str) -> Organization:
         """Create a test organization."""
         org = Organization(
             id=str(uuid.uuid4()),
@@ -27,39 +87,43 @@ class TestProjectCrudIntegration:
             slug=f"test-org-crud-{uuid.uuid4().hex[:8]}",
             display_name="Test Org CRUD Display",
             description="Test org for CRUD tests",
-            created_by=admin_user_id,
-            created_at=datetime.utcnow(),
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
         )
         db.add(org)
-        db.commit()
+        await db.flush()
         return org
 
-    def _create_membership(self, db: Session, user_id: str, org_id: str, role: str = "ORG_ADMIN"):
+    async def _create_membership(
+        self, db: AsyncSession, user_id: str, org_id: str, role: str = "ORG_ADMIN"
+    ):
         membership = OrganizationMembership(
             id=str(uuid.uuid4()),
             user_id=user_id,
             organization_id=org_id,
             role=role,
-            joined_at=datetime.utcnow(),
+            is_active=True,
+            joined_at=datetime.now(timezone.utc),
         )
         db.add(membership)
-        db.commit()
+        await db.flush()
         return membership
 
-    def _create_project(self, db: Session, org_id: str, created_by: str, **kwargs) -> Project:
-        """Create a test project."""
+    async def _create_project(
+        self, db: AsyncSession, org_id: str, created_by: str, **kwargs
+    ) -> Project:
+        """Create a test project linked to an organization."""
         project_data = {
             "id": str(uuid.uuid4()),
             "title": kwargs.get("title", "Test Project"),
             "description": kwargs.get("description", "Test description"),
-                        "created_by": created_by,  # noqa: E131
-            "created_at": datetime.utcnow(),
+            "created_by": created_by,
+            "created_at": datetime.now(timezone.utc),
         }
         project = Project(**project_data)
         db.add(project)
-        db.commit()
+        await db.flush()
 
-        # Link to organization
         po = ProjectOrganization(
             id=str(uuid.uuid4()),
             project_id=project.id,
@@ -67,185 +131,252 @@ class TestProjectCrudIntegration:
             assigned_by=created_by,
         )
         db.add(po)
-        db.commit()
-
+        await db.flush()
         return project
 
-    def test_list_projects(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_list_projects(self, async_test_client, async_test_db):
         """Test listing projects."""
-        # Create a project
-        self._create_project(test_db, test_org.id, test_users[0].id)
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await self._create_org(async_test_db, admin.id)
+        await self._create_membership(async_test_db, admin.id, org.id)
+        await self._create_project(async_test_db, org.id, admin.id)
+        await async_test_db.commit()
 
-        response = client.get(
-            "/api/projects",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            response = await async_test_client.get("/api/projects/")
         assert response.status_code == 200
         data = response.json()
         assert "items" in data
         assert "total" in data
 
-    def test_list_projects_with_org_context(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_list_projects_with_org_context(
+        self, async_test_client, async_test_db
+    ):
         """Test listing projects with org context filter."""
-        self._create_project(test_db, test_org.id, test_users[0].id)
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await self._create_org(async_test_db, admin.id)
+        await self._create_membership(async_test_db, admin.id, org.id)
+        await self._create_project(async_test_db, org.id, admin.id)
+        await async_test_db.commit()
 
-        response = client.get(
-            "/api/projects",
-            headers={
-                **auth_headers["admin"],
-                "X-Organization-Context": test_org.id,
-            },
-        )
+        with _as_user(admin):
+            response = await async_test_client.get(
+                "/api/projects/",
+                headers={"X-Organization-Context": org.id},
+            )
         assert response.status_code == 200
         data = response.json()
         assert "items" in data
 
-    def test_create_project(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_create_project(self, async_test_client, async_test_db):
         """Test creating a project."""
-        response = client.post(
-            "/api/projects",
-            headers={
-                **auth_headers["admin"],
-                "X-Organization-Context": test_org.id,
-            },
-            json={
-                "title": "New Test Project",
-                "description": "A project created via test",
-            },
-        )
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await self._create_org(async_test_db, admin.id)
+        await self._create_membership(async_test_db, admin.id, org.id)
+        await async_test_db.commit()
+
+        n, d, r = _no_side_effects()
+        with _as_user(admin), n, d, r:
+            response = await async_test_client.post(
+                "/api/projects/",
+                headers={"X-Organization-Context": org.id},
+                json={
+                    "title": "New Test Project",
+                    "description": "A project created via test",
+                },
+            )
         assert response.status_code in (200, 201)
         data = response.json()
         assert data["title"] == "New Test Project"
 
-    def test_create_project_missing_title(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_create_project_missing_title(
+        self, async_test_client, async_test_db
+    ):
         """Test creating a project without required title."""
-        response = client.post(
-            "/api/projects",
-            headers={
-                **auth_headers["admin"],
-                "X-Organization-Context": test_org.id,
-            },
-            json={
-                "description": "No title",
-            },
-        )
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await self._create_org(async_test_db, admin.id)
+        await self._create_membership(async_test_db, admin.id, org.id)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            response = await async_test_client.post(
+                "/api/projects/",
+                headers={"X-Organization-Context": org.id},
+                json={"description": "No title"},
+            )
         assert response.status_code == 422
 
-    def test_get_project(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_get_project(self, async_test_client, async_test_db):
         """Test getting a single project."""
-        project = self._create_project(test_db, test_org.id, test_users[0].id)
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await self._create_org(async_test_db, admin.id)
+        await self._create_membership(async_test_db, admin.id, org.id)
+        project = await self._create_project(async_test_db, org.id, admin.id)
+        await async_test_db.commit()
 
-        response = client.get(
-            f"/api/projects/{project.id}",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            response = await async_test_client.get(f"/api/projects/{project.id}")
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == project.id
 
-    def test_get_project_not_found(self, client, test_db, test_users, auth_headers):
+    @pytest.mark.asyncio
+    async def test_get_project_not_found(self, async_test_client, async_test_db):
         """Test getting a non-existent project."""
-        response = client.get(
-            "/api/projects/nonexistent-id",
-            headers=auth_headers["admin"],
-        )
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            response = await async_test_client.get("/api/projects/nonexistent-id")
         assert response.status_code == 404
 
-    def test_update_project(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_update_project(self, async_test_client, async_test_db):
         """Test updating a project."""
-        project = self._create_project(test_db, test_org.id, test_users[0].id)
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await self._create_org(async_test_db, admin.id)
+        await self._create_membership(async_test_db, admin.id, org.id)
+        project = await self._create_project(async_test_db, org.id, admin.id)
+        await async_test_db.commit()
 
-        response = client.patch(
-            f"/api/projects/{project.id}",
-            headers=auth_headers["admin"],
-            json={
-                "title": "Updated Title",
-                "description": "Updated description",
-            },
-        )
+        with _as_user(admin):
+            response = await async_test_client.patch(
+                f"/api/projects/{project.id}",
+                json={
+                    "title": "Updated Title",
+                    "description": "Updated description",
+                },
+            )
         assert response.status_code == 200
         data = response.json()
         assert data["title"] == "Updated Title"
 
-    def test_update_project_not_found(self, client, test_db, test_users, auth_headers):
+    @pytest.mark.asyncio
+    async def test_update_project_not_found(
+        self, async_test_client, async_test_db
+    ):
         """Test updating non-existent project."""
-        response = client.patch(
-            "/api/projects/nonexistent-id",
-            headers=auth_headers["admin"],
-            json={"title": "Updated"},
-        )
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            response = await async_test_client.patch(
+                "/api/projects/nonexistent-id",
+                json={"title": "Updated"},
+            )
         assert response.status_code == 404
 
-    def test_delete_project(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_delete_project(self, async_test_client, async_test_db):
         """Test deleting a project."""
-        project = self._create_project(test_db, test_org.id, test_users[0].id)
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await self._create_org(async_test_db, admin.id)
+        await self._create_membership(async_test_db, admin.id, org.id)
+        project = await self._create_project(async_test_db, org.id, admin.id)
+        await async_test_db.commit()
 
-        response = client.delete(
-            f"/api/projects/{project.id}",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin), patch(
+            "routers.projects.crud._notify_project_deleted_sync"
+        ):
+            response = await async_test_client.delete(f"/api/projects/{project.id}")
         assert response.status_code in (200, 204)
 
-    def test_delete_project_not_found(self, client, test_db, test_users, auth_headers):
+    @pytest.mark.asyncio
+    async def test_delete_project_not_found(
+        self, async_test_client, async_test_db
+    ):
         """Test deleting non-existent project."""
-        response = client.delete(
-            "/api/projects/nonexistent-id",
-            headers=auth_headers["admin"],
-        )
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            response = await async_test_client.delete("/api/projects/nonexistent-id")
         assert response.status_code == 404
 
-    def test_list_projects_pagination(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_list_projects_pagination(
+        self, async_test_client, async_test_db
+    ):
         """Test project listing with pagination."""
-        # Create multiple projects
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await self._create_org(async_test_db, admin.id)
+        await self._create_membership(async_test_db, admin.id, org.id)
         for i in range(5):
-            self._create_project(
-                test_db, test_org.id, test_users[0].id,
-                title=f"Paginated Project {i}",
+            await self._create_project(
+                async_test_db, org.id, admin.id, title=f"Paginated Project {i}"
             )
+        await async_test_db.commit()
 
-        response = client.get(
-            "/api/projects?page=1&page_size=2",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            response = await async_test_client.get(
+                "/api/projects/?page=1&page_size=2"
+            )
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) <= 2
 
-    def test_annotator_cannot_create_project(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_annotator_cannot_create_project(
+        self, async_test_client, async_test_db
+    ):
         """Test that annotators cannot create projects."""
-        response = client.post(
-            "/api/projects",
-            headers={
-                **auth_headers["annotator"],
-                "X-Organization-Context": test_org.id,
-            },
-            json={
-                "title": "Annotator Project",
-            },
+        annotator = await _make_user(async_test_db, is_superadmin=False)
+        org = await self._create_org(async_test_db, annotator.id)
+        await self._create_membership(
+            async_test_db, annotator.id, org.id, "ANNOTATOR"
         )
+        await async_test_db.commit()
+
+        n, d, r = _no_side_effects()
+        with _as_user(annotator), n, d, r:
+            response = await async_test_client.post(
+                "/api/projects/",
+                headers={"X-Organization-Context": org.id},
+                json={"title": "Annotator Project"},
+            )
         assert response.status_code in (403, 401)
 
-    def test_annotator_cannot_delete_project(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_annotator_cannot_delete_project(
+        self, async_test_client, async_test_db
+    ):
         """Test that annotators cannot delete projects."""
-        project = self._create_project(test_db, test_org.id, test_users[0].id)
-
-        response = client.delete(
-            f"/api/projects/{project.id}",
-            headers=auth_headers["annotator"],
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        annotator = await _make_user(async_test_db, is_superadmin=False)
+        org = await self._create_org(async_test_db, admin.id)
+        await self._create_membership(async_test_db, admin.id, org.id)
+        await self._create_membership(
+            async_test_db, annotator.id, org.id, "ANNOTATOR"
         )
+        project = await self._create_project(async_test_db, org.id, admin.id)
+        await async_test_db.commit()
+
+        with _as_user(annotator):
+            response = await async_test_client.delete(
+                f"/api/projects/{project.id}"
+            )
         assert response.status_code in (403, 401)
 
-    def test_list_projects_search(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_list_projects_search(self, async_test_client, async_test_db):
         """Test project listing with search query."""
-        self._create_project(
-            test_db, test_org.id, test_users[0].id,
-            title="Unique Searchable Title XYZ",
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await self._create_org(async_test_db, admin.id)
+        await self._create_membership(async_test_db, admin.id, org.id)
+        await self._create_project(
+            async_test_db, org.id, admin.id, title="Unique Searchable Title XYZ"
         )
+        await async_test_db.commit()
 
-        response = client.get(
-            "/api/projects?search=Searchable",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            response = await async_test_client.get(
+                "/api/projects/?search=Searchable"
+            )
         assert response.status_code == 200
 
 
@@ -253,16 +384,18 @@ class TestProjectCrudIntegration:
 class TestProjectTasksIntegration:
     """Integration tests for task management within projects."""
 
-    def _create_project_with_tasks(self, db: Session, org_id: str, user_id: str, num_tasks: int = 3):
+    async def _create_project_with_tasks(
+        self, db: AsyncSession, org_id: str, user_id: str, num_tasks: int = 3
+    ):
         """Create a project with tasks."""
         project = Project(
             id=str(uuid.uuid4()),
             title="Task Test Project",
             created_by=user_id,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
         db.add(project)
-        db.commit()
+        await db.flush()
 
         po = ProjectOrganization(
             id=str(uuid.uuid4()),
@@ -283,19 +416,43 @@ class TestProjectTasksIntegration:
             db.add(task)
             tasks.append(task)
 
-        db.commit()
+        await db.flush()
         return project, tasks
 
-    def test_get_project_includes_task_count(self, client, test_db, test_users, auth_headers, test_org):
+    @pytest.mark.asyncio
+    async def test_get_project_includes_task_count(
+        self, async_test_client, async_test_db
+    ):
         """Test that project detail includes task statistics."""
-        project, tasks = self._create_project_with_tasks(
-            test_db, test_org.id, test_users[0].id, num_tasks=5
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = Organization(
+            id=str(uuid.uuid4()),
+            name="Task Org",
+            slug=f"task-org-{uuid.uuid4().hex[:8]}",
+            display_name="Task Org Display",
+            description="task org",
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
         )
+        async_test_db.add(org)
+        await async_test_db.flush()
+        m = OrganizationMembership(
+            id=str(uuid.uuid4()),
+            user_id=admin.id,
+            organization_id=org.id,
+            role="ORG_ADMIN",
+            is_active=True,
+            joined_at=datetime.now(timezone.utc),
+        )
+        async_test_db.add(m)
+        await async_test_db.flush()
+        project, _ = await self._create_project_with_tasks(
+            async_test_db, org.id, admin.id, num_tasks=5
+        )
+        await async_test_db.commit()
 
-        response = client.get(
-            f"/api/projects/{project.id}",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            response = await async_test_client.get(f"/api/projects/{project.id}")
         assert response.status_code == 200
 
 

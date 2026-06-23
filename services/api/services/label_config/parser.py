@@ -12,7 +12,7 @@ XSS Prevention: All extracted field metadata is sanitized before returning
 import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional
 
-from label_config_sanitizer import LabelConfigSanitizer
+from services.label_config.sanitizer import LabelConfigSanitizer
 
 
 class LabelConfigParser:

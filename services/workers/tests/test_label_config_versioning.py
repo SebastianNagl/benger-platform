@@ -13,6 +13,29 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+def _generation_pipeline_source() -> str:
+    """Combined source of the generation pipeline.
+
+    The generation logic (``generate_llm_responses`` and helpers) was extracted
+    from ``tasks.py`` into ``generation/llm_generation_service.py`` during the
+    structural decomposition. These source-contract tests assert that the
+    pipeline persists the label-config version/snapshot fields; read the source
+    wherever that code now physically lives (tasks.py + the extracted module) so
+    the assertions stay robust to the module split.
+    """
+    import tasks
+
+    sources = [open(tasks.__file__).read()]
+    workers_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for rel in (
+        os.path.join("generation", "llm_generation_service.py"),
+    ):
+        path = os.path.join(workers_dir, rel)
+        if os.path.exists(path):
+            sources.append(open(path).read())
+    return "\n".join(sources)
+
+
 class TestGenerationVersionSnapshot:
     """Test that generations save version and schema snapshots"""
 
@@ -65,9 +88,7 @@ class TestGenerationVersionSnapshot:
         # We're testing that the field mapping exists, not the full execution
 
         # Read tasks.py to verify version field is saved
-        import tasks
-
-        tasks_source = open(tasks.__file__).read()
+        tasks_source = _generation_pipeline_source()
 
         # Verify the code sets label_config_version from project
         assert "label_config_version=project.label_config_version" in tasks_source
@@ -76,9 +97,7 @@ class TestGenerationVersionSnapshot:
     def test_generation_saves_schema_snapshot(self, mock_project):
         """Test that generation code includes label_config_snapshot from project"""
         # Verify the code saves the schema snapshot
-        import tasks
-
-        tasks_source = open(tasks.__file__).read()
+        tasks_source = _generation_pipeline_source()
 
         # Verify both version and snapshot are set from project
         assert "label_config_version=project.label_config_version" in tasks_source
@@ -102,9 +121,7 @@ class TestGenerationVersionSnapshot:
     def test_generation_version_matches_project(self, mock_project):
         """Test that generation uses project's current version"""
         # Verify the code reads from project.label_config_version (not hardcoded)
-        import tasks
-
-        tasks_source = open(tasks.__file__).read()
+        tasks_source = _generation_pipeline_source()
 
         # Code should read label_config_version from project instance
         assert "label_config_version=project.label_config_version" in tasks_source
@@ -120,9 +137,7 @@ class TestSchemaEvolutionDuringGeneration:
         """Test that generation captures project schema at start time"""
         # The worker code loads project once and uses that snapshot
         # This test verifies the logic captures the schema at generation time
-        import tasks
-
-        tasks_source = open(tasks.__file__).read()
+        tasks_source = _generation_pipeline_source()
 
         # Verify project is loaded early in generation function
         assert "project = " in tasks_source or "db.query(Project)" in tasks_source
@@ -264,9 +279,7 @@ class TestVersionFieldPresence:
 
     def test_generation_code_uses_version_fields(self):
         """Test worker code references version fields"""
-        import tasks
-
-        tasks_source = open(tasks.__file__).read()
+        tasks_source = _generation_pipeline_source()
 
         # Verify generation creation includes version fields
         assert "label_config_version" in tasks_source

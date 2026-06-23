@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     redis_uri: Optional[str] = None
     redis_host: str = "redis"
     redis_port: int = 6379
+    redis_db: int = 0
     redis_password: Optional[str] = None
 
     @property
@@ -54,7 +55,26 @@ class Settings(BaseSettings):
             return self.redis_uri
 
         password_part = f":{self.redis_password}@" if self.redis_password else ""
-        return f"redis://{password_part}{self.redis_host}:{self.redis_port}/0"
+        return f"redis://{password_part}{self.redis_host}:{self.redis_port}/{self.redis_db}"
+
+    # Celery Configuration — fall back to the Redis URL when unset (preserves the
+    # historical ``os.getenv("CELERY_BROKER_URL", settings.redis_url)`` default).
+    celery_broker_url: Optional[str] = None
+    celery_result_backend: Optional[str] = None
+
+    @property
+    def celery_broker(self) -> str:
+        return self.celery_broker_url or self.redis_url
+
+    @property
+    def celery_backend(self) -> str:
+        return self.celery_result_backend or self.redis_url
+
+    # SSL/TLS Configuration
+    ssl_staging: bool = False
+
+    # Schema validation mode (strict|warn|off) — read once on startup
+    schema_validation_mode: str = "strict"
 
     # JWT Configuration
     jwt_secret_key: str = "your-super-secret-key-change-in-production"
@@ -74,6 +94,19 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         """Check if running in development environment"""
         return self.environment.lower() == "development"
+
+    # Debug routes (the legacy /api/debug router). Off in production by default
+    # so the diagnostic endpoints are not exposed there; on elsewhere to
+    # preserve the historical dev/test behaviour. Set ENABLE_DEBUG_ROUTES
+    # explicitly (true/false) to override the environment-derived default.
+    enable_debug_routes: Optional[bool] = None
+
+    @property
+    def debug_routes_enabled(self) -> bool:
+        """Whether the legacy /api/debug router should be mounted."""
+        if self.enable_debug_routes is not None:
+            return self.enable_debug_routes
+        return not self.is_production
 
     # Frontend Configuration
     frontend_url: str = "http://localhost:3000"

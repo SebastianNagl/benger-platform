@@ -2,6 +2,8 @@
 Unit tests for the invitation system
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 
@@ -10,15 +12,103 @@ from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+
 # send_invitation_email function no longer exported from invitations router
 from main import app
-from models import Invitation, Organization, OrganizationRole, User
+from models import (
+    Invitation,
+    Organization,
+    OrganizationMembership,
+    OrganizationRole,
+    User,
+)
 from routers.invitations import (
     accept_invitation,
     create_invitation,
     generate_invitation_token,
-    list_organization_invitations,
 )
+
+
+@contextmanager
+def _as_user(db_user):
+    au = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+def _mk_user(db_session, *, is_superadmin=False, suffix=None):
+    suffix = suffix or uuid.uuid4().hex[:8]
+    user = User(
+        id=f"user-{suffix}",
+        username=f"user-{suffix}",
+        email=f"user-{suffix}@example.com",
+        name=f"User {suffix}",
+        hashed_password="hashed",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db_session.add(user)
+    return user
+
+
+def _mk_org(db_session, *, suffix=None, name="Test Org"):
+    suffix = suffix or uuid.uuid4().hex[:8]
+    org = Organization(
+        id=f"org-{suffix}",
+        name=name,
+        display_name=name,
+        slug=f"org-{suffix}",
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db_session.add(org)
+    return org
+
+
+def _mk_membership(db_session, *, user, org, role=OrganizationRole.ORG_ADMIN):
+    membership = OrganizationMembership(
+        id=f"mem-{uuid.uuid4().hex[:8]}",
+        user_id=user.id,
+        organization_id=org.id,
+        role=role,
+        is_active=True,
+        joined_at=datetime.now(timezone.utc),
+    )
+    db_session.add(membership)
+    return membership
+
+
+def _mk_invitation(db_session, *, org, inviter, email, role=OrganizationRole.CONTRIBUTOR):
+    suffix = uuid.uuid4().hex[:8]
+    inv = Invitation(
+        id=f"inv-{suffix}",
+        organization_id=org.id,
+        email=email,
+        role=role,
+        token=f"token-{suffix}",
+        invited_by=inviter.id,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        accepted=False,
+        created_at=datetime.now(timezone.utc),
+    )
+    db_session.add(inv)
+    return inv
 
 
 class TestInvitationHelpers:
@@ -468,7 +558,7 @@ class TestAcceptInvitation:
         ]
 
         # Mock feature flag service
-        with patch("feature_flag_service.FeatureFlagService") as mock_flag_service:
+        with patch("services.feature_flag_service.FeatureFlagService") as mock_flag_service:
             mock_flag_service.return_value.is_enabled.return_value = True
 
             # Mock notification service
@@ -526,114 +616,58 @@ class TestAcceptInvitation:
 
 
 class TestListInvitations:
-    """Test listing organization invitations"""
+    """Test listing organization invitations.
+
+    The list endpoint was migrated to the async DB lane (`Depends(get_async_db)`
+    + `await db.execute(select(...))` joins). These tests run against the real
+    `async_test_client` / `async_test_db` fixtures with seeded rows so the
+    permission check, the join, and the InvitationResponse serialization are all
+    exercised end-to-end.
+    """
 
     @pytest.mark.asyncio
-    async def test_list_invitations_success(self):
-        """Test listing invitations as org admin"""
-        mock_db = Mock(spec=Session)
-        mock_user = Mock(spec=User)
-        mock_user.id = "user-123"
-        mock_user.role = is_superadmin = False  # noqa: F841
-
-        # Mock membership check
-        mock_membership = Mock()
-        mock_membership.role = OrganizationRole.ORG_ADMIN
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_membership
-
-        # Mock invitations query with proper attributes
-        mock_invitation1_obj = Mock()
-        mock_invitation1_obj.id = "inv-1"
-        mock_invitation1_obj.email = "test1@example.com"
-        mock_invitation1_obj.organization_id = "org-123"
-        mock_invitation1_obj.role = OrganizationRole.CONTRIBUTOR
-        mock_invitation1_obj.token = "token-1"
-        mock_invitation1_obj.invited_by = "user-123"
-        mock_invitation1_obj.expires_at = datetime.now(timezone.utc)
-        mock_invitation1_obj.accepted_at = None
-        mock_invitation1_obj.accepted = False
-        mock_invitation1_obj.created_at = datetime.now(timezone.utc)
-        mock_invitation1_obj.__dict__ = {
-            "id": "inv-1",
-            "email": "test1@example.com",
-            "organization_id": "org-123",
-            "role": OrganizationRole.CONTRIBUTOR,
-            "token": "token-1",
-            "invited_by": "user-123",
-            "expires_at": datetime.now(timezone.utc),
-            "accepted_at": None,
-            "accepted": False,
-            "created_at": datetime.now(timezone.utc),
-        }
-
-        mock_invitation2_obj = Mock()
-        mock_invitation2_obj.id = "inv-2"
-        mock_invitation2_obj.email = "test2@example.com"
-        mock_invitation2_obj.organization_id = "org-123"
-        mock_invitation2_obj.role = OrganizationRole.ORG_ADMIN
-        mock_invitation2_obj.token = "token-2"
-        mock_invitation2_obj.invited_by = "user-123"
-        mock_invitation2_obj.expires_at = datetime.now(timezone.utc)
-        mock_invitation2_obj.accepted_at = None
-        mock_invitation2_obj.accepted = False
-        mock_invitation2_obj.created_at = datetime.now(timezone.utc)
-        mock_invitation2_obj.__dict__ = {
-            "id": "inv-2",
-            "email": "test2@example.com",
-            "organization_id": "org-123",
-            "role": OrganizationRole.ORG_ADMIN,
-            "token": "token-2",
-            "invited_by": "user-123",
-            "expires_at": datetime.now(timezone.utc),
-            "accepted_at": None,
-            "accepted": False,
-            "created_at": datetime.now(timezone.utc),
-        }
-
-        mock_org = Mock()
-        mock_org.name = "Test Org"
-
-        mock_inviter = Mock()
-        mock_inviter.name = "John Doe"
-
-        mock_invitation1 = (mock_invitation1_obj, mock_org, mock_inviter)
-        mock_invitation2 = (mock_invitation2_obj, mock_org, mock_inviter)
-
-        # Mock the query chain to return proper result
-        mock_query = Mock()
-        mock_db.query.return_value = mock_query
-        mock_query.join.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.all.return_value = [mock_invitation1, mock_invitation2]
-
-        result = await list_organization_invitations(
-            organization_id="org-123",
-            include_expired=False,
-            current_user=mock_user,
-            db=mock_db,
+    async def test_list_invitations_success(self, async_test_client, async_test_db):
+        """Test listing invitations as org admin returns the pending rows."""
+        org = _mk_org(async_test_db, name="Test Org")
+        inviter = _mk_user(async_test_db, suffix="inviter")
+        admin = _mk_user(async_test_db, suffix="admin")
+        _mk_membership(async_test_db, user=admin, org=org, role=OrganizationRole.ORG_ADMIN)
+        _mk_invitation(
+            async_test_db, org=org, inviter=inviter, email="test1@example.com",
+            role=OrganizationRole.CONTRIBUTOR,
         )
+        _mk_invitation(
+            async_test_db, org=org, inviter=inviter, email="test2@example.com",
+            role=OrganizationRole.ORG_ADMIN,
+        )
+        await async_test_db.flush()
 
-        assert len(result) == 2
-        assert result[0].email == "test1@example.com"
-        assert result[1].email == "test2@example.com"
-
-    @pytest.mark.asyncio
-    async def test_list_invitations_unauthorized(self):
-        """Test listing invitations without permission"""
-        mock_db = Mock(spec=Session)
-        mock_user = Mock(spec=User)
-        mock_user.is_superadmin = False
-
-        # No membership - user is not an org admin
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-
-        with pytest.raises(HTTPException) as exc_info:
-            await list_organization_invitations(
-                organization_id="org-123",
-                include_expired=False,
-                current_user=mock_user,
-                db=mock_db,
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/invitations/organizations/{org.id}/invitations"
             )
 
-        assert exc_info.value.status_code == 403
-        assert "Only organization admins" in str(exc_info.value.detail)
+        assert resp.status_code == status.HTTP_200_OK
+        data = resp.json()
+        assert len(data) == 2
+        emails = {item["email"] for item in data}
+        assert emails == {"test1@example.com", "test2@example.com"}
+        # join-populated fields surface on the response
+        assert all(item["organization_name"] == "Test Org" for item in data)
+        assert all(item["inviter_name"] == inviter.name for item in data)
+
+    @pytest.mark.asyncio
+    async def test_list_invitations_unauthorized(self, async_test_client, async_test_db):
+        """Test listing invitations without permission yields 403."""
+        org = _mk_org(async_test_db)
+        # Requesting user has no org-admin membership.
+        non_admin = _mk_user(async_test_db, suffix="nonadmin")
+        await async_test_db.flush()
+
+        with _as_user(non_admin):
+            resp = await async_test_client.get(
+                f"/api/invitations/organizations/{org.id}/invitations"
+            )
+
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+        assert "Only organization admins" in resp.json()["detail"]

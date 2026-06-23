@@ -1,22 +1,152 @@
 """
 Unit and integration tests for generation task list endpoints (Issue #495).
 Tests paginated task list with per-model generation status.
+
+The router was migrated to the async DB lane (``Depends(get_async_db)``), so
+``get_project_with_permissions`` is now ``async`` and resolves access through
+``check_project_accessible_async`` (no longer a single ``db.query().first()``
+that a ``MagicMock`` can stub). Tests that exercise project-access semantics
+therefore drive the real ``GET /api/generation-tasks/projects/{id}/task-status``
+HTTP endpoint via ``async_test_client`` + ``async_test_db``, seeding real
+users / orgs / projects so the async permission check sees the rows. ``require_user``
+is overridden per-test via the ``_as_user`` context manager (the sync auth
+dependency can't see the async test transaction).
+
+The remaining tests stay SYNC: ``get_single_task_generation_status`` is an
+intentionally-retained sync compatibility shim (``db: Session``), and the rest
+are pure-function / Pydantic-model assertions with no DB session at all. Sync
+and async tests coexist in this one file.
 """
 
 import uuid
-from datetime import datetime
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy.orm import Session
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
+from models import Organization, OrganizationMembership, User
+from project_models import Project, ProjectOrganization, Task
 from routers.generation_task_list import (
     GenerationRequest,
     PaginatedTaskGenerationResponse,
     TaskWithGenerationStatus,
-    get_project_with_permissions,
+    get_project_with_permissions,  # noqa: F401  (kept for parity / re-export)
     get_single_task_generation_status,
 )
+
+
+# ---------------------------------------------------------------------------
+# Async HTTP helpers (for the migrated task-status endpoint)
+# ---------------------------------------------------------------------------
+
+_GEN_CONFIG = {"selected_configuration": {"models": ["gpt-4o", "claude-sonnet-4", "gemini-2.5-pro"]}}
+
+
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_user(db, *, is_superadmin=False, username_prefix="gen") -> User:
+    u = User(
+        id=_uid(),
+        username=f"{username_prefix}-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Generation User",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _make_org(db, *, name="Org") -> Organization:
+    org = Organization(
+        id=_uid(),
+        name=name,
+        display_name=name,
+        slug=f"{name.lower().replace(' ', '-')}-{_uid()[:8]}",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(org)
+    await db.flush()
+    return org
+
+
+async def _add_membership(db, user: User, org: Organization, *, role="CONTRIBUTOR"):
+    db.add(
+        OrganizationMembership(
+            id=_uid(),
+            user_id=user.id,
+            organization_id=org.id,
+            role=role,
+            is_active=True,
+            joined_at=datetime.now(timezone.utc),
+        )
+    )
+    await db.flush()
+
+
+async def _create_project(
+    db,
+    creator: User,
+    *,
+    title: str = "Generation Project",
+    org: Organization = None,
+    is_private: bool = False,
+    generation_config: dict = None,
+) -> Project:
+    project_id = _uid()
+    project = Project(
+        id=project_id,
+        title=title,
+        description="Integration test project for generation",
+        created_by=creator.id,
+        is_private=is_private,
+        label_config='<View><Text name="text" value="$text"/></View>',
+        generation_config=generation_config if generation_config is not None else dict(_GEN_CONFIG),
+    )
+    db.add(project)
+    await db.flush()
+
+    if org is not None:
+        db.add(
+            ProjectOrganization(
+                id=_uid(),
+                project_id=project_id,
+                organization_id=org.id,
+                assigned_by=creator.id,
+            )
+        )
+        await db.flush()
+
+    return project
 
 
 @pytest.fixture
@@ -34,77 +164,140 @@ def mock_user():
     return user
 
 
-@pytest.fixture
-def mock_project():
-    """Create a mock project."""
-    project = MagicMock()
-    project.id = str(uuid.uuid4())
-    project.title = "Test Project"
-    project.is_private = False
-    project.generation_config = {
-        "selected_configuration": {"models": ["gpt-4o", "claude-sonnet-4", "gemini-2.5-pro"]}
-    }
-    return project
+class TestProjectAccessViaTaskStatus:
+    """Project-access semantics of the migrated task-status endpoint.
+
+    ``get_project_with_permissions`` is now async (Mock-stubbing its
+    ``db.query().first()`` no longer works), so these drive the real
+    ``GET /api/generation-tasks/projects/{id}/task-status`` HTTP endpoint and
+    assert the same access outcomes the old direct-call unit tests covered:
+    superadmin allowed, missing project -> 404, org member allowed, non-member
+    blocked -> 403.
+    """
+
+    @pytest.mark.asyncio
+    async def test_superadmin_has_access(self, async_test_client, async_test_db):
+        """Superadmin can read task-status of any project (200, models echoed)."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db)
+        project = await _create_project(async_test_db, admin, org=org)
+        project_id = project.id
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/generation-tasks/projects/{project_id}/task-status"
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["models"] == _GEN_CONFIG["selected_configuration"]["models"]
+
+    @pytest.mark.asyncio
+    async def test_project_not_found(self, async_test_client, async_test_db):
+        """Unknown project id -> 404 'not found'."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/generation-tasks/projects/invalid-id/task-status"
+            )
+        assert resp.status_code == 404
+        assert "not found" in resp.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_org_member_has_access(self, async_test_client, async_test_db):
+        """A non-superadmin member of an org that owns a non-private project is
+        granted access (200)."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        contributor = await _make_user(async_test_db)
+        org = await _make_org(async_test_db)
+        await _add_membership(async_test_db, contributor, org)
+        project = await _create_project(async_test_db, admin, org=org, is_private=False)
+        project_id = project.id
+        await async_test_db.commit()
+
+        with _as_user(contributor):
+            resp = await async_test_client.get(
+                f"/api/generation-tasks/projects/{project_id}/task-status"
+            )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_non_member_denied(self, async_test_client, async_test_db):
+        """A non-superadmin who is not a member of any owning org is blocked ->
+        403 'don't have access'."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        outsider = await _make_user(async_test_db)
+        org = await _make_org(async_test_db)
+        # outsider is a member of an UNRELATED org only.
+        other_org = await _make_org(async_test_db, name="Unrelated Org")
+        await _add_membership(async_test_db, outsider, other_org)
+        project = await _create_project(async_test_db, admin, org=org, is_private=False)
+        project_id = project.id
+        await async_test_db.commit()
+
+        with _as_user(outsider):
+            resp = await async_test_client.get(
+                f"/api/generation-tasks/projects/{project_id}/task-status"
+            )
+        assert resp.status_code == 403
+        assert "access" in resp.json()["detail"].lower()
 
 
-@pytest.fixture
-def mock_task():
-    """Create a mock task."""
-    task = MagicMock()
-    task.id = str(uuid.uuid4())
-    task.project_id = str(uuid.uuid4())
-    task.data = {"text": "Test task content", "question": "What is the answer?"}
-    task.meta = {"system_prompt": "You are helpful", "generation_prompt": "Generate response"}
-    task.created_at = datetime.now()
-    return task
+class TestPrivateProjectAccessViaTaskStatus:
+    """Private-project handling of the migrated task-status endpoint.
+
+    Replaces the old ``TestPrivateProjectPermissions`` direct-call unit tests
+    (which Mock-stubbed the now-async helper). Private projects belong to no
+    org here, so only the creator and superadmins reach the project."""
+
+    @pytest.mark.asyncio
+    async def test_private_project_creator_has_access(self, async_test_client, async_test_db):
+        """Private project creator should have access (200)."""
+        creator = await _make_user(async_test_db, is_superadmin=False)
+        project = await _create_project(async_test_db, creator, is_private=True)
+        project_id = project.id
+        await async_test_db.commit()
+
+        with _as_user(creator):
+            resp = await async_test_client.get(
+                f"/api/generation-tasks/projects/{project_id}/task-status"
+            )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_private_project_other_user_blocked(self, async_test_client, async_test_db):
+        """Non-creator non-superadmin should get 403 on a private project."""
+        creator = await _make_user(async_test_db, is_superadmin=False)
+        other = await _make_user(async_test_db, is_superadmin=False)
+        project = await _create_project(async_test_db, creator, is_private=True)
+        project_id = project.id
+        await async_test_db.commit()
+
+        with _as_user(other):
+            resp = await async_test_client.get(
+                f"/api/generation-tasks/projects/{project_id}/task-status"
+            )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_private_project_superadmin_has_access(self, async_test_client, async_test_db):
+        """Superadmin should have access to any private project (200)."""
+        creator = await _make_user(async_test_db, is_superadmin=False)
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _create_project(async_test_db, creator, is_private=True)
+        project_id = project.id
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/generation-tasks/projects/{project_id}/task-status"
+            )
+        assert resp.status_code == 200
 
 
 class TestHelperFunctions:
-    """Test helper functions."""
-
-    def test_get_project_with_permissions_superadmin(self, mock_db, mock_user, mock_project):
-        """Test project access for superadmin."""
-        mock_db.query().filter().first.return_value = mock_project
-
-        result = get_project_with_permissions(mock_project.id, mock_user, mock_db)
-
-        assert result == mock_project
-        mock_db.query().filter().first.assert_called_once()
-
-    def test_get_project_with_permissions_not_found(self, mock_db, mock_user):
-        """Test project not found error."""
-        mock_db.query().filter().first.return_value = None
-
-        with pytest.raises(Exception) as exc_info:
-            get_project_with_permissions("invalid-id", mock_user, mock_db)
-
-        assert "not found" in str(exc_info.value).lower()
-
-    @patch('routers.generation_task_list.check_project_accessible', return_value=True)
-    def test_get_project_with_permissions_org_member(self, mock_check, mock_db, mock_project):
-        """Test access to non-private project by org member (non-superadmin)."""
-        mock_db.query().filter().first.return_value = mock_project
-
-        user = MagicMock()
-        user.is_superadmin = False
-        user.id = str(uuid.uuid4())
-
-        result = get_project_with_permissions(mock_project.id, user, mock_db)
-        assert result == mock_project
-        mock_check.assert_called_once()
-
-    @patch('routers.generation_task_list.check_project_accessible', return_value=False)
-    def test_get_project_with_permissions_non_member_denied(self, mock_check, mock_db, mock_project):
-        """Test non-member gets 403 on non-private project."""
-        mock_db.query().filter().first.return_value = mock_project
-
-        user = MagicMock()
-        user.is_superadmin = False
-        user.id = str(uuid.uuid4())
-
-        with pytest.raises(Exception) as exc_info:
-            get_project_with_permissions(mock_project.id, user, mock_db)
-        assert exc_info.value.status_code == 403
+    """Test helper functions (sync ``get_single_task_generation_status`` shim)."""
 
     def test_get_single_task_generation_status_no_generation(self, mock_db):
         """Test status when no generation exists."""
@@ -187,60 +380,6 @@ class TestHelperFunctions:
 
         assert result.structure_key == "default"
         assert result.status == None  # noqa: E711
-
-
-class TestPrivateProjectPermissions:
-    """Test private project handling in get_project_with_permissions."""
-
-    def test_private_project_creator_has_access(self, mock_db):
-        """Private project creator should have access."""
-        user_id = str(uuid.uuid4())
-        user = MagicMock()
-        user.id = user_id
-        user.is_superadmin = False
-
-        project = MagicMock()
-        project.id = str(uuid.uuid4())
-        project.is_private = True
-        project.created_by = user_id
-
-        mock_db.query().filter().first.return_value = project
-
-        result = get_project_with_permissions(project.id, user, mock_db)
-        assert result == project
-
-    def test_private_project_other_user_blocked(self, mock_db):
-        """Non-creator should get 403 on private project."""
-        user = MagicMock()
-        user.id = str(uuid.uuid4())
-        user.is_superadmin = False
-
-        project = MagicMock()
-        project.id = str(uuid.uuid4())
-        project.is_private = True
-        project.created_by = str(uuid.uuid4())  # Different user
-
-        mock_db.query().filter().first.return_value = project
-
-        with pytest.raises(Exception) as exc_info:
-            get_project_with_permissions(project.id, user, mock_db)
-        assert exc_info.value.status_code == 403
-
-    def test_private_project_superadmin_has_access(self, mock_db):
-        """Superadmin should have access to any private project."""
-        user = MagicMock()
-        user.id = str(uuid.uuid4())
-        user.is_superadmin = True
-
-        project = MagicMock()
-        project.id = str(uuid.uuid4())
-        project.is_private = True
-        project.created_by = str(uuid.uuid4())  # Different user
-
-        mock_db.query().filter().first.return_value = project
-
-        result = get_project_with_permissions(project.id, user, mock_db)
-        assert result == project
 
 
 class TestPaginatedTaskGenerationEndpoint:

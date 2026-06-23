@@ -67,7 +67,7 @@ class TestNotificationCreation:
     """Test notification creation"""
 
     @patch("notification_service.NotificationService._user_wants_notification")
-    @patch("services.email.notification_service.get_celery_app")
+    @patch("mailer.notification_service.get_celery_app")
     def test_create_notification_basic(
         self, mock_create_task, mock_wants_notif, mock_db, test_user
     ):
@@ -95,7 +95,7 @@ class TestNotificationCreation:
         assert len(result) == 1
 
     @patch("notification_service.NotificationService._user_wants_notification")
-    @patch("services.email.notification_service.get_celery_app")
+    @patch("mailer.notification_service.get_celery_app")
     def test_create_notification_with_organization(
         self, mock_create_task, mock_wants_notif, mock_db, test_user, test_organization
     ):
@@ -233,8 +233,8 @@ class TestNotificationIntegration:
     """Integration tests for notification service"""
 
     @patch("notification_service.NotificationService._user_wants_notification")
-    @patch("services.email.notification_service.EMAIL_SERVICE_AVAILABLE", True)
-    @patch("services.email.notification_service.get_celery_app")
+    @patch("mailer.notification_service.EMAIL_SERVICE_AVAILABLE", True)
+    @patch("mailer.notification_service.get_celery_app")
     def test_create_and_send_notification(
         self, mock_create_task, mock_wants_notif, mock_db, test_user
     ):
@@ -315,8 +315,8 @@ class TestNotificationPreferences:
 class TestEmailNotifications:
     """Test email notification functionality"""
 
-    @patch("services.email.notification_service.EMAIL_SERVICE_AVAILABLE", True)
-    @patch("services.email.notification_service.send_notification_email")
+    @patch("mailer.notification_service.EMAIL_SERVICE_AVAILABLE", True)
+    @patch("mailer.notification_service.send_notification_email")
     @patch("services.email.notification_service.NotificationService._user_wants_email_notification")
     @patch("services.email.notification_service.NotificationService._user_wants_notification")
     @pytest.mark.asyncio
@@ -350,9 +350,9 @@ class TestEmailNotifications:
         # Verify email was sent
         mock_send_email.assert_called_once()
 
-    @patch("services.email.notification_service.EMAIL_SERVICE_AVAILABLE", True)
+    @patch("mailer.notification_service.EMAIL_SERVICE_AVAILABLE", True)
     @patch("email_validation.is_valid_email")
-    @patch("notification_service.send_notification_email")
+    @patch("mailer.notification_service.send_notification_email")
     @patch("notification_service.NotificationService._user_wants_email_notification")
     @pytest.mark.asyncio
     async def test_invalid_email_skipped(

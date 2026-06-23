@@ -3,16 +3,35 @@ Coverage push tests for CRUD, task, member, assignment, annotation, review,
 timer, questionnaire, and serializer branches.
 
 Targets uncovered branches across multiple routers.
+
+Several endpoints exercised here (project CRUD, task listing/mutations,
+member/assignment/annotation listing, questionnaire listing) have been migrated
+to the async DB lane (``Depends(get_async_db)``). The sync ``client`` +
+``test_db`` fixtures can't drive those handlers — the sync TestClient runs the
+real async engine on a mismatched event loop and never sees the SAVEPOINT-scoped
+test transaction. The tests that need to *see* seeded rows through the async
+lane are therefore rewritten to use ``async_test_client`` + ``async_test_db``,
+seed their rows directly via the async session, and override ``require_user``
+through the ``_as_user`` context manager (the sync auth dependency can't see the
+async test transaction). Tests whose endpoints are still on the sync lane
+(assignment create, annotation create) and the pure-utility/serializer tests are
+left on the original fixtures.
 """
 
 import uuid
-from datetime import datetime
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from unittest.mock import patch
 
+import pytest
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
 from models import (
     Organization,
     OrganizationMembership,
+    User,
 )
 from project_models import (
     Annotation,
@@ -21,6 +40,128 @@ from project_models import (
     Task,
     TaskAssignment,
 )
+
+
+def _uid():
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user: User):
+    """Override ``require_user`` to return an auth User matching ``db_user``.
+
+    The sync auth dependency authenticates against its own session and cannot
+    see rows seeded inside the async test transaction, so async-lane handlers
+    get their authenticated user from this override instead of a Bearer token.
+    """
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_admin(db):
+    """Seed a superadmin actor (mirrors the sync ``test_users[0]`` admin)."""
+    u = User(
+        id=_uid(),
+        username=f"admin-{_uid()[:8]}@test.com",
+        email=f"admin-{_uid()[:8]}@test.com",
+        name="Async Test Admin",
+        is_superadmin=True,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _seed_full_project_async(
+    db,
+    admin,
+    *,
+    questionnaire_enabled=False,
+    num_tasks=3,
+    is_private=False,
+    assignment_mode="open",
+    seed_membership=False,
+):
+    """Async twin of ``create_project_fixture``.
+
+    Seeds an org, a project (owned by ``admin``), a ProjectOrganization link,
+    ``num_tasks`` tasks, and (optionally) an org membership for ``admin`` so the
+    members endpoint surfaces at least one member. Returns
+    ``{"project", "tasks", "org"}`` like the sync helper.
+    """
+    org = Organization(
+        id=_uid(),
+        name=f"Project Org {uuid.uuid4().hex[:4]}",
+        slug=f"proj-org-{uuid.uuid4().hex[:8]}",
+        display_name="Project Org",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(org)
+    await db.flush()
+
+    project = Project(
+        id=_uid(),
+        title=f"Test Project {uuid.uuid4().hex[:6]}",
+        description="Test project for coverage",
+        created_by=admin.id,
+        is_private=is_private,
+        label_config="<View><Text name='text' value='$text'/><TextArea name='answer' toName='text'/></View>",
+        assignment_mode=assignment_mode,
+        questionnaire_enabled=questionnaire_enabled,
+        min_annotations_per_task=1,
+        maximum_annotations=2,
+    )
+    db.add(project)
+    await db.flush()
+
+    if seed_membership:
+        db.add(OrganizationMembership(
+            id=_uid(),
+            user_id=admin.id,
+            organization_id=org.id,
+            role="ORG_ADMIN",
+            joined_at=datetime.now(timezone.utc),
+        ))
+
+    db.add(ProjectOrganization(
+        id=_uid(),
+        project_id=project.id,
+        organization_id=org.id,
+        assigned_by=admin.id,
+    ))
+    await db.flush()
+
+    tasks = []
+    for i in range(num_tasks):
+        task = Task(
+            id=_uid(),
+            project_id=project.id,
+            data={"text": f"Task text {i}"},
+            meta={"index": i},
+            inner_id=i + 1,
+            created_by=admin.id,
+        )
+        db.add(task)
+        tasks.append(task)
+    await db.flush()
+
+    return {"project": project, "tasks": tasks, "org": org}
 
 
 def create_project_fixture(db, users, questionnaire_enabled=False,
@@ -97,105 +238,150 @@ def _setup_full_project(db, users, **kwargs):
 class TestProjectCrud:
     """Test project CRUD operations."""
 
-    def test_list_projects(self, client, test_users, test_db, auth_headers):
-        _setup_full_project(test_db, test_users)
-        resp = client.get("/api/projects/", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_list_projects(self, async_test_client, async_test_db):
+        # list_projects is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        await _seed_full_project_async(async_test_db, admin)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get("/api/projects/")
         assert resp.status_code == 200
         body = resp.json()
         assert "items" in body
 
-    def test_list_projects_with_search(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_list_projects_with_search(self, async_test_client, async_test_db):
+        # list_projects is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(async_test_db, admin)
+        await async_test_db.commit()
         title = data["project"].title
-        resp = client.get(f"/api/projects/?search={title[:10]}", headers=auth_headers["admin"])
+        with _as_user(admin):
+            resp = await async_test_client.get(f"/api/projects/?search={title[:10]}")
         assert resp.status_code == 200
 
-    def test_list_projects_with_pagination(self, client, test_users, test_db, auth_headers):
-        _setup_full_project(test_db, test_users)
-        resp = client.get("/api/projects/?page=1&page_size=1", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_list_projects_with_pagination(self, async_test_client, async_test_db):
+        # list_projects is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        await _seed_full_project_async(async_test_db, admin)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get("/api/projects/?page=1&page_size=1")
         assert resp.status_code == 200
         body = resp.json()
         assert body["page"] == 1
 
-    def test_get_project(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_get_project(self, async_test_client, async_test_db):
+        # get_project is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(async_test_db, admin)
+        await async_test_db.commit()
         pid = data["project"].id
-        resp = client.get(f"/api/projects/{pid}", headers=auth_headers["admin"])
+        with _as_user(admin):
+            resp = await async_test_client.get(f"/api/projects/{pid}")
         assert resp.status_code == 200
 
-    def test_get_project_not_found(self, client, test_users, test_db, auth_headers):
-        resp = client.get("/api/projects/nonexistent-id", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_get_project_not_found(self, async_test_client, async_test_db):
+        # get_project is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get("/api/projects/nonexistent-id")
         assert resp.status_code == 404
 
-    def test_create_project(self, client, test_users, test_db, auth_headers):
+    @pytest.mark.asyncio
+    async def test_create_project(self, async_test_client, async_test_db):
+        # create_project is async-lane (Depends(get_async_db)). Org-mode create
+        # (X-Organization-Context set) needs an active ORG_ADMIN membership.
+        admin = await _make_admin(async_test_db)
         org = Organization(
-            id=str(uuid.uuid4()),
+            id=_uid(),
             name="Create Project Org",
             slug=f"create-org-{uuid.uuid4().hex[:8]}",
             display_name="Create Project Org",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
-        test_db.add(org)
-        test_db.commit()
+        async_test_db.add(org)
+        await async_test_db.flush()
 
-        test_db.add(OrganizationMembership(
-            id=str(uuid.uuid4()),
-            user_id=test_users[0].id,
+        async_test_db.add(OrganizationMembership(
+            id=_uid(),
+            user_id=admin.id,
             organization_id=org.id,
             role="ORG_ADMIN",
-            joined_at=datetime.utcnow(),
+            joined_at=datetime.now(timezone.utc),
         ))
-        test_db.commit()
+        await async_test_db.commit()
 
+        # notify_project_created is invoked (by name) inside the handler's
+        # _notify_project_created_sync; patching it at module scope intercepts
+        # the org-mode notification path.
         with patch("routers.projects.crud.notify_project_created"):
-            resp = client.post(
-                "/api/projects/",
-                json={
-                    "title": f"New Project {uuid.uuid4().hex[:8]}",
-                    "description": "A new test project",
-                    "label_config": "<View><Text name='text' value='$text'/></View>",
-                },
-                headers={**auth_headers["admin"], "X-Organization-Context": org.id},
-            )
+            with _as_user(admin):
+                resp = await async_test_client.post(
+                    "/api/projects/",
+                    json={
+                        "title": f"New Project {uuid.uuid4().hex[:8]}",
+                        "description": "A new test project",
+                        "label_config": "<View><Text name='text' value='$text'/></View>",
+                    },
+                    headers={"X-Organization-Context": org.id},
+                )
         assert resp.status_code in [200, 201]
 
-    def test_update_project(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_update_project(self, async_test_client, async_test_db):
+        # update_project is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(async_test_db, admin)
+        await async_test_db.commit()
         pid = data["project"].id
 
-        resp = client.patch(
-            f"/api/projects/{pid}",
-            json={"description": "Updated description"},
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/{pid}",
+                json={"description": "Updated description"},
+            )
         assert resp.status_code == 200
         assert resp.json()["description"] == "Updated description"
 
-    def test_update_project_not_found(self, client, test_users, test_db, auth_headers):
-        resp = client.patch(
-            "/api/projects/nonexistent",
-            json={"description": "test"},
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_update_project_not_found(self, async_test_client, async_test_db):
+        # update_project is async-lane; nonexistent id must 404.
+        admin = await _make_admin(async_test_db)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                "/api/projects/nonexistent",
+                json={"description": "test"},
+            )
         assert resp.status_code == 404
 
-    def test_delete_project(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_delete_project(self, async_test_client, async_test_db):
+        # delete_project is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(async_test_db, admin)
+        await async_test_db.commit()
         pid = data["project"].id
 
         with patch("routers.projects.crud.notify_project_deleted"):
-            resp = client.delete(
-                f"/api/projects/{pid}",
-                headers=auth_headers["admin"],
-            )
+            with _as_user(admin):
+                resp = await async_test_client.delete(f"/api/projects/{pid}")
         assert resp.status_code == 200
 
-    def test_delete_project_not_found(self, client, test_users, test_db, auth_headers):
+    @pytest.mark.asyncio
+    async def test_delete_project_not_found(self, async_test_client, async_test_db):
+        # delete_project is async-lane; nonexistent id must 404.
+        admin = await _make_admin(async_test_db)
+        await async_test_db.commit()
         with patch("routers.projects.crud.notify_project_deleted"):
-            resp = client.delete(
-                "/api/projects/nonexistent",
-                headers=auth_headers["admin"],
-            )
+            with _as_user(admin):
+                resp = await async_test_client.delete("/api/projects/nonexistent")
         assert resp.status_code == 404
 
 
@@ -256,102 +442,128 @@ class TestDeepMergeDicts:
 class TestTaskEndpoints:
     """Test task listing and management."""
 
-    def test_list_tasks(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_list_tasks(self, async_test_client, async_test_db):
+        # list_project_tasks is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(async_test_db, admin)
+        await async_test_db.commit()
         pid = data["project"].id
 
-        resp = client.get(
-            f"/api/projects/{pid}/tasks",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(f"/api/projects/{pid}/tasks")
         assert resp.status_code == 200
         body = resp.json()
         assert body["total"] == 3
 
-    def test_list_tasks_pagination(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_list_tasks_pagination(self, async_test_client, async_test_db):
+        # list_project_tasks is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(async_test_db, admin)
+        await async_test_db.commit()
         pid = data["project"].id
 
-        resp = client.get(
-            f"/api/projects/{pid}/tasks?page=1&page_size=2",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{pid}/tasks?page=1&page_size=2"
+            )
         assert resp.status_code == 200
         body = resp.json()
         assert len(body["items"]) == 2
 
-    def test_list_tasks_only_labeled(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
-        pid = data["project"].id
+    @pytest.mark.asyncio
+    async def test_list_tasks_only_labeled(self, async_test_client, async_test_db):
+        # list_project_tasks is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(async_test_db, admin)
         data["tasks"][0].is_labeled = True
-        test_db.commit()
-
-        resp = client.get(
-            f"/api/projects/{pid}/tasks?only_labeled=true",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-
-    def test_list_tasks_only_unlabeled(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
+        await async_test_db.commit()
         pid = data["project"].id
 
-        resp = client.get(
-            f"/api/projects/{pid}/tasks?only_unlabeled=true",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{pid}/tasks?only_labeled=true"
+            )
         assert resp.status_code == 200
 
-    def test_list_tasks_not_found(self, client, test_users, test_db, auth_headers):
-        resp = client.get(
-            "/api/projects/nonexistent/tasks",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_list_tasks_only_unlabeled(self, async_test_client, async_test_db):
+        # list_project_tasks is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(async_test_db, admin)
+        await async_test_db.commit()
+        pid = data["project"].id
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{pid}/tasks?only_unlabeled=true"
+            )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_list_tasks_not_found(self, async_test_client, async_test_db):
+        # list_project_tasks is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get("/api/projects/nonexistent/tasks")
         assert resp.status_code == 404
 
-    def test_get_task_detail(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_get_task_detail(self, async_test_client, async_test_db):
+        # get_task is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(async_test_db, admin)
+        await async_test_db.commit()
         tid = data["tasks"][0].id
 
-        resp = client.get(
-            f"/api/projects/tasks/{tid}",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(f"/api/projects/tasks/{tid}")
         assert resp.status_code == 200
 
-    def test_get_next_task(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_get_next_task(self, async_test_client, async_test_db):
+        # get_next_task is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(async_test_db, admin)
+        await async_test_db.commit()
         pid = data["project"].id
-
-        resp = client.get(
-            f"/api/projects/{pid}/next",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(f"/api/projects/{pid}/next")
         # 200 if task found, 404 if no tasks available
         assert resp.status_code in [200, 404]
 
-    def test_bulk_delete_tasks(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_bulk_delete_tasks(self, async_test_client, async_test_db):
+        # bulk_delete_tasks is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(async_test_db, admin)
+        await async_test_db.commit()
         pid = data["project"].id
         task_ids = [t.id for t in data["tasks"][:2]]
 
-        resp = client.post(
-            f"/api/projects/{pid}/tasks/bulk-delete",
-            json={"task_ids": task_ids},
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.post(
+                f"/api/projects/{pid}/tasks/bulk-delete",
+                json={"task_ids": task_ids},
+            )
         assert resp.status_code == 200
 
-    def test_skip_task(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_skip_task(self, async_test_client, async_test_db):
+        # skip_task is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(async_test_db, admin)
+        await async_test_db.commit()
         pid = data["project"].id
         tid = data["tasks"][0].id
 
-        resp = client.post(
-            f"/api/projects/{pid}/tasks/{tid}/skip",
-            json={"comment": "Too complex"},
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.post(
+                f"/api/projects/{pid}/tasks/{tid}/skip",
+                json={"comment": "Too complex"},
+            )
         assert resp.status_code == 200
 
 
@@ -360,24 +572,31 @@ class TestTaskEndpoints:
 class TestMemberEndpoints:
     """Test project member management."""
 
-    def test_list_members(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_list_members(self, async_test_client, async_test_db):
+        # list_project_members is async-lane (Depends(get_async_db)). Seed an
+        # org membership for the admin so the endpoint surfaces >= 1 member.
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(
+            async_test_db, admin, seed_membership=True
+        )
+        await async_test_db.commit()
         pid = data["project"].id
 
-        resp = client.get(
-            f"/api/projects/{pid}/members",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(f"/api/projects/{pid}/members")
         assert resp.status_code == 200
         members = resp.json()
         assert isinstance(members, list)
         assert len(members) >= 1
 
-    def test_list_members_not_found(self, client, test_users, test_db, auth_headers):
-        resp = client.get(
-            "/api/projects/nonexistent/members",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_list_members_not_found(self, async_test_client, async_test_db):
+        # list_project_members is async-lane (Depends(get_async_db)).
+        admin = await _make_admin(async_test_db)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get("/api/projects/nonexistent/members")
         assert resp.status_code == 404
 
 
@@ -434,25 +653,31 @@ class TestAssignmentEndpoints:
         )
         assert resp.status_code == 200
 
-    def test_list_assignments(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users, assignment_mode="manual")
+    @pytest.mark.asyncio
+    async def test_list_assignments(self, async_test_client, async_test_db):
+        # list_task_assignments is async-lane (Depends(get_async_db)). The
+        # assignment is seeded via the async session (the create endpoint is on
+        # the sync lane — direct write avoids a cross-lane HTTP call).
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(
+            async_test_db, admin, assignment_mode="manual"
+        )
         pid = data["project"].id
         tid = data["tasks"][0].id
 
-        # Create an assignment first
-        test_db.add(TaskAssignment(
-            id=str(uuid.uuid4()),
+        async_test_db.add(TaskAssignment(
+            id=_uid(),
             task_id=tid,
-            user_id=test_users[2].id,
-            assigned_by=test_users[0].id,
+            user_id=admin.id,
+            assigned_by=admin.id,
             status="assigned",
         ))
-        test_db.commit()
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/projects/{pid}/tasks/{tid}/assignments",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{pid}/tasks/{tid}/assignments"
+            )
         assert resp.status_code == 200
 
     def test_unassign_task(self, client, test_users, test_db, auth_headers):
@@ -520,51 +745,60 @@ class TestAnnotationEndpoints:
         )
         assert resp.status_code == 404
 
-    def test_list_annotations(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_list_annotations(self, async_test_client, async_test_db):
+        # list_task_annotations is async-lane (Depends(get_async_db)). The
+        # annotation is seeded via the async session (the create endpoint is on
+        # the sync lane). Default mode filters to the current user's own
+        # annotations, so seed completed_by=admin.
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(async_test_db, admin)
         pid = data["project"].id
         tid = data["tasks"][0].id
 
-        # Create an annotation
-        test_db.add(Annotation(
-            id=str(uuid.uuid4()),
+        async_test_db.add(Annotation(
+            id=_uid(),
             task_id=tid,
             project_id=pid,
             result=[{"from_name": "answer", "type": "textarea", "value": {"text": ["test"]}}],
-            completed_by=test_users[0].id,
+            completed_by=admin.id,
             was_cancelled=False,
         ))
-        test_db.commit()
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/projects/tasks/{tid}/annotations",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/tasks/{tid}/annotations"
+            )
         assert resp.status_code == 200
 
-    def test_update_annotation(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users)
+    @pytest.mark.asyncio
+    async def test_update_annotation(self, async_test_client, async_test_db):
+        # update_annotation is async-lane (Depends(get_async_db)). Seed the
+        # annotation via the async session, owned by the admin actor.
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(async_test_db, admin)
         pid = data["project"].id
         tid = data["tasks"][0].id
 
-        ann_id = str(uuid.uuid4())
-        test_db.add(Annotation(
+        ann_id = _uid()
+        async_test_db.add(Annotation(
             id=ann_id,
             task_id=tid,
             project_id=pid,
             result=[{"from_name": "answer", "type": "textarea", "value": {"text": ["old"]}}],
-            completed_by=test_users[0].id,
+            completed_by=admin.id,
             was_cancelled=False,
         ))
-        test_db.commit()
+        await async_test_db.commit()
 
-        resp = client.patch(
-            f"/api/projects/annotations/{ann_id}",
-            json={
-                "result": [{"from_name": "answer", "type": "textarea", "value": {"text": ["updated"]}}],
-            },
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/annotations/{ann_id}",
+                json={
+                    "result": [{"from_name": "answer", "type": "textarea", "value": {"text": ["updated"]}}],
+                },
+            )
         assert resp.status_code == 200
 
 
@@ -573,21 +807,34 @@ class TestAnnotationEndpoints:
 class TestQuestionnaireEndpoints:
     """Test questionnaire endpoints."""
 
-    def test_list_questionnaire_responses(self, client, test_users, test_db, auth_headers):
-        data = _setup_full_project(test_db, test_users, questionnaire_enabled=True)
+    @pytest.mark.asyncio
+    async def test_list_questionnaire_responses(self, async_test_client, async_test_db):
+        # list_questionnaire_responses is async-lane (require_project_access ->
+        # get_async_db). Superadmin satisfies the min_role="edit" requirement.
+        admin = await _make_admin(async_test_db)
+        data = await _seed_full_project_async(
+            async_test_db, admin, questionnaire_enabled=True
+        )
+        await async_test_db.commit()
         pid = data["project"].id
 
-        resp = client.get(
-            f"/api/projects/{pid}/questionnaire-responses",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{pid}/questionnaire-responses"
+            )
         assert resp.status_code == 200
 
-    def test_list_questionnaire_responses_not_found(self, client, test_users, test_db, auth_headers):
-        resp = client.get(
-            "/api/projects/nonexistent/questionnaire-responses",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_list_questionnaire_responses_not_found(
+        self, async_test_client, async_test_db
+    ):
+        # require_project_access (async-lane) 404s on a missing project.
+        admin = await _make_admin(async_test_db)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/projects/nonexistent/questionnaire-responses"
+            )
         assert resp.status_code == 404
 
 

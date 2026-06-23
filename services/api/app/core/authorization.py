@@ -9,6 +9,8 @@ from functools import wraps
 from typing import Callable, List, Optional
 
 from fastapi import Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from auth_module import User, require_user
@@ -80,6 +82,100 @@ class AuthorizationService:
         if db_user and db_user.organization_memberships:
             return db_user.organization_memberships
         return []
+
+    async def _get_user_org_memberships_async(self, user, db: AsyncSession):
+        """Async twin of :meth:`_get_user_org_memberships`.
+
+        Same shape: returns the user's org memberships, reading from the
+        Pydantic ``organizations`` proxy when present or eager-loading the DB
+        memberships via the async helper otherwise.
+        """
+        if hasattr(user, 'organization_memberships') and user.organization_memberships != None:  # noqa: E711
+            return user.organization_memberships
+
+        from routers.projects.helpers import get_user_with_memberships_async
+
+        db_user = await get_user_with_memberships_async(db, str(user.id))
+        if db_user and db_user.organization_memberships:
+            return db_user.organization_memberships
+        return []
+
+    def _decide_project_access(
+        self,
+        user: User,
+        project: Project,
+        permission: "Permission",
+        org_context: Optional[str],
+        project_org_ids: List[str],
+        memberships,
+    ) -> bool:
+        """Pure access decision shared by the sync/async entry points.
+
+        Takes already-loaded data (project org ids + the user's memberships) so
+        both lanes run byte-identical decision logic; only the two reads differ
+        between sync and async.
+        """
+        # Superadmins have all permissions
+        if user.is_superadmin:
+            return True
+
+        # Public projects: dedicated path that ignores org_context.
+        if getattr(project, 'is_public', False) is True:
+            if user.id == project.created_by:
+                return self._check_org_role_permission("ORG_ADMIN", permission)
+            if permission in (
+                Permission.PROJECT_EDIT,
+                Permission.PROJECT_DELETE,
+                Permission.PROJECT_CREATE,
+            ):
+                return False
+            public_role = getattr(project, 'public_role', None)
+            if public_role:
+                return self._check_org_role_permission(public_role, permission)
+            return False
+
+        # Context-aware mode
+        if org_context is not None:
+            if org_context == "private":
+                if not getattr(project, 'is_private', False):
+                    return False
+                return user.id == project.created_by
+
+            if org_context not in project_org_ids:
+                return False
+
+            membership = next(
+                (m for m in memberships if m.organization_id == org_context and m.is_active),
+                None,
+            )
+            if not membership:
+                return False
+            return self._check_org_role_permission(membership.role, permission)
+
+        # Legacy mode (org_context=None): backward compatibility
+        if getattr(project, 'is_private', False):
+            return user.id == project.created_by
+
+        if user.id == project.created_by:
+            if permission in [
+                Permission.PROJECT_VIEW,
+                Permission.PROJECT_EDIT,
+                Permission.PROJECT_DELETE,
+            ]:
+                return True
+
+        if project_org_ids:
+            user_org_ids = [m.organization_id for m in memberships]
+            for org_id in project_org_ids:
+                if org_id in user_org_ids:
+                    membership = next(
+                        (m for m in memberships if m.organization_id == org_id),
+                        None,
+                    )
+                    if membership:
+                        return self._check_org_role_permission(membership.role, permission)
+
+        return False
 
     def check_project_access(
         self,
@@ -193,6 +289,39 @@ class AuthorizationService:
                         return self._check_org_role_permission(membership.role, permission)
 
         return False
+
+    async def check_project_access_async(
+        self,
+        user: User,
+        project: Project,
+        permission: "Permission",
+        db: AsyncSession,
+        org_context: "Optional[str]" = None,
+    ) -> bool:
+        """Async twin of :meth:`check_project_access`.
+
+        Resolves the same two reads (project org ids + the user's memberships)
+        through the async engine, then defers to the shared pure decision
+        helper so the access semantics are identical to the sync path.
+        """
+        # Fast paths that need no DB read mirror the sync ordering; the shared
+        # decider also short-circuits these, but resolving them first avoids
+        # two needless round-trips for superadmins / public-creator / private.
+        if user.is_superadmin:
+            return True
+
+        from project_models import ProjectOrganization
+
+        org_result = await db.execute(
+            select(ProjectOrganization.organization_id).where(
+                ProjectOrganization.project_id == project.id
+            )
+        )
+        project_org_ids = list(org_result.scalars().all())
+        memberships = await self._get_user_org_memberships_async(user, db)
+        return self._decide_project_access(
+            user, project, permission, org_context, project_org_ids, memberships
+        )
 
     def check_organization_access(
         self, user: User, organization_id: str, permission: Permission, db: Session

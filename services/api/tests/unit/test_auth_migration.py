@@ -52,7 +52,7 @@ class TestAuthMigration:
         with pytest.raises(jwt.ExpiredSignatureError):
             jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
-    @patch("user_service.get_user_by_id")
+    @patch("auth_module.user_service.get_user_by_id")
     def test_verify_token_success(self, mock_get_user):
         """Test successful token verification"""
         # Mock user
@@ -83,7 +83,7 @@ class TestAuthMigration:
         assert payload["sub"] == "test_user_id"
         assert isinstance(payload, dict)
 
-    @patch("user_service.get_user_by_id")
+    @patch("auth_module.user_service.get_user_by_id")
     def test_verify_token_invalid(self, mock_get_user):
         """Test invalid token verification"""
         # Mock credentials with invalid token

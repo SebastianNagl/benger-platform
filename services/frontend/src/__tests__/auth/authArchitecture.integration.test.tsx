@@ -25,23 +25,40 @@ const mockOrganizations = [
   { id: 'org-2', name: 'Research Group', role: 'contributor' },
 ]
 
-// Mock ApiClient
-jest.mock('@/lib/api', () => ({
-  __esModule: true,
-  default: {
-    setOrganizationContextProvider: jest.fn(),
-    setAuthFailureHandler: jest.fn(),
-    clearCache: jest.fn(),
-  },
-  ApiClient: jest.fn().mockImplementation(() => ({
-    getUser: jest.fn(),
-    getOrganizations: jest.fn(),
+// Mock ApiClient. AuthContext was migrated to the createApiClient(config)
+// factory (instead of the module singleton), so the mock must export
+// createApiClient too — it builds the client AuthProvider uses in a useMemo, and
+// an undefined factory throws before any effect runs. Both ApiClient (used as
+// `new ApiClient()` below) and createApiClient yield the same fully-stubbed
+// client whose async methods resolve to safe empties so the mount flow
+// completes without error.
+jest.mock('@/lib/api', () => {
+  const makeClient = () => ({
+    getUser: jest.fn().mockResolvedValue(null),
+    getUserContexts: jest
+      .fn()
+      .mockResolvedValue({ user: null, organizations: [] }),
+    getOrganizations: jest.fn().mockResolvedValue([]),
+    getMandatoryProfileStatus: jest.fn().mockResolvedValue({ required: false }),
+    login: jest.fn().mockResolvedValue({}),
+    logout: jest.fn().mockResolvedValue(undefined),
+    signup: jest.fn().mockResolvedValue({}),
     clearCache: jest.fn(),
     clearUserCache: jest.fn(),
     setOrganizationContextProvider: jest.fn(),
     setAuthFailureHandler: jest.fn(),
-  })),
-}))
+  })
+  return {
+    __esModule: true,
+    default: {
+      setOrganizationContextProvider: jest.fn(),
+      setAuthFailureHandler: jest.fn(),
+      clearCache: jest.fn(),
+    },
+    ApiClient: jest.fn().mockImplementation(makeClient),
+    createApiClient: jest.fn(makeClient),
+  }
+})
 
 // Mock dev auth helper (simplified - auto-login moved to layout.tsx inline script)
 jest.mock('@/lib/auth/devAuthHelper', () => ({

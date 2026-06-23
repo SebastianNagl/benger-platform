@@ -440,12 +440,16 @@ endif
 .PHONY: test-workers
 test-workers: ## Run worker tests only (use GREP="pattern" to filter, FILE="path" to target file)
 	@echo "$(BLUE)⚙️  Running worker tests...$(NC)"
+# NB: the FILE=/GREP= branches override the compose default command, so they
+# must re-do its runtime `pip install -r requirements-test.txt` (hypothesis,
+# mutmut, …) — otherwise targeted runs that touch the property/mutation suites
+# ERROR on collection while the full `make test-workers` (compose default) passes.
 ifdef GREP
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-workers-runner \
-		"pytest $(if $(FILE),$(FILE),tests/) -v --tb=short --maxfail=10 --timeout=120 --cov=. --cov-branch --cov-report=term --cov-fail-under=60 -k '$(GREP)'"
+		"pip install -q -r requirements-test.txt && pytest $(if $(FILE),$(FILE),tests/) -v --tb=short --maxfail=10 --timeout=120 --cov=. --cov-branch --cov-report=term --cov-fail-under=60 -k '$(GREP)'"
 else ifdef FILE
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-workers-runner \
-		"pytest $(FILE) -v --tb=short --maxfail=10 --timeout=120 --cov=. --cov-branch --cov-report=term --cov-fail-under=60"
+		"pip install -q -r requirements-test.txt && pytest $(FILE) -v --tb=short --maxfail=10 --timeout=120 --cov=. --cov-branch --cov-report=term --cov-fail-under=60"
 else
 	@$(DOCKER_COMPOSE_TEST) --profile test run --rm test-workers-runner
 endif

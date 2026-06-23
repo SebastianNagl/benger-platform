@@ -8,7 +8,7 @@ import type { HistorySeries, ImmediateEvaluationData } from './evaluation-types'
 import {
   AddPromptsResponse,
   AnnotationStatistics,
-  EvaluationResult,
+  EvaluationResultSummary,
   EvaluationType,
   HumanEvaluationConfigCreate,
   HumanEvaluationConfigResponse,
@@ -37,7 +37,7 @@ export class EvaluationsClient extends BaseApiClient {
     return this.request('/dashboard/stats')
   }
 
-  async getEvaluations(): Promise<EvaluationResult[]> {
+  async getEvaluations(): Promise<EvaluationResultSummary[]> {
     return this.request('/evaluations')
   }
 
@@ -51,8 +51,8 @@ export class EvaluationsClient extends BaseApiClient {
   }
 
   /**
-   * Fetch the EvaluationResult for a single evaluation row (drill-down page).
-   * Backed by `/api/evaluations/run/results/{id}` — includes evaluation_configs,
+   * Fetch the SampleEvaluationResult for a single evaluation row (drill-down
+   * page). Backed by `/api/evaluations/run/results/{id}` — includes evaluation_configs,
    * results_by_config, aggregated_metrics, eval_metadata (with judges_by_config
    * for the multi-run/multi-judge feature, migration 042).
    */

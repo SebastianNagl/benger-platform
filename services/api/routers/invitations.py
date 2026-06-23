@@ -11,10 +11,13 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status  # noqa: E402
 from pydantic import BaseModel, EmailStr, TypeAdapter, ValidationError  # noqa: E402
+from sqlalchemy import select  # noqa: E402
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
+from app.core.config import get_settings  # noqa: E402
 from auth_module import require_user  # noqa: E402
-from database import get_db  # noqa: E402
+from database import get_async_db, get_db  # noqa: E402
 from models import Invitation, Organization, OrganizationMembership, OrganizationRole, User  # noqa: E402
 from notification_service import (  # noqa: E402
     notify_organization_invitation_accepted,
@@ -106,7 +109,17 @@ async def create_invitation(
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
-    """Create and send an organization invitation (org admin or superadmin only)"""
+    """Create and send an organization invitation (org admin or superadmin only).
+
+    Stays on the SYNC DB lane: this handler calls
+    ``can_manage_organization`` (sync, organizations domain) and
+    ``notify_organization_invitation_sent`` (sync, ``shared/mailer`` — an
+    excluded module that takes a sync ``Session`` and writes notification
+    rows). Neither can accept an ``AsyncSession``, so converting this handler
+    would require touching out-of-scope code. See the AUTH-domain migration
+    notes — the read-only/notification-free invitation endpoints (list,
+    validate, get-by-token, cancel) are on the async lane.
+    """
 
     # Check if organization exists
     organization = db.query(Organization).filter(Organization.id == organization_id).first()
@@ -172,9 +185,7 @@ async def create_invitation(
     db.refresh(invitation)
 
     # Queue invitation email via Celery
-    import os
-
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    frontend_url = get_settings().frontend_url
     invitation_url = f"{frontend_url}/accept-invitation/{invitation.token}"
 
     try:
@@ -338,9 +349,7 @@ async def create_bulk_invitations(
         for invitation in created:
             db.refresh(invitation)
 
-        import os
-
-        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        frontend_url = get_settings().frontend_url
         payload = [
             {
                 "invitation_id": inv.id,
@@ -401,22 +410,22 @@ async def list_organization_invitations(
     organization_id: str,
     include_expired: bool = False,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """List organization invitations (org admin or superadmin only)"""
 
     # Check permissions
     if not current_user.is_superadmin:
         membership = (
-            db.query(OrganizationMembership)
-            .filter(
-                OrganizationMembership.user_id == current_user.id,
-                OrganizationMembership.organization_id == organization_id,
-                OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                OrganizationMembership.is_active == True,  # noqa: E712
+            await db.execute(
+                select(OrganizationMembership).where(
+                    OrganizationMembership.user_id == current_user.id,
+                    OrganizationMembership.organization_id == organization_id,
+                    OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
+                    OrganizationMembership.is_active == True,  # noqa: E712
+                )
             )
-            .first()
-        )
+        ).scalar_one_or_none()
         if not membership:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -424,18 +433,18 @@ async def list_organization_invitations(
             )
 
     # Build query
-    query = (
-        db.query(Invitation, Organization, User)
+    stmt = (
+        select(Invitation, Organization, User)
         .join(Organization, Invitation.organization_id == Organization.id)
         .join(User, Invitation.invited_by == User.id)
-        .filter(Invitation.organization_id == organization_id)
-        .filter(Invitation.accepted == False)  # Only show pending invitations  # noqa: E712
+        .where(Invitation.organization_id == organization_id)
+        .where(Invitation.accepted == False)  # Only show pending invitations  # noqa: E712
     )
 
     if not include_expired:
-        query = query.filter(Invitation.expires_at > datetime.now(timezone.utc))
+        stmt = stmt.where(Invitation.expires_at > datetime.now(timezone.utc))
 
-    invitations = query.all()
+    invitations = (await db.execute(stmt)).all()
 
     result = []
     for invitation, organization, inviter in invitations:
@@ -461,16 +470,17 @@ class InvitationValidationResponse(BaseModel):
 
 
 @router.get("/validate/{token}", response_model=InvitationValidationResponse)
-async def validate_invitation_token(token: str, db: Session = Depends(get_db)):
+async def validate_invitation_token(token: str, db: AsyncSession = Depends(get_async_db)):
     """Validate invitation token for registration flow (public endpoint)"""
 
     invitation = (
-        db.query(Invitation, Organization, User)
-        .join(Organization, Invitation.organization_id == Organization.id)
-        .join(User, Invitation.invited_by == User.id)
-        .filter(Invitation.token == token)
-        .first()
-    )
+        await db.execute(
+            select(Invitation, Organization, User)
+            .join(Organization, Invitation.organization_id == Organization.id)
+            .join(User, Invitation.invited_by == User.id)
+            .where(Invitation.token == token)
+        )
+    ).first()
 
     if not invitation:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")
@@ -503,16 +513,17 @@ async def validate_invitation_token(token: str, db: Session = Depends(get_db)):
 
 
 @router.get("/token/{token}", response_model=InvitationResponse)
-async def get_invitation_by_token(token: str, db: Session = Depends(get_db)):
+async def get_invitation_by_token(token: str, db: AsyncSession = Depends(get_async_db)):
     """Get invitation details by token (public endpoint for invitation acceptance)"""
 
     invitation = (
-        db.query(Invitation, Organization, User)
-        .join(Organization, Invitation.organization_id == Organization.id)
-        .join(User, Invitation.invited_by == User.id)
-        .filter(Invitation.token == token)
-        .first()
-    )
+        await db.execute(
+            select(Invitation, Organization, User)
+            .join(Organization, Invitation.organization_id == Organization.id)
+            .join(User, Invitation.invited_by == User.id)
+            .where(Invitation.token == token)
+        )
+    ).first()
 
     if not invitation:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")
@@ -645,26 +656,28 @@ async def accept_invitation(
 async def cancel_invitation(
     invitation_id: str,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Cancel an invitation (org admin or superadmin only)"""
 
-    invitation = db.query(Invitation).filter(Invitation.id == invitation_id).first()
+    invitation = (
+        await db.execute(select(Invitation).where(Invitation.id == invitation_id))
+    ).scalar_one_or_none()
     if not invitation:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")
 
     # Check permissions
     if not current_user.is_superadmin:
         membership = (
-            db.query(OrganizationMembership)
-            .filter(
-                OrganizationMembership.user_id == current_user.id,
-                OrganizationMembership.organization_id == invitation.organization_id,
-                OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                OrganizationMembership.is_active == True,  # noqa: E712
+            await db.execute(
+                select(OrganizationMembership).where(
+                    OrganizationMembership.user_id == current_user.id,
+                    OrganizationMembership.organization_id == invitation.organization_id,
+                    OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
+                    OrganizationMembership.is_active == True,  # noqa: E712
+                )
             )
-            .first()
-        )
+        ).scalar_one_or_none()
         if not membership and invitation.invited_by != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -672,7 +685,7 @@ async def cancel_invitation(
             )
 
     # Delete the invitation
-    db.delete(invitation)
-    db.commit()
+    await db.delete(invitation)
+    await db.commit()
 
     return {"message": "Invitation cancelled successfully"}

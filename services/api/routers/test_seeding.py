@@ -9,22 +9,24 @@ IMPORTANT: These endpoints should only be available in test environments.
 
 import json
 import logging
-import os
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy import delete as sa_delete
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from auth_module import User, require_superadmin
-from database import get_db
+from database import get_async_db
 
 logger = logging.getLogger(__name__)
 
 # Only enable in test environment
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+ENVIRONMENT = get_settings().environment
 TEST_SEEDING_ENABLED = ENVIRONMENT in ("test", "development", "e2e")
 
 router = APIRouter(prefix="/api/test", tags=["test-seeding"])
@@ -148,7 +150,7 @@ def _build_span_annotation(spans_data: list, from_name: str, to_name: str) -> di
 async def seed_mock_generations(
     request: MockGenerationsRequest,
     current_user: User = Depends(require_superadmin),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Seed mock generation data for E2E testing.
@@ -163,7 +165,9 @@ async def seed_mock_generations(
         from project_models import Project, Task
 
         # Verify project exists
-        project = db.query(Project).filter(Project.id == request.project_id).first()
+        project = (
+            await db.execute(select(Project).where(Project.id == request.project_id))
+        ).scalar_one_or_none()
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -209,7 +213,9 @@ async def seed_mock_generations(
                 output = gen_data.get("output", "")
 
                 # Verify task exists
-                task = db.query(Task).filter(Task.id == task_id).first()
+                task = (
+                    await db.execute(select(Task).where(Task.id == task_id))
+                ).scalar_one_or_none()
                 if not task:
                     logger.warning(f"Task {task_id} not found, skipping generation")
                     continue
@@ -240,7 +246,7 @@ async def seed_mock_generations(
             response_gen.runs_requested = run_index
             response_gen.runs_completed = run_index
 
-        db.commit()
+        await db.commit()
 
         return SeedResponse(
             success=True,
@@ -252,7 +258,7 @@ async def seed_mock_generations(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"Error seeding generations: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -264,7 +270,7 @@ async def seed_mock_generations(
 async def seed_mock_annotations(
     request: MockAnnotationsRequest,
     current_user: User = Depends(require_superadmin),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Seed mock annotation data for E2E testing.
@@ -278,7 +284,9 @@ async def seed_mock_annotations(
         from project_models import Annotation, Project, Task
 
         # Verify project exists
-        project = db.query(Project).filter(Project.id == request.project_id).first()
+        project = (
+            await db.execute(select(Project).where(Project.id == request.project_id))
+        ).scalar_one_or_none()
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -296,7 +304,9 @@ async def seed_mock_annotations(
             annotator_username = ann_data.get("annotator_username")
 
             # Verify task exists
-            task = db.query(Task).filter(Task.id == task_id).first()
+            task = (
+                await db.execute(select(Task).where(Task.id == task_id))
+            ).scalar_one_or_none()
             if not task:
                 logger.warning(f"Task {task_id} not found, skipping annotation")
                 continue
@@ -306,7 +316,11 @@ async def seed_mock_annotations(
                 if annotator_username not in user_cache:
                     # Import User model from models (not auth_module)
                     from models import User as UserModel
-                    annotator = db.query(UserModel).filter(UserModel.username == annotator_username).first()
+                    annotator = (
+                        await db.execute(
+                            select(UserModel).where(UserModel.username == annotator_username)
+                        )
+                    ).scalar_one_or_none()
                     if annotator:
                         user_cache[annotator_username] = annotator.id
                     else:
@@ -334,7 +348,7 @@ async def seed_mock_annotations(
             if result and len(result) > 0:
                 task.is_labeled = True
 
-        db.commit()
+        await db.commit()
 
         return SeedResponse(
             success=True,
@@ -346,7 +360,7 @@ async def seed_mock_annotations(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"Error seeding annotations: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -358,7 +372,7 @@ async def seed_mock_annotations(
 async def seed_mock_evaluation(
     request: MockEvaluationRequest,
     current_user: User = Depends(require_superadmin),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Seed mock evaluation data with sample results for E2E testing.
@@ -373,7 +387,9 @@ async def seed_mock_evaluation(
         from project_models import Project
 
         # Verify project exists
-        project = db.query(Project).filter(Project.id == request.project_id).first()
+        project = (
+            await db.execute(select(Project).where(Project.id == request.project_id))
+        ).scalar_one_or_none()
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -385,7 +401,9 @@ async def seed_mock_evaluation(
         for result_data in request.results:
             generation_id = result_data.get("generation_id")
             # Get generation to find model_id
-            generation = db.query(Generation).filter(Generation.id == generation_id).first()
+            generation = (
+                await db.execute(select(Generation).where(Generation.id == generation_id))
+            ).scalar_one_or_none()
             if not generation:
                 logger.warning(f"Generation {generation_id} not found, skipping result")
                 continue
@@ -459,7 +477,7 @@ async def seed_mock_evaluation(
                 db.add(sample_result)
                 created_count += 1
 
-        db.commit()
+        await db.commit()
 
         return SeedResponse(
             success=True,
@@ -471,7 +489,7 @@ async def seed_mock_evaluation(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"Error seeding evaluation: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -483,7 +501,7 @@ async def seed_mock_evaluation(
 async def cleanup_test_project(
     project_id: str,
     current_user: User = Depends(require_superadmin),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Clean up a test project and all its data.
@@ -498,7 +516,9 @@ async def cleanup_test_project(
         from project_models import Annotation, Project, Task
 
         # Verify project exists
-        project = db.query(Project).filter(Project.id == project_id).first()
+        project = (
+            await db.execute(select(Project).where(Project.id == project_id))
+        ).scalar_one_or_none()
         if not project:
             return SeedResponse(
                 success=True,
@@ -508,54 +528,83 @@ async def cleanup_test_project(
             )
 
         # Get task IDs for this project
-        task_ids = [t.id for t in db.query(Task.id).filter(Task.project_id == project_id).all()]
+        task_ids = [
+            row[0]
+            for row in (
+                await db.execute(select(Task.id).where(Task.project_id == project_id))
+            ).all()
+        ]
 
         deleted_count = 0
 
         # Delete evaluation sample results
         if task_ids:
-            deleted = db.query(EvaluationSampleResult).filter(
-                EvaluationSampleResult.task_id.in_(task_ids)
-            ).delete(synchronize_session=False)
+            deleted = (
+                await db.execute(
+                    sa_delete(EvaluationSampleResult)
+                    .where(EvaluationSampleResult.task_id.in_(task_ids))
+                    .execution_options(synchronize_session=False)
+                )
+            ).rowcount
             deleted_count += deleted
 
         # Delete evaluations
-        deleted = db.query(Evaluation).filter(
-            Evaluation.project_id == project_id
-        ).delete(synchronize_session=False)
+        deleted = (
+            await db.execute(
+                sa_delete(Evaluation)
+                .where(Evaluation.project_id == project_id)
+                .execution_options(synchronize_session=False)
+            )
+        ).rowcount
         deleted_count += deleted
 
         # Delete generations
         if task_ids:
-            deleted = db.query(Generation).filter(
-                Generation.task_id.in_(task_ids)
-            ).delete(synchronize_session=False)
+            deleted = (
+                await db.execute(
+                    sa_delete(Generation)
+                    .where(Generation.task_id.in_(task_ids))
+                    .execution_options(synchronize_session=False)
+                )
+            ).rowcount
             deleted_count += deleted
 
         # Delete response generations
-        deleted = db.query(ResponseGeneration).filter(
-            ResponseGeneration.project_id == project_id
-        ).delete(synchronize_session=False)
+        deleted = (
+            await db.execute(
+                sa_delete(ResponseGeneration)
+                .where(ResponseGeneration.project_id == project_id)
+                .execution_options(synchronize_session=False)
+            )
+        ).rowcount
         deleted_count += deleted
 
         # Delete annotations
         if task_ids:
-            deleted = db.query(Annotation).filter(
-                Annotation.task_id.in_(task_ids)
-            ).delete(synchronize_session=False)
+            deleted = (
+                await db.execute(
+                    sa_delete(Annotation)
+                    .where(Annotation.task_id.in_(task_ids))
+                    .execution_options(synchronize_session=False)
+                )
+            ).rowcount
             deleted_count += deleted
 
         # Delete tasks
-        deleted = db.query(Task).filter(
-            Task.project_id == project_id
-        ).delete(synchronize_session=False)
+        deleted = (
+            await db.execute(
+                sa_delete(Task)
+                .where(Task.project_id == project_id)
+                .execution_options(synchronize_session=False)
+            )
+        ).rowcount
         deleted_count += deleted
 
         # Delete project
-        db.delete(project)
+        await db.delete(project)
         deleted_count += 1
 
-        db.commit()
+        await db.commit()
 
         return SeedResponse(
             success=True,
@@ -565,7 +614,7 @@ async def cleanup_test_project(
         )
 
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"Error cleaning up project: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -576,7 +625,7 @@ async def cleanup_test_project(
 @router.post("/force-profile-overdue")
 async def force_profile_overdue(
     current_user: User = Depends(require_superadmin),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Force the current user's profile_confirmed_at to a past date so
@@ -587,7 +636,9 @@ async def force_profile_overdue(
     try:
         from models import User as UserModel
 
-        db_user = db.query(UserModel).filter(UserModel.id == current_user.id).first()
+        db_user = (
+            await db.execute(select(UserModel).where(UserModel.id == current_user.id))
+        ).scalar_one_or_none()
         if not db_user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -595,15 +646,15 @@ async def force_profile_overdue(
             )
 
         db_user.profile_confirmed_at = datetime(2020, 1, 1)
-        db.commit()
-        db.refresh(db_user)
+        await db.commit()
+        await db.refresh(db_user)
 
         return {
             "success": True,
             "profile_confirmed_at": str(db_user.profile_confirmed_at),
         }
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         logger.error(f"Error forcing profile overdue: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

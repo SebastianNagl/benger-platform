@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
-import apiClient from '@/lib/api'
+import { useOptionalApiClient } from '@/contexts/ApiClientContext'
+import apiClientSingleton from '@/lib/api'
 
 export interface CostEstimatePanelProps {
   projectId: string
@@ -101,6 +102,11 @@ export function CostEstimatePanel({
 }: CostEstimatePanelProps) {
   const { t } = useI18n()
   const { addToast } = useToast()
+  // Prefer the org-wired client threaded via AuthProvider; fall back to the
+  // global singleton when rendered outside the authenticated tree (e.g. in
+  // isolated unit tests). Behavior is identical — both carry org context.
+  const contextClient = useOptionalApiClient()
+  const apiClient = contextClient ?? apiClientSingleton
   const [loading, setLoading] = useState(false)
   const [estimate, setEstimate] = useState<CostEstimateResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -144,6 +150,7 @@ export function CostEstimatePanel({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    apiClient,
     enabled,
     projectId,
     mode,

@@ -19,11 +19,16 @@ status + response JSON, and verifies persisted DB state via ``test_db``.
 """
 
 import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from typing import List
 
 import pytest
 from sqlalchemy.orm import Session
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
 from models import Notification, User
 from project_models import (
     Project,
@@ -32,6 +37,49 @@ from project_models import (
     Task,
     TaskAssignment,
 )
+
+
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user: User):
+    """Override ``require_user`` to return an auth User matching the seeded DB
+    user. The migrated ``list_task_assignments`` handler runs on the async DB
+    lane, so it authenticates via this override rather than the sync
+    token-based auth (which can't see the async test transaction)."""
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_user(db, *, is_superadmin=True):
+    u = User(
+        id=_uid(),
+        username=f"asg-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Assign User",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
 
 
 @pytest.fixture(scope="function")
@@ -308,103 +356,147 @@ class TestAssignDistributionPersistence:
 
 @pytest.mark.integration
 class TestListAssignments:
-    def test_task_not_in_project_returns_404(
-        self, client, auth_headers, assignment_project
-    ):
-        p = assignment_project
-        missing_task = str(uuid.uuid4())
-        resp = client.get(
-            f"/api/projects/{p['project'].id}/tasks/{missing_task}/assignments",
-            headers=auth_headers["admin"],
+    """``list_task_assignments`` was migrated to the async DB lane
+    (``Depends(get_async_db)``), so these seed via ``async_test_db`` and drive
+    the endpoint through ``async_test_client``, with ``require_user`` overridden
+    per-test via ``_as_user``."""
+
+    async def _seed_project_with_task(self, db, owner_id):
+        project = Project(
+            id=_uid(),
+            title="Branch Coverage Assignment Project",
+            description="Project for assignment branch coverage",
+            label_config='<View><Text name="text" value="$text"/></View>',
+            created_by=owner_id,
+            is_published=True,
+            assignment_mode="manual",
         )
+        db.add(project)
+        await db.flush()
+        task = Task(
+            id=_uid(),
+            project_id=project.id,
+            inner_id=1,
+            data={"text": "Branch task unique-term-0"},
+            created_by=owner_id,
+            updated_by=owner_id,
+        )
+        db.add(task)
+        await db.flush()
+        return project, task
+
+    @pytest.mark.asyncio
+    async def test_task_not_in_project_returns_404(
+        self, async_test_client, async_test_db
+    ):
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project, _task = await self._seed_project_with_task(async_test_db, admin.id)
+        await async_test_db.commit()
+
+        missing_task = _uid()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{project.id}/tasks/{missing_task}/assignments",
+            )
         assert resp.status_code == 404
         assert "Task not found" in resp.json()["detail"]
 
-    def test_access_denied_for_outsider_returns_403(
-        self, client, auth_headers, test_db, test_users
+    @pytest.mark.asyncio
+    async def test_access_denied_for_outsider_returns_403(
+        self, async_test_client, async_test_db
     ):
-        """Annotator who is not a member of the project's org gets 403 from the
-        check_project_accessible gate (org context forces context-aware check)."""
-        # Separate org the test_users do NOT belong to.
+        """A non-superadmin, non-member outsider gets 403 from the real async
+        ``check_project_accessible_async`` gate. The project belongs to a
+        DIFFERENT owner and an org the outsider is NOT a member of."""
         from models import Organization
 
+        owner = await _make_user(async_test_db, is_superadmin=False)
+        # Separate org the outsider does NOT belong to.
         other_org = Organization(
-            id=str(uuid.uuid4()),
+            id=_uid(),
             name="Outsider Org",
-            slug="outsider-org",
+            slug=f"outsider-org-{_uid()[:8]}",
             display_name="Outsider Org",
         )
-        test_db.add(other_org)
-        test_db.flush()
+        async_test_db.add(other_org)
+        await async_test_db.flush()
 
         project = Project(
-            id=str(uuid.uuid4()),
+            id=_uid(),
             title="Outsider Project",
-            created_by=test_users[0].id,
+            created_by=owner.id,
             is_published=True,
         )
-        test_db.add(project)
-        test_db.flush()
-        test_db.add(
+        async_test_db.add(project)
+        await async_test_db.flush()
+        async_test_db.add(
             ProjectOrganization(
-                id=str(uuid.uuid4()),
+                id=_uid(),
                 project_id=project.id,
                 organization_id=other_org.id,
-                assigned_by=test_users[0].id,
+                assigned_by=owner.id,
             )
         )
         task = Task(
-            id=str(uuid.uuid4()),
+            id=_uid(),
             project_id=project.id,
             inner_id=1,
             data={"text": "x"},
-            created_by=test_users[0].id,
+            created_by=owner.id,
         )
-        test_db.add(task)
-        test_db.commit()
+        async_test_db.add(task)
 
-        resp = client.get(
-            f"/api/projects/{project.id}/tasks/{task.id}/assignments",
-            headers={
-                **auth_headers["annotator"],
-                "X-Organization-Context": other_org.id,
-            },
-        )
+        # Real non-superadmin, non-member outsider.
+        outsider = await _make_user(async_test_db, is_superadmin=False)
+        await async_test_db.commit()
+
+        with _as_user(outsider):
+            resp = await async_test_client.get(
+                f"/api/projects/{project.id}/tasks/{task.id}/assignments",
+                headers={"X-Organization-Context": other_org.id},
+            )
         assert resp.status_code == 403
         assert resp.json()["detail"] == "Access denied"
 
-    def test_empty_assignments_returns_empty_list(
-        self, client, auth_headers, assignment_project
+    @pytest.mark.asyncio
+    async def test_empty_assignments_returns_empty_list(
+        self, async_test_client, async_test_db
     ):
-        p = assignment_project
-        resp = client.get(
-            f"/api/projects/{p['project'].id}/tasks/{p['tasks'][0].id}/assignments",
-            headers=auth_headers["admin"],
-        )
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project, task = await self._seed_project_with_task(async_test_db, admin.id)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{project.id}/tasks/{task.id}/assignments",
+            )
         assert resp.status_code == 200
         assert resp.json() == []
 
-    def test_list_enriches_with_user_name_and_email(
-        self, client, auth_headers, assignment_project, test_db
+    @pytest.mark.asyncio
+    async def test_list_enriches_with_user_name_and_email(
+        self, async_test_client, async_test_db
     ):
-        p = assignment_project
-        annotator = p["users"]["annotator"]
-        test_db.add(
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project, task = await self._seed_project_with_task(async_test_db, admin.id)
+        # Real assignee with name/email so the bulk user-fetch enriches them.
+        annotator = await _make_user(async_test_db, is_superadmin=False)
+        async_test_db.add(
             TaskAssignment(
-                id=str(uuid.uuid4()),
-                task_id=p["tasks"][0].id,
+                id=_uid(),
+                task_id=task.id,
                 user_id=annotator.id,
-                assigned_by=p["users"]["admin"].id,
+                assigned_by=admin.id,
                 status="assigned",
                 priority=3,
             )
         )
-        test_db.commit()
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/projects/{p['project'].id}/tasks/{p['tasks'][0].id}/assignments",
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{project.id}/tasks/{task.id}/assignments",
+            )
         assert resp.status_code == 200
         rows = resp.json()
         assert len(rows) == 1

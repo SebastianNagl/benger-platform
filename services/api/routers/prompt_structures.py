@@ -8,11 +8,12 @@ import re
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authorization import Permission, auth_service
 from auth_module import User, require_user
-from database import get_db
+from database import get_async_db
 from project_models import Project
 from project_schemas import PromptStructureCreate, PromptStructureResponse
 from routers.projects.helpers import get_org_context_from_request
@@ -42,11 +43,12 @@ def validate_structure_key(key: str) -> None:
         )
 
 
-def get_project_or_403(
-    project_id: str, current_user: User, db: Session, org_context: Optional[str] = None
+async def get_project_or_403(
+    project_id: str, current_user: User, db: AsyncSession, org_context: Optional[str] = None
 ) -> Project:
     """Get project and verify user has edit permissions"""
-    project = db.query(Project).filter(Project.id == project_id).first()
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
 
     if not project:
         raise HTTPException(
@@ -55,7 +57,7 @@ def get_project_or_403(
         )
 
     # Check edit permissions
-    if not auth_service.check_project_access(
+    if not await auth_service.check_project_access_async(
         current_user, project, Permission.PROJECT_EDIT, db, org_context=org_context
     ):
         raise HTTPException(
@@ -88,7 +90,7 @@ async def create_or_update_structure(
     structure: PromptStructureCreate,
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Create or update a prompt structure for a project.
@@ -98,7 +100,7 @@ async def create_or_update_structure(
     """
     validate_structure_key(key)
     org_context = get_org_context_from_request(request)
-    project = get_project_or_403(project_id, current_user, db, org_context=org_context)
+    project = await get_project_or_403(project_id, current_user, db, org_context=org_context)
     ensure_generation_config_structure(project)
 
     # Add or update the structure
@@ -109,8 +111,8 @@ async def create_or_update_structure(
 
     flag_modified(project, "generation_config")
 
-    db.commit()
-    db.refresh(project)
+    await db.commit()
+    await db.refresh(project)
 
     logger.info(
         f"User {current_user.id} created/updated prompt structure '{key}' "
@@ -129,7 +131,7 @@ async def delete_structure(
     key: str,
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Delete a prompt structure from a project.
@@ -138,7 +140,7 @@ async def delete_structure(
     """
     validate_structure_key(key)
     org_context = get_org_context_from_request(request)
-    project = get_project_or_403(project_id, current_user, db, org_context=org_context)
+    project = await get_project_or_403(project_id, current_user, db, org_context=org_context)
     ensure_generation_config_structure(project)
 
     # Check if structure exists
@@ -164,7 +166,7 @@ async def delete_structure(
 
     flag_modified(project, "generation_config")
 
-    db.commit()
+    await db.commit()
 
     logger.info(
         f"User {current_user.id} deleted prompt structure '{key}' from project {project_id}"
@@ -179,7 +181,7 @@ async def set_active_structures(
     structure_keys: List[str],
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Set the list of active prompt structures for a project.
@@ -187,7 +189,7 @@ async def set_active_structures(
     - **structure_keys**: List of structure keys to set as active
     """
     org_context = get_org_context_from_request(request)
-    project = get_project_or_403(project_id, current_user, db, org_context=org_context)
+    project = await get_project_or_403(project_id, current_user, db, org_context=org_context)
     ensure_generation_config_structure(project)
 
     # Validate all keys exist
@@ -208,7 +210,7 @@ async def set_active_structures(
 
     flag_modified(project, "generation_config")
 
-    db.commit()
+    await db.commit()
 
     logger.info(
         f"User {current_user.id} set active structures for project {project_id}: {structure_keys}"
@@ -225,14 +227,15 @@ async def list_structures(
     project_id: str,
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     List all prompt structures for a project.
 
     Returns a dictionary mapping structure keys to their definitions.
     """
-    project = db.query(Project).filter(Project.id == project_id).first()
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
 
     if not project:
         raise HTTPException(
@@ -242,7 +245,9 @@ async def list_structures(
 
     # Check read permissions (can view if can access project)
     org_context = get_org_context_from_request(request)
-    if not auth_service.check_project_access(current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context):
+    if not await auth_service.check_project_access_async(
+        current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to view this project",
@@ -269,7 +274,7 @@ async def get_structure(
     key: str,
     request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get a specific prompt structure by key.
@@ -278,7 +283,8 @@ async def get_structure(
     """
     validate_structure_key(key)
 
-    project = db.query(Project).filter(Project.id == project_id).first()
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
 
     if not project:
         raise HTTPException(
@@ -288,7 +294,9 @@ async def get_structure(
 
     # Check read permissions
     org_context = get_org_context_from_request(request)
-    if not auth_service.check_project_access(current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context):
+    if not await auth_service.check_project_access_async(
+        current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to view this project",

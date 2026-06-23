@@ -3,16 +3,76 @@ Unit tests for routers/feature_flags.py to increase branch coverage.
 Covers all feature flag CRUD and check endpoints.
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from main import app
 from auth_module.models import User
-from database import get_db
 from auth_module.dependencies import require_superadmin, require_user
+from database import get_db
+from models import FeatureFlag, User as DBUser
+
+
+@contextmanager
+def _as_admin(db_user):
+    """Override require_superadmin with a superadmin identity from a seeded DB row.
+
+    The list/get/delete handlers were migrated to the async DB lane, so they run
+    on the real ASGI/async-DB stack (async_test_client overrides get_async_db).
+    Overriding require_superadmin grants admin access without a mock get_db.
+    """
+    au = User(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=True,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_superadmin] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_superadmin, None)
+
+
+async def _seed_user(db):
+    u = DBUser(
+        id=str(uuid.uuid4()),
+        username=f"ff-{uuid.uuid4().hex[:8]}",
+        email=f"{uuid.uuid4().hex[:8]}@x.com",
+        name="FF",
+        hashed_password="x",
+        is_superadmin=True,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _seed_flag(db, creator, *, name=None, is_enabled=True):
+    f = FeatureFlag(
+        id=str(uuid.uuid4()),
+        name=name or f"flag-{uuid.uuid4().hex[:8]}",
+        is_enabled=is_enabled,
+        created_by=creator.id,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(f)
+    await db.flush()
+    return f
 
 
 def _make_admin(user_id="admin-123"):
@@ -55,48 +115,30 @@ def _mock_db():
 
 
 class TestListFeatureFlags:
-    def test_list_flags(self):
-        client = TestClient(app)
-        admin = _make_admin()
-        mock_db = _mock_db()
+    @pytest.mark.asyncio
+    async def test_list_flags(self, async_test_client, async_test_db):
+        # GET "" is on the async DB lane; drive it through async_test_client and
+        # seed a flag so the seeded id appears in the response list.
+        admin = await _seed_user(async_test_db)
+        flag = await _seed_flag(async_test_db, admin)
+        fid = flag.id
+        await async_test_db.commit()
 
-        flag = Mock()
-        flag.id = "f-1"
-        flag.name = "test_flag"
-        flag.description = "A test flag"
-        flag.is_enabled = True
-        flag.configuration = {}
-        flag.created_by = "admin"
-        flag.created_at = datetime.now(timezone.utc)
-        flag.updated_at = None
-        flag.scope = "global"
-        flag.applicable_organization_ids = None
-
-        mock_q = MagicMock()
-        mock_q.all.return_value = [flag]
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_superadmin] = lambda: admin
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/feature-flags")
+        with _as_admin(admin):
+            resp = await async_test_client.get("/api/feature-flags")
             assert resp.status_code == 200
-        finally:
-            app.dependency_overrides.clear()
+            assert fid in {row["id"] for row in resp.json()}
 
-    def test_list_flags_error(self):
-        client = TestClient(app)
-        admin = _make_admin()
-        mock_db = _mock_db()
-        mock_db.query.side_effect = Exception("DB error")
+    @pytest.mark.asyncio
+    async def test_list_flags_error(self, async_test_client, async_test_db):
+        # Force the async handler's select() to raise so the 500 branch is hit.
+        admin = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        app.dependency_overrides[require_superadmin] = lambda: admin
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/feature-flags")
-            assert resp.status_code == 500
-        finally:
-            app.dependency_overrides.clear()
+        with _as_admin(admin):
+            with patch("routers.feature_flags.select", side_effect=Exception("DB error")):
+                resp = await async_test_client.get("/api/feature-flags")
+                assert resp.status_code == 500
 
 
 class TestGetAllFeatureFlags:
@@ -134,61 +176,36 @@ class TestGetAllFeatureFlags:
 
 
 class TestGetFeatureFlag:
-    def test_flag_found(self):
-        client = TestClient(app)
-        admin = _make_admin()
-        mock_db = _mock_db()
+    @pytest.mark.asyncio
+    async def test_flag_found(self, async_test_client, async_test_db):
+        admin = await _seed_user(async_test_db)
+        flag = await _seed_flag(async_test_db, admin)
+        fid = flag.id
+        await async_test_db.commit()
 
-        flag = Mock()
-        flag.id = "f-1"
-        flag.name = "test_flag"
-        flag.description = "A test flag"
-        flag.is_enabled = True
-        flag.created_at = datetime.now(timezone.utc)
-        flag.updated_at = None
-        flag.scope = "global"
-        flag.applicable_organization_ids = None
-        flag.configuration = {}
-        flag.created_by = "admin"
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = flag
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_superadmin] = lambda: admin
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/feature-flags/f-1")
+        with _as_admin(admin):
+            resp = await async_test_client.get(f"/api/feature-flags/{fid}")
             assert resp.status_code == 200
-        finally:
-            app.dependency_overrides.clear()
+            assert resp.json()["id"] == fid
 
-    def test_flag_not_found(self):
-        client = TestClient(app)
-        admin = _make_admin()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_superadmin] = lambda: admin
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/feature-flags/nonexistent")
+    @pytest.mark.asyncio
+    async def test_flag_not_found(self, async_test_client, async_test_db):
+        admin = await _seed_user(async_test_db)
+        await async_test_db.commit()
+
+        with _as_admin(admin):
+            resp = await async_test_client.get(f"/api/feature-flags/{uuid.uuid4()}")
             assert resp.status_code == 404
-        finally:
-            app.dependency_overrides.clear()
 
-    def test_flag_error(self):
-        client = TestClient(app)
-        admin = _make_admin()
-        mock_db = _mock_db()
-        mock_db.query.side_effect = Exception("DB error")
+    @pytest.mark.asyncio
+    async def test_flag_error(self, async_test_client, async_test_db):
+        admin = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        app.dependency_overrides[require_superadmin] = lambda: admin
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.get("/api/feature-flags/f-1")
-            assert resp.status_code == 500
-        finally:
-            app.dependency_overrides.clear()
+        with _as_admin(admin):
+            with patch("routers.feature_flags.select", side_effect=Exception("DB error")):
+                resp = await async_test_client.get(f"/api/feature-flags/{uuid.uuid4()}")
+                assert resp.status_code == 500
 
 
 class TestUpdateFeatureFlag:
@@ -266,67 +283,51 @@ class TestUpdateFeatureFlag:
 
 
 class TestDeleteFeatureFlag:
-    def test_delete_not_found(self):
-        client = TestClient(app)
-        admin = _make_admin()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_superadmin] = lambda: admin
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            resp = client.delete("/api/feature-flags/nonexistent")
+    @pytest.mark.asyncio
+    async def test_delete_not_found(self, async_test_client, async_test_db):
+        admin = await _seed_user(async_test_db)
+        await async_test_db.commit()
+
+        with _as_admin(admin):
+            resp = await async_test_client.delete(f"/api/feature-flags/{uuid.uuid4()}")
             assert resp.status_code == 404
-        finally:
-            app.dependency_overrides.clear()
 
-    def test_delete_success(self):
-        client = TestClient(app)
-        admin = _make_admin()
-        mock_db = _mock_db()
+    @pytest.mark.asyncio
+    async def test_delete_success(self, async_test_client, async_test_db):
+        admin = await _seed_user(async_test_db)
+        flag = await _seed_flag(async_test_db, admin)
+        fid = flag.id
+        await async_test_db.commit()
 
-        flag = Mock()
-        flag.id = "f-1"
-        flag.name = "test_flag"
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = flag
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_superadmin] = lambda: admin
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.feature_flags.FeatureFlagService") as MockService:
-                mock_svc = Mock()
-                MockService.return_value = mock_svc
-                resp = client.delete("/api/feature-flags/f-1")
-                assert resp.status_code == 204
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_delete_error(self):
-        client = TestClient(app)
-        admin = _make_admin()
-        mock_db = _mock_db()
-
-        flag = Mock()
-        flag.id = "f-1"
-        flag.name = "test_flag"
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.first.return_value = flag
-        mock_db.query.return_value = mock_q
-        mock_db.delete.side_effect = Exception("DB error")
-
-        app.dependency_overrides[require_superadmin] = lambda: admin
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
+        with _as_admin(admin):
             with patch("routers.feature_flags.FeatureFlagService") as MockService:
                 MockService.return_value = Mock()
-                resp = client.delete("/api/feature-flags/f-1")
-                assert resp.status_code == 500
-        finally:
-            app.dependency_overrides.clear()
+                resp = await async_test_client.delete(f"/api/feature-flags/{fid}")
+                assert resp.status_code == 204
+
+        gone = (
+            await async_test_db.execute(
+                select(FeatureFlag)
+                .where(FeatureFlag.id == fid)
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
+        assert gone is None
+
+    @pytest.mark.asyncio
+    async def test_delete_error(self, async_test_client, async_test_db):
+        admin = await _seed_user(async_test_db)
+        flag = await _seed_flag(async_test_db, admin)
+        fid = flag.id
+        await async_test_db.commit()
+
+        with _as_admin(admin):
+            with patch("routers.feature_flags.FeatureFlagService"):
+                with patch(
+                    "routers.feature_flags.select", side_effect=Exception("DB error")
+                ):
+                    resp = await async_test_client.delete(f"/api/feature-flags/{fid}")
+                    assert resp.status_code == 500
 
 
 class TestCheckFeatureFlag:

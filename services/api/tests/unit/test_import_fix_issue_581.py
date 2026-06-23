@@ -123,7 +123,7 @@ class TestImportFix581:
         """#581 also removed a redundant in-function ResponseGeneration import."""
         import inspect
 
-        from projects_api import calculate_generation_stats
+        from routers.projects.helpers import calculate_generation_stats
 
         source = inspect.getsource(calculate_generation_stats)
         assert (

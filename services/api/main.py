@@ -99,7 +99,7 @@ async def lifespan(app: FastAPI):
         SessionLocal,
         initialize_task_types_and_evaluation_types,
     )
-    from websocket_clustering import cluster_manager
+    from services.websocket_clustering import cluster_manager
 
     is_reload = os.path.exists(_STARTUP_INIT_FLAG)
 
@@ -439,7 +439,11 @@ app.include_router(organizations_router)  # Organizations
 app.include_router(invitations_router)  # Invitations
 app.include_router(feature_flags_router)  # Feature flags
 app.include_router(notifications_router)  # Notifications
-app.include_router(debug_router)  # Debug endpoints
+# Legacy /api/debug router: gated so it is not exposed in production by default.
+# Mounted when ENABLE_DEBUG_ROUTES is truthy, or (unset) in any non-production
+# environment — preserving the historical dev/test behaviour.
+if get_settings().debug_routes_enabled:
+    app.include_router(debug_router)  # Debug endpoints
 app.include_router(api_key_router)  # API key management
 from routers.llm_models_admin import router as llm_models_admin_router  # noqa: E402
 app.include_router(llm_models_admin_router)  # Superadmin: reseed/inspect llm catalog

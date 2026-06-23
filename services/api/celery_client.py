@@ -9,7 +9,6 @@ Celery() instances. This ensures:
 """
 
 import logging
-import os
 import threading
 
 from celery import Celery
@@ -24,8 +23,8 @@ def _create_celery_app() -> Celery:
     from app.core.config import get_settings
 
     settings = get_settings()
-    broker_url = os.getenv("CELERY_BROKER_URL", settings.redis_url)
-    backend_url = os.getenv("CELERY_RESULT_BACKEND", settings.redis_url)
+    broker_url = settings.celery_broker
+    backend_url = settings.celery_backend
 
     app = Celery("tasks", broker=broker_url, backend=backend_url)
     app.conf.broker_connection_retry_on_startup = True

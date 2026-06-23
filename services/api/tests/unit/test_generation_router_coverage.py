@@ -1,82 +1,115 @@
 """
 Unit tests for routers/generation.py — covers endpoint access control and logic.
+
+The generation router was migrated to the async DB lane
+(``Depends(get_async_db)``), so these tests drive the migrated endpoints
+through ``async_test_client`` + ``async_test_db`` (the sync ``db.query``-Mock
+form can no longer reach a handler that does ``await db.execute(select(...))``).
+
+Targets the 404-unknown-id guard branch of each of the six generation
+mutation/status endpoints.
 """
 
-from unittest.mock import Mock
+import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
 
 import pytest
-from fastapi import HTTPException
+
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
+from models import User
+
+
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_user(db, *, is_superadmin=True) -> User:
+    u = User(
+        id=_uid(),
+        username=f"gen-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Gen User",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.commit()
+    return u
 
 
 class TestGetGenerationStatus:
     @pytest.mark.asyncio
-    async def test_not_found(self):
-        from routers.generation import get_generation_status
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = Mock()
-        request = Mock()
-        request.state.organization_context = None
-        with pytest.raises(HTTPException) as exc_info:
-            await get_generation_status(generation_id="gen-1", request=request, current_user=user, db=db)
-        assert exc_info.value.status_code == 404
+    async def test_not_found(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        with _as_user(user):
+            resp = await async_test_client.get(f"/api/generation/status/missing-{_uid()}")
+        assert resp.status_code == 404
 
 
 class TestStopGeneration:
     @pytest.mark.asyncio
-    async def test_not_found(self):
-        from routers.generation import stop_generation
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = Mock()
-        with pytest.raises(HTTPException) as exc_info:
-            await stop_generation(generation_id="gen-1", current_user=user, db=db)
-        assert exc_info.value.status_code == 404
+    async def test_not_found(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        with _as_user(user):
+            resp = await async_test_client.post(f"/api/generation/missing-{_uid()}/stop")
+        assert resp.status_code == 404
 
 
 class TestPauseGeneration:
     @pytest.mark.asyncio
-    async def test_not_found(self):
-        from routers.generation import pause_generation
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = Mock()
-        with pytest.raises(HTTPException) as exc_info:
-            await pause_generation(generation_id="gen-1", current_user=user, db=db)
-        assert exc_info.value.status_code == 404
+    async def test_not_found(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        with _as_user(user):
+            resp = await async_test_client.post(f"/api/generation/missing-{_uid()}/pause")
+        assert resp.status_code == 404
 
 
 class TestResumeGeneration:
     @pytest.mark.asyncio
-    async def test_not_found(self):
-        from routers.generation import resume_generation
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = Mock()
-        with pytest.raises(HTTPException) as exc_info:
-            await resume_generation(generation_id="gen-1", current_user=user, db=db)
-        assert exc_info.value.status_code == 404
+    async def test_not_found(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        with _as_user(user):
+            resp = await async_test_client.post(f"/api/generation/missing-{_uid()}/resume")
+        assert resp.status_code == 404
 
 
 class TestRetryGeneration:
     @pytest.mark.asyncio
-    async def test_not_found(self):
-        from routers.generation import retry_generation
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = Mock()
-        with pytest.raises(HTTPException) as exc_info:
-            await retry_generation(generation_id="gen-1", current_user=user, db=db)
-        assert exc_info.value.status_code == 404
+    async def test_not_found(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        with _as_user(user):
+            resp = await async_test_client.post(f"/api/generation/missing-{_uid()}/retry")
+        assert resp.status_code == 404
 
 
 class TestDeleteGeneration:
     @pytest.mark.asyncio
-    async def test_not_found(self):
-        from routers.generation import delete_generation
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = Mock()
-        with pytest.raises(HTTPException) as exc_info:
-            await delete_generation(generation_id="gen-1", current_user=user, db=db)
-        assert exc_info.value.status_code == 404
+    async def test_not_found(self, async_test_client, async_test_db):
+        user = await _make_user(async_test_db)
+        with _as_user(user):
+            resp = await async_test_client.delete(f"/api/generation/missing-{_uid()}")
+        assert resp.status_code == 404

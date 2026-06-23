@@ -919,7 +919,12 @@ def create_or_update_report_from_existing_data(
     # Flag the JSONB column as modified so SQLAlchemy detects the change
     flag_modified(report, "content")
 
-    db.commit()
+    # flush() (not commit()) so the caller owns the transaction boundary. When
+    # this runs via the async reports.py `db.run_sync(...)` bridge, a commit()
+    # here would commit the *outer async request transaction* (the bridged sync
+    # session shares its connection) — the caller now issues the commit
+    # explicitly. Direct sync callers (tests) read the flushed row in-session.
+    db.flush()
     db.refresh(report)
 
     return report

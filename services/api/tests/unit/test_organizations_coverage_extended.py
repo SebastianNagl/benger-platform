@@ -1,20 +1,105 @@
 """
-Unit tests for routers/organizations.py — covers endpoint logic with mocked DB.
+Unit/branch tests for routers/organizations/*.
+
+The CRUD + member + manage handlers were migrated to the async DB lane, so the
+old ``Mock().query(...).filter(...).first()`` doubles no longer match the
+handler call shape (handlers now do ``await db.execute(select(...))`` and bridge
+sync helpers via ``await db.run_sync(...)``). Those tests are rewritten to drive
+the real handler coroutines against a real ``async_test_db`` AsyncSession, with
+rows seeded in-test (SAVEPOINT isolation). This still exercises the same
+error/permission branches without the HTTP layer.
+
+Two things stay on plain ``Mock``:
+  * the sync permission helpers ``can_manage_organization`` /
+    ``can_create_organization`` (still synchronous, unchanged);
+  * ``delete_user`` — kept SYNC (dominated by the self-committing sync-only
+    ``user_service.delete_user``); its early-guard branches still take a plain
+    sync ``Mock`` db whose ``db.execute(text(...)).first()/.scalar()`` shape
+    matches the unchanged handler.
 """
 
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException
 
+from models import Organization, OrganizationMembership, OrganizationRole, User
 from routers.organizations import (
     can_manage_organization,
     can_create_organization,
 )
 
 
-# ============= can_manage_organization =============
+# ============= helpers (real async seeding) =============
+
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+async def _make_user(db, *, is_superadmin=False, email_verified=True) -> User:
+    u = User(
+        id=_uid(),
+        username=f"u-{_uid()[:8]}@test.com",
+        email=f"u-{_uid()[:8]}@test.com",
+        name="Unit User",
+        hashed_password="hashed",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=email_verified,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _make_org(db, *, name="Unit Org", slug=None) -> Organization:
+    org = Organization(
+        id=_uid(),
+        name=name,
+        slug=slug or f"unit-{uuid.uuid4().hex[:8]}",
+        display_name=name,
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(org)
+    await db.flush()
+    return org
+
+
+async def _membership(db, user_id, org_id, role="ANNOTATOR", is_active=True):
+    db.add(
+        OrganizationMembership(
+            id=_uid(),
+            user_id=user_id,
+            organization_id=org_id,
+            role=role,
+            is_active=is_active,
+            joined_at=datetime.now(timezone.utc),
+        )
+    )
+    await db.flush()
+
+
+def _pyd_user(db_user: User):
+    """Build the auth Pydantic User the handlers receive as current_user."""
+    from auth_module.models import User as AuthUser
+
+    return AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+
+
+# ============= can_manage_organization (sync helper, unchanged) =============
 
 
 class TestCanManageOrganization:
@@ -43,7 +128,7 @@ class TestCanManageOrganization:
         assert can_manage_organization(user, "org-1", db) == False  # noqa: E712
 
 
-# ============= can_create_organization =============
+# ============= can_create_organization (sync helper, unchanged) =============
 
 
 class TestCanCreateOrganization:
@@ -72,588 +157,473 @@ class TestCanCreateOrganization:
         assert can_create_organization(user, db) == False  # noqa: E712
 
 
-# ============= Endpoint tests =============
+# ============= list_organizations (async) =============
 
 
 class TestListOrganizations:
-    """Tests for list_organizations endpoint."""
-
     @pytest.mark.asyncio
-    async def test_superadmin_sees_all(self):
+    async def test_superadmin_sees_all(self, async_test_db):
         from routers.organizations import list_organizations
 
-        db = Mock()
-        user = Mock(is_superadmin=True, id="admin-1")
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db, name="Org 1")
+        member = await _make_user(async_test_db)
+        await _membership(async_test_db, member.id, org.id, "ANNOTATOR")
+        await async_test_db.commit()
 
-        org = Mock()
-        org.__dict__ = {
-            "id": "org-1",
-            "name": "Org 1",
-            "display_name": "Org 1",
-            "slug": "org-1",
-            "description": None,
-            "settings": {},
-            "is_active": True,
-            "created_at": datetime(2025, 1, 1),
-            "updated_at": None,
-        }
+        result = await list_organizations(current_user=_pyd_user(admin), db=async_test_db)
+        ids = {r.id for r in result}
+        assert org.id in ids
+        target = next(r for r in result if r.id == org.id)
+        assert target.member_count == 1
 
-        orgs_query = MagicMock()
-        orgs_query.filter.return_value = orgs_query
-        orgs_query.all.return_value = [org]
+    @pytest.mark.asyncio
+    async def test_regular_user_sees_own_orgs(self, async_test_db):
+        from routers.organizations import list_organizations
 
-        member_count_query = MagicMock()
-        member_count_query.filter.return_value = member_count_query
-        member_count_query.group_by.return_value = member_count_query
-        member_count_query.all.return_value = [("org-1", 5)]
+        user = await _make_user(async_test_db)
+        org = await _make_org(async_test_db, name="Org 1")
+        await _membership(async_test_db, user.id, org.id, "ANNOTATOR")
+        await async_test_db.commit()
 
-        roles_query = MagicMock()
-        roles_query.filter.return_value = roles_query
-        roles_query.all.return_value = []
-
-        db.query.side_effect = [orgs_query, member_count_query, roles_query]
-
-        result = await list_organizations(current_user=user, db=db)
+        result = await list_organizations(current_user=_pyd_user(user), db=async_test_db)
         assert len(result) == 1
-        assert result[0].member_count == 5
+        assert result[0].role == OrganizationRole.ANNOTATOR
 
     @pytest.mark.asyncio
-    async def test_regular_user_sees_own_orgs(self):
+    async def test_regular_user_no_orgs(self, async_test_db):
         from routers.organizations import list_organizations
 
-        db = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
 
-        # Use a simple namespace object instead of Mock to avoid __dict__ issues
-        class FakeOrg:
-            pass
-
-        org = FakeOrg()
-        org.id = "org-1"
-        org.name = "Org 1"
-        org.display_name = "Org 1"
-        org.slug = "org-1"
-        org.description = None
-        org.settings = {}
-        org.is_active = True
-        org.created_at = datetime(2025, 1, 1)
-        org.updated_at = None
-
-        user_orgs_query = MagicMock()
-        user_orgs_query.join.return_value = user_orgs_query
-        user_orgs_query.filter.return_value = user_orgs_query
-        user_orgs_query.all.return_value = [(org, "ANNOTATOR")]
-
-        member_count_query = MagicMock()
-        member_count_query.filter.return_value = member_count_query
-        member_count_query.group_by.return_value = member_count_query
-        member_count_query.all.return_value = [("org-1", 3)]
-
-        db.query.side_effect = [user_orgs_query, member_count_query]
-
-        result = await list_organizations(current_user=user, db=db)
-        assert len(result) == 1
-        assert result[0].role == "ANNOTATOR"
-
-    @pytest.mark.asyncio
-    async def test_regular_user_no_orgs(self):
-        from routers.organizations import list_organizations
-
-        db = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
-
-        user_orgs_query = MagicMock()
-        user_orgs_query.join.return_value = user_orgs_query
-        user_orgs_query.filter.return_value = user_orgs_query
-        user_orgs_query.all.return_value = []
-
-        db.query.return_value = user_orgs_query
-
-        result = await list_organizations(current_user=user, db=db)
+        result = await list_organizations(current_user=_pyd_user(user), db=async_test_db)
         assert result == []
+
+
+# ============= create_organization (async) =============
 
 
 class TestCreateOrganization:
-    """Tests for create_organization endpoint."""
-
     @pytest.mark.asyncio
-    async def test_permission_denied(self):
+    async def test_permission_denied(self, async_test_db):
         from routers.organizations import create_organization, OrganizationCreate
 
-        db = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
-        db.query.return_value.filter.return_value.first.return_value = None
+        user = await _make_user(async_test_db)  # non-superadmin, no admin membership
+        await async_test_db.commit()
+        org = OrganizationCreate(name="New Org", display_name="New Org", slug="new-org")
 
-        org = OrganizationCreate(
-            name="New Org", display_name="New Org", slug="new-org"
-        )
-
-        with patch("routers.organizations.can_create_organization", return_value=False):
-            with pytest.raises(HTTPException) as exc_info:
-                await create_organization(organization=org, current_user=user, db=db)
-            assert exc_info.value.status_code == 403
+        with pytest.raises(HTTPException) as exc_info:
+            await create_organization(
+                organization=org, current_user=_pyd_user(user), db=async_test_db
+            )
+        assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_duplicate_slug(self):
+    async def test_duplicate_slug(self, async_test_db):
         from routers.organizations import create_organization, OrganizationCreate
 
-        db = Mock()
-        user = Mock(is_superadmin=True, id="admin-1")
-        db.query.return_value.filter.return_value.first.return_value = Mock()  # Existing org
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        existing = await _make_org(async_test_db, slug="existing-slug")
+        await async_test_db.commit()
 
         org = OrganizationCreate(
-            name="New Org", display_name="New Org", slug="existing-slug"
+            name="New Org", display_name="New Org", slug=existing.slug
         )
+        with pytest.raises(HTTPException) as exc_info:
+            await create_organization(
+                organization=org, current_user=_pyd_user(admin), db=async_test_db
+            )
+        assert exc_info.value.status_code == 400
 
-        with patch("routers.organizations.can_create_organization", return_value=True):
-            with pytest.raises(HTTPException) as exc_info:
-                await create_organization(organization=org, current_user=user, db=db)
-            assert exc_info.value.status_code == 400
+
+# ============= get_organization_by_slug (async) =============
 
 
 class TestGetOrganizationBySlug:
-    """Tests for get_organization_by_slug endpoint."""
-
     @pytest.mark.asyncio
-    async def test_invalid_slug_format(self):
+    async def test_invalid_slug_format(self, async_test_db):
         from routers.organizations import get_organization_by_slug
 
-        db = Mock()
-        user = Mock()
-
+        user = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await get_organization_by_slug(
-                slug="INVALID_SLUG!", current_user=user, db=db
+                slug="INVALID_SLUG!", current_user=_pyd_user(user), db=async_test_db
             )
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_org_not_found(self):
+    async def test_org_not_found(self, async_test_db):
         from routers.organizations import get_organization_by_slug
 
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = Mock()
-
+        user = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await get_organization_by_slug(
-                slug="unknown-slug", current_user=user, db=db
+                slug="unknown-slug", current_user=_pyd_user(user), db=async_test_db
             )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_non_member_access_denied(self):
+    async def test_non_member_access_denied(self, async_test_db):
         from routers.organizations import get_organization_by_slug
 
-        db = Mock()
-        org = Mock(id="org-1")
-        user = Mock(is_superadmin=False, id="user-1")
-
-        # First query returns org, second returns None (no membership)
-        call_count = [0]
-
-        def query_side_effect(*args):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = org
-            else:
-                q.first.return_value = None
-            return q
-
-        db.query.side_effect = query_side_effect
-
+        user = await _make_user(async_test_db)  # non-superadmin, no membership
+        org = await _make_org(async_test_db)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await get_organization_by_slug(
-                slug="my-org", current_user=user, db=db
+                slug=org.slug, current_user=_pyd_user(user), db=async_test_db
             )
         assert exc_info.value.status_code == 403
+
+
+# ============= get_organization (async) =============
 
 
 class TestGetOrganization:
-    """Tests for get_organization endpoint."""
-
     @pytest.mark.asyncio
-    async def test_not_found(self):
+    async def test_not_found(self, async_test_db):
         from routers.organizations import get_organization
 
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = Mock()
-
+        user = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await get_organization(
-                organization_id="org-1", current_user=user, db=db
+                organization_id="org-1", current_user=_pyd_user(user), db=async_test_db
             )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_access_denied(self):
+    async def test_access_denied(self, async_test_db):
         from routers.organizations import get_organization
 
-        db = Mock()
-        org = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
-
-        call_count = [0]
-
-        def query_side_effect(*args):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = org
-            else:
-                q.first.return_value = None
-            return q
-
-        db.query.side_effect = query_side_effect
-
+        user = await _make_user(async_test_db)  # non-superadmin, no membership
+        org = await _make_org(async_test_db)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await get_organization(
-                organization_id="org-1", current_user=user, db=db
+                organization_id=org.id, current_user=_pyd_user(user), db=async_test_db
             )
         assert exc_info.value.status_code == 403
+
+
+# ============= update_organization (async) =============
 
 
 class TestUpdateOrganization:
-    """Tests for update_organization endpoint."""
-
     @pytest.mark.asyncio
-    async def test_not_found(self):
+    async def test_not_found(self, async_test_db):
         from routers.organizations import update_organization, OrganizationUpdate
 
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = Mock()
+        user = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
         update = OrganizationUpdate(name="New Name")
-
         with pytest.raises(HTTPException) as exc_info:
             await update_organization(
-                organization_id="org-1", update_data=update, current_user=user, db=db
+                organization_id="org-1",
+                update_data=update,
+                current_user=_pyd_user(user),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_permission_denied(self):
+    async def test_permission_denied(self, async_test_db):
         from routers.organizations import update_organization, OrganizationUpdate
 
-        db = Mock()
-        org = Mock()
-        db.query.return_value.filter.return_value.first.return_value = org
-        user = Mock(is_superadmin=False, id="user-1")
+        user = await _make_user(async_test_db)  # non-superadmin, not org admin
+        org = await _make_org(async_test_db)
+        await async_test_db.commit()
         update = OrganizationUpdate(name="New Name")
+        with pytest.raises(HTTPException) as exc_info:
+            await update_organization(
+                organization_id=org.id,
+                update_data=update,
+                current_user=_pyd_user(user),
+                db=async_test_db,
+            )
+        assert exc_info.value.status_code == 403
 
-        with patch("routers.organizations.can_manage_organization", return_value=False):
-            with pytest.raises(HTTPException) as exc_info:
-                await update_organization(
-                    organization_id="org-1",
-                    update_data=update,
-                    current_user=user,
-                    db=db,
-                )
-            assert exc_info.value.status_code == 403
+
+# ============= delete_organization (async) =============
 
 
 class TestDeleteOrganization:
-    """Tests for delete_organization endpoint."""
-
     @pytest.mark.asyncio
-    async def test_non_superadmin_denied(self):
+    async def test_non_superadmin_denied(self, async_test_db):
         from routers.organizations import delete_organization
 
-        db = Mock()
-        user = Mock(is_superadmin=False)
-
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await delete_organization(
-                organization_id="org-1", current_user=user, db=db
+                organization_id="org-1", current_user=_pyd_user(user), db=async_test_db
             )
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_not_found(self):
+    async def test_not_found(self, async_test_db):
         from routers.organizations import delete_organization
 
-        db = Mock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        user = Mock(is_superadmin=True)
-
+        user = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await delete_organization(
-                organization_id="org-1", current_user=user, db=db
+                organization_id="org-1", current_user=_pyd_user(user), db=async_test_db
             )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_successful_delete(self):
+    async def test_successful_delete(self, async_test_db):
         from routers.organizations import delete_organization
 
-        db = Mock()
-        org = Mock(is_active=True, slug="org-slug")
-        db.query.return_value.filter.return_value.first.return_value = org
-        db.query.return_value.filter.return_value.update.return_value = 3
-        user = Mock(is_superadmin=True)
-
-        with patch("redis_cache.OrgSlugCache") as mock_cache:  # noqa: F841
+        user = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db)
+        await async_test_db.commit()
+        with patch("redis_cache.OrgSlugCache"):
             result = await delete_organization(
-                organization_id="org-1", current_user=user, db=db
+                organization_id=org.id, current_user=_pyd_user(user), db=async_test_db
             )
-            assert result["message"] == "Organization deleted successfully"
-            assert org.is_active == False  # noqa: E712
+        assert result["message"] == "Organization deleted successfully"
+        # Reload to confirm the soft-delete persisted.
+        from sqlalchemy import select
+
+        refreshed = (
+            await async_test_db.execute(select(Organization).where(Organization.id == org.id))
+        ).scalar_one()
+        assert refreshed.is_active is False
+
+
+# ============= list_organization_members (async) =============
 
 
 class TestListOrganizationMembers:
-    """Tests for list_organization_members endpoint."""
-
     @pytest.mark.asyncio
-    async def test_non_member_denied(self):
+    async def test_non_member_denied(self, async_test_db):
         from routers.organizations import list_organization_members
 
-        db = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
-        db.query.return_value.filter.return_value.first.return_value = None
-
+        user = await _make_user(async_test_db)  # non-superadmin, no membership
+        org = await _make_org(async_test_db)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await list_organization_members(
-                organization_id="org-1", current_user=user, db=db
+                organization_id=org.id, current_user=_pyd_user(user), db=async_test_db
             )
         assert exc_info.value.status_code == 403
+
+
+# ============= update_member_role (async) =============
 
 
 class TestUpdateMemberRole:
-    """Tests for update_member_role endpoint."""
-
     @pytest.mark.asyncio
-    async def test_non_admin_denied(self):
+    async def test_non_admin_denied(self, async_test_db):
         from routers.organizations import update_member_role, UpdateMemberRole
-        from models import OrganizationRole
 
-        db = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
-        db.query.return_value.filter.return_value.first.return_value = None
-
+        user = await _make_user(async_test_db)  # non-superadmin, not org admin
+        org = await _make_org(async_test_db)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await update_member_role(
-                organization_id="org-1",
+                organization_id=org.id,
                 user_id="user-2",
                 role_update=UpdateMemberRole(role=OrganizationRole.CONTRIBUTOR),
-                current_user=user,
-                db=db,
+                current_user=_pyd_user(user),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_member_not_found(self):
+    async def test_member_not_found(self, async_test_db):
         from routers.organizations import update_member_role, UpdateMemberRole
-        from models import OrganizationRole
 
-        db = Mock()
-        user = Mock(is_superadmin=True, id="admin-1")
-
-        db.query.return_value.filter.return_value.first.return_value = None
-
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await update_member_role(
-                organization_id="org-1",
+                organization_id=org.id,
                 user_id="user-2",
                 role_update=UpdateMemberRole(role=OrganizationRole.CONTRIBUTOR),
-                current_user=user,
-                db=db,
+                current_user=_pyd_user(admin),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_cannot_modify_own_role(self):
+    async def test_cannot_modify_own_role(self, async_test_db):
         from routers.organizations import update_member_role, UpdateMemberRole
-        from models import OrganizationRole
 
-        db = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
-        admin_mem = Mock()  # Has admin membership
-        target_mem = Mock()  # Target membership found
-
-        call_count = [0]
-
-        def query_side_effect(*args):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = admin_mem
-            else:
-                q.first.return_value = target_mem
-            return q
-        db.query.side_effect = query_side_effect
-
+        # org_admin (non-superadmin) targeting their own membership.
+        org_admin = await _make_user(async_test_db)
+        org = await _make_org(async_test_db)
+        await _membership(async_test_db, org_admin.id, org.id, "ORG_ADMIN")
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await update_member_role(
-                organization_id="org-1",
-                user_id="user-1",  # Same as current user
+                organization_id=org.id,
+                user_id=org_admin.id,  # same as current user
                 role_update=UpdateMemberRole(role=OrganizationRole.ANNOTATOR),
-                current_user=user,
-                db=db,
+                current_user=_pyd_user(org_admin),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 400
+
+
+# ============= remove_member (async) =============
 
 
 class TestRemoveMember:
-    """Tests for remove_member endpoint."""
-
     @pytest.mark.asyncio
-    async def test_non_admin_denied(self):
+    async def test_non_admin_denied(self, async_test_db):
         from routers.organizations import remove_member
 
-        db = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
-        db.query.return_value.filter.return_value.first.return_value = None
-
+        user = await _make_user(async_test_db)
+        org = await _make_org(async_test_db)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await remove_member(
-                organization_id="org-1", user_id="user-2", current_user=user, db=db
+                organization_id=org.id,
+                user_id="user-2",
+                current_user=_pyd_user(user),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_member_not_found(self):
+    async def test_member_not_found(self, async_test_db):
         from routers.organizations import remove_member
 
-        db = Mock()
-        user = Mock(is_superadmin=True, id="admin-1")
-        db.query.return_value.filter.return_value.first.return_value = None
-
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await remove_member(
-                organization_id="org-1", user_id="user-2", current_user=user, db=db
+                organization_id=org.id,
+                user_id="user-2",
+                current_user=_pyd_user(admin),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_cannot_remove_self(self):
+    async def test_cannot_remove_self(self, async_test_db):
         from routers.organizations import remove_member
 
-        db = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
-        admin_mem = Mock()
-        target_mem = Mock()
-
-        call_count = [0]
-
-        def query_side_effect(*args):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = admin_mem
-            else:
-                q.first.return_value = target_mem
-            return q
-        db.query.side_effect = query_side_effect
-
+        org_admin = await _make_user(async_test_db)
+        org = await _make_org(async_test_db)
+        await _membership(async_test_db, org_admin.id, org.id, "ORG_ADMIN")
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await remove_member(
-                organization_id="org-1",
-                user_id="user-1",
-                current_user=user,
-                db=db,
+                organization_id=org.id,
+                user_id=org_admin.id,
+                current_user=_pyd_user(org_admin),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 400
 
 
-class TestListAllUsers:
-    """Tests for list_all_users endpoint."""
+# ============= list_all_users (async) =============
 
+
+class TestListAllUsers:
     @pytest.mark.asyncio
-    async def test_unauthenticated(self):
+    async def test_unauthenticated(self, async_test_db):
         from routers.organizations import list_all_users
 
-        db = Mock()
         with pytest.raises(HTTPException) as exc_info:
-            await list_all_users(current_user=None, db=db)
+            await list_all_users(current_user=None, db=async_test_db)
         assert exc_info.value.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_superadmin_all_users(self):
+    async def test_superadmin_all_users(self, async_test_db):
         from routers.organizations import list_all_users
 
-        # Updated 2026-05-20: handler now appends `.order_by(...).limit(...)`
-        # to the query so it can apply an optional `?search=` filter SQL-side
-        # without losing backward compat. Mock the full chain.
-        db = Mock()
-        user = Mock(is_superadmin=True)
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        other = await _make_user(async_test_db)
+        await async_test_db.commit()
 
-        u1 = Mock()
-        u1.__dict__ = {
-            "id": "u1", "username": "user1", "email": "u1@test.com",
-            "email_verified": True, "email_verification_method": "link",
-            "name": "User 1", "is_superadmin": False, "is_active": True,
-            "created_at": datetime(2025, 1, 1), "updated_at": None,
-        }
-        mock_q = Mock()
-        mock_q.filter.return_value = mock_q
-        mock_q.order_by.return_value = mock_q
-        mock_q.limit.return_value = mock_q
-        mock_q.all.return_value = [u1]
-        db.query.return_value = mock_q
-
-        # Pass `search=None` + `limit=500` explicitly because direct-function
-        # tests don't get FastAPI's `Query(...)` defaults unwrapped.
         result = await list_all_users(
-            current_user=user, db=db, search=None, limit=500
+            current_user=_pyd_user(admin), db=async_test_db, search=None, limit=500
         )
-        assert len(result) == 1
+        ids = {u.id for u in result}
+        assert admin.id in ids
+        assert other.id in ids
 
     @pytest.mark.asyncio
-    async def test_regular_user_no_orgs(self):
+    async def test_regular_user_no_orgs(self, async_test_db):
+        from auth_module.models import User as AuthUser
         from routers.organizations import list_all_users
 
-        db = Mock()
-        user = Mock(is_superadmin=False, organizations=[])
-
-        result = await list_all_users(current_user=user, db=db)
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
+        # Non-superadmin auth User with no organizations -> early empty return.
+        auth_user = AuthUser(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            name=user.name,
+            is_superadmin=False,
+            is_active=True,
+            email_verified=True,
+            created_at=user.created_at or datetime.now(timezone.utc),
+            organizations=[],
+        )
+        result = await list_all_users(current_user=auth_user, db=async_test_db)
         assert result == []
 
 
+# ============= update_user_superadmin_status (async) =============
+
+
 class TestUpdateUserSuperadminStatus:
-    """Tests for update_user_superadmin_status endpoint."""
-
     @pytest.mark.asyncio
-    async def test_non_superadmin_denied(self):
-        from routers.organizations import update_user_superadmin_status, UserSuperadminUpdate
+    async def test_non_superadmin_denied(self, async_test_db):
+        from routers.organizations import (
+            update_user_superadmin_status,
+            UserSuperadminUpdate,
+        )
 
-        db = Mock()
-        user = Mock(is_superadmin=False)
-
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await update_user_superadmin_status(
                 user_id="user-1",
                 superadmin_update=UserSuperadminUpdate(is_superadmin=True),
-                current_user=user,
-                db=db,
+                current_user=_pyd_user(user),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_user_not_found(self):
-        from routers.organizations import update_user_superadmin_status, UserSuperadminUpdate
+    async def test_user_not_found(self, async_test_db):
+        from routers.organizations import (
+            update_user_superadmin_status,
+            UserSuperadminUpdate,
+        )
 
-        db = Mock()
-        user = Mock(is_superadmin=True)
-        db.query.return_value.filter.return_value.first.return_value = None
-
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await update_user_superadmin_status(
                 user_id="user-1",
                 superadmin_update=UserSuperadminUpdate(is_superadmin=True),
-                current_user=user,
-                db=db,
+                current_user=_pyd_user(admin),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 404
 
 
+# ============= delete_user (SYNC handler — plain Mock db, unchanged) =============
+
+
 class TestDeleteUser:
-    """Tests for delete_user endpoint."""
+    """delete_user stays SYNC; its early-guard branches still take a plain sync
+    Mock db whose ``db.execute(text(...)).first()/.scalar()`` shape matches the
+    unchanged handler."""
 
     @pytest.mark.asyncio
     async def test_non_superadmin_denied(self):
@@ -717,156 +687,117 @@ class TestDeleteUser:
         assert exc_info.value.status_code == 400
 
 
-class TestAddUserToOrganization:
-    """Tests for add_user_to_organization endpoint."""
+# ============= add_user_to_organization (async) =============
 
+
+class TestAddUserToOrganization:
     @pytest.mark.asyncio
-    async def test_non_admin_denied(self):
+    async def test_non_admin_denied(self, async_test_db):
         from routers.organizations import add_user_to_organization, AddUserToOrganization
 
-        db = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
-        db.query.return_value.filter.return_value.first.return_value = None
-
+        user = await _make_user(async_test_db)
+        org = await _make_org(async_test_db)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await add_user_to_organization(
-                organization_id="org-1",
+                organization_id=org.id,
                 add_user=AddUserToOrganization(user_id="user-2"),
-                current_user=user,
-                db=db,
+                current_user=_pyd_user(user),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_org_not_found(self):
+    async def test_org_not_found(self, async_test_db):
         from routers.organizations import add_user_to_organization, AddUserToOrganization
 
-        db = Mock()
-        user = Mock(is_superadmin=True, id="admin-1")
-
-        call_count = [0]
-
-        def query_side_effect(*args):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = None  # org not found
-            return q
-        db.query.side_effect = query_side_effect
-
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await add_user_to_organization(
                 organization_id="org-1",
                 add_user=AddUserToOrganization(user_id="user-2"),
-                current_user=user,
-                db=db,
+                current_user=_pyd_user(admin),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_user_not_found(self):
+    async def test_user_not_found(self, async_test_db):
         from routers.organizations import add_user_to_organization, AddUserToOrganization
 
-        db = Mock()
-        user = Mock(is_superadmin=True, id="admin-1")
-        org = Mock()
-
-        call_count = [0]
-
-        def query_side_effect(*args):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = org  # org found
-            elif call_count[0] == 2:
-                q.first.return_value = None  # user not found
-            return q
-        db.query.side_effect = query_side_effect
-
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await add_user_to_organization(
-                organization_id="org-1",
+                organization_id=org.id,
                 add_user=AddUserToOrganization(user_id="user-2"),
-                current_user=user,
-                db=db,
+                current_user=_pyd_user(admin),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_already_member(self):
+    async def test_already_member(self, async_test_db):
         from routers.organizations import add_user_to_organization, AddUserToOrganization
 
-        db = Mock()
-        user = Mock(is_superadmin=True, id="admin-1")
-        org = Mock()
-        target_user = Mock()
-        existing_mem = Mock()
-
-        call_count = [0]
-
-        def query_side_effect(*args):
-            call_count[0] += 1
-            q = MagicMock()
-            q.filter.return_value = q
-            if call_count[0] == 1:
-                q.first.return_value = org
-            elif call_count[0] == 2:
-                q.first.return_value = target_user
-            elif call_count[0] == 3:
-                q.first.return_value = existing_mem
-            return q
-        db.query.side_effect = query_side_effect
-
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        org = await _make_org(async_test_db)
+        target = await _make_user(async_test_db)
+        await _membership(async_test_db, target.id, org.id, "ANNOTATOR", is_active=True)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await add_user_to_organization(
-                organization_id="org-1",
-                add_user=AddUserToOrganization(user_id="user-2"),
-                current_user=user,
-                db=db,
+                organization_id=org.id,
+                add_user=AddUserToOrganization(user_id=target.id),
+                current_user=_pyd_user(admin),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 400
 
 
-class TestVerifyMemberEmail:
-    """Tests for verify_member_email endpoint."""
+# ============= verify_member_email (async) =============
 
+
+class TestVerifyMemberEmail:
     @pytest.mark.asyncio
-    async def test_non_admin_denied(self):
+    async def test_non_admin_denied(self, async_test_db):
         from routers.organizations import verify_member_email, VerifyEmailRequest
 
-        db = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
-        db.query.return_value.filter.return_value.first.return_value = None
-
+        user = await _make_user(async_test_db)
+        org = await _make_org(async_test_db)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await verify_member_email(
-                organization_id="org-1",
+                organization_id=org.id,
                 user_id="user-2",
                 request=VerifyEmailRequest(),
-                current_user=user,
-                db=db,
+                current_user=_pyd_user(user),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 403
 
 
+# ============= bulk_verify_member_emails (async) =============
+
+
 class TestBulkVerifyMemberEmails:
-    """Tests for bulk_verify_member_emails endpoint."""
-
     @pytest.mark.asyncio
-    async def test_non_admin_denied(self):
-        from routers.organizations import bulk_verify_member_emails, BulkVerifyEmailRequest
+    async def test_non_admin_denied(self, async_test_db):
+        from routers.organizations import (
+            bulk_verify_member_emails,
+            BulkVerifyEmailRequest,
+        )
 
-        db = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
-        db.query.return_value.filter.return_value.first.return_value = None
-
+        user = await _make_user(async_test_db)
+        org = await _make_org(async_test_db)
+        await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await bulk_verify_member_emails(
-                organization_id="org-1",
+                organization_id=org.id,
                 request=BulkVerifyEmailRequest(user_ids=["u1", "u2"]),
-                current_user=user,
-                db=db,
+                current_user=_pyd_user(user),
+                db=async_test_db,
             )
         assert exc_info.value.status_code == 403

@@ -4,7 +4,7 @@ Tests handling of large datasets (up to 10k entries).
 """
 
 
-from batch_processing_config import BatchProcessingConfig
+from services.batch_processing_config import BatchProcessingConfig
 
 
 class TestBatchProcessingConfig:

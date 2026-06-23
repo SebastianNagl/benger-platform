@@ -1,341 +1,278 @@
-"""Tests for post-annotation questionnaire endpoints (Issue #1208)."""
+"""Tests for post-annotation questionnaire endpoints (Issue #1208).
 
+The questionnaire router was migrated to the async DB lane
+(``Depends(get_async_db)``) and the access preamble now flows through the
+``require_project_access`` dependency, which resolves the *async* helpers
+(``check_project_accessible_async`` / ``check_user_can_edit_project_async``)
+on ``routers.projects.deps``. The task-assignment gate inside the handler is
+likewise the async helper (``check_task_assigned_to_user_async``).
+
+These tests therefore seed real ``Project`` / ``Task`` / ``Annotation`` rows via
+``async_test_db`` and drive the surface through ``async_test_client`` with
+``require_user`` overridden per-test. Access-control helpers (not under test
+here) are patched as ``AsyncMock`` so each test isolates the questionnaire
+logic — the assertions (200 success, 400 duplicate, 400 disabled, 404
+nonexistent annotation, 200 creator/superadmin list, 403 denied) are unchanged.
+"""
+
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from fastapi import status
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
+from auth_module import require_user
+from auth_module.models import User as AuthUser
 from main import app
-
-# Patch access checks for all questionnaire tests — these test questionnaire logic, not access control
-_patch_access = patch(
-    'routers.projects.questionnaire.check_project_accessible', return_value=True
-)
-_patch_assignment = patch(
-    'routers.projects.questionnaire.check_task_assigned_to_user', return_value=True
-)
-_patch_edit = patch(
-    'routers.projects.questionnaire.check_user_can_edit_project', return_value=True
-)
+from models import User
+from project_models import Annotation, PostAnnotationResponse, Project, Task
 
 
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_user(db, *, is_superadmin=False):
+    u = User(
+        id=_uid(),
+        username=f"q-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Questionnaire User",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _make_project(db, *, created_by, questionnaire_enabled=True):
+    p = Project(
+        id=_uid(),
+        title="Questionnaire Project",
+        created_by=created_by,
+        questionnaire_enabled=questionnaire_enabled,
+    )
+    db.add(p)
+    await db.flush()
+    return p
+
+
+async def _make_task(db, *, project_id, inner_id=1):
+    t = Task(
+        id=_uid(),
+        project_id=project_id,
+        data={"text": "sample"},
+        inner_id=inner_id,
+    )
+    db.add(t)
+    await db.flush()
+    return t
+
+
+async def _make_annotation(db, *, task_id, project_id, completed_by):
+    a = Annotation(
+        id=_uid(),
+        task_id=task_id,
+        project_id=project_id,
+        completed_by=completed_by,
+        result=[{"from_name": "q1", "to_name": "q1", "type": "choices",
+                 "value": {"choices": ["yes"]}}],
+    )
+    db.add(a)
+    await db.flush()
+    return a
+
+
+# Access-control helpers (not under test here) — patched permissive by default.
+def _patch_access(*, accessible=True, can_edit=True, assigned=True):
+    return [
+        patch(
+            "routers.projects.deps.check_project_accessible_async",
+            new=AsyncMock(return_value=accessible),
+        ),
+        patch(
+            "routers.projects.deps.check_user_can_edit_project_async",
+            new=AsyncMock(return_value=can_edit),
+        ),
+        patch(
+            "routers.projects.questionnaire.check_task_assigned_to_user_async",
+            new=AsyncMock(return_value=assigned),
+        ),
+    ]
+
+
+@pytest.mark.asyncio
 class TestQuestionnaireEndpoints:
     """Test questionnaire endpoints at /api/projects/{pid}/tasks/{tid}/questionnaire-response"""
 
-    @pytest.fixture(autouse=True)
-    def patch_access_check(self):
-        with _patch_access, _patch_assignment, _patch_edit:
-            yield
-
-    @pytest.fixture
-    def client(self):
-        return TestClient(app)
-
-    @pytest.fixture
-    def mock_user(self):
-        user = Mock()
-        user.id = "user-123"
-        user.username = "annotator"
-        user.email = "annotator@example.com"
-        user.is_superadmin = False
-        user.is_active = True
-        user.email_verified = True
-        return user
-
-    @pytest.fixture
-    def mock_superadmin(self):
-        user = Mock()
-        user.id = "admin-123"
-        user.username = "admin"
-        user.email = "admin@example.com"
-        user.is_superadmin = True
-        user.is_active = True
-        user.email_verified = True
-        return user
-
-    @pytest.fixture
-    def mock_project(self):
-        project = Mock()
-        project.id = "project-1"
-        project.questionnaire_enabled = True
-        project.created_by = "admin-123"
-        return project
-
-    @pytest.fixture
-    def mock_project_no_questionnaire(self):
-        project = Mock()
-        project.id = "project-2"
-        project.questionnaire_enabled = False
-        project.created_by = "admin-123"
-        return project
-
-    @pytest.fixture
-    def mock_task(self):
-        task = Mock()
-        task.id = "task-1"
-        task.project_id = "project-1"
-        return task
-
-    @pytest.fixture
-    def mock_annotation(self):
-        annotation = Mock()
-        annotation.id = "annotation-1"
-        annotation.task_id = "task-1"
-        annotation.completed_by = "user-123"
-        return annotation
-
-    def test_submit_questionnaire_success(self, client, mock_user, mock_project, mock_task, mock_annotation):
+    async def test_submit_questionnaire_success(self, async_test_client, async_test_db):
         """Submit succeeds with valid data."""
-        from auth_module import require_user
-        from database import get_db
+        user = await _make_user(async_test_db)
+        project = await _make_project(async_test_db, created_by=user.id)
+        task = await _make_task(async_test_db, project_id=project.id)
+        annotation = await _make_annotation(
+            async_test_db, task_id=task.id, project_id=project.id, completed_by=user.id
+        )
+        await async_test_db.commit()
 
-        mock_db = MagicMock(spec=Session)
-        mock_query = MagicMock()
-        mock_db.query.return_value = mock_query
-
-        project_filter = MagicMock()
-        project_filter.first.return_value = mock_project
-        task_filter = MagicMock()
-        task_filter.first.return_value = mock_task
-        annotation_filter = MagicMock()
-        annotation_filter.first.return_value = mock_annotation
-        existing_filter = MagicMock()
-        existing_filter.first.return_value = None  # No duplicate
-
-        mock_query.filter.side_effect = [project_filter, task_filter, annotation_filter, existing_filter]
-
-        # Mock refresh to set required fields on the saved object
-        def mock_refresh(obj):
-            obj.id = "response-1"
-            obj.created_at = datetime.now(timezone.utc)
-
-        mock_db.refresh.side_effect = mock_refresh
-
-        def override_get_db():
-            yield mock_db
-
-        app.dependency_overrides[require_user] = lambda: mock_user
-        app.dependency_overrides[get_db] = override_get_db
-
-        try:
-            response = client.post(
-                "/api/projects/project-1/tasks/task-1/questionnaire-response",
+        patches = _patch_access()
+        with _as_user(user), patches[0], patches[1], patches[2]:
+            response = await async_test_client.post(
+                f"/api/projects/{project.id}/tasks/{task.id}/questionnaire-response",
                 json={
-                    "annotation_id": "annotation-1",
-                    "result": [{"from_name": "q1", "to_name": "q1", "type": "choices", "value": {"choices": ["yes"]}}],
+                    "annotation_id": annotation.id,
+                    "result": [{"from_name": "q1", "to_name": "q1", "type": "choices",
+                                "value": {"choices": ["yes"]}}],
                 },
             )
-            assert response.status_code == status.HTTP_200_OK
-            mock_db.add.assert_called_once()
-            mock_db.commit.assert_called_once()
-        finally:
-            app.dependency_overrides.clear()
+        assert response.status_code == 200
+        # A real row was persisted.
+        from sqlalchemy import select
+        row = (
+            await async_test_db.execute(
+                select(PostAnnotationResponse).where(
+                    PostAnnotationResponse.annotation_id == annotation.id
+                )
+            )
+        ).scalar_one_or_none()
+        assert row is not None
 
-    def test_submit_duplicate_rejected(self, client, mock_user, mock_project, mock_task, mock_annotation):
+    async def test_submit_duplicate_rejected(self, async_test_client, async_test_db):
         """Duplicate responses rejected (400)."""
-        from auth_module import require_user
-        from database import get_db
+        user = await _make_user(async_test_db)
+        project = await _make_project(async_test_db, created_by=user.id)
+        task = await _make_task(async_test_db, project_id=project.id)
+        annotation = await _make_annotation(
+            async_test_db, task_id=task.id, project_id=project.id, completed_by=user.id
+        )
+        async_test_db.add(
+            PostAnnotationResponse(
+                id=_uid(),
+                annotation_id=annotation.id,
+                task_id=task.id,
+                project_id=project.id,
+                user_id=user.id,
+                result=[{"answer": "prior"}],
+            )
+        )
+        await async_test_db.commit()
 
-        existing_response = Mock()
-        existing_response.id = "existing-resp"
-
-        mock_db = MagicMock(spec=Session)
-        mock_query = MagicMock()
-        mock_db.query.return_value = mock_query
-
-        project_filter = MagicMock()
-        project_filter.first.return_value = mock_project
-        task_filter = MagicMock()
-        task_filter.first.return_value = mock_task
-        annotation_filter = MagicMock()
-        annotation_filter.first.return_value = mock_annotation
-        existing_filter = MagicMock()
-        existing_filter.first.return_value = existing_response  # Duplicate exists
-
-        mock_query.filter.side_effect = [project_filter, task_filter, annotation_filter, existing_filter]
-
-        def override_get_db():
-            yield mock_db
-
-        app.dependency_overrides[require_user] = lambda: mock_user
-        app.dependency_overrides[get_db] = override_get_db
-
-        try:
-            response = client.post(
-                "/api/projects/project-1/tasks/task-1/questionnaire-response",
+        patches = _patch_access()
+        with _as_user(user), patches[0], patches[1], patches[2]:
+            response = await async_test_client.post(
+                f"/api/projects/{project.id}/tasks/{task.id}/questionnaire-response",
                 json={
-                    "annotation_id": "annotation-1",
-                    "result": [{"from_name": "q1", "to_name": "q1", "type": "choices", "value": {"choices": ["yes"]}}],
+                    "annotation_id": annotation.id,
+                    "result": [{"from_name": "q1", "to_name": "q1", "type": "choices",
+                                "value": {"choices": ["yes"]}}],
                 },
             )
-            assert response.status_code == status.HTTP_400_BAD_REQUEST
-            assert "already submitted" in response.json()["detail"]
-        finally:
-            app.dependency_overrides.clear()
+        assert response.status_code == 400
+        assert "already submitted" in response.json()["detail"]
 
-    def test_submit_disabled_questionnaire_rejected(
-        self, client, mock_user, mock_project_no_questionnaire, mock_task
-    ):
+    async def test_submit_disabled_questionnaire_rejected(self, async_test_client, async_test_db):
         """Disabled questionnaire rejected (400)."""
-        from auth_module import require_user
-        from database import get_db
+        user = await _make_user(async_test_db)
+        project = await _make_project(
+            async_test_db, created_by=user.id, questionnaire_enabled=False
+        )
+        task = await _make_task(async_test_db, project_id=project.id)
+        await async_test_db.commit()
 
-        mock_db = MagicMock(spec=Session)
-        mock_query = MagicMock()
-        mock_db.query.return_value = mock_query
-
-        project_filter = MagicMock()
-        project_filter.first.return_value = mock_project_no_questionnaire
-
-        mock_query.filter.return_value = project_filter
-
-        def override_get_db():
-            yield mock_db
-
-        app.dependency_overrides[require_user] = lambda: mock_user
-        app.dependency_overrides[get_db] = override_get_db
-
-        try:
-            response = client.post(
-                "/api/projects/project-2/tasks/task-1/questionnaire-response",
+        patches = _patch_access()
+        with _as_user(user), patches[0], patches[1], patches[2]:
+            response = await async_test_client.post(
+                f"/api/projects/{project.id}/tasks/{task.id}/questionnaire-response",
                 json={
-                    "annotation_id": "annotation-1",
-                    "result": [{"from_name": "q1", "to_name": "q1", "type": "choices", "value": {"choices": ["yes"]}}],
+                    "annotation_id": _uid(),
+                    "result": [{"from_name": "q1", "to_name": "q1", "type": "choices",
+                                "value": {"choices": ["yes"]}}],
                 },
             )
-            assert response.status_code == status.HTTP_400_BAD_REQUEST
-            assert "not enabled" in response.json()["detail"]
-        finally:
-            app.dependency_overrides.clear()
+        assert response.status_code == 400
+        assert "not enabled" in response.json()["detail"]
 
-    def test_submit_nonexistent_annotation_rejected(self, client, mock_user, mock_project, mock_task):
+    async def test_submit_nonexistent_annotation_rejected(self, async_test_client, async_test_db):
         """Non-existent annotation rejected (404)."""
-        from auth_module import require_user
-        from database import get_db
+        user = await _make_user(async_test_db)
+        project = await _make_project(async_test_db, created_by=user.id)
+        task = await _make_task(async_test_db, project_id=project.id)
+        await async_test_db.commit()
 
-        mock_db = MagicMock(spec=Session)
-        mock_query = MagicMock()
-        mock_db.query.return_value = mock_query
-
-        project_filter = MagicMock()
-        project_filter.first.return_value = mock_project
-        task_filter = MagicMock()
-        task_filter.first.return_value = mock_task
-        annotation_filter = MagicMock()
-        annotation_filter.first.return_value = None  # Not found
-
-        mock_query.filter.side_effect = [project_filter, task_filter, annotation_filter]
-
-        def override_get_db():
-            yield mock_db
-
-        app.dependency_overrides[require_user] = lambda: mock_user
-        app.dependency_overrides[get_db] = override_get_db
-
-        try:
-            response = client.post(
-                "/api/projects/project-1/tasks/task-1/questionnaire-response",
+        patches = _patch_access()
+        with _as_user(user), patches[0], patches[1], patches[2]:
+            response = await async_test_client.post(
+                f"/api/projects/{project.id}/tasks/{task.id}/questionnaire-response",
                 json={
                     "annotation_id": "nonexistent",
-                    "result": [{"from_name": "q1", "to_name": "q1", "type": "choices", "value": {"choices": ["yes"]}}],
+                    "result": [{"from_name": "q1", "to_name": "q1", "type": "choices",
+                                "value": {"choices": ["yes"]}}],
                 },
             )
-            assert response.status_code == status.HTTP_404_NOT_FOUND
-        finally:
-            app.dependency_overrides.clear()
+        assert response.status_code == 404
 
-    def test_list_responses_permission_creator(self, client, mock_project):
+    async def test_list_responses_permission_creator(self, async_test_client, async_test_db):
         """Project creator can list questionnaire responses."""
-        from auth_module import require_user
-        from database import get_db
+        creator = await _make_user(async_test_db)
+        project = await _make_project(async_test_db, created_by=creator.id)
+        await async_test_db.commit()
 
-        creator = Mock()
-        creator.id = "admin-123"  # Same as project.created_by
-        creator.is_superadmin = False
+        # creator passes the edit gate
+        patches = _patch_access(can_edit=True)
+        with _as_user(creator), patches[0], patches[1], patches[2]:
+            response = await async_test_client.get(
+                f"/api/projects/{project.id}/questionnaire-responses"
+            )
+        assert response.status_code == 200
 
-        mock_db = MagicMock(spec=Session)
-        mock_query = MagicMock()
-        mock_db.query.return_value = mock_query
-
-        project_filter = MagicMock()
-        project_filter.first.return_value = mock_project
-
-        responses_query = MagicMock()
-        responses_query.order_by.return_value = responses_query
-        responses_query.all.return_value = []
-
-        mock_query.filter.side_effect = [project_filter, responses_query]
-
-        def override_get_db():
-            yield mock_db
-
-        app.dependency_overrides[require_user] = lambda: creator
-        app.dependency_overrides[get_db] = override_get_db
-
-        try:
-            response = client.get("/api/projects/project-1/questionnaire-responses")
-            assert response.status_code == status.HTTP_200_OK
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_list_responses_permission_superadmin(self, client, mock_project, mock_superadmin):
+    async def test_list_responses_permission_superadmin(self, async_test_client, async_test_db):
         """Superadmin can list questionnaire responses."""
-        from auth_module import require_user
-        from database import get_db
+        creator = await _make_user(async_test_db)
+        superadmin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, created_by=creator.id)
+        await async_test_db.commit()
 
-        mock_db = MagicMock(spec=Session)
-        mock_query = MagicMock()
-        mock_db.query.return_value = mock_query
+        patches = _patch_access(can_edit=True)
+        with _as_user(superadmin), patches[0], patches[1], patches[2]:
+            response = await async_test_client.get(
+                f"/api/projects/{project.id}/questionnaire-responses"
+            )
+        assert response.status_code == 200
 
-        project_filter = MagicMock()
-        project_filter.first.return_value = mock_project
-
-        responses_query = MagicMock()
-        responses_query.order_by.return_value = responses_query
-        responses_query.all.return_value = []
-
-        mock_query.filter.side_effect = [project_filter, responses_query]
-
-        def override_get_db():
-            yield mock_db
-
-        app.dependency_overrides[require_user] = lambda: mock_superadmin
-        app.dependency_overrides[get_db] = override_get_db
-
-        try:
-            response = client.get("/api/projects/project-1/questionnaire-responses")
-            assert response.status_code == status.HTTP_200_OK
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_list_responses_permission_denied(self, client, mock_user, mock_project):
+    async def test_list_responses_permission_denied(self, async_test_client, async_test_db):
         """Non-creator, non-superadmin, non-contributor gets 403."""
-        from auth_module import require_user
-        from database import get_db
+        creator = await _make_user(async_test_db)
+        outsider = await _make_user(async_test_db)
+        project = await _make_project(async_test_db, created_by=creator.id)
+        await async_test_db.commit()
 
-        mock_db = MagicMock(spec=Session)
-        mock_query = MagicMock()
-        mock_db.query.return_value = mock_query
-
-        project_filter = MagicMock()
-        project_filter.first.return_value = mock_project
-
-        mock_query.filter.return_value = project_filter
-
-        def override_get_db():
-            yield mock_db
-
-        # mock_user.id is "user-123", project.created_by is "admin-123" → denied
-        app.dependency_overrides[require_user] = lambda: mock_user
-        app.dependency_overrides[get_db] = override_get_db
-
-        try:
-            # Override the edit check to deny (this user has no org role)
-            with patch('routers.projects.questionnaire.check_user_can_edit_project', return_value=False):
-                response = client.get("/api/projects/project-1/questionnaire-responses")
-                assert response.status_code == status.HTTP_403_FORBIDDEN
-        finally:
-            app.dependency_overrides.clear()
+        # accessible but no edit permission → 403 from the require_project_access dep
+        patches = _patch_access(accessible=True, can_edit=False)
+        with _as_user(outsider), patches[0], patches[1], patches[2]:
+            response = await async_test_client.get(
+                f"/api/projects/{project.id}/questionnaire-responses"
+            )
+        assert response.status_code == 403

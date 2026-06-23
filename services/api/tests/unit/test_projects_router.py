@@ -1,18 +1,103 @@
 """
 Comprehensive tests for the projects router endpoints.
 Tests the current router architecture mounted at /api/projects/*.
+
+The CRUD handlers were migrated to the async DB lane (``Depends(get_async_db)``
++ ``await db.execute(select(...))``), so the old ``get_db``-Mock / query-chain
+pattern no longer reaches the handlers. These tests seed real ORM rows via
+``async_test_db`` and drive the surface through ``async_test_client``;
+``require_user`` is overridden per-test via ``_as_user`` to an auth User
+matching the seeded owner. Auth-only / 422-validation / route-existence tests
+that never reach the async DB keep their original lightweight ``TestClient``
+form.
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 
+from auth_module import require_user
+from auth_module.models import User as AuthUser
 from main import app
-from project_models import Task
+from models import Organization, User
+from project_models import Project, ProjectOrganization
+
+
+def _uid() -> str:
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _make_user(db, *, is_superadmin=False, name="Test User"):
+    u = User(
+        id=_uid(),
+        username=f"pr-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name=name,
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _make_org(db, *, name="Test Org"):
+    org = Organization(id=_uid(), name=name, slug=f"org-{_uid()[:8]}")
+    db.add(org)
+    await db.flush()
+    return org
+
+
+async def _make_project(
+    db,
+    *,
+    created_by: str,
+    title="Test Project",
+    description="Test project description",
+    is_private=True,
+    is_public=False,
+    label_config="<View></View>",
+):
+    p = Project(
+        id=_uid(),
+        title=title,
+        description=description,
+        created_by=created_by,
+        label_config=label_config,
+        is_private=is_private,
+        is_public=is_public,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(p)
+    await db.flush()
+    return p
 
 
 class TestProjectsRouter:
@@ -20,438 +105,92 @@ class TestProjectsRouter:
 
     @pytest.fixture
     def client(self):
-        """Create test client"""
+        """Create test client (sync, used only by auth/route tests)."""
         return TestClient(app)
 
-    @pytest.fixture
-    def mock_regular_user(self):
-        """Create mock regular user with organization membership"""
-        # Use Mock to avoid SQLAlchemy relationship issues
-        user = Mock()
-        user.id = "regular-user-123"
-        user.username = "regular"
-        user.email = "regular@example.com"
-        user.name = "Regular User"
-        user.is_superadmin = False
-        user.is_active = True
-        user.email_verified = True
-        user.created_at = datetime.now(timezone.utc)
-
-        # Mock organization memberships
-        membership = Mock()
-        membership.organization_id = "org-123"
-        membership.is_active = True
-        membership.role = "CONTRIBUTOR"  # Need this role to create projects
-        user.organization_memberships = [membership]
-        return user
-
-    @pytest.fixture
-    def mock_superadmin_user(self):
-        """Create mock superadmin user"""
-        # Use Mock to avoid SQLAlchemy issues
-        user = Mock()
-        user.id = "admin-user-123"
-        user.username = "admin"
-        user.email = "admin@example.com"
-        user.name = "Admin User"
-        user.is_superadmin = True
-        user.is_active = True
-        user.email_verified = True
-        user.created_at = datetime.now(timezone.utc)
-        # Superadmins also need organization_memberships for project creation
-        membership = Mock()
-        membership.organization_id = "org-123"
-        membership.role = "ORG_ADMIN"
-        membership.is_active = True
-        membership.organization = Mock()
-        membership.organization.id = "org-123"
-        membership.organization.name = "Test Org"
-        user.organization_memberships = [membership]
-        return user
-
-    @pytest.fixture
-    def mock_project(self):
-        """Create mock project with all required fields"""
-        project = Mock()
-        # Core fields
-        project.id = "project-123"
-        project.title = "Test Project"
-        project.description = "Test project description"
-        project.created_by = "admin-user-123"
-        project.organization_id = "org-123"  # Legacy field, still needed for schema
-        project.created_at = datetime.now(timezone.utc)
-        project.updated_at = None
-        project.evaluation_config = {}
-        project.generation_config = {}
-
-        # ProjectBase fields
-        project.label_config = "<View></View>"
-        project.generation_structure = ""
-        project.expert_instruction = "Test instructions"
-        project.show_instruction = True
-        project.show_skip_button = True
-        project.enable_empty_annotation = True
-        project.show_annotation_history = False
-
-        # ProjectResponse-specific fields
-        project.created_by_name = "Admin User"
-
-        # Mock organization relationship
-        organization = Mock()
-        organization.id = "org-123"
-        organization.name = "Test Org"
-        project.organization = organization
-        # organizations should be list of objects with id/name attributes, not dicts
-        project.organizations = [organization]
-        project.task_count = 5
-        project.annotation_count = 2
-        project.min_annotations_per_task = 1
-        project.assignment_mode = "open"
-        project.completed_tasks_count = 2
-        project.progress_percentage = 40.0
-        project.is_published = True
-        project.is_archived = False
-        project.instructions = "Test instructions"  # Alias for expert_instruction
-        project.maximum_annotations = 1
-        project.show_submit_button = True
-        project.require_comment_on_skip = False
-        project.require_confirm_before_submit = False
-        project.llm_model_ids = []
-        project.num_tasks = 5
-        project.num_annotations = 2
-        project.generation_prompts_ready = False
-        project.generation_config_ready = False
-        project.generation_models_count = 0
-        project.generation_completed = False
-        project.is_private = False
-        # Visibility tier (added in Korrektur rework)
-        project.is_public = False
-        project.public_role = None
-        # Per-card feature visibility flags (D4 from korrektur rework)
-        project.enable_annotation = True
-        project.enable_generation = True
-        project.enable_evaluation = True
-        # Generation Statistiken tile
-        project.generation_count = 0
-        # Evaluation counters surfaced via ProjectResponse (added with the
-        # aggregate_summaries refactor, commit 1c5ca93). Without these the
-        # Pydantic validator sees Mock objects and rejects with int_type
-        # errors — the calculate_project_stats patch in each test sets
-        # these to live values, but the initial from_orm validation runs
-        # FIRST on the raw mock_project.
-        project.evaluation_count = 0
-        project.evaluations_completed_count = 0
-        # Extended feature flags
-        project.annotation_time_limit_enabled = False
-        project.annotation_time_limit_seconds = None
-        project.strict_timer_enabled = False
-        project.review_enabled = False
-        project.review_mode = "in_place"
-        project.allow_self_review = False
-        project.korrektur_enabled = False
-        project.korrektur_config = None
-        project.immediate_evaluation_enabled = False
-        project.annotator_full_visibility_after_submit = False
-        # Post-annotation questionnaire
-        project.questionnaire_enabled = False
-        project.questionnaire_config = None
-        # Conditional instructions
-        project.instructions_always_visible = False
-        project.conditional_instructions = None
-        # Task ordering
-        project.randomize_task_order = False
-        # Fields added by parallel work
-        project.skip_queue = "disabled"
-        project.evaluation_config = None
-        project.generation_config = None
-        project.assignment_mode = "manual"
-        # Skip queue
-        project.skip_queue = "requeue_for_others"
-        # Assignment mode
-        project.assignment_mode = "open"
-        # Min annotations
-        project.min_annotations_per_task = 1
-
-        # Mock creator and organization relationships
-        project.creator = Mock()
-        project.creator.name = "Admin User"
-
-        # JSON-typed columns that ProjectResponse serializes — must not be raw Mock.
-        # (Pydantic v2 errors on `Unable to serialize unknown type: Mock`.)
-        project.evaluation_config = {}
-        project.generation_config = {}
-        project.korrektur_config = None
-        project.conditional_instructions = None
-        project.questionnaire_config = None
-        project.label_config_history = None
-        project.label_config_version = 1
-        # Remaining Optional fields on ProjectResponse — set explicitly so Mock
-        # attribute auto-creation doesn't leak unserializable values.
-        project.organization_id = None
-        project.annotation_time_limit_seconds = None
-        project.review_mode = "in_place"
-
-        return project
-
-    @pytest.fixture
-    def mock_task(self, mock_project):
-        """Create mock task"""
-        return Task(
-            id="task-123",
-            project_id=mock_project.id,
-            data={"text": "Sample text for annotation"},
-            inner_id=1,
-            is_labeled=False,
-            total_annotations=0,
-        )
-
-    def test_list_projects_success(self, client, mock_regular_user):
+    @pytest.mark.asyncio
+    async def test_list_projects_success(self, async_test_client, async_test_db):
         """Test listing projects at /api/projects/"""
-        from auth_module import require_user
-        from database import get_db
-        from main import app
+        user = await _make_user(async_test_db)
+        await _make_project(async_test_db, created_by=user.id, title="Legal Project")
+        await async_test_db.commit()
 
-        def override_require_user():
-            return mock_regular_user
+        with _as_user(user):
+            response = await async_test_client.get("/api/projects/")
 
-        def override_get_db():
-            mock_db = MagicMock(spec=Session)
-            # Mock the query chain to return empty results
-            mock_query = MagicMock()
-            mock_query.filter.return_value = mock_query
-            mock_query.options.return_value = mock_query
-            mock_query.offset.return_value = mock_query
-            mock_query.limit.return_value = mock_query
-            mock_query.count.return_value = 0
-            mock_query.all.return_value = []
-            mock_query.subquery.return_value = MagicMock()
-            mock_db.query.return_value = mock_query
-            return mock_db
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "items" in data
+        assert "total" in data
+        assert "page" in data
+        assert "page_size" in data
+        # The user's own private project is visible.
+        assert any(p["title"] == "Legal Project" for p in data["items"])
 
-        with patch("routers.projects.crud.get_user_with_memberships") as mock_get_user, patch(
-            "routers.projects.helpers.get_project_organizations",
-            return_value=[{"id": "org-123", "name": "Test Org"}],
-        ) as mock_get_orgs, patch(
-            "routers.projects.crud.calculate_project_stats_batch", return_value={}
-        ) as mock_calc_stats:  # noqa: F841
-            # Mock user with memberships
-            mock_user_with_memberships = Mock()
-            mock_user_with_memberships.id = mock_regular_user.id
-            mock_user_with_memberships.is_superadmin = False
-            mock_user_with_memberships.organization_memberships = (
-                mock_regular_user.organization_memberships
-            )
-            mock_get_user.return_value = mock_user_with_memberships
-
-            # Mock organization data
-            mock_get_orgs.return_value = [{"id": "org-123", "name": "Test Org"}]
-
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                response = client.get("/api/projects/")
-
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert "items" in data
-                assert "total" in data
-                assert "page" in data
-                assert "page_size" in data
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_list_projects_with_pagination(self, client, mock_regular_user):
+    @pytest.mark.asyncio
+    async def test_list_projects_with_pagination(self, async_test_client, async_test_db):
         """Test listing projects with pagination parameters"""
-        from auth_module import require_user
-        from database import get_db
-        from main import app
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
 
-        def override_require_user():
-            return mock_regular_user
+        with _as_user(user):
+            response = await async_test_client.get(
+                "/api/projects/", params={"page": 2, "page_size": 50}
+            )
 
-        def override_get_db():
-            mock_db = MagicMock(spec=Session)
-            mock_query = MagicMock()
-            mock_query.filter.return_value = mock_query
-            mock_query.options.return_value = mock_query
-            mock_query.offset.return_value = mock_query
-            mock_query.limit.return_value = mock_query
-            mock_query.count.return_value = 0
-            mock_query.all.return_value = []
-            mock_query.subquery.return_value = MagicMock()
-            mock_db.query.return_value = mock_query
-            return mock_db
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["page"] == 2
+        assert data["page_size"] == 50
 
-        with patch("routers.projects.crud.get_user_with_memberships") as mock_get_user, patch(
-            "routers.projects.helpers.get_project_organizations"
-        ) as mock_get_orgs, patch(
-            "routers.projects.crud.calculate_project_stats_batch", return_value={}
-        ) as mock_calc_stats:  # noqa: F841
-            mock_user_with_memberships = Mock()
-            mock_user_with_memberships.id = mock_regular_user.id
-            mock_user_with_memberships.is_superadmin = False
-            mock_user_with_memberships.organization_memberships = []
-            mock_get_user.return_value = mock_user_with_memberships
-
-            mock_get_orgs.return_value = []
-
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                params = {"page": 2, "page_size": 50}
-                response = client.get("/api/projects/", params=params)
-
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert data["page"] == 2
-                assert data["page_size"] == 50
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_list_projects_with_search_filter(self, client, mock_regular_user):
+    @pytest.mark.asyncio
+    async def test_list_projects_with_search_filter(self, async_test_client, async_test_db):
         """Test listing projects with search filter"""
-        from auth_module import require_user
-        from database import get_db
-        from main import app
+        user = await _make_user(async_test_db)
+        await _make_project(async_test_db, created_by=user.id, title="Legal matters")
+        await _make_project(async_test_db, created_by=user.id, title="Unrelated topic")
+        await async_test_db.commit()
 
-        def override_require_user():
-            return mock_regular_user
+        with _as_user(user):
+            response = await async_test_client.get("/api/projects/", params={"search": "legal"})
 
-        def override_get_db():
-            mock_db = MagicMock(spec=Session)
-            mock_query = MagicMock()
-            mock_query.filter.return_value = mock_query
-            mock_query.options.return_value = mock_query
-            mock_query.offset.return_value = mock_query
-            mock_query.limit.return_value = mock_query
-            mock_query.count.return_value = 0
-            mock_query.all.return_value = []
-            mock_query.subquery.return_value = MagicMock()
-            mock_db.query.return_value = mock_query
-            return mock_db
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        titles = [p["title"] for p in data["items"]]
+        assert "Legal matters" in titles
+        assert "Unrelated topic" not in titles
 
-        with patch("routers.projects.crud.get_user_with_memberships") as mock_get_user, patch(
-            "routers.projects.helpers.get_project_organizations"
-        ) as mock_get_orgs, patch(
-            "routers.projects.crud.calculate_project_stats_batch", return_value={}
-        ) as mock_calc_stats:  # noqa: F841
-            mock_user_with_memberships = Mock()
-            mock_user_with_memberships.id = mock_regular_user.id
-            mock_user_with_memberships.is_superadmin = False
-            mock_user_with_memberships.organization_memberships = []
-            mock_get_user.return_value = mock_user_with_memberships
-
-            mock_get_orgs.return_value = []
-
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                params = {"search": "legal"}
-                response = client.get("/api/projects/", params=params)
-
-                assert response.status_code == status.HTTP_200_OK
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_list_projects_with_archived_filter(self, client, mock_regular_user):
+    @pytest.mark.asyncio
+    async def test_list_projects_with_archived_filter(self, async_test_client, async_test_db):
         """Test listing projects with is_archived filter"""
-        from auth_module import require_user
-        from database import get_db
-        from main import app
+        user = await _make_user(async_test_db)
+        await _make_project(async_test_db, created_by=user.id)
+        await async_test_db.commit()
 
-        def override_require_user():
-            return mock_regular_user
+        with _as_user(user):
+            response = await async_test_client.get(
+                "/api/projects/", params={"is_archived": True}
+            )
 
-        def override_get_db():
-            mock_db = MagicMock(spec=Session)
-            mock_query = MagicMock()
-            mock_query.filter.return_value = mock_query
-            mock_query.options.return_value = mock_query
-            mock_query.offset.return_value = mock_query
-            mock_query.limit.return_value = mock_query
-            mock_query.count.return_value = 0
-            mock_query.all.return_value = []
-            mock_query.subquery.return_value = MagicMock()
-            mock_db.query.return_value = mock_query
-            return mock_db
+        assert response.status_code == status.HTTP_200_OK
 
-        with patch("routers.projects.crud.get_user_with_memberships") as mock_get_user, patch(
-            "routers.projects.helpers.get_project_organizations"
-        ) as mock_get_orgs, patch(
-            "routers.projects.crud.calculate_project_stats_batch", return_value={}
-        ) as mock_calc_stats:  # noqa: F841
-            mock_user_with_memberships = Mock()
-            mock_user_with_memberships.id = mock_regular_user.id
-            mock_user_with_memberships.is_superadmin = False
-            mock_user_with_memberships.organization_memberships = []
-            mock_get_user.return_value = mock_user_with_memberships
-
-            mock_get_orgs.return_value = []
-
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                params = {"is_archived": True}
-                response = client.get("/api/projects/", params=params)
-
-                assert response.status_code == status.HTTP_200_OK
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_list_projects_superadmin_default_narrow(self, client, mock_superadmin_user):
+    @pytest.mark.asyncio
+    async def test_list_projects_superadmin_default_narrow(
+        self, async_test_client, async_test_db
+    ):
         """Smoke test: /api/projects/ as a superadmin without the
         include_all_private flag must still return 200 (with the narrowed
         list). Real visibility behavior is covered end-to-end in
         tests/integration/test_projects_superadmin_visibility.py."""
-        from auth_module import require_user
-        from database import get_db
-        from main import app
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
 
-        def override_require_user():
-            return mock_superadmin_user
+        with _as_user(admin):
+            response = await async_test_client.get("/api/projects/")
 
-        def override_get_db():
-            mock_db = MagicMock(spec=Session)
-            mock_query = MagicMock()
-            mock_query.filter.return_value = mock_query
-            mock_query.options.return_value = mock_query
-            mock_query.offset.return_value = mock_query
-            mock_query.limit.return_value = mock_query
-            mock_query.count.return_value = 0
-            mock_query.all.return_value = []
-            mock_query.subquery.return_value = MagicMock()
-            mock_db.query.return_value = mock_query
-            return mock_db
-
-        with patch("routers.projects.crud.get_user_with_memberships") as mock_get_user, patch(
-            "routers.projects.helpers.get_project_organizations",
-            return_value=[{"id": "org-123", "name": "Test Org"}],
-        ) as mock_get_orgs, patch(
-            "routers.projects.crud.calculate_project_stats_batch", return_value={}
-        ) as mock_calc_stats:  # noqa: F841
-            # Mock superadmin user
-            mock_user_with_memberships = Mock()
-            mock_user_with_memberships.id = mock_superadmin_user.id
-            mock_user_with_memberships.is_superadmin = True
-            mock_get_user.return_value = mock_user_with_memberships
-
-            mock_get_orgs.return_value = [{"id": "org-1", "name": "Org 1"}]
-
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                response = client.get("/api/projects/")
-
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert "items" in data
-            finally:
-                app.dependency_overrides.clear()
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "items" in data
 
     def test_list_projects_requires_authentication(self, client):
         """Test that listing projects requires authentication"""
@@ -459,495 +198,198 @@ class TestProjectsRouter:
         # Should require authentication
         assert response.status_code in [401, 403]
 
-    def test_get_project_success(self, client, mock_superadmin_user, mock_project):
+    @pytest.mark.asyncio
+    async def test_get_project_success(self, async_test_client, async_test_db):
         """Test getting single project by ID at /api/projects/{project_id}"""
-        from auth_module import require_user
-        from database import get_db
-        from main import app
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, created_by=admin.id)
+        await async_test_db.commit()
 
-        def override_require_user():
-            return mock_superadmin_user
+        with _as_user(admin):
+            response = await async_test_client.get(f"/api/projects/{project.id}")
 
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            # Mock project found - superadmin bypasses access control checks
-            mock_db.query.return_value.options.return_value.filter.return_value.first.return_value = (
-                mock_project
-            )
-            return mock_db
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["id"] == project.id
 
-        with patch("routers.projects.crud.calculate_project_stats", return_value=None), \
-             patch("routers.projects.crud.calculate_generation_stats", return_value=None):
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                response = client.get(f"/api/projects/{mock_project.id}")
-
-                assert response.status_code == status.HTTP_200_OK
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_get_project_not_found(self, client, mock_regular_user):
+    @pytest.mark.asyncio
+    async def test_get_project_not_found(self, async_test_client, async_test_db):
         """Test getting non-existent project"""
-        from auth_module import require_user
-        from database import get_db
-        from main import app
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
 
-        def override_require_user():
-            return mock_regular_user
+        with _as_user(user):
+            response = await async_test_client.get("/api/projects/nonexistent-project")
 
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            # Mock project not found
-            mock_db.query.return_value.options.return_value.filter.return_value.first.return_value = (
-                None
-            )
-            return mock_db
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
+    @pytest.mark.asyncio
+    async def test_get_project_access_denied(self, async_test_client, async_test_db):
+        """Test access denied for a private project the user doesn't own.
 
-        try:
-            response = client.get("/api/projects/nonexistent-project")
+        The endpoint returns 403 (project exists, access control denies it).
+        """
+        owner = await _make_user(async_test_db)
+        other = await _make_user(async_test_db)
+        project = await _make_project(
+            async_test_db, created_by=owner.id, is_private=True
+        )
+        await async_test_db.commit()
 
-            assert response.status_code == status.HTTP_404_NOT_FOUND
-        finally:
-            app.dependency_overrides.clear()
+        with _as_user(other):
+            response = await async_test_client.get(f"/api/projects/{project.id}")
 
-    def test_get_project_access_denied(self, client, mock_regular_user):
-        """Test access denied for private project user doesn't have access to"""
-        from auth_module import require_user
-        from database import get_db
-        from main import app
+        assert response.status_code == 403
 
-        def override_require_user():
-            return mock_regular_user
+    @pytest.mark.asyncio
+    async def test_create_project_success(self, async_test_client, async_test_db):
+        """Test creating project at /api/projects/ with superadmin.
 
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            # Mock no project found - access control prevents access so return None
-            mock_db.query.return_value.options.return_value.filter.return_value.first.return_value = (
-                None
-            )
-            return mock_db
+        Private (default) path: no org context header => private project.
+        """
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
 
-        with patch("routers.projects.crud.get_user_with_memberships") as mock_get_user:
-            mock_user_with_memberships = Mock()
-            mock_user_with_memberships.id = mock_regular_user.id
-            mock_user_with_memberships.is_superadmin = False
-            mock_user_with_memberships.organization_memberships = []  # No memberships
-            mock_get_user.return_value = mock_user_with_memberships
+        project_data = {"title": "New Project", "description": "A new test project"}
+        with _as_user(admin), patch(
+            "routers.projects.crud._notify_project_created_sync"
+        ), patch("routers.projects.crud._create_initial_report_draft_sync"):
+            response = await async_test_client.post("/api/projects/", json=project_data)
 
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
+        assert response.status_code in [200, 201]
+        body = response.json()
+        assert body["title"] == "New Project"
+        # The project was persisted.
+        row = (
+            await async_test_db.execute(select(Project).where(Project.id == body["id"]))
+        ).scalar_one_or_none()
+        assert row is not None
+        assert row.title == "New Project"
+        assert row.created_by == admin.id
 
-            try:
-                response = client.get("/api/projects/private-project")
+    @pytest.mark.asyncio
+    async def test_create_project_invalid_data(self, async_test_client, async_test_db):
+        """Test creating project with invalid data (missing title) → 422.
 
-                # The endpoint should return 404 for project not found (access control hides existence)
-                assert response.status_code == 404
-            finally:
-                app.dependency_overrides.clear()
+        Validation rejects before reaching the DB, but we still drive it through
+        the async client under an authenticated user.
+        """
+        user = await _make_user(async_test_db)
+        await async_test_db.commit()
 
-    def test_create_project_success(self, client, mock_superadmin_user):
-        """Test creating project at /api/projects/ with superadmin (bypasses org checks)"""
-        from auth_module import require_user
-        from database import get_db
-        from main import app
-
-        def override_require_user():
-            return mock_superadmin_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            mock_db.add = Mock()
-            mock_db.commit = Mock()
-            mock_db.refresh = Mock()
-
-            # Mock created project for refresh - copy all fields from fixture
-            created_project = Mock()
-            # Core fields
-            created_project.id = "new-project-123"
-            created_project.title = "New Project"
-            created_project.description = "A new test project"
-            created_project.created_by = mock_superadmin_user.id
-            created_project.organization_id = "org-123"  # Legacy field, still needed for schema
-            created_project.created_at = datetime.now(timezone.utc)
-            created_project.updated_at = None
-            created_project.evaluation_config = {}
-            created_project.generation_config = {}
-
-            # ProjectBase fields
-            created_project.label_config = "<View></View>"
-            created_project.generation_structure = ""
-            created_project.expert_instruction = ""
-            created_project.show_instruction = True
-            created_project.show_skip_button = True
-            created_project.enable_empty_annotation = True
-            created_project.show_annotation_history = False
-
-            # ProjectResponse-specific fields
-            created_project.created_by_name = mock_superadmin_user.name
-            created_project.task_count = 0
-            created_project.annotation_count = 0
-            created_project.min_annotations_per_task = 1
-            created_project.completed_tasks_count = 0
-            created_project.progress_percentage = 0.0
-            created_project.is_published = False
-            created_project.is_archived = False
-            created_project.instructions = ""
-            created_project.maximum_annotations = 1
-            created_project.show_submit_button = True
-            created_project.require_comment_on_skip = False
-            created_project.require_confirm_before_submit = False
-            created_project.llm_model_ids = []
-            created_project.num_tasks = 0
-            created_project.num_annotations = 0
-            created_project.generation_prompts_ready = False
-            created_project.generation_config_ready = False
-            created_project.generation_models_count = 0
-            created_project.generation_completed = False
-            created_project.is_private = False
-            # Visibility tier (added in Korrektur rework)
-            created_project.is_public = False
-            created_project.public_role = None
-            # Per-card feature visibility (D4)
-            created_project.enable_annotation = True
-            created_project.enable_generation = True
-            created_project.enable_evaluation = True
-            # Generation Statistiken tile
-            created_project.generation_count = 0
-            # Evaluation counters surfaced via ProjectResponse (added with
-            # the aggregate_summaries refactor, commit 1c5ca93).
-            created_project.evaluation_count = 0
-            created_project.evaluations_completed_count = 0
-            # Extended feature flags
-            created_project.annotation_time_limit_enabled = False
-            created_project.annotation_time_limit_seconds = None
-            created_project.strict_timer_enabled = False
-            created_project.review_enabled = False
-            created_project.review_mode = "in_place"
-            created_project.allow_self_review = False
-            created_project.korrektur_enabled = False
-            created_project.korrektur_config = None
-            created_project.immediate_evaluation_enabled = False
-            created_project.annotator_full_visibility_after_submit = False
-            # Post-annotation questionnaire
-            created_project.questionnaire_enabled = False
-            created_project.questionnaire_config = None
-            # Conditional instructions
-            created_project.instructions_always_visible = False
-            created_project.conditional_instructions = None
-            # Task ordering
-            created_project.randomize_task_order = False
-            # Skip queue
-            created_project.skip_queue = "requeue_for_others"
-            # Assignment mode
-            created_project.assignment_mode = "open"
-            created_project.min_annotations_per_task = 1
-
-            # Mock organization relationship
-            organization = Mock()
-            organization.id = "org-123"
-            organization.name = "Test Org"
-            created_project.organization = organization
-            # organizations should be list of objects with id/name attributes
-            created_project.organizations = [organization]
-
-            # Mock creator relationship
-            created_project.creator = Mock()
-            created_project.creator.name = mock_superadmin_user.name
-
-            mock_db.query.return_value.options.return_value.filter.return_value.first.return_value = (
-                created_project
+        with _as_user(user):
+            response = await async_test_client.post(
+                "/api/projects/", json={"description": "Missing title"}
             )
 
-            return mock_db
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-        with patch("routers.projects.crud.get_user_with_memberships") as mock_get_user, patch(
-            "routers.projects.helpers.get_project_organizations",
-            return_value=[{"id": "org-123", "name": "Test Org"}],
-        ) as mock_get_orgs, patch(
-            "routers.projects.crud.calculate_project_stats", return_value=None
-        ) as mock_calc_stats, patch(
-            "routers.projects.crud.calculate_generation_stats", return_value=None
-        ) as mock_calc_gen, patch(  # noqa: F841
-            "notification_service.notify_project_created"
-        ) as mock_notify:  # noqa: F841
-            mock_user_with_memberships = Mock()
-            mock_user_with_memberships.id = mock_superadmin_user.id
-            mock_user_with_memberships.is_superadmin = True
-            mock_user_with_memberships.organization_memberships = (
-                mock_superadmin_user.organization_memberships
-            )
-            mock_get_user.return_value = mock_user_with_memberships
-
-            mock_get_orgs.return_value = [{"id": "org-123", "name": "Test Org"}]
-
-            # Mock calculate_project_stats to avoid interference
-            mock_calc_stats.return_value = None
-
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                project_data = {"title": "New Project", "description": "A new test project"}
-
-                response = client.post("/api/projects/", json=project_data)
-
-                # Should succeed with proper mocking
-                assert response.status_code in [200, 201]
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_create_project_invalid_data(self, client, mock_regular_user):
-        """Test creating project with invalid data"""
-        from auth_module import require_user
-        from database import get_db
-        from main import app
-
-        def override_require_user():
-            return mock_regular_user
-
-        def override_get_db():
-            return Mock(spec=Session)
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
-
-        try:
-            # Missing required fields
-            invalid_data = {"description": "Missing title"}
-
-            response = client.post("/api/projects/", json=invalid_data)
-
-            assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_update_project_success(self, client, mock_regular_user, mock_project):
+    @pytest.mark.asyncio
+    async def test_update_project_success(self, async_test_client, async_test_db):
         """Test updating project at /api/projects/{project_id}"""
-        from auth_module import require_user
-        from database import get_db
-        from main import app
+        user = await _make_user(async_test_db)
+        project = await _make_project(async_test_db, created_by=user.id)
+        await async_test_db.commit()
 
-        # Make mock user the project creator so it passes the permission check
-        mock_project.created_by = mock_regular_user.id
-
-        def override_require_user():
-            return mock_regular_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            # Mock project found for both query patterns:
-            # db.query(Project).filter().first() and db.query(Project).options().filter().first()
-            mock_db.query.return_value.filter.return_value.first.return_value = mock_project
-            mock_db.query.return_value.options.return_value.filter.return_value.first.return_value = (
-                mock_project
+        update_data = {
+            "title": "Updated Project Title",
+            "description": "Updated description",
+        }
+        with _as_user(user):
+            response = await async_test_client.patch(
+                f"/api/projects/{project.id}", json=update_data
             )
-            mock_db.commit = Mock()
-            return mock_db
 
-        with patch("routers.projects.crud.get_user_with_memberships") as mock_get_user, patch(
-            "routers.projects.helpers.get_project_organizations",
-            return_value=[{"id": "org-123", "name": "Test Org"}],
-        ) as mock_get_orgs, patch(
-            "routers.projects.crud.calculate_project_stats", return_value=None
-        ) as mock_calc_stats, patch(
-            "routers.projects.crud.calculate_generation_stats", return_value=None
-        ) as mock_calc_gen:  # noqa: F841
-            mock_user_with_memberships = Mock()
-            mock_user_with_memberships.id = mock_regular_user.id
-            mock_user_with_memberships.is_superadmin = False
-            mock_user_with_memberships.organization_memberships = (
-                mock_regular_user.organization_memberships
-            )
-            mock_get_user.return_value = mock_user_with_memberships
+        assert response.status_code == 200
+        assert response.json()["title"] == "Updated Project Title"
+        # Persisted change re-queried (translates the old commit-assert).
+        await async_test_db.refresh(project)
+        assert project.title == "Updated Project Title"
+        assert project.description == "Updated description"
 
-            mock_get_orgs.return_value = [{"id": "org-123", "name": "Test Org"}]
-
-            # Mock calculate_project_stats to avoid interference
-            mock_calc_stats.return_value = None
-
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                update_data = {
-                    "title": "Updated Project Title",
-                    "description": "Updated description",
-                }
-
-                response = client.patch(
-                    f"/api/projects/{mock_project.id}", json=update_data
-                )  # Use PATCH
-
-                # Should handle the request properly with mocks
-                assert response.status_code in [
-                    200,
-                    403,
-                    404,
-                    405,
-                ]  # 403 access denied is valid behavior
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_delete_project_success(self, client, mock_superadmin_user, mock_project):
+    @pytest.mark.asyncio
+    async def test_delete_project_success(self, async_test_client, async_test_db):
         """Test deleting project at /api/projects/{project_id}"""
-        from auth_module import require_user
-        from database import get_db
-        from main import app
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        project = await _make_project(async_test_db, created_by=admin.id)
+        project_id = project.id
+        await async_test_db.commit()
 
-        def override_require_user():
-            return mock_superadmin_user
+        with _as_user(admin), patch("routers.projects.crud._notify_project_deleted_sync"):
+            response = await async_test_client.delete(f"/api/projects/{project_id}")
 
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            # Mock project found
-            mock_db.query.return_value.options.return_value.filter.return_value.first.return_value = (
-                mock_project
-            )
-            mock_db.delete = Mock()
-            mock_db.commit = Mock()
-            return mock_db
-
-        with patch("notification_service.notify_project_deleted") as mock_notify:  # noqa: F841
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                response = client.delete(f"/api/projects/{mock_project.id}")
-
-                # Should handle the request properly with mocks
-                assert response.status_code in [
-                    200,
-                    204,
-                    404,
-                    405,
-                ]  # 200 OK or 204 No Content are valid
-            finally:
-                app.dependency_overrides.clear()
+        assert response.status_code in [200, 204]
+        # Row is gone.
+        row = (
+            await async_test_db.execute(select(Project).where(Project.id == project_id))
+        ).scalar_one_or_none()
+        assert row is None
 
 
 class TestPrivateProjectDeletion:
     """Test that private project creators can delete their own projects."""
 
-    @pytest.fixture
-    def client(self):
-        return TestClient(app)
-
-    @pytest.fixture
-    def mock_private_project(self):
-        """Create mock private project"""
-        project = Mock()
-        project.id = "private-project-123"
-        project.title = "My Private Project"
-        project.is_private = True
-        project.created_by = "regular-user-123"
-        return project
-
-    def test_delete_private_project_by_creator(self, client, mock_private_project):
+    @pytest.mark.asyncio
+    async def test_delete_private_project_by_creator(
+        self, async_test_client, async_test_db
+    ):
         """Private project creator should be able to delete their project."""
-        from auth_module import require_user
-        from database import get_db
+        creator = await _make_user(async_test_db)
+        project = await _make_project(
+            async_test_db, created_by=creator.id, is_private=True
+        )
+        project_id = project.id
+        await async_test_db.commit()
 
-        creator = Mock()
-        creator.id = "regular-user-123"
-        creator.is_superadmin = False
-        creator.is_active = True
-        creator.email_verified = True
+        with _as_user(creator), patch("routers.projects.crud._notify_project_deleted_sync"):
+            response = await async_test_client.delete(f"/api/projects/{project_id}")
 
-        def override_require_user():
-            return creator
+        assert response.status_code in [200, 204]
+        row = (
+            await async_test_db.execute(select(Project).where(Project.id == project_id))
+        ).scalar_one_or_none()
+        assert row is None
 
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            mock_query = Mock()
-            mock_query.filter.return_value = mock_query
-            mock_query.first.return_value = mock_private_project
-            mock_query.delete.return_value = 0
-            mock_db.query.return_value = mock_query
-            mock_db.delete = Mock()
-            mock_db.commit = Mock()
-            return mock_db
-
-        with patch("notification_service.notify_project_deleted"):
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-
-            try:
-                response = client.delete(f"/api/projects/{mock_private_project.id}")
-                assert response.status_code in [200, 204]
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_delete_private_project_by_other_user_blocked(self, client, mock_private_project):
+    @pytest.mark.asyncio
+    async def test_delete_private_project_by_other_user_blocked(
+        self, async_test_client, async_test_db
+    ):
         """Non-creator non-superadmin should NOT be able to delete a private project."""
-        from auth_module import require_user
-        from database import get_db
+        creator = await _make_user(async_test_db)
+        other_user = await _make_user(async_test_db)
+        project = await _make_project(
+            async_test_db, created_by=creator.id, is_private=True
+        )
+        project_id = project.id
+        await async_test_db.commit()
 
-        other_user = Mock()
-        other_user.id = "other-user-456"
-        other_user.is_superadmin = False
-        other_user.is_active = True
-        other_user.email_verified = True
+        with _as_user(other_user):
+            response = await async_test_client.delete(f"/api/projects/{project_id}")
 
-        def override_require_user():
-            return other_user
+        assert response.status_code == 403
+        # Row still present (not deleted).
+        row = (
+            await async_test_db.execute(select(Project).where(Project.id == project_id))
+        ).scalar_one_or_none()
+        assert row is not None
 
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            mock_query = Mock()
-            mock_query.filter.return_value = mock_query
-            mock_query.first.return_value = mock_private_project
-            mock_db.query.return_value = mock_query
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
-
-        try:
-            response = client.delete(f"/api/projects/{mock_private_project.id}")
-            assert response.status_code == 403
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_delete_org_project_by_regular_user_blocked(self, client):
+    @pytest.mark.asyncio
+    async def test_delete_org_project_by_regular_user_blocked(
+        self, async_test_client, async_test_db
+    ):
         """Non-superadmin should NOT be able to delete an org project."""
-        from auth_module import require_user
-        from database import get_db
+        regular_user = await _make_user(async_test_db)
+        # Org project (not private) created by the regular user. The delete
+        # guard only allows superadmins, or creators of *private* projects.
+        project = await _make_project(
+            async_test_db, created_by=regular_user.id, is_private=False
+        )
+        project_id = project.id
+        await async_test_db.commit()
 
-        regular_user = Mock()
-        regular_user.id = "regular-user-123"
-        regular_user.is_superadmin = False
-        regular_user.is_active = True
-        regular_user.email_verified = True
+        with _as_user(regular_user):
+            response = await async_test_client.delete(f"/api/projects/{project_id}")
 
-        org_project = Mock()
-        org_project.id = "org-project-123"
-        org_project.is_private = False
-        org_project.created_by = "regular-user-123"
-
-        def override_require_user():
-            return regular_user
-
-        def override_get_db():
-            mock_db = Mock(spec=Session)
-            mock_query = Mock()
-            mock_query.filter.return_value = mock_query
-            mock_query.first.return_value = org_project
-            mock_db.query.return_value = mock_query
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
-
-        try:
-            response = client.delete(f"/api/projects/{org_project.id}")
-            assert response.status_code == 403
-        finally:
-            app.dependency_overrides.clear()
+        assert response.status_code == 403
 
 
 @pytest.mark.integration

@@ -48,9 +48,13 @@ test-reports/
 # Mutation testing artifacts (mutmut cache + junit reports, Stryker reports)
 .mutmut-cache
 mutmut*.xml
+mutmut_probe.log
 **/reports/mutation/
 .stryker-tmp/
 .benchmarks/
+
+# Accidental pip stderr-redirect artifacts (e.g. `pip install pkg>=1.0` -> file named `=1.0`)
+=*
 *.cover
 .hypothesis/
 

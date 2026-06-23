@@ -18,7 +18,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from label_config_version_service import LabelConfigVersionService
+from services.label_config.version_service import LabelConfigVersionService
 from project_models import Project
 
 # ============================================================================

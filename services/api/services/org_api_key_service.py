@@ -10,6 +10,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from models import Organization, OrganizationApiKey
@@ -191,7 +193,7 @@ class OrgApiKeyService:
         - If org requires private keys: use personal key
         - If org provides keys: use org key (None if org hasn't set it)
         """
-        from user_api_key_service import user_api_key_service
+        from services.user_api_key_service import user_api_key_service
 
         if not org_id:
             # Private context - always personal key
@@ -215,7 +217,7 @@ class OrgApiKeyService:
         - Private context or org with require_private_keys=true: user's personal providers
         - Org with require_private_keys=false: org's providers
         """
-        from user_api_key_service import user_api_key_service
+        from services.user_api_key_service import user_api_key_service
 
         if not org_id:
             return user_api_key_service.get_user_available_providers(db, user_id)
@@ -226,6 +228,170 @@ class OrgApiKeyService:
             return user_api_key_service.get_user_available_providers(db, user_id)
         else:
             return self.get_org_available_providers(db, org_id)
+
+    # ------------------------------------------------------------------
+    # Async twins (async DB lane). Share pure ``_build_select_*`` builders
+    # with the sync methods above; the sync methods stay byte-identical.
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_select_org(org_id: str):
+        return select(Organization).where(Organization.id == org_id)
+
+    @staticmethod
+    def _build_select_org_key(org_id: str, provider: str):
+        return select(OrganizationApiKey).where(
+            OrganizationApiKey.organization_id == org_id,
+            OrganizationApiKey.provider == provider,
+        )
+
+    @staticmethod
+    def _build_select_org_keys(org_id: str):
+        return select(OrganizationApiKey).where(
+            OrganizationApiKey.organization_id == org_id
+        )
+
+    async def _get_org_setting_require_private_keys_async(
+        self, db: AsyncSession, org_id: str
+    ) -> bool:
+        """Async twin of :meth:`_get_org_setting_require_private_keys`."""
+        result = await db.execute(self._build_select_org(org_id))
+        org = result.scalar_one_or_none()
+        if not org or not org.settings:
+            return True
+        return org.settings.get("require_private_keys", True)
+
+    async def set_org_api_key_async(
+        self, db: AsyncSession, org_id: str, provider: str, api_key: str, created_by: str
+    ) -> bool:
+        """Async twin of :meth:`set_org_api_key`."""
+        try:
+            provider = provider.lower()
+            if provider not in self.SUPPORTED_PROVIDERS:
+                logger.error(f"Unsupported provider: {provider}")
+                return False
+
+            if not self.encryption_service.is_valid_api_key_format(api_key, provider):
+                logger.error(f"Invalid API key format for provider {provider}")
+                return False
+
+            encrypted_key = self.encryption_service.encrypt_api_key(api_key)
+            if not encrypted_key:
+                logger.error("Failed to encrypt API key")
+                return False
+
+            result = await db.execute(self._build_select_org_key(org_id, provider))
+            existing = result.scalar_one_or_none()
+
+            if existing:
+                existing.encrypted_key = encrypted_key
+                existing.updated_at = datetime.now(timezone.utc)
+            else:
+                new_key = OrganizationApiKey(
+                    id=str(uuid.uuid4()),
+                    organization_id=org_id,
+                    provider=provider,
+                    encrypted_key=encrypted_key,
+                    created_by=created_by,
+                )
+                db.add(new_key)
+
+            await db.commit()
+            logger.info(f"Org API key set for org {org_id}, provider {provider}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to set org API key: {e}")
+            await db.rollback()
+            return False
+
+    async def get_org_api_key_async(
+        self, db: AsyncSession, org_id: str, provider: str
+    ) -> Optional[str]:
+        """Async twin of :meth:`get_org_api_key`."""
+        try:
+            provider = provider.lower()
+            if provider not in self.SUPPORTED_PROVIDERS:
+                return None
+
+            result = await db.execute(self._build_select_org_key(org_id, provider))
+            record = result.scalar_one_or_none()
+
+            if not record:
+                return None
+
+            return self.encryption_service.decrypt_api_key(record.encrypted_key)
+
+        except Exception as e:
+            logger.error(f"Failed to get org API key: {e}")
+            return None
+
+    async def remove_org_api_key_async(
+        self, db: AsyncSession, org_id: str, provider: str
+    ) -> bool:
+        """Async twin of :meth:`remove_org_api_key`."""
+        try:
+            provider = provider.lower()
+            if provider not in self.SUPPORTED_PROVIDERS:
+                return False
+
+            result = await db.execute(self._build_select_org_key(org_id, provider))
+            record = result.scalar_one_or_none()
+
+            if not record:
+                return False
+
+            await db.delete(record)
+            await db.commit()
+            logger.info(f"Org API key removed for org {org_id}, provider {provider}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to remove org API key: {e}")
+            await db.rollback()
+            return False
+
+    async def get_org_api_key_status_async(
+        self, db: AsyncSession, org_id: str
+    ) -> Dict[str, bool]:
+        """Async twin of :meth:`get_org_api_key_status`."""
+        try:
+            result = await db.execute(self._build_select_org_keys(org_id))
+            records = result.scalars().all()
+            providers_with_keys = {r.provider for r in records}
+
+            return {
+                provider: provider in providers_with_keys for provider in self.SUPPORTED_PROVIDERS
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to get org API key status: {e}")
+            return {}
+
+    async def get_org_available_providers_async(
+        self, db: AsyncSession, org_id: str
+    ) -> List[str]:
+        """Async twin of :meth:`get_org_available_providers`."""
+        status = await self.get_org_api_key_status_async(db, org_id)
+        return [
+            self.PROVIDER_DISPLAY_NAMES[provider] for provider, has_key in status.items() if has_key
+        ]
+
+    async def get_available_providers_for_context_async(
+        self, db: AsyncSession, user_id: str, org_id: Optional[str]
+    ) -> List[str]:
+        """Async twin of :meth:`get_available_providers_for_context`."""
+        from services.user_api_key_service import user_api_key_service
+
+        if not org_id:
+            return await user_api_key_service.get_user_available_providers_async(db, user_id)
+
+        require_private = await self._get_org_setting_require_private_keys_async(db, org_id)
+
+        if require_private:
+            return await user_api_key_service.get_user_available_providers_async(db, user_id)
+        else:
+            return await self.get_org_available_providers_async(db, org_id)
 
 
 # Create singleton instance

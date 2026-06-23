@@ -16,14 +16,18 @@ from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import func
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from auth_module import require_user
-from database import get_db
+from database import get_async_db
 from models import LLMModel, User
 from project_models import Project
-from routers.projects.helpers import check_project_accessible, get_org_context_from_request
+from routers.projects.helpers import (
+    check_project_accessible_async,
+    get_org_context_from_request,
+)
 from services.token_estimation import (
     estimate_tokens_for_calls,
     sample_prediction_inputs,
@@ -624,21 +628,51 @@ def _count_cells_to_generate(
 
 
 @router.post("/cost-estimate", response_model=CostEstimateResponse)
-def estimate_cost(
+async def estimate_cost(
     request: CostEstimateRequest,
     raw_request: Request,
     current_user: User = Depends(require_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ) -> CostEstimateResponse:
-    """Estimate total cost for a planned generation or evaluation trigger."""
+    """Estimate total cost for a planned generation or evaluation trigger.
 
-    project = db.query(Project).filter(Project.id == request.project_id).first()
-    if not project:
+    The endpoint runs on the async lane for the project-existence check and the
+    access-control gate. The cost computation itself is a deep graph of
+    sync-only DB helpers (``_count_eval_subjects``, ``_count_evaluation_judge_calls``,
+    ``_count_cells_to_generate``, ``_resolve_pricing`` …) plus the sync-only
+    ``token_estimation`` samplers — none of which has an async twin and which
+    all take ``db: Session``. Rather than partially convert (which the async
+    playbook forbids — never mix ``db.query`` with ``await`` in one handler),
+    the whole sync computation is bridged onto a sync ``Session`` bound to THIS
+    async session's connection via ``await db.run_sync(...)``, so it runs inside
+    the same transaction without opening a second connection.
+    """
+    # Async existence + access gate (read-only).
+    project_exists = (
+        await db.execute(select(Project.id).where(Project.id == request.project_id))
+    ).scalar_one_or_none()
+    if project_exists is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
     org_context = get_org_context_from_request(raw_request)
-    if not check_project_accessible(db, current_user, request.project_id, org_context):
+    if not await check_project_accessible_async(
+        db, current_user, request.project_id, org_context
+    ):
         raise HTTPException(status_code=403, detail="Access denied")
+
+    # Bridge the sync-only cost computation onto a sync Session sharing this
+    # async connection/transaction.
+    return await db.run_sync(
+        lambda sync_db: _compute_cost_estimate_impl(sync_db, request)
+    )
+
+
+def _compute_cost_estimate_impl(
+    db: Session, request: CostEstimateRequest
+) -> CostEstimateResponse:
+    project = db.query(Project).filter(Project.id == request.project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
 
     # Pick the right model set to price.
     target_models = list(request.model_ids)

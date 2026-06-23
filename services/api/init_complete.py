@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from database import SessionLocal  # noqa: E402
 from scripts.setup_demo_org import setup_demo_organization  # noqa: E402
-from user_service import init_demo_users  # noqa: E402
+from auth_module.user_service import init_demo_users  # noqa: E402
 
 
 def complete_mandatory_profiles(db):
@@ -706,7 +706,7 @@ def setup_user_api_keys(db):
     # Add shared services to path
     sys.path.append('/shared')
     from encryption_service import encryption_service
-    from user_api_key_service import create_user_api_key_service
+    from services.user_api_key_service import create_user_api_key_service
 
     user_api_key_service = create_user_api_key_service(encryption_service)
 

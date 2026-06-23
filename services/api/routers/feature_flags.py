@@ -7,11 +7,13 @@ import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, joinedload
 
 from auth_module.dependencies import require_superadmin, require_user
-from database import get_db
-from feature_flag_service import FeatureFlagService
+from database import get_async_db, get_db
+from services.feature_flag_service import FeatureFlagService
 from models import FeatureFlag as DBFeatureFlag
 from models import User
 from schemas.feature_flag_schemas import (
@@ -28,11 +30,11 @@ router = APIRouter(prefix="/api/feature-flags", tags=["feature-flags"])
 @router.get("", response_model=List[FeatureFlagResponse])
 async def list_feature_flags(
     current_user: User = Depends(require_superadmin),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """List all feature flags (Admin only)"""
     try:
-        flags = db.query(DBFeatureFlag).all()
+        flags = (await db.execute(select(DBFeatureFlag))).scalars().all()
         return [FeatureFlagResponse.model_validate(flag) for flag in flags]
     except Exception as e:
         logger.error(f"Error listing feature flags: {e}")
@@ -48,7 +50,12 @@ async def get_feature_flags(
     db: Session = Depends(get_db),
     response: Response = None,
 ):
-    """Get all feature flags (global, same for all users)"""
+    """Get all feature flags (global, same for all users)
+
+    Stays on the sync engine: its DB work runs entirely through the sync-only
+    ``FeatureFlagService`` (Redis cache + sync ``self.db`` queries), which has
+    no async twin.
+    """
     try:
         # Set cache control headers to prevent browser caching
         if response:
@@ -70,11 +77,13 @@ async def get_feature_flags(
 async def get_feature_flag(
     flag_id: str,
     current_user: User = Depends(require_superadmin),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Get a specific feature flag (Admin only)"""
     try:
-        flag = db.query(DBFeatureFlag).filter(DBFeatureFlag.id == flag_id).first()
+        flag = (
+            await db.execute(select(DBFeatureFlag).where(DBFeatureFlag.id == flag_id))
+        ).scalar_one_or_none()
         if not flag:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -98,7 +107,12 @@ async def update_feature_flag(
     current_user: User = Depends(require_superadmin),
     db: Session = Depends(get_db),
 ):
-    """Update a feature flag (Admin only)"""
+    """Update a feature flag (Admin only)
+
+    Stays on the sync engine: the update + cache-invalidation runs through the
+    sync-only ``FeatureFlagService.update_flag`` (sync ``self.db`` query +
+    commit + Redis), which has no async twin.
+    """
     try:
         service = FeatureFlagService(db)
         updates = flag_data.model_dump(exclude_unset=True)
@@ -124,26 +138,30 @@ async def update_feature_flag(
 async def delete_feature_flag(
     flag_id: str,
     current_user: User = Depends(require_superadmin),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Delete a feature flag (Admin only)"""
     try:
-        service = FeatureFlagService(db)
-
         # Check if flag exists
-        flag = db.query(DBFeatureFlag).filter(DBFeatureFlag.id == flag_id).first()
+        flag = (
+            await db.execute(select(DBFeatureFlag).where(DBFeatureFlag.id == flag_id))
+        ).scalar_one_or_none()
         if not flag:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Feature flag not found",
             )
 
-        # Delete the flag
-        db.delete(flag)
-        db.commit()
+        flag_name = flag.name
 
-        # Invalidate cache
-        service.invalidate_cache(flag.name)
+        # Delete the flag
+        await db.delete(flag)
+        await db.commit()
+
+        # Invalidate cache. `invalidate_cache` is Redis-only (never touches
+        # ``self.db``), so the sync FeatureFlagService can be constructed
+        # without a DB session here.
+        FeatureFlagService(None).invalidate_cache(flag_name)
 
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -151,7 +169,7 @@ async def delete_feature_flag(
         raise
     except Exception as e:
         logger.error(f"Error deleting feature flag: {e}")
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete feature flag",
@@ -165,7 +183,12 @@ async def check_feature_flag(
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
-    """Check if a feature flag is enabled for the current user"""
+    """Check if a feature flag is enabled for the current user
+
+    Stays on the sync engine: the joinedload-eager user feeds the sync-only
+    ``FeatureFlagService.is_enabled`` (sync ``self.db`` query + Redis-cached
+    evaluation), which has no async twin.
+    """
     try:
         # Load user with organization_memberships relationship for feature flag evaluation
         user = (

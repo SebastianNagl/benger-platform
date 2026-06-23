@@ -34,6 +34,14 @@ jest.mock('@/contexts/I18nContext', () => ({
   useI18n: jest.fn(),
 }))
 
+jest.mock('@/contexts/ProgressContext', () => ({
+  useProgress: () => ({
+    startProgress: jest.fn(),
+    updateProgress: jest.fn(),
+    completeProgress: jest.fn(),
+  }),
+}))
+
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'

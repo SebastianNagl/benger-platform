@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from auth_module import create_access_token
 from models import User
-from user_service import get_password_hash
+from auth_module.user_service import get_password_hash
 
 
 class SecurityPayloads:

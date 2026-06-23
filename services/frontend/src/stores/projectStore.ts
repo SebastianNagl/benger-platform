@@ -35,6 +35,10 @@ interface ProjectStore {
   totalPages: number
   // Configuration tracking
   labelConfigVersion: number
+  // Last-used list filters, so pagination / page-size changes re-fetch with the
+  // same archive + visibility scope instead of silently dropping it.
+  lastIsArchived: boolean
+  lastIncludeAllPrivate: boolean
 
   // Project actions
   fetchProjects: (
@@ -125,6 +129,8 @@ export const useProjectStore = create<ProjectStore>()(
       totalProjects: 0,
       totalPages: 0,
       labelConfigVersion: 0,
+      lastIsArchived: false,
+      lastIncludeAllPrivate: false,
 
       // Project actions
       fetchProjects: async (
@@ -135,16 +141,29 @@ export const useProjectStore = create<ProjectStore>()(
       ) => {
         const currentPageToUse = page ?? get().currentPage
         const pageSizeToUse = pageSize ?? get().pageSize
+        // Fall back to the last-used filters when a caller (pagination,
+        // page-size change, importData) omits them. Without this, `undefined`
+        // drops the archive/visibility scope and re-fetches every project,
+        // re-populating the active list with archived rows. `??` preserves an
+        // explicit `false`.
+        const isArchivedToUse = isArchived ?? get().lastIsArchived
+        const includeAllPrivateToUse =
+          includeAllPrivate ?? get().lastIncludeAllPrivate
         const search = get().searchQuery
 
-        set({ loading: true, error: null })
+        set({
+          loading: true,
+          error: null,
+          lastIsArchived: isArchivedToUse,
+          lastIncludeAllPrivate: includeAllPrivateToUse,
+        })
         try {
           const response = await projectsAPI.list(
             currentPageToUse,
             pageSizeToUse,
             search,
-            isArchived,
-            includeAllPrivate
+            isArchivedToUse,
+            includeAllPrivateToUse
           )
 
           // Ensure response has the expected structure

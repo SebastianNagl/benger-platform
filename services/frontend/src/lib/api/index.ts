@@ -5,9 +5,7 @@
  */
 
 import { configureAdminDefaultsClient } from './admin-defaults'
-// import { createAnnotationApi } from './annotations' // Removed - old annotation system
 import { AuthClient } from './auth'
-import { BaseApiClient } from './base'
 import { EvaluationsClient } from './evaluations'
 import { FeatureFlagsClient } from './feature-flags'
 import { InvitationsApiClient } from './invitations'
@@ -23,7 +21,7 @@ export type {
   DefaultConfig,
   DefaultPrompts,
   EvaluationRequest,
-  EvaluationResult,
+  EvaluationResultSummary,
   EvaluationType,
   EvaluationUpdate,
   GenerationResponse,
@@ -58,6 +56,24 @@ export type {
 } from './types'
 
 /**
+ * Configuration accepted by {@link createApiClient} and the {@link ApiClient}
+ * constructor. Both fields are optional so the existing no-arg
+ * `new ApiClient()` path (and the global singleton) keep working unchanged.
+ *
+ * Providing them here threads org-context + auth-failure wiring *at
+ * construction time* — the explicit alternative to mutating a shared
+ * singleton via `setOrganizationContextProvider` / `setAuthFailureHandler`
+ * after the fact. The mutation setters remain available and still work; this
+ * is an additive, backward-compatible evolution.
+ */
+export interface ApiClientConfig {
+  /** Returns the current organization slug/id for the `X-Organization-Context` header, or null. */
+  orgContextProvider?: () => string | null
+  /** Invoked when a request fails auth (401/refresh-exhausted). */
+  onAuthFailure?: () => void
+}
+
+/**
  * Unified API client that provides access to all resource-specific clients
  * while maintaining the same interface as the old monolithic client
  */
@@ -71,7 +87,6 @@ export class ApiClient {
   private invitationsClient: InvitationsApiClient
   private featureFlagsClient: FeatureFlagsClient
   private leaderboardsClientInstance: LeaderboardsClient
-  // public readonly annotation: ReturnType<typeof createAnnotationApi> // Removed - old annotation system
 
   // Expose leaderboards client
   get leaderboards(): LeaderboardsClient {
@@ -102,31 +117,7 @@ export class ApiClient {
     this.leaderboardsClientInstance?.clearUserCache?.(userId)
   }
 
-  // Method bindings - declare without initialization
-  getAnnotationTemplates: any
-  getAnnotationTemplate: any
-  createAnnotationTemplate: any
-  getDefaultAnnotationTemplate: any
-  createAnnotationProject: any
-  getAnnotationProject: any
-  getAnnotationProjectByTask: any
-  getAnnotationProjectStatistics: any
-  assignAnnotationTask: any
-  getUserAnnotationAssignments: any
-  createAnnotation: any
-  getAnnotation: any
-  updateAnnotation: any
-  submitAnnotation: any
-  listAnnotations: any
-  addAnnotationComment: any
-  resolveAnnotationComment: any
-  validateAnnotationMigration: any
-  migrateAnnotationTask: any
-  migrateAnnotationBatch: any
-  getAnnotationMigrationStatus: any
-  createAnnotationWebSocket: any
-
-  constructor() {
+  constructor(config?: ApiClientConfig) {
     // Initialize clients in constructor to ensure proper initialization
     // Use try-catch to handle test environments where clients might not be available
     try {
@@ -151,75 +142,6 @@ export class ApiClient {
       this.featureFlagsClient = createStub()
       this.leaderboardsClientInstance = createStub()
     }
-    // Initialize annotation client eagerly to avoid lazy loading issues
-    // this.annotation = createAnnotationApi(this) // Removed - old annotation system
-    // Bind annotation methods AFTER annotation client is created
-    // Removed - old annotation system
-    // this.getAnnotationTemplates = this.annotation.templates.list.bind(
-    //   this.annotation.templates
-    // )
-    // this.getAnnotationTemplate = this.annotation.templates.get.bind(
-    //   this.annotation.templates
-    // )
-    // this.createAnnotationTemplate = this.annotation.templates.create.bind(
-    //   this.annotation.templates
-    // )
-    // this.getDefaultAnnotationTemplate =
-    //   this.annotation.templates.getDefault.bind(this.annotation.templates)
-    // this.createAnnotationProject = this.annotation.projects.create.bind(
-    //   this.annotation.projects
-    // )
-    // this.getAnnotationProject = this.annotation.projects.get.bind(
-    //   this.annotation.projects
-    // )
-    // this.getAnnotationProjectByTask = this.annotation.projects.getByTask.bind(
-    //   this.annotation.projects
-    // )
-    // this.getAnnotationProjectStatistics =
-    //   this.annotation.projects.getStatistics.bind(this.annotation.projects)
-    // this.assignAnnotationTask = this.annotation.assignments.assign.bind(
-    //   this.annotation.assignments
-    // )
-    // this.getUserAnnotationAssignments =
-    //   this.annotation.assignments.getUserAssignments.bind(
-    //     this.annotation.assignments
-    //   )
-    // this.createAnnotation = this.annotation.annotations.create.bind(
-    //   this.annotation.annotations
-    // )
-    // this.getAnnotation = this.annotation.annotations.get.bind(
-    //   this.annotation.annotations
-    // )
-    // this.updateAnnotation = this.annotation.annotations.update.bind(
-    //   this.annotation.annotations
-    // )
-    // this.submitAnnotation = this.annotation.annotations.submit.bind(
-    //   this.annotation.annotations
-    // )
-    // this.listAnnotations = this.annotation.annotations.list.bind(
-    //   this.annotation.annotations
-    // )
-    // this.addAnnotationComment = this.annotation.comments.add.bind(
-    //   this.annotation.comments
-    // )
-    // this.resolveAnnotationComment = this.annotation.comments.resolve.bind(
-    //   this.annotation.comments
-    // )
-    // this.validateAnnotationMigration = this.annotation.migration.validate.bind(
-    //   this.annotation.migration
-    // )
-    // this.migrateAnnotationTask = this.annotation.migration.migrateTask.bind(
-    //   this.annotation.migration
-    // )
-    // this.migrateAnnotationBatch = this.annotation.migration.migrateBatch.bind(
-    //   this.annotation.migration
-    // )
-    // this.getAnnotationMigrationStatus =
-    //   this.annotation.migration.getStatus.bind(this.annotation.migration)
-    // this.createAnnotationWebSocket = this.annotation.createWebSocket.bind(
-    //   this.annotation
-    // )
-
     // Initialize all method bindings with safe binding helper
     const safeBind = (client: any, methodName: string) => {
       if (client && typeof client[methodName] === 'function') {
@@ -528,6 +450,17 @@ export class ApiClient {
     // Set up aliases
     this.uploadTaskData = this.uploadData // Alias for backward compatibility
     this.listInvitations = this.getOrganizationInvitations // Alias
+
+    // Apply optional construction-time config. This routes through the same
+    // public setters the singleton uses, so behavior/headers/auth semantics
+    // are identical to the post-hoc mutation path — only the *timing* differs
+    // (set once at construction vs. mutated globally later).
+    if (config?.orgContextProvider) {
+      this.setOrganizationContextProvider(config.orgContextProvider)
+    }
+    if (config?.onAuthFailure) {
+      this.setAuthFailureHandler(config.onAuthFailure)
+    }
   }
 
   // Authentication methods
@@ -611,43 +544,6 @@ export class ApiClient {
   getModels: any
   getLLMModels: any
   getLLMModel: any
-  // createProjectEvaluationConfig =
-  //   this.evaluationsClient.createProjectEvaluationConfig.bind(
-  //     this.evaluationsClient
-  //   )
-  // getProjectEvaluationConfigs =
-  //   this.evaluationsClient.getProjectEvaluationConfigs.bind(
-  //     this.evaluationsClient
-  //   )
-  // getProjectEvaluationConfig =
-  //   this.evaluationsClient.getProjectEvaluationConfig.bind(
-  //     this.evaluationsClient
-  //   )
-  // runBatchEvaluation = this.evaluationsClient.runBatchEvaluation.bind(
-  //   this.evaluationsClient
-  // )
-  // generateResponses = this.evaluationsClient.generateResponses.bind(
-  //   this.evaluationsClient
-  // )
-  // evaluateResponses = this.evaluationsClient.evaluateResponses.bind(
-  //   this.evaluationsClient
-  // )
-  // deleteProjectEvaluationConfig =
-  //   this.evaluationsClient.deleteProjectEvaluationConfig.bind(
-  //     this.evaluationsClient
-  //   )
-  // createGenerationConfig = this.evaluationsClient.createGenerationConfig.bind(
-  //   this.evaluationsClient
-  // )
-  // getGenerationConfigs = this.evaluationsClient.getGenerationConfigs.bind(
-  //   this.evaluationsClient
-  // )
-  // generateFromConfig = this.evaluationsClient.generateFromConfig.bind(
-  //   this.evaluationsClient
-  // )
-  // deleteGenerationConfig = this.evaluationsClient.deleteGenerationConfig.bind(
-  //   this.evaluationsClient
-  // )
   getTaskTypes: any
   getTaskType: any
   getEvaluationTypes: any
@@ -797,60 +693,29 @@ export class ApiClient {
     return this.invitationsClient
   }
 
+  // Legacy annotation system was removed; getter retained as a null stub for
+  // any backward-compatible callers that still probe `apiClient.annotations`.
   get annotations() {
-    // return this.annotation // Removed - old annotation system
     return null
   }
 
   get featureFlags() {
     return this.featureFlagsClient
   }
+}
 
-  // Add generic HTTP methods for backward compatibility
-  // These are needed by projects.ts and other files that expect apiClient.get(), etc.
-  private httpClient = new (class extends BaseApiClient {
-    // Expose the protected request method through public HTTP methods
-    public async doRequest(endpoint: string, options: RequestInit = {}) {
-      return this.request(endpoint, options)
-    }
-  })()
-
-  // HTTP methods for generic API calls
-  // NOTE: These methods are commented out as they conflict with the bound methods above (lines 231-235)
-  // The bound methods from authClient already provide the same functionality
-  // If you need to use these, consider renaming them to avoid conflicts
-
-  // async get(url: string, options?: RequestInit) {
-  //   return this.httpClient.doRequest(url, { ...options, method: 'GET' })
-  // }
-
-  // async post(url: string, data?: any, options?: RequestInit) {
-  //   return this.httpClient.doRequest(url, {
-  //     ...options,
-  //     method: 'POST',
-  //     headers: {
-  //       'Content-Type': 'application/json',
-  //       ...(options?.headers || {}),
-  //     },
-  //     body: data ? JSON.stringify(data) : undefined,
-  //   })
-  // }
-
-  // async patch(url: string, data?: any, options?: RequestInit) {
-  //   return this.httpClient.doRequest(url, {
-  //     ...options,
-  //     method: 'PATCH',
-  //     headers: {
-  //       'Content-Type': 'application/json',
-  //       ...(options?.headers || {}),
-  //     },
-  //     body: data ? JSON.stringify(data) : undefined,
-  //   })
-  // }
-
-  // async delete(url: string, options?: RequestInit) {
-  //   return this.httpClient.doRequest(url, { ...options, method: 'DELETE' })
-  // }
+/**
+ * Factory for an {@link ApiClient} with org-context + auth-failure wiring
+ * threaded in explicitly at construction time.
+ *
+ * Prefer this (via {@link ApiClientContext}'s `useApiClient` hook) over
+ * importing the global `apiClient` singleton and relying on whoever last
+ * called `setOrganizationContextProvider` having set the right provider.
+ * Functionally equivalent to `new ApiClient(config)`; exists as a named,
+ * intention-revealing entry point and a mockable seam for tests.
+ */
+export function createApiClient(config?: ApiClientConfig): ApiClient {
+  return new ApiClient(config)
 }
 
 // Create and export a default instance

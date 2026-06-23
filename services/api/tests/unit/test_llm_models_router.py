@@ -2,115 +2,102 @@
 Tests for LLM models router.
 
 Targets: routers/llm_models.py lines 60-85, 97-109
+
+The /public/models endpoint was migrated to the async DB lane
+(Depends(get_async_db) + await db.execute(select(...))), so these tests
+exercise it through the real async_test_client / async_test_db fixtures
+against actual seeded LLMModel rows instead of a mocked Session — the old
+Mock(spec=Session).query(...) shape no longer matches the async handler.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import status
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
-from main import app
+from models import LLMModel as DBLLMModel
+
+
+def _make_model(**overrides):
+    """Build an LLMModel row with sensible defaults for the public endpoint.
+
+    Uses a test-only id to avoid colliding with real catalog rows that may
+    already be committed in the shared test DB.
+    """
+    data = dict(
+        id="test-gpt-4-public",
+        name="GPT-4",
+        description="OpenAI GPT-4",
+        provider="openai",
+        model_type="chat",
+        capabilities=["text_generation"],
+        config_schema=None,
+        default_config=None,
+        input_cost_per_million=30.0,
+        output_cost_per_million=60.0,
+        parameter_constraints={
+            "temperature": {"supported": True, "min": 0, "max": 2, "default": 1},
+            "max_tokens": {"default": 4096},
+        },
+        recommended_parameters=None,
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+        updated_at=None,
+    )
+    data.update(overrides)
+    return DBLLMModel(**data)
 
 
 class TestLLMModelsRouter:
     """Test LLM models endpoints."""
 
-    @pytest.fixture
-    def client(self):
-        return TestClient(app)
-
-    def test_get_public_models_success(self, client):
+    @pytest.mark.asyncio
+    async def test_get_public_models_success(self, async_test_client, async_test_db):
         """Test getting public LLM models."""
-        from database import get_db
+        async_test_db.add(_make_model())
+        await async_test_db.commit()
 
-        mock_db = Mock(spec=Session)
-        mock_model = Mock()
-        mock_model.id = "gpt-4"
-        mock_model.name = "GPT-4"
-        mock_model.description = "OpenAI GPT-4"
-        mock_model.provider = "openai"
-        mock_model.model_type = "chat"
-        mock_model.capabilities = ["text_generation"]
-        mock_model.config_schema = None
-        mock_model.default_config = None
-        mock_model.input_cost_per_million = 30.0
-        mock_model.output_cost_per_million = 60.0
-        mock_model.parameter_constraints = {
-            "temperature": {"supported": True, "min": 0, "max": 2, "default": 1},
-            "max_tokens": {"default": 4096},
-        }
-        mock_model.recommended_parameters = None
-        mock_model.is_active = True
-        mock_model.created_at = datetime.now(timezone.utc)
-        mock_model.updated_at = None
+        response = await async_test_client.get("/api/llm_models/public/models")
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        ids = {m["id"]: m for m in data}
+        assert "test-gpt-4-public" in ids
+        model = ids["test-gpt-4-public"]
+        assert model["provider"] == "openai"
+        assert "parameter_constraints" in model
+        assert model["parameter_constraints"]["temperature"]["supported"] is True
+        assert model["parameter_constraints"]["max_tokens"]["default"] == 4096
 
-        mock_query = Mock()
-        mock_filter = Mock()
-        mock_filter.all.return_value = [mock_model]
-        mock_query.filter.return_value = mock_filter
-        mock_db.query.return_value = mock_query
+    @pytest.mark.asyncio
+    async def test_get_public_models_empty(self, async_test_client, async_test_db):
+        """Inactive models are excluded from the public endpoint.
 
-        def override_get_db():
-            return mock_db
+        The shared test DB may carry seeded models, so assert the inactive
+        row we add is excluded rather than asserting a globally-empty list.
+        """
+        async_test_db.add(_make_model(id="inactive-model", is_active=False))
+        await async_test_db.commit()
 
-        app.dependency_overrides[get_db] = override_get_db
-        try:
-            response = client.get("/api/llm_models/public/models")
-            assert response.status_code == status.HTTP_200_OK
-            data = response.json()
-            assert len(data) == 1
-            assert data[0]["id"] == "gpt-4"
-            assert data[0]["provider"] == "openai"
-            assert "parameter_constraints" in data[0]
-            assert data[0]["parameter_constraints"]["temperature"]["supported"] == True  # noqa: E712
-            assert data[0]["parameter_constraints"]["max_tokens"]["default"] == 4096
-        finally:
-            app.dependency_overrides.clear()
+        response = await async_test_client.get("/api/llm_models/public/models")
+        assert response.status_code == status.HTTP_200_OK
+        ids = {m["id"] for m in response.json()}
+        assert "inactive-model" not in ids
 
-    def test_get_public_models_empty(self, client):
-        """Test getting public LLM models when none exist."""
-        from database import get_db
+    @pytest.mark.asyncio
+    async def test_get_public_models_error(self, async_test_client):
+        """A DB-layer failure surfaces as a 500.
 
-        mock_db = Mock(spec=Session)
-        mock_query = Mock()
-        mock_filter = Mock()
-        mock_filter.all.return_value = []
-        mock_query.filter.return_value = mock_filter
-        mock_db.query.return_value = mock_query
+        Patch the handler's select() so the try-body raises, exercising the
+        except-branch that wraps the error in a 500.
+        """
+        from unittest.mock import patch
 
-        def override_get_db():
-            return mock_db
-
-        app.dependency_overrides[get_db] = override_get_db
-        try:
-            response = client.get("/api/llm_models/public/models")
-            assert response.status_code == status.HTTP_200_OK
-            assert response.json() == []
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_get_public_models_error(self, client):
-        """Test getting public LLM models with database error."""
-        from database import get_db
-
-        mock_db = Mock(spec=Session)
-        mock_db.query.side_effect = Exception("DB error")
-
-        def override_get_db():
-            return mock_db
-
-        app.dependency_overrides[get_db] = override_get_db
-        try:
-            response = client.get("/api/llm_models/public/models")
+        with patch("routers.llm_models.select", side_effect=Exception("DB error")):
+            response = await async_test_client.get("/api/llm_models/public/models")
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        finally:
-            app.dependency_overrides.clear()
 
     def test_get_provider_capabilities(self, client):
-        """Test getting provider capabilities."""
+        """Test getting provider capabilities (sync, no DB)."""
         response = client.get("/api/llm_models/public/provider-capabilities")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -118,6 +105,8 @@ class TestLLMModelsRouter:
 
     def test_get_provider_capabilities_with_data(self, client):
         """Test getting provider capabilities with mock data."""
+        from unittest.mock import patch
+
         mock_caps = {
             "openai": {
                 "display_name": "OpenAI",

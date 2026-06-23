@@ -27,16 +27,115 @@ Covers:
 """
 
 import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
 
 import pytest
 
 from models import (
+    Organization,
+    OrganizationMembership,
+    OrganizationRole,
     User,
 )
 
 
 def _uid():
     return str(uuid.uuid4())
+
+
+# ---------------------------------------------------------------------------
+# Async-lane helpers
+#
+# Several auth read/action endpoints moved to the async DB lane
+# (Depends(get_async_db)): /me, /me/contexts, /profile (GET),
+# /check-profile-status, /mandatory-profile-status, /confirm-profile,
+# /profile-history, /logout, /logout-all. Driving them with the sync
+# TestClient + sync test_db fails with a cross-event-loop RuntimeError (the
+# async engine binds to a different loop than TestClient's portal). Those tests
+# are driven with async_test_client, seeded via async_test_db, overriding
+# require_user with an AuthUser that mirrors a seeded row so the handlers' async
+# DB queries resolve it.
+#
+# The remaining endpoints stay sync (login, signup, register, /verify,
+# change/reset/request-password, verify-email*, resend-verification,
+# PUT /profile, refresh) — their tests keep the sync client + test_db fixtures.
+# ---------------------------------------------------------------------------
+
+from auth_module.dependencies import require_user  # noqa: E402
+from auth_module.models import User as AuthUser  # noqa: E402
+from auth_module.user_service import get_password_hash  # noqa: E402
+from main import app  # noqa: E402
+
+
+@contextmanager
+def _as_user(db_user):
+    """Override require_user with an AuthUser mirroring a seeded DB user row."""
+    au = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _aseed_user(db, *, is_superadmin=False, mandatory_profile_completed=False, **overrides):
+    """Seed a User row on the async session and return it."""
+    suffix = uuid.uuid4().hex[:8]
+    fields = dict(
+        id=_uid(),
+        username=f"user_{suffix}@test.com",
+        email=f"user_{suffix}@test.com",
+        name="Seeded User",
+        hashed_password=get_password_hash("password123"),
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        mandatory_profile_completed=mandatory_profile_completed,
+        created_at=datetime.now(timezone.utc),
+    )
+    fields.update(overrides)
+    user = User(**fields)
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def _aseed_org(db, *, name="Async Body Org", slug=None):
+    org = Organization(
+        id=_uid(),
+        name=name,
+        display_name=f"{name} Display",
+        slug=slug or f"async-body-org-{uuid.uuid4().hex[:8]}",
+        description="seeded org",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(org)
+    await db.flush()
+    return org
+
+
+async def _aseed_membership(db, user_id, org_id, role=OrganizationRole.ANNOTATOR, is_active=True):
+    m = OrganizationMembership(
+        id=_uid(),
+        user_id=user_id,
+        organization_id=org_id,
+        role=role,
+        is_active=is_active,
+    )
+    db.add(m)
+    await db.flush()
+    return m
 
 
 def _signup_payload(**overrides):
@@ -111,7 +210,7 @@ class TestLoginBody:
         assert resp.status_code == 401
 
     def test_login_unverified_email_403(self, client, test_db):
-        from user_service import get_password_hash
+        from auth_module.user_service import get_password_hash
         u = User(
             id=_uid(), username=f"unverified_{uuid.uuid4().hex[:6]}@test.com",
             email=f"unverified_{uuid.uuid4().hex[:6]}@test.com", name="Unverified",
@@ -264,9 +363,19 @@ class TestRegisterBody:
 
 @pytest.mark.integration
 class TestMeBody:
+    """GET /api/auth/me is async — driven via async client."""
 
-    def test_me_admin_fields(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get("/api/auth/me", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_me_admin_fields(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db, is_superadmin=True)
+        org = await _aseed_org(async_test_db)
+        await _aseed_membership(
+            async_test_db, admin.id, org.id, role=OrganizationRole.ORG_ADMIN
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get("/api/auth/me")
         assert resp.status_code == 200
         data = resp.json()
         required = ["id", "username", "email", "name", "is_superadmin", "is_active", "role"]
@@ -275,15 +384,25 @@ class TestMeBody:
         assert data["is_superadmin"] == True  # noqa: E712
         assert data["email_verified"] == True  # noqa: E712
 
-    def test_me_annotator_has_role(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get("/api/auth/me", headers=auth_headers["annotator"])
+    @pytest.mark.asyncio
+    async def test_me_annotator_has_role(self, async_test_client, async_test_db):
+        annotator = await _aseed_user(async_test_db)
+        org = await _aseed_org(async_test_db)
+        await _aseed_membership(
+            async_test_db, annotator.id, org.id, role=OrganizationRole.ANNOTATOR
+        )
+        await async_test_db.commit()
+
+        with _as_user(annotator):
+            resp = await async_test_client.get("/api/auth/me")
         assert resp.status_code == 200
         data = resp.json()
         assert data["role"] == "ANNOTATOR"
         assert data["is_superadmin"] == False  # noqa: E712
 
-    def test_me_unauthorized(self, client, test_db):
-        resp = client.get("/api/auth/me")
+    @pytest.mark.asyncio
+    async def test_me_unauthorized(self, async_test_client):
+        resp = await async_test_client.get("/api/auth/me")
         assert resp.status_code == 401
 
 
@@ -293,9 +412,26 @@ class TestMeBody:
 
 @pytest.mark.integration
 class TestMeContextsBody:
+    """GET /api/auth/me/contexts is async — driven via async client."""
 
-    def test_contexts_superadmin_structure(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get("/api/auth/me/contexts", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_contexts_superadmin_structure(self, async_test_client, async_test_db):
+        admin = await _aseed_user(
+            async_test_db,
+            id="admin-test-id",
+            username="admin@test.com",
+            email="admin@test.com",
+            name="Test Admin",
+            is_superadmin=True,
+        )
+        org = await _aseed_org(async_test_db)
+        await _aseed_membership(
+            async_test_db, admin.id, org.id, role=OrganizationRole.ORG_ADMIN
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get("/api/auth/me/contexts")
         assert resp.status_code == 200
         data = resp.json()
         assert "user" in data
@@ -303,25 +439,52 @@ class TestMeContextsBody:
         assert data["private_mode_available"] == True  # noqa: E712
         assert data["user"]["id"] == "admin-test-id"
 
-    def test_contexts_org_fields(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get("/api/auth/me/contexts", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_contexts_org_fields(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db, is_superadmin=True)
+        org = await _aseed_org(async_test_db)
+        await _aseed_membership(
+            async_test_db, admin.id, org.id, role=OrganizationRole.ORG_ADMIN
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get("/api/auth/me/contexts")
         data = resp.json()
         assert len(data["organizations"]) >= 1
-        org = data["organizations"][0]
+        org_ctx = data["organizations"][0]
         org_fields = ["id", "name", "display_name", "slug", "role", "member_count"]
         for f in org_fields:
-            assert f in org, f"Missing org field: {f}"
+            assert f in org_ctx, f"Missing org field: {f}"
 
-    def test_contexts_annotator_own_orgs(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get("/api/auth/me/contexts", headers=auth_headers["annotator"])
+    @pytest.mark.asyncio
+    async def test_contexts_annotator_own_orgs(self, async_test_client, async_test_db):
+        annotator = await _aseed_user(async_test_db)
+        org = await _aseed_org(async_test_db)
+        await _aseed_membership(
+            async_test_db, annotator.id, org.id, role=OrganizationRole.ANNOTATOR
+        )
+        await async_test_db.commit()
+
+        with _as_user(annotator):
+            resp = await async_test_client.get("/api/auth/me/contexts")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["organizations"]) >= 1
 
-    def test_contexts_member_count_positive(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get("/api/auth/me/contexts", headers=auth_headers["admin"])
-        for org in resp.json()["organizations"]:
-            assert org["member_count"] >= 0
+    @pytest.mark.asyncio
+    async def test_contexts_member_count_positive(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db, is_superadmin=True)
+        org = await _aseed_org(async_test_db)
+        await _aseed_membership(
+            async_test_db, admin.id, org.id, role=OrganizationRole.ORG_ADMIN
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get("/api/auth/me/contexts")
+        for org_ctx in resp.json()["organizations"]:
+            assert org_ctx["member_count"] >= 0
 
 
 # ===================================================================
@@ -351,8 +514,14 @@ class TestVerifyBody:
 @pytest.mark.integration
 class TestProfileBody:
 
-    def test_get_profile_full_fields(self, client, test_db, test_users, auth_headers):
-        resp = client.get("/api/auth/profile", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_get_profile_full_fields(self, async_test_client, async_test_db):
+        # GET /api/auth/profile is async — driven via async client.
+        admin = await _aseed_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get("/api/auth/profile")
         assert resp.status_code == 200
         data = resp.json()
         expected = [
@@ -415,8 +584,24 @@ class TestProfileBody:
         )
         assert resp.status_code == 200
 
-    def test_get_profile_annotator(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get("/api/auth/profile", headers=auth_headers["annotator"])
+    @pytest.mark.asyncio
+    async def test_get_profile_annotator(self, async_test_client, async_test_db):
+        # GET /api/auth/profile is async — driven via async client.
+        annotator = await _aseed_user(
+            async_test_db,
+            id="annotator-test-id",
+            username="annotator@test.com",
+            email="annotator@test.com",
+            name="Test Annotator",
+        )
+        org = await _aseed_org(async_test_db)
+        await _aseed_membership(
+            async_test_db, annotator.id, org.id, role=OrganizationRole.ANNOTATOR
+        )
+        await async_test_db.commit()
+
+        with _as_user(annotator):
+            resp = await async_test_client.get("/api/auth/profile")
         assert resp.status_code == 200
         assert resp.json()["id"] == "annotator-test-id"
 
@@ -569,9 +754,15 @@ class TestResendVerificationBody:
 
 @pytest.mark.integration
 class TestCheckProfileStatusBody:
+    """GET /api/auth/check-profile-status is async — driven via async client."""
 
-    def test_normal_user_status(self, client, test_db, test_users, auth_headers):
-        resp = client.get("/api/auth/check-profile-status", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_normal_user_status(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get("/api/auth/check-profile-status")
         assert resp.status_code == 200
         data = resp.json()
         assert "user_id" in data
@@ -579,8 +770,19 @@ class TestCheckProfileStatusBody:
         assert "needs_profile_completion" in data
         assert "has_password" in data
 
-    def test_annotator_status(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get("/api/auth/check-profile-status", headers=auth_headers["annotator"])
+    @pytest.mark.asyncio
+    async def test_annotator_status(self, async_test_client, async_test_db):
+        annotator = await _aseed_user(
+            async_test_db,
+            id="annotator-test-id",
+            username="annotator@test.com",
+            email="annotator@test.com",
+            name="Test Annotator",
+        )
+        await async_test_db.commit()
+
+        with _as_user(annotator):
+            resp = await async_test_client.get("/api/auth/check-profile-status")
         assert resp.status_code == 200
         data = resp.json()
         assert data["user_id"] == "annotator-test-id"
@@ -592,17 +794,28 @@ class TestCheckProfileStatusBody:
 
 @pytest.mark.integration
 class TestMandatoryProfileStatusBody:
+    """GET /api/auth/mandatory-profile-status is async — driven via async client."""
 
-    def test_mandatory_status_fields(self, client, test_db, test_users, auth_headers):
-        resp = client.get("/api/auth/mandatory-profile-status", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_mandatory_status_fields(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get("/api/auth/mandatory-profile-status")
         assert resp.status_code == 200
         data = resp.json()
         assert "mandatory_profile_completed" in data
         assert "confirmation_due" in data
         assert "missing_fields" in data
 
-    def test_mandatory_status_annotator(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get("/api/auth/mandatory-profile-status", headers=auth_headers["annotator"])
+    @pytest.mark.asyncio
+    async def test_mandatory_status_annotator(self, async_test_client, async_test_db):
+        annotator = await _aseed_user(async_test_db)
+        await async_test_db.commit()
+
+        with _as_user(annotator):
+            resp = await async_test_client.get("/api/auth/mandatory-profile-status")
         assert resp.status_code == 200
 
 
@@ -612,31 +825,44 @@ class TestMandatoryProfileStatusBody:
 
 @pytest.mark.integration
 class TestConfirmProfileBody:
+    """POST /api/auth/confirm-profile is async — driven via async client."""
 
-    def test_confirm_profile_missing_fields_returns_400(self, client, test_db, test_users, auth_headers):
-        """Test users lack mandatory profile fields, so confirm returns 400."""
-        resp = client.post("/api/auth/confirm-profile", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_confirm_profile_missing_fields_returns_400(
+        self, async_test_client, async_test_db
+    ):
+        """A user lacking mandatory profile fields gets a 400 on confirm."""
+        admin = await _aseed_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.post("/api/auth/confirm-profile")
         assert resp.status_code == 400
         assert "missing fields" in resp.json()["detail"].lower()
 
-    def test_confirm_profile_success_with_complete_profile(self, client, test_db, test_users, auth_headers):
+    @pytest.mark.asyncio
+    async def test_confirm_profile_success_with_complete_profile(
+        self, async_test_client, async_test_db
+    ):
         """User with all mandatory fields can confirm profile."""
-        from models import User as DBUser
-        admin = test_db.query(DBUser).filter(DBUser.id == "admin-test-id").first()
-        # Fill all mandatory fields
-        admin.gender = "maennlich"
-        admin.age = 30
-        admin.legal_expertise_level = "layperson"
-        admin.german_proficiency = "native"
-        admin.subjective_competence_civil = 5
-        admin.subjective_competence_public = 4
-        admin.subjective_competence_criminal = 3
-        admin.ati_s_scores = {"item_1": 4, "item_2": 4, "item_3": 4, "item_4": 4}
-        admin.ptt_a_scores = {"item_1": 4, "item_2": 4, "item_3": 4, "item_4": 4}
-        admin.ki_experience_scores = {"item_1": 4, "item_2": 4, "item_3": 4, "item_4": 4}
-        test_db.commit()
+        admin = await _aseed_user(
+            async_test_db,
+            is_superadmin=True,
+            gender="maennlich",
+            age=30,
+            legal_expertise_level="layperson",
+            german_proficiency="native",
+            subjective_competence_civil=5,
+            subjective_competence_public=4,
+            subjective_competence_criminal=3,
+            ati_s_scores={"item_1": 4, "item_2": 4, "item_3": 4, "item_4": 4},
+            ptt_a_scores={"item_1": 4, "item_2": 4, "item_3": 4, "item_4": 4},
+            ki_experience_scores={"item_1": 4, "item_2": 4, "item_3": 4, "item_4": 4},
+        )
+        await async_test_db.commit()
 
-        resp = client.post("/api/auth/confirm-profile", headers=auth_headers["admin"])
+        with _as_user(admin):
+            resp = await async_test_client.post("/api/auth/confirm-profile")
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] == True  # noqa: E712
@@ -649,24 +875,42 @@ class TestConfirmProfileBody:
 
 @pytest.mark.integration
 class TestProfileHistoryBody:
+    """GET /api/auth/profile-history is async — driven via async client."""
 
-    def test_own_history(self, client, test_db, test_users, auth_headers):
-        resp = client.get("/api/auth/profile-history", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_own_history(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get("/api/auth/profile-history")
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
-    def test_admin_views_other_user(self, client, test_db, test_users, auth_headers):
-        resp = client.get(
-            f"/api/auth/profile-history?user_id={test_users[2].id}",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_admin_views_other_user(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db, is_superadmin=True)
+        other = await _aseed_user(async_test_db)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/auth/profile-history?user_id={other.id}"
+            )
         assert resp.status_code == 200
 
-    def test_non_admin_blocked_from_other_user(self, client, test_db, test_users, auth_headers, test_org):
-        resp = client.get(
-            f"/api/auth/profile-history?user_id={test_users[0].id}",
-            headers=auth_headers["annotator"],
-        )
+    @pytest.mark.asyncio
+    async def test_non_admin_blocked_from_other_user(
+        self, async_test_client, async_test_db
+    ):
+        annotator = await _aseed_user(async_test_db)
+        other = await _aseed_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+
+        with _as_user(annotator):
+            resp = await async_test_client.get(
+                f"/api/auth/profile-history?user_id={other.id}"
+            )
         assert resp.status_code == 403
 
 
@@ -676,14 +920,25 @@ class TestProfileHistoryBody:
 
 @pytest.mark.integration
 class TestLogoutBody:
+    """POST /api/auth/logout and /logout-all are async — driven via async client."""
 
-    def test_logout_returns_message(self, client, test_db, test_users, auth_headers):
-        resp = client.post("/api/auth/logout", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_logout_returns_message(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.post("/api/auth/logout")
         assert resp.status_code == 200
         assert "message" in resp.json()
 
-    def test_logout_all_returns_revoked_count(self, client, test_db, test_users, auth_headers):
-        resp = client.post("/api/auth/logout-all", headers=auth_headers["admin"])
+    @pytest.mark.asyncio
+    async def test_logout_all_returns_revoked_count(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db, is_superadmin=True)
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.post("/api/auth/logout-all")
         assert resp.status_code == 200
         data = resp.json()
         assert "revoked_sessions" in data

@@ -7,16 +7,103 @@ Targets: routers/auth.py lines 96-108, 117-119, 219-287, 296-351,
 960-991, 1000-1065, 1087-1139, 1150-1159, 1179-1214, 1228-1234, 1250-1273
 """
 
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock, MagicMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
 from main import app
+from models import (
+    Organization,
+    OrganizationMembership,
+    OrganizationRole,
+)
 from models import User
+from models import User as DBUser
+
+
+# ---------------------------------------------------------------------------
+# Async fixtures helpers (auth handlers migrated to the async DB lane).
+# Several endpoints below now take `db: AsyncSession = Depends(get_async_db)`,
+# so the old TestClient + Mock(Session) + get_db override no longer reaches
+# them. Those tests are rewritten against the real async test client.
+# ---------------------------------------------------------------------------
+
+def _uid():
+    return str(uuid.uuid4())
+
+
+@contextmanager
+def _as_user(db_user):
+    au = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _seed_user(db, **over):
+    fields = dict(
+        id=_uid(),
+        username=f"u-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@e.com",
+        name="U",
+        hashed_password="x",
+        is_superadmin=False,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    fields.update(over)
+    u = DBUser(**fields)
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _seed_org(db, **over):
+    suffix = _uid()[:8]
+    org = Organization(
+        id=over.get("id", _uid()),
+        name=over.get("name", f"Org {suffix}"),
+        display_name=over.get("display_name", f"Org {suffix}"),
+        slug=over.get("slug", f"org-{suffix}"),
+        description=over.get("description"),
+        is_active=over.get("is_active", True),
+    )
+    db.add(org)
+    await db.flush()
+    return org
+
+
+async def _seed_membership(db, user, org, role):
+    m = OrganizationMembership(
+        id=_uid(),
+        user_id=user.id,
+        organization_id=org.id,
+        role=role,
+        is_active=True,
+    )
+    db.add(m)
+    await db.flush()
+    return m
 
 
 class TestEnsureDict:
@@ -158,7 +245,7 @@ class TestBuildUserProfileResponse:
         mock_user.mandatory_profile_completed = True
         mock_user.profile_confirmed_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
 
-        with patch("routers.auth.get_user_primary_role") as mock_role:
+        with patch("routers.auth.user.get_user_primary_role") as mock_role:
             mock_role.return_value = "CONTRIBUTOR"
             result = _build_user_profile_response(mock_user, mock_db)
 
@@ -207,7 +294,7 @@ class TestBuildUserProfileResponse:
         mock_user.ki_experience_scores = None
         mock_user.mandatory_profile_completed = None
 
-        with patch("routers.auth.get_user_primary_role") as mock_role:
+        with patch("routers.auth.user.get_user_primary_role") as mock_role:
             mock_role.return_value = None
             result = _build_user_profile_response(mock_user, mock_db)
 
@@ -290,8 +377,8 @@ class TestAuthRouterExtended:
         def override_get_db():
             return mock_db
 
-        with patch("routers.auth.create_user") as mock_create, \
-             patch("routers.auth.email_verification_service") as mock_evs:
+        with patch("routers.auth.session.create_user") as mock_create, \
+             patch("routers.auth.session.email_verification_service") as mock_evs:
             mock_create.return_value = mock_created_user
             mock_evs.send_verification_email = AsyncMock(return_value=True)
 
@@ -313,7 +400,7 @@ class TestAuthRouterExtended:
         def override_get_db():
             return mock_db
 
-        with patch("routers.auth.create_user") as mock_create:
+        with patch("routers.auth.session.create_user") as mock_create:
             from fastapi import HTTPException
             mock_create.side_effect = HTTPException(
                 status_code=400, detail="Username already exists"
@@ -337,7 +424,7 @@ class TestAuthRouterExtended:
         def override_get_db():
             return mock_db
 
-        with patch("routers.auth.create_user") as mock_create:
+        with patch("routers.auth.session.create_user") as mock_create:
             mock_create.side_effect = RuntimeError("Database connection lost")
 
             app.dependency_overrides[get_db] = override_get_db
@@ -370,7 +457,7 @@ class TestAuthRouterExtended:
             created_at=datetime.now(timezone.utc),
         )
 
-        with patch("routers.auth.create_user") as mock_create:
+        with patch("routers.auth.session.create_user") as mock_create:
             mock_create.return_value = mock_created_user
             app.dependency_overrides[require_superadmin] = override_require_superadmin
             app.dependency_overrides[get_db] = override_get_db
@@ -394,7 +481,7 @@ class TestAuthRouterExtended:
         def override_get_db():
             return Mock(spec=Session)
 
-        with patch("routers.auth.refresh_access_token") as mock_refresh:
+        with patch("routers.auth.tokens.refresh_access_token") as mock_refresh:
             mock_refresh.return_value = None
 
             app.dependency_overrides[get_db] = override_get_db
@@ -427,62 +514,42 @@ class TestAuthRouterExtended:
         finally:
             app.dependency_overrides.clear()
 
-    def test_logout_all_devices(self, client, mock_user):
-        """Test logout from all devices."""
-        from database import get_db
-        from auth_module.dependencies import require_user
+    @pytest.mark.asyncio
+    async def test_logout_all_devices(self, async_test_client, async_test_db):
+        """Test logout from all devices (async DB lane)."""
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        def override_require_user():
-            return mock_user
+        with _as_user(user):
+            with patch(
+                "services.refresh_token_service.revoke_user_tokens_async",
+                new=AsyncMock(return_value=3),
+            ):
+                response = await async_test_client.post("/api/auth/logout-all")
 
-        def override_get_db():
-            return Mock(spec=Session)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "all devices" in data["message"].lower()
+        assert data["revoked_sessions"] == 3
 
-        with patch("routers.auth.revoke_user_tokens", create=True) as mock_revoke:
-            mock_revoke.return_value = 3
-
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-            try:
-                with patch("services.refresh_token_service.revoke_user_tokens") as mock_svc:
-                    mock_svc.return_value = 3
-                    response = client.post("/api/auth/logout-all")
-                    assert response.status_code == status.HTTP_200_OK
-                    data = response.json()
-                    assert "all devices" in data["message"].lower()
-                    assert data["revoked_sessions"] == 3
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_get_me_contexts_superadmin(self, client, mock_superadmin):
+    @pytest.mark.asyncio
+    async def test_get_me_contexts_superadmin(self, async_test_client, async_test_db):
         """Test /me/contexts for superadmin returns user and organizations."""
-        from database import get_db
-        from auth_module.dependencies import require_user
+        user = await _seed_user(async_test_db, is_superadmin=True)
+        org = await _seed_org(async_test_db)
+        # Give the superadmin an ORG_ADMIN membership so the role resolves.
+        await _seed_membership(async_test_db, user, org, OrganizationRole.ORG_ADMIN)
+        await async_test_db.commit()
 
-        def override_require_user():
-            return mock_superadmin
+        with _as_user(user):
+            response = await async_test_client.get("/api/auth/me/contexts")
 
-        mock_db = MagicMock(spec=Session)
-        # MagicMock allows any chained call pattern, return empty lists
-        mock_db.query.return_value.filter.return_value.all.return_value = []
-        mock_db.query.return_value.filter.return_value.group_by.return_value.all.return_value = []
-
-        def override_get_db():
-            return mock_db
-
-        with patch("routers.auth.get_user_primary_role") as mock_role:
-            mock_role.return_value = "ORG_ADMIN"
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-            try:
-                response = client.get("/api/auth/me/contexts")
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert "user" in data
-                assert "organizations" in data
-                assert data["user"]["is_superadmin"] == True  # noqa: E712
-            finally:
-                app.dependency_overrides.clear()
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert "user" in data
+        assert "organizations" in data
+        assert data["user"]["is_superadmin"] == True  # noqa: E712
+        assert data["user"]["role"] == "ORG_ADMIN"
 
     def test_verify_token(self, client, mock_user):
         """Test /auth/verify endpoint."""
@@ -513,7 +580,7 @@ class TestAuthRouterExtended:
         def override_get_db():
             return mock_db
 
-        with patch("routers.auth.get_user_primary_role") as mock_role:
+        with patch("routers.auth.user.get_user_primary_role") as mock_role:
             mock_role.return_value = "ANNOTATOR"
             app.dependency_overrides[require_user] = override_require_user
             app.dependency_overrides[get_db] = override_get_db
@@ -537,7 +604,7 @@ class TestAuthRouterExtended:
         def override_get_db():
             return Mock(spec=Session)
 
-        with patch("routers.auth.update_user_profile") as mock_update:
+        with patch("routers.auth.user.update_user_profile") as mock_update:
             mock_update.return_value = None
             app.dependency_overrides[require_user] = override_require_user
             app.dependency_overrides[get_db] = override_get_db
@@ -561,7 +628,7 @@ class TestAuthRouterExtended:
         def override_get_db():
             return Mock(spec=Session)
 
-        with patch("routers.auth.change_user_password") as mock_change:
+        with patch("routers.auth.password.change_user_password") as mock_change:
             mock_change.return_value = False
             app.dependency_overrides[require_user] = override_require_user
             app.dependency_overrides[get_db] = override_get_db
@@ -695,7 +762,7 @@ class TestAuthRouterExtended:
         def override_get_db():
             return Mock(spec=Session)
 
-        with patch("routers.auth.email_verification_service") as mock_evs:
+        with patch("routers.auth.verification.email_verification_service") as mock_evs:
             mock_evs.verify_email_with_token.return_value = (True, "Email verified")
 
             app.dependency_overrides[get_db] = override_get_db
@@ -715,7 +782,7 @@ class TestAuthRouterExtended:
         def override_get_db():
             return Mock(spec=Session)
 
-        with patch("routers.auth.email_verification_service") as mock_evs:
+        with patch("routers.auth.verification.email_verification_service") as mock_evs:
             mock_evs.verify_email_with_token.return_value = (False, "Invalid token")
 
             app.dependency_overrides[get_db] = override_get_db
@@ -734,7 +801,7 @@ class TestAuthRouterExtended:
         def override_get_db():
             return Mock(spec=Session)
 
-        with patch("routers.auth.email_verification_service") as mock_evs:
+        with patch("routers.auth.verification.email_verification_service") as mock_evs:
             mock_evs.verify_email_with_token.return_value = (False, "Token expired")
 
             app.dependency_overrides[get_db] = override_get_db
@@ -754,7 +821,7 @@ class TestAuthRouterExtended:
         def override_get_db():
             return Mock(spec=Session)
 
-        with patch("routers.auth.email_verification_service") as mock_evs:
+        with patch("routers.auth.verification.email_verification_service") as mock_evs:
             mock_evs.verify_email_with_token.side_effect = RuntimeError("Unexpected")
 
             app.dependency_overrides[get_db] = override_get_db
@@ -787,233 +854,151 @@ class TestAuthRouterExtended:
         finally:
             app.dependency_overrides.clear()
 
-    def test_check_profile_status(self, client, mock_user):
-        """Test check-profile-status endpoint."""
-        from database import get_db
-        from auth_module.dependencies import require_user
+    @pytest.mark.asyncio
+    async def test_check_profile_status(self, async_test_client, async_test_db):
+        """Test check-profile-status endpoint (async DB lane)."""
+        user = await _seed_user(
+            async_test_db,
+            hashed_password="hashed",
+            profile_completed=True,
+            created_via_invitation=False,
+        )
+        await async_test_db.commit()
 
-        def override_require_user():
-            return mock_user
+        with _as_user(user):
+            response = await async_test_client.get("/api/auth/check-profile-status")
 
-        mock_db = Mock(spec=Session)
-        mock_db_user = Mock()
-        mock_db_user.id = mock_user.id
-        mock_db_user.email = mock_user.email
-        mock_db_user.profile_completed = True
-        mock_db_user.created_via_invitation = False
-        mock_db_user.hashed_password = "hashed"
-        mock_query = Mock()
-        mock_filter = Mock()
-        mock_filter.first.return_value = mock_db_user
-        mock_query.filter.return_value = mock_filter
-        mock_db.query.return_value = mock_query
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["profile_completed"] == True  # noqa: E712
+        assert data["needs_profile_completion"] == False  # noqa: E712
 
-        def override_get_db():
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
+    @pytest.mark.asyncio
+    async def test_check_profile_status_not_found(self, async_test_client, async_test_db):
+        """Test check-profile-status for missing user (async DB lane)."""
+        # AuthUser id not present in the DB -> 404.
+        ghost = _uid()
+        au = AuthUser(
+            id=ghost,
+            username=f"ghost-{ghost[:8]}",
+            email=f"{ghost[:8]}@ghost.com",
+            name="Ghost",
+            is_superadmin=False,
+            is_active=True,
+            email_verified=True,
+            created_at=datetime.now(timezone.utc),
+        )
+        app.dependency_overrides[require_user] = lambda: au
         try:
-            response = client.get("/api/auth/check-profile-status")
-            assert response.status_code == status.HTTP_200_OK
-            data = response.json()
-            assert data["profile_completed"] == True  # noqa: E712
-            assert data["needs_profile_completion"] == False  # noqa: E712
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_check_profile_status_not_found(self, client, mock_user):
-        """Test check-profile-status for missing user."""
-        from database import get_db
-        from auth_module.dependencies import require_user
-
-        def override_require_user():
-            return mock_user
-
-        mock_db = Mock(spec=Session)
-        mock_query = Mock()
-        mock_filter = Mock()
-        mock_filter.first.return_value = None
-        mock_query.filter.return_value = mock_filter
-        mock_db.query.return_value = mock_query
-
-        def override_get_db():
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
-        try:
-            response = client.get("/api/auth/check-profile-status")
+            response = await async_test_client.get("/api/auth/check-profile-status")
             assert response.status_code == status.HTTP_404_NOT_FOUND
         finally:
-            app.dependency_overrides.clear()
+            app.dependency_overrides.pop(require_user, None)
 
-    def test_confirm_profile_success(self, client, mock_user):
-        """Test confirm-profile endpoint."""
-        from database import get_db
-        from auth_module.dependencies import require_user
+    @pytest.mark.asyncio
+    async def test_confirm_profile_success(self, async_test_client, async_test_db):
+        """Test confirm-profile endpoint (async DB lane)."""
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        def override_require_user():
-            return mock_user
+        confirmed_user = Mock()
+        confirmed_user.profile_confirmed_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
 
-        def override_get_db():
-            return Mock(spec=Session)
+        with _as_user(user):
+            with patch(
+                "auth_module.user_service.confirm_profile_async",
+                new=AsyncMock(return_value=confirmed_user),
+            ):
+                response = await async_test_client.post("/api/auth/confirm-profile")
 
-        with patch("auth_module.user_service.confirm_profile") as mock_confirm:
-            confirmed_user = Mock()
-            confirmed_user.profile_confirmed_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
-            mock_confirm.return_value = confirmed_user
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["success"] == True  # noqa: E712
 
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-            try:
-                response = client.post("/api/auth/confirm-profile")
-                assert response.status_code == status.HTTP_200_OK
-                assert response.json()["success"] == True  # noqa: E712
-            finally:
-                app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_confirm_profile_not_found(self, async_test_client, async_test_db):
+        """Test confirm-profile when user not found (async DB lane)."""
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-    def test_confirm_profile_not_found(self, client, mock_user):
-        """Test confirm-profile when user not found."""
-        from database import get_db
-        from auth_module.dependencies import require_user
+        with _as_user(user):
+            with patch(
+                "auth_module.user_service.confirm_profile_async",
+                new=AsyncMock(return_value=None),
+            ):
+                response = await async_test_client.post("/api/auth/confirm-profile")
 
-        def override_require_user():
-            return mock_user
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
-        def override_get_db():
-            return Mock(spec=Session)
+    @pytest.mark.asyncio
+    async def test_profile_history_own(self, async_test_client, async_test_db):
+        """Test profile-history for own user (async DB lane)."""
+        user = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        with patch("auth_module.user_service.confirm_profile") as mock_confirm:
-            mock_confirm.return_value = None
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-            try:
-                response = client.post("/api/auth/confirm-profile")
-                assert response.status_code == status.HTTP_404_NOT_FOUND
-            finally:
-                app.dependency_overrides.clear()
+        # No history rows seeded -> empty list.
+        with _as_user(user):
+            response = await async_test_client.get("/api/auth/profile-history")
 
-    def test_profile_history_own(self, client, mock_user):
-        """Test profile-history for own user."""
-        from database import get_db
-        from auth_module.dependencies import require_user
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == []
 
-        def override_require_user():
-            return mock_user
-
-        mock_db = Mock(spec=Session)
-        mock_query = Mock()
-        mock_filter = Mock()
-        mock_order = Mock()
-        mock_offset = Mock()
-        mock_limit = Mock()
-        mock_limit.all.return_value = []
-        mock_offset.limit.return_value = mock_limit
-        mock_order.offset.return_value = mock_offset
-        mock_filter.order_by.return_value = mock_order
-        mock_query.filter.return_value = mock_filter
-        mock_db.query.return_value = mock_query
-
-        def override_get_db():
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
-        try:
-            response = client.get("/api/auth/profile-history")
-            assert response.status_code == status.HTTP_200_OK
-            assert response.json() == []
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_profile_history_other_user_non_superadmin(self, client, mock_user):
+    @pytest.mark.asyncio
+    async def test_profile_history_other_user_non_superadmin(
+        self, async_test_client, async_test_db
+    ):
         """Test profile-history for another user as non-superadmin returns 403."""
-        from database import get_db
-        from auth_module.dependencies import require_user
+        requester = await _seed_user(async_test_db, is_superadmin=False)
+        target = await _seed_user(async_test_db)
+        await async_test_db.commit()
 
-        def override_require_user():
-            return mock_user
+        with _as_user(requester):
+            response = await async_test_client.get(
+                f"/api/auth/profile-history?user_id={target.id}"
+            )
 
-        mock_db = Mock(spec=Session)
-        mock_db_user = Mock()
-        mock_db_user.is_superadmin = False
-        mock_query = Mock()
-        mock_filter = Mock()
-        mock_filter.first.return_value = mock_db_user
-        mock_query.filter.return_value = mock_filter
-        mock_db.query.return_value = mock_query
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
-        def override_get_db():
-            return mock_db
+    @pytest.mark.asyncio
+    async def test_mandatory_profile_status(self, async_test_client, async_test_db):
+        """Test mandatory-profile-status endpoint (async DB lane)."""
+        user = await _seed_user(async_test_db, mandatory_profile_completed=True)
+        await async_test_db.commit()
 
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
-        try:
-            response = client.get("/api/auth/profile-history?user_id=other-user-id")
-            assert response.status_code == status.HTTP_403_FORBIDDEN
-        finally:
-            app.dependency_overrides.clear()
+        # check_confirmation_due / get_mandatory_profile_fields are imported
+        # inside the handler from auth_module.user_service -> patch there.
+        with _as_user(user):
+            with patch(
+                "auth_module.user_service.get_mandatory_profile_fields", return_value=[]
+            ), patch(
+                "auth_module.user_service.check_confirmation_due", return_value=(False, None)
+            ):
+                response = await async_test_client.get("/api/auth/mandatory-profile-status")
 
-    def test_mandatory_profile_status(self, client, mock_user):
-        """Test mandatory-profile-status endpoint."""
-        from database import get_db
-        from auth_module.dependencies import require_user
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["mandatory_profile_completed"] == True  # noqa: E712
+        assert data["confirmation_due"] == False  # noqa: E712
 
-        def override_require_user():
-            return mock_user
-
-        mock_db = Mock(spec=Session)
-        mock_db_user = Mock()
-        mock_db_user.id = mock_user.id
-        mock_db_user.mandatory_profile_completed = True
-        mock_query = Mock()
-        mock_filter = Mock()
-        mock_filter.first.return_value = mock_db_user
-        mock_query.filter.return_value = mock_filter
-        mock_db.query.return_value = mock_query
-
-        def override_get_db():
-            return mock_db
-
-        with patch("auth_module.user_service.get_mandatory_profile_fields") as mock_fields, \
-             patch("auth_module.user_service.check_confirmation_due") as mock_due:
-            mock_fields.return_value = []
-            mock_due.return_value = (False, None)
-
-            app.dependency_overrides[require_user] = override_require_user
-            app.dependency_overrides[get_db] = override_get_db
-            try:
-                response = client.get("/api/auth/mandatory-profile-status")
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert data["mandatory_profile_completed"] == True  # noqa: E712
-                assert data["confirmation_due"] == False  # noqa: E712
-            finally:
-                app.dependency_overrides.clear()
-
-    def test_mandatory_profile_status_not_found(self, client, mock_user):
+    @pytest.mark.asyncio
+    async def test_mandatory_profile_status_not_found(
+        self, async_test_client, async_test_db
+    ):
         """Test mandatory-profile-status for missing user."""
-        from database import get_db
-        from auth_module.dependencies import require_user
-
-        def override_require_user():
-            return mock_user
-
-        mock_db = Mock(spec=Session)
-        mock_query = Mock()
-        mock_filter = Mock()
-        mock_filter.first.return_value = None
-        mock_query.filter.return_value = mock_filter
-        mock_db.query.return_value = mock_query
-
-        def override_get_db():
-            return mock_db
-
-        app.dependency_overrides[require_user] = override_require_user
-        app.dependency_overrides[get_db] = override_get_db
+        # AuthUser id not present in the DB -> 404.
+        ghost = _uid()
+        au = AuthUser(
+            id=ghost,
+            username=f"ghost-{ghost[:8]}",
+            email=f"{ghost[:8]}@ghost.com",
+            name="Ghost",
+            is_superadmin=False,
+            is_active=True,
+            email_verified=True,
+            created_at=datetime.now(timezone.utc),
+        )
+        app.dependency_overrides[require_user] = lambda: au
         try:
-            response = client.get("/api/auth/mandatory-profile-status")
+            response = await async_test_client.get("/api/auth/mandatory-profile-status")
             assert response.status_code == status.HTTP_404_NOT_FOUND
         finally:
-            app.dependency_overrides.clear()
+            app.dependency_overrides.pop(require_user, None)

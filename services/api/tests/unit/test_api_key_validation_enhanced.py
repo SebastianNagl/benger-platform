@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from encryption_service import encryption_service
-from user_api_key_service import UserApiKeyService
+from services.user_api_key_service import UserApiKeyService
 
 
 class TestEnhancedApiKeyValidation:
@@ -93,13 +93,19 @@ class TestEnhancedApiKeyValidation:
 
     @pytest.mark.asyncio
     async def test_openai_network_error(self, service):
-        """Test OpenAI network error"""
-        with patch('openai.OpenAI') as mock_openai_class:
-            # Setup mock client that raises a connection error with "connection" in the message
-            mock_client = Mock()
-            mock_client.models.list.side_effect = Exception("Connection refused - network error")
-            mock_openai_class.return_value = mock_client
+        """Test OpenAI network error.
 
+        The OpenAI validation path no longer uses the ``openai.OpenAI`` SDK — it
+        issues the request through ``_make_openai_request`` (an ``httpx``
+        AsyncClient call). Patch that request helper to raise a connection-style
+        error so the generic-exception branch of ``_validate_openai_key`` is
+        exercised (returns ``connection_error``).
+        """
+        with patch.object(
+            service,
+            "_make_openai_request",
+            new=AsyncMock(side_effect=Exception("Connection refused - network error")),
+        ):
             is_valid, message, error_type = await service._validate_openai_key("test-key")
             assert is_valid is False
             # Check for relevant error message keywords
@@ -108,7 +114,7 @@ class TestEnhancedApiKeyValidation:
                 or "connection" in message.lower()
                 or "failed" in message.lower()
             )
-            # The shared service returns "network" for connection errors
+            # The shared service returns "connection_error" for connection errors
             assert error_type in ["connection_error", "network"]
 
     # Anthropic Validation Tests

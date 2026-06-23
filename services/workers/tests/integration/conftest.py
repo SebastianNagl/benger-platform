@@ -237,6 +237,18 @@ def _schema(_eager_celery):
                 """
             )
         )
+        # Migration 063: pause/resume/retry lifecycle columns on
+        # response_generations. `create_all` skips an already-existing table on
+        # the long-lived shared test-db, so force the columns the generation
+        # finalizer reads/writes (incl. dispatch_epoch) idempotently — otherwise
+        # the loop's parent INSERT/refresh 500s on the missing column.
+        for _col_ddl in (
+            "ADD COLUMN IF NOT EXISTS paused_at TIMESTAMP WITH TIME ZONE",
+            "ADD COLUMN IF NOT EXISTS resumed_at TIMESTAMP WITH TIME ZONE",
+            "ADD COLUMN IF NOT EXISTS retry_count INTEGER NOT NULL DEFAULT 0",
+            "ADD COLUMN IF NOT EXISTS dispatch_epoch INTEGER NOT NULL DEFAULT 0",
+        ):
+            conn.execute(text(f"ALTER TABLE response_generations {_col_ddl}"))
     yield
 
 

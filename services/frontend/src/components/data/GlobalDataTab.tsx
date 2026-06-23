@@ -14,6 +14,7 @@ import { useToast } from '@/components/shared/Toast'
 import { TaskDataViewModal } from '@/components/tasks/TaskDataViewModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useProgress } from '@/contexts/ProgressContext'
 import { apiClient } from '@/lib/api/client'
 import { Task } from '@/lib/api/types'
 import { canEditTaskData } from '@/utils/permissions'
@@ -59,6 +60,7 @@ export function GlobalDataTab() {
   const { t } = useI18n()
   const { user } = useAuth()
   const { showToast } = useToast()
+  const { startProgress, completeProgress } = useProgress()
   const router = useRouter()
 
   // State
@@ -226,7 +228,15 @@ export function GlobalDataTab() {
   }
 
   const handleExport = async (format: 'json' | 'csv' = 'json') => {
+    // The global data export is a single synchronous fetch that returns the file
+    // as one blob — no per-step progress signal, so the bar stays indeterminate
+    // until the download resolves (completeProgress then flips it to ✓/✗). A
+    // constant id is fine: only one export runs at a time, and a re-click just
+    // restarts the same toast.
+    const progressId = 'global-data-export'
     try {
+      startProgress(progressId, 'Exporting tasks', { indeterminate: true })
+
       const params = new URLSearchParams({ format })
       if (selectedTasks.size > 0) {
         Array.from(selectedTasks).forEach((id) => params.append('task_ids', id))
@@ -249,8 +259,10 @@ export function GlobalDataTab() {
       a.click()
       window.URL.revokeObjectURL(url)
 
+      completeProgress(progressId, 'success')
       showToast('Export completed', 'success')
     } catch (error) {
+      completeProgress(progressId, 'error')
       showToast('Failed to export tasks', 'error')
     }
   }

@@ -6,7 +6,7 @@ Addresses Issue #798: HIGH RISK - Stored XSS vulnerability in label config field
 """
 
 
-from label_config_sanitizer import LabelConfigSanitizer
+from services.label_config.sanitizer import LabelConfigSanitizer
 
 
 class TestFieldNameSanitization:

@@ -82,7 +82,7 @@ class TestEvaluationTypesEndpoints:
 
     def test_get_supported_metrics_logic(self):
         """Test the supported metrics aggregation logic directly."""
-        from evaluation_config import ANSWER_TYPE_TO_METRICS, AnswerType
+        from services.evaluation.config import ANSWER_TYPE_TO_METRICS, AnswerType
 
         all_metrics = set()
         for answer_type in AnswerType:

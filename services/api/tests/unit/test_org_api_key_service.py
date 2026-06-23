@@ -9,8 +9,6 @@ Tests organization-level API key management including:
 - Provider validation
 """
 
-import importlib
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -20,19 +18,10 @@ from encryption_service import EncryptionService
 from models import Organization, User
 
 
-def _load_api_org_api_key_service():
-    """Load OrgApiKeyService from the API module, not the shared module."""
-    api_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    spec = importlib.util.spec_from_file_location(
-        "api_org_api_key_service",
-        os.path.join(api_path, "org_api_key_service.py"),
-    )
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod.OrgApiKeyService
-
-
-OrgApiKeyService = _load_api_org_api_key_service()
+# Canonical API-side implementation (the former root-level
+# ``org_api_key_service.py`` shim was removed; import directly from the
+# ``services`` package, NOT the distinct ``shared`` implementation).
+from services.org_api_key_service import OrgApiKeyService
 
 
 @pytest.fixture
@@ -75,7 +64,7 @@ def org_b(test_db: Session) -> Organization:
 
 @pytest.fixture
 def admin_user(test_db: Session) -> User:
-    from user_service import get_password_hash
+    from auth_module.user_service import get_password_hash
 
     user = User(
         id="admin-org-key-test",
@@ -200,7 +189,7 @@ class TestResolveApiKey:
         mock_uaks.get_user_api_key.return_value = "personal-key"
         with patch.dict(
             "sys.modules",
-            {"user_api_key_service": MagicMock(user_api_key_service=mock_uaks)},
+            {"services.user_api_key_service": MagicMock(user_api_key_service=mock_uaks)},
         ):
             result = service.resolve_api_key(test_db, admin_user.id, None, "openai")
             assert result == "personal-key"
@@ -212,7 +201,7 @@ class TestResolveApiKey:
         mock_uaks.get_user_api_key.return_value = "personal-key"
         with patch.dict(
             "sys.modules",
-            {"user_api_key_service": MagicMock(user_api_key_service=mock_uaks)},
+            {"services.user_api_key_service": MagicMock(user_api_key_service=mock_uaks)},
         ):
             result = service.resolve_api_key(test_db, admin_user.id, org_b.id, "openai")
             assert result == "personal-key"
@@ -314,7 +303,7 @@ class TestGetAvailableProvidersForContext:
         mock_uaks.get_user_available_providers.return_value = ["OpenAI"]
         with patch.dict(
             "sys.modules",
-            {"user_api_key_service": MagicMock(user_api_key_service=mock_uaks)},
+            {"services.user_api_key_service": MagicMock(user_api_key_service=mock_uaks)},
         ):
             result = service.get_available_providers_for_context(test_db, admin_user.id, None)
             assert result == ["OpenAI"]
@@ -333,7 +322,7 @@ class TestGetAvailableProvidersForContext:
         mock_uaks.get_user_available_providers.return_value = ["Anthropic"]
         with patch.dict(
             "sys.modules",
-            {"user_api_key_service": MagicMock(user_api_key_service=mock_uaks)},
+            {"services.user_api_key_service": MagicMock(user_api_key_service=mock_uaks)},
         ):
             result = service.get_available_providers_for_context(test_db, admin_user.id, org_b.id)
             assert result == ["Anthropic"]

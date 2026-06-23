@@ -164,6 +164,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         ...(existing.progress ?? { progress: 100, status: 'running' }),
         progress: 100,
         status,
+        // A finished operation is never indeterminate. Clear the flag so the
+        // toast renders a filled bar with a percentage and a ✓/✗ icon — a
+        // toast started with `indeterminate: true` would otherwise keep showing
+        // the running shimmer (just recolored) and never look "done".
+        indeterminate: false,
       }
       upsert(id, existing.message, next)
       // Arm the auto-dismiss. Honors the user-facing rule: progress toasts

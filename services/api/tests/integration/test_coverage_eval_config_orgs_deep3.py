@@ -11,13 +11,26 @@ routers/leaderboards.py, routers/flexible_annotations.py
 """
 
 import uuid
+from contextlib import contextmanager
+from datetime import datetime, timezone
 
+import pytest
 
+from main import app
+from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from models import User
 from project_models import (
     Annotation,
     Project,
     ProjectOrganization,
     Task,
+)
+
+_DEFAULT_LABEL_CONFIG = (
+    '<View><Text name="text" value="$text"/>'
+    '<Choices name="answer" toName="text">'
+    '<Choice value="Ja"/><Choice value="Nein"/></Choices></View>'
 )
 
 
@@ -31,7 +44,7 @@ def _proj(db, admin, org, **kw):
         id=pid,
         title=kw.get("title", f"P-{pid[:6]}"),
         created_by=admin.id,
-        label_config=kw.get("label_config", '<View><Text name="text" value="$text"/><Choices name="answer" toName="text"><Choice value="Ja"/><Choice value="Nein"/></Choices></View>'),
+        label_config=kw.get("label_config", _DEFAULT_LABEL_CONFIG),
         is_private=kw.get("is_private", False),
         questionnaire_enabled=kw.get("questionnaire_enabled", False),
         questionnaire_config=kw.get("questionnaire_config", None),
@@ -51,40 +64,122 @@ def _tsk(db, project, admin, *, inner_id=1, data=None):
     return t
 
 
+# ---------------------------------------------------------------------------
+# Async helpers for the endpoints migrated to the async DB lane
+#
+# The sync ``client`` fixture only overrides ``get_db``; async handlers run
+# against a separate ``get_async_db`` session that can't see rows seeded inside
+# the sync ``test_db`` transaction. Tests hitting migrated endpoints seed via
+# ``async_test_db`` and drive ``async_test_client`` instead, authenticating as a
+# seeded superadmin (the access helpers short-circuit ``is_superadmin`` to True,
+# matching ``X-Organization-Context: <org>`` admin access in the sync flow).
+# ---------------------------------------------------------------------------
+
+
+@contextmanager
+def _as_user(db_user: User):
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+async def _aseed_user(db, *, is_superadmin=True):
+    u = User(
+        id=_uid(),
+        username=f"d3-{_uid()[:8]}",
+        email=f"{_uid()[:8]}@example.com",
+        name="Deep3 User",
+        is_superadmin=is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(u)
+    await db.flush()
+    return u
+
+
+async def _aseed_proj(db, owner, **kw):
+    pid = _uid()
+    p = Project(
+        id=pid,
+        title=kw.get("title", f"P-{pid[:6]}"),
+        created_by=owner.id,
+        label_config=kw.get("label_config", _DEFAULT_LABEL_CONFIG),
+        is_private=kw.get("is_private", False),
+        questionnaire_enabled=kw.get("questionnaire_enabled", False),
+        questionnaire_config=kw.get("questionnaire_config", None),
+    )
+    db.add(p)
+    await db.flush()
+    return p
+
+
+async def _aseed_task(db, project, owner, *, inner_id=1, data=None):
+    t = Task(
+        id=_uid(),
+        project_id=project.id,
+        data=data or {"text": f"T{inner_id}"},
+        inner_id=inner_id,
+        created_by=owner.id,
+    )
+    db.add(t)
+    await db.flush()
+    return t
+
+
 # ==============================================================
 # Evaluation config tests
 # ==============================================================
 
 
 class TestEvaluationConfig:
-    def test_get_eval_config(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_get_eval_config(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/projects/{p.id}/evaluation-config",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{p.id}/evaluation-config"
+            )
         assert resp.status_code in (200, 500)
 
-    def test_get_eval_config_no_label_config(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org, label_config=None)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_get_eval_config_no_label_config(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin, label_config=None)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/projects/{p.id}/evaluation-config",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{p.id}/evaluation-config"
+            )
         assert resp.status_code in (200, 500)
 
-    def test_get_eval_config_force_regenerate(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_get_eval_config_force_regenerate(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/projects/{p.id}/evaluation-config?force_regenerate=true",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{p.id}/evaluation-config?force_regenerate=true"
+            )
         assert resp.status_code in (200, 500)
 
     def test_update_eval_config(self, client, test_db, test_users, auth_headers, test_org):
@@ -119,51 +214,62 @@ class TestEvaluationConfig:
         )
         assert resp.status_code in (400, 422, 500)
 
-    def test_detect_answer_types(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_detect_answer_types(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/projects/{p.id}/detect-answer-types",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{p.id}/detect-answer-types"
+            )
         assert resp.status_code in (200, 500)
 
-    def test_detect_answer_types_no_config(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org, label_config=None)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_detect_answer_types_no_config(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin, label_config=None)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/projects/{p.id}/detect-answer-types",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{p.id}/detect-answer-types"
+            )
         assert resp.status_code in (200, 500)
 
-    def test_field_types(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_field_types(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/projects/{p.id}/field-types",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{p.id}/field-types"
+            )
         assert resp.status_code in (200, 500)
 
-    def test_field_types_no_config(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org, label_config=None)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_field_types_no_config(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin, label_config=None)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/projects/{p.id}/field-types",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{p.id}/field-types"
+            )
         assert resp.status_code in (200, 500)
 
-    def test_nonexistent_project(self, client, test_db, test_users, auth_headers):
-        resp = client.get(
-            "/api/evaluations/projects/nonexistent/evaluation-config",
-            headers=auth_headers["admin"],
-        )
+    @pytest.mark.asyncio
+    async def test_nonexistent_project(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        await async_test_db.commit()
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                "/api/evaluations/projects/nonexistent/evaluation-config"
+            )
         assert resp.status_code in (404, 500)
 
 
@@ -204,40 +310,47 @@ class TestDeriveEvaluationConfigs:
 
 
 class TestQuestionnaireEndpoints:
-    def test_submit_questionnaire(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org,
-                  questionnaire_enabled=True,
-                  questionnaire_config='<View><Choices name="difficulty" toName="text"><Choice value="Easy"/><Choice value="Hard"/></Choices></View>')
-        t = _tsk(test_db, p, test_users[0])
+    @pytest.mark.asyncio
+    async def test_submit_questionnaire(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(
+            async_test_db,
+            admin,
+            questionnaire_enabled=True,
+            questionnaire_config='<View><Choices name="difficulty" toName="text"><Choice value="Easy"/><Choice value="Hard"/></Choices></View>',
+        )
+        t = await _aseed_task(async_test_db, p, admin)
         ann = Annotation(
             id=_uid(), task_id=t.id, project_id=p.id,
-            completed_by=test_users[0].id,
+            completed_by=admin.id,
             result=[{"from_name": "answer", "to_name": "text", "type": "choices", "value": {"choices": ["Ja"]}}],
             was_cancelled=False,
         )
-        test_db.add(ann)
-        test_db.commit()
+        async_test_db.add(ann)
+        await async_test_db.commit()
 
-        resp = client.post(
-            f"/api/projects/{p.id}/tasks/{t.id}/questionnaire-response",
-            json={
-                "annotation_id": ann.id,
-                "result": [{"from_name": "difficulty", "to_name": "text", "type": "choices", "value": {"choices": ["Easy"]}}],
-            },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.post(
+                f"/api/projects/{p.id}/tasks/{t.id}/questionnaire-response",
+                json={
+                    "annotation_id": ann.id,
+                    "result": [{"from_name": "difficulty", "to_name": "text", "type": "choices", "value": {"choices": ["Easy"]}}],
+                },
+            )
         assert resp.status_code in (200, 201, 400)
 
-    def test_questionnaire_not_enabled(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org, questionnaire_enabled=False)
-        t = _tsk(test_db, p, test_users[0])
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_questionnaire_not_enabled(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin, questionnaire_enabled=False)
+        t = await _aseed_task(async_test_db, p, admin)
+        await async_test_db.commit()
 
-        resp = client.post(
-            f"/api/projects/{p.id}/tasks/{t.id}/questionnaire-response",
-            json={"annotation_id": _uid(), "result": []},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.post(
+                f"/api/projects/{p.id}/tasks/{t.id}/questionnaire-response",
+                json={"annotation_id": _uid(), "result": []},
+            )
         assert resp.status_code in (400, 404)
 
 
@@ -266,28 +379,32 @@ class TestDraftEndpoints:
 
 
 class TestLabelConfigVersions:
-    def test_update_with_schema_change(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_update_with_schema_change(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
         # Update with new label config
-        resp = client.patch(
-            f"/api/projects/{p.id}",
-            json={"label_config": '<View><Text name="text" value="$text"/><TextArea name="comment" toName="text"/></View>'},
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/{p.id}",
+                json={"label_config": '<View><Text name="text" value="$text"/><TextArea name="comment" toName="text"/></View>'},
+            )
         assert resp.status_code == 200
 
-    def test_update_without_schema_change(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_update_without_schema_change(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
         # Update with same label config
-        resp = client.patch(
-            f"/api/projects/{p.id}",
-            json={"label_config": p.label_config},
-            headers=auth_headers["admin"],
-        )
+        with _as_user(admin):
+            resp = await async_test_client.patch(
+                f"/api/projects/{p.id}",
+                json={"label_config": p.label_config},
+            )
         assert resp.status_code == 200
 
 
@@ -297,24 +414,28 @@ class TestLabelConfigVersions:
 
 
 class TestHumanEvaluationSessions:
-    def test_get_sessions(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_get_sessions(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/human/sessions/{p.id}",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/human/sessions/{p.id}"
+            )
         assert resp.status_code == 200
 
-    def test_get_human_config(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_get_human_config(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/human/config/{p.id}",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/human/config/{p.id}"
+            )
         assert resp.status_code in (200, 404)
 
 
@@ -324,21 +445,23 @@ class TestHumanEvaluationSessions:
 
 
 class TestEvaluationValidation:
-    def test_validate_config(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_validate_config(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
-        resp = client.post(
-            "/api/evaluations/validate-config",
-            json={
-                "project_id": p.id,
-                "evaluation_configs": [
-                    {"id": "test", "metric": "exact_match", "prediction_fields": ["answer"],
-                     "reference_fields": ["answer"], "enabled": True}
-                ],
-            },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.post(
+                f"/api/evaluations/validate-config?project_id={p.id}",
+                json={
+                    "project_id": p.id,
+                    "evaluation_configs": [
+                        {"id": "test", "metric": "exact_match", "prediction_fields": ["answer"],
+                         "reference_fields": ["answer"], "enabled": True}
+                    ],
+                },
+            )
         assert resp.status_code in (200, 422, 500)
 
 
@@ -348,65 +471,77 @@ class TestEvaluationValidation:
 
 
 class TestEvaluationMetadata:
-    def test_available_fields(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_available_fields(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/projects/{p.id}/available-fields",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{p.id}/available-fields"
+            )
         assert resp.status_code in (200, 500)
 
-    def test_configured_methods(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_configured_methods(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/projects/{p.id}/configured-methods",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{p.id}/configured-methods"
+            )
         assert resp.status_code in (200, 500)
 
-    def test_evaluation_history(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_evaluation_history(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/projects/{p.id}/evaluation-history",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{p.id}/evaluation-history"
+            )
         assert resp.status_code in (200, 422, 500)
 
-    def test_evaluated_models(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_evaluated_models(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/projects/{p.id}/evaluated-models",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/projects/{p.id}/evaluated-models"
+            )
         assert resp.status_code in (200, 500)
 
-    def test_significance(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_significance(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/significance/{p.id}",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/significance/{p.id}"
+            )
         assert resp.status_code in (200, 422, 500)
 
-    def test_statistics(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_statistics(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
-        resp = client.post(
-            f"/api/evaluations/projects/{p.id}/statistics",
-            json={},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.post(
+                f"/api/evaluations/projects/{p.id}/statistics",
+                json={},
+            )
         assert resp.status_code in (200, 422, 500)
 
 
@@ -433,14 +568,16 @@ class TestEvaluationRunEndpoint:
         # May fail due to celery not being available, but exercises the code path
         assert resp.status_code in (200, 201, 400, 422, 500)
 
-    def test_get_run_results_project(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_get_run_results_project(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/evaluations/run/results/project/{p.id}",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/evaluations/run/results/project/{p.id}"
+            )
         assert resp.status_code in (200, 500)
 
 
@@ -450,15 +587,17 @@ class TestEvaluationRunEndpoint:
 
 
 class TestTaskFields:
-    def test_get_task_fields(self, client, test_db, test_users, auth_headers, test_org):
-        p = _proj(test_db, test_users[0], test_org)
-        _tsk(test_db, p, test_users[0])
-        test_db.commit()
+    @pytest.mark.asyncio
+    async def test_get_task_fields(self, async_test_client, async_test_db):
+        admin = await _aseed_user(async_test_db)
+        p = await _aseed_proj(async_test_db, admin)
+        await _aseed_task(async_test_db, p, admin)
+        await async_test_db.commit()
 
-        resp = client.get(
-            f"/api/projects/{p.id}/task-fields",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
-        )
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/projects/{p.id}/task-fields"
+            )
         assert resp.status_code in (200, 404)
 
 

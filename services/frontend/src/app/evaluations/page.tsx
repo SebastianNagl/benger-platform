@@ -88,7 +88,12 @@ interface ModelWithStatus {
   ci_upper: number | null
 }
 
-interface EvaluationResult {
+/**
+ * Project-scoped evaluation row shown in the evaluations list page. Distinct
+ * from the API `EvaluationResultSummary` (per-task summary) and the sample-level
+ * `SampleEvaluationResult` used by the results drill-down.
+ */
+interface ProjectEvaluationResult {
   id: string
   project_id: string
   project_name: string
@@ -254,7 +259,7 @@ export default function EvaluationDashboard() {
   // Results state - auto-updated when filters change
   const [loading, setLoading] = useState(false)
   const [evaluationResults, setEvaluationResults] = useState<
-    EvaluationResult[]
+    ProjectEvaluationResult[]
   >([])
   const [evaluatedModels, setEvaluatedModels] = useState<any[]>([])
   const [historicalData, setHistoricalData] = useState<any>(null)

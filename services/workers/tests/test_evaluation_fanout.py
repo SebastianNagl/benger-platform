@@ -116,6 +116,16 @@ def _tasks_source() -> str:
     return inspect.getsource(tasks)
 
 
+def _cell_source() -> str:
+    """Source of the cell-evaluation bodies. They were extracted from tasks.py
+    into ``evaluation/cell_evaluator.py`` (thin @app.task wrappers stay in
+    tasks.py; the ~1100-line bodies live here as ``*_impl``). Pins on cell-body
+    decisions read this; pins on the orchestrator/helpers/decorators still read
+    ``_tasks_source()`` (those stayed in tasks.py)."""
+    from evaluation import cell_evaluator
+    return inspect.getsource(cell_evaluator)
+
+
 def test_orchestrator_uses_celery_chord_dispatch():
     """The orchestrator must dispatch sub-tasks via a Celery chord. If
     someone reintroduces an in-process loop here, the chord callback
@@ -172,8 +182,9 @@ def test_bulk_upsert_returns_actual_inserts_for_redelivery_safety():
         "_bulk_upsert_task_evaluations must use RETURNING so callers "
         "can bump by the actually-inserted count, not the requested count"
     )
-    # The sub-tasks must unpack and use the three-tuple return.
-    assert "n_inserted, n_passed, n_failed = _bulk_upsert_task_evaluations" in src, (
+    # The sub-tasks must unpack and use the three-tuple return. The cell bodies
+    # live in cell_evaluator now (the helper itself stays in tasks.py).
+    assert "n_inserted, n_passed, n_failed = _bulk_upsert_task_evaluations" in _cell_source(), (
         "sub-tasks must derive counter-bump values from the helper's "
         "RETURNING-derived tuple, not from local in-loop tallies"
     )
@@ -227,10 +238,12 @@ def test_cell_sub_tasks_short_circuit_on_parent_cancel():
 
     Pin: both cell sub-tasks must read parent status at entry and skip
     when it's terminal. Cheap (one indexed SELECT)."""
-    src = _tasks_source()
+    src = _cell_source()
     import ast
     tree = ast.parse(src)
-    for fn_name in ("evaluate_generation_cell", "evaluate_annotation_cell"):
+    # The cell bodies are the `*_impl` functions in cell_evaluator.py (thin
+    # wrappers in tasks.py just delegate).
+    for fn_name in ("evaluate_generation_cell_impl", "evaluate_annotation_cell_impl"):
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef) and node.name == fn_name:
                 body_src = ast.get_source_segment(src, node) or ""
@@ -243,7 +256,7 @@ def test_cell_sub_tasks_short_circuit_on_parent_cancel():
                 )
                 break
         else:
-            raise AssertionError(f"function {fn_name} not found in tasks.py")
+            raise AssertionError(f"function {fn_name} not found in cell_evaluator.py")
 
 
 def test_cell_sub_tasks_have_poison_cell_guard():
@@ -255,15 +268,20 @@ def test_cell_sub_tasks_have_poison_cell_guard():
     src = _tasks_source()
     assert "_record_cell_attempt" in src, "missing poison-cell counter helper"
     assert "_CELL_ATTEMPT_LIMIT" in src, "missing poison-cell limit constant"
-    # Both sub-tasks invoke the guard near entry and short-circuit
-    # past the limit. Grep for both call sites and the bail-out branch.
-    assert src.count("_record_cell_attempt(evaluation_id, ") >= 2, (
+    # Both sub-tasks invoke the guard near entry and short-circuit past the
+    # limit. The call sites live in the cell bodies (cell_evaluator); the helper
+    # + limit constant stay in tasks.py (asserted above).
+    assert _cell_source().count("_record_cell_attempt(evaluation_id, ") >= 2, (
         "both cell sub-tasks must call _record_cell_attempt to share the cap"
     )
-    assert 'reason": "poison_cell_max_attempts' in src or \
-        "poison_cell_max_attempts" in src, (
-        "poison-cell skip path must tag the failure_reason so the UI can "
-        "surface 'N cells went poison'"
+    # The skip path must TAG the failure at BOTH cell bodies. Assert it in
+    # cell_evaluator (the real tagging sites) — NOT in tasks.py, where the tag
+    # only appears once as the `_FAILURE_REASON_BUCKETS` allowlist constant, so
+    # both tagging calls could be deleted and a tasks-source check would stay
+    # green (a pin satisfiable by broken production code).
+    assert _cell_source().count("poison_cell_max_attempts") >= 2, (
+        "both cell sub-tasks' poison-skip paths must tag the failure_reason "
+        "'poison_cell_max_attempts' so the UI can surface 'N cells went poison'"
     )
 
 
@@ -506,9 +524,10 @@ def test_cell_sub_tasks_record_failure_reasons():
     assert "_classify_cell_failure" in src, (
         "missing exception → reason classifier"
     )
-    # Both cell sub-tasks should call the recorder in their outer
-    # except block.
-    assert src.count("_record_cell_failure_reason(db, evaluation_id, ") >= 2, (
+    # Both cell sub-tasks should call the recorder in their outer except
+    # block. The call sites live in the cell bodies (cell_evaluator); the
+    # helper + classifier stay in tasks.py (asserted above).
+    assert _cell_source().count("_record_cell_failure_reason(db, evaluation_id, ") >= 2, (
         "both cell sub-tasks must record the failure reason in the outer "
         "exception handler so the UI can surface a breakdown"
     )
@@ -598,19 +617,26 @@ def test_sub_tasks_do_not_create_judge_runs():
     Under fan-out, concurrent sub-tasks would race here. The
     orchestrator must own judge_run creation; sub-tasks only consume IDs
     the orchestrator pre-populated."""
-    src = _tasks_source()
-    # Locate the two sub-task function bodies and assert _create_judge_run
-    # is not referenced inside either.
+    # The sub-task BODIES are the `*_impl` functions in cell_evaluator (the
+    # tasks.py wrappers just delegate — walking those would be vacuous since a
+    # 2-line wrapper can never contain `_create_judge_run`).
+    src = _cell_source()
     import ast
     tree = ast.parse(src)
-    sub_task_names = {"evaluate_generation_cell", "evaluate_annotation_cell"}
+    sub_task_names = {"evaluate_generation_cell_impl", "evaluate_annotation_cell_impl"}
+    seen = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name in sub_task_names:
+            seen.add(node.name)
             body_src = ast.get_source_segment(src, node) or ""
             assert "_create_judge_run" not in body_src, (
                 f"{node.name} must not call _create_judge_run — orchestrator "
                 "pre-creates all judge_runs to avoid UQ races"
             )
+    assert seen == sub_task_names, (
+        f"could not locate cell-body impls in cell_evaluator.py: missing "
+        f"{sub_task_names - seen}"
+    )
 
 
 def test_orchestrator_pre_creates_judge_runs_synchronously():

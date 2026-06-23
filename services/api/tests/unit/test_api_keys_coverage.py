@@ -1,28 +1,35 @@
 """
 Unit tests for routers/api_keys.py (user API key management) to increase branch coverage.
 Covers set, get status, remove, test, test-saved, and available-models endpoints.
+
+The router runs on the async DB lane (`Depends(get_async_db)` + async twins on
+`user_api_key_service`). DB-touching tests use the real `async_test_client` /
+`async_test_db` fixtures and patch the specific async twins with `AsyncMock`.
+Validate-only `/test` and 400-before-DB paths never reach the DB, so those keep
+the lightweight TestClient + require_user override.
 """
 
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 
-from main import app
-from auth_module.models import User
-from database import get_db
 from auth_module.dependencies import require_user
+from auth_module.models import User as AuthUser
+from main import app
+from models import LLMModel, User as DBUser
 
 
 def _make_user(is_superadmin=False, user_id="user-123"):
-    return User(
+    """Auth-layer user object for the require_user override (no DB row needed
+    for endpoints that don't read the DB)."""
+    return AuthUser(
         id=user_id,
         username="testuser",
         email="test@example.com",
         name="Test User",
-        hashed_password="hashed",
         is_superadmin=is_superadmin,
         is_active=True,
         email_verified=True,
@@ -30,23 +37,67 @@ def _make_user(is_superadmin=False, user_id="user-123"):
     )
 
 
-def _mock_db():
-    mock_db = Mock(spec=Session)
-    mock_q = MagicMock()
-    mock_q.filter.return_value = mock_q
-    mock_q.first.return_value = None
-    mock_q.all.return_value = []
-    mock_db.query.return_value = mock_q
-    return mock_db
+@contextmanager
+def _as_user(db_user):
+    au = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: au
+    try:
+        yield au
+    finally:
+        app.dependency_overrides.pop(require_user, None)
+
+
+def _seed_user(db_session, user_id="user-123"):
+    user = DBUser(
+        id=user_id,
+        username=f"testuser-{user_id}",
+        email=f"{user_id}@example.com",
+        name="Test User",
+        hashed_password="hashed",
+        is_superadmin=False,
+        is_active=True,
+        email_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db_session.add(user)
+    return user
+
+
+def _seed_model(db_session, model_id, provider, name=None):
+    model = LLMModel(
+        id=model_id,
+        name=name or model_id,
+        description=f"{provider} model",
+        provider=provider,
+        model_type="llm",
+        capabilities=["text"],
+        config_schema={},
+        default_config={},
+        input_cost_per_million=30.0,
+        output_cost_per_million=60.0,
+        parameter_constraints=None,
+        recommended_parameters=None,
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db_session.add(model)
+    return model
 
 
 class TestSetUserApiKey:
     def test_missing_api_key(self):
         client = TestClient(app)
         user = _make_user()
-        mock_db = _mock_db()
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
         try:
             resp = client.post(
                 "/api/users/api-keys/openai",
@@ -59,9 +110,7 @@ class TestSetUserApiKey:
     def test_invalid_provider(self):
         client = TestClient(app)
         user = _make_user()
-        mock_db = _mock_db()
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
         try:
             resp = client.post(
                 "/api/users/api-keys/invalid_provider",
@@ -72,96 +121,81 @@ class TestSetUserApiKey:
         finally:
             app.dependency_overrides.clear()
 
-    def test_set_key_success(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.api_keys.user_api_key_service") as mock_svc:
-                mock_svc.validate_api_key = AsyncMock(return_value=True)
-                mock_svc.set_user_api_key.return_value = True
-                resp = client.post(
-                    "/api/users/api-keys/openai",
-                    json={"api_key": "sk-test123"},
-                )
-                assert resp.status_code == 200
-                assert "successfully" in resp.json()["message"]
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_set_key_success(self, async_test_client, async_test_db):
+        user = _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(user), \
+             patch("routers.api_keys.user_api_key_service.validate_api_key",
+                   new=AsyncMock(return_value=True)), \
+             patch("routers.api_keys.user_api_key_service.set_user_api_key_async",
+                   new=AsyncMock(return_value=True)):
+            resp = await async_test_client.post(
+                "/api/users/api-keys/openai",
+                json={"api_key": "sk-test123"},
+            )
+        assert resp.status_code == 200
+        assert "successfully" in resp.json()["message"]
 
-    def test_set_key_store_failure(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.api_keys.user_api_key_service") as mock_svc:
-                mock_svc.validate_api_key = AsyncMock(return_value=True)
-                mock_svc.set_user_api_key.return_value = False
-                resp = client.post(
-                    "/api/users/api-keys/openai",
-                    json={"api_key": "sk-test123"},
-                )
-                assert resp.status_code == 500
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_set_key_store_failure(self, async_test_client, async_test_db):
+        user = _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(user), \
+             patch("routers.api_keys.user_api_key_service.validate_api_key",
+                   new=AsyncMock(return_value=True)), \
+             patch("routers.api_keys.user_api_key_service.set_user_api_key_async",
+                   new=AsyncMock(return_value=False)):
+            resp = await async_test_client.post(
+                "/api/users/api-keys/openai",
+                json={"api_key": "sk-test123"},
+            )
+        assert resp.status_code == 500
 
 
 class TestGetApiKeyStatus:
-    def test_get_status(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.api_keys.user_api_key_service") as mock_svc:
-                mock_svc.get_user_api_key_status.return_value = {"openai": True}
-                mock_svc.get_user_available_providers.return_value = ["openai"]
-                resp = client.get("/api/users/api-keys/status")
-                assert resp.status_code == 200
-                data = resp.json()
-                assert "api_key_status" in data
-                assert "available_providers" in data
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_get_status(self, async_test_client, async_test_db):
+        user = _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(user), \
+             patch("routers.api_keys.user_api_key_service.get_user_api_key_status_async",
+                   new=AsyncMock(return_value={"openai": True})), \
+             patch("routers.api_keys.user_api_key_service.get_user_available_providers_async",
+                   new=AsyncMock(return_value=["openai"])):
+            resp = await async_test_client.get("/api/users/api-keys/status")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "api_key_status" in data
+        assert "available_providers" in data
 
 
 class TestRemoveApiKey:
-    def test_remove_success(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.api_keys.user_api_key_service") as mock_svc:
-                mock_svc.remove_user_api_key.return_value = True
-                resp = client.delete("/api/users/api-keys/openai")
-                assert resp.status_code == 200
-                assert "removed" in resp.json()["message"]
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_remove_success(self, async_test_client, async_test_db):
+        user = _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(user), \
+             patch("routers.api_keys.user_api_key_service.remove_user_api_key_async",
+                   new=AsyncMock(return_value=True)):
+            resp = await async_test_client.delete("/api/users/api-keys/openai")
+        assert resp.status_code == 200
+        assert "removed" in resp.json()["message"]
 
-    def test_remove_failure(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.api_keys.user_api_key_service") as mock_svc:
-                mock_svc.remove_user_api_key.return_value = False
-                resp = client.delete("/api/users/api-keys/openai")
-                assert resp.status_code == 500
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_remove_failure(self, async_test_client, async_test_db):
+        user = _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(user), \
+             patch("routers.api_keys.user_api_key_service.remove_user_api_key_async",
+                   new=AsyncMock(return_value=False)):
+            resp = await async_test_client.delete("/api/users/api-keys/openai")
+        assert resp.status_code == 500
 
 
 class TestTestApiKey:
+    """`/test` is validate-only (no DB) — keeps the lightweight TestClient."""
+
     def test_missing_key(self):
         client = TestClient(app)
         user = _make_user()
@@ -239,140 +273,85 @@ class TestTestApiKey:
 
 class TestTestSavedApiKey:
     def test_invalid_provider(self):
+        """Validate-only 400 (provider rejected before the DB lookup)."""
         client = TestClient(app)
         user = _make_user()
-        mock_db = _mock_db()
         app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
         try:
             resp = client.post("/api/users/api-keys/invalid/test-saved")
             assert resp.status_code == 400
         finally:
             app.dependency_overrides.clear()
 
-    def test_no_saved_key(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.api_keys.user_api_key_service") as mock_svc:
-                mock_svc.get_user_api_key.return_value = None
-                resp = client.post("/api/users/api-keys/openai/test-saved")
-                assert resp.status_code == 404
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_no_saved_key(self, async_test_client, async_test_db):
+        user = _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(user), \
+             patch("routers.api_keys.user_api_key_service.get_user_api_key_async",
+                   new=AsyncMock(return_value=None)):
+            resp = await async_test_client.post("/api/users/api-keys/openai/test-saved")
+        assert resp.status_code == 404
 
-    def test_saved_key_valid(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.api_keys.user_api_key_service") as mock_svc:
-                mock_svc.get_user_api_key.return_value = "sk-saved"
-                mock_svc.validate_api_key = AsyncMock(return_value=(True, "Valid", None))
-                resp = client.post("/api/users/api-keys/openai/test-saved")
-                assert resp.status_code == 200
-                assert resp.json()["status"] == "success"
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_saved_key_valid(self, async_test_client, async_test_db):
+        user = _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(user), \
+             patch("routers.api_keys.user_api_key_service.get_user_api_key_async",
+                   new=AsyncMock(return_value="sk-saved")), \
+             patch("routers.api_keys.user_api_key_service.validate_api_key",
+                   new=AsyncMock(return_value=(True, "Valid", None))):
+            resp = await async_test_client.post("/api/users/api-keys/openai/test-saved")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "success"
 
 
 class TestAvailableModels:
-    def test_private_context(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
+    @pytest.mark.asyncio
+    async def test_private_context(self, async_test_client, async_test_db):
+        """User with an openai key sees only the openai model."""
+        user = _seed_user(async_test_db)
+        _seed_model(async_test_db, "gpt-4", "openai", name="GPT-4")
+        _seed_model(async_test_db, "claude-x", "anthropic", name="Claude")
+        await async_test_db.flush()
+        with _as_user(user), \
+             patch("routers.api_keys.user_api_key_service.get_user_available_providers_async",
+                   new=AsyncMock(return_value=["openai"])):
+            resp = await async_test_client.get("/api/users/api-keys/available-models")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["id"] == "gpt-4"
 
-        # SimpleNamespace, not Mock: FastAPI's jsonable_encoder probes pydantic
-        # markers via attribute access, and Mock auto-vivifies them, leading
-        # to infinite recursion in is_pydantic_v1_model_instance's warning
-        # filter setup.
-        model = SimpleNamespace(
-            id="gpt-4",
-            name="GPT-4",
-            description="OpenAI GPT-4",
-            provider="openai",
-            model_type="llm",
-            capabilities=["text"],
-            config_schema={},
-            default_config={},
-            input_cost_per_million=30.0,
-            output_cost_per_million=60.0,
-            is_active=True,
-            parameter_constraints=None,
-            recommended_parameters=None,
-            created_at=datetime.now(timezone.utc),
-            updated_at=None,
-        )
+    @pytest.mark.asyncio
+    async def test_org_context(self, async_test_client, async_test_db):
+        """Org context with no providers yields no models."""
+        user = _seed_user(async_test_db)
+        _seed_model(async_test_db, "gpt-4", "openai", name="GPT-4")
+        await async_test_db.flush()
+        with _as_user(user), \
+             patch(
+                 "services.org_api_key_service.org_api_key_service."
+                 "get_available_providers_for_context_async",
+                 new=AsyncMock(return_value=[]),
+             ):
+            resp = await async_test_client.get(
+                "/api/users/api-keys/available-models",
+                headers={"X-Organization-Context": "org-1"},
+            )
+        assert resp.status_code == 200
+        assert resp.json() == []
 
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.all.return_value = [model]
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.api_keys.user_api_key_service") as mock_svc:
-                mock_svc.get_user_available_providers.return_value = ["openai"]
-                resp = client.get("/api/users/api-keys/available-models")
-                assert resp.status_code == 200
-                data = resp.json()
-                assert len(data) == 1
-                assert data[0]["id"] == "gpt-4"
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_org_context(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.all.return_value = []
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("org_api_key_service.org_api_key_service") as mock_org_svc:
-                mock_org_svc.get_available_providers_for_context.return_value = []
-                resp = client.get(
-                    "/api/users/api-keys/available-models",
-                    headers={"X-Organization-Context": "org-1"},
-                )
-                assert resp.status_code == 200
-                assert resp.json() == []
-        finally:
-            app.dependency_overrides.clear()
-
-    def test_no_models_available(self):
-        client = TestClient(app)
-        user = _make_user()
-        mock_db = _mock_db()
-
-        model = Mock()
-        model.id = "gpt-4"
-        model.provider = "openai"
-        model.is_active = True
-
-        mock_q = MagicMock()
-        mock_q.filter.return_value = mock_q
-        mock_q.all.return_value = [model]
-        mock_db.query.return_value = mock_q
-
-        app.dependency_overrides[require_user] = lambda: user
-        app.dependency_overrides[get_db] = lambda: mock_db
-        try:
-            with patch("routers.api_keys.user_api_key_service") as mock_svc:
-                mock_svc.get_user_available_providers.return_value = []  # No providers
-                resp = client.get("/api/users/api-keys/available-models")
-                assert resp.status_code == 200
-                assert resp.json() == []
-        finally:
-            app.dependency_overrides.clear()
+    @pytest.mark.asyncio
+    async def test_no_models_available(self, async_test_client, async_test_db):
+        """User with no providers sees no models even when models exist."""
+        user = _seed_user(async_test_db)
+        _seed_model(async_test_db, "gpt-4", "openai", name="GPT-4")
+        await async_test_db.flush()
+        with _as_user(user), \
+             patch("routers.api_keys.user_api_key_service.get_user_available_providers_async",
+                   new=AsyncMock(return_value=[])):
+            resp = await async_test_client.get("/api/users/api-keys/available-models")
+        assert resp.status_code == 200
+        assert resp.json() == []

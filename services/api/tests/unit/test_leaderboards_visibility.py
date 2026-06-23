@@ -125,8 +125,14 @@ def test_strict_filter_rejects_unknown_project_ids():
     # The list endpoint must call with strict=True so unknown project_ids
     # produce a 400 there. Other endpoints (single-model, compare) keep
     # the lenient default for backward compatibility.
+    #
+    # The endpoint moved to the async DB lane, so it calls the
+    # `_filter_accessible_project_ids_async` twin, and the call spans multiple
+    # lines (args on their own line). Match the optional `_async` suffix and
+    # a multi-line argument list up to its closing paren.
     list_endpoint_call = re.search(
-        r"async def get_llm_leaderboard\b.+?_filter_accessible_project_ids\([^)]*\)",
+        r"async def get_llm_leaderboard\b"
+        r".+?_filter_accessible_project_ids(?:_async)?\(.*?\)",
         src,
         re.DOTALL,
     )

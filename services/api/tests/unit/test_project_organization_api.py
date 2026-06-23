@@ -52,7 +52,7 @@ class TestProjectAPIWithOrganization:
         mock_user_with_memberships.organization_memberships = [mock_membership]
 
         # Mock the query chain
-        with patch('projects_api.get_user_with_memberships') as mock_get_user:
+        with patch('routers.projects.helpers.get_user_with_memberships') as mock_get_user:
             mock_get_user.return_value = mock_user_with_memberships
 
             # Mock project creation data
@@ -138,7 +138,7 @@ class TestProjectAPIWithOrganization:
         mock_po_query = Mock()
         mock_po_query.filter.return_value.all.return_value = [(org_id,)]
 
-        with patch('projects_api.get_user_with_memberships') as mock_get_user:
+        with patch('routers.projects.helpers.get_user_with_memberships') as mock_get_user:
             mock_get_user.return_value = mock_user_with_memberships
 
             # Simulate access check logic
@@ -211,7 +211,7 @@ class TestProjectAPIWithOrganization:
         # Project 1 is in user's org, Project 2 is not
         mock_org_projects_subquery = [project1_id]
 
-        with patch('projects_api.get_user_with_memberships') as mock_get_user:
+        with patch('routers.projects.helpers.get_user_with_memberships') as mock_get_user:
             mock_get_user.return_value = mock_user_with_memberships
 
             # Simulate the filtering logic
@@ -235,7 +235,7 @@ class TestProjectOrganizationHelpers:
 
     def test_get_project_organizations(self, mock_db):
         """Test retrieving all organizations for a project"""
-        from projects_api import get_project_organizations
+        from routers.projects.helpers import get_project_organizations
 
         project_id = str(uuid.uuid4())
         org1_id = str(uuid.uuid4())

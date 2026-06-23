@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from websocket_clustering import WebSocketClusterManager
+from services.websocket_clustering import WebSocketClusterManager
 
 
 @pytest.fixture
@@ -48,8 +48,8 @@ class TestWebSocketClusterManager:
         """Test successful cluster manager initialization"""
         redis_mock, pubsub_mock = mock_redis
 
-        with patch("websocket_clustering.redis.Redis", return_value=redis_mock):
-            with patch("websocket_clustering.get_redis_client") as mock_get_redis:
+        with patch("services.websocket_clustering.redis.Redis", return_value=redis_mock):
+            with patch("services.websocket_clustering.get_redis_client") as mock_get_redis:
                 # Mock the sync Redis client for connection info
                 sync_redis_mock = MagicMock()
                 sync_redis_mock._connection_pool.connection_kwargs = {
@@ -77,7 +77,7 @@ class TestWebSocketClusterManager:
     async def test_initialization_failure(self, cluster_manager):
         """Test cluster manager initialization failure"""
         with patch(
-            "websocket_clustering.redis.Redis",
+            "services.websocket_clustering.redis.Redis",
             side_effect=Exception("Redis unavailable"),
         ):
             await cluster_manager.initialize()
