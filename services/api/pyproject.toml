@@ -68,7 +68,13 @@ dependencies = [
     # import endpoint fails to import the anki package. arm64 wheels published —
     # no FIPS/SIGILL concern, so a normal pin is fine. Keep in sync with
     # requirements.txt and services/workers/requirements.txt.
-    "zstandard>=0.22,<1.0"
+    "zstandard>=0.22,<1.0",
+    # Document text extraction for comfortable exam setup (issue #35): Word
+    # (.docx via mammoth -> Markdown) and text-layer PDF (pdfplumber) uploads
+    # become editable exam-field text. api-only. Keep in sync with
+    # requirements.txt.
+    "mammoth>=1.6,<2.0",
+    "pdfplumber>=0.10,<1.0"
 ]
 
 [project.optional-dependencies]

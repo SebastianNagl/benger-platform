@@ -33,8 +33,6 @@ import sqlite3
 import tempfile
 import zipfile
 
-import zstandard
-
 from .ir import AnkiCard, AnkiDeck, AnkiImportError
 
 __all__ = ["apkg_to_deck", "deck_to_apkg"]
@@ -66,13 +64,34 @@ def _zstd_decompress(blob: bytes) -> bytes:
     ``decompress()`` requires the frame to declare its uncompressed size. Anki's
     ``.anki21b`` frames sometimes omit it, in which case we fall back to a
     streaming reader that does not need the size up front.
+
+    ``zstandard`` is imported lazily so the rest of the package (CSV/TSV and
+    legacy ``.apkg`` via stdlib ``sqlite3``/``zipfile``) keeps working even
+    where the optional native wheel isn't installed; only the ``.anki21b`` path
+    needs it.
     """
+    try:
+        import zstandard
+    except ImportError as exc:  # pragma: no cover - depends on env
+        raise AnkiImportError(
+            "Diese .apkg-Datei ist im neueren komprimierten Anki-Format "
+            "(.anki21b), das auf diesem Server nicht unterstützt wird. Bitte "
+            "exportiere aus Anki mit aktivierter Option 'Unterstütze ältere "
+            "Anki-Versionen'."
+        ) from exc
+
     dctx = zstandard.ZstdDecompressor()
     try:
         return dctx.decompress(blob)
     except zstandard.ZstdError:
-        with dctx.stream_reader(io.BytesIO(blob)) as reader:
-            return reader.read()
+        try:
+            with dctx.stream_reader(io.BytesIO(blob)) as reader:
+                return reader.read()
+        except zstandard.ZstdError:
+            # Not valid zstd at all (e.g. raw protobuf mislabeled). Signal the
+            # caller to hand the raw bytes downstream, where the SQLite-validity
+            # check fails loud with the protobuf message.
+            return None
 
 
 def _read_collection_bytes(data: bytes) -> bytes:
@@ -95,12 +114,10 @@ def _read_collection_bytes(data: bytes) -> bytes:
                 continue
             raw = zf.read(name)
             if name.endswith("b"):  # collection.anki21b → zstd-compressed
-                try:
-                    return _zstd_decompress(raw)
-                except zstandard.ZstdError:
-                    # Not zstd at all (e.g. raw protobuf mislabeled). Hand the
-                    # raw bytes downstream; the SQLite-validity check fails loud.
-                    return raw
+                decompressed = _zstd_decompress(raw)
+                # None => not valid zstd (mislabeled / raw protobuf); hand the
+                # raw bytes downstream so the SQLite-validity check fails loud.
+                return decompressed if decompressed is not None else raw
             return raw
 
     raise AnkiImportError(
