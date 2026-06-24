@@ -1,6 +1,9 @@
 'use client'
 
+import { useAuth } from '@/contexts/AuthContext'
 import { useHydration } from '@/hooks/useHydration'
+import { isExtendedEdition, useResolvedUiMode } from '@/hooks/useResolvedUiMode'
+import { useSlot } from '@/lib/extensions/slots'
 import { useUIStore } from '@/stores'
 import { motion } from 'framer-motion'
 import { usePathname } from 'next/navigation'
@@ -25,6 +28,9 @@ export function Layout({
   const { isSidebarHidden } = useUIStore()
   const isHydrated = useHydration()
   const [isInitialRender, setIsInitialRender] = useState(true)
+  const { isLoading } = useAuth()
+  const resolvedUiMode = useResolvedUiMode()
+  const StudentShell = useSlot('StudentShell')
 
   // During SSR or before hydration, show the sidebar to prevent layout shift
   // After hydration, use the actual state
@@ -35,12 +41,44 @@ export function Layout({
     if (isHydrated) {
       // Small delay to ensure layout is stable before enabling animations
       const timer = setTimeout(() => {
-         
+
         setIsInitialRender(false)
       }, 100)
       return () => clearTimeout(timer)
     }
   }, [isHydrated])
+
+  // Student/expert shell branch (Issue #35). Only the extended edition can ever
+  // render the student shell — short-circuit entirely in community so the
+  // expert layout never pays for the resolution dance.
+  if (isExtendedEdition()) {
+    // Until hydration completes or auth resolves, the resolved mode is not yet
+    // trustworthy. Render a neutral skeleton rather than flashing the expert
+    // layout to a student on first paint.
+    if (!isHydrated || isLoading) {
+      return (
+        <div
+          className="flex h-full w-full items-center justify-center"
+          data-testid="ui-shell-skeleton"
+          aria-hidden="true"
+        >
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500" />
+        </div>
+      )
+    }
+
+    // Student mode + a registered StudentShell slot → hand the whole app shell
+    // to the extended package. If the slot is missing (community-style overlay
+    // not loaded), fall through to the normal expert layout — never crash.
+    if (resolvedUiMode === 'student' && StudentShell) {
+      return (
+        <SectionProvider sections={allSections[pathname || '/'] ?? []}>
+          {/* eslint-disable-next-line react-hooks/static-components */}
+          <StudentShell>{children}</StudentShell>
+        </SectionProvider>
+      )
+    }
+  }
 
   return (
     <SectionProvider sections={allSections[pathname || '/'] ?? []}>

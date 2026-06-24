@@ -30,6 +30,12 @@ export interface UIState {
 
   // Mobile navigation
   isMobileMenuOpen: boolean
+
+  // Student/expert view mode preference.
+  // null = unresolved (no local preference set yet); the effective mode is
+  // computed by useResolvedUiMode() which layers edition + slot availability +
+  // server-side preference on top of this local override.
+  uiMode: 'student' | 'expert' | null
 }
 
 export interface UIActions {
@@ -63,6 +69,9 @@ export interface UIActions {
   // Mobile navigation actions
   toggleMobileMenu: () => void
   closeMobileMenu: () => void
+
+  // View mode actions
+  setUiMode: (mode: 'student' | 'expert' | null) => void
 }
 
 export interface Notification {
@@ -90,6 +99,7 @@ const initialState: UIState = {
   notifications: [],
   theme: 'system',
   isMobileMenuOpen: false,
+  uiMode: null,
 }
 
 export const useUIStore = create<UIStore>()(
@@ -206,13 +216,18 @@ export const useUIStore = create<UIStore>()(
 
         closeMobileMenu: () =>
           set({ isMobileMenuOpen: false }, false, 'closeMobileMenu'),
+
+        // View mode actions
+        setUiMode: (mode: 'student' | 'expert' | null) =>
+          set({ uiMode: mode }, false, 'setUiMode'),
       }),
       {
         name: 'ui-store',
         partialize: (state) => ({
-          // Persist only theme and sidebar preferences, not hydration flag
+          // Persist only theme, sidebar, and view-mode preferences, not hydration flag
           theme: state.theme,
           isSidebarHidden: state.isSidebarHidden,
+          uiMode: state.uiMode,
         }),
       }
     ),

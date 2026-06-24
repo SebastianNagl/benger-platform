@@ -224,6 +224,18 @@ export class AuthClient extends BaseApiClient {
   }
 
   /**
+   * Persist the user's student/expert view-mode preference server-side
+   * (Issue #35). The local store override is the authority for the current
+   * session; this call makes the choice stick across devices/sessions.
+   */
+  async setUiMode(mode: 'student' | 'expert'): Promise<User> {
+    return this.request('/auth/me/ui-mode', {
+      method: 'PUT',
+      body: JSON.stringify({ preferred_ui_mode: mode }),
+    })
+  }
+
+  /**
    * Confirm/re-confirm profile data (Issue #1206)
    */
   async confirmProfile(): Promise<ProfileConfirmationResponse> {
