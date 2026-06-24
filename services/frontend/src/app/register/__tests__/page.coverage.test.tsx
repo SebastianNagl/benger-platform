@@ -7,9 +7,8 @@
  * - Conditional fields: showDegreeProgramField, showSemesterField
  * - Grade fields visibility based on expertise hierarchy
  * - isIncomparableGradingProgram (LLB/LLM suppresses grade fields)
- * - Step 2 validation: missing legalExpertiseLevel, missing germanProficiency
- * - Step 4 validation: missing competence fields
- * - Step 5 validation: missing psychometric scores
+ * - Steps 2–5 are optional and advance without input (with the optional notice)
+ * - Research-data consent gating on step 1 (extended slot present)
  * - Step indicator click navigation
  * - Redirect with custom redirectUrl from URL params
  * - handleBack function (clicking back button)
@@ -19,6 +18,7 @@ import '@testing-library/jest-dom'
 import '@/test-utils/locationMock'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { hasSlot, useSlot } from '@/lib/extensions/slots'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
@@ -27,6 +27,13 @@ jest.mock('@/contexts/AuthContext')
 jest.mock('@/contexts/I18nContext')
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+}))
+
+// The research-data consent checkbox is an extended-edition slot. By default
+// it's absent (community edition); individual tests opt in via mockReturnValue.
+jest.mock('@/lib/extensions/slots', () => ({
+  useSlot: jest.fn(),
+  hasSlot: jest.fn(),
 }))
 
 jest.mock('@/components/layout', () => ({
@@ -99,6 +106,9 @@ describe('RegisterPage - branch coverage', () => {
       push: mockRouterPush,
       replace: mockRouterReplace,
     })
+    // Default: no consent slot registered (community edition).
+    ;(useSlot as jest.Mock).mockReturnValue(undefined)
+    ;(hasSlot as jest.Mock).mockReturnValue(false)
   })
 
   // Helpers
@@ -333,67 +343,103 @@ describe('RegisterPage - branch coverage', () => {
       })
     })
 
-    it('shows error when legal expertise is missing on step 2', async () => {
+    it('advances through optional steps 2–5 without filling any fields', async () => {
       const user = userEvent.setup()
       render(<RegisterPage />)
 
       await fillStep1(user)
       await user.click(screen.getByTestId('register-next-button'))
 
-      // Don't select expertise, just click next
-      await user.selectOptions(getSelectInTestId('auth-register-german-proficiency-select'), 'native')
+      // Step 2 (legal background) is optional and shows the "optional" notice.
+      expect(screen.getByTestId('register-step-2')).toBeInTheDocument()
+      expect(screen.getByTestId('register-optional-notice')).toBeInTheDocument()
       await user.click(screen.getByTestId('register-next-button'))
 
-      await waitFor(() => {
-        expect(screen.getByTestId('auth-register-error-message')).toHaveTextContent('register.legalExpertiseLevelRequired')
-      })
+      // Step 3 (demographics)
+      expect(screen.getByTestId('register-step-3')).toBeInTheDocument()
+      expect(screen.getByTestId('register-optional-notice')).toBeInTheDocument()
+      await user.click(screen.getByTestId('register-next-button'))
+
+      // Step 4 (competence) — advances without rating anything.
+      expect(screen.getByTestId('register-step-4')).toBeInTheDocument()
+      expect(screen.getByTestId('register-optional-notice')).toBeInTheDocument()
+      await user.click(screen.getByTestId('register-next-button'))
+
+      // Step 5 (psychometric) — reached with no error shown.
+      expect(screen.getByTestId('register-step-5')).toBeInTheDocument()
+      expect(screen.getByTestId('register-optional-notice')).toBeInTheDocument()
+      expect(screen.getByTestId('auth-register-submit-button')).toBeInTheDocument()
+      expect(
+        screen.queryByTestId('auth-register-error-message')
+      ).not.toBeInTheDocument()
     })
 
-    it('shows error when german proficiency is missing on step 2', async () => {
+    it('submits successfully with steps 2–5 left blank', async () => {
       const user = userEvent.setup()
+      mockSignup.mockResolvedValue(undefined)
       render(<RegisterPage />)
 
       await fillStep1(user)
-      await user.click(screen.getByTestId('register-next-button'))
-
-      await user.selectOptions(getSelectInTestId('auth-register-legal-expertise-select'), 'layperson')
-      // Don't select German proficiency
-      await user.click(screen.getByTestId('register-next-button'))
-
-      await waitFor(() => {
-        expect(screen.getByTestId('auth-register-error-message')).toHaveTextContent('register.germanProficiencyRequired')
-      })
-    })
-
-    it('shows error when competence scales are missing on step 4', async () => {
-      const user = userEvent.setup()
-      render(<RegisterPage />)
-
-      await navigateToStep(user, 4)
-
-      // Don't fill competence, just click next
-      await user.click(screen.getByTestId('register-next-button'))
-
-      await waitFor(() => {
-        expect(screen.getByTestId('auth-register-error-message')).toHaveTextContent('register.competenceRequired')
-      })
-    })
-
-    it('shows error when psychometric scores are incomplete on step 5', async () => {
-      const user = userEvent.setup()
-      render(<RegisterPage />)
-
-      await navigateToStep(user, 5)
-
-      // Only fill partial psychometric data
-      await user.click(screen.getByTestId('likert-atiS_item1-4'))
-
-      // Try to submit
+      await user.click(screen.getByTestId('register-next-button')) // → step 2
+      await user.click(screen.getByTestId('register-next-button')) // → step 3
+      await user.click(screen.getByTestId('register-next-button')) // → step 4
+      await user.click(screen.getByTestId('register-next-button')) // → step 5
       await user.click(screen.getByTestId('auth-register-submit-button'))
 
       await waitFor(() => {
-        expect(screen.getByTestId('auth-register-error-message')).toHaveTextContent('register.psychometricRequired')
+        expect(mockSignup).toHaveBeenCalledWith(
+          'testuser',
+          'test@example.com',
+          'Test User',
+          'password123',
+          expect.objectContaining({
+            ati_s_scores: {},
+            ptt_a_scores: {},
+            ki_experience_scores: {},
+          }),
+          undefined
+        )
       })
+    })
+
+    it('requires research-data consent on step 1 when the extended slot is present', async () => {
+      ;(hasSlot as jest.Mock).mockReturnValue(true)
+      ;(useSlot as jest.Mock).mockReturnValue(
+        ({
+          value,
+          onChange,
+        }: {
+          value: boolean
+          onChange: (v: boolean) => void
+        }) => (
+          <input
+            type="checkbox"
+            data-testid="research-consent-checkbox"
+            checked={value}
+            onChange={(e) => onChange(e.target.checked)}
+          />
+        )
+      )
+
+      const user = userEvent.setup()
+      render(<RegisterPage />)
+
+      // Account fields filled but consent unchecked → blocked on step 1.
+      await fillStep1(user)
+      await user.click(screen.getByTestId('register-next-button'))
+
+      await waitFor(() => {
+        expect(
+          screen.getByTestId('auth-register-error-message')
+        ).toHaveTextContent('register.researchConsent.required')
+      })
+      expect(screen.getByTestId('register-step-1')).toBeInTheDocument()
+
+      // Tick consent → now advances to step 2.
+      await user.click(screen.getByTestId('research-consent-checkbox'))
+      await user.click(screen.getByTestId('register-next-button'))
+
+      expect(screen.getByTestId('register-step-2')).toBeInTheDocument()
     })
   })
 
@@ -415,24 +461,41 @@ describe('RegisterPage - branch coverage', () => {
       expect(screen.getByTestId('register-step-1')).toBeInTheDocument()
     })
 
-    it('clears error when navigating back', async () => {
+    it('clears the error when navigating to another step', async () => {
       const user = userEvent.setup()
       render(<RegisterPage />)
 
-      await fillStep1(user)
-      await user.click(screen.getByTestId('register-next-button'))
-
-      // Trigger an error on step 2
+      // Trigger a step-1 validation error (password mismatch).
+      await user.type(screen.getByTestId('auth-register-name-input'), 'Test User')
+      await user.type(screen.getByTestId('auth-register-username-input'), 'testuser')
+      await user.type(
+        screen.getByTestId('auth-register-email-input'),
+        'test@example.com'
+      )
+      await user.type(
+        screen.getByTestId('auth-register-password-input'),
+        'password123'
+      )
+      await user.type(
+        screen.getByTestId('auth-register-confirm-password-input'),
+        'mismatch'
+      )
       await user.click(screen.getByTestId('register-next-button'))
 
       await waitFor(() => {
-        expect(screen.getByTestId('auth-register-error-message')).toBeInTheDocument()
+        expect(
+          screen.getByTestId('auth-register-error-message')
+        ).toBeInTheDocument()
       })
 
-      // Click back - should clear error
-      await user.click(screen.getByTestId('register-back-button'))
+      // Jumping to another step via the stepper clears the error.
+      const step2Indicator = screen.getByTestId('register-step-indicator-2')
+      await user.click(step2Indicator.closest('button')!)
 
-      expect(screen.queryByTestId('auth-register-error-message')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('auth-register-error-message')
+      ).not.toBeInTheDocument()
+      expect(screen.getByTestId('register-step-2')).toBeInTheDocument()
     })
 
     it('allows clicking on completed step indicators to navigate', async () => {

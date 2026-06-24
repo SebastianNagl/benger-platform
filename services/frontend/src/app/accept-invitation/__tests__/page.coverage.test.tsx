@@ -2,15 +2,11 @@
  * Coverage-focused tests for AcceptInvitationPage
  *
  * Targets uncovered branches:
- * - handleAccountSetup with password mismatch
- * - handleAccountSetup with password too short
- * - handleAccountSetup success path
- * - handleAccountSetup error with err.message
+ * - new (unauthenticated) user redirected to /register?invitation=…
  * - handleAcceptInvitation success with org slug redirect
  * - handleAcceptInvitation success without org slug (fallback to /dashboard)
  * - handleAcceptInvitation success with org fetch error (fallback to /dashboard)
  * - error from invitation load with response.data.detail
- * - showAccountSetup toggle (back button)
  * - invitation null state (error || !invitation)
  */
 
@@ -46,7 +42,6 @@ import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
 import { apiClient } from '@/lib/api/client'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { useRouter } from 'next/navigation'
 import AcceptInvitationPage from '../[token]/page'
 
@@ -156,9 +151,8 @@ describe('AcceptInvitationPage - branch coverage', () => {
     jest.useRealTimers()
   })
 
-  describe('handleAccountSetup validation', () => {
-    it('shows error when passwords do not match', async () => {
-      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+  describe('New user account creation', () => {
+    it('redirects an unauthenticated user to the registration wizard', async () => {
       ;(api.getInvitationByToken as jest.Mock).mockResolvedValue(mockInvitation)
 
       render(<AcceptInvitationPage params={Promise.resolve({ token: 'token-1' })} />)
@@ -167,14 +161,8 @@ describe('AcceptInvitationPage - branch coverage', () => {
         expect(screen.getByText('Accept & Create Account')).toBeInTheDocument()
       })
 
-      // Click "Accept & Create Account" - this redirects to register for unauthenticated users
-      // We need to show the account setup form, which requires showAccountSetup=true
-      // But in the current code, clicking Accept & Create Account as guest redirects
-      // So this particular branch is only reachable for the account setup form
-
-      // The account setup form is shown when showAccountSetup is true
-      // We can't easily trigger it since the redirect happens first
-      // This test verifies the redirect behavior instead
+      // New users no longer get an inline account form — clicking through sends
+      // them to the full wizard (which carries the optional research-data steps).
       fireEvent.click(screen.getByText('Accept & Create Account'))
       expect(mockRouter.push).toHaveBeenCalledWith(
         expect.stringContaining('/register?invitation=')

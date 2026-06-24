@@ -380,40 +380,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           orgManager.setCurrentOrganization(null)
         }
 
-        // Check mandatory profile status on page load (Issue #1206)
-        if (currentUser) {
-          try {
-            const profileStatusPromise =
-              apiClient.getMandatoryProfileStatus()
-            const timeoutPromise = new Promise<never>((_, reject) =>
-              setTimeout(
-                () => reject(new Error('Profile status check timeout')),
-                5000
-              )
-            )
-            const profileStatus = await Promise.race([
-              profileStatusPromise,
-              timeoutPromise,
-            ])
-            if (
-              !profileStatus.mandatory_profile_completed ||
-              profileStatus.confirmation_due
-            ) {
-              const currentPath =
-                typeof window !== 'undefined' ? window.location.pathname : ''
-              // Only redirect if not already on profile or public pages
-              if (
-                !currentPath.startsWith('/profile') &&
-                !publicRoutes.includes(currentPath)
-              ) {
-                router.push('/profile')
-              }
-            }
-          } catch {
-            // If status check fails or times out, continue normally
-          }
-        }
-
         logger.debug('[AuthContext] Auth initialization successful')
       } catch (error) {
         // User is not authenticated or session expired
@@ -446,7 +412,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false)
       authInitializationInProgress.current = false
     }
-  }, [apiClient, orgManager, router]) // Remove currentOrganization dependency to prevent circular updates
+  }, [apiClient, orgManager]) // Remove currentOrganization dependency to prevent circular updates
 
   // Handle hydration and check for existing session using cookies
   useEffect(() => {
@@ -607,20 +573,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Only now update local state — org redirect decided, no flash
         setUser(data.user)
-
-        // Check mandatory profile status after login (Issue #1206)
-        try {
-          const profileStatus = await apiClient.getMandatoryProfileStatus()
-          if (
-            !profileStatus.mandatory_profile_completed ||
-            profileStatus.confirmation_due
-          ) {
-            router.push('/profile')
-            return
-          }
-        } catch {
-          // If status check fails, continue normally
-        }
 
         // Clear development helper flags (dead-code-eliminated in production)
         if (process.env.NODE_ENV === 'development') {

@@ -9,9 +9,7 @@
  *     fallback (lines 278-297).
  *   - subdomain present but user lacks access -> redirect to private URL
  *     (lines 342-345).
- *   - mandatory-profile-incomplete redirect to /profile on init (371-392).
  *   - login: returning-user last-org redirect before state update (576-584).
- *   - login: mandatory-profile-incomplete redirect after login (597-602).
  *   - refreshOrganizations subdomain match (486-489) via refreshAuth.
  *   - signup with invitation but no organizations -> flash + /dashboard
  *     (721-724).
@@ -254,24 +252,6 @@ describe('AuthContext - coverage complement', () => {
     })
   })
 
-  it('redirects to /profile when the mandatory profile is incomplete on init', async () => {
-    // The init redirect only fires off a non-public, non-/profile path.
-    window.history.pushState({}, '', '/dashboard')
-    mockApiClient.getMandatoryProfileStatus.mockResolvedValue({
-      mandatory_profile_completed: false,
-      confirmation_due: false,
-    })
-
-    renderHook(() => useAuth(), { wrapper })
-    await waitForInit()
-
-    await waitFor(() => {
-      expect(mockRouter.push).toHaveBeenCalledWith('/profile')
-    })
-
-    window.history.pushState({}, '', '/')
-  })
-
   it('login redirects a returning user to their last org subdomain', async () => {
     // No subdomain in the URL, but a remembered last org the user belongs to.
     ;(parseSubdomain as jest.Mock).mockReturnValue({
@@ -303,31 +283,6 @@ describe('AuthContext - coverage complement', () => {
     // The login attempt completed without throwing; org redirect is best-effort
     // and exercised here. getOrgUrl is the redirect builder.
     expect(mockApiClient.login).toHaveBeenCalledWith('testuser', 'password123')
-  })
-
-  it('login redirects to /profile when the mandatory profile is incomplete', async () => {
-    mockApiClient.getMandatoryProfileStatus
-      // first call (init) completes; second call (post-login) is incomplete.
-      .mockResolvedValueOnce({
-        mandatory_profile_completed: true,
-        confirmation_due: false,
-      })
-      .mockResolvedValueOnce({
-        mandatory_profile_completed: false,
-        confirmation_due: true,
-      })
-
-    const { result } = renderHook(() => useAuth(), { wrapper })
-    await waitForInit()
-    await waitFor(() => expect(result.current.isLoading).toBe(false))
-
-    mockRouter.push.mockClear()
-    await act(async () => {
-      await result.current.login('testuser', 'password123')
-      for (let i = 0; i < 6; i++) await Promise.resolve()
-    })
-
-    expect(mockRouter.push).toHaveBeenCalledWith('/profile')
   })
 
   it('refreshAuth re-fetches the user and organizations', async () => {

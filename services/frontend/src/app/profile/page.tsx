@@ -9,7 +9,6 @@ import { ProfileAccountSection } from '@/components/profile/ProfileAccountSectio
 import { ProfileDemographicSection } from '@/components/profile/ProfileDemographicSection'
 import { ProfileHistorySection } from '@/components/profile/ProfileHistorySection'
 import { ProfileLegalExperienceSection } from '@/components/profile/ProfileLegalExperienceSection'
-import { ProfileMandatoryBanners } from '@/components/profile/ProfileMandatoryBanners'
 import { ProfilePersonalSection } from '@/components/profile/ProfilePersonalSection'
 import { ProfilePrivacySection } from '@/components/profile/ProfilePrivacySection'
 import { ProfileResearchSection } from '@/components/profile/ProfileResearchSection'
@@ -19,10 +18,7 @@ import { Button } from '@/components/shared/Button'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import type {
-  MandatoryProfileStatus,
-  ProfileHistoryEntry,
-} from '@/lib/api/types'
+import type { ProfileHistoryEntry } from '@/lib/api/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 export default function ProfilePage() {
@@ -65,13 +61,9 @@ export default function ProfilePage() {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [apiKeysModalOpen, setApiKeysModalOpen] = useState(false)
 
-  // Mandatory profile state (Issue #1206)
-  const [mandatoryStatus, setMandatoryStatus] =
-    useState<MandatoryProfileStatus | null>(null)
   const [profileHistory, setProfileHistory] = useState<ProfileHistoryEntry[]>(
     []
   )
-  const [confirmingProfile, setConfirmingProfile] = useState(false)
 
   // Ref to skip the loadProfile re-fetch triggered by updateUser after save.
   // Without this, updateUser changes the user ref → useEffect fires → loadProfile
@@ -192,25 +184,16 @@ export default function ProfilePage() {
         ki_experience_scores: profileData.ki_experience_scores,
       })
 
-      // Fetch the secondary calls in parallel — `mandatory_profile_status` is
-      // independent of `profile_history`, and only the superadmin branch needs
-      // history at all. Running them serially used to add two extra round-trips
-      // to every profile page load.
-      const [statusResult, historyResult] = await Promise.allSettled([
-        apiClient.getMandatoryProfileStatus(),
-        profileData.is_superadmin
-          ? apiClient.getProfileHistory()
-          : Promise.resolve(null),
-      ])
-      if (statusResult.status === 'fulfilled') {
-        setMandatoryStatus(statusResult.value)
-      }
-      if (
-        profileData.is_superadmin &&
-        historyResult.status === 'fulfilled' &&
-        historyResult.value !== null
-      ) {
-        setProfileHistory(historyResult.value)
+      // Profile history is only needed for the superadmin audit view.
+      if (profileData.is_superadmin) {
+        try {
+          const history = await apiClient.getProfileHistory()
+          if (history) {
+            setProfileHistory(history)
+          }
+        } catch {
+          // History is non-essential — ignore failures.
+        }
       }
     } catch (error) {
       console.error('Failed to load profile:', error)
@@ -251,7 +234,6 @@ export default function ProfilePage() {
     } else {
       // Clear profile data if no user
       setProfile(null)
-      setMandatoryStatus(null)
       setProfileHistory([])
       setProfileForm({
         name: '',
@@ -317,14 +299,6 @@ export default function ProfilePage() {
       skipLoadProfileRef.current = true
       updateUser(updatedProfile) // Update the auth context
       addToast(t('profile.updateSuccess'), 'success')
-
-      // Refresh mandatory status after profile update
-      try {
-        const status = await apiClient.getMandatoryProfileStatus()
-        setMandatoryStatus(status)
-      } catch {
-        // Silently ignore
-      }
     } catch (error: unknown) {
       console.error('Failed to update profile:', error)
       const errorMessage =
@@ -332,23 +306,6 @@ export default function ProfilePage() {
       addToast(errorMessage, 'error')
     } finally {
       setProfileLoading(false)
-    }
-  }
-
-  const handleConfirmProfile = async () => {
-    try {
-      setConfirmingProfile(true)
-      await apiClient.confirmProfile()
-      addToast(t('profile.profileConfirmed'), 'success')
-      // Refresh status
-      const status = await apiClient.getMandatoryProfileStatus()
-      setMandatoryStatus(status)
-    } catch (error: unknown) {
-      const msg =
-        error instanceof Error ? error.message : t('profile.confirmFailed')
-      addToast(msg, 'error')
-    } finally {
-      setConfirmingProfile(false)
     }
   }
 
@@ -377,12 +334,6 @@ export default function ProfilePage() {
             ]}
           />
         </div>
-
-        <ProfileMandatoryBanners
-          mandatoryStatus={mandatoryStatus}
-          confirmingProfile={confirmingProfile}
-          onConfirm={handleConfirmProfile}
-        />
 
         <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
           {/* Header with title and action buttons */}

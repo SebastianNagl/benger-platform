@@ -2082,6 +2082,7 @@
     "nameRequired": "Bitte geben Sie Ihren Namen ein",
     "competenceRequired": "Bitte bewerten Sie Ihre Kompetenz in allen Rechtsgebieten",
     "psychometricRequired": "Bitte beantworten Sie alle Fragen der psychometrischen Skalen",
+    "optionalPageNotice": "Diese Seite ist optional und kann übersprungen werden. Wenn Sie diese Angaben machen möchten, werden sie ausschließlich anonymisiert für unsere Forschung verwendet.",
     "researchConsent": {
       "required": "Um ein Konto zu erstellen, müssen Sie der Forschungsdatennutzungsrichtlinie zustimmen"
     },

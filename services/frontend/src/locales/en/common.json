@@ -2100,6 +2100,7 @@
     "nameRequired": "Please enter your name",
     "competenceRequired": "Please rate your competence in all legal areas",
     "psychometricRequired": "Please answer all psychometric scale items",
+    "optionalPageNotice": "This page is optional — you can skip it. If you'd like to share this information, it's used only anonymously for our research.",
     "researchConsent": {
       "required": "You must agree to the research data use policy to create an account"
     },

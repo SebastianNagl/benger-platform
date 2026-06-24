@@ -152,6 +152,14 @@ describe('Locale Files Text Updates (Issue #105)', () => {
       expect(englishKeys).toEqual(germanKeys)
     })
 
+    test('should include the optional-page notice in both locales', () => {
+      // Shown atop the now-optional research-data steps (2–5).
+      expect(typeof englishLocale.register.optionalPageNotice).toBe('string')
+      expect(typeof germanLocale.register.optionalPageNotice).toBe('string')
+      expect(englishLocale.register.optionalPageNotice.length).toBeGreaterThan(0)
+      expect(germanLocale.register.optionalPageNotice.length).toBeGreaterThan(0)
+    })
+
     test('should both have removed subtitle key', () => {
       // Both locales should consistently not have subtitle
       expect(englishLocale.register.subtitle).toBeUndefined()

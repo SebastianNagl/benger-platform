@@ -25,7 +25,7 @@ export default function AcceptInvitationPage({
   params: Promise<{ token: string }>
 }) {
   const router = useRouter()
-  const { user, refreshAuth, signup, isLoading: authLoading } = useAuth()
+  const { user, refreshAuth, isLoading: authLoading } = useAuth()
   const { t } = useI18n()
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null)
   const [loading, setLoading] = useState(true)
@@ -33,15 +33,6 @@ export default function AcceptInvitationPage({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [token, setToken] = useState<string | null>(null)
-
-  // Form state for new user account creation
-  const [showAccountSetup, setShowAccountSetup] = useState(false)
-  const [formData, setFormData] = useState({
-    username: '',
-    name: '',
-    password: '',
-    confirmPassword: '',
-  })
 
   useEffect(() => {
     params?.then(({ token }) => {
@@ -132,51 +123,6 @@ export default function AcceptInvitationPage({
     } finally {
       setAccepting(false)
     }
-  }
-
-  const handleAccountSetup = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-
-    // Validate passwords match
-    if (formData.password !== formData.confirmPassword) {
-      setError(t('invitation.passwordMismatch'))
-      return
-    }
-
-    // Validate password length
-    if (formData.password.length < 6) {
-      setError(t('invitation.passwordTooShort'))
-      return
-    }
-
-    try {
-      setAccepting(true)
-
-      // Create account with invitation token
-      await signup(
-        formData.username,
-        invitation!.email,
-        formData.name,
-        formData.password,
-        undefined, // no legal expertise data for invitation signup
-        token!
-      )
-
-      // Success handled by AuthContext (will redirect to dashboard)
-      setSuccess(true)
-    } catch (err: any) {
-      console.error('Failed to create account:', err)
-      setError(err.message || t('invitation.createAccountFailed'))
-      setAccepting(false)
-    }
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }))
   }
 
   const formatExpiryDate = (dateString: string) => {
@@ -364,169 +310,65 @@ export default function AcceptInvitationPage({
             )}
 
             {/* Actions */}
-            {showAccountSetup ? (
-              // Account Setup Form
-              <form onSubmit={handleAccountSetup} className="space-y-4">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    {t('invitation.emailLabel')}
-                  </label>
-                  <input
-                    type="email"
-                    value={invitation.email}
-                    disabled
-                    className="w-full rounded-md border border-zinc-300 bg-zinc-100 px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    {t('invitation.fullName')}
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
-                    placeholder={t('invitation.fullNamePlaceholder')}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    {t('invitation.username')}
-                  </label>
-                  <input
-                    type="text"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
-                    placeholder={t('invitation.usernamePlaceholder')}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    {t('invitation.password')}
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    required
-                    minLength={6}
-                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
-                    placeholder={t('invitation.passwordPlaceholder')}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    {t('invitation.confirmPassword')}
-                  </label>
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
-                    placeholder={t('invitation.confirmPasswordPlaceholder')}
-                  />
-                </div>
-
-                <div className="flex flex-col space-y-3">
+            <div className="flex flex-col space-y-3">
+              {!user ? (
+                <>
                   <Button
-                    type="submit"
-                    disabled={accepting || expired}
+                    onClick={handleAcceptInvitation}
+                    disabled={expired}
                     className="w-full"
                   >
-                    {accepting ? (
-                      <>
-                        <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
-                        {t('invitation.creatingAccount')}
-                      </>
-                    ) : (
-                      t('invitation.createAndJoin')
-                    )}
+                    {t('invitation.acceptAndCreate')}
                   </Button>
-
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-zinc-300 dark:border-zinc-600" />
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="bg-white px-2 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                        {t('invitation.alreadyHaveAccount')}
+                      </span>
+                    </div>
+                  </div>
                   <Button
-                    type="button"
-                    onClick={() => setShowAccountSetup(false)}
+                    onClick={() =>
+                      router.push(
+                        `/login?redirect=/accept-invitation/${token}`
+                      )
+                    }
                     variant="outline"
                     className="w-full"
                   >
-                    {t('invitation.back')}
+                    {t('invitation.loginToAccept')}
                   </Button>
-                </div>
-              </form>
-            ) : (
-              <div className="flex flex-col space-y-3">
-                {!user ? (
-                  <>
-                    <Button
-                      onClick={handleAcceptInvitation}
-                      disabled={expired}
-                      className="w-full"
-                    >
-                      {t('invitation.acceptAndCreate')}
-                    </Button>
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-zinc-300 dark:border-zinc-600" />
-                      </div>
-                      <div className="relative flex justify-center text-sm">
-                        <span className="bg-white px-2 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                          {t('invitation.alreadyHaveAccount')}
-                        </span>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() =>
-                        router.push(
-                          `/login?redirect=/accept-invitation/${token}`
-                        )
-                      }
-                      variant="outline"
-                      className="w-full"
-                    >
-                      {t('invitation.loginToAccept')}
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    onClick={handleAcceptInvitation}
-                    disabled={
-                      accepting || expired || user.email !== invitation.email
-                    }
-                    className="w-full"
-                  >
-                    {accepting ? (
-                      <>
-                        <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
-                        {t('invitation.accepting')}
-                      </>
-                    ) : (
-                      t('invitation.accept')
-                    )}
-                  </Button>
-                )}
-
+                </>
+              ) : (
                 <Button
-                  onClick={() => router.push('/')}
-                  variant="outline"
+                  onClick={handleAcceptInvitation}
+                  disabled={
+                    accepting || expired || user.email !== invitation.email
+                  }
                   className="w-full"
                 >
-                  {t('invitation.cancel')}
+                  {accepting ? (
+                    <>
+                      <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
+                      {t('invitation.accepting')}
+                    </>
+                  ) : (
+                    t('invitation.accept')
+                  )}
                 </Button>
-              </div>
-            )}
+              )}
+
+              <Button
+                onClick={() => router.push('/')}
+                variant="outline"
+                className="w-full"
+              >
+                {t('invitation.cancel')}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

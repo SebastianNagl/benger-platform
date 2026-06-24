@@ -222,53 +222,18 @@ export default function RegisterPage() {
           return t('register.passwordTooShort')
         if (formData.password !== formData.confirmPassword)
           return t('register.passwordMismatch')
-        return null
-      }
-      case 2: {
-        if (!formData.legalExpertiseLevel)
-          return t('register.legalExpertiseLevelRequired')
-        if (!formData.germanProficiency)
-          return t('register.germanProficiencyRequired')
-        return null
-      }
-      case 3: {
-        // Demographics - all optional
-        return null
-      }
-      case 4: {
-        if (
-          formData.subjectiveCompetenceCivil === undefined ||
-          formData.subjectiveCompetencePublic === undefined ||
-          formData.subjectiveCompetenceCriminal === undefined
-        ) {
-          return t('register.competenceRequired')
-        }
-        return null
-      }
-      case 5: {
-        const atiKeys = ['item_1', 'item_2', 'item_3', 'item_4']
-        const pttKeys = ['item_1', 'item_2', 'item_3', 'item_4']
-        const kiKeys = ['item_1', 'item_2', 'item_3', 'item_4']
-        for (const key of atiKeys) {
-          if (formData.atiSScores[key] === undefined)
-            return t('register.psychometricRequired')
-        }
-        for (const key of pttKeys) {
-          if (formData.pttAScores[key] === undefined)
-            return t('register.psychometricRequired')
-        }
-        for (const key of kiKeys) {
-          if (formData.kiExperienceScores[key] === undefined)
-            return t('register.psychometricRequired')
-        }
-        if (
-          hasSlot('signup-step5-consent') &&
-          !formData.researchDataConsent
-        ) {
+        // Research-data consent (extended edition only) is the one required
+        // field that moved onto Step 1; it gates account creation.
+        if (hasSlot('signup-step5-consent') && !formData.researchDataConsent)
           return t('register.researchConsent.required')
-        }
         return null
       }
+      // Steps 2–5 collect optional research data — they never block.
+      case 2:
+      case 3:
+      case 4:
+      case 5:
+        return null
       default:
         return null
     }
@@ -292,8 +257,10 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validate final step
-    const validationError = validateStep(currentStep)
+    // Only Step 1 (account info + consent) is required; steps 2–5 are
+    // optional. Validate Step 1 explicitly so a stepper jump straight to the
+    // final step can't bypass the account/consent requirements.
+    const validationError = validateStep(1)
     if (validationError) {
       setError(validationError)
       return
@@ -359,6 +326,18 @@ export default function RegisterPage() {
     'block text-sm font-medium text-zinc-900 dark:text-white'
 
   // Step rendering functions
+
+  // Shown atop steps 2–5: these pages collect optional research data.
+  const OptionalNotice = () => (
+    <div
+      className="rounded-md bg-blue-50 p-4 dark:bg-blue-900/20"
+      data-testid="register-optional-notice"
+    >
+      <p className="text-sm text-blue-700 dark:text-blue-300">
+        {t('register.optionalPageNotice')}
+      </p>
+    </div>
+  )
 
   const renderStep1 = () => (
     <div className="space-y-4" data-testid="register-step-1">
@@ -462,11 +441,30 @@ export default function RegisterPage() {
           />
         </div>
       </div>
+
+      {/*
+        Research-data consent (extended edition only). The slot key is named
+        `signup-step5-consent` for historical reasons — it now renders here at
+        the bottom of Step 1 and is required to create an account.
+      */}
+      {ResearchConsentSlot && (
+        <div className="border-t border-zinc-200 pt-4 dark:border-zinc-700">
+          <Suspense fallback={null}>
+            <ResearchConsentSlot
+              value={formData.researchDataConsent}
+              onChange={(v: boolean) =>
+                setFormData((prev) => ({ ...prev, researchDataConsent: v }))
+              }
+            />
+          </Suspense>
+        </div>
+      )}
     </div>
   )
 
   const renderStep2 = () => (
     <div className="space-y-4" data-testid="register-step-2">
+      <OptionalNotice />
       <div>
         <h3 className="text-lg font-medium text-zinc-900 dark:text-white">
           {t('register.legalExpertiseTitle')}
@@ -478,7 +476,7 @@ export default function RegisterPage() {
 
       <div>
         <label htmlFor="legalExpertiseLevel" className={labelClassName}>
-          {t('register.legalExpertiseLevel')} *
+          {t('register.legalExpertiseLevel')}
         </label>
         <div className="mt-1" data-testid="auth-register-legal-expertise-select">
           <Select
@@ -502,7 +500,7 @@ export default function RegisterPage() {
 
       <div>
         <label htmlFor="germanProficiency" className={labelClassName}>
-          {t('register.germanProficiencyLabel')} *
+          {t('register.germanProficiencyLabel')}
         </label>
         <div className="mt-1" data-testid="auth-register-german-proficiency-select">
           <Select
@@ -576,6 +574,7 @@ export default function RegisterPage() {
 
   const renderStep3 = () => (
     <div className="space-y-4" data-testid="register-step-3">
+      <OptionalNotice />
       <div>
         <h3 className="text-lg font-medium text-zinc-900 dark:text-white">
           {t('register.steps.demographics')}
@@ -672,6 +671,7 @@ export default function RegisterPage() {
 
   const renderStep4 = () => (
     <div className="space-y-6" data-testid="register-step-4">
+      <OptionalNotice />
       <div>
         <h3 className="text-lg font-medium text-zinc-900 dark:text-white">
           {t('register.steps.competenceGrades')}
@@ -689,7 +689,6 @@ export default function RegisterPage() {
           onChange={(val) =>
             handleLikertChange('subjectiveCompetenceCivil', val)
           }
-          required
         />
         <LikertScale
           name="subjectiveCompetencePublic"
@@ -698,7 +697,6 @@ export default function RegisterPage() {
           onChange={(val) =>
             handleLikertChange('subjectiveCompetencePublic', val)
           }
-          required
         />
         <LikertScale
           name="subjectiveCompetenceCriminal"
@@ -707,7 +705,6 @@ export default function RegisterPage() {
           onChange={(val) =>
             handleLikertChange('subjectiveCompetenceCriminal', val)
           }
-          required
         />
       </div>
 
@@ -825,6 +822,7 @@ export default function RegisterPage() {
 
   const renderStep5 = () => (
     <div className="space-y-6" data-testid="register-step-5">
+      <OptionalNotice />
       <div>
         <h3 className="text-lg font-medium text-zinc-900 dark:text-white">
           {t('register.steps.psychometricScales')}
@@ -844,28 +842,24 @@ export default function RegisterPage() {
           label={t('register.atiS.item1')}
           value={formData.atiSScores.item_1}
           onChange={(val) => handleScoreChange('atiSScores', 'item_1', val)}
-          required
         />
         <LikertScale
           name="atiS_item2"
           label={t('register.atiS.item2')}
           value={formData.atiSScores.item_2}
           onChange={(val) => handleScoreChange('atiSScores', 'item_2', val)}
-          required
         />
         <LikertScale
           name="atiS_item3"
           label={t('register.atiS.item3')}
           value={formData.atiSScores.item_3}
           onChange={(val) => handleScoreChange('atiSScores', 'item_3', val)}
-          required
         />
         <LikertScale
           name="atiS_item4"
           label={t('register.atiS.item4')}
           value={formData.atiSScores.item_4}
           onChange={(val) => handleScoreChange('atiSScores', 'item_4', val)}
-          required
         />
       </div>
 
@@ -879,28 +873,24 @@ export default function RegisterPage() {
           label={t('register.pttA.item1')}
           value={formData.pttAScores.item_1}
           onChange={(val) => handleScoreChange('pttAScores', 'item_1', val)}
-          required
         />
         <LikertScale
           name="pttA_item2"
           label={t('register.pttA.item2')}
           value={formData.pttAScores.item_2}
           onChange={(val) => handleScoreChange('pttAScores', 'item_2', val)}
-          required
         />
         <LikertScale
           name="pttA_item3"
           label={t('register.pttA.item3')}
           value={formData.pttAScores.item_3}
           onChange={(val) => handleScoreChange('pttAScores', 'item_3', val)}
-          required
         />
         <LikertScale
           name="pttA_item4"
           label={t('register.pttA.item4')}
           value={formData.pttAScores.item_4}
           onChange={(val) => handleScoreChange('pttAScores', 'item_4', val)}
-          required
         />
       </div>
 
@@ -916,7 +906,6 @@ export default function RegisterPage() {
           onChange={(val) =>
             handleScoreChange('kiExperienceScores', 'item_1', val)
           }
-          required
         />
         <LikertScale
           name="kiExperience_item2"
@@ -925,7 +914,6 @@ export default function RegisterPage() {
           onChange={(val) =>
             handleScoreChange('kiExperienceScores', 'item_2', val)
           }
-          required
         />
         <LikertScale
           name="kiExperience_item3"
@@ -934,7 +922,6 @@ export default function RegisterPage() {
           onChange={(val) =>
             handleScoreChange('kiExperienceScores', 'item_3', val)
           }
-          required
         />
         <LikertScale
           name="kiExperience_item4"
@@ -943,22 +930,8 @@ export default function RegisterPage() {
           onChange={(val) =>
             handleScoreChange('kiExperienceScores', 'item_4', val)
           }
-          required
         />
       </div>
-
-      {ResearchConsentSlot && (
-        <div className="border-t border-zinc-200 pt-4 dark:border-zinc-700">
-          <Suspense fallback={null}>
-            <ResearchConsentSlot
-              value={formData.researchDataConsent}
-              onChange={(v: boolean) =>
-                setFormData((prev) => ({ ...prev, researchDataConsent: v }))
-              }
-            />
-          </Suspense>
-        </div>
-      )}
     </div>
   )
 
