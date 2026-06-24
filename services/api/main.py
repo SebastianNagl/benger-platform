@@ -406,6 +406,8 @@ from routers.legacy.debug import router as debug_router  # noqa: E402
 from routers.llm_models import router as llm_models_router  # noqa: E402
 from routers.notifications import router as notifications_router  # noqa: E402
 from routers.projects import router as projects_router  # noqa: E402
+from routers.projects.dashboard import router as student_dashboard_router  # noqa: E402
+from routers.projects.shares import token_router as share_token_router  # noqa: E402
 from routers.prompt_structures import router as prompt_structures_router  # noqa: E402
 from routers.reports import router as reports_router  # noqa: E402
 from routers.runs import router as runs_router  # noqa: E402
@@ -450,6 +452,8 @@ app.include_router(llm_models_admin_router)  # Superadmin: reseed/inspect llm ca
 app.include_router(org_api_key_router)  # Organization API key management (Issue #1180)
 app.include_router(file_upload_router)  # File uploads
 app.include_router(projects_router)  # Projects API
+app.include_router(share_token_router)  # Student exam sharing: /api/shares/{token} (issue #35)
+app.include_router(student_dashboard_router)  # Student dashboard reads: /api/student/* (issue #35)
 app.include_router(leaderboards_router)  # Leaderboards for annotation performance (Issue #790)
 app.include_router(test_seeding_router)  # Test seeding endpoints (guarded by env check + superadmin)
 
