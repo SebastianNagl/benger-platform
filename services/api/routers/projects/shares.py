@@ -29,7 +29,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import Float, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import require_user
@@ -108,7 +108,9 @@ async def _compute_member_scores(
     if not user_ids:
         return {}
 
-    value_col = TaskEvaluation.metrics["value"].astext.cast(Float)
+    # metrics is a plain JSON column (not JSONB), so use the generic-JSON
+    # ``.as_float()`` accessor rather than the JSONB-only ``.astext``.
+    value_col = TaskEvaluation.metrics["value"].as_float()
     stmt = (
         select(
             Annotation.completed_by.label("user_id"),

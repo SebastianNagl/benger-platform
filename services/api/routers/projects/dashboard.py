@@ -14,7 +14,7 @@ widgets own presentation; this only shapes the data.
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import Float, func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import require_user
@@ -40,7 +40,8 @@ async def score_history(
     progress curve.
     """
     uid = str(current_user.id)
-    value_col = TaskEvaluation.metrics["value"].astext.cast(Float)
+    # metrics is a plain JSON column (not JSONB); generic-JSON accessor.
+    value_col = TaskEvaluation.metrics["value"].as_float()
     stmt = (
         select(
             Project.id.label("project_id"),
@@ -91,9 +92,8 @@ async def retention(
     day = func.date_trunc("day", FlashcardReview.reviewed_at)
     # "again" = a miss; good/easy = a hit; "hard" is a borderline pass we count
     # as a hit (it still recalled the card), matching Anki's true-retention.
-    is_hit = func.sum(
-        func.cast(FlashcardReview.rating != "again", Float)
-    )
+    # CASE (not a bool->float cast, which Postgres rejects).
+    is_hit = func.sum(case((FlashcardReview.rating != "again", 1.0), else_=0.0))
     stmt = (
         select(
             day.label("day"),
