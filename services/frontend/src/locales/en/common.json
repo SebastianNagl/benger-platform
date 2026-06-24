@@ -8400,5 +8400,22 @@
       "consentTitle": "Your consent",
       "consentText": "Ticking the consent box at signup grants this permission for as long as your data remains anonymized. Pre-existing accounts on this deployment have been treated as having consented; if you'd prefer otherwise, contact the operators."
     }
+  },
+  "student": {
+    "toggle": {
+      "toStudent": "Switch to student view",
+      "toExpert": "Switch to expert view",
+      "label": "View"
+    },
+    "community": {
+      "unavailable": "This feature is not available in the community edition."
+    },
+    "nav": {
+      "dashboard": "Overview",
+      "exams": "Exams",
+      "decks": "Flashcards",
+      "leaderboard": "Leaderboard"
+    },
+    "loading": "Loading …"
   }
 }

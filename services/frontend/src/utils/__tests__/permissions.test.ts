@@ -11,6 +11,7 @@ import {
   canEditTaskData,
   canMakeProjectPublic,
   canStartGeneration,
+  canUseExpertView,
   getEffectiveProjectRole,
   getUserPermissions,
   hasOrganization,
@@ -619,6 +620,115 @@ describe('Public visibility helpers', () => {
         expect(canEditTaskData(mkUser({ role: 'CONTRIBUTOR' }))).toBe(false)
         expect(canEditTaskData(mkUser({ role: 'ANNOTATOR' }))).toBe(false)
       })
+    })
+  })
+
+  describe('canUseExpertView', () => {
+    const org = (
+      slug: string,
+      role: Organization['role'],
+      overrides: Partial<Organization> = {}
+    ): Organization => ({
+      id: `org-${slug}`,
+      name: slug,
+      display_name: slug,
+      slug,
+      is_active: true,
+      created_at: '2023-01-01T00:00:00Z',
+      role,
+      ...overrides,
+    })
+
+    it('returns false for an unauthenticated user', () => {
+      expect(
+        canUseExpertView(null, [], { isPrivateMode: true })
+      ).toBe(false)
+    })
+
+    it('allows superadmins regardless of org context or role', () => {
+      const superadmin = createMockUser({ is_superadmin: true })
+      // On an org subdomain where they are merely an annotator.
+      expect(
+        canUseExpertView(superadmin, [org('a', 'ANNOTATOR')], {
+          isPrivateMode: false,
+          orgSlug: 'a',
+        })
+      ).toBe(true)
+      // In private mode with no qualifying memberships.
+      expect(
+        canUseExpertView(superadmin, [], { isPrivateMode: true })
+      ).toBe(true)
+    })
+
+    describe('on an org subdomain (gated by role in THAT org)', () => {
+      // Contributor in A, annotator in B.
+      const user = createMockUser()
+      const orgs = [org('a', 'CONTRIBUTOR'), org('b', 'ANNOTATOR')]
+
+      it('shows the toggle on org A where the user is a contributor', () => {
+        expect(
+          canUseExpertView(user, orgs, { isPrivateMode: false, orgSlug: 'a' })
+        ).toBe(true)
+      })
+
+      it('hides the toggle on org B where the user is only an annotator', () => {
+        expect(
+          canUseExpertView(user, orgs, { isPrivateMode: false, orgSlug: 'b' })
+        ).toBe(false)
+      })
+
+      it('allows ORG_ADMIN in the active org', () => {
+        expect(
+          canUseExpertView(
+            createMockUser(),
+            [org('a', 'ORG_ADMIN')],
+            { isPrivateMode: false, orgSlug: 'a' }
+          )
+        ).toBe(true)
+      })
+
+      it('hides the toggle when the user is not a member of the active org', () => {
+        expect(
+          canUseExpertView(user, orgs, { isPrivateMode: false, orgSlug: 'c' })
+        ).toBe(false)
+      })
+    })
+
+    describe('in private mode (CONTRIBUTOR+ in any org)', () => {
+      it('allows a user who is a contributor in at least one org', () => {
+        expect(
+          canUseExpertView(
+            createMockUser(),
+            [org('a', 'ANNOTATOR'), org('b', 'CONTRIBUTOR')],
+            { isPrivateMode: true }
+          )
+        ).toBe(true)
+      })
+
+      it('denies a user who is annotator-only across all orgs', () => {
+        expect(
+          canUseExpertView(
+            createMockUser(),
+            [org('a', 'ANNOTATOR'), org('b', 'ANNOTATOR')],
+            { isPrivateMode: true }
+          )
+        ).toBe(false)
+      })
+
+      it('denies a user with no organizations', () => {
+        expect(
+          canUseExpertView(createMockUser(), [], { isPrivateMode: true })
+        ).toBe(false)
+      })
+    })
+
+    it('denies a pure self-signup student (no org subdomain, not private mode)', () => {
+      expect(
+        canUseExpertView(createMockUser(), [], {
+          isPrivateMode: false,
+          orgSlug: null,
+        })
+      ).toBe(false)
     })
   })
 })

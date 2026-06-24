@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { Layout } from '@/components/layout/Layout'
 import { MinimalLayout } from '@/components/layout/MinimalLayout'
 import { type Section } from '@/components/layout/SectionProvider'
+import { StudentModeRedirect } from '@/components/student/StudentModeRedirect'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { usePathname } from 'next/navigation'
@@ -90,6 +91,9 @@ export function ConditionalLayout({
 
   return (
     <ProtectedRoute>
+      {/* Student-mode users are bounced from / and /dashboard to /student.
+          No-op in community / for expert users (Issue #35). */}
+      <StudentModeRedirect />
       {/* For basic standalone pages, render children directly without any layout */}
       {isStandalonePage ? (
         <div className="w-full">{children}</div>

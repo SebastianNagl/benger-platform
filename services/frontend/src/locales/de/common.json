@@ -8390,5 +8390,22 @@
       "consentTitle": "Ihre Einwilligung",
       "consentText": "Mit dem Setzen des Häkchens bei der Registrierung erteilen Sie diese Erlaubnis, solange Ihre Daten anonymisiert bleiben. Bestehende Konten dieses Deployments wurden als einwilligend behandelt; wenn Sie das anders handhaben möchten, wenden Sie sich bitte an die Betreiber."
     }
+  },
+  "student": {
+    "toggle": {
+      "toStudent": "Zur Studierendenansicht wechseln",
+      "toExpert": "Zur Expertenansicht wechseln",
+      "label": "Ansicht"
+    },
+    "community": {
+      "unavailable": "Diese Funktion ist in der Community-Edition nicht verfügbar."
+    },
+    "nav": {
+      "dashboard": "Übersicht",
+      "exams": "Klausuren",
+      "decks": "Karteikarten",
+      "leaderboard": "Bestenliste"
+    },
+    "loading": "Wird geladen …"
   }
 }

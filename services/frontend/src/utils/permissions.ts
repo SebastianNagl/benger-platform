@@ -3,7 +3,7 @@
  * Centralizes all permission logic for consistent application across the frontend
  */
 
-import { Organization, User } from '@/lib/api'
+import { Organization, OrganizationRole, User } from '@/lib/api'
 import { Project } from '@/types/labelStudio'
 
 /**
@@ -195,4 +195,48 @@ export const getUserPermissions = (user: User | null) => {
  */
 export const hasOrganization = (organizations: Organization[]): boolean => {
   return organizations.length > 0
+}
+
+/**
+ * Whether the user is allowed to switch into the "expert" view (the full
+ * platform UI), and therefore whether the student⇄expert toggle should be
+ * shown at all (Issue #35).
+ *
+ * This is a CAPABILITY check — it must be recomputed every render from the
+ * user + org context and NEVER read back from the persisted uiMode (which is
+ * just a UI preference, not an authorization source).
+ *
+ * Gating:
+ *   - Superadmins → always allowed.
+ *   - On an org subdomain (orgSlug set, not private mode): allowed only if the
+ *     user's role *in that specific org* is CONTRIBUTOR or ORG_ADMIN. An
+ *     annotator-only-in-this-org user sees no toggle even if they are an admin
+ *     in some other org.
+ *   - In private mode: allowed if the user is CONTRIBUTOR+ in at least one org.
+ *   - Otherwise (pure self-signup students with no qualifying membership) →
+ *     not allowed; they are student-only.
+ */
+export const canUseExpertView = (
+  user: User | null,
+  organizations: Organization[],
+  opts: { isPrivateMode: boolean; orgSlug?: string | null }
+): boolean => {
+  if (!user) return false
+  if (user.is_superadmin) return true
+
+  const isElevated = (role?: OrganizationRole | null): boolean =>
+    role === 'ORG_ADMIN' || role === 'CONTRIBUTOR'
+
+  // On an org subdomain, the toggle is gated by the user's role in THAT org.
+  if (!opts.isPrivateMode && opts.orgSlug) {
+    const org = organizations.find((o) => o.slug === opts.orgSlug)
+    return isElevated(org?.role)
+  }
+
+  // Private mode: elevated in at least one org unlocks the expert view.
+  if (opts.isPrivateMode) {
+    return organizations.some((o) => isElevated(o.role))
+  }
+
+  return false
 }
