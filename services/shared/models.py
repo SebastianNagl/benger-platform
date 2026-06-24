@@ -275,6 +275,13 @@ class User(Base):
     # Research data use consent (extended-edition policy; NULL on community deployments)
     research_data_consent_accepted_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Preferred UI mode (extended-edition student experience). Persists the
+    # student/expert view choice server-side so it follows the user across
+    # devices. NULL = no stored preference (resolve from edition/role at render).
+    # This is a default HINT only — never an authorization input; expert-view
+    # gating is always recomputed from role/org membership on every render.
+    preferred_ui_mode = Column(String(16), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
