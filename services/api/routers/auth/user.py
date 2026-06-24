@@ -126,6 +126,8 @@ def _profile_kwargs(db_user, *, role) -> dict:
             if getattr(db_user, "profile_confirmed_at", None)
             else None
         ),
+        # Extended student experience (issue #35): persisted view-mode hint.
+        preferred_ui_mode=getattr(db_user, "preferred_ui_mode", None),
     )
 
 
@@ -416,6 +418,39 @@ async def update_profile(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     return _build_user_profile_response(updated_user, db)
+
+
+@router.put("/me/ui-mode", response_model=UserProfile)
+async def update_preferred_ui_mode(
+    body: UiModeUpdate,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Persist the student/expert view preference (extended, issue #35).
+
+    Deliberately separate from ``PUT /profile``: that path runs
+    ``update_user_profile`` (profile-history snapshot + ``profile_confirmed_at``
+    / ``mandatory_profile_completed`` side effects) which must NOT fire on a
+    view toggle. This is a single-column write, no side effects.
+
+    The stored value is a default HINT only — it is never an authorization
+    input. Expert-view access is always recomputed from role/org membership on
+    the client every render, so persisting "expert" here can never grant an
+    annotator-only user expert access.
+    """
+    from models import User as DBUser
+
+    db_user = (
+        await db.execute(select(DBUser).where(DBUser.id == str(current_user.id)))
+    ).scalar_one_or_none()
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    db_user.preferred_ui_mode = body.preferred_ui_mode
+    await db.commit()
+    await db.refresh(db_user)
+
+    return await _build_user_profile_response_async(db_user, db)
 
 
 @router.post("/complete-profile", response_model=ProfileCompletionResponse)

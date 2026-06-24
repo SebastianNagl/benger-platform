@@ -2,7 +2,7 @@
 Authentication-related Pydantic models for API requests and responses
 """
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -53,6 +53,19 @@ class UserUpdate(BaseModel):
     ati_s_scores: Optional[dict] = None
     ptt_a_scores: Optional[dict] = None
     ki_experience_scores: Optional[dict] = None
+
+
+class UiModeUpdate(BaseModel):
+    """Single-field body for the lightweight view-mode preference endpoint.
+
+    Deliberately NOT folded into ``UserUpdate``: that path runs
+    ``update_user_profile`` which snapshots profile history and stamps
+    ``profile_confirmed_at`` / ``mandatory_profile_completed`` — heavy side
+    effects that must not fire when a student flips the student/expert toggle
+    (issue #35). ``None`` clears the stored preference.
+    """
+
+    preferred_ui_mode: Optional[Literal["student", "expert"]] = Field(None)
 
 
 class PasswordUpdate(BaseModel):
@@ -146,6 +159,10 @@ class UserProfile(BaseModel):
     # Mandatory profile tracking (Issue #1206)
     mandatory_profile_completed: Optional[bool] = None
     profile_confirmed_at: Optional[str] = None
+
+    # Preferred UI mode (extended student experience, issue #35). A persisted
+    # default hint the frontend reads on load; gating is always recomputed.
+    preferred_ui_mode: Optional[str] = None
 
     class Config:
         from_attributes = True
