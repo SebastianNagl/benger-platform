@@ -374,7 +374,7 @@ describe('RegisterPage - branch coverage', () => {
       ).not.toBeInTheDocument()
     })
 
-    it('submits successfully with steps 2–5 left blank', async () => {
+    it('submits with steps 2–5 blank, omitting incomplete psychometric scales', async () => {
       const user = userEvent.setup()
       mockSignup.mockResolvedValue(undefined)
       render(<RegisterPage />)
@@ -387,19 +387,71 @@ describe('RegisterPage - branch coverage', () => {
       await user.click(screen.getByTestId('auth-register-submit-button'))
 
       await waitFor(() => {
-        expect(mockSignup).toHaveBeenCalledWith(
-          'testuser',
-          'test@example.com',
-          'Test User',
-          'password123',
-          expect.objectContaining({
-            ati_s_scores: {},
-            ptt_a_scores: {},
-            ki_experience_scores: {},
-          }),
-          undefined
-        )
+        expect(mockSignup).toHaveBeenCalled()
       })
+      const [username, , , , profileData, invitationToken] =
+        mockSignup.mock.calls[0]
+      expect(username).toBe('testuser')
+      // Empty scales must be omitted (sent undefined), NOT {} — the backend
+      // rejects partial/empty score objects with a 400.
+      expect(profileData.ati_s_scores).toBeUndefined()
+      expect(profileData.ptt_a_scores).toBeUndefined()
+      expect(profileData.ki_experience_scores).toBeUndefined()
+      expect(invitationToken).toBeUndefined()
+    })
+
+    it('omits a partially-filled psychometric scale', async () => {
+      const user = userEvent.setup()
+      mockSignup.mockResolvedValue(undefined)
+      render(<RegisterPage />)
+
+      await fillStep1(user)
+      await user.click(screen.getByTestId('register-next-button')) // → step 2
+      await user.click(screen.getByTestId('register-next-button')) // → step 3
+      await user.click(screen.getByTestId('register-next-button')) // → step 4
+      await user.click(screen.getByTestId('register-next-button')) // → step 5
+
+      // Rate only 2 of the 4 ATI-S items, then submit.
+      await user.click(screen.getByTestId('likert-atiS_item1-4'))
+      await user.click(screen.getByTestId('likert-atiS_item2-5'))
+      await user.click(screen.getByTestId('auth-register-submit-button'))
+
+      await waitFor(() => {
+        expect(mockSignup).toHaveBeenCalled()
+      })
+      const profileData = mockSignup.mock.calls[0][4]
+      expect(profileData.ati_s_scores).toBeUndefined()
+    })
+
+    it('submits a fully-rated psychometric scale as a complete object', async () => {
+      const user = userEvent.setup()
+      mockSignup.mockResolvedValue(undefined)
+      render(<RegisterPage />)
+
+      await fillStep1(user)
+      await user.click(screen.getByTestId('register-next-button')) // → step 2
+      await user.click(screen.getByTestId('register-next-button')) // → step 3
+      await user.click(screen.getByTestId('register-next-button')) // → step 4
+      await user.click(screen.getByTestId('register-next-button')) // → step 5
+
+      // Fully rate ATI-S (all 4 items); leave PTT-A / KI blank.
+      for (let i = 1; i <= 4; i++) {
+        await user.click(screen.getByTestId(`likert-atiS_item${i}-4`))
+      }
+      await user.click(screen.getByTestId('auth-register-submit-button'))
+
+      await waitFor(() => {
+        expect(mockSignup).toHaveBeenCalled()
+      })
+      const profileData = mockSignup.mock.calls[0][4]
+      expect(profileData.ati_s_scores).toEqual({
+        item_1: 4,
+        item_2: 4,
+        item_3: 4,
+        item_4: 4,
+      })
+      expect(profileData.ptt_a_scores).toBeUndefined()
+      expect(profileData.ki_experience_scores).toBeUndefined()
     })
 
     it('requires research-data consent on step 1 when the extended slot is present', async () => {

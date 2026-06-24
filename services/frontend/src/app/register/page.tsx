@@ -26,6 +26,20 @@ function getExpertiseIndex(level: string): number {
   return EXPERTISE_HIERARCHY.indexOf(level)
 }
 
+const PSYCHOMETRIC_ITEM_KEYS = ['item_1', 'item_2', 'item_3', 'item_4']
+
+// A psychometric scale (ATI-S / PTT-A / KI) is only submitted when complete —
+// all four items rated. The backend rejects partial/empty score objects
+// (it requires exactly item_1..item_4), and these scales are optional now, so
+// an incomplete one is omitted entirely (stored as NULL).
+function completeScaleOrUndefined(
+  scores: Record<string, number>
+): Record<string, number> | undefined {
+  return PSYCHOMETRIC_ITEM_KEYS.every((k) => scores[k] !== undefined)
+    ? scores
+    : undefined
+}
+
 export default function RegisterPage() {
   const { user, signup } = useAuth()
   const { t } = useI18n()
@@ -303,9 +317,11 @@ export default function RegisterPage() {
           grade_second_staatsexamen: formData.gradeSecondStaatsexamen
             ? parseFloat(formData.gradeSecondStaatsexamen.replace(',', '.'))
             : undefined,
-          ati_s_scores: formData.atiSScores,
-          ptt_a_scores: formData.pttAScores,
-          ki_experience_scores: formData.kiExperienceScores,
+          ati_s_scores: completeScaleOrUndefined(formData.atiSScores),
+          ptt_a_scores: completeScaleOrUndefined(formData.pttAScores),
+          ki_experience_scores: completeScaleOrUndefined(
+            formData.kiExperienceScores
+          ),
           research_data_consent_accepted: hasSlot('signup-step5-consent')
             ? formData.researchDataConsent
             : undefined,
