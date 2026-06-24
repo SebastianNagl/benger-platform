@@ -65,3 +65,10 @@ locust==2.44.3  # For load testing
 # Async testing dependencies
 aiosqlite==0.22.1  # For async SQLite database testing
 sse-starlette==2.4.1  # For Server-Sent Events streaming
+
+# Anki flashcard import (issue #35): decompresses the newest .apkg form
+# (collection.anki21b = zstd-compressed SQLite). Used by services/shared/anki,
+# imported by both api and workers. arm64 wheels published — normal pin is fine.
+# MUST be mirrored in pyproject.toml (prod api installs from there) and in
+# services/workers/requirements.txt.
+zstandard>=0.22,<1.0
