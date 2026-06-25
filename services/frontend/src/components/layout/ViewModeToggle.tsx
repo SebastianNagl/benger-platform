@@ -1,5 +1,6 @@
 'use client'
 
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import apiSingleton from '@/lib/api'
 import { useOptionalApiClient } from '@/contexts/ApiClientContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -43,23 +44,55 @@ function ExpertIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   )
 }
 
+function ChevronIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" {...props}>
+      <path
+        fillRule="evenodd"
+        d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
+}
+
+function CheckIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" {...props}>
+      <path
+        fillRule="evenodd"
+        d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0l-3.5-3.5a1 1 0 1 1 1.4-1.4l2.8 2.79 6.8-6.79a1 1 0 0 1 1.4 0Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
+}
+
+type UiMode = 'student' | 'expert'
+
 /**
- * Student⇄expert view-mode toggle (Issue #35, platform shell).
+ * Student⇄expert view-mode dropdown (Issue #35, platform shell).
+ *
+ * A nav-bar dropdown to switch between the new student interface and the
+ * classic expert interface. Mounted in the expert Header AND in the student
+ * shell's sidebar (so users can switch back), reusing one component.
  *
  * Renders nothing in the community edition or for users without expert-view
- * capability (the gating is recomputed every render via canUseExpertView).
- * Switching updates the local store override immediately and persists the
- * choice server-side via PUT /api/auth/me/ui-mode.
+ * capability (gating recomputed every render via canUseExpertView — a
+ * persisted preference can never grant expert access). Selecting a mode flips
+ * the local store override immediately (the resolved mode drives which shell
+ * the platform renders) and persists via PUT /api/auth/me/ui-mode.
  *
- * The actual student PAGES are provided by the extended package; this toggle
- * only flips which shell the platform renders.
+ * `variant="sidebar"` renders a full-width trigger for the student sidebar;
+ * the default suits the compact header control row.
  */
-export function ViewModeToggle() {
+export function ViewModeToggle({
+  variant = 'header',
+}: {
+  variant?: 'header' | 'sidebar'
+}) {
   const { t } = useI18n()
   const { user, organizations, isLoading, updateUser } = useAuth()
-  // Prefer the org-wired client from context; fall back to the global singleton
-  // (also org-aware via the global provider) so the toggle never throws when
-  // rendered outside the authenticated tree.
   const apiClient = useOptionalApiClient() ?? apiSingleton
   const setUiMode = useUIStore((s) => s.setUiMode)
   const resolved = useResolvedUiMode()
@@ -69,12 +102,11 @@ export function ViewModeToggle() {
   // Community edition never offers the student shell.
   if (!isExtendedEdition()) return null
 
-  // Avoid leaking expert UI to a student on first paint: render nothing until
-  // hydrated and auth has resolved (role-flicker guard).
+  // Role-flicker guard: render nothing meaningful until hydrated + auth resolved.
   if (!mounted || isLoading) {
     return (
       <div
-        className="size-6"
+        className={variant === 'sidebar' ? 'h-9 w-full' : 'size-6'}
         aria-hidden="true"
         data-testid="view-mode-toggle-skeleton"
       />
@@ -86,48 +118,72 @@ export function ViewModeToggle() {
     return null
   }
 
-  const target = resolved === 'student' ? 'expert' : 'student'
-  const label =
-    target === 'student' ? t('student.toggle.toStudent') : t('student.toggle.toExpert')
-
-  const handleToggle = async () => {
+  const select = async (target: UiMode) => {
+    if (target === resolved || pending) return
     // Optimistic local switch — the resolved mode is the source of truth for
     // which shell renders, so flip it first for an instant response.
     setUiMode(target)
     setPending(true)
     try {
       const updated = await apiClient.setUiMode(target)
-      // Keep the in-memory user in sync so a later store reset still resolves
-      // to the persisted preference.
-      if (updated?.preferred_ui_mode) {
-        updateUser({ preferred_ui_mode: updated.preferred_ui_mode })
-      } else {
-        updateUser({ preferred_ui_mode: target })
-      }
+      updateUser({ preferred_ui_mode: updated?.preferred_ui_mode ?? target })
     } catch {
       // Persistence failed — keep the local override so the session still
-      // honours the user's choice; the server simply won't remember it.
+      // honours the choice; the server just won't remember it.
     } finally {
       setPending(false)
     }
   }
 
+  const OPTIONS: { mode: UiMode; label: string; Icon: typeof ExpertIcon }[] = [
+    { mode: 'student', label: t('student.view.student'), Icon: GraduationCapIcon },
+    { mode: 'expert', label: t('student.view.expert'), Icon: ExpertIcon },
+  ]
+  const current = OPTIONS.find((o) => o.mode === resolved) ?? OPTIONS[0]
+
+  const triggerClass =
+    variant === 'sidebar'
+      ? 'flex w-full items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-900/5 disabled:opacity-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5'
+      : 'flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-zinc-700 transition hover:bg-zinc-900/5 disabled:opacity-50 dark:text-zinc-200 dark:hover:bg-white/5'
+
   return (
-    <button
-      type="button"
-      onClick={handleToggle}
-      disabled={pending}
-      aria-label={label}
-      title={label}
-      data-testid="view-mode-toggle"
-      data-ui-mode={resolved}
-      className="flex size-6 items-center justify-center rounded-md transition hover:bg-zinc-900/5 disabled:opacity-50 dark:hover:bg-white/5"
-    >
-      {resolved === 'student' ? (
-        <GraduationCapIcon className="h-5 w-5 stroke-zinc-900 dark:stroke-white" />
-      ) : (
-        <ExpertIcon className="h-5 w-5 stroke-zinc-900 dark:stroke-white" />
-      )}
-    </button>
+    <Menu as="div" className={`relative ${variant === 'sidebar' ? 'w-full' : ''}`}>
+      <MenuButton
+        type="button"
+        disabled={pending}
+        aria-label={t('student.toggle.label')}
+        title={t('student.toggle.label')}
+        data-testid="view-mode-toggle"
+        data-ui-mode={resolved}
+        className={triggerClass}
+      >
+        <current.Icon className="h-5 w-5 shrink-0 stroke-zinc-900 dark:stroke-white" />
+        <span className={variant === 'sidebar' ? 'flex-1 text-left' : 'hidden sm:inline'}>
+          {current.label}
+        </span>
+        <ChevronIcon className="h-4 w-4 shrink-0 opacity-60" />
+      </MenuButton>
+      <MenuItems
+        anchor={variant === 'sidebar' ? 'top start' : 'bottom end'}
+        className="z-50 mt-1 w-56 rounded-lg border border-zinc-200 bg-white p-1 shadow-lg focus:outline-none dark:border-white/10 dark:bg-zinc-800"
+      >
+        {OPTIONS.map(({ mode, label, Icon }) => (
+          <MenuItem key={mode}>
+            <button
+              type="button"
+              onClick={() => select(mode)}
+              data-ui-mode-option={mode}
+              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-zinc-700 data-[focus]:bg-zinc-900/5 dark:text-zinc-200 dark:data-[focus]:bg-white/5"
+            >
+              <Icon className="h-5 w-5 shrink-0 stroke-zinc-900 dark:stroke-white" />
+              <span className="flex-1 text-left">{label}</span>
+              {resolved === mode && (
+                <CheckIcon className="h-4 w-4 shrink-0 text-emerald-500" />
+              )}
+            </button>
+          </MenuItem>
+        ))}
+      </MenuItems>
+    </Menu>
   )
 }

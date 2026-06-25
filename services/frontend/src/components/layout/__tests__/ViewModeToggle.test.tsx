@@ -119,23 +119,48 @@ describe('ViewModeToggle', () => {
     expect(screen.queryByTestId('view-mode-toggle')).not.toBeInTheDocument()
   })
 
-  it('renders the toggle for a capable user in the extended edition', () => {
+  it('renders the dropdown trigger for a capable user in the extended edition', () => {
     process.env[EDITION_KEY] = 'extended'
     render(<ViewModeToggle />)
     expect(screen.getByTestId('view-mode-toggle')).toBeInTheDocument()
   })
 
-  it('switches to expert and persists server-side when clicked in student mode', async () => {
+  it('opening the dropdown does NOT switch — only selecting an option does', async () => {
+    process.env[EDITION_KEY] = 'extended'
+    mockResolved = 'student'
+    render(<ViewModeToggle />)
+    fireEvent.click(screen.getByTestId('view-mode-toggle')) // open menu
+    expect(mockSetUiMode).not.toHaveBeenCalled()
+
+    // Select the expert option.
+    const expertOption = await screen.findByText('student.view.expert')
+    fireEvent.click(expertOption)
+    // Local optimistic switch happens immediately.
+    expect(mockSetUiMode).toHaveBeenCalledWith('expert')
+    // Server persistence + in-memory user sync.
+    await waitFor(() => expect(mockApiSetUiMode).toHaveBeenCalledWith('expert'))
+    expect(mockUpdateUser).toHaveBeenCalledWith({ preferred_ui_mode: 'expert' })
+  })
+
+  it('shows both modes; selecting the already-active mode is a no-op', async () => {
     process.env[EDITION_KEY] = 'extended'
     mockResolved = 'student'
     render(<ViewModeToggle />)
     fireEvent.click(screen.getByTestId('view-mode-toggle'))
-    // Local optimistic switch happens immediately.
-    expect(mockSetUiMode).toHaveBeenCalledWith('expert')
-    // Server persistence + in-memory user sync.
+    // Both option buttons are offered in the menu (queried by their data attr
+    // so the trigger's current-mode label doesn't collide on text).
     await waitFor(() =>
-      expect(mockApiSetUiMode).toHaveBeenCalledWith('expert')
+      expect(
+        document.querySelector('[data-ui-mode-option="expert"]')
+      ).toBeInTheDocument()
     )
-    expect(mockUpdateUser).toHaveBeenCalledWith({ preferred_ui_mode: 'expert' })
+    const studentOption = document.querySelector(
+      '[data-ui-mode-option="student"]'
+    ) as HTMLElement
+    expect(studentOption).toBeInTheDocument()
+    // Re-selecting the current (student) mode does nothing.
+    fireEvent.click(studentOption)
+    expect(mockSetUiMode).not.toHaveBeenCalled()
+    expect(mockApiSetUiMode).not.toHaveBeenCalled()
   })
 })

@@ -8397,6 +8397,10 @@
       "toExpert": "Zur Expertenansicht wechseln",
       "label": "Ansicht"
     },
+    "view": {
+      "student": "Studierendenansicht",
+      "expert": "Expertenansicht"
+    },
     "community": {
       "unavailable": "Diese Funktion ist in der Community-Edition nicht verfügbar."
     },

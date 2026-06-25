@@ -8407,6 +8407,10 @@
       "toExpert": "Switch to expert view",
       "label": "View"
     },
+    "view": {
+      "student": "Student view",
+      "expert": "Expert view"
+    },
     "community": {
       "unavailable": "This feature is not available in the community edition."
     },
