@@ -161,7 +161,7 @@ async def create_export_job(
     request: Request,
     format: str = Query(
         "json",
-        pattern="^(json|csv|tsv|txt|label_studio|comprehensive|ndjson|ndjson_gz)$",
+        pattern="^(json|csv|tsv|txt|label_studio|comprehensive|ndjson|ndjson_gz|anki_csv|anki_apkg)$",
     ),
     data: Optional[dict] = Body(default=None),
     current_user: AuthUser = Depends(require_user),

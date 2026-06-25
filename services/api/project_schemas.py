@@ -167,6 +167,17 @@ class ProjectCreate(ProjectBase):
         None,
         description="Role public visitors are treated as for is_public projects. ANNOTATOR (view+annotate) or CONTRIBUTOR (also add tasks, run jobs). Required when is_public=True.",
     )
+    # Project kind / origin (extended-edition student experience). Free-form,
+    # length-capped nullable strings — NOT enums — so the community edition
+    # stays forward-compatible. Accepted ONLY at creation (write-once); there
+    # is intentionally no counterpart in ProjectUpdate, so a student project
+    # can never be silently un-flagged back into the public leaderboards.
+    kind: Optional[str] = Field(
+        None, max_length=32, description='Project kind, e.g. "exam" or "flashcard_deck" (extended).'
+    )
+    origin: Optional[str] = Field(
+        None, max_length=32, description='Project origin, e.g. "student" (extended).'
+    )
 
     @model_validator(mode="after")
     def _validate_visibility(self):
@@ -316,6 +327,9 @@ class ProjectResponse(ProjectBase):
     is_private: bool = False
     is_public: bool = False
     public_role: Optional[str] = None
+    # Student-experience tags (extended). Null on plain benchmark projects.
+    kind: Optional[str] = None
+    origin: Optional[str] = None
     is_published: bool = False
     is_archived: bool = False
     created_at: datetime

@@ -124,6 +124,17 @@ class Project(Base):
     is_public = Column(Boolean, default=False, nullable=False, server_default="false")
     public_role = Column(String(32), nullable=True)
 
+    # Project kind / origin (extended-edition student experience). Both are
+    # free-form nullable strings — NOT Postgres ENUMs — so the community
+    # edition ships a forward-compatible schema and an extended overlay can
+    # introduce new kinds without an ALTER TYPE. `kind` distinguishes a
+    # student exam ("exam") or flashcard deck ("flashcard_deck") from a plain
+    # benchmark project (NULL). `origin` marks student-generated projects
+    # ("student") so they can be excluded from public leaderboards while
+    # remaining benchmarkable in the expert view. Write-once at creation.
+    kind = Column(String(32), nullable=True, index=True)
+    origin = Column(String(32), nullable=True, index=True)
+
     # Feature visibility — controls which configuration cards render on the
     # project detail page. Hides the card; underlying data is preserved and
     # the relevant API endpoints stay open. Defaults preserve back-compat for
@@ -783,3 +794,196 @@ class KorrekturComment(Base):
 
     def __repr__(self):
         return f"<KorrekturComment(id={self.id}, target_type={self.target_type}, target_id={self.target_id})>"
+
+
+class FlashcardSrsState(Base):
+    """Per-user spaced-repetition (SM-2) state for one flashcard task.
+
+    Each deck is a project and each card is a task; SRS state is a per-user
+    sidecar so a deck stays benchmarkable in the expert view while every
+    student carries their own schedule. Platform owns the table (persistence);
+    the SM-2 algorithm that mutates it lives in the extended worker. This is a
+    mutable *snapshot* of the current scheduling state — the append-only
+    ``flashcard_reviews`` table carries the history for retention charts.
+    """
+
+    __tablename__ = "flashcard_srs_state"
+
+    id = Column(String, primary_key=True, index=True)
+    task_id = Column(
+        String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # SM-2 scheduling fields
+    ease_factor = Column(Float, default=2.5, server_default="2.5", nullable=False)
+    interval_days = Column(Float, default=0, server_default="0", nullable=False)
+    due_at = Column(DateTime(timezone=True), nullable=True)
+    reps = Column(Integer, default=0, server_default="0", nullable=False)
+    lapses = Column(Integer, default=0, server_default="0", nullable=False)
+    learning_step = Column(Integer, default=0, server_default="0", nullable=False)
+    # state: "new" | "learning" | "review" | "relearning"
+    state = Column(String(16), default="new", server_default="new", nullable=False)
+    # last_rating: "again" | "hard" | "good" | "easy"
+    last_rating = Column(String(8), nullable=True)
+    last_reviewed_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    task = relationship("Task")
+    user = relationship("User")
+    project = relationship("Project")
+
+    __table_args__ = (
+        sa.UniqueConstraint("task_id", "user_id", name="uq_flashcard_srs_task_user"),
+        # Hot path: "what's due for this user right now".
+        sa.Index("ix_flashcard_srs_user_due", "user_id", "due_at"),
+        sa.Index("ix_flashcard_srs_project", "project_id"),
+    )
+
+    def __repr__(self):
+        return f"<FlashcardSrsState(task_id={self.task_id}, user_id={self.user_id}, state={self.state})>"
+
+
+class FlashcardReview(Base):
+    """Append-only log of every flashcard review (one row per review event).
+
+    Distinct from ``FlashcardSrsState`` (a mutable snapshot): this table never
+    updates a row, so it preserves the full per-card history needed for
+    retention/score-over-time charts and keeps the door open for a future FSRS
+    optimizer (which requires the complete review log). Graded-mode answers and
+    judge scores live here — never in Annotation/TaskEvaluation, which would
+    pollute benchmarking data and the human leaderboards.
+    """
+
+    __tablename__ = "flashcard_reviews"
+
+    id = Column(String, primary_key=True, index=True)
+    task_id = Column(
+        String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # "quick" (self-rated) | "graded" (judge-scored)
+    mode = Column(String(8), nullable=False)
+    # Final rating that drove the schedule: again | hard | good | easy
+    rating = Column(String(8), nullable=False)
+    # Graded mode only: the short-answer judge score (0..1) + the typed answer.
+    judge_score = Column(Float, nullable=True)
+    answer_text = Column(Text, nullable=True)
+    # Scheduling result snapshot (for charts without re-deriving from state).
+    interval_days_after = Column(Float, nullable=True)
+    ease_factor_after = Column(Float, nullable=True)
+
+    reviewed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    task = relationship("Task")
+    user = relationship("User")
+    project = relationship("Project")
+
+    __table_args__ = (
+        sa.Index("ix_flashcard_reviews_user_reviewed", "user_id", "reviewed_at"),
+        sa.Index("ix_flashcard_reviews_project", "project_id"),
+        sa.Index("ix_flashcard_reviews_task", "task_id"),
+    )
+
+    def __repr__(self):
+        return f"<FlashcardReview(task_id={self.task_id}, user_id={self.user_id}, mode={self.mode}, rating={self.rating})>"
+
+
+class ProjectShareLink(Base):
+    """A password-protected share link for a project (student exam sharing).
+
+    The owner mints a link with a bcrypt-hashed password; an invitee (who must
+    have a BenGER account) joins by entering the password, which creates a
+    ``ProjectShareMember`` row. Lifecycle: ``expires_at`` / ``max_uses`` /
+    ``revoked_at`` gate JOIN only; member eviction gates ongoing access.
+    Password is hashed via the platform bcrypt helper — never md5/FIPS.
+    """
+
+    __tablename__ = "project_share_links"
+
+    id = Column(String, primary_key=True, index=True)
+    token = Column(String(64), nullable=False, unique=True, index=True)
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    created_by = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    password_hash = Column(String, nullable=False)
+
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    max_uses = Column(Integer, nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    project = relationship("Project")
+    creator = relationship("User", foreign_keys=[created_by])
+    members = relationship(
+        "ProjectShareMember", back_populates="share_link", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        sa.Index("ix_project_share_links_project", "project_id"),
+        sa.Index("ix_project_share_links_created_by", "created_by"),
+    )
+
+    def __repr__(self):
+        return f"<ProjectShareLink(id={self.id}, project_id={self.project_id})>"
+
+
+class ProjectShareMember(Base):
+    """Membership of a user in a shared project, captured at join time.
+
+    GDPR: ``gdpr_consent_at`` (+ ``consent_version``) records consent to share
+    identifiable performance data with the owner/cohort; roster and cohort
+    leaderboard reads gate on it. Scores are NOT denormalized here — best/last
+    are computed from ``task_evaluations`` at read time to avoid drift on
+    re-grades. ``attempts`` is a cheap counter for the roster.
+    """
+
+    __tablename__ = "project_share_members"
+
+    id = Column(String, primary_key=True, index=True)
+    share_link_id = Column(
+        String, ForeignKey("project_share_links.id", ondelete="CASCADE"), nullable=False
+    )
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+
+    attempts = Column(Integer, default=0, server_default="0", nullable=False)
+    gdpr_consent_at = Column(DateTime(timezone=True), nullable=True)
+    consent_version = Column(String(16), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    share_link = relationship("ProjectShareLink", back_populates="members")
+    project = relationship("Project")
+    user = relationship("User")
+
+    __table_args__ = (
+        sa.UniqueConstraint("share_link_id", "user_id", name="uq_project_share_member"),
+        sa.Index("ix_project_share_members_project", "project_id"),
+        sa.Index("ix_project_share_members_user", "user_id"),
+    )
+
+    def __repr__(self):
+        return f"<ProjectShareMember(share_link_id={self.share_link_id}, user_id={self.user_id})>"

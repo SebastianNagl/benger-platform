@@ -17,11 +17,70 @@ from auth_module import User, require_user
 from database import get_async_db
 from models import UploadedData
 from object_storage import object_storage
+from services.text_extraction import (
+    MAX_EXTRACT_BYTES,
+    UnsupportedDocumentError,
+    extract_text,
+)
 
 logger = logging.getLogger(__name__)
 
 # Create router
 router = APIRouter(prefix="/api/files", tags=["files"])
+
+
+class ExtractTextResponse(BaseModel):
+    """Result of extracting text from an uploaded exam-setup document."""
+
+    text: str
+    source_format: str
+    warnings: List[str] = []
+
+
+@router.post("/extract-text", response_model=ExtractTextResponse)
+def extract_document_text(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_user),
+):
+    """Extract plain text / Markdown from an uploaded document (issue #35).
+
+    Backs the comfortable exam-setup flow: a student uploads a Word file, a
+    text-layer PDF, or a text file for an exam field (Angabe / Musterlösung /
+    rubric / Gliederung) and gets back editable text. Synchronous ``def``
+    handler — the parse is CPU-bound on small documents, so FastAPI runs it on
+    the threadpool; it never touches the DB. Image-only PDFs fail loud (422)
+    rather than silently returning an empty field.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No filename provided")
+
+    data = file.file.read()
+    if len(data) > MAX_EXTRACT_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Document exceeds the {MAX_EXTRACT_BYTES // (1024 * 1024)} MB limit.",
+        )
+
+    try:
+        result = extract_text(file.filename, data)
+    except UnsupportedDocumentError as exc:
+        # Machine-readable code + human message so the frontend can localize.
+        raise HTTPException(
+            status_code=422, detail={"code": exc.code, "message": exc.message}
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=413, detail=str(exc))
+    except Exception:
+        logger.exception("Text extraction failed for %s", file.filename)
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "extraction_failed",
+                "message": "Der Text konnte nicht extrahiert werden. Bitte füge ihn direkt ein.",
+            },
+        )
+
+    return ExtractTextResponse(**result)
 
 # Use the global object storage service (already initialized)
 

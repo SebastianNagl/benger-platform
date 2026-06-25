@@ -60,7 +60,21 @@ dependencies = [
     "numpy>=1.24.0",
     "scipy>=1.11.0",
     # SSE for real-time streaming
-    "sse-starlette==2.4.1"
+    "sse-starlette==2.4.1",
+    # zstandard decodes the newest Anki .apkg form (collection.anki21b is a
+    # zstd-compressed SQLite collection) for the flashcard import IR
+    # (services/shared/anki, issue #35). The api Dockerfile installs from
+    # pyproject.toml, so this MUST live here (not only requirements.txt) or the
+    # import endpoint fails to import the anki package. arm64 wheels published —
+    # no FIPS/SIGILL concern, so a normal pin is fine. Keep in sync with
+    # requirements.txt and services/workers/requirements.txt.
+    "zstandard>=0.22,<1.0",
+    # Document text extraction for comfortable exam setup (issue #35): Word
+    # (.docx via mammoth -> Markdown) and text-layer PDF (pdfplumber) uploads
+    # become editable exam-field text. api-only. Keep in sync with
+    # requirements.txt.
+    "mammoth>=1.6,<2.0",
+    "pdfplumber>=0.10,<1.0"
 ]
 
 [project.optional-dependencies]

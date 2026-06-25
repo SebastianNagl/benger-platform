@@ -28,6 +28,8 @@ from routers.projects import (
     label_config_versions,
     members,
     questionnaire,
+    shares,
+    srs,
     tasks,
 )
 
@@ -51,3 +53,7 @@ router.include_router(generation.router)
 router.include_router(drafts.router)
 router.include_router(questionnaire.router)
 router.include_router(label_config_versions.router)
+# Student experience (issue #35): read-only SRS + project-scoped share ops.
+# shares also exposes a token-scoped router mounted at the app level in main.py.
+router.include_router(srs.router)
+router.include_router(shares.router)

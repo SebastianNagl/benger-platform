@@ -37,6 +37,7 @@ from schemas.auth_schemas import (  # noqa: F401
     PasswordResetRequest,
     PasswordUpdate,
     ResendVerificationRequest,
+    UiModeUpdate,
     UserProfile,
     UserUpdate,
 )
@@ -110,6 +111,7 @@ __all__ = [
     "PasswordResetRequest",
     "PasswordUpdate",
     "ResendVerificationRequest",
+    "UiModeUpdate",
     "UserProfile",
     "UserUpdate",
     # schemas.profile_completion_schemas

@@ -25,6 +25,7 @@ from project_models import (
     Annotation,
     Project,
     ProjectOrganization,
+    ProjectShareMember,
     Task,
     TaskAssignment,
 )
@@ -1113,6 +1114,36 @@ async def check_project_accessible_async(
     return _decide_project_accessible_legacy_mode(
         user, project, project_org_ids, user_with_memberships
     )
+
+
+async def get_share_access_async(
+    db: AsyncSession, user, project_id: str
+) -> Optional[ProjectShareMember]:
+    """Return the user's consented share membership for a project, or None.
+
+    This is the NARROW participant-access primitive for the student exam
+    sharing feature (issue #35). It is deliberately NOT folded into
+    ``check_project_accessible`` — that helper gates project exports, settings,
+    and whole-``task.data`` reads, so granting a share invitee full project
+    access there would let them export the Musterlösung and every other
+    student's attempt. Instead, the extended attempt / own-review endpoints
+    call this to grant ONLY participant-level access (attempt the task, read
+    their own annotation + grade, see the cohort leaderboard).
+
+    A pure platform-table read: a membership confers ongoing access while the
+    row exists (owner eviction = deleting the row) and consent has been
+    captured. Link ``expires_at`` / ``max_uses`` / ``revoked_at`` gate the JOIN
+    action only — they do not retroactively evict an existing member — so they
+    are intentionally not re-checked here.
+    """
+    result = await db.execute(
+        select(ProjectShareMember).where(
+            ProjectShareMember.project_id == project_id,
+            ProjectShareMember.user_id == str(user.id),
+            ProjectShareMember.gdpr_consent_at.isnot(None),
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 def _build_select_org_admin_membership(user_id, project_org_ids):
