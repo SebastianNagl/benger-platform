@@ -267,7 +267,10 @@ async def test_srs_stats_empty_deck(async_test_client, async_test_db):
         r = await async_test_client.get(f"/api/projects/{deck.id}/srs/stats")
         assert r.status_code == 200
         body = r.json()
-        assert body["total_cards"] == 0 and body["due_now"] == 0
+        assert body["total"] == 0 and body["due_today"] == 0
+        r = await async_test_client.get(f"/api/projects/{deck.id}/srs/due")
+        assert r.status_code == 200
+        assert r.json() == {"cards": [], "total": 0}
 
 
 @pytest.mark.integration

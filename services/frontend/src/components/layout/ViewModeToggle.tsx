@@ -1,6 +1,7 @@
 'use client'
 
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
+import { useRouter } from 'next/navigation'
 import apiSingleton from '@/lib/api'
 import { useOptionalApiClient } from '@/contexts/ApiClientContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -92,6 +93,7 @@ export function ViewModeToggle({
   variant?: 'header' | 'sidebar'
 }) {
   const { t } = useI18n()
+  const router = useRouter()
   const { user, organizations, isLoading, updateUser } = useAuth()
   const apiClient = useOptionalApiClient() ?? apiSingleton
   const setUiMode = useUIStore((s) => s.setUiMode)
@@ -123,6 +125,11 @@ export function ViewModeToggle({
     // Optimistic local switch — the resolved mode is the source of truth for
     // which shell renders, so flip it first for an instant response.
     setUiMode(target)
+    // Navigate to the target mode's home so the correct interface renders:
+    // the student routes always mount the student shell, and the classic
+    // routes the expert shell — staying on /student after switching to expert
+    // would keep showing the student dashboard.
+    router.push(target === 'student' ? '/student' : '/dashboard')
     setPending(true)
     try {
       const updated = await apiClient.setUiMode(target)

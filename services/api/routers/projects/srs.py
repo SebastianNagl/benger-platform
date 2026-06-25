@@ -44,7 +44,7 @@ async def get_due_cards(
     uid = str(current_user.id)
 
     stmt = (
-        select(Task.id, FlashcardSrsState.due_at, FlashcardSrsState.state)
+        select(Task.id, Task.data, FlashcardSrsState.due_at, FlashcardSrsState.state)
         .select_from(Task)
         .outerjoin(
             FlashcardSrsState,
@@ -64,11 +64,22 @@ async def get_due_cards(
         .limit(limit)
     )
     rows = (await db.execute(stmt)).all()
-    return {
-        "project_id": project_id,
-        "due_count": len(rows),
-        "task_ids": [r.id for r in rows],
-    }
+
+    def _card(r):
+        data = r.data or {}
+        tags = data.get("tags") or []
+        if isinstance(tags, str):
+            tags = tags.split()
+        return {
+            "task_id": r.id,
+            "front": str(data.get("front") or data.get("Vorderseite") or ""),
+            "back": str(data.get("back") or data.get("Rückseite") or ""),
+            "tags": [str(t) for t in tags],
+            "due_at": r.due_at.isoformat() if r.due_at else None,
+        }
+
+    cards = [_card(r) for r in rows]
+    return {"cards": cards, "total": len(cards)}
 
 
 @router.get("/{project_id}/srs/stats")
@@ -127,13 +138,14 @@ async def get_srs_stats(
         )
     ).scalar_one()
 
+    new_count = (total_cards - seen) + by_state.get("new", 0)
+    learning = by_state.get("learning", 0) + by_state.get("relearning", 0)
+    review = by_state.get("review", 0)
     return {
-        "project_id": project_id,
-        "total_cards": total_cards,
-        # never-seen cards collapse into "new" alongside explicit new-state rows
-        "new": (total_cards - seen) + by_state.get("new", 0),
-        "learning": by_state.get("learning", 0),
-        "review": by_state.get("review", 0),
-        "relearning": by_state.get("relearning", 0),
-        "due_now": due_count,
+        # Frontend SrsStats contract.
+        "total": total_cards,
+        "due_today": due_count,
+        "new_count": new_count,
+        "learning": learning,
+        "review": review,
     }

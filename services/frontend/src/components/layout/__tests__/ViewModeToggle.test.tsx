@@ -27,6 +27,11 @@ let mockAuth: any = {
   updateUser: mockUpdateUser,
 }
 
+const mockPush = jest.fn()
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}))
+
 jest.mock('@/stores', () => ({
   useUIStore: (selector: any) => selector({ setUiMode: mockSetUiMode }),
 }))
@@ -137,6 +142,9 @@ describe('ViewModeToggle', () => {
     fireEvent.click(expertOption)
     // Local optimistic switch happens immediately.
     expect(mockSetUiMode).toHaveBeenCalledWith('expert')
+    // Navigates to the classic dashboard so the expert interface renders
+    // (staying on /student would keep showing the student dashboard).
+    expect(mockPush).toHaveBeenCalledWith('/dashboard')
     // Server persistence + in-memory user sync.
     await waitFor(() => expect(mockApiSetUiMode).toHaveBeenCalledWith('expert'))
     expect(mockUpdateUser).toHaveBeenCalledWith({ preferred_ui_mode: 'expert' })
