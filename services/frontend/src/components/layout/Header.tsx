@@ -18,7 +18,6 @@ import {
 } from '@/components/layout/MobileNavigation'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
-import { ViewModeToggle } from '@/components/layout/ViewModeToggle'
 import { MobileSearch, Search } from '@/components/shared/Search'
 import { CloseButton } from '@headlessui/react'
 
@@ -116,8 +115,6 @@ export const Header = forwardRef<
           <LanguageSwitcher />
           <ThemeToggle />
           <NotificationBell />
-          {/* Student⇄expert view-mode toggle (gated; renders null otherwise) */}
-          <ViewModeToggle />
         </div>
         <div className="hidden min-[416px]:contents">
           <AuthButton />

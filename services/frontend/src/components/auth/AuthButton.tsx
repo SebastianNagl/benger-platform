@@ -7,7 +7,9 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useHydration } from '@/contexts/HydrationContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useViewModeSwitch } from '@/hooks/useViewModeSwitch'
 import {
+  AcademicCapIcon,
   ArrowRightOnRectangleIcon,
   BeakerIcon,
   BellIcon,
@@ -25,6 +27,7 @@ export function AuthButton() {
   const { user, logout, isLoading, currentOrganization, organizations, setCurrentOrganization } =
     useAuth()
   const { t } = useI18n()
+  const viewMode = useViewModeSwitch()
   const { isEnabled } = useFeatureFlags()
   const isClient = useHydration()
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -75,6 +78,30 @@ export function AuthButton() {
         {dropdownOpen && (
           <div className="absolute right-0 z-50 mt-2 w-52 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
             <div className="py-1">
+              {/* Student⇄expert view switch (issue #35) — only for users with
+                  expert-view capability in the extended edition. Lives here, in
+                  the account dropdown, rather than as a separate header control. */}
+              {viewMode.status === 'ready' && (
+                <>
+                  <button
+                    onClick={() => {
+                      setDropdownOpen(false)
+                      viewMode.switchTo(
+                        viewMode.resolved === 'student' ? 'expert' : 'student'
+                      )
+                    }}
+                    className="flex w-full items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                    data-testid="account-view-switch"
+                  >
+                    <AcademicCapIcon className="mr-3 h-4 w-4" />
+                    {viewMode.resolved === 'student'
+                      ? t('student.view.expert')
+                      : t('student.view.student')}
+                  </button>
+                  <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
+                </>
+              )}
+
               {/* Profile Section */}
               <Link
                 href="/profile"

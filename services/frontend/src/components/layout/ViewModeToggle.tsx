@@ -1,17 +1,8 @@
 'use client'
 
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
-import { useRouter } from 'next/navigation'
-import apiSingleton from '@/lib/api'
-import { useOptionalApiClient } from '@/contexts/ApiClientContext'
-import { useAuth } from '@/contexts/AuthContext'
-import { useHydration } from '@/contexts/HydrationContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { isExtendedEdition, useResolvedUiMode } from '@/hooks/useResolvedUiMode'
-import { useUIStore } from '@/stores'
-import { parseSubdomain } from '@/lib/utils/subdomain'
-import { canUseExpertView } from '@/utils/permissions'
-import { useState } from 'react'
+import { useViewModeSwitch } from '@/hooks/useViewModeSwitch'
 
 function GraduationCapIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   return (
@@ -74,18 +65,11 @@ type UiMode = 'student' | 'expert'
 /**
  * Student⇄expert view-mode dropdown (Issue #35, platform shell).
  *
- * A nav-bar dropdown to switch between the new student interface and the
- * classic expert interface. Mounted in the expert Header AND in the student
- * shell's sidebar (so users can switch back), reusing one component.
- *
- * Renders nothing in the community edition or for users without expert-view
- * capability (gating recomputed every render via canUseExpertView — a
- * persisted preference can never grant expert access). Selecting a mode flips
- * the local store override immediately (the resolved mode drives which shell
- * the platform renders) and persists via PUT /api/auth/me/ui-mode.
- *
- * `variant="sidebar"` renders a full-width trigger for the student sidebar;
- * the default suits the compact header control row.
+ * A dropdown to switch between the new student interface and the classic
+ * expert interface. In the classic header the switch lives inside the account
+ * dropdown (see AuthButton); this standalone dropdown is used by the student
+ * shell's sidebar (variant="sidebar") so a user can switch back from there.
+ * Both surfaces share the gating + switch logic via useViewModeSwitch.
  */
 export function ViewModeToggle({
   variant = 'header',
@@ -93,19 +77,13 @@ export function ViewModeToggle({
   variant?: 'header' | 'sidebar'
 }) {
   const { t } = useI18n()
-  const router = useRouter()
-  const { user, organizations, isLoading, updateUser } = useAuth()
-  const apiClient = useOptionalApiClient() ?? apiSingleton
-  const setUiMode = useUIStore((s) => s.setUiMode)
-  const resolved = useResolvedUiMode()
-  const mounted = useHydration()
-  const [pending, setPending] = useState(false)
+  const { status, resolved, pending, switchTo } = useViewModeSwitch()
 
-  // Community edition never offers the student shell.
-  if (!isExtendedEdition()) return null
+  // Community edition or no expert-view capability → nothing.
+  if (status === 'unavailable') return null
 
-  // Role-flicker guard: render nothing meaningful until hydrated + auth resolved.
-  if (!mounted || isLoading) {
+  // Role-flicker guard: neutral skeleton until hydrated + auth resolved.
+  if (status === 'loading') {
     return (
       <div
         className={variant === 'sidebar' ? 'h-9 w-full' : 'size-6'}
@@ -113,33 +91,6 @@ export function ViewModeToggle({
         data-testid="view-mode-toggle-skeleton"
       />
     )
-  }
-
-  const { isPrivateMode, orgSlug } = parseSubdomain()
-  if (!canUseExpertView(user, organizations, { isPrivateMode, orgSlug })) {
-    return null
-  }
-
-  const select = async (target: UiMode) => {
-    if (target === resolved || pending) return
-    // Optimistic local switch — the resolved mode is the source of truth for
-    // which shell renders, so flip it first for an instant response.
-    setUiMode(target)
-    // Navigate to the target mode's home so the correct interface renders:
-    // the student routes always mount the student shell, and the classic
-    // routes the expert shell — staying on /student after switching to expert
-    // would keep showing the student dashboard.
-    router.push(target === 'student' ? '/student' : '/dashboard')
-    setPending(true)
-    try {
-      const updated = await apiClient.setUiMode(target)
-      updateUser({ preferred_ui_mode: updated?.preferred_ui_mode ?? target })
-    } catch {
-      // Persistence failed — keep the local override so the session still
-      // honours the choice; the server just won't remember it.
-    } finally {
-      setPending(false)
-    }
   }
 
   const OPTIONS: { mode: UiMode; label: string; Icon: typeof ExpertIcon }[] = [
@@ -178,7 +129,7 @@ export function ViewModeToggle({
           <MenuItem key={mode}>
             <button
               type="button"
-              onClick={() => select(mode)}
+              onClick={() => switchTo(mode)}
               data-ui-mode-option={mode}
               className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-zinc-700 data-[focus]:bg-zinc-900/5 dark:text-zinc-200 dark:data-[focus]:bg-white/5"
             >

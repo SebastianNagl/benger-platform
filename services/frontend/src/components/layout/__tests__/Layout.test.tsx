@@ -93,6 +93,8 @@ describe('Layout', () => {
     } as Record<string, Array<Section>>,
   }
 
+  const originalEdition = process.env.NEXT_PUBLIC_BENGER_EDITION
+
   beforeEach(() => {
     jest.clearAllMocks()
     mockUsePathname.mockReturnValue('/')
@@ -101,6 +103,12 @@ describe('Layout', () => {
       isSidebarHidden: false,
     })
 
+    // This suite verifies the CLASSIC layout structure. In the extended edition
+    // Layout renders a neutral skeleton before hydration (anti-role-flicker for
+    // the student shell, issue #35), so force community edition here to assert
+    // the classic pre-hydration sidebar (anti-layout-shift) path.
+    delete process.env.NEXT_PUBLIC_BENGER_EDITION
+
     // Mock timers for animation delays
     jest.useFakeTimers()
   })
@@ -108,6 +116,11 @@ describe('Layout', () => {
   afterEach(() => {
     jest.useRealTimers()
     jest.restoreAllMocks()
+    if (originalEdition === undefined) {
+      delete process.env.NEXT_PUBLIC_BENGER_EDITION
+    } else {
+      process.env.NEXT_PUBLIC_BENGER_EDITION = originalEdition
+    }
   })
 
   describe('Basic Rendering', () => {

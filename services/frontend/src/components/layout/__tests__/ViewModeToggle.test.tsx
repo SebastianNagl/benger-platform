@@ -29,7 +29,7 @@ let mockAuth: any = {
 
 const mockPush = jest.fn()
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, prefetch: jest.fn() }),
 }))
 
 jest.mock('@/stores', () => ({
