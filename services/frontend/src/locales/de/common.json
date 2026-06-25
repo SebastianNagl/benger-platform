@@ -8408,7 +8408,8 @@
       "dashboard": "Übersicht",
       "exams": "Klausuren",
       "decks": "Karteikarten",
-      "leaderboard": "Bestenliste"
+      "leaderboard": "Bestenliste",
+      "profile": "Profil"
     },
     "loading": "Wird geladen …"
   }

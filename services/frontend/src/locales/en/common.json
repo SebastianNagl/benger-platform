@@ -8418,7 +8418,8 @@
       "dashboard": "Overview",
       "exams": "Exams",
       "decks": "Flashcards",
-      "leaderboard": "Leaderboard"
+      "leaderboard": "Leaderboard",
+      "profile": "Profile"
     },
     "loading": "Loading …"
   }
