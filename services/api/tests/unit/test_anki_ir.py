@@ -184,6 +184,62 @@ def _build_anki_sqlite(notes: list[tuple[str, str, str]], deck_name: str) -> byt
     return data
 
 
+def _build_anki_sqlite_multi_deck(cards: list[tuple[str, str, str, str]]) -> bytes:
+    """Like ``_build_anki_sqlite`` but each card carries its own deck path.
+
+    ``cards`` is a list of ``(front, back, tags, deck_path)``. Distinct paths get
+    distinct deck ids in ``col.decks``; each card's ``cards.did`` points at its
+    path — exactly the multi-deck collection shape a real Anki ``.apkg`` has.
+    """
+    path_to_did: dict[str, int] = {}
+    for front, back, tags, deck_path in cards:
+        if deck_path not in path_to_did:
+            path_to_did[deck_path] = 1500000000000 + len(path_to_did)
+
+    with tempfile.NamedTemporaryFile(suffix=".anki21", delete=False) as tmp:
+        path = tmp.name
+    conn = sqlite3.connect(path)
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE col (id integer primary key, decks text not null);
+            CREATE TABLE notes (
+                id integer primary key, flds text not null, tags text not null
+            );
+            CREATE TABLE cards (
+                id integer primary key, nid integer not null, did integer not null
+            );
+            """
+        )
+        decks = {"1": {"id": 1, "name": "Default"}}
+        for p, did in path_to_did.items():
+            decks[str(did)] = {"id": did, "name": p}
+        conn.execute(
+            "INSERT INTO col (id, decks) VALUES (1, ?)", (json.dumps(decks),)
+        )
+        for index, (front, back, tags, deck_path) in enumerate(cards):
+            note_id = 9000 + index
+            flds = front + _FIELD_SEP + back
+            stored_tags = f" {tags} " if tags else ""
+            conn.execute(
+                "INSERT INTO notes (id, flds, tags) VALUES (?, ?, ?)",
+                (note_id, flds, stored_tags),
+            )
+            conn.execute(
+                "INSERT INTO cards (id, nid, did) VALUES (?, ?, ?)",
+                (note_id + 100000, note_id, path_to_did[deck_path]),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+    with open(path, "rb") as fh:
+        data = fh.read()
+    import os
+
+    os.unlink(path)
+    return data
+
+
 def _zip_apkg(member_name: str, collection_bytes: bytes) -> bytes:
     """Wrap collection bytes + an empty media map into an .apkg ZIP blob."""
     buf = io.BytesIO()
@@ -339,6 +395,61 @@ def test_apkg_export_import_round_trip():
         assert got.front == original.front
         assert got.back == original.back
         assert got.tags == original.tags
+
+
+def test_apkg_multi_deck_nested_round_trip():
+    """A collection with nested sub-decks (Anki "::" paths) round-trips: each
+    card's deck path survives export -> re-import, so the tree is preserved."""
+    deck = AnkiDeck(
+        name="Meine Sammlung",
+        cards=[
+            AnkiCard(front="F1", back="B1", tags=[], deck_name="Jura::BGB::AT"),
+            AnkiCard(front="F2", back="B2", tags=["x"], deck_name="Jura::BGB::AT"),
+            AnkiCard(front="F3", back="B3", tags=[], deck_name="Jura::StGB"),
+            AnkiCard(front="F4", back="B4", tags=[], deck_name="Strafrecht"),
+        ],
+    )
+
+    restored = apkg_to_deck(deck_to_apkg(deck))
+    by_front = {c.front: c.deck_name for c in restored.cards}
+    assert by_front == {
+        "F1": "Jura::BGB::AT",
+        "F2": "Jura::BGB::AT",
+        "F3": "Jura::StGB",
+        "F4": "Strafrecht",
+    }
+    # The exported collection genuinely contains the distinct decks (+ Default).
+    import io as _io
+    import json as _json
+    import sqlite3 as _sqlite
+    import tempfile as _tempfile
+    import zipfile as _zipfile
+
+    with _zipfile.ZipFile(_io.BytesIO(deck_to_apkg(deck))) as zf:
+        col = zf.read("collection.anki21")
+    tf = _tempfile.NamedTemporaryFile(suffix=".anki21", delete=False)
+    tf.write(col)
+    tf.close()
+    conn = _sqlite.connect(tf.name)
+    decks = _json.loads(conn.execute("SELECT decks FROM col").fetchone()[0])
+    conn.close()
+    names = {d["name"] for d in decks.values()}
+    assert {"Jura::BGB::AT", "Jura::StGB", "Strafrecht"} <= names
+    assert "Default" in names
+
+
+def test_apkg_multi_deck_import_preserves_per_card_deck():
+    """Importing a multi-deck collection assigns each card its own deck path."""
+    # (front, back, tags, deck_path) per card.
+    cards = [
+        ("F1", "B1", "", "Jura::BGB"),
+        ("F2", "B2", "", "Jura::BGB"),
+        ("F3", "B3", "", "Jura::StGB"),
+    ]
+    sqlite_bytes = _build_anki_sqlite_multi_deck(cards)
+    deck = apkg_to_deck(_zip_apkg("collection.anki21", sqlite_bytes))
+    paths = sorted(c.deck_name for c in deck.cards)
+    assert paths == ["Jura::BGB", "Jura::BGB", "Jura::StGB"]
 
 
 def test_apkg_export_determinism():

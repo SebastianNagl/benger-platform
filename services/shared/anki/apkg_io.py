@@ -431,43 +431,48 @@ def _build_models_json(deck_name: str) -> str:
     return json.dumps(model)
 
 
-def _build_decks_json(deck_name: str) -> str:
-    """Two decks: the mandatory Default (id 1) and our content deck."""
-    decks = {
-        "1": {
-            "id": 1,
-            "name": "Default",
-            "mod": _BASE_TS,
-            "usn": -1,
-            "desc": "",
-            "dyn": 0,
-            "collapsed": False,
-            "extendNew": 10,
-            "extendRev": 50,
-            "conf": 1,
-            "newToday": [0, 0],
-            "revToday": [0, 0],
-            "lrnToday": [0, 0],
-            "timeToday": [0, 0],
-        },
-        str(_DECK_ID): {
-            "id": _DECK_ID,
-            "name": deck_name,
-            "mod": _BASE_TS,
-            "usn": -1,
-            "desc": "",
-            "dyn": 0,
-            "collapsed": False,
-            "extendNew": 10,
-            "extendRev": 50,
-            "conf": 1,
-            "newToday": [0, 0],
-            "revToday": [0, 0],
-            "lrnToday": [0, 0],
-            "timeToday": [0, 0],
-        },
+def _deck_entry(did: int, name: str) -> dict:
+    return {
+        "id": did,
+        "name": name,
+        "mod": _BASE_TS,
+        "usn": -1,
+        "desc": "",
+        "dyn": 0,
+        "collapsed": False,
+        "extendNew": 10,
+        "extendRev": 50,
+        "conf": 1,
+        "newToday": [0, 0],
+        "revToday": [0, 0],
+        "lrnToday": [0, 0],
+        "timeToday": [0, 0],
     }
-    return json.dumps(decks)
+
+
+def _build_decks_json(deck_paths: list[str]) -> tuple[str, dict[str, int]]:
+    """Build ``col.decks`` for a set of (possibly hierarchical) deck paths.
+
+    Anki encodes nesting purely in the deck *name* via the ``::`` separator
+    (e.g. ``"Jura::BGB::AT"``), so we emit one deck entry per distinct path with
+    its full name — re-importing reconstructs the tree. Always includes the
+    mandatory ``Default`` (id 1).
+
+    Returns ``(json, {path: deck_id})`` so the caller can stamp each card's
+    ``cards.did``.
+    """
+    decks: dict[str, dict] = {"1": _deck_entry(1, "Default")}
+    path_to_did: dict[str, int] = {}
+    # Sorted for deterministic ids (stable test fixtures + round-trip).
+    for i, path in enumerate(sorted({p for p in deck_paths if p})):
+        did = _DECK_ID + i
+        path_to_did[path] = did
+        decks[str(did)] = _deck_entry(did, path)
+    if not path_to_did:
+        # No paths at all — fall back to a single content deck.
+        path_to_did[_DEFAULT_DECK_NAME] = _DECK_ID
+        decks[str(_DECK_ID)] = _deck_entry(_DECK_ID, _DEFAULT_DECK_NAME)
+    return json.dumps(decks), path_to_did
 
 
 def _build_dconf_json() -> str:
@@ -535,10 +540,20 @@ def deck_to_apkg(deck: AnkiDeck) -> bytes:
     """Export an :class:`AnkiDeck` to a legacy ``.apkg`` byte blob.
 
     Writes a schema-v11 ``collection.anki21`` SQLite database (single Basic note
-    type, single deck) plus an empty ``media`` mapping into a ZIP. The result
-    round-trips back through :func:`apkg_to_deck`.
+    type) plus an empty ``media`` mapping into a ZIP. Multi-deck: each card's
+    ``deck_name`` (a possibly hierarchical ``Parent::Child`` path) becomes its
+    own ``col.decks`` entry, so a collection with sub-decks round-trips back
+    through :func:`apkg_to_deck` with the tree intact. Cards without a
+    ``deck_name`` fall back to the container deck name.
     """
-    deck_name = deck.name or _DEFAULT_DECK_NAME
+    container = deck.name or _DEFAULT_DECK_NAME
+
+    def _card_path(card: AnkiCard) -> str:
+        return card.deck_name or container
+
+    # An empty deck still needs one content deck named after the container.
+    paths = [_card_path(c) for c in deck.cards] or [container]
+    decks_json, path_to_did = _build_decks_json(paths)
 
     tmp = tempfile.NamedTemporaryFile(suffix=".anki21", delete=False)
     tmp.close()
@@ -557,8 +572,8 @@ def deck_to_apkg(deck: AnkiDeck) -> bytes:
                     _BASE_TS * 1000,
                     _BASE_TS * 1000,
                     _build_conf_json(),
-                    _build_models_json(deck_name),
-                    _build_decks_json(deck_name),
+                    _build_models_json(container),
+                    decks_json,
                     _build_dconf_json(),
                     "{}",
                 ),
@@ -571,6 +586,7 @@ def deck_to_apkg(deck: AnkiDeck) -> bytes:
                 tags_str = " ".join(card.tags)
                 # Anki stores tags space-padded (" tag1 tag2 ") when non-empty.
                 stored_tags = f" {tags_str} " if tags_str else ""
+                did = path_to_did.get(_card_path(card), _DECK_ID)
 
                 conn.execute(
                     "INSERT INTO notes "
@@ -594,7 +610,7 @@ def deck_to_apkg(deck: AnkiDeck) -> bytes:
                     " factor, reps, lapses, left, odue, odid, flags, data) "
                     "VALUES (?, ?, ?, 0, ?, -1, 0, 0, ?, 0, 0, 0, 0, 0, 0, 0, "
                     " 0, '')",
-                    (card_id, note_id, _DECK_ID, _BASE_TS, index + 1),
+                    (card_id, note_id, did, _BASE_TS, index + 1),
                 )
 
             conn.commit()

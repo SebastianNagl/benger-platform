@@ -1378,11 +1378,15 @@ def _task_to_anki_card(task, deck_name):
     tags = data.get("tags") or []
     if isinstance(tags, str):
         tags = tags.split()
+    # A collection (project) can hold many decks (Anki "Stapel"): each card
+    # carries its hierarchical deck path in task.data["deck"] (e.g.
+    # "Jura::BGB::AT"). Fall back to the project title for a flat collection so
+    # the export still round-trips.
     return AnkiCard(
         front=str(_pick("front", "Vorderseite", "frage", "Frage")),
         back=str(_pick("back", "Rückseite", "Rueckseite", "antwort", "Antwort")),
         tags=[str(t) for t in tags],
-        deck_name=deck_name,
+        deck_name=str(data.get("deck") or deck_name),
     )
 
 
