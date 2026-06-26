@@ -177,6 +177,46 @@ describe('I18nContext', () => {
       expect(typeof translation).toBe('string')
     })
 
+    it('interpolates variables into the inline fallback for an unknown key', async () => {
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <I18nProvider>{children}</I18nProvider>
+      )
+
+      const { result } = renderHook(() => useI18n(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.isReady).toBe(true)
+      })
+
+      // Key absent from the locale JSON (e.g. an extended student-feature
+      // string that lives only as a code-side default): the {count} placeholder
+      // in the fallback must still be substituted, not rendered literally.
+      expect(
+        result.current.t(
+          'student.decks.cardCount.__unregistered__',
+          '{count} Karten',
+          { count: 4 },
+        ),
+      ).toBe('4 Karten')
+    })
+
+    it('leaves an inline fallback unchanged when no variables are given', async () => {
+      const wrapper = ({ children }: { children: React.ReactNode }) => (
+        <I18nProvider>{children}</I18nProvider>
+      )
+
+      const { result } = renderHook(() => useI18n(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.isReady).toBe(true)
+      })
+
+      // No vars → fallback returned verbatim (unknown placeholders preserved).
+      expect(
+        result.current.t('totally.unknown.__key__', 'Plain {count} fallback'),
+      ).toBe('Plain {count} fallback')
+    })
+
     it('handles translation errors gracefully', async () => {
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
