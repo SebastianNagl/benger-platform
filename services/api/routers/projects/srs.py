@@ -26,10 +26,35 @@ from routers.projects.deps import ProjectAccess, require_project_access
 router = APIRouter()
 
 
+def _deck_scope_clause(deck: str | None):
+    """SQL clause restricting cards to a deck *and its subdecks* (or all cards).
+
+    A project (collection) holds cards whose ``data['deck']`` is a ``::``-nested
+    Anki deck path (e.g. ``"Jura::BGB::AT"``). Scoping to ``"Jura::BGB"`` must
+    include the deck itself **and** every subdeck (``"Jura::BGB::AT"``, …) but
+    NOT a sibling like ``"Jura::BGBX"`` — hence the exact match OR the
+    ``deck + "::"`` prefix. ``startswith(autoescape=True)`` escapes any ``%``/
+    ``_`` in the user-supplied deck name. ``None``/empty selects the whole
+    collection.
+    """
+    if not deck:
+        return None
+    # ``Task.data`` is typed as the generic SQLAlchemy ``JSON`` (the model's
+    # JSONB switch keys off ``DATABASE_URL`` but the API sets ``DATABASE_URI``),
+    # so the JSONB-only ``.astext`` accessor is unavailable — use the generic
+    # ``.as_string()`` (same convention as shares.py / multi_field/run.py).
+    col = Task.data["deck"].as_string()
+    return or_(col == deck, col.startswith(deck + "::", autoescape=True))
+
+
 @router.get("/{project_id}/srs/due")
 async def get_due_cards(
     project_id: str,
     limit: int = Query(50, ge=1, le=500),
+    deck: str | None = Query(
+        None,
+        description="Restrict to a deck path and its subdecks within the collection.",
+    ),
     access: ProjectAccess = Depends(require_project_access()),
     current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
@@ -39,10 +64,14 @@ async def get_due_cards(
     "Due" = a never-seen card (no SRS row yet, i.e. state new) OR a card whose
     ``due_at`` has passed. Ordered new-cards-last so a session front-loads
     review cards (the cards at risk of being forgotten), matching Anki.
+
+    ``deck`` optionally scopes the queue to one deck (and its subdecks) of the
+    collection — studying "Jura::BGB" pulls in "Jura::BGB::AT" too.
     """
     now = datetime.now(timezone.utc)
     uid = str(current_user.id)
 
+    scope = _deck_scope_clause(deck)
     stmt = (
         select(Task.id, Task.data, FlashcardSrsState.due_at, FlashcardSrsState.state)
         .select_from(Task)
@@ -58,6 +87,7 @@ async def get_due_cards(
                 FlashcardSrsState.due_at.is_(None),
                 FlashcardSrsState.due_at <= now,
             ),
+            *( [scope] if scope is not None else [] ),
         )
         # Review cards (have a due date) before brand-new cards.
         .order_by(FlashcardSrsState.due_at.is_(None), FlashcardSrsState.due_at.asc())
@@ -85,6 +115,10 @@ async def get_due_cards(
 @router.get("/{project_id}/srs/stats")
 async def get_srs_stats(
     project_id: str,
+    deck: str | None = Query(
+        None,
+        description="Restrict to a deck path and its subdecks within the collection.",
+    ),
     access: ProjectAccess = Depends(require_project_access()),
     current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
@@ -94,26 +128,39 @@ async def get_srs_stats(
     ``new`` counts cards the user has never reviewed (no SRS row) plus rows
     explicitly in the ``new`` state, so it stays correct on a freshly imported
     deck before any review has written state rows.
+
+    ``deck`` optionally scopes every count to one deck (and its subdecks) of the
+    collection, so the review-session header counters match the queue.
     """
     now = datetime.now(timezone.utc)
     uid = str(current_user.id)
 
+    scope = _deck_scope_clause(deck)
+    scope_filter = [scope] if scope is not None else []
+
     total_cards = (
         await db.execute(
-            select(func.count(Task.id)).where(Task.project_id == project_id)
+            select(func.count(Task.id)).where(
+                Task.project_id == project_id, *scope_filter
+            )
         )
     ).scalar_one()
 
-    # Cards with an SRS row, bucketed by state.
+    # Cards with an SRS row, bucketed by state. When scoped, join Task so the
+    # deck-path predicate can apply (FlashcardSrsState has no deck column — the
+    # path lives in task.data, the single source of truth).
+    state_stmt = select(
+        FlashcardSrsState.state, func.count(FlashcardSrsState.id)
+    ).where(
+        FlashcardSrsState.project_id == project_id,
+        FlashcardSrsState.user_id == uid,
+    )
+    if scope is not None:
+        state_stmt = state_stmt.join(
+            Task, Task.id == FlashcardSrsState.task_id
+        ).where(scope)
     state_rows = (
-        await db.execute(
-            select(FlashcardSrsState.state, func.count(FlashcardSrsState.id))
-            .where(
-                FlashcardSrsState.project_id == project_id,
-                FlashcardSrsState.user_id == uid,
-            )
-            .group_by(FlashcardSrsState.state)
-        )
+        await db.execute(state_stmt.group_by(FlashcardSrsState.state))
     ).all()
     by_state = {state: count for state, count in state_rows}
     seen = sum(by_state.values())
@@ -134,6 +181,7 @@ async def get_srs_stats(
                     FlashcardSrsState.due_at.is_(None),
                     FlashcardSrsState.due_at <= now,
                 ),
+                *scope_filter,
             )
         )
     ).scalar_one()
