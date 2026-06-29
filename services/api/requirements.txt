@@ -6,7 +6,7 @@
 # httpx, redis, celery, the AI-provider SDKs) — keep those aligned with
 # services/workers/requirements.txt. A structural single constraints file is not
 # feasible (per-service Docker build contexts); a CI drift-check is the follow-up.
-fastapi==0.137.0
+fastapi==0.138.1
 uvicorn[standard]==0.49.0
 pydantic>=2.9.0
 python-multipart==0.0.32
@@ -31,9 +31,9 @@ asyncpg>=0.30.0
 alembic>=1.14.0
 email-validator==2.3.0
 # starlette version is managed by fastapi
-anyio==4.13.0
+anyio==4.14.1
 openai==1.109.1
-anthropic==0.109.1
+anthropic==0.112.0
 google-genai>=1.0.0
 mistralai>=1.2.0  # Mistral AI models
 cohere>=5.21.1  # Cohere models
@@ -60,7 +60,7 @@ scipy>=1.11.0
 tiktoken>=0.5.0
 # Monitoring and testing tools
 psutil>=6.1.1  # For system and memory monitoring
-locust==2.44.3  # For load testing
+locust==2.44.4  # For load testing
 
 # Async testing dependencies
 aiosqlite==0.22.1  # For async SQLite database testing
