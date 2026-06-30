@@ -142,6 +142,16 @@ async def get_project_evaluation_results(
                     pred_field = parts[1]
                     ref_field = parts[2]
                     metric_name = "|".join(parts[3:])
+                elif len(parts) == 2:
+                    # Immediate / human-graded run-level shape: "pred_field|metric"
+                    # (no config_id, no ref_field). pred_field itself may contain
+                    # ':' (e.g. "human:loesung"). Without this branch the score is
+                    # dropped and the config card / headline render N/A even though
+                    # the grade exists. Group under the metric so it headlines.
+                    pred_field = parts[0]
+                    ref_field = ""
+                    metric_name = parts[1]
+                    config_id = metric_name
                 elif len(parts) == 1 and ":" in key:
                     # Backward compat: old format used : as separator
                     old_parts = key.split(":")
@@ -184,8 +194,12 @@ async def get_project_evaluation_results(
                     all_scores = []
                     for fr in config_data["field_results"]:
                         for score_name, score_val in fr["scores"].items():
-                            if isinstance(score_val, (int, float)):
-                                all_scores.append(score_val)
+                            # Coerce both the legacy bare-float shape AND the
+                            # {value, details} shape (llm_judge / falloesung) so
+                            # human-graded runs contribute a real aggregate.
+                            coerced = _coerce_metric_value(score_val)
+                            if coerced is not None:
+                                all_scores.append(coerced)
                     if all_scores:
                         config_data["aggregate_score"] = sum(all_scores) / len(all_scores)
 

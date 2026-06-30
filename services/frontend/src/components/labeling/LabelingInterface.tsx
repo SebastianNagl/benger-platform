@@ -862,19 +862,34 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                       return
                     }
 
+                    // Track the annotation for the eval slot BEFORE the
+                    // questionnaire branch (mirrors the manual-submit path).
+                    // Without this, a project with BOTH a questionnaire AND
+                    // immediate eval would return into the questionnaire with
+                    // lastSubmittedAnnotationId still null, so proceedAfterQuestionnaire
+                    // can't hand off and the KI-Votum never shows in-page on
+                    // auto-submit. (The grade is still produced server-side via
+                    // the on_annotation_created hook regardless; this only
+                    // restores the live in-page score for the present student.)
+                    if (shouldRunImmediate && annotation) {
+                      setLastSubmittedAnnotationId(annotation.id)
+                    }
+
                     // Questionnaire takes precedence: it's the explicit closure UX.
+                    // proceedAfterQuestionnaire hands off to the (now-tracked)
+                    // eval slot once the questionnaire closes.
                     if (hasQuestionnaire && annotation) {
                       setQuestionnaireAnnotationId(annotation.id)
                       setShowQuestionnaireModal(true)
                       return
                     }
 
-                    // Immediate eval: mount ImmediateEvalSlot via setLastSubmittedAnnotationId.
-                    // autoSubmittedRef tells the slot's onClose to advance once dismissed,
-                    // mirroring the old monolith's inline auto-submit-then-eval flow.
+                    // Immediate eval: ImmediateEvalSlot is mounted via the
+                    // setLastSubmittedAnnotationId above. autoSubmittedRef tells
+                    // the slot's onClose to advance once dismissed, mirroring the
+                    // old monolith's inline auto-submit-then-eval flow.
                     if (shouldRunImmediate && annotation) {
                       autoSubmittedRef.current = true
-                      setLastSubmittedAnnotationId(annotation.id)
                       return
                     }
 
