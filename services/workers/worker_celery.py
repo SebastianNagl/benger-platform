@@ -34,21 +34,32 @@ app = Celery("tasks")
 # - 12h (initial): cheap, occasionally stale tiles after annotation rounds.
 # - 1h (2026-05-20): tightened after Phase 6.2 routed the projects list
 #   through project_summaries; users complained tiles lagged half a day.
-# - 2x/day at 10:00 + 22:00 UTC (= 12:00 + 00:00 CEST) (this PR): leaderboards
-#   are a research-grade scorecard, not a live tile — a noticeable user
-#   refresh window is the right contract. Hourly runs were also adding
-#   load without value once the leaderboards moved to TanStack-cached
-#   reads with 30s staleTime on the client. Note: during winter (CET) the
-#   runs effectively become 11:00 + 23:00 local; the leaderboards page
-#   shows a static hint that copy-locks the schedule to CEST.
+# - 2x/day at 10:00 + 22:00 UTC (2026-06): leaderboards treated as a slow
+#   scorecard; the projects-list tile counts (annotations / evaluations) then
+#   lagged up to 12h behind reality, which read as "evaluations missing".
+# - 1h (top of every hour): back to hourly so the projects list reflects an
+#   in-progress exam within the hour. The recompute is cheap relative to the
+#   confusion a half-day-stale count causes during live annotation rounds.
 #
-# Event-driven recompute on EvaluationRun finalize was also removed in
-# the same change (search for `recompute_aggregates_after_finalize` — the
-# `app.send_task` call in the finalize handler is gone).
+# `sweep-missing-immediate-evals`: hourly server-side backstop for the
+# client-fired KI-Votum. Any annotation on an immediate-eval project that ends
+# up without a grade (lost client POST, server auto-submit, worker crash) is
+# re-dispatched via the idempotent ensure_immediate_evaluation. `min_age_minutes`
+# skips very recent submits so an in-flight client eval isn't raced.
+#
+# Event-driven recompute on EvaluationRun finalize was removed earlier
+# (search for `recompute_aggregates_after_finalize`).
 app.conf.beat_schedule = {
     "recompute-aggregates": {
         "task": "tasks.recompute_aggregates",
-        "schedule": crontab(minute=0, hour="10,22"),
+        "schedule": crontab(minute=0),
+        "args": (),
+        "kwargs": {},
+        "options": {"queue": "default"},
+    },
+    "sweep-missing-immediate-evals": {
+        "task": "tasks.sweep_missing_immediate_evals",
+        "schedule": crontab(minute=30),
         "args": (),
         "kwargs": {},
         "options": {"queue": "default"},

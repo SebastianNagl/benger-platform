@@ -3327,9 +3327,9 @@ def finalize_evaluation_run(
 def recompute_aggregates(self):
     """Refresh the precomputed leaderboard + project-summary tables.
 
-    Runs every 12h via beat (see `app.conf.beat_schedule` above) and can be
-    triggered ad-hoc. Coalesces concurrent runs with a Redis lock so a burst
-    of triggers collapses to a single execution.
+    Runs hourly via beat (see `app.conf.beat_schedule`) and can be triggered
+    ad-hoc. Coalesces concurrent runs with a Redis lock so a burst of triggers
+    collapses to a single execution.
 
     The heavy SQL lives in `services/api/services/aggregate_summaries.py`;
     this is the Celery entry point. Total wall time on prod-scale data
@@ -3401,6 +3401,69 @@ def recompute_aggregates(self):
                 rc.delete(lock_key)
             except Exception:
                 pass
+
+
+@app.task(name="tasks.sweep_missing_immediate_evals", bind=True)
+def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
+    """Hourly server-side backstop for the client-fired KI-Votum.
+
+    Immediate evaluation is normally produced on submit (the on_annotation_created
+    hook, the strict-timer auto-submit worker, or the client POST). This sweep is
+    the last safety net: it scans every immediate-eval project and re-dispatches a
+    grade for any annotation that still has none (lost client POST, worker crash,
+    etc.). Idempotent — ``ensure_immediate_evaluation`` skips annotations that
+    already carry a grade or an in-flight run. ``min_age_minutes`` skips very
+    recent submits (via the scan cutoff) so an in-flight client eval isn't raced.
+    """
+    from datetime import datetime as _dt
+    from datetime import timedelta, timezone
+
+    from immediate_eval_dispatch import ensure_immediate_evaluation, scan_ungraded
+    from project_models import Project
+
+    db = SessionLocal()
+    cutoff = _dt.now(timezone.utc) - timedelta(minutes=min_age_minutes)
+    scanned_projects = dispatched = 0
+    try:
+        projects = (
+            db.query(Project)
+            .filter(Project.immediate_evaluation_enabled == True)  # noqa: E712
+            .all()
+        )
+        for project in projects:
+            candidates, _partials = scan_ungraded(db, project, cutoff=cutoff)
+            if not candidates:
+                continue
+            scanned_projects += 1
+            for annotation, task in candidates:
+                try:
+                    # cutoff already applied in scan_ungraded → no min-age here.
+                    rid = ensure_immediate_evaluation(
+                        db, project, task, annotation,
+                        trigger="sweep_missing_immediate_evals",
+                    )
+                    if rid:
+                        dispatched += 1
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "sweep_missing_immediate_evals: annotation %s failed: %s",
+                        annotation.id, exc,
+                    )
+                    db.rollback()
+        logger.info(
+            "sweep_missing_immediate_evals: projects_with_gaps=%d dispatched=%d",
+            scanned_projects, dispatched,
+        )
+        return {"status": "success", "projects_with_gaps": scanned_projects, "dispatched": dispatched}
+    except Exception as exc:
+        logger.error("sweep_missing_immediate_evals failed: %s", exc, exc_info=True)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return {"status": "error", "error": str(exc)}
+    finally:
+        db.close()
 
 
 @app.task(name="tasks.update_report_annotations_async", bind=True)

@@ -55,9 +55,14 @@ for _p in (
 import models  # noqa: E402,F401
 import project_models  # noqa: E402,F401
 from database import SessionLocal  # noqa: E402
-from metric_filters import is_immediate_eligible  # noqa: E402
-from models import EvaluationRun, OrganizationMembership, TaskEvaluation, User  # noqa: E402
-from project_models import Annotation, Project, Task  # noqa: E402
+from immediate_eval_dispatch import (  # noqa: E402
+    eligible_configs as _eligible_configs,
+    eligible_metrics as _eligible_metrics,
+    ensure_immediate_evaluation,
+    scan_ungraded,
+)
+from models import User  # noqa: E402
+from project_models import Project  # noqa: E402
 
 try:
     from celery_client import send_task_safe
@@ -65,198 +70,33 @@ except Exception:  # pragma: no cover - only needed for --apply
     send_task_safe = None
 
 
-def _eligible_configs(project) -> list[dict]:
-    cfg = project.evaluation_config or {}
-    configs = cfg.get("evaluation_configs") or cfg.get("multi_field_evaluations") or []
-    return [
-        c
-        for c in configs
-        if c.get("enabled", True) and is_immediate_eligible(c.get("metric", ""))
-    ]
-
-
-def _eligible_metrics(eligible_configs) -> set:
-    return {c.get("metric", "") for c in eligible_configs}
-
-
-def _row_has_real_score_for(metrics, eligible_metrics: set) -> bool:
-    """True if the row carries a non-error score for any eligible metric."""
-    if not isinstance(metrics, dict):
-        return False
-    for m in eligible_metrics:
-        if m not in metrics:
-            continue
-        v = metrics[m]
-        if isinstance(v, dict):
-            if v.get("error"):
-                continue
-            if v.get("value") is not None:
-                return True
-        elif isinstance(v, (int, float)) and not isinstance(v, bool):
-            return True
-    return False
-
-
-def _parse_annotation_results(annotation) -> dict:
-    """Replicate the immediate-eval endpoint's annotation.result -> dict parse
-    (keyed by ``from_name``). Generic Label-Studio shape handling."""
-    out: dict = {}
-    res = annotation.result
-    if not (res and isinstance(res, list)):
-        return out
-    for region in res:
-        if not isinstance(region, dict):
-            continue
-        from_name = region.get("from_name")
-        if not from_name:
-            continue
-        value = region.get("value", {})
-        region_type = region.get("type", "")
-        if isinstance(value, str):
-            out[from_name] = value
-            continue
-        if isinstance(value, dict) and "markdown" in value:
-            out[from_name] = value["markdown"]
-            continue
-        if region_type == "textarea":
-            texts = value.get("text", [])
-            out[from_name] = "\n".join(texts) if isinstance(texts, list) else str(texts)
-        elif region_type == "choices":
-            choices = value.get("choices", [])
-            out[from_name] = choices[0] if len(choices) == 1 else choices
-        elif region_type == "rating":
-            out[from_name] = value.get("rating")
-        elif "text" in value:
-            texts = value["text"]
-            out[from_name] = "\n".join(texts) if isinstance(texts, list) else str(texts)
-        else:
-            for v in value.values():
-                if v:
-                    out[from_name] = v if isinstance(v, str) else str(v)
-                    break
-    return out
-
-
-def _resolve_org(db, project, user_id):
-    """Mirror routers.evaluations.helpers.resolve_user_org_for_project without
-    importing the router module."""
-    if not project.organizations:
-        return None
-    org_ids = {str(o.id) for o in project.organizations}
-    m = (
-        db.query(OrganizationMembership)
-        .filter(
-            OrganizationMembership.user_id == user_id,
-            OrganizationMembership.is_active == True,  # noqa: E712
-            OrganizationMembership.organization_id.in_(org_ids),
-        )
-        .first()
-    )
-    if m:
-        return str(m.organization_id)
-    return str(project.organizations[0].id)
-
-
 def _scan_project(db, project, cutoff):
-    """Return (candidates, partials) for one project.
+    """Return (candidates, partials, eligible) for one project.
 
-    candidate = (annotation, task) with ZERO eligible real-score rows.
-    partial   = (annotation, present_metrics, missing_metrics) — reported only.
+    Thin wrapper over the shared ``scan_ungraded`` so the CLI and the hourly
+    sweep agree on what "ungraded" means.
     """
     eligible = _eligible_configs(project)
     if not eligible:
         return [], [], eligible
-    elig_metrics = _eligible_metrics(eligible)
-
-    anns = (
-        db.query(Annotation)
-        .filter(
-            Annotation.project_id == project.id,
-            Annotation.was_cancelled == False,  # noqa: E712
-            Annotation.result.isnot(None),
-            Annotation.created_at < cutoff,
-        )
-        .all()
-    )
-    if not anns:
-        return [], [], eligible
-
-    tasks_by_id = {
-        t.id: t
-        for t in db.query(Task).filter(Task.id.in_({a.task_id for a in anns})).all()
-    }
-
-    candidates, partials = [], []
-    for a in anns:
-        rows = (
-            db.query(TaskEvaluation.metrics)
-            .filter(TaskEvaluation.annotation_id == a.id)
-            .all()
-        )
-        present = set()
-        for (m,) in rows:
-            if _row_has_real_score_for(m, elig_metrics):
-                if isinstance(m, dict):
-                    present |= {k for k in m.keys() if k in elig_metrics}
-        if not present:
-            task = tasks_by_id.get(a.task_id)
-            if task is not None:
-                candidates.append((a, task))
-        elif present < elig_metrics:
-            partials.append((a, present, elig_metrics - present))
+    candidates, partials = scan_ungraded(db, project, cutoff=cutoff)
     return candidates, partials, eligible
 
 
 def _dispatch(db, project, eligible, annotation, task, apply: bool) -> str:
-    """Pre-create the immediate EvaluationRun + dispatch the worker task — the
-    exact shape the endpoint uses. Returns the new eval_record_id."""
-    eval_record_id = str(uuid.uuid4())
+    """Delegate to the shared, idempotent ``ensure_immediate_evaluation`` so the
+    CLI and every live trigger share one code path. Returns the run id."""
     if not apply:
-        return eval_record_id
-    annotation_results = _parse_annotation_results(annotation)
-    org = _resolve_org(db, project, annotation.completed_by)
-    meta = {
-        "evaluation_type": "immediate",
-        "trigger": "recover_missing_immediate_evals",
-        "expected_config_count": len(eligible),
-        "configs": [
-            {
-                "id": c.get("id", c.get("metric", "")),
-                "metric": c.get("metric", ""),
-                "display_name": c.get("display_name", c.get("metric", "")),
-            }
-            for c in eligible
-        ],
-    }
-    db.add(
-        EvaluationRun(
-            id=eval_record_id,
-            project_id=str(project.id),
-            model_id="immediate",
-            evaluation_type_ids=[c.get("metric", "") for c in eligible],
-            status="running",
-            created_by=str(annotation.completed_by),
-            eval_metadata=meta,
-            metrics={},
-        )
+        return str(uuid.uuid4())
+    rid = ensure_immediate_evaluation(
+        db,
+        project,
+        task,
+        annotation,
+        configs=eligible,
+        trigger="recover_missing_immediate_evals",
     )
-    db.commit()
-    send_task_safe(
-        "tasks.run_single_sample_evaluation",
-        kwargs={
-            "evaluation_record_id": eval_record_id,
-            "project_id": str(project.id),
-            "task_id": str(task.id),
-            "annotation_id": str(annotation.id),
-            "evaluation_configs": [dict(c) for c in eligible],
-            "annotation_results": annotation_results,
-            "task_data": task.data or {},
-            "organization_id": org,
-            "user_id": str(annotation.completed_by),
-        },
-        queue="celery",
-    )
-    return eval_record_id
+    return rid or str(uuid.uuid4())
 
 
 def main() -> int:
