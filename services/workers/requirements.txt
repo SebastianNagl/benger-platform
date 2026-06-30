@@ -27,7 +27,7 @@ spacy>=3.8.14,<3.9  # German NER for coherence metric (Phase 3 academic-rigor). 
 # Dockerfile.base download step for the actual install.
 de-core-news-md @ https://github.com/explosion/spacy-models/releases/download/de_core_news_md-3.7.0/de_core_news_md-3.7.0-py3-none-any.whl
 rouge-score>=0.1.2
-sacrebleu>=2.4.0
+sacrebleu>=2.6.0
 jsonschema==4.26.0
 ijson>=3.5.0  # Streaming JSON parser for memory-bounded import worker (issue #158)
 # boto3/botocore: the export/import worker streams artifacts to S3-compatible
