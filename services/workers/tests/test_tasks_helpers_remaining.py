@@ -584,6 +584,10 @@ class _AutoSubmitDB:
             q.filter.return_value.first.return_value = None
         return q
 
+    def execute(self, *args, **kwargs):
+        # advisory-lock acquisition (SELECT pg_advisory_xact_lock(...)) — no-op.
+        return None
+
     def add(self, obj):
         self.added.append(obj)
 
