@@ -341,21 +341,42 @@ def ensure_immediate_evaluation(
     )
     db.commit()
 
-    _dispatch_task(
-        "tasks.run_single_sample_evaluation",
-        {
-            "evaluation_record_id": eval_record_id,
-            "project_id": str(project.id),
-            "task_id": str(task.id),
-            "annotation_id": str(annotation.id),
-            "evaluation_configs": [dict(c) for c in cfgs],
-            "annotation_results": parse_annotation_results(annotation),
-            "task_data": task.data or {},
-            "organization_id": resolve_org(db, project, annotation.completed_by),
-            "user_id": user,
-        },
-        "celery",
-    )
+    try:
+        _dispatch_task(
+            "tasks.run_single_sample_evaluation",
+            {
+                "evaluation_record_id": eval_record_id,
+                "project_id": str(project.id),
+                "task_id": str(task.id),
+                "annotation_id": str(annotation.id),
+                "evaluation_configs": [dict(c) for c in cfgs],
+                "annotation_results": parse_annotation_results(annotation),
+                "task_data": task.data or {},
+                "organization_id": resolve_org(db, project, annotation.completed_by),
+                "user_id": user,
+            },
+            "celery",
+        )
+    except Exception:
+        # The run row is already committed as "running". If the dispatch itself
+        # failed (broker down), leaving it "running" would make
+        # `_existing_immediate_run` treat it as in-flight forever and block the
+        # hourly sweep from ever retrying this annotation. Flip it to "failed"
+        # so recovery picks it up, then re-raise for the caller to log.
+        try:
+            stuck = (
+                db.query(EvaluationRun)
+                .filter(EvaluationRun.id == eval_record_id)
+                .first()
+            )
+            if stuck is not None:
+                stuck.status = "failed"
+                stuck.error_message = "immediate-eval dispatch failed"
+                db.commit()
+        except Exception:
+            db.rollback()
+        raise
+
     logger.info(
         "[immediate-eval] dispatched run=%s annotation=%s trigger=%s metrics=%s",
         eval_record_id,
