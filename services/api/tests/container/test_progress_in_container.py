@@ -36,6 +36,35 @@ class TestProgressAlignment:
             self.db.add(self.org)
             self.db.commit()
 
+    def _seed_annotations(self, task, project, n, choice):
+        """Seed n annotations for a task, each from a DISTINCT annotator. One
+        active annotation per (task, user) is enforced by the
+        uq_annotations_active_task_user index, so a multi-annotation task is
+        reached across distinct annotators (the real-world shape)."""
+        for k in range(n):
+            annotator = User(
+                id=str(uuid.uuid4()),
+                username=f"compl-{uuid.uuid4().hex[:8]}",
+                email=f"{uuid.uuid4().hex[:8]}@example.com",
+                name=f"Annotator {k + 1}",
+                is_active=True,
+            )
+            self.db.add(annotator)
+            self.db.flush()
+            self.db.add(Annotation(
+                id=str(uuid.uuid4()),
+                task_id=task.id,
+                project_id=project.id,
+                completed_by=annotator.id,
+                result=[{
+                    "value": {"choices": [choice]},
+                    "from_name": "sentiment",
+                    "to_name": "text",
+                    "type": "choices",
+                }],
+                was_cancelled=False,
+            ))
+
     def test_multi_annotation_progress_tracking(self):
         """Test progress tracking with multiple annotations per task"""
         # Create project requiring 3 annotations per task
@@ -99,23 +128,7 @@ class TestProgressAlignment:
         self.db.commit()
 
         # Scenario 1: Task with 3 annotations (complete)
-        for j in range(3):
-            ann = Annotation(
-                id=str(uuid.uuid4()),
-                task_id=tasks[0].id,
-                project_id=project.id,
-                completed_by=self.admin.id,
-                result=[
-                    {
-                        "value": {"choices": ["positive"]},
-                        "from_name": "sentiment",
-                        "to_name": "text",
-                        "type": "choices",
-                    }
-                ],
-                was_cancelled=False,
-            )
-            self.db.add(ann)
+        self._seed_annotations(tasks[0], project, 3, "positive")
         tasks[0].total_annotations = 3
         tasks[0].is_labeled = True
         self.db.commit()
@@ -124,23 +137,7 @@ class TestProgressAlignment:
         assert tasks[0].total_annotations == 3
 
         # Scenario 2: Task with 2 annotations (incomplete)
-        for j in range(2):
-            ann = Annotation(
-                id=str(uuid.uuid4()),
-                task_id=tasks[1].id,
-                project_id=project.id,
-                completed_by=self.admin.id,
-                result=[
-                    {
-                        "value": {"choices": ["negative"]},
-                        "from_name": "sentiment",
-                        "to_name": "text",
-                        "type": "choices",
-                    }
-                ],
-                was_cancelled=False,
-            )
-            self.db.add(ann)
+        self._seed_annotations(tasks[1], project, 2, "negative")
         tasks[1].total_annotations = 2
         tasks[1].is_labeled = False  # Should not be labeled with only 2 annotations
         self.db.commit()
@@ -149,23 +146,7 @@ class TestProgressAlignment:
         assert tasks[1].total_annotations == 2
 
         # Scenario 3: Task with 4 annotations (exceeds requirement)
-        for j in range(4):
-            ann = Annotation(
-                id=str(uuid.uuid4()),
-                task_id=tasks[2].id,
-                project_id=project.id,
-                completed_by=self.admin.id,
-                result=[
-                    {
-                        "value": {"choices": ["neutral"]},
-                        "from_name": "sentiment",
-                        "to_name": "text",
-                        "type": "choices",
-                    }
-                ],
-                was_cancelled=False,
-            )
-            self.db.add(ann)
+        self._seed_annotations(tasks[2], project, 4, "neutral")
         tasks[2].total_annotations = 4
         tasks[2].is_labeled = True  # Should be labeled with 4 annotations (exceeds minimum)
         self.db.commit()
