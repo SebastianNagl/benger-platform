@@ -80,6 +80,20 @@ class TestComprehensiveRoundTrip:
         )
         session.add(test_user)
 
+        # A second annotator. One active annotation per (task, user) is enforced
+        # by the uq_annotations_active_task_user index, so the two annotations
+        # per task below come from DISTINCT annotators (the real shape for a
+        # project with min_annotations_per_task=2).
+        second_user = User(
+            id=str(uuid.uuid4()),
+            email="test2@example.com",
+            username="testuser2",
+            name="Test User Two",
+            is_active=True,
+            is_superadmin=True,
+        )
+        session.add(second_user)
+
         # Create evaluation types referenced by metrics. Idempotent: ids like
         # "accuracy" are part of the committed base catalog in the shared test
         # DB; re-inserting would raise evaluation_types_pkey UniqueViolation, so
@@ -154,6 +168,23 @@ class TestComprehensiveRoundTrip:
         )
         session.add(project_member)
 
+        # The second annotator's org + project memberships, so the round-trip
+        # export/import carries the user its annotations reference.
+        session.add(OrganizationMembership(
+            id=str(uuid.uuid4()),
+            organization_id=test_org.id,
+            user_id=second_user.id,
+            role=OrganizationRole.ANNOTATOR,
+            is_active=True,
+        ))
+        session.add(ProjectMember(
+            id=str(uuid.uuid4()),
+            project_id=project.id,
+            user_id=second_user.id,
+            role="annotator",
+            is_active=True,
+        ))
+
         # Create tasks
         tasks = []
         for i in range(5):
@@ -188,7 +219,7 @@ class TestComprehensiveRoundTrip:
                     result=[{"value": {"text": f"Annotation {j+1} for task {i+1}"}}],
                     draft=None,
                     was_cancelled=False,
-                    completed_by=test_user.id,
+                    completed_by=(test_user.id if j == 0 else second_user.id),
                     ground_truth=(j == 0),
                 )
                 annotations.append(annotation)

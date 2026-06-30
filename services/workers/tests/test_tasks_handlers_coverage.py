@@ -549,6 +549,11 @@ class _TimerFakeSession:
             return entry()
         return entry if entry is not None else _TimerFakeQuery()
 
+    def execute(self, *args, **kwargs):
+        # advisory-lock acquisition (SELECT pg_advisory_xact_lock(...)) — no-op
+        # in the fake session.
+        return None
+
     def add(self, obj):
         self.added.append(obj)
 
@@ -618,10 +623,14 @@ class TestAutoSubmitExpiredTimer:
 
     def test_existing_annotation_skips_autosubmit(self):
         ts = _make_timer_session()
-        existing = types.SimpleNamespace(id="ann-existing")
+        existing = types.SimpleNamespace(
+            id="ann-existing", project_id="proj-1", task_id="task-1",
+            completed_by="user-1",
+        )
         session = _TimerFakeSession({
             "TimerSession": _TimerFakeQuery(first=ts),
             "Annotation": _TimerFakeQuery(first=existing),
+            # No Project row -> _dispatch_immediate_eval no-ops cleanly.
         })
         with patch.object(tasks_module, "HAS_DATABASE", True):
             with _patch_timer_session(session):
@@ -631,6 +640,77 @@ class TestAutoSubmitExpiredTimer:
         assert session.commits == 1
         # No new annotation row added when the client already submitted.
         assert session.added == []
+
+    def test_autosubmit_dispatches_immediate_eval(self):
+        """A server-auto-submitted annotation fires the immediate (KI-Votum)
+        evaluation when the project has it enabled — so an absent student's
+        grade is produced at submit time, not only by the hourly sweep."""
+        ts = _make_timer_session(draft_result=[{"from_name": "answer"}])
+        task = types.SimpleNamespace(
+            id="task-1", total_annotations=0, is_labeled=False,
+        )
+        project = types.SimpleNamespace(
+            id="proj-1", min_annotations_per_task=1,
+            immediate_evaluation_enabled=True,
+        )
+        ann_calls = {"n": 0}
+
+        def annotation_query():
+            ann_calls["n"] += 1
+            if ann_calls["n"] == 1:
+                return _TimerFakeQuery(first=None)
+            return _TimerFakeQuery(count=0)
+
+        session = _TimerFakeSession({
+            "TimerSession": _TimerFakeQuery(first=ts),
+            "Annotation": annotation_query,
+            "TaskDraft": _TimerFakeQuery(first=None),
+            "Task": _TimerFakeQuery(first=task),
+            "Project": _TimerFakeQuery(first=project),
+        })
+        with patch.object(tasks_module, "HAS_DATABASE", True):
+            with _patch_timer_session(session):
+                with patch(
+                    "immediate_eval_dispatch.ensure_immediate_evaluation"
+                ) as mock_eval:
+                    out = auto_submit_expired_timer("ts-1")
+        assert out["status"] == "submitted"
+        mock_eval.assert_called_once()
+
+    def test_autosubmit_skips_eval_when_disabled(self):
+        """No immediate eval is dispatched when the project doesn't enable it
+        (community edition / non-immediate projects)."""
+        ts = _make_timer_session(draft_result=[{"from_name": "answer"}])
+        task = types.SimpleNamespace(
+            id="task-1", total_annotations=0, is_labeled=False,
+        )
+        project = types.SimpleNamespace(
+            id="proj-1", min_annotations_per_task=1,
+            immediate_evaluation_enabled=False,
+        )
+        ann_calls = {"n": 0}
+
+        def annotation_query():
+            ann_calls["n"] += 1
+            if ann_calls["n"] == 1:
+                return _TimerFakeQuery(first=None)
+            return _TimerFakeQuery(count=0)
+
+        session = _TimerFakeSession({
+            "TimerSession": _TimerFakeQuery(first=ts),
+            "Annotation": annotation_query,
+            "TaskDraft": _TimerFakeQuery(first=None),
+            "Task": _TimerFakeQuery(first=task),
+            "Project": _TimerFakeQuery(first=project),
+        })
+        with patch.object(tasks_module, "HAS_DATABASE", True):
+            with _patch_timer_session(session):
+                with patch(
+                    "immediate_eval_dispatch.ensure_immediate_evaluation"
+                ) as mock_eval:
+                    out = auto_submit_expired_timer("ts-1")
+        assert out["status"] == "submitted"
+        mock_eval.assert_not_called()
 
     def test_autosubmit_from_draft_flips_is_labeled(self):
         ts = _make_timer_session(draft_result=[{"from_name": "answer"}])

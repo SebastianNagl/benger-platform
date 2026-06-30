@@ -85,6 +85,23 @@ class TestBulkExportTasks:
         return user
 
     @pytest.fixture
+    def second_user(self, test_db_session):
+        """A second annotator — one active annotation per (task, user) means a
+        multi-annotation task is reached across distinct annotators."""
+        session = test_db_session
+        user = User(
+            id=str(uuid.uuid4()),
+            email="test2@example.com",
+            username="testuser2",
+            name="Test User Two",
+            is_active=True,
+            is_superadmin=True,
+        )
+        session.add(user)
+        session.commit()
+        return user
+
+    @pytest.fixture
     def test_project(self, test_db_session, test_user):
         """Create a test project."""
         session = test_db_session
@@ -102,9 +119,10 @@ class TestBulkExportTasks:
         return project
 
     @pytest.fixture
-    def tasks_with_annotations(self, test_db_session, test_project, test_user):
+    def tasks_with_annotations(self, test_db_session, test_project, test_user, second_user):
         """Create tasks with annotations."""
         session = test_db_session
+        annotators = [test_user, second_user]
 
         tasks = []
         annotations = []
@@ -123,14 +141,14 @@ class TestBulkExportTasks:
             session.add(task)
             session.flush()
 
-            # Add 2 annotations per task
+            # Add 2 annotations per task, from distinct annotators.
             for j in range(2):
                 annotation = Annotation(
                     id=str(uuid.uuid4()),
                     task_id=task.id,
                     project_id=test_project.id,
                     result=[{"value": {"text": [f"Label {j+1}"]}}],
-                    completed_by=test_user.id,
+                    completed_by=annotators[j].id,
                     was_cancelled=False,
                     ground_truth=(j == 0),
                     lead_time=5.5 + j,
