@@ -50,6 +50,41 @@ async def create_annotation(
     if project and not check_task_assigned_to_user(db, current_user, task_id, project):
         raise HTTPException(status_code=404, detail="Task not found")
 
+    # ---- Duplicate-submit guard (strict-timer race + auto-then-manual) ------
+    # A strict-timer task has two writers: the client auto-submit (this
+    # endpoint) AND the server-side timer worker (auto_submit_expired_timer),
+    # plus a manual submit can land after an auto-submit. Without coordination
+    # they each INSERT a near-identical row, so one student ends up with 2-4
+    # duplicate annotations on a single task (each then graded -> wasted tokens).
+    # Serialize concurrent submits for the SAME (task, user) with a
+    # transaction-scoped advisory lock (the worker takes the same lock), then,
+    # if an active annotation already exists, UPDATE it in place so the latest
+    # content wins and there is exactly one annotation per (task, user).
+    # Scoped to strict-timer projects: that is the only place the duplicate
+    # race exists (the server-side auto_submit_expired_timer worker runs only
+    # for strict timers), so non-timer annotation behavior is unchanged.
+    existing_annotation = None
+    if (
+        not (annotation.was_cancelled or False)
+        and getattr(project, "strict_timer_enabled", False)
+    ):
+        from sqlalchemy import text as _sql_text
+
+        db.execute(
+            _sql_text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
+            {"k": f"annsubmit:{task_id}:{current_user.id}"},
+        )
+        existing_annotation = (
+            db.query(Annotation)
+            .filter(
+                Annotation.task_id == task_id,
+                Annotation.completed_by == current_user.id,
+                Annotation.was_cancelled == False,  # noqa: E712
+            )
+            .order_by(Annotation.created_at.desc())
+            .first()
+        )
+
     # Generate annotation ID
     import uuid
 
@@ -65,26 +100,41 @@ async def create_annotation(
                 ai_assisted = variant.get("ai_allowed", False)
                 break
 
-    # Create annotation
-    db_annotation = Annotation(
-        id=annotation_id,
-        task_id=task_id,  # Already a string now
-        project_id=task.project_id,
-        completed_by=current_user.id,
-        result=annotation.result,
-        draft=annotation.draft,
-        was_cancelled=annotation.was_cancelled or False,
-        lead_time=server_lead_time,
-        # Enhanced timing (Issue #1208)
-        active_duration_ms=annotation.active_duration_ms,
-        focused_duration_ms=annotation.focused_duration_ms,
-        tab_switches=annotation.tab_switches or 0,
-        instruction_variant=annotation.instruction_variant,
-        ai_assisted=ai_assisted,
-    )
+    # Create the annotation — or, when a duplicate submit lands, update the
+    # existing one in place (latest content wins, no second row).
+    if existing_annotation is not None:
+        db_annotation = existing_annotation
+        db_annotation.result = annotation.result
+        db_annotation.draft = annotation.draft
+        db_annotation.lead_time = server_lead_time
+        db_annotation.active_duration_ms = annotation.active_duration_ms
+        db_annotation.focused_duration_ms = annotation.focused_duration_ms
+        db_annotation.tab_switches = annotation.tab_switches or 0
+        db_annotation.instruction_variant = annotation.instruction_variant
+        db_annotation.ai_assisted = ai_assisted
+        db_annotation.auto_submitted = annotation.auto_submitted or False
+    else:
+        db_annotation = Annotation(
+            id=annotation_id,
+            task_id=task_id,  # Already a string now
+            project_id=task.project_id,
+            completed_by=current_user.id,
+            result=annotation.result,
+            draft=annotation.draft,
+            was_cancelled=annotation.was_cancelled or False,
+            lead_time=server_lead_time,
+            # Enhanced timing (Issue #1208)
+            active_duration_ms=annotation.active_duration_ms,
+            focused_duration_ms=annotation.focused_duration_ms,
+            tab_switches=annotation.tab_switches or 0,
+            instruction_variant=annotation.instruction_variant,
+            ai_assisted=ai_assisted,
+        )
 
-    # Enforce maximum annotations limit (if not a cancelled annotation)
-    if not annotation.was_cancelled and annotation.result and len(annotation.result) > 0:
+    # Enforce maximum annotations limit (if not a cancelled annotation).
+    # Skipped on the update-in-place path — it reuses the student's existing
+    # row, so it cannot push the task over its annotation limit.
+    if existing_annotation is None and not annotation.was_cancelled and annotation.result and len(annotation.result) > 0:
         # Count existing non-cancelled annotations for this task
         existing_annotations = (
             db.query(Annotation)
@@ -105,8 +155,10 @@ async def create_annotation(
                 detail=f"Maximum annotations limit reached ({project.maximum_annotations}). Cannot add more annotations to this task.",
             )
 
-    # Update task counters for submitted annotations (those with actual results)
-    if annotation.result and len(annotation.result) > 0:
+    # Update task counters for submitted annotations (those with actual
+    # results). Only on a NEW row — the update-in-place path adds no annotation,
+    # so the counters must not move.
+    if existing_annotation is None and annotation.result and len(annotation.result) > 0:
         # total_annotations = ALL completed annotations (cancelled + not cancelled)
         task.total_annotations += 1
 
@@ -134,7 +186,8 @@ async def create_annotation(
     # Task completion status is tracked on the task itself
     # No need to update project-level counter as it's calculated dynamically
 
-    db.add(db_annotation)
+    if existing_annotation is None:
+        db.add(db_annotation)
 
     # Clear server-side draft now that annotation is submitted
     from project_models import TaskDraft

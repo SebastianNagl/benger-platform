@@ -35,7 +35,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import cast, func, select, text
+from sqlalchemy import cast, func, or_, select, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -273,12 +273,19 @@ def _count_eval_pairs(db: Session, project_id: str, cutoff: Optional[datetime]) 
         )
         .select_from(TaskEvaluation)
         .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
+        # Exclude grades whose annotation was soft-cancelled (e.g. deduped
+        # strict-timer copies), so the count reflects real, active submissions.
+        .outerjoin(Annotation, Annotation.id == TaskEvaluation.annotation_id)
         .where(
             EvaluationRun.project_id == project_id,
             EvaluationRun.status == "completed",
             subject_expr.isnot(None),
             TaskEvaluation.metrics.isnot(None),
             func.jsonb_typeof(metrics_jsonb) == "object",
+            or_(
+                TaskEvaluation.annotation_id.is_(None),
+                Annotation.was_cancelled == False,  # noqa: E712
+            ),
         )
         .distinct()
     )
