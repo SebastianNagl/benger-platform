@@ -244,15 +244,16 @@ class TestCalculateQualityMetrics:
     def test_distribution_percentages(self, test_db: Session, test_users: List[User]):
         project = _make_project(test_db, test_users[0].id)
         task = _make_task(test_db, project.id, test_users[0].id, 1)
-        # 3 completed, 1 cancelled -> 75% / 25%.
-        for _ in range(3):
+        # 3 completed (distinct annotators — one active row per (task, user)) +
+        # 1 cancelled -> 75% / 25%.
+        for annotator in (test_users[1], test_users[2], test_users[3]):
             _make_annotation(
                 test_db, task_id=task.id, project_id=project.id,
-                completed_by=test_users[1].id, result=[{"value": {"text": "ok"}}],
+                completed_by=annotator.id, result=[{"value": {"text": "ok"}}],
             )
         _make_annotation(
             test_db, task_id=task.id, project_id=project.id,
-            completed_by=test_users[2].id, result=[{"value": {"text": "bad"}}],
+            completed_by=test_users[0].id, result=[{"value": {"text": "bad"}}],
             was_cancelled=True,
         )
         test_db.commit()
@@ -300,15 +301,20 @@ class TestInterAnnotatorAgreement:
         assert svc._calculate_inter_annotator_agreement(test_db, project.id, []) == 1.0
 
     def test_single_annotator_short_circuit(self, test_db: Session, test_users: List[User]):
-        """One task annotated twice by the SAME user -> <2 distinct annotators
-        -> 1.0."""
+        """One task with one active + one withdrawn annotation from the SAME
+        user -> <2 distinct annotators -> 1.0. (The index forbids two ACTIVE
+        rows per (task, user), so the duplicate is the cancelled one.)"""
         project = _make_project(test_db, test_users[0].id)
         task = _make_task(test_db, project.id, test_users[0].id, 1)
-        for _ in range(2):
-            _make_annotation(
-                test_db, task_id=task.id, project_id=project.id,
-                completed_by=test_users[1].id, result=[{"value": {"text": "same"}}],
-            )
+        _make_annotation(
+            test_db, task_id=task.id, project_id=project.id,
+            completed_by=test_users[1].id, result=[{"value": {"text": "same"}}],
+        )
+        _make_annotation(
+            test_db, task_id=task.id, project_id=project.id,
+            completed_by=test_users[1].id, result=[{"value": {"text": "same"}}],
+            was_cancelled=True,
+        )
         test_db.commit()
 
         svc = AnalyticsService()

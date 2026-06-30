@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from auth_module.dependencies import require_user
 from auth_module.models import User as AuthUser
@@ -255,26 +256,67 @@ class TestCreateAnnotation:
         test_db.refresh(task)
         assert task.total_annotations == 1
 
-    def test_non_timer_project_does_not_dedup(
+    def test_non_timer_project_also_dedups(
         self, client, test_db, test_users, auth_headers, test_org
     ):
-        """Non-timer projects keep the prior behavior — the dedup guard is scoped
-        to strict-timer projects, so this path is unchanged."""
+        """The one-active-annotation-per-(task, user) invariant holds for ALL
+        projects, not just strict-timer ones: a second submit on a non-timer
+        project updates the row in place (latest content wins) rather than
+        inserting a duplicate. "Submitted is submitted."""
         project, tasks = _setup(test_db, test_users[0], test_org)
         hdr = {**auth_headers["admin"], "X-Organization-Context": test_org.id}
         url = f"/api/projects/tasks/{tasks[0].id}/annotations"
-        body = {"result": [{"from_name": "text", "to_name": "text", "type": "textarea",
-                            "value": {"text": ["a"]}}]}
-        assert client.post(url, json=body, headers=hdr).status_code == 200
-        assert client.post(url, json=body, headers=hdr).status_code == 200
+        first = {"result": [{"from_name": "text", "to_name": "text", "type": "textarea",
+                             "value": {"text": ["first"]}}]}
+        second = {"result": [{"from_name": "text", "to_name": "text", "type": "textarea",
+                              "value": {"text": ["second wins"]}}]}
+        r1 = client.post(url, json=first, headers=hdr)
+        r2 = client.post(url, json=second, headers=hdr)
+        assert r1.status_code == 200, r1.text
+        assert r2.status_code == 200, r2.text
         test_db.expire_all()
-        n = (
+        anns = (
             test_db.query(Annotation)
             .filter(Annotation.task_id == tasks[0].id,
-                    Annotation.completed_by == test_users[0].id)
-            .count()
+                    Annotation.completed_by == test_users[0].id,
+                    Annotation.was_cancelled == False)  # noqa: E712
+            .all()
         )
-        assert n == 2  # no dedup on non-timer projects
+        assert len(anns) == 1, "second submit must update in place, not duplicate"
+        assert "second wins" in str(anns[0].result), "latest content wins"
+        assert r1.json()["id"] == r2.json()["id"]
+
+    def test_active_annotation_unique_index_rejects_duplicate(
+        self, test_db, test_users, test_org
+    ):
+        """The partial unique index uq_annotations_active_task_user is the
+        DB-level backstop behind the advisory lock: it rejects a second ACTIVE
+        annotation for the same (task, user) regardless of which writer (client
+        endpoint, platform worker, extended worker) attempts the INSERT. A
+        cancelled row for the same pair is still allowed (partial index)."""
+        project, tasks = _setup(test_db, test_users[0], test_org)
+        test_db.add(Annotation(
+            id=_uid(), task_id=tasks[0].id, project_id=project.id,
+            completed_by=test_users[0].id, result=[{"x": 1}], was_cancelled=False,
+        ))
+        test_db.commit()
+
+        test_db.add(Annotation(
+            id=_uid(), task_id=tasks[0].id, project_id=project.id,
+            completed_by=test_users[0].id, result=[{"x": 2}], was_cancelled=False,
+        ))
+        with pytest.raises(IntegrityError):
+            test_db.commit()
+        test_db.rollback()
+
+        # A cancelled annotation for the same (task, user) is permitted — the
+        # index is partial on was_cancelled = false, so resubmits after a
+        # withdrawal are never blocked.
+        test_db.add(Annotation(
+            id=_uid(), task_id=tasks[0].id, project_id=project.id,
+            completed_by=test_users[0].id, result=[{"x": 3}], was_cancelled=True,
+        ))
+        test_db.commit()  # no IntegrityError
 
     def test_create_annotation_task_not_found(self, client, test_db, test_users, auth_headers, test_org):
         resp = client.post(

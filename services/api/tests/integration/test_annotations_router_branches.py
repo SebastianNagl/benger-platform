@@ -182,14 +182,16 @@ async def _make_task_async(db, project, *, inner_id=1, **overrides):
     return task
 
 
-async def _seed_annotation_async(db, task, project, completed_by, result=None):
+async def _seed_annotation_async(
+    db, task, project, completed_by, result=None, was_cancelled=False
+):
     ann = Annotation(
         id=str(uuid.uuid4()),
         task_id=task.id,
         project_id=project.id,
         completed_by=completed_by,
         result=result if result is not None else [{"value": {"choices": ["x"]}}],
-        was_cancelled=False,
+        was_cancelled=was_cancelled,
     )
     db.add(ann)
     await db.flush()
@@ -265,8 +267,14 @@ class TestListLatestAndEmpty:
         admin = await _make_user(async_test_db, is_superadmin=True)
         project = await _make_project_async(async_test_db, created_by=admin.id)
         task = await _make_task_async(async_test_db, project)
+        # One active + one withdrawn (cancelled) annotation from the same user.
+        # Both carry a non-empty result so both appear in the list; only one
+        # active row is permitted per (task, user) by the unique index, so the
+        # cancelled row is the realistic source of a per-annotator duplicate.
         await _seed_annotation_async(async_test_db, task, project, admin.id)
-        await _seed_annotation_async(async_test_db, task, project, admin.id)
+        await _seed_annotation_async(
+            async_test_db, task, project, admin.id, was_cancelled=True
+        )
         await async_test_db.commit()
 
         with _as_user(admin):
@@ -276,7 +284,7 @@ class TestListLatestAndEmpty:
             )
         assert resp.status_code == 200, resp.text
         body = resp.json()
-        # Two annotations from one user collapse to a single latest row.
+        # The two rows from one annotator collapse to a single latest row.
         assert len(body) == 1
         assert body[0]["completed_by"] == admin.id
 
@@ -285,12 +293,16 @@ class TestListLatestAndEmpty:
         self, async_test_client, async_test_db
     ):
         admin = await _make_user(async_test_db, is_superadmin=True)
+        other = await _make_user(async_test_db, is_superadmin=True)
         project = await _make_project_async(async_test_db, created_by=admin.id)
         task = await _make_task_async(async_test_db, project)
         real = await _seed_annotation_async(async_test_db, task, project, admin.id)
         # result == [] is filtered by the `cast(result, String) != '[]'` clause.
+        # Seeded under a different user so the active-annotation unique index
+        # (one per task+user) isn't violated — the exclusion is about the empty
+        # result, not the annotator.
         await _seed_annotation_async(
-            async_test_db, task, project, admin.id, result=[]
+            async_test_db, task, project, other.id, result=[]
         )
         await async_test_db.commit()
 
@@ -349,6 +361,7 @@ class TestCreateSideEffects:
         self, client, test_db, test_users, auth_headers
     ):
         admin = test_users[0]
+        other = test_users[1]
         project = _make_project(
             test_db,
             created_by=admin.id,
@@ -357,26 +370,32 @@ class TestCreateSideEffects:
         )
         task = _make_task(test_db, project)
 
-        first = client.post(
-            f"/api/projects/tasks/{task.id}/annotations",
-            json=_payload(),
-            headers=auth_headers["admin"],
-        )
-        assert first.status_code == 200, first.text
+        # One annotator's annotation -> 1 of 2 -> below the min -> not labeled.
+        # One active annotation per (task, user) means the min of 2 can only be
+        # reached across DISTINCT annotators, so seed the other annotator's row.
+        test_db.add(Annotation(
+            id=str(uuid.uuid4()),
+            task_id=task.id,
+            project_id=project.id,
+            completed_by=other.id,
+            result=[{"value": {"choices": ["y"]}}],
+            was_cancelled=False,
+        ))
+        test_db.commit()
         test_db.expire_all()
         after_one = test_db.query(Task).filter(Task.id == task.id).first()
-        # One non-cancelled annotation is below the min of 2 -> not labeled.
         assert after_one.is_labeled is False
 
-        second = client.post(
+        # A second, distinct annotator (admin) submits via create_annotation ->
+        # 2 of 2 -> meets the min -> the new insert flips is_labeled.
+        resp = client.post(
             f"/api/projects/tasks/{task.id}/annotations",
             json=_payload(),
             headers=auth_headers["admin"],
         )
-        assert second.status_code == 200, second.text
+        assert resp.status_code == 200, resp.text
         test_db.expire_all()
         after_two = test_db.query(Task).filter(Task.id == task.id).first()
-        # Second non-cancelled annotation meets the min -> labeled.
         assert after_two.is_labeled is True
 
 
