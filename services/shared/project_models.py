@@ -256,6 +256,26 @@ class Annotation(Base):
 
     __tablename__ = "annotations"
 
+    # One active (non-cancelled) annotation per (task, user). This is the
+    # DB-level guarantee against duplicate submissions: a strict-timer task has
+    # two concurrent writers — the client auto-submit (POST /annotations) and
+    # the server-side timer worker (tasks.auto_submit_expired_timer) — and an
+    # advisory lock alone proved fragile (the worker task name is registered by
+    # both platform and the extended overlay, so which implementation wins, and
+    # whether it holds the lock, is non-deterministic). This partial unique
+    # index rejects the second INSERT regardless; both writers catch the
+    # IntegrityError and fall back to update-in-place / skip. Partial on
+    # `was_cancelled = false` so a withdrawn annotation never blocks a resubmit.
+    __table_args__ = (
+        sa.Index(
+            "uq_annotations_active_task_user",
+            "task_id",
+            "completed_by",
+            unique=True,
+            postgresql_where=sa.text("was_cancelled = false"),
+        ),
+    )
+
     # Core fields
     id = Column(String, primary_key=True, index=True)
     task_id = Column(

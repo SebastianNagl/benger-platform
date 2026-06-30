@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from auth_module.dependencies import require_user
 from auth_module.models import User as AuthUser
@@ -199,6 +200,123 @@ class TestCreateAnnotation:
         data = resp.json()
         assert data["task_id"] == tasks[0].id
         assert data["result"] is not None
+
+    def test_strict_timer_duplicate_submit_updates_in_place(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """On a strict-timer project, a second submit for the same (task, user)
+        — the client/worker auto-submit race or an auto-then-manual submit —
+        UPDATES the one annotation (latest content wins) instead of inserting a
+        duplicate row."""
+        project = Project(
+            id=_uid(), title="Timer Dup", created_by=test_users[0].id,
+            label_config='<View><Text name="text" value="$text"/></View>',
+            assignment_mode="open", maximum_annotations=10, min_annotations_per_task=1,
+            strict_timer_enabled=True,
+        )
+        test_db.add(project)
+        test_db.flush()
+        test_db.add(ProjectOrganization(
+            id=_uid(), project_id=project.id, organization_id=test_org.id,
+            assigned_by=test_users[0].id,
+        ))
+        task = Task(id=_uid(), project_id=project.id, data={"text": "sv"},
+                    inner_id=1, created_by=test_users[0].id)
+        test_db.add(task)
+        test_db.commit()
+
+        hdr = {**auth_headers["admin"], "X-Organization-Context": test_org.id}
+        url = f"/api/projects/tasks/{task.id}/annotations"
+        r1 = client.post(url, json={
+            "result": [{"from_name": "text", "to_name": "text", "type": "textarea",
+                        "value": {"text": ["short auto"]}}],
+            "auto_submitted": True,
+        }, headers=hdr)
+        r2 = client.post(url, json={
+            "result": [{"from_name": "text", "to_name": "text", "type": "textarea",
+                        "value": {"text": ["full manual answer"]}}],
+            "auto_submitted": False,
+        }, headers=hdr)
+        assert r1.status_code == 200, r1.text
+        assert r2.status_code == 200, r2.text
+
+        test_db.expire_all()
+        anns = (
+            test_db.query(Annotation)
+            .filter(Annotation.task_id == task.id,
+                    Annotation.completed_by == test_users[0].id,
+                    Annotation.was_cancelled == False)  # noqa: E712
+            .all()
+        )
+        assert len(anns) == 1, "duplicate submit must update in place, not insert"
+        assert "full manual answer" in str(anns[0].result), "latest content wins"
+        assert anns[0].auto_submitted is False
+        assert r1.json()["id"] == r2.json()["id"]
+        # counter must not double-count the in-place update
+        test_db.refresh(task)
+        assert task.total_annotations == 1
+
+    def test_non_timer_project_also_dedups(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """The one-active-annotation-per-(task, user) invariant holds for ALL
+        projects, not just strict-timer ones: a second submit on a non-timer
+        project updates the row in place (latest content wins) rather than
+        inserting a duplicate. "Submitted is submitted."""
+        project, tasks = _setup(test_db, test_users[0], test_org)
+        hdr = {**auth_headers["admin"], "X-Organization-Context": test_org.id}
+        url = f"/api/projects/tasks/{tasks[0].id}/annotations"
+        first = {"result": [{"from_name": "text", "to_name": "text", "type": "textarea",
+                             "value": {"text": ["first"]}}]}
+        second = {"result": [{"from_name": "text", "to_name": "text", "type": "textarea",
+                              "value": {"text": ["second wins"]}}]}
+        r1 = client.post(url, json=first, headers=hdr)
+        r2 = client.post(url, json=second, headers=hdr)
+        assert r1.status_code == 200, r1.text
+        assert r2.status_code == 200, r2.text
+        test_db.expire_all()
+        anns = (
+            test_db.query(Annotation)
+            .filter(Annotation.task_id == tasks[0].id,
+                    Annotation.completed_by == test_users[0].id,
+                    Annotation.was_cancelled == False)  # noqa: E712
+            .all()
+        )
+        assert len(anns) == 1, "second submit must update in place, not duplicate"
+        assert "second wins" in str(anns[0].result), "latest content wins"
+        assert r1.json()["id"] == r2.json()["id"]
+
+    def test_active_annotation_unique_index_rejects_duplicate(
+        self, test_db, test_users, test_org
+    ):
+        """The partial unique index uq_annotations_active_task_user is the
+        DB-level backstop behind the advisory lock: it rejects a second ACTIVE
+        annotation for the same (task, user) regardless of which writer (client
+        endpoint, platform worker, extended worker) attempts the INSERT. A
+        cancelled row for the same pair is still allowed (partial index)."""
+        project, tasks = _setup(test_db, test_users[0], test_org)
+        test_db.add(Annotation(
+            id=_uid(), task_id=tasks[0].id, project_id=project.id,
+            completed_by=test_users[0].id, result=[{"x": 1}], was_cancelled=False,
+        ))
+        test_db.commit()
+
+        test_db.add(Annotation(
+            id=_uid(), task_id=tasks[0].id, project_id=project.id,
+            completed_by=test_users[0].id, result=[{"x": 2}], was_cancelled=False,
+        ))
+        with pytest.raises(IntegrityError):
+            test_db.commit()
+        test_db.rollback()
+
+        # A cancelled annotation for the same (task, user) is permitted — the
+        # index is partial on was_cancelled = false, so resubmits after a
+        # withdrawal are never blocked.
+        test_db.add(Annotation(
+            id=_uid(), task_id=tasks[0].id, project_id=project.id,
+            completed_by=test_users[0].id, result=[{"x": 3}], was_cancelled=True,
+        ))
+        test_db.commit()  # no IntegrityError
 
     def test_create_annotation_task_not_found(self, client, test_db, test_users, auth_headers, test_org):
         resp = client.post(

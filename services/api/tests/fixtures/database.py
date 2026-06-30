@@ -69,6 +69,18 @@ def _create_tables():
                     "AND (eval_metadata ->> 'evaluation_type') = 'korrektur_custom'"
                 )
             )
+            # Migration 064: one active annotation per (task, user). Declared on
+            # the Annotation model, but force it in idempotently too so a
+            # long-lived test DB bootstrapped before it landed still gets the
+            # backstop the IntegrityError path depends on.
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS "
+                    "uq_annotations_active_task_user "
+                    "ON annotations (task_id, completed_by) "
+                    "WHERE was_cancelled = false"
+                )
+            )
             conn.execute(
                 text(
                     "ALTER TABLE task_evaluations "

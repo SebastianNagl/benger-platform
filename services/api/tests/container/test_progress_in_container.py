@@ -9,7 +9,7 @@ from datetime import datetime
 import pytest
 from sqlalchemy.orm import Session
 
-from models import Organization
+from models import Organization, User
 from project_models import Annotation, Project, Task
 
 
@@ -326,13 +326,25 @@ class TestProgressAlignment:
             self.db.add(task)
             self.db.commit()
 
-            # Add exactly the minimum required annotations
+            # Add exactly the minimum required annotations, each from a DISTINCT
+            # annotator — one active annotation per (task, user) is enforced by
+            # the uq_annotations_active_task_user index, so a multi-annotation
+            # task is reached across distinct annotators (the real-world shape).
             for j in range(expected_min):
+                annotator = User(
+                    id=str(uuid.uuid4()),
+                    username=f"prog-annotator-{uuid.uuid4().hex[:8]}",
+                    email=f"{uuid.uuid4().hex[:8]}@example.com",
+                    name=f"Annotator {j + 1}",
+                    is_active=True,
+                )
+                self.db.add(annotator)
+                self.db.flush()
                 ann = Annotation(
                     id=str(uuid.uuid4()),
                     task_id=task.id,
                     project_id=project.id,
-                    completed_by=self.admin.id,
+                    completed_by=annotator.id,
                     result=[{"value": {"text": f"Annotation {j+1}"}}],
                     was_cancelled=False,
                 )

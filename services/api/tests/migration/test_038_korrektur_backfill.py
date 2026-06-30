@@ -193,11 +193,26 @@ def _seed_orphan_run_with_eval(
     # with NULL annotation_id would be exact cell duplicates — the replayed
     # migration would die on the index. Distinct annotations also match the
     # real korrektur shape (one grade per annotation).
+    #
+    # The annotation's author is a distinct SUBMITTER (a student), NOT the
+    # grader: migration 064's uq_annotations_active_task_user allows one active
+    # annotation per (task, user), so the same grader grading the same task
+    # twice must grade two different submitters' annotations. The grader is
+    # tracked via judge_prompts_used.grader_user_id below, not completed_by.
+    submitter = User(
+        id=str(uuid.uuid4()),
+        username=f"sub-{uuid.uuid4().hex[:10]}",
+        email=f"{uuid.uuid4().hex[:10]}@example.com",
+        name="Submitter",
+        is_active=True,
+    )
+    db.add(submitter)
+    db.flush()
     annotation = Annotation(
         id=str(uuid.uuid4()),
         task_id=task.id,
         project_id=project.id,
-        completed_by=grader.id,
+        completed_by=submitter.id,
         result=[],
         was_cancelled=False,
     )

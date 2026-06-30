@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import String, cast, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -50,6 +51,44 @@ async def create_annotation(
     if project and not check_task_assigned_to_user(db, current_user, task_id, project):
         raise HTTPException(status_code=404, detail="Task not found")
 
+    # ---- Duplicate-submit guard (one active annotation per task+user) -------
+    # "Submitted is submitted": a given user has exactly one active annotation
+    # per task. A strict-timer task has two concurrent writers — the client
+    # auto-submit (this endpoint) AND the server-side timer worker
+    # (tasks.auto_submit_expired_timer) — and a manual resubmit can land after
+    # an auto-submit. Without coordination they each INSERT a near-identical
+    # row, so one student ends up with 2-4 duplicate annotations (each then
+    # graded -> wasted tokens, inflated counts).
+    #
+    # Two layers enforce the invariant, for ALL projects (not just timed ones —
+    # a user resubmitting on any project should update, never duplicate):
+    #   1. A transaction-scoped advisory lock serializes concurrent submits for
+    #      the SAME (task, user); if an active annotation already exists we
+    #      UPDATE it in place (latest content wins).
+    #   2. The partial unique index uq_annotations_active_task_user is the
+    #      backstop the lock can't guarantee alone — the timer worker's task is
+    #      registered non-deterministically (platform vs extended overlay) and
+    #      may not hold the same lock. If a concurrent INSERT slips through, the
+    #      index trips IntegrityError and we fall back to update-in-place below.
+    existing_annotation = None
+    if not (annotation.was_cancelled or False):
+        from sqlalchemy import text as _sql_text
+
+        db.execute(
+            _sql_text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
+            {"k": f"annsubmit:{task_id}:{current_user.id}"},
+        )
+        existing_annotation = (
+            db.query(Annotation)
+            .filter(
+                Annotation.task_id == task_id,
+                Annotation.completed_by == current_user.id,
+                Annotation.was_cancelled == False,  # noqa: E712
+            )
+            .order_by(Annotation.created_at.desc())
+            .first()
+        )
+
     # Generate annotation ID
     import uuid
 
@@ -65,26 +104,47 @@ async def create_annotation(
                 ai_assisted = variant.get("ai_allowed", False)
                 break
 
-    # Create annotation
-    db_annotation = Annotation(
-        id=annotation_id,
-        task_id=task_id,  # Already a string now
-        project_id=task.project_id,
-        completed_by=current_user.id,
-        result=annotation.result,
-        draft=annotation.draft,
-        was_cancelled=annotation.was_cancelled or False,
-        lead_time=server_lead_time,
-        # Enhanced timing (Issue #1208)
-        active_duration_ms=annotation.active_duration_ms,
-        focused_duration_ms=annotation.focused_duration_ms,
-        tab_switches=annotation.tab_switches or 0,
-        instruction_variant=annotation.instruction_variant,
-        ai_assisted=ai_assisted,
-    )
+    # Copy the submitted fields onto an annotation row. Used both for the
+    # in-place update of an existing row and for the IntegrityError fallback
+    # below when a concurrent writer wins the INSERT race.
+    def _apply_submission(target):
+        target.result = annotation.result
+        target.draft = annotation.draft
+        target.lead_time = server_lead_time
+        target.active_duration_ms = annotation.active_duration_ms
+        target.focused_duration_ms = annotation.focused_duration_ms
+        target.tab_switches = annotation.tab_switches or 0
+        target.instruction_variant = annotation.instruction_variant
+        target.ai_assisted = ai_assisted
+        target.auto_submitted = annotation.auto_submitted or False
 
-    # Enforce maximum annotations limit (if not a cancelled annotation)
-    if not annotation.was_cancelled and annotation.result and len(annotation.result) > 0:
+    # Create the annotation — or, when a duplicate submit lands, update the
+    # existing one in place (latest content wins, no second row).
+    if existing_annotation is not None:
+        db_annotation = existing_annotation
+        _apply_submission(db_annotation)
+    else:
+        db_annotation = Annotation(
+            id=annotation_id,
+            task_id=task_id,  # Already a string now
+            project_id=task.project_id,
+            completed_by=current_user.id,
+            result=annotation.result,
+            draft=annotation.draft,
+            was_cancelled=annotation.was_cancelled or False,
+            lead_time=server_lead_time,
+            # Enhanced timing (Issue #1208)
+            active_duration_ms=annotation.active_duration_ms,
+            focused_duration_ms=annotation.focused_duration_ms,
+            tab_switches=annotation.tab_switches or 0,
+            instruction_variant=annotation.instruction_variant,
+            ai_assisted=ai_assisted,
+        )
+
+    # Enforce maximum annotations limit (if not a cancelled annotation).
+    # Skipped on the update-in-place path — it reuses the student's existing
+    # row, so it cannot push the task over its annotation limit.
+    if existing_annotation is None and not annotation.was_cancelled and annotation.result and len(annotation.result) > 0:
         # Count existing non-cancelled annotations for this task
         existing_annotations = (
             db.query(Annotation)
@@ -105,8 +165,10 @@ async def create_annotation(
                 detail=f"Maximum annotations limit reached ({project.maximum_annotations}). Cannot add more annotations to this task.",
             )
 
-    # Update task counters for submitted annotations (those with actual results)
-    if annotation.result and len(annotation.result) > 0:
+    # Update task counters for submitted annotations (those with actual
+    # results). Only on a NEW row — the update-in-place path adds no annotation,
+    # so the counters must not move.
+    if existing_annotation is None and annotation.result and len(annotation.result) > 0:
         # total_annotations = ALL completed annotations (cancelled + not cancelled)
         task.total_annotations += 1
 
@@ -134,7 +196,8 @@ async def create_annotation(
     # Task completion status is tracked on the task itself
     # No need to update project-level counter as it's calculated dynamically
 
-    db.add(db_annotation)
+    if existing_annotation is None:
+        db.add(db_annotation)
 
     # Clear server-side draft now that annotation is submitted
     from project_models import TaskDraft
@@ -144,7 +207,37 @@ async def create_annotation(
         TaskDraft.user_id == current_user.id,
     ).delete()
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # A concurrent writer (the timer worker, or another in-flight request)
+        # inserted the active row for this (task, user) first, tripping
+        # uq_annotations_active_task_user. Adopt the surviving row and update it
+        # in place — latest content wins. The winner already moved the task
+        # counters, so we must NOT re-apply them here (hence no counter work on
+        # this path); just fold in this submission's content.
+        db.rollback()
+        existing_annotation = (
+            db.query(Annotation)
+            .filter(
+                Annotation.task_id == task_id,
+                Annotation.completed_by == current_user.id,
+                Annotation.was_cancelled == False,  # noqa: E712
+            )
+            .order_by(Annotation.created_at.desc())
+            .first()
+        )
+        if existing_annotation is None:
+            # No surviving row — the IntegrityError was not the dup race; re-raise.
+            raise
+        db_annotation = existing_annotation
+        _apply_submission(db_annotation)
+        db.query(TaskDraft).filter(
+            TaskDraft.task_id == task_id,
+            TaskDraft.user_id == current_user.id,
+        ).delete()
+        db.commit()
+
     db.refresh(db_annotation)
 
     # Notify extended features (e.g. timer session completion)

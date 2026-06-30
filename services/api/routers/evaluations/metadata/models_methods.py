@@ -226,6 +226,47 @@ async def get_evaluated_models(
                     if coerced is not None:
                         eval_data[model_id]["all_scores"].append(coerced)
 
+        # Attach immediate / human-graded run scores to the synthetic annotator
+        # rows. Those runs carry model_id="immediate" (filtered out of
+        # all_model_ids above), so the loop over `evaluations` never sees them
+        # and the annotator rows would otherwise show N/A. The link is
+        # run.created_by (the submitter) -> the annotator's synthetic row.
+        from routers.evaluations.results import _coerce_metric_value
+
+        user_to_annotator: dict[str, str] = {}
+        for syn_id, uids in annotator_user_ids.items():
+            for uid in uids:
+                user_to_annotator[uid] = syn_id
+
+        if user_to_annotator:
+            immediate_runs = (
+                (
+                    await db.execute(
+                        select(DBEvaluationRun).where(
+                            DBEvaluationRun.project_id == project_id,
+                            DBEvaluationRun.model_id == "immediate",
+                            DBEvaluationRun.status == "completed",
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            for run in immediate_runs:
+                syn_id = user_to_annotator.get(run.created_by)
+                if not syn_id or syn_id not in eval_data:
+                    continue
+                eval_data[syn_id]["evaluation_count"] += 1
+                eval_data[syn_id]["total_samples"] += run.samples_evaluated or 0
+                if run.completed_at:
+                    last = eval_data[syn_id]["last_evaluated"]
+                    if last is None or run.completed_at > last:
+                        eval_data[syn_id]["last_evaluated"] = run.completed_at
+                for _metric_name, value in (run.metrics or {}).items():
+                    coerced = _coerce_metric_value(value)
+                    if coerced is not None:
+                        eval_data[syn_id]["all_scores"].append(coerced)
+
         # Build result list. Annotator rows expand into one entry per
         # underlying user_id so two distinct users sharing a display name
         # surface as two pickable rows in the eval modal (otherwise the

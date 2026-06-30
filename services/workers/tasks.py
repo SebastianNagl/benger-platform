@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import redis
 from dotenv import load_dotenv
-from sqlalchemy.exc import DBAPIError, OperationalError
+from sqlalchemy.exc import DBAPIError, IntegrityError, OperationalError
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -773,6 +773,45 @@ def cleanup_project_data(project_id: str) -> Dict[str, Any]:
         return {"status": "error", "project_id": project_id, "message": str(e)}
 
 
+def _dispatch_immediate_eval(db, annotation) -> None:
+    """Fire the immediate (KI-Votum) evaluation for a server-auto-submitted
+    annotation, so an absent student's grade is produced at submit time rather
+    than waiting for the hourly missing-only sweep.
+
+    No-op unless the project has ``immediate_evaluation_enabled`` AND an eligible
+    metric, so it is inert in the community edition (no immediate metrics). The
+    underlying ``ensure_immediate_evaluation`` is an idempotent get-or-create, so
+    this never double-dispatches even when the present-student client path also
+    fired it. Never raises — an eval-dispatch failure must not fail auto-submit.
+    """
+    try:
+        from project_models import Project, Task
+
+        project = (
+            db.query(Project).filter(Project.id == annotation.project_id).first()
+        )
+        if not project or not getattr(project, "immediate_evaluation_enabled", False):
+            return
+        task = db.query(Task).filter(Task.id == annotation.task_id).first()
+        if not task:
+            return
+        from immediate_eval_dispatch import ensure_immediate_evaluation
+
+        ensure_immediate_evaluation(
+            db,
+            project,
+            task,
+            annotation,
+            user_id=annotation.completed_by,
+            trigger="timer_auto_submit",
+        )
+    except Exception as e:  # noqa: BLE001 — dispatch must never fail auto-submit
+        logger.warning(
+            f"immediate-eval dispatch on auto-submit failed "
+            f"(annotation {getattr(annotation, 'id', None)}): {e}"
+        )
+
+
 @app.task(name="tasks.auto_submit_expired_timer")
 def auto_submit_expired_timer(session_id: str) -> Dict[str, Any]:
     """Server-side auto-submit when a strict timer expires.
@@ -815,16 +854,34 @@ def auto_submit_expired_timer(session_id: str) -> Dict[str, Any]:
                 "reason": "korrektur sessions don't auto-grade",
             }
 
-        # Check if user already has an annotation for this task (client beat us)
+        # Serialize against the client auto-submit using the SAME advisory key
+        # the /annotations endpoint uses, so a present student's client POST and
+        # this worker can't both INSERT a row for this (task, user). The partial
+        # unique index uq_annotations_active_task_user is the hard backstop if
+        # the lock is ever bypassed (handled below) — this task name is
+        # registered by BOTH platform and the extended overlay, so which
+        # implementation wins (and whether it locks) is non-deterministic.
+        from sqlalchemy import text as _sql_text
+        db.execute(
+            _sql_text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
+            {"k": f"annsubmit:{session.task_id}:{session.user_id}"},
+        )
+
+        # Check if user already has an active annotation for this task (client
+        # beat us). Fire the immediate eval on it too: the present-student
+        # client path also dispatches, but ensure_immediate_evaluation is an
+        # idempotent get-or-create, so this never double-grades.
         existing = db.query(Annotation).filter(
             Annotation.task_id == session.task_id,
             Annotation.completed_by == session.user_id,
+            Annotation.was_cancelled == False,  # noqa: E712
         ).first()
         if existing:
             now = datetime.now(timezone.utc)
             session.completed_at = now
             session.auto_submitted = True
             db.commit()
+            _dispatch_immediate_eval(db, existing)
             return {"status": "skipped", "reason": "annotation already exists"}
 
         # Use draft if available: try timer session first, then task_drafts table
@@ -870,9 +927,36 @@ def auto_submit_expired_timer(session_id: str) -> Dict[str, Any]:
         # Complete the timer session
         session.completed_at = now
         session.auto_submitted = True
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            # Lost the INSERT race to the client despite the advisory lock (a
+            # bypassed/duplicate worker registration can skip it). The client's
+            # row is authoritative: adopt it, complete the session, and fire the
+            # eval on the surviving annotation.
+            db.rollback()
+            session = db.query(TimerSession).filter(
+                TimerSession.id == session_id
+            ).first()
+            existing = (
+                db.query(Annotation).filter(
+                    Annotation.task_id == session.task_id,
+                    Annotation.completed_by == session.user_id,
+                    Annotation.was_cancelled == False,  # noqa: E712
+                ).first()
+                if session
+                else None
+            )
+            if session and not session.completed_at:
+                session.completed_at = datetime.now(timezone.utc)
+                session.auto_submitted = True
+                db.commit()
+            if existing:
+                _dispatch_immediate_eval(db, existing)
+            return {"status": "skipped", "reason": "client beat us (integrity)"}
 
         logger.info(f"Server-side auto-submit for session {session_id}: annotation {annotation.id}")
+        _dispatch_immediate_eval(db, annotation)
         return {"status": "submitted", "annotation_id": annotation.id}
 
     except Exception as e:
@@ -3327,9 +3411,9 @@ def finalize_evaluation_run(
 def recompute_aggregates(self):
     """Refresh the precomputed leaderboard + project-summary tables.
 
-    Runs every 12h via beat (see `app.conf.beat_schedule` above) and can be
-    triggered ad-hoc. Coalesces concurrent runs with a Redis lock so a burst
-    of triggers collapses to a single execution.
+    Runs hourly via beat (see `app.conf.beat_schedule`) and can be triggered
+    ad-hoc. Coalesces concurrent runs with a Redis lock so a burst of triggers
+    collapses to a single execution.
 
     The heavy SQL lives in `services/api/services/aggregate_summaries.py`;
     this is the Celery entry point. Total wall time on prod-scale data
@@ -3401,6 +3485,69 @@ def recompute_aggregates(self):
                 rc.delete(lock_key)
             except Exception:
                 pass
+
+
+@app.task(name="tasks.sweep_missing_immediate_evals", bind=True)
+def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
+    """Hourly server-side backstop for the client-fired KI-Votum.
+
+    Immediate evaluation is normally produced on submit (the on_annotation_created
+    hook, the strict-timer auto-submit worker, or the client POST). This sweep is
+    the last safety net: it scans every immediate-eval project and re-dispatches a
+    grade for any annotation that still has none (lost client POST, worker crash,
+    etc.). Idempotent — ``ensure_immediate_evaluation`` skips annotations that
+    already carry a grade or an in-flight run. ``min_age_minutes`` skips very
+    recent submits (via the scan cutoff) so an in-flight client eval isn't raced.
+    """
+    from datetime import datetime as _dt
+    from datetime import timedelta, timezone
+
+    from immediate_eval_dispatch import ensure_immediate_evaluation, scan_ungraded
+    from project_models import Project
+
+    db = SessionLocal()
+    cutoff = _dt.now(timezone.utc) - timedelta(minutes=min_age_minutes)
+    scanned_projects = dispatched = 0
+    try:
+        projects = (
+            db.query(Project)
+            .filter(Project.immediate_evaluation_enabled == True)  # noqa: E712
+            .all()
+        )
+        for project in projects:
+            candidates, _partials = scan_ungraded(db, project, cutoff=cutoff)
+            if not candidates:
+                continue
+            scanned_projects += 1
+            for annotation, task in candidates:
+                try:
+                    # cutoff already applied in scan_ungraded → no min-age here.
+                    rid = ensure_immediate_evaluation(
+                        db, project, task, annotation,
+                        trigger="sweep_missing_immediate_evals",
+                    )
+                    if rid:
+                        dispatched += 1
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(
+                        "sweep_missing_immediate_evals: annotation %s failed: %s",
+                        annotation.id, exc,
+                    )
+                    db.rollback()
+        logger.info(
+            "sweep_missing_immediate_evals: projects_with_gaps=%d dispatched=%d",
+            scanned_projects, dispatched,
+        )
+        return {"status": "success", "projects_with_gaps": scanned_projects, "dispatched": dispatched}
+    except Exception as exc:
+        logger.error("sweep_missing_immediate_evals failed: %s", exc, exc_info=True)
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return {"status": "error", "error": str(exc)}
+    finally:
+        db.close()
 
 
 @app.task(name="tasks.update_report_annotations_async", bind=True)

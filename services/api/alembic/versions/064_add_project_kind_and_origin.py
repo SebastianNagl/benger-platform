@@ -28,7 +28,10 @@ import sqlalchemy as sa
 
 
 revision = "064_add_project_kind_and_origin"
-down_revision = "063_generation_pause_resume_retry"
+# Re-parented onto the unique-index migration so the chain stays linear after
+# main's 064_annotation_active_unique_index landed (both originally chained off
+# 063). New order: 063 -> 064_annotation_active_unique_index -> this -> 065...
+down_revision = "064_annotation_active_unique_index"
 branch_labels = None
 depends_on = None
 
