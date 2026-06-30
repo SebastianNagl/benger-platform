@@ -7,6 +7,12 @@ helper.
 """
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
+# NOTE: the star import above is this package's OWN `multi_field/_common`, which
+# does NOT export the score-coercion helper. Import it explicitly from the
+# results package (same source `models_methods` uses) so the aggregate-score
+# calc below can coerce both bare-float and {value,…} metric shapes.
+from routers.evaluations.results._common import _coerce_metric_value  # noqa: E402,F401
+
 
 async def _resolve_scope_block(
     db: AsyncSession,
