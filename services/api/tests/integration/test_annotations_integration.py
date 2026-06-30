@@ -200,6 +200,82 @@ class TestCreateAnnotation:
         assert data["task_id"] == tasks[0].id
         assert data["result"] is not None
 
+    def test_strict_timer_duplicate_submit_updates_in_place(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """On a strict-timer project, a second submit for the same (task, user)
+        — the client/worker auto-submit race or an auto-then-manual submit —
+        UPDATES the one annotation (latest content wins) instead of inserting a
+        duplicate row."""
+        project = Project(
+            id=_uid(), title="Timer Dup", created_by=test_users[0].id,
+            label_config='<View><Text name="text" value="$text"/></View>',
+            assignment_mode="open", maximum_annotations=10, min_annotations_per_task=1,
+            strict_timer_enabled=True,
+        )
+        test_db.add(project)
+        test_db.flush()
+        test_db.add(ProjectOrganization(
+            id=_uid(), project_id=project.id, organization_id=test_org.id,
+            assigned_by=test_users[0].id,
+        ))
+        task = Task(id=_uid(), project_id=project.id, data={"text": "sv"},
+                    inner_id=1, created_by=test_users[0].id)
+        test_db.add(task)
+        test_db.commit()
+
+        hdr = {**auth_headers["admin"], "X-Organization-Context": test_org.id}
+        url = f"/api/projects/tasks/{task.id}/annotations"
+        r1 = client.post(url, json={
+            "result": [{"from_name": "text", "to_name": "text", "type": "textarea",
+                        "value": {"text": ["short auto"]}}],
+            "auto_submitted": True,
+        }, headers=hdr)
+        r2 = client.post(url, json={
+            "result": [{"from_name": "text", "to_name": "text", "type": "textarea",
+                        "value": {"text": ["full manual answer"]}}],
+            "auto_submitted": False,
+        }, headers=hdr)
+        assert r1.status_code == 200, r1.text
+        assert r2.status_code == 200, r2.text
+
+        test_db.expire_all()
+        anns = (
+            test_db.query(Annotation)
+            .filter(Annotation.task_id == task.id,
+                    Annotation.completed_by == test_users[0].id,
+                    Annotation.was_cancelled == False)  # noqa: E712
+            .all()
+        )
+        assert len(anns) == 1, "duplicate submit must update in place, not insert"
+        assert "full manual answer" in str(anns[0].result), "latest content wins"
+        assert anns[0].auto_submitted is False
+        assert r1.json()["id"] == r2.json()["id"]
+        # counter must not double-count the in-place update
+        test_db.refresh(task)
+        assert task.total_annotations == 1
+
+    def test_non_timer_project_does_not_dedup(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """Non-timer projects keep the prior behavior — the dedup guard is scoped
+        to strict-timer projects, so this path is unchanged."""
+        project, tasks = _setup(test_db, test_users[0], test_org)
+        hdr = {**auth_headers["admin"], "X-Organization-Context": test_org.id}
+        url = f"/api/projects/tasks/{tasks[0].id}/annotations"
+        body = {"result": [{"from_name": "text", "to_name": "text", "type": "textarea",
+                            "value": {"text": ["a"]}}]}
+        assert client.post(url, json=body, headers=hdr).status_code == 200
+        assert client.post(url, json=body, headers=hdr).status_code == 200
+        test_db.expire_all()
+        n = (
+            test_db.query(Annotation)
+            .filter(Annotation.task_id == tasks[0].id,
+                    Annotation.completed_by == test_users[0].id)
+            .count()
+        )
+        assert n == 2  # no dedup on non-timer projects
+
     def test_create_annotation_task_not_found(self, client, test_db, test_users, auth_headers, test_org):
         resp = client.post(
             "/api/projects/tasks/nonexistent-task/annotations",

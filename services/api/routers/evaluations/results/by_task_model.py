@@ -190,7 +190,10 @@ async def get_results_by_task_model(
                     )
                     .label("rn"),
                 )
-                .where(Annotation.completed_by.isnot(None))
+                .where(
+                    Annotation.completed_by.isnot(None),
+                    Annotation.was_cancelled == False,  # noqa: E712
+                )
                 .subquery()
             )
             latest_ann_ids = (
@@ -687,6 +690,7 @@ async def get_project_results_by_task_model(
                 )
                 .where(
                     Annotation.completed_by.isnot(None),
+                    Annotation.was_cancelled == False,  # noqa: E712
                     Annotation.task_id.in_(select(project_task_ids.c.id)),
                 )
                 .subquery()
