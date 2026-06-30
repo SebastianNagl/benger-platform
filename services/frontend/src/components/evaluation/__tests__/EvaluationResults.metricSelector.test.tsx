@@ -29,6 +29,7 @@ type EvalRun = {
   evaluation_id: string
   status: string
   samples_evaluated: number | null
+  model_id?: string
   evaluation_configs?: Array<{
     metric: string
     id?: string
@@ -57,12 +58,13 @@ function groupRunsByConfig(runs: EvalRun[]): ConfigEntry[] {
       Array.isArray(e.evaluation_configs) && e.evaluation_configs.length > 0
         ? e.evaluation_configs
         : [{ metric: 'unknown', id: '', display_name: undefined } as any]
+    const isImmediate = e.model_id === 'immediate'
     for (const cfg of cfgs) {
-      const cfgId = cfg?.id || cfg?.metric || 'unknown'
       const metric = cfg?.metric || 'unknown'
+      const cfgId = isImmediate ? metric : (cfg?.id || cfg?.metric || 'unknown')
       const existing = byConfig.get(cfgId)
       if (existing) {
-        if (!existing.runIds.includes(e.evaluation_id)) {
+        if (!isImmediate && !existing.runIds.includes(e.evaluation_id)) {
           existing.runIds.push(e.evaluation_id)
         }
         existing.samplesEvaluated = Math.max(
@@ -76,7 +78,7 @@ function groupRunsByConfig(runs: EvalRun[]): ConfigEntry[] {
           configId: cfgId,
           displayName: cfg?.display_name || metric || 'Unknown',
           samplesEvaluated: e.samples_evaluated || 0,
-          runIds: [e.evaluation_id],
+          runIds: isImmediate ? [] : [e.evaluation_id],
         })
       }
     }
@@ -377,6 +379,52 @@ describe('availableMetricRuns surfaces enabled configs without a run (human eval
     ]
     const result = mergeEnabledConfigs([], configs, ['cfg-b'])
     expect(result.map((r) => r.id)).toEqual(['cfg-b'])
+  })
+})
+
+// The Probeklausur prod regression: per-annotation immediate ("KI-Votum")
+// runs are one EvaluationRun per annotation. The same metric's runs carried
+// inconsistent config ids (graded runs a bare metric id, empty-submission
+// runs a full `<metric>-<hash>` id), splitting one metric into two same-named
+// dropdown entries — and the empty-runs group pinned by-task-model to
+// grade-less runs, rendering every annotator N/A. Immediate runs must collapse
+// under the metric name with EMPTY runIds (so the fetch sends only `?metric=`).
+describe('availableMetricRuns collapses per-annotation immediate runs', () => {
+  it('merges immediate runs under the metric with empty runIds despite inconsistent config ids', () => {
+    const runs: EvalRun[] = [
+      {
+        evaluation_id: 'graded-1', model_id: 'immediate', status: 'completed', samples_evaluated: 1,
+        evaluation_configs: [{ metric: 'llm_judge_falloesung', id: 'llm_judge_falloesung', display_name: 'Falllösung LLM Judge' }],
+      },
+      {
+        evaluation_id: 'graded-2', model_id: 'immediate', status: 'completed', samples_evaluated: 1,
+        evaluation_configs: [{ metric: 'llm_judge_falloesung', id: 'llm_judge_falloesung', display_name: 'Falllösung LLM Judge' }],
+      },
+      {
+        evaluation_id: 'empty-1', model_id: 'immediate', status: 'completed', samples_evaluated: 0,
+        evaluation_configs: [{ metric: 'llm_judge_falloesung', id: 'llm_judge_falloesung-mqs141q8-o2oh', display_name: 'Falllösung LLM Judge' }],
+      },
+    ]
+    const result = groupRunsByConfig(runs)
+    // One entry keyed by metric — NOT split by the inconsistent config ids.
+    expect(result).toHaveLength(1)
+    expect(result[0].id).toBe('llm_judge_falloesung')
+    expect(result[0].metric).toBe('llm_judge_falloesung')
+    // Empty runIds → by-task-model sends only `?metric=` and scans every run,
+    // so every annotator's grade surfaces instead of all-N/A.
+    expect(result[0].runIds).toEqual([])
+  })
+
+  it('leaves non-immediate (model-comparison) runs pinned to their run ids', () => {
+    const runs: EvalRun[] = [
+      {
+        evaluation_id: 'r1', model_id: 'gpt-5', status: 'completed', samples_evaluated: 10,
+        evaluation_configs: [{ metric: 'llm_judge_falloesung', id: 'cfg-judge' }],
+      },
+    ]
+    const result = groupRunsByConfig(runs)
+    expect(result[0].id).toBe('cfg-judge')
+    expect(result[0].runIds).toEqual(['r1'])
   })
 })
 

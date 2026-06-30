@@ -189,12 +189,24 @@ export function EvaluationResults({
         Array.isArray(e.evaluation_configs) && e.evaluation_configs.length > 0
           ? e.evaluation_configs
           : [{ metric: 'unknown', id: '', display_name: undefined } as any]
+      // Per-annotation immediate ("KI-Votum") runs are one EvaluationRun per
+      // submitted annotation. The same metric's runs can carry INCONSISTENT
+      // config ids in eval_metadata (the worker stamps a bare metric id once
+      // graded; the dispatcher a full `<metric>-<hash>` id), which would split
+      // one metric into several dropdown entries — and pinning the
+      // by-task-model fetch to any single subset silently drops the rest
+      // (e.g. the all-empty-submission runs form their own group that renders
+      // all-N/A). Collapse them under the metric name with EMPTY runIds,
+      // exactly like the human-graded metrics in the loop below, so the
+      // by-task-model fetch sends only `?metric=` and the endpoint scans EVERY
+      // run for that metric (results.py) — surfacing every annotator's grade.
+      const isImmediate = e.model_id === 'immediate'
       for (const cfg of cfgs) {
-        const cfgId = cfg?.id || cfg?.metric || 'unknown'
         const metric = cfg?.metric || 'unknown'
+        const cfgId = isImmediate ? metric : (cfg?.id || cfg?.metric || 'unknown')
         const existing = byConfig.get(cfgId)
         if (existing) {
-          if (!existing.runIds.includes(e.evaluation_id)) {
+          if (!isImmediate && !existing.runIds.includes(e.evaluation_id)) {
             existing.runIds.push(e.evaluation_id)
           }
           existing.samplesEvaluated = Math.max(existing.samplesEvaluated, e.samples_evaluated || 0)
@@ -205,7 +217,7 @@ export function EvaluationResults({
             configId: cfgId,
             displayName: cfg?.display_name || metric || 'Unknown',
             samplesEvaluated: e.samples_evaluated || 0,
-            runIds: [e.evaluation_id],
+            runIds: isImmediate ? [] : [e.evaluation_id],
           })
         }
       }
