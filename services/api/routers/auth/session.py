@@ -224,6 +224,22 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
 
             logger.info(f"User {user.username} added to organization via invitation")
 
+        # Extension hook: onboard a student who signed up via a student-locked
+        # host (vertretbar.net) — sets preferred_ui_mode + Vertretbar membership.
+        # The request origin is derived server-side (not a spoofable body field).
+        # No-op when extended is not loaded. Never let a hook failure break signup.
+        try:
+            from extensions import after_user_signup as _after_user_signup_ext
+
+            signup_context = {
+                "host": request.headers.get("x-forwarded-host")
+                or request.headers.get("host"),
+                "origin": request.headers.get("origin") or request.headers.get("referer"),
+            }
+            _after_user_signup_ext(db, user, signup_context)
+        except Exception as e:
+            logger.error(f"after_user_signup hook failed (non-fatal): {e}", exc_info=True)
+
         # Send verification email only for non-invitation signups
         if not invitation:
             try:

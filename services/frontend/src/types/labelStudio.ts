@@ -58,6 +58,10 @@ export interface Project {
   annotation_time_limit_seconds?: number | null
   strict_timer_enabled?: boolean
 
+  // Restorable draft checkpoints (opt-in)
+  restorable_checkpoints_enabled?: boolean
+  checkpoint_interval_seconds?: number
+
   // Immediate evaluation (extended feature)
   immediate_evaluation_enabled?: boolean
 

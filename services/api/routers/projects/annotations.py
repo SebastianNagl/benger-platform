@@ -22,7 +22,11 @@ from routers.projects.helpers import (
     check_project_accessible_async,
     check_task_assigned_to_user,
     check_task_assigned_to_user_async,
+    enforce_project_read_window_async,
+    enforce_project_write_window,
+    enforce_project_write_window_async,
     get_org_context_from_request,
+    get_student_read_access,
 )
 
 router = APIRouter()
@@ -44,12 +48,26 @@ async def create_annotation(
 
     org_context = get_org_context_from_request(request)
     if not check_project_accessible(db, current_user, task.project_id, org_context):
-        raise HTTPException(status_code=403, detail="Access denied")
+        # A consented share member (private exam) or an entitled/enrolled student
+        # has narrow participant access to ATTEMPT the task even when
+        # check_project_accessible (owner-only for a private project) refuses.
+        # Keeps the submit gate consistent with the read gate the extended
+        # student endpoints use, so a joined member can't see the attempt button
+        # but 403 on submit.
+        if not get_student_read_access(db, current_user, task.project_id):
+            raise HTTPException(status_code=403, detail="Access denied")
 
     # Enforce task assignment in manual/auto mode (Label Studio aligned: task is invisible)
     project = db.query(Project).filter(Project.id == task.project_id).first()
     if project and not check_task_assigned_to_user(db, current_user, task_id, project):
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # Timed access window: the access group may only submit while the window is
+    # open; editors (owner / admin / contributor) are exempt. No-op when the
+    # project has no window. Guards manual submits AND client-present auto-submits
+    # (both land here); the server-side timer worker is gated separately.
+    if project is not None:
+        enforce_project_write_window(db, current_user, project)
 
     # ---- Duplicate-submit guard (one active annotation per task+user) -------
     # "Submitted is submitted": a given user has exactly one active annotation
@@ -321,6 +339,11 @@ async def list_task_annotations(
     if project and not await check_task_assigned_to_user_async(db, current_user, task_id, project):
         raise HTTPException(status_code=404, detail="Task not found")
 
+    # Timed access window: hide data from the access group before the window
+    # opens (editors exempt). No-op when the project has no window.
+    if project is not None:
+        await enforce_project_read_window_async(db, current_user, project)
+
     stmt = (
         select(Annotation)
         .where(
@@ -408,6 +431,11 @@ async def update_annotation(
         db, current_user, db_annotation.task_id, project
     ):
         raise HTTPException(status_code=404, detail="Annotation not found")
+
+    # Timed access window: the access group can't edit an annotation once the
+    # window has closed (immutable after) or before it opens; editors exempt.
+    if project is not None:
+        await enforce_project_write_window_async(db, current_user, project)
 
     # Check if user owns this annotation or has admin rights
     if db_annotation.completed_by != current_user.id and not current_user.is_superadmin:

@@ -100,6 +100,18 @@ class Project(Base):
     # Strict timer mode (Issue #1205)
     strict_timer_enabled = Column(Boolean, default=False, nullable=False)
 
+    # Restorable draft checkpoints (opt-in): when enabled, periodic draft
+    # snapshots are stored as an append-only history (see TaskDraftCheckpoint)
+    # and are NOT deleted on submit, so an annotator can restore an earlier
+    # checkpoint. The interval is fixed at 5 min in the UI today but stored
+    # here so it can be made configurable later without a schema change.
+    restorable_checkpoints_enabled = Column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+    checkpoint_interval_seconds = Column(
+        Integer, default=300, server_default="300", nullable=False
+    )
+
     # Post-annotation questionnaire (Issue #1208)
     questionnaire_enabled = Column(Boolean, default=False, nullable=False)
     questionnaire_config = Column(Text, nullable=True)  # Label Studio XML for questionnaire
@@ -147,6 +159,18 @@ class Project(Base):
     is_published = Column(Boolean, default=False, nullable=False)
     is_archived = Column(Boolean, default=False, nullable=False, index=True)
 
+    # Access window (timed availability). When set, the project is only writable
+    # (annotate / generate / evaluate) between window_start_at and window_end_at,
+    # and its task data is hidden before window_start_at — for the *access group*
+    # only. Owners + org admins/contributors (anyone who can edit the project)
+    # are always exempt, so a teacher can set up before and review after. Both
+    # NULL ⇒ no window ⇒ always open (fully back-compatible). The upcoming/open/
+    # closed state is DERIVED from these timestamps, never persisted — see
+    # project_window_state() in routers/projects/helpers.py. This generalizes the
+    # is_archived annotator read-only carve-out to a time window.
+    window_start_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    window_end_at = Column(DateTime(timezone=True), nullable=True, index=True)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -176,6 +200,11 @@ class Project(Base):
         sa.CheckConstraint(
             "NOT is_public OR public_role IS NOT NULL",
             name="ck_projects_public_role_required_when_public",
+        ),
+        sa.CheckConstraint(
+            "window_start_at IS NULL OR window_end_at IS NULL "
+            "OR window_end_at > window_start_at",
+            name="ck_projects_window_bounds",
         ),
         sa.Index(
             "ix_projects_is_public",
@@ -690,6 +719,36 @@ class TaskDraft(Base):
     )
 
 
+class TaskDraftCheckpoint(Base):
+    """Append-only restorable draft checkpoints (opt-in per project).
+
+    Unlike ``TaskDraft`` (a single overwrite-in-place row, deleted on submit),
+    this stores a HISTORY of periodic snapshots: one row per checkpoint, never
+    overwritten and NOT deleted on submit, so an annotator can restore an
+    earlier checkpoint. Written only when the project's
+    ``restorable_checkpoints_enabled`` is true; retention is bounded by a cap
+    enforced at the write endpoint.
+    """
+
+    __tablename__ = "task_draft_checkpoints"
+
+    id = Column(String, primary_key=True, index=True)
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    draft_result = Column(JSONB, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        sa.Index(
+            "ix_task_draft_checkpoints_task_user_created",
+            "task_id",
+            "user_id",
+            "created_at",
+        ),
+    )
+
+
 class PostAnnotationResponse(Base):
     """
     Post-annotation questionnaire response (Issue #1208).
@@ -922,6 +981,52 @@ class FlashcardReview(Base):
         return f"<FlashcardReview(task_id={self.task_id}, user_id={self.user_id}, mode={self.mode}, rating={self.rating})>"
 
 
+class FlashcardSrsSettings(Base):
+    """Per-user, per-collection daily study limits (Anki-style caps).
+
+    The SRS sidecar is per-user, so the daily caps are too: each student paces
+    themselves on a shared deck. ``new_per_day`` caps how many never-seen cards
+    are introduced per day; ``review_per_day`` caps review cards shown per day
+    and — Anki-faithfully — also gates new cards once the review budget is spent.
+    ``NULL`` on either means "use the system default" (see the constants in
+    ``routers/projects/srs.py``). Platform owns the table (persistence + the
+    generic limit application in the read endpoints); only the student-facing
+    settings UI is extended.
+    """
+
+    __tablename__ = "flashcard_srs_settings"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # NULL => fall back to the system default cap.
+    new_per_day = Column(Integer, nullable=True)
+    review_per_day = Column(Integer, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("User")
+    project = relationship("Project")
+
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "user_id", "project_id", name="uq_flashcard_srs_settings_user_project"
+        ),
+        sa.Index(
+            "ix_flashcard_srs_settings_user_project", "user_id", "project_id"
+        ),
+    )
+
+    def __repr__(self):
+        return f"<FlashcardSrsSettings(user_id={self.user_id}, project_id={self.project_id})>"
+
+
 class ProjectShareLink(Base):
     """A password-protected share link for a project (student exam sharing).
 
@@ -947,6 +1052,13 @@ class ProjectShareLink(Base):
     expires_at = Column(DateTime(timezone=True), nullable=True)
     max_uses = Column(Integer, nullable=True)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
+
+    # When true, the share surfaces in the global discovery directory so other
+    # students can find it and join with the password (issue #35). Opt-in:
+    # owners who only paste the link out-of-band leave it false.
+    is_listed = Column(
+        Boolean, default=False, server_default="false", nullable=False, index=True
+    )
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -1007,3 +1119,232 @@ class ProjectShareMember(Base):
 
     def __repr__(self):
         return f"<ProjectShareMember(share_link_id={self.share_link_id}, user_id={self.user_id})>"
+
+
+class MarketplaceListing(Base):
+    """A vendor's published, priced offering of a project (exam or deck).
+
+    Surfaces the project in the global student discovery directory with a
+    price. At most one listing per project. ``published`` gates visibility; a
+    listing may only be published while the owning vendor org has a
+    ``VendorAccount`` with ``charges_enabled`` (enforced in the listing router,
+    not the schema). Persistence only — the Stripe Connect checkout that turns a
+    listing into an entitlement lives in ``benger_extended``.
+    """
+
+    __tablename__ = "marketplace_listings"
+
+    id = Column(String, primary_key=True, index=True)
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    vendor_org_id = Column(
+        String, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    # Denormalized from the project for a cheap discover filter / badge.
+    kind = Column(String(32), nullable=True)
+    price_cents = Column(Integer, nullable=False)
+    currency = Column(String(3), nullable=False, default="eur")
+    published = Column(
+        Boolean, default=False, server_default="false", nullable=False, index=True
+    )
+    description = Column(Text, nullable=True)
+    # Vendor human grading (optional add-on). ``grading_mode`` declares how the
+    # exam is graded: ``ai`` (instant LLM judge only), ``human`` (a vendor
+    # corrector grades it), or ``both``. When human/both, the vendor offers a
+    # separately-priced human-grading add-on at ``human_grading_price_cents``
+    # granting ``human_grading_quantity`` graded-submission credits per purchase.
+    grading_mode = Column(
+        String(16), nullable=False, default="ai", server_default="ai"
+    )
+    human_grading_price_cents = Column(Integer, nullable=True)
+    human_grading_quantity = Column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+    created_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    project = relationship("Project")
+    vendor_org = relationship("Organization")
+
+    __table_args__ = (
+        sa.UniqueConstraint("project_id", name="uq_marketplace_listing_project"),
+        sa.Index("ix_marketplace_listings_vendor_org", "vendor_org_id"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<MarketplaceListing(id={self.id}, project_id={self.project_id}, "
+            f"published={self.published})>"
+        )
+
+
+class MarketplaceEntitlement(Base):
+    """A student's permanent access grant to a vendor marketplace item.
+
+    The access row for purchased or vendor-unlocked items. Mirrors the narrow
+    *participant* tier a consented ``ProjectShareMember`` grants — it is checked
+    by ``get_entitlement_access_async`` alongside share access and NEVER routes
+    through ``check_project_accessible`` (so the Musterlösung and other
+    students' attempts stay gated exactly as for share members). At most one
+    entitlement per (user, project), which makes purchase/grant idempotent.
+    ``source`` is ``purchase`` (paid via Stripe Connect) or ``vendor_grant``
+    (free unlock by vendor staff). ``revoked_at`` supports manual revocation —
+    refunds are manual in v1.
+    """
+
+    __tablename__ = "marketplace_entitlements"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    listing_id = Column(
+        String, ForeignKey("marketplace_listings.id", ondelete="SET NULL"), nullable=True
+    )
+    # purchase | vendor_grant
+    source = Column(String(16), nullable=False)
+    order_id = Column(
+        String, ForeignKey("marketplace_orders.id", ondelete="SET NULL"), nullable=True
+    )
+    # Vendor staff who granted a free unlock (NULL for purchases).
+    granted_by = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    granted_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    project = relationship("Project")
+    user = relationship("User", foreign_keys=[user_id])
+
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "user_id", "project_id", name="uq_marketplace_entitlement_user_project"
+        ),
+        sa.Index("ix_marketplace_entitlements_user", "user_id"),
+        sa.Index("ix_marketplace_entitlements_project", "project_id"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<MarketplaceEntitlement(id={self.id}, user_id={self.user_id}, "
+            f"project_id={self.project_id}, source={self.source})>"
+        )
+
+
+class MarketplaceGradingCredit(Base):
+    """A student's human-grading wallet for a vendor exam (one per user+project).
+
+    Buying the human-grading add-on increments ``total_credits`` by the
+    listing's ``human_grading_quantity``; requesting a human grade on an attempt
+    increments ``used_credits``. ``total_credits - used_credits`` is what's
+    available. Persistence only — the credit-grant (on the paid Connect webhook)
+    and consumption decisions live in ``benger_extended``. ``revoked_at``
+    supports manual revocation.
+    """
+
+    __tablename__ = "marketplace_grading_credits"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    vendor_org_id = Column(
+        String, ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True
+    )
+    listing_id = Column(
+        String, ForeignKey("marketplace_listings.id", ondelete="SET NULL"), nullable=True
+    )
+    total_credits = Column(Integer, nullable=False, default=0, server_default="0")
+    used_credits = Column(Integer, nullable=False, default=0, server_default="0")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User", foreign_keys=[user_id])
+    project = relationship("Project")
+
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "user_id", "project_id", name="uq_marketplace_grading_credit_user_project"
+        ),
+        sa.Index("ix_marketplace_grading_credits_user", "user_id"),
+        sa.Index("ix_marketplace_grading_credits_project", "project_id"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<MarketplaceGradingCredit(user_id={self.user_id}, "
+            f"project_id={self.project_id}, "
+            f"available={self.total_credits - self.used_credits})>"
+        )
+
+
+class MarketplaceGradingRequest(Base):
+    """A student attempt submitted for vendor human grading (one per attempt).
+
+    Created when a student with an available human-grading credit asks for an
+    attempt to be graded — it consumes a credit and becomes the vendor
+    correctors' queue item. The corrector grades via the existing korrektur
+    falloesung endpoint (writing a ``TaskEvaluation`` keyed by grader); this row
+    is then marked ``completed`` and linked to that grade. Persistence only —
+    the queue gating + credit consumption live in ``benger_extended``.
+    """
+
+    __tablename__ = "marketplace_grading_requests"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    annotation_id = Column(
+        String, ForeignKey("annotations.id", ondelete="CASCADE"), nullable=False
+    )
+    vendor_org_id = Column(
+        String, ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True
+    )
+    listing_id = Column(
+        String, ForeignKey("marketplace_listings.id", ondelete="SET NULL"), nullable=True
+    )
+    # pending | completed | cancelled
+    status = Column(
+        String(16), nullable=False, default="pending", server_default="pending"
+    )
+    assigned_grader_id = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    task_evaluation_id = Column(
+        String, ForeignKey("task_evaluations.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User", foreign_keys=[user_id])
+    project = relationship("Project")
+
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "annotation_id", name="uq_marketplace_grading_request_annotation"
+        ),
+        sa.Index("ix_marketplace_grading_requests_vendor_status", "vendor_org_id", "status"),
+        sa.Index("ix_marketplace_grading_requests_user", "user_id"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<MarketplaceGradingRequest(id={self.id}, "
+            f"annotation_id={self.annotation_id}, status={self.status})>"
+        )

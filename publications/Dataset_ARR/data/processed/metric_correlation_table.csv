@@ -1,6 +1,6 @@
 metric,metric_label,benchathon_llm__pearson,benchathon_llm__spearman,benchathon_llm__n,zjs_llm__pearson,zjs_llm__spearman,zjs_llm__n,grundprinzipien_llm__pearson,grundprinzipien_llm__spearman,grundprinzipien_llm__n,benchathon_human_trad__pearson,benchathon_human_trad__spearman,benchathon_human_trad__n,benchathon_human_cocreat__pearson,benchathon_human_cocreat__spearman,benchathon_human_cocreat__n
 bleu,BLEU,0.581734,0.615011,208,0.426497,0.514764,8031,0.134703,0.196911,6365,0.349109,0.452187,65,0.272246,0.183690,155
-rouge,ROUGE,0.683588,0.655184,416,0.556879,0.545991,8031,0.249004,0.306893,6365,0.613768,0.625861,65,0.374632,0.219771,155
+rouge,ROUGE,0.683588,0.655184,208,0.556879,0.545991,8031,0.249004,0.306893,6365,0.613768,0.625861,65,0.374632,0.219771,155
 meteor,METEOR,0.608156,0.600883,208,0.475136,0.508844,8031,0.278880,0.387116,6365,0.272247,0.310826,65,0.361272,0.278273,155
 chrf,chrF,,,,,,,0.326009,0.420675,6365,,,,,,
 bertscore,BERTScore,0.465174,0.449187,208,0.387360,0.365442,8031,0.260053,0.321716,6365,,,,,,

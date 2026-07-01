@@ -884,6 +884,24 @@ def auto_submit_expired_timer(session_id: str) -> Dict[str, Any]:
             _dispatch_immediate_eval(db, existing)
             return {"status": "skipped", "reason": "annotation already exists"}
 
+        # Timed access window: don't finalize a draft into an annotation once the
+        # project's window has closed — "immutable after close". Close the timer
+        # session so it isn't retried.
+        from project_window import project_writes_allowed
+
+        project = db.query(Project).filter(Project.id == session.project_id).first()
+        if project is not None and not project_writes_allowed(project):
+            session.completed_at = datetime.now(timezone.utc)
+            session.auto_submitted = True
+            db.commit()
+            logger.info(
+                "auto_submit_expired_timer: project window closed for %s; "
+                "skipped auto-submit for session %s",
+                session.project_id,
+                session_id,
+            )
+            return {"status": "skipped", "reason": "project window closed"}
+
         # Use draft if available: try timer session first, then task_drafts table
         result = session.draft_result
         if not result:
@@ -912,7 +930,7 @@ def auto_submit_expired_timer(session_id: str) -> Dict[str, Any]:
         task = db.query(Task).filter(Task.id == session.task_id).first()
         if task and result and len(result) > 0:
             task.total_annotations = (task.total_annotations or 0) + 1
-            project = db.query(Project).filter(Project.id == session.project_id).first()
+            # `project` already loaded above for the window check.
             if project:
                 from sqlalchemy import String, cast, func
                 non_cancelled = db.query(Annotation).filter(

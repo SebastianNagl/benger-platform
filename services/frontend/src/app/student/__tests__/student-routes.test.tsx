@@ -10,9 +10,9 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import React from 'react'
 
-// Stable param mock for the dynamic detail routes.
+// Stable param mock for the dynamic detail routes (id) and the share route (token).
 jest.mock('next/navigation', () => ({
-  useParams: () => ({ id: 'abc-123' }),
+  useParams: () => ({ id: 'abc-123', token: 'tok-123' }),
 }))
 
 // Use the REAL i18n so the fallback copy resolves to the actual German string
@@ -26,6 +26,8 @@ import StudentExamDetailPage from '../exams/[id]/page'
 import StudentDecksPage from '../decks/page'
 import StudentDeckDetailPage from '../decks/[id]/page'
 import StudentLeaderboardPage from '../leaderboard/page'
+import StudentDiscoverPage from '../discover/page'
+import ShareJoinPage from '../../shares/[token]/page'
 
 const FALLBACK = 'Diese Funktion ist in der Community-Edition nicht verfügbar.'
 
@@ -40,6 +42,8 @@ describe('student host routes (community edition fallback)', () => {
     ['decks', StudentDecksPage],
     ['deck detail', StudentDeckDetailPage],
     ['leaderboard', StudentLeaderboardPage],
+    ['discover', StudentDiscoverPage],
+    ['share join', ShareJoinPage],
   ])(
     'renders the community fallback for %s without crashing',
     async (_name, Page) => {

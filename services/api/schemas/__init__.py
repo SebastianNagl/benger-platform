@@ -4,6 +4,12 @@ Schemas package for BenGER API
 Consolidates all Pydantic schema definitions
 """
 
+from schemas.billing_schemas import (
+    GradingUsageEventRead,
+    InvoiceSummary,
+    StudentSubscriptionRead,
+    UsageSummary,
+)
 from schemas.template_schemas import (
     TaskTemplateBase,
     TaskTemplateCreate,
@@ -37,4 +43,9 @@ __all__ = [
     "TemplateCategoryResponse",
     "TemplateUsageStats",
     "TemplateImportExport",
+    # Billing schemas
+    "StudentSubscriptionRead",
+    "GradingUsageEventRead",
+    "UsageSummary",
+    "InvoiceSummary",
 ]

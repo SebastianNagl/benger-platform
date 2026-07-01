@@ -129,6 +129,45 @@ api:
       value: "true"
     - name: COOKIE_DOMAIN
       value: ".what-a-benger.net"
+    # Vertretbar student billing (extended). Secrets live in the
+    # benger-billing-secrets Secret (pre-create per namespace, like
+    # benger-email-config / benger-minio-credentials). optional:true so a
+    # deploy without billing configured still boots — the billing surface
+    # no-ops and the gate/metering simply don't run.
+    - name: BILLING_PROVIDER
+      value: "stripe"
+    - name: VERTRETBAR_ORG_ID
+      value: ""
+    - name: VERTRETBAR_FREE_GRADINGS
+      value: "3"
+    - name: VERTRETBAR_FLASHCARD_BILLABLE
+      value: "false"
+    - name: STRIPE_METER_EVENT_NAME
+      value: "exam_grading"
+    - name: STRIPE_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_secret_key
+          optional: true
+    - name: STRIPE_WEBHOOK_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_webhook_secret
+          optional: true
+    - name: STRIPE_PRICE_BASE
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_price_base
+          optional: true
+    - name: STRIPE_PRICE_METERED
+      valueFrom:
+        secretKeyRef:
+          name: benger-billing-secrets
+          key: stripe_price_metered
+          optional: true
 
 workers:
   name: workers
@@ -525,3 +564,35 @@ middleware:
     stsSeconds: 31536000
     stsIncludeSubdomains: true
     stsPreload: false
+
+# Vertretbar student product — serves the (already host-wired) student view on a
+# second branded apex from THIS same release, no separate backend. A neutral
+# open-core hook: the frontend already recognizes vertretbar.net
+# (STUDENT_LOCKED_DOMAINS in services/frontend/src/lib/utils/subdomain.ts) and the
+# Next proxy already scopes auth cookies to it (BASE_DOMAINS), so serving the host
+# needs no app code — only this ingress + its own TLS cert.
+#
+# Rendered when `enabled` (default off, so the open-core base and any deploy that
+# doesn't opt in stay inert). Host + cert are per-environment via the overlays:
+# this base is the prod default (vertretbar.net); values-staging.yaml overrides to
+# staging.vertretbar.net. Turn it on in the environment overlay you want it in
+# (values-staging.yaml for the staging beta; this file / values-extended.yaml for
+# the prod go-live).
+vertretbar:
+  enabled: false
+  host: vertretbar.net
+  # Own cert: the *.what-a-benger.net wildcard does not cover a different apex.
+  # cert-manager issues it from the same letsencrypt-prod ClusterIssuer via HTTP-01
+  # once the A record resolves. Secret is per-release, pre-created by cert-manager.
+  tlsSecretName: vertretbar-tls
+  # Closed-beta gate: a Traefik BasicAuth middleware locks the WHOLE host behind one
+  # shared password until public launch — flip enabled:false to remove it in one
+  # step. Compatible with the app's cookie-only auth (the browser sends
+  # Authorization: Basic; the backend authenticates via the session cookie). The
+  # htpasswd Secret must be pre-created in the namespace (key: users), like the
+  # other pre-created secrets:
+  #   htpasswd -nbB beta '<password>' | kubectl -n benger create secret generic \
+  #     benger-beta-auth --from-file=users=/dev/stdin
+  betaAuth:
+    enabled: false
+    secretName: benger-beta-auth

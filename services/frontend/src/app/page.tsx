@@ -9,6 +9,8 @@ import { NewsSection } from '@/components/landing/NewsSection'
 import { PeopleSection } from '@/components/landing/PeopleSection'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useSlot } from '@/lib/extensions/slots'
+import { isStudentLockedHost } from '@/lib/utils/subdomain'
 import { authRedirect } from '@/utils/authRedirect'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -19,6 +21,12 @@ export default function LandingPage() {
   const { user, isLoading } = useAuth()
   const { t } = useI18n()
   const router = useRouter()
+  // Vertretbar: on a student-locked host the dedicated landing is served by the
+  // middleware rewrite ("/"→"/vertretbar") in production. Turbopack dev doesn't
+  // run middleware, so we ALSO branch here (client-side) — harmless in prod
+  // since the rewrite means this page never renders on vertretbar.net there.
+  const VertretbarLanding = useSlot('VertretbarLanding')
+  const [isLocked, setIsLocked] = useState(false)
 
   // SSR has no auth context — always render the landing layout server-side and
   // wait for the client to mount before branching on isLoading / user. Without
@@ -26,7 +34,7 @@ export default function LandingPage() {
   // already knows the user is logged in (cookie present), causing a mismatch.
   const [mounted, setMounted] = useState(false)
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setMounted(true) }, [])
+  useEffect(() => { setMounted(true); setIsLocked(isStudentLockedHost()) }, [])
 
   // Redirect authenticated users to dashboard
   // Only redirect when auth state is stable (not loading)
@@ -60,6 +68,15 @@ export default function LandingPage() {
         </div>
       </div>
     )
+  }
+
+  // Student-locked host (vertretbar.net), unauthenticated → the branded
+  // Vertretbar landing instead of the benger one (dev fallback for the
+  // middleware rewrite). Authenticated users were already sent to /student
+  // above via authRedirect.toDashboard.
+  if (mounted && isLocked && !user && VertretbarLanding) {
+    // eslint-disable-next-line react-hooks/static-components
+    return <VertretbarLanding />
   }
 
   return (

@@ -96,6 +96,9 @@ def build_project_export_data(project, organization_id) -> dict:
         "allow_self_review": project.allow_self_review,
         "korrektur_enabled": project.korrektur_enabled,
         "korrektur_config": project.korrektur_config,
+        # Timed access window (nullable timestamps) — survive export/import.
+        "window_start_at": _iso(project.window_start_at),
+        "window_end_at": _iso(project.window_end_at),
     }
 
 

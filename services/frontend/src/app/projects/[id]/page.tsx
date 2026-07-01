@@ -343,6 +343,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     annotation_time_limit_enabled: false,
     annotation_time_limit_seconds: null as number | null,
     strict_timer_enabled: false,
+    restorable_checkpoints_enabled: false,
+    window_start_at: null as string | null,
+    window_end_at: null as string | null,
   })
 
   // Per-card buffer for evaluation-scoped settings. Decouples the Eval card's
@@ -660,6 +663,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           (currentProject as any).annotation_time_limit_seconds ?? null,
         strict_timer_enabled:
           (currentProject as any).strict_timer_enabled || false,
+        restorable_checkpoints_enabled:
+          (currentProject as any).restorable_checkpoints_enabled || false,
+        window_start_at: (currentProject as any).window_start_at ?? null,
+        window_end_at: (currentProject as any).window_end_at ?? null,
       })
       setEvaluationSettings({
         immediate_evaluation_enabled:

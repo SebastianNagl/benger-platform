@@ -88,14 +88,14 @@ services:
     labels:
       - "traefik.enable=true"
       
-      # Main frontend route with wildcard subdomain support
-      - "traefik.http.routers.frontend-dev.rule=Host(`benger.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$$`)"
+      # Main frontend route with wildcard subdomain support (benger + vertretbar)
+      - "traefik.http.routers.frontend-dev.rule=Host(`benger.localhost`) || Host(`vertretbar.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$$`) || HostRegexp(`^[a-z0-9-]+\\.vertretbar\\.localhost$$`)"
       - "traefik.http.routers.frontend-dev.entrypoints=web"
       - "traefik.http.routers.frontend-dev.priority=200"
       - "traefik.http.routers.frontend-dev.service=frontend-dev"
 
       # Critical: SSE route with highest priority to override backend API routes
-      - "traefik.http.routers.frontend-dev-sse.rule=(Host(`benger.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$$`)) && PathPrefix(`/api/notifications/stream`)"
+      - "traefik.http.routers.frontend-dev-sse.rule=(Host(`benger.localhost`) || Host(`vertretbar.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$$`) || HostRegexp(`^[a-z0-9-]+\\.vertretbar\\.localhost$$`)) && PathPrefix(`/api/notifications/stream`)"
       - "traefik.http.routers.frontend-dev-sse.entrypoints=web"
       - "traefik.http.routers.frontend-dev-sse.priority=300"
       - "traefik.http.routers.frontend-dev-sse.service=frontend-dev"

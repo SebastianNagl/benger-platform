@@ -8,9 +8,9 @@
   },
   "rq3_metric_correlation": {
     "rouge": {
-      "n": 416,
+      "n": 208,
       "pearson_vs_judge_raw": 0.6835878487324547,
-      "spearman_vs_judge_raw": 0.655183967155768
+      "spearman_vs_judge_raw": 0.6551839671557681
     },
     "meteor": {
       "n": 208,
@@ -127,8 +127,8 @@
     "ci95_hi_cluster_task": 20.50100388184904,
     "mean_diff_cluster_task": 15.719354838709677,
     "mean_diff_paired_within_participant": 13.130271660706443,
-    "ci95_lo_paired_within_participant": 8.029777432712217,
-    "ci95_hi_paired_within_participant": 18.323546019198194
+    "ci95_lo_paired_within_participant": 8.053793133195306,
+    "ci95_hi_paired_within_participant": 18.47526507309116
   },
   "rq4_cocreation_by_bereich": {
     "Zivilrecht": {

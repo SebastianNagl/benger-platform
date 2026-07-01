@@ -10,7 +10,45 @@ export const BASE_DOMAINS = [
   'staging.what-a-benger.net',
   'what-a-benger.net',
   'benger.localhost',
+  'staging.vertretbar.net',
+  'vertretbar.net',
+  'vertretbar.localhost',
 ]
+
+/**
+ * Hosts locked to the pure student interface (Vertretbar).
+ *
+ * A visitor on one of these hosts only ever sees the student view — the
+ * expert/annotator UI is never offered, regardless of role or saved
+ * preference. This list is a neutral open-core hook; the "Vertretbar" product
+ * branding that decorates those hosts lives in benger-extended.
+ */
+export const STUDENT_LOCKED_DOMAINS = [
+  'vertretbar.net',
+  'staging.vertretbar.net',
+  'vertretbar.localhost',
+]
+
+/**
+ * Is the given (or current) host locked to the student-only interface?
+ * Matches the apex and any subdomain of a student-locked domain.
+ */
+export function isStudentLockedHost(hostname?: string | null): boolean {
+  const host =
+    hostname ?? (typeof window !== 'undefined' ? window.location.hostname : '')
+  if (!host) return false
+  const bare = host.split(':')[0].toLowerCase()
+  return STUDENT_LOCKED_DOMAINS.some((d) => bare === d || bare.endsWith(`.${d}`))
+}
+
+/**
+ * Product wordmark for the given (or current) host. Vertretbar on a
+ * student-locked host, BenGER otherwise. A neutral host->name hook so the
+ * shared auth pages don't show benger branding on vertretbar.net.
+ */
+export function getHostBrandName(hostname?: string | null): string {
+  return isStudentLockedHost(hostname) ? 'Vertretbar' : 'BenGER'
+}
 
 /**
  * Get the base domain from a hostname string.

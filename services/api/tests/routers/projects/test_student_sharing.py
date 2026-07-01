@@ -70,6 +70,20 @@ async def _make_exam(db, owner) -> Project:
     return p
 
 
+async def _make_deck(db, owner, *, title="Stapel BGB AT") -> Project:
+    p = Project(
+        id=str(uuid.uuid4()),
+        title=title,
+        created_by=owner.id,
+        is_private=True,
+        kind="flashcard_deck",
+        origin="student",
+    )
+    db.add(p)
+    await db.commit()
+    return p
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_share_lifecycle_join_roster_withdraw(async_test_client, async_test_db):
@@ -271,6 +285,142 @@ async def test_srs_stats_empty_deck(async_test_client, async_test_db):
         r = await async_test_client.get(f"/api/projects/{deck.id}/srs/due")
         assert r.status_code == 200
         assert r.json() == {"cards": [], "total": 0}
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_share_info_returns_kind(async_test_client, async_test_db):
+    """The join-page preview exposes the project kind so the client can route to
+    the exam vs deck surface after joining (issue #35 discovery)."""
+    owner = await _make_user(async_test_db)
+    invitee = await _make_user(async_test_db)
+    deck = await _make_deck(async_test_db, owner)
+    with _as_user(owner):
+        token = (
+            await async_test_client.post(
+                f"/api/projects/{deck.id}/shares", json={"password": "pw12"}
+            )
+        ).json()["token"]
+    with _as_user(invitee):
+        r = await async_test_client.get(f"/api/shares/{token}")
+        assert r.status_code == 200, r.text
+        assert r.json()["kind"] == "flashcard_deck"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_discover_lists_only_listed_student_shares(
+    async_test_client, async_test_db
+):
+    """GET /shares/discover surfaces listed student exams + decks (not unlisted,
+    not the caller's own), tags kind, and marks already-joined items."""
+    owner = await _make_user(async_test_db)
+    browser = await _make_user(async_test_db)
+    listed_exam = await _make_exam(async_test_db, owner)
+    unlisted_exam = await _make_exam(async_test_db, owner)
+    listed_deck = await _make_deck(async_test_db, owner)
+
+    with _as_user(owner):
+        listed_token = (
+            await async_test_client.post(
+                f"/api/projects/{listed_exam.id}/shares",
+                json={"password": "pw12", "is_listed": True},
+            )
+        ).json()["token"]
+        await async_test_client.post(
+            f"/api/projects/{unlisted_exam.id}/shares",
+            json={"password": "pw12", "is_listed": False},
+        )
+        await async_test_client.post(
+            f"/api/projects/{listed_deck.id}/shares",
+            json={"password": "pw12", "is_listed": True},
+        )
+
+    with _as_user(browser):
+        r = await async_test_client.get("/api/shares/discover")
+        assert r.status_code == 200, r.text
+        by_pid = {it["project_id"]: it for it in r.json()}
+        assert listed_exam.id in by_pid
+        assert listed_deck.id in by_pid
+        assert unlisted_exam.id not in by_pid  # listing is opt-in
+        assert by_pid[listed_exam.id]["kind"] == "exam"
+        assert by_pid[listed_deck.id]["kind"] == "flashcard_deck"
+        assert by_pid[listed_exam.id]["already_member"] is False
+        assert "owner_name" in by_pid[listed_exam.id]
+
+    # Owner does not see their OWN shares in the directory.
+    with _as_user(owner):
+        r = await async_test_client.get("/api/shares/discover")
+        assert all(it["project_id"] != listed_exam.id for it in r.json())
+
+    # After joining, the item flips to already_member.
+    with _as_user(browser):
+        await async_test_client.post(
+            f"/api/shares/{listed_token}/join",
+            json={"password": "pw12", "gdpr_consent": True},
+        )
+        r = await async_test_client.get("/api/shares/discover")
+        by_pid = {it["project_id"]: it for it in r.json()}
+        assert by_pid[listed_exam.id]["already_member"] is True
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_revoked_link_not_discoverable(async_test_client, async_test_db):
+    owner = await _make_user(async_test_db)
+    browser = await _make_user(async_test_db)
+    exam = await _make_exam(async_test_db, owner)
+    with _as_user(owner):
+        res = (
+            await async_test_client.post(
+                f"/api/projects/{exam.id}/shares",
+                json={"password": "pw12", "is_listed": True},
+            )
+        ).json()
+        await async_test_client.delete(
+            f"/api/projects/{exam.id}/shares/{res['id']}"
+        )
+    with _as_user(browser):
+        r = await async_test_client.get("/api/shares/discover")
+        assert all(it["project_id"] != exam.id for it in r.json())
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_srs_reads_allow_consented_member_deny_stranger(
+    async_test_client, async_test_db
+):
+    """A consented share member can study a shared deck (own per-user SRS); a
+    stranger is denied (issue #35 deck discovery)."""
+    owner = await _make_user(async_test_db)
+    member = await _make_user(async_test_db)
+    stranger = await _make_user(async_test_db)
+    deck = await _make_deck(async_test_db, owner)
+
+    with _as_user(owner):
+        token = (
+            await async_test_client.post(
+                f"/api/projects/{deck.id}/shares",
+                json={"password": "pw12", "is_listed": True},
+            )
+        ).json()["token"]
+
+    with _as_user(member):
+        await async_test_client.post(
+            f"/api/shares/{token}/join",
+            json={"password": "pw12", "gdpr_consent": True},
+        )
+        assert (
+            await async_test_client.get(f"/api/projects/{deck.id}/srs/due")
+        ).status_code == 200
+        assert (
+            await async_test_client.get(f"/api/projects/{deck.id}/srs/stats")
+        ).status_code == 200
+
+    with _as_user(stranger):
+        assert (
+            await async_test_client.get(f"/api/projects/{deck.id}/srs/due")
+        ).status_code == 403
 
 
 @pytest.mark.integration

@@ -3,6 +3,8 @@
 derive:
 	uv run python scripts/derive_zjs_summary.py
 	uv run python scripts/derive_paper_exports.py
+	uv run python scripts/rq5_judge_calibration.py
+	uv run python scripts/rq5_calderon_per_judge.py
 	uv run python scripts/derive_error_analysis.py
 	uv run python scripts/derive_inter_judge_agreement.py
 	uv run python scripts/derive_grundprinzipien_summary.py

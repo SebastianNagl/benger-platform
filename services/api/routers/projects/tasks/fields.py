@@ -116,6 +116,10 @@ async def get_task_data_fields(
     if not await check_project_accessible_async(db, current_user, project_id, org_context):
         raise HTTPException(status_code=403, detail="Access denied")
 
+    # Timed access window: this returns sample task-data VALUES, so hide it from
+    # the access group before the window opens (editors exempt).
+    await enforce_project_read_window_async(db, current_user, project)
+
     # Get sample tasks
     tasks = (
         await db.execute(

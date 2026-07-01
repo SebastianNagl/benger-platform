@@ -40,6 +40,11 @@ async def run_evaluation(
                 detail="You don't have permission to run evaluations on this project",
             )
 
+        # Timed access window: the access group can only run evaluations while
+        # the window is open (editors exempt). PROJECT_VIEW above admits
+        # non-editors, so this gate is load-bearing here. No-op without a window.
+        enforce_project_write_window(db, current_user, project)
+
         # Validate evaluation configs
         if not request.evaluation_configs:
             raise HTTPException(

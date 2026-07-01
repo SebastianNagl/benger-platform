@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useHydration } from '@/contexts/HydrationContext'
 import { isExtendedEdition, useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import { useUIStore } from '@/stores'
-import { parseSubdomain } from '@/lib/utils/subdomain'
+import { isStudentLockedHost, parseSubdomain } from '@/lib/utils/subdomain'
 import { canUseExpertView } from '@/utils/permissions'
 
 export type UiMode = 'student' | 'expert'
@@ -41,6 +41,10 @@ export function useViewModeSwitch() {
 
   let status: 'unavailable' | 'loading' | 'ready'
   if (!isExtendedEdition()) {
+    status = 'unavailable'
+  } else if (mounted && isStudentLockedHost()) {
+    // Student-locked host (vertretbar.net): the expert toggle is never offered,
+    // even to superadmins/contributors — this is a student-only product surface.
     status = 'unavailable'
   } else if (!mounted || isLoading) {
     status = 'loading'

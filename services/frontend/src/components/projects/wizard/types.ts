@@ -38,6 +38,9 @@ export interface ProjectSettings {
   annotation_time_limit_enabled: boolean
   annotation_time_limit_seconds: number | null
   strict_timer_enabled: boolean
+  // Timed access window (ISO 8601 UTC, or null when unset).
+  window_start_at: string | null
+  window_end_at: string | null
 }
 
 export interface GenerationParameters {
@@ -147,5 +150,7 @@ export const INITIAL_WIZARD_DATA: WizardData = {
     annotation_time_limit_enabled: false,
     annotation_time_limit_seconds: null,
     strict_timer_enabled: false,
+    window_start_at: null,
+    window_end_at: null,
   },
 }

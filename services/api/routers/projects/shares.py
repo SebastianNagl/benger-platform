@@ -29,7 +29,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import require_user
@@ -63,6 +63,8 @@ class ShareCreate(BaseModel):
     password: str = Field(min_length=4, max_length=128)
     expires_at: Optional[datetime] = None
     max_uses: Optional[int] = Field(None, ge=1)
+    # Opt-in: surface this share in the global discovery directory.
+    is_listed: bool = False
 
 
 class ShareUpdate(BaseModel):
@@ -70,6 +72,7 @@ class ShareUpdate(BaseModel):
     password: Optional[str] = Field(None, min_length=4, max_length=128)
     expires_at: Optional[datetime] = None
     max_uses: Optional[int] = Field(None, ge=1)
+    is_listed: Optional[bool] = None
 
 
 class ShareJoin(BaseModel):
@@ -89,6 +92,7 @@ def _share_public_dict(link: ProjectShareLink) -> dict:
         "expires_at": link.expires_at.isoformat() if link.expires_at else None,
         "max_uses": link.max_uses,
         "revoked_at": link.revoked_at.isoformat() if link.revoked_at else None,
+        "is_listed": link.is_listed,
         "created_at": link.created_at.isoformat() if link.created_at else None,
     }
 
@@ -168,6 +172,7 @@ async def create_share(
         password_hash=get_password_hash(body.password),
         expires_at=body.expires_at,
         max_uses=body.max_uses,
+        is_listed=body.is_listed,
     )
     db.add(link)
     await db.commit()
@@ -224,6 +229,8 @@ async def update_share(
         link.expires_at = body.expires_at
     if body.max_uses is not None:
         link.max_uses = body.max_uses
+    if body.is_listed is not None:
+        link.is_listed = body.is_listed
     await db.commit()
     await db.refresh(link)
     return _share_public_dict(link)
@@ -373,6 +380,84 @@ async def cohort_leaderboard(
 # --------------------------------------------------------------------------- #
 # Invitee operations (token-scoped, /api/shares/{token}...)
 # --------------------------------------------------------------------------- #
+
+# Student-generated project kinds that may be discovered + joined.
+STUDENT_SHARE_KINDS = ("exam", "flashcard_collection", "flashcard_deck")
+
+
+# NOTE: declared BEFORE the "/{token}" route so a request to /api/shares/discover
+# matches this literal route rather than being captured as token="discover".
+@token_router.get("/discover")
+async def discover_shares(
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Browse student exams/decks whose owners opted to list them (issue #35).
+
+    Global directory: any logged-in student sees every listed, still-joinable
+    student share except their own. Browsing reveals only title + owner name; a
+    password is still required to JOIN (via POST /shares/{token}/join).
+    Revoked/expired links are filtered out here; the rare max_uses-exhausted
+    case is left to the join endpoint's 410.
+    """
+    now = datetime.now(timezone.utc)
+    uid = str(current_user.id)
+
+    rows = (
+        await db.execute(
+            select(ProjectShareLink, Project, User)
+            .join(Project, Project.id == ProjectShareLink.project_id)
+            .join(User, User.id == Project.created_by)
+            .where(
+                ProjectShareLink.is_listed.is_(True),
+                ProjectShareLink.revoked_at.is_(None),
+                or_(
+                    ProjectShareLink.expires_at.is_(None),
+                    ProjectShareLink.expires_at > now,
+                ),
+                Project.origin == "student",
+                Project.kind.in_(STUDENT_SHARE_KINDS),
+                Project.created_by != uid,
+            )
+            .order_by(ProjectShareLink.created_at.desc())
+        )
+    ).all()
+
+    # One query for the caller's consented memberships -> mark already-joined.
+    member_pids = set(
+        (
+            await db.execute(
+                select(ProjectShareMember.project_id).where(
+                    ProjectShareMember.user_id == uid,
+                    ProjectShareMember.gdpr_consent_at.isnot(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    # One entry per project (newest listed link wins) so a project with several
+    # listed links isn't shown multiple times.
+    seen = set()
+    out = []
+    for link, project, owner in rows:
+        if project.id in seen:
+            continue
+        seen.add(project.id)
+        out.append(
+            {
+                "token": link.token,
+                "project_id": project.id,
+                "title": project.title,
+                "kind": project.kind,
+                "owner_name": _display_name(owner) if owner else None,
+                "already_member": project.id in member_pids,
+            }
+        )
+    return out
+
+
 async def _load_link_by_token(db: AsyncSession, token: str) -> ProjectShareLink:
     link = (
         await db.execute(
@@ -408,6 +493,8 @@ async def get_share_info(
     return {
         "project_id": link.project_id,
         "title": project.title,
+        # kind lets the join page route to the exam vs deck surface afterwards.
+        "kind": project.kind,
         "owner_name": _display_name(owner) if owner else None,
         "revoked": link.revoked_at is not None,
         "already_member": already_member is not None,

@@ -370,6 +370,23 @@ async def export_tasks(
     tasks_result = await db.execute(stmt)
     tasks = tasks_result.unique().scalars().all()
 
+    # Timed access window: drop tasks whose project has not opened yet, unless
+    # the user can edit that project (owner/admin/contributor exempt). Batched
+    # over the distinct upcoming projects so the edit check runs at most once
+    # each (usually zero). task.project is eager-loaded above.
+    from project_window import project_window_state
+    from routers.projects.helpers import check_user_can_edit_project_async
+
+    upcoming_pids = {
+        t.project_id for t in tasks if project_window_state(t.project) == "upcoming"
+    }
+    blocked_pids = set()
+    for pid in upcoming_pids:
+        if not await check_user_can_edit_project_async(db, current_user, pid):
+            blocked_pids.add(pid)
+    if blocked_pids:
+        tasks = [t for t in tasks if t.project_id not in blocked_pids]
+
     if format == "json":
         # Export as JSON
         export_data = {

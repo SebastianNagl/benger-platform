@@ -1,8 +1,20 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
-import { BASE_DOMAINS } from '@/lib/utils/subdomain'
+import { BASE_DOMAINS, isStudentLockedHost } from '@/lib/utils/subdomain'
 
 export function middleware(request: NextRequest) {
+  const hostname =
+    request.headers.get('x-forwarded-host') || request.headers.get('host') || ''
+
+  // Vertretbar: serve the dedicated student landing at the apex root, decided
+  // server-side from the host header so there's no benger-branding flash. The
+  // URL stays "/"; the /vertretbar route renders the VertretbarLanding slot.
+  if (request.nextUrl.pathname === '/' && isStudentLockedHost(hostname)) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/vertretbar'
+    return NextResponse.rewrite(url)
+  }
+
   const response = NextResponse.next()
 
   // Set proper MIME types for CSS files
@@ -21,7 +33,6 @@ export function middleware(request: NextRequest) {
   }
 
   // Extract org slug from subdomain for organization context
-  const hostname = request.headers.get('x-forwarded-host') || request.headers.get('host') || ''
   for (const baseDomain of BASE_DOMAINS) {
     if (hostname.endsWith(`.${baseDomain}`) && hostname !== baseDomain) {
       const subdomain = hostname.replace(`.${baseDomain}`, '')

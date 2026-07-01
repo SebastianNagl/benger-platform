@@ -404,6 +404,8 @@ from routers.leaderboards import router as leaderboards_router  # noqa: E402
 # Legacy routers
 from routers.legacy.debug import router as debug_router  # noqa: E402
 from routers.llm_models import router as llm_models_router  # noqa: E402
+from routers.marketplace import admin_router as marketplace_admin_router  # noqa: E402
+from routers.marketplace import router as marketplace_router  # noqa: E402
 from routers.notifications import router as notifications_router  # noqa: E402
 from routers.projects import router as projects_router  # noqa: E402
 from routers.projects.dashboard import router as student_dashboard_router  # noqa: E402
@@ -454,6 +456,8 @@ app.include_router(file_upload_router)  # File uploads
 app.include_router(projects_router)  # Projects API
 app.include_router(share_token_router)  # Student exam sharing: /api/shares/{token} (issue #35)
 app.include_router(student_dashboard_router)  # Student dashboard reads: /api/student/* (issue #35)
+app.include_router(marketplace_router)  # Vendor marketplace: /api/marketplace/* generic reads + listing CRUD
+app.include_router(marketplace_admin_router)  # Superadmin vendor approval: /api/admin/vendors
 app.include_router(leaderboards_router)  # Leaderboards for annotation performance (Issue #790)
 app.include_router(test_seeding_router)  # Test seeding endpoints (guarded by env check + superadmin)
 

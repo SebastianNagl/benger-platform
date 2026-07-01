@@ -100,6 +100,7 @@ from routers.projects.helpers import (  # noqa: E402
     check_project_accessible,
     check_project_accessible_async,
     check_project_write_access_async,
+    enforce_project_read_window_async,
     get_org_context_from_request,
 )
 
@@ -187,6 +188,11 @@ async def create_export_job(
         db, current_user, project_id, org_context, project=project
     ):
         raise HTTPException(status_code=403, detail="Access denied")
+
+    # Timed access window: an export dumps all task data, so the access group
+    # can't export before the window opens (editors exempt). Reads stay open once
+    # open/closed, so post-window export/review still works.
+    await enforce_project_read_window_async(db, current_user, project)
 
     task_ids = (data or {}).get("task_ids")
     if task_ids is not None:

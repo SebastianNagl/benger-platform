@@ -3,6 +3,7 @@
 import { Alert } from '@/components/shared/Alert'
 import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
+import { isoToLocalInput, localInputToIso } from '@/utils/projectWindow'
 import {
   Select,
   SelectContent,
@@ -244,6 +245,72 @@ export function StepSettings({
                 />
               </div>
             </>
+          )}
+        </div>
+
+        {/* Timed access window (annotate / generate / evaluate) */}
+        <div className="space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>
+                {t('project.settings.accessWindow.title', 'Timed access window')}
+              </Label>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                {t(
+                  'project.settings.accessWindow.hint',
+                  'Open the project to its access group only during a set time. Owners and admins are never restricted.',
+                )}
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              checked={!!(settings.window_start_at || settings.window_end_at)}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  const start = new Date()
+                  start.setSeconds(0, 0)
+                  const end = new Date(start.getTime() + 2 * 3600 * 1000)
+                  update({
+                    window_start_at: settings.window_start_at ?? start.toISOString(),
+                    window_end_at: settings.window_end_at ?? end.toISOString(),
+                  })
+                } else {
+                  update({ window_start_at: null, window_end_at: null })
+                }
+              }}
+              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+            />
+          </div>
+
+          {(settings.window_start_at || settings.window_end_at) && (
+            <div className="ml-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Label className="w-16 text-sm">
+                  {t('project.settings.accessWindow.opens', 'Opens')}
+                </Label>
+                <Input
+                  type="datetime-local"
+                  value={isoToLocalInput(settings.window_start_at)}
+                  onChange={(e) =>
+                    update({ window_start_at: localInputToIso(e.target.value) })
+                  }
+                  className="text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="w-16 text-sm">
+                  {t('project.settings.accessWindow.closes', 'Closes')}
+                </Label>
+                <Input
+                  type="datetime-local"
+                  value={isoToLocalInput(settings.window_end_at)}
+                  onChange={(e) =>
+                    update({ window_end_at: localInputToIso(e.target.value) })
+                  }
+                  className="text-sm"
+                />
+              </div>
+            </div>
           )}
         </div>
 

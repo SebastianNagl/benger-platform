@@ -94,6 +94,45 @@ spec:
     {{- end }}
 {{- end }}
 ---
+{{- if .Values.vertretbar.enabled }}
+# vertretbar.net (prod) / staging.vertretbar.net (staging) → the SAME frontend
+# service as the main host. The host is
+# student-locked in the frontend and beta-locked by the vertretbar-chain middleware
+# (BasicAuth while vertretbar.betaAuth.enabled). Separate Ingress so the beta lock
+# and TLS cert scope to this apex only — what-a-benger.net stays open and untouched.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-vertretbar
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.frontend.name }}
+    app.kubernetes.io/name: {{ .Release.Name }}-{{ .Values.frontend.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+  annotations:
+    traefik.ingress.kubernetes.io/router.priority: "100"
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-{{ .Release.Name }}-vertretbar-chain@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - {{ .Values.vertretbar.host | quote }}
+      secretName: {{ .Values.vertretbar.tlsSecretName }}
+  rules:
+    - host: {{ .Values.vertretbar.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-{{ .Values.frontend.name }}
+                port:
+                  number: {{ .Values.frontend.service.port }}
+{{- end }}
+---
 {{- if and .Values.minio.enabled .Values.minio.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress

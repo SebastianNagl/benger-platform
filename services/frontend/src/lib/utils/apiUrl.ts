@@ -32,13 +32,15 @@ export function getInternalApiUrl(request: NextRequest): string {
 
   // Host-based detection
   if (host.includes('benger-test.localhost')) return 'http://test-api:8000'
-  if (host.includes('benger.localhost')) return 'http://api:8000'
+  // Vertretbar shares the same backend as benger (dev: the api service).
+  if (host.includes('benger.localhost') || host.includes('vertretbar.localhost'))
+    return 'http://api:8000'
   if (host.includes('localhost:3000') || host.includes('localhost:3001')) {
     return process.env.DOCKER_INTERNAL_API_URL
       ? 'http://api:8000'
       : 'http://localhost:8001'
   }
-  if (host.includes('what-a-benger.net')) {
+  if (host.includes('what-a-benger.net') || host.includes('vertretbar.net')) {
     return (
       process.env.DOCKER_INTERNAL_API_URL ||
       process.env.API_URL ||

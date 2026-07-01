@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { hasSlot, useSlot } from '@/lib/extensions/slots'
+import { isStudentLockedHost } from '@/lib/utils/subdomain'
 import { useUIStore } from '@/stores'
 
 export type UiMode = 'student' | 'expert'
@@ -44,6 +45,10 @@ export function useResolvedUiMode(): UiMode {
 
   if (!isExtendedEdition()) return 'expert'
   if (!studentShell && !hasSlot('StudentShell')) return 'expert'
+
+  // A student-locked host (e.g. vertretbar.net) only ever renders the student
+  // shell — the local override / saved preference cannot escape to expert.
+  if (isStudentLockedHost()) return 'student'
 
   return localMode ?? user?.preferred_ui_mode ?? 'student'
 }

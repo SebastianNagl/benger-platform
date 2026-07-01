@@ -23,6 +23,7 @@ from models import (
 )
 from project_models import (
     Annotation,
+    MarketplaceEntitlement,
     Project,
     ProjectOrganization,
     ProjectShareMember,
@@ -30,6 +31,11 @@ from project_models import (
     TaskAssignment,
 )
 from project_schemas import ProjectResponse
+from project_window import (
+    project_reads_allowed,
+    project_window_state,
+    project_writes_allowed,
+)
 
 
 # Re-export the noise filter from /shared. Single source of truth lives in
@@ -1146,6 +1152,80 @@ async def get_share_access_async(
     return result.scalar_one_or_none()
 
 
+async def get_entitlement_access_async(
+    db: AsyncSession, user, project_id: str
+) -> Optional[MarketplaceEntitlement]:
+    """Return the user's active marketplace entitlement for a project, or None.
+
+    The vendor-marketplace twin of ``get_share_access_async``: a student who
+    bought (``source='purchase'``) or was unlocked (``source='vendor_grant'``)
+    a vendor exam/deck holds an entitlement row that confers the SAME narrow
+    participant-level access a consented share member gets — never the full
+    ``check_project_accessible`` tier (so the Musterlösung and other students'
+    attempts stay gated identically). ``revoked_at`` (manual revocation /
+    future refund handling) excludes the row. A pure platform-table read.
+    """
+    result = await db.execute(
+        select(MarketplaceEntitlement).where(
+            MarketplaceEntitlement.project_id == project_id,
+            MarketplaceEntitlement.user_id == str(user.id),
+            MarketplaceEntitlement.revoked_at.is_(None),
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_student_read_access_async(
+    db: AsyncSession, user, project_id: str
+) -> bool:
+    """Whether a student has participant access to a project (share OR purchase).
+
+    The single gate the student exam/deck/SRS read endpoints should use: True
+    if the user is a consented share member OR holds an active marketplace
+    entitlement. Short-circuits on the share check (the common #35 path) before
+    querying entitlements. Both grant the identical narrow tier; callers that
+    only need a yes/no should prefer this over calling the two primitives.
+    """
+    if await get_share_access_async(db, user, project_id):
+        return True
+    return await get_entitlement_access_async(db, user, project_id) is not None
+
+
+def get_student_read_access(db: Session, user, project_id: str) -> bool:
+    """Sync twin of :func:`get_student_read_access_async`.
+
+    Participant access via a consented ``ProjectShareMember`` OR an active
+    ``MarketplaceEntitlement`` (a vendor purchase / vendor grant / discovery
+    enrollment). Used by the sync annotation-write path (``create_annotation``)
+    so its submit gate AGREES with the read gate the extended student endpoints
+    use: a consented share member of a private exam, or an entitled/enrolled
+    student, may attempt the task even though ``check_project_accessible`` is
+    owner-only for a private project. Narrow participant tier only — it never
+    widens export / settings / whole-``task.data`` access.
+    """
+    share = (
+        db.query(ProjectShareMember)
+        .filter(
+            ProjectShareMember.project_id == project_id,
+            ProjectShareMember.user_id == str(user.id),
+            ProjectShareMember.gdpr_consent_at.isnot(None),
+        )
+        .first()
+    )
+    if share is not None:
+        return True
+    ent = (
+        db.query(MarketplaceEntitlement)
+        .filter(
+            MarketplaceEntitlement.project_id == project_id,
+            MarketplaceEntitlement.user_id == str(user.id),
+            MarketplaceEntitlement.revoked_at.is_(None),
+        )
+        .first()
+    )
+    return ent is not None
+
+
 def _build_select_org_admin_membership(user_id, project_org_ids):
     """Shared SQL builder: is `user` an active ORG_ADMIN of any of these orgs?"""
     return (
@@ -1506,6 +1586,92 @@ async def check_user_can_edit_project_async(
                 return True
 
     return False
+
+
+# ── Timed access window (annotate / generate / evaluate) ─────────────────────
+# The pure state predicates (project_window_state / project_reads_allowed /
+# project_writes_allowed) live in /shared/project_window.py so the api AND the
+# workers (auto-submit timer) agree. Here we add the api-side ENFORCEMENT
+# wrappers: they apply the editor-exemption (anyone who can EDIT the project —
+# superadmin / creator / ORG_ADMIN / CONTRIBUTOR — is exempt, so a teacher can
+# set up before and review/re-grade after) and raise HTTPException. This
+# generalizes the is_archived annotator read-only carve-out to a time window,
+# adding a pre-open "listed-but-no-data" phase.
+
+
+def _window_403(project, state: str) -> HTTPException:
+    """Build the 403 raised when a non-editor hits a closed/pre-open window."""
+    start = getattr(project, "window_start_at", None)
+    end = getattr(project, "window_end_at", None)
+    message = (
+        "This project is not open yet."
+        if state == "upcoming"
+        else "This project is closed for changes."
+    )
+    return HTTPException(
+        status_code=403,
+        detail={
+            "code": f"project_window_{state}",
+            "message": message,
+            "window_start_at": start.isoformat() if start is not None else None,
+            "window_end_at": end.isoformat() if end is not None else None,
+        },
+    )
+
+
+def enforce_project_read_window(db: Session, user, project) -> None:
+    """Sync: raise 403 if the pre-open window hides task data from a non-editor.
+
+    No-op when there's no window, when the window is open/closed (reads stay
+    allowed then — closed is "viewable but immutable"), or when the user can
+    edit the project. Call at the DATA-serving read endpoints only — never the
+    project LIST query, so pre-open projects stay listed.
+    """
+    if project_reads_allowed(project):
+        return
+    if getattr(user, "is_superadmin", False) or check_user_can_edit_project(
+        db, user, project.id
+    ):
+        return
+    raise _window_403(project, "upcoming")
+
+
+async def enforce_project_read_window_async(db: AsyncSession, user, project) -> None:
+    """Async twin of :func:`enforce_project_read_window`."""
+    if project_reads_allowed(project):
+        return
+    if getattr(user, "is_superadmin", False) or await check_user_can_edit_project_async(
+        db, user, project.id
+    ):
+        return
+    raise _window_403(project, "upcoming")
+
+
+def enforce_project_write_window(db: Session, user, project) -> None:
+    """Sync: raise 403 if the window (pre-open OR closed) forbids a non-editor's write.
+
+    No-op when there's no window, when the window is open, or when the user can
+    edit the project. Call at every annotate / generate / evaluate write
+    choke-point (including the auto-submit workers).
+    """
+    if project_writes_allowed(project):
+        return
+    if getattr(user, "is_superadmin", False) or check_user_can_edit_project(
+        db, user, project.id
+    ):
+        return
+    raise _window_403(project, project_window_state(project))
+
+
+async def enforce_project_write_window_async(db: AsyncSession, user, project) -> None:
+    """Async twin of :func:`enforce_project_write_window`."""
+    if project_writes_allowed(project):
+        return
+    if getattr(user, "is_superadmin", False) or await check_user_can_edit_project_async(
+        db, user, project.id
+    ):
+        return
+    raise _window_403(project, project_window_state(project))
 
 
 # NOTE: the canonical project-access dependency is `require_project_access` in

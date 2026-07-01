@@ -70,6 +70,7 @@ const mockApiSetUiMode = (require('@/contexts/ApiClientContext') as any)
 
 jest.mock('@/lib/utils/subdomain', () => ({
   parseSubdomain: () => ({ isPrivateMode: true, orgSlug: null }),
+  isStudentLockedHost: () => false,
 }))
 
 jest.mock('@/hooks/useResolvedUiMode', () => ({

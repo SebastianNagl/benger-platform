@@ -444,7 +444,18 @@ def derive_automatic_metrics(real, whitelist=None) -> list[dict]:
                     "metric": k,
                     "value": val,
                 })
-    return rows
+    # De-duplicate on (system, task, generation, metric): a few generations
+    # carry a second evaluation record with a redundant (identical) ROUGE
+    # metric, which would otherwise double-count ROUGE (n=416 vs 208).
+    seen = set()
+    deduped = []
+    for r in rows:
+        key = (r["system"], r["task_id"], r["generation_id"], r["metric"])
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(r)
+    return deduped
 
 
 def derive_human_automatic_metrics(human_auto_export_path, variants) -> list[dict]:

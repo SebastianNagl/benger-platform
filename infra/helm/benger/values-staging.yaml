@@ -229,3 +229,18 @@ middleware:
     stsSeconds: 31536000
     stsIncludeSubdomains: true
     stsPreload: false
+
+# Vertretbar student apex on staging: staging.vertretbar.net, beta-locked. Enabled
+# HERE (not values.yaml / values-extended.yaml) so the beta rides ONLY staging —
+# prod stays inert until the go-live flips vertretbar.enabled in the base
+# values.yaml. Its own HTTP-01 cert (the *.staging.what-a-benger.net wildcard does
+# not cover this apex).
+# PRE-REQUISITES in the benger-staging namespace before deploy:
+#   - the benger-beta-auth Secret (key: users) must exist (beta password gate);
+#   - staging.vertretbar.net must resolve to the server so the cert can issue.
+vertretbar:
+  enabled: true
+  host: staging.vertretbar.net
+  tlsSecretName: vertretbar-staging-tls
+  betaAuth:
+    enabled: true

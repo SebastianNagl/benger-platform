@@ -39,6 +39,7 @@ mistralai>=1.2.0  # Mistral AI models
 cohere>=5.21.1  # Cohere models
 aiohttp==3.14.1
 jinja2>=3.1.0
+stripe>=11.0.0,<13.0.0  # Vertretbar student billing (extended-only; community installs but never imports)
 boto3>=1.35.0
 botocore>=1.43.11
 requests>=2.34.2

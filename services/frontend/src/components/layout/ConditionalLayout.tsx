@@ -40,11 +40,13 @@ export function ConditionalLayout({
   // Pages that should NOT use the app layout (sidebar/navbar)
   const standalonePages = [
     '/', // Landing page
+    '/vertretbar', // Vertretbar student landing ("/" rewrites here on locked hosts)
     '/login', // Login page
     '/register', // Registration page
     '/reset-password', // Password reset (includes token routes)
     '/verify-email', // Email verification (includes token routes)
     '/accept-invitation', // Organization invitation (includes token routes)
+    '/shares', // Exam-share join page (includes token routes) — clean, chrome-less (Issue #35)
   ]
 
   // Pages that need minimal layout (with SectionProvider but no sidebar)

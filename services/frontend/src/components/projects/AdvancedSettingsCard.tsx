@@ -18,6 +18,7 @@
 import { type ComponentType, type Dispatch, type SetStateAction } from 'react'
 import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
+import { isoToLocalInput, localInputToIso } from '@/utils/projectWindow'
 import {
   Select,
   SelectContent,
@@ -49,6 +50,12 @@ export interface AdvancedSettings {
   annotation_time_limit_enabled: boolean
   annotation_time_limit_seconds: number | null
   strict_timer_enabled: boolean
+  restorable_checkpoints_enabled: boolean
+  // Timed access window (ISO 8601 UTC strings, or null when unset). The access
+  // group can only annotate/generate/evaluate between these; data is hidden
+  // before the start; it's read-only after the end. Editors are exempt.
+  window_start_at: string | null
+  window_end_at: string | null
 }
 
 interface AdvancedSettingsCardProps {
@@ -371,6 +378,110 @@ export function AdvancedSettingsCard({
                   </>
                 )}
               </div>
+
+              {/* Timed access window (annotate / generate / evaluate) */}
+              <div className="space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>
+                      {t('project.settings.accessWindow.title', 'Timed access window')}
+                    </Label>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      {t(
+                        'project.settings.accessWindow.hint',
+                        'Open the project to its access group only during a set time. Before it opens, the project is listed but its data stays hidden; after it closes, the data is read-only. Owners and admins are never restricted.',
+                      )}
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={
+                      !!(
+                        advancedSettings.window_start_at ||
+                        advancedSettings.window_end_at
+                      )
+                    }
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setAdvancedSettings((prev: any) => {
+                          if (prev.window_start_at || prev.window_end_at) return prev
+                          const start = new Date()
+                          start.setSeconds(0, 0)
+                          const end = new Date(start.getTime() + 2 * 3600 * 1000)
+                          return {
+                            ...prev,
+                            window_start_at: start.toISOString(),
+                            window_end_at: end.toISOString(),
+                          }
+                        })
+                      } else {
+                        setAdvancedSettings((prev: any) => ({
+                          ...prev,
+                          window_start_at: null,
+                          window_end_at: null,
+                        }))
+                      }
+                    }}
+                    disabled={!editing}
+                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                  />
+                </div>
+
+                {(advancedSettings.window_start_at ||
+                  advancedSettings.window_end_at) && (
+                  <div className="ml-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label className="w-16 text-sm">
+                        {t('project.settings.accessWindow.opens', 'Opens')}
+                      </Label>
+                      <Input
+                        type="datetime-local"
+                        value={isoToLocalInput(advancedSettings.window_start_at)}
+                        onChange={(e) =>
+                          setAdvancedSettings((prev: any) => ({
+                            ...prev,
+                            window_start_at: localInputToIso(e.target.value),
+                          }))
+                        }
+                        disabled={!editing}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="w-16 text-sm">
+                        {t('project.settings.accessWindow.closes', 'Closes')}
+                      </Label>
+                      <Input
+                        type="datetime-local"
+                        value={isoToLocalInput(advancedSettings.window_end_at)}
+                        onChange={(e) =>
+                          setAdvancedSettings((prev: any) => ({
+                            ...prev,
+                            window_end_at: localInputToIso(e.target.value),
+                          }))
+                        }
+                        disabled={!editing}
+                        className="text-sm"
+                      />
+                    </div>
+                    {advancedSettings.window_start_at &&
+                      advancedSettings.window_end_at &&
+                      new Date(advancedSettings.window_end_at) <=
+                        new Date(advancedSettings.window_start_at) && (
+                        <p className="text-xs text-red-500">
+                          {t(
+                            'project.settings.accessWindow.invalid',
+                            'The close time must be after the open time.',
+                          )}
+                        </p>
+                      )}
+                  </div>
+                )}
+              </div>
+
+              {/* Restorable draft checkpoints (opt-in) is an extended feature —
+                  its toggle is rendered by the project-settings-extended slot
+                  below, not here, so the community edition doesn't expose it. */}
             </div>
           </div>
 

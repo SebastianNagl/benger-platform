@@ -4,6 +4,14 @@
  */
 
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime'
+
+// authRedirect.defaultAuthedPath consults isStudentLockedHost; mock it so we can
+// flip the host without touching the (non-configurable) jsdom window.location.
+const mockIsStudentLockedHost = jest.fn(() => false)
+jest.mock('@/lib/utils/subdomain', () => ({
+  isStudentLockedHost: () => mockIsStudentLockedHost(),
+}))
+
 import { authRedirect, publicRoutes } from '../authRedirect'
 
 // Mock Next.js router
@@ -25,17 +33,19 @@ describe('authRedirect', () => {
     it('should include all expected public routes', () => {
       const expectedRoutes = [
         '/',
+        '/vertretbar',
         '/login',
         '/register',
         '/reset-password',
         '/verify-email',
         '/accept-invitation',
+        '/shares',
         '/about/imprint',
         '/about/data-protection',
       ]
 
       expect(publicRoutes).toEqual(expectedRoutes)
-      expect(publicRoutes).toHaveLength(8)
+      expect(publicRoutes).toHaveLength(10)
     })
 
     it('should contain unique routes only', () => {
@@ -83,6 +93,22 @@ describe('authRedirect', () => {
       expect(mockRouter.refresh).not.toHaveBeenCalled()
       expect(mockRouter.back).not.toHaveBeenCalled()
       expect(mockRouter.forward).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('defaultAuthedPath (host-aware)', () => {
+    afterEach(() => mockIsStudentLockedHost.mockReturnValue(false))
+
+    it('returns /dashboard on a benger host', () => {
+      mockIsStudentLockedHost.mockReturnValue(false)
+      expect(authRedirect.defaultAuthedPath()).toBe('/dashboard')
+    })
+
+    it('returns /student on a vertretbar host and toDashboard follows it', () => {
+      mockIsStudentLockedHost.mockReturnValue(true)
+      expect(authRedirect.defaultAuthedPath()).toBe('/student')
+      authRedirect.toDashboard(mockRouter)
+      expect(mockRouter.replace).toHaveBeenCalledWith('/student')
     })
   })
 
