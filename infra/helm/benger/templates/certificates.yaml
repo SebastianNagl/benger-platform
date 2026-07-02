@@ -43,8 +43,11 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   secretName: {{ .Values.vertretbar.tlsSecretName }}
+  # HTTP-01 issuer, NOT the Cloudflare DNS-01 one used for the *.what-a-benger.net
+  # wildcard: vertretbar.net is a non-wildcard apex on external DNS (Namecheap),
+  # so it validates via HTTP-01 (A record + Traefik) — no Cloudflare/DNS-API.
   issuerRef:
-    name: letsencrypt-prod
+    name: {{ .Values.vertretbar.certIssuer | default "letsencrypt-prod-http01" }}
     kind: ClusterIssuer
   dnsNames:
   - {{ .Values.vertretbar.host | quote }}

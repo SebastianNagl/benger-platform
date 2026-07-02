@@ -582,9 +582,12 @@ vertretbar:
   enabled: false
   host: vertretbar.net
   # Own cert: the *.what-a-benger.net wildcard does not cover a different apex.
-  # cert-manager issues it from the same letsencrypt-prod ClusterIssuer via HTTP-01
-  # once the A record resolves. Secret is per-release, pre-created by cert-manager.
+  # Issued via HTTP-01 (letsencrypt-prod-http01), NOT the Cloudflare DNS-01 issuer
+  # used for the wildcard — vertretbar.net lives on external DNS (Namecheap) with
+  # no Cloudflare zone, so DNS-01 can't create its TXT record. HTTP-01 just needs
+  # the A record + Traefik. cert issues once the A record resolves.
   tlsSecretName: vertretbar-tls
+  certIssuer: letsencrypt-prod-http01
   # Closed-beta gate: a Traefik BasicAuth middleware locks the WHOLE host behind one
   # shared password until public launch — flip enabled:false to remove it in one
   # step. Compatible with the app's cookie-only auth (the browser sends
