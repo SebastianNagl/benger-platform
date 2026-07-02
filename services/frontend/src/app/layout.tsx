@@ -4,6 +4,9 @@ import { ConditionalLayout } from '@/components/layout/ConditionalLayout'
 import { type Section } from '@/components/layout/SectionProvider'
 import '@/styles/tailwind.css'
 import { type Metadata } from 'next'
+import { headers } from 'next/headers'
+
+import { isStudentLockedHost } from '@/lib/utils/subdomain'
 
 // Define sections for different pages
 const allSections: Record<string, Array<Section>> = {
@@ -20,38 +23,47 @@ const allSections: Record<string, Array<Section>> = {
   ],
 }
 
-export const metadata: Metadata = {
-  title: {
-    template: '%s - BenGER',
-    default: 'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht',
-  },
-  description:
-    'Die führende Plattform für wissenschaftlich fundierte Evaluation von Large Language Models im deutschen Rechtskontext. Entwickelt an der TUM.',
-  keywords: [
-    'Legal AI',
-    'LLM Evaluation',
-    'German Law',
-    'Legal Technology',
-    'AI Benchmarking',
-  ],
-  icons: {
-    icon: '/icon.svg',
-  },
-  openGraph: {
-    title: 'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht',
-    description:
-      'Die führende Plattform für wissenschaftlich fundierte Evaluation von Large Language Models im deutschen Rechtskontext.',
-    url: 'https://what-a-benger.net',
-    siteName: 'BenGER',
-    locale: 'de_DE',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht',
-    description:
-      'Die führende Plattform für wissenschaftlich fundierte Evaluation von Large Language Models im deutschen Rechtskontext.',
-  },
+// Host-aware metadata: Vertretbar branding on the student-locked apex
+// (vertretbar.net), BenGER everywhere else — resolved server-side from the
+// request host so the tab title/OG never flash benger branding on vertretbar.net.
+export async function generateMetadata(): Promise<Metadata> {
+  const h = await headers()
+  const host = h.get('x-forwarded-host') || h.get('host') || ''
+  const vtr = isStudentLockedHost(host)
+
+  const title = vtr
+    ? 'Vertretbar – Klausuren üben mit sofortiger KI-Korrektur'
+    : 'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht'
+  const description = vtr
+    ? 'Übe juristische Klausuren mit sofortiger KI-Korrektur und lerne mit Karteikarten — kein eigener API-Schlüssel nötig.'
+    : 'Die führende Plattform für wissenschaftlich fundierte Evaluation von Large Language Models im deutschen Rechtskontext. Entwickelt an der TUM.'
+
+  return {
+    title: {
+      template: vtr ? '%s · Vertretbar' : '%s - BenGER',
+      default: title,
+    },
+    description,
+    keywords: vtr
+      ? ['Jura', 'Klausur', 'Falllösung', 'Karteikarten', 'KI-Korrektur', 'Examen']
+      : ['Legal AI', 'LLM Evaluation', 'German Law', 'Legal Technology', 'AI Benchmarking'],
+    icons: {
+      icon: '/icon.svg',
+    },
+    openGraph: {
+      title,
+      description,
+      url: vtr ? 'https://vertretbar.net' : 'https://what-a-benger.net',
+      siteName: vtr ? 'Vertretbar' : 'BenGER',
+      locale: 'de_DE',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+    },
+  }
 }
 
 export default function RootLayout({

@@ -12,14 +12,7 @@ async function resolveHost(): Promise<string> {
   return h.get('x-forwarded-host') || h.get('host') || ''
 }
 
-// Host-aware <title>: Vertretbar on the student-locked apex, benger (inherited
-// from the root layout) everywhere else.
-export async function generateMetadata() {
-  if (isStudentLockedHost(await resolveHost())) {
-    return { title: 'Vertretbar – Klausuren üben mit sofortiger KI-Korrektur' }
-  }
-  return {}
-}
+// (Tab title is set host-aware in the root layout's generateMetadata.)
 
 /**
  * Root landing. The host is resolved SERVER-SIDE so the correct tree renders on
