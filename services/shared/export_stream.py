@@ -1229,6 +1229,10 @@ EXPORT_FORMAT_MEDIA_TYPES: dict[str, tuple[str, str]] = {
     # Content-Encoding: gzip — see plan Phase 3b) so the byte stream the client
     # downloads is exactly what the importer's gzip-magic detection decompresses.
     "ndjson_gz": ("application/gzip", "ndjson.gz"),
+    # Anki flashcard-deck exports (issue #35). anki_csv is a 3-column
+    # front/back/tags CSV; anki_apkg is a legacy collection.anki21 package.
+    "anki_csv": ("text/csv", "csv"),
+    "anki_apkg": ("application/zip", "apkg"),
 }
 
 # Formats whose generator emits plain text that the worker must gzip-compress
@@ -1347,4 +1351,65 @@ def select_export_generator(
     if fmt in ("ndjson", "ndjson_gz"):
         # Same text stream for both; the worker compresses when fmt is gzipped.
         return stream_export_ndjson(db, project_id)
+    if fmt in ("anki_csv", "anki_apkg"):
+        return stream_export_anki(db, project_id, project.title, fmt)
     raise ValueError(f"Unsupported export format: {fmt!r}")
+
+
+def _task_to_anki_card(task, deck_name):
+    """Map a flashcard-deck task (a "card") to a neutral AnkiCard.
+
+    The deck card convention persisted in ``task.data`` is ``{"front", "back",
+    "tags"}`` (legacy/alternate German keys ``Vorderseite``/``Rückseite`` are
+    accepted on read for robustness). This is the single place that knows the
+    card task shape; the ``anki`` IR package stays storage-agnostic.
+    """
+    from anki import AnkiCard
+
+    data = task.data or {}
+
+    def _pick(*keys):
+        for k in keys:
+            v = data.get(k)
+            if v:
+                return v
+        return ""
+
+    tags = data.get("tags") or []
+    if isinstance(tags, str):
+        tags = tags.split()
+    # A collection (project) can hold many decks (Anki "Stapel"): each card
+    # carries its hierarchical deck path in task.data["deck"] (e.g.
+    # "Jura::BGB::AT"). Fall back to the project title for a flat collection so
+    # the export still round-trips.
+    return AnkiCard(
+        front=str(_pick("front", "Vorderseite", "frage", "Frage")),
+        back=str(_pick("back", "Rückseite", "Rueckseite", "antwort", "Antwort")),
+        tags=[str(t) for t in tags],
+        deck_name=str(data.get("deck") or deck_name),
+    )
+
+
+def stream_export_anki(db: Session, project_id: str, project_title: str, fmt: str):
+    """Yield an Anki export of a flashcard deck (issue #35).
+
+    A deck is a project and each card is a task. Builds the neutral IR from the
+    deck's tasks, then emits CSV (``anki_csv``) or a legacy ``.apkg`` package
+    (``anki_apkg``). The whole deck is materialized in memory — decks are small
+    (hundreds of cards), unlike the streaming JSON export path.
+    """
+    from anki import AnkiDeck, cards_to_csv, deck_to_apkg
+
+    deck_name = project_title or "Deck"
+    tasks = (
+        db.query(Task)
+        .filter(Task.project_id == project_id)
+        .order_by(Task.inner_id.asc())
+        .all()
+    )
+    cards = [_task_to_anki_card(t, deck_name) for t in tasks]
+
+    if fmt == "anki_csv":
+        yield cards_to_csv(cards)
+    else:  # anki_apkg
+        yield deck_to_apkg(AnkiDeck(name=deck_name, cards=cards))

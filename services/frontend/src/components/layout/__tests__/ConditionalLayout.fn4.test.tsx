@@ -3,6 +3,7 @@ import { render, act } from '@testing-library/react'
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/dashboard',
+  useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
 }))
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ isLoading: true, user: null }),

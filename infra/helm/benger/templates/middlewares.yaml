@@ -68,3 +68,47 @@ spec:
     middlewares:
       - name: {{ .Release.Name }}-security-headers
 {{- end }}
+{{- if .Values.vertretbar.enabled }}
+---
+{{- if .Values.vertretbar.betaAuth.enabled }}
+# Closed-beta gate for the vertretbar.net host. One shared htpasswd password locks
+# the WHOLE host (landing + signup + app) at the edge until public launch. The
+# app's own cookie login runs behind it; removeHeader strips the Basic credential
+# before proxying so the backend never sees it. Remove by flipping
+# vertretbar.betaAuth.enabled=false. The referenced Secret (key: users) must be
+# pre-created in the namespace.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-vertretbar-beta-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  basicAuth:
+    secret: {{ .Values.vertretbar.betaAuth.secretName }}
+    removeHeader: true
+---
+{{- end }}
+# vertretbar.net middleware chain: security headers (when enabled) + the beta lock.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-vertretbar-chain
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  chain:
+    middlewares:
+      {{- if .Values.middleware.enabled }}
+      - name: {{ .Release.Name }}-security-headers
+      {{- end }}
+      {{- if .Values.vertretbar.betaAuth.enabled }}
+      - name: {{ .Release.Name }}-vertretbar-beta-auth
+      {{- end }}
+{{- end }}

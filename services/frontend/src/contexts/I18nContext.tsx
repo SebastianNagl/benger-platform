@@ -77,6 +77,15 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (value === undefined) {
+        // Interpolate {var} placeholders into the inline fallback too — keys
+        // that live only as code-side defaults (e.g. extended student-feature
+        // strings not mirrored in the locale JSON) must still substitute their
+        // counts/values instead of rendering a literal "{count}".
+        if (typeof defaultValue === 'string' && vars) {
+          return defaultValue.replace(/\{(\w+)\}/g, (match, variableName) =>
+            vars[variableName] !== undefined ? String(vars[variableName]) : match,
+          )
+        }
         return defaultValue ?? key
       }
 
@@ -136,6 +145,12 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (value === undefined) {
+          // Same fallback interpolation as the mounted path (see note above).
+          if (typeof defaultValue === 'string' && vars) {
+            return defaultValue.replace(/\{(\w+)\}/g, (match, variableName) =>
+              vars[variableName] !== undefined ? String(vars[variableName]) : match,
+            )
+          }
           return defaultValue ?? key
         }
 

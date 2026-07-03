@@ -884,6 +884,24 @@ def auto_submit_expired_timer(session_id: str) -> Dict[str, Any]:
             _dispatch_immediate_eval(db, existing)
             return {"status": "skipped", "reason": "annotation already exists"}
 
+        # Timed access window: don't finalize a draft into an annotation once the
+        # project's window has closed — "immutable after close". Close the timer
+        # session so it isn't retried.
+        from project_window import project_writes_allowed
+
+        project = db.query(Project).filter(Project.id == session.project_id).first()
+        if project is not None and not project_writes_allowed(project):
+            session.completed_at = datetime.now(timezone.utc)
+            session.auto_submitted = True
+            db.commit()
+            logger.info(
+                "auto_submit_expired_timer: project window closed for %s; "
+                "skipped auto-submit for session %s",
+                session.project_id,
+                session_id,
+            )
+            return {"status": "skipped", "reason": "project window closed"}
+
         # Use draft if available: try timer session first, then task_drafts table
         result = session.draft_result
         if not result:
@@ -912,7 +930,7 @@ def auto_submit_expired_timer(session_id: str) -> Dict[str, Any]:
         task = db.query(Task).filter(Task.id == session.task_id).first()
         if task and result and len(result) > 0:
             task.total_annotations = (task.total_annotations or 0) + 1
-            project = db.query(Project).filter(Project.id == session.project_id).first()
+            # `project` already loaded above for the window check.
             if project:
                 from sqlalchemy import String, cast, func
                 non_cancelled = db.query(Annotation).filter(
@@ -1067,6 +1085,7 @@ def send_invitation_email_task(
     organization_name: str,
     invitation_url: str,
     role: str,
+    host: str = None,
 ) -> Dict[str, Any]:
     """
     Send organization invitation email via Celery
@@ -1090,17 +1109,26 @@ def send_invitation_email_task(
 
         client = SendGridClient()
 
+        from mailer.branding import resolve_email_brand
+
+        brand = resolve_email_brand(host)
+
         subject, html_body = email_service.build_invitation_email(
             organization_name=organization_name,
             inviter_name=inviter_name,
             role=role,
             invitation_url=invitation_url,
+            brand_name=brand.name,
+            brand_tagline=brand.tagline,
+            language=brand.default_language,
         )
 
         result = client.send_message(
             to=[to_email],
             subject=subject,
             html_body=html_body,
+            from_address=brand.from_address,
+            from_name=brand.from_name,
             disable_tracking=True,
         )
 
@@ -1176,6 +1204,7 @@ def send_bulk_invitations_task(invitations_data: List[Dict]) -> Dict[str, Any]:
                     invitation.get('invitation_url'),
                     invitation.get('role'),
                 ],
+                kwargs={'host': invitation.get('host')},
                 countdown=idx * 2,  # 2 second delay between emails
             )
             sent += 1

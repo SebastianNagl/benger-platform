@@ -928,6 +928,43 @@ export const projectsAPI = {
   },
 
   /**
+   * Append a restorable draft checkpoint (opt-in; no-op server-side unless the
+   * project has restorable_checkpoints_enabled). Append-only history, kept
+   * after submit. See routers/projects/drafts.py.
+   */
+  saveCheckpoint: async (
+    projectId: string,
+    taskId: string,
+    result: any[]
+  ): Promise<void> => {
+    await apiClient.post(
+      `/projects/${projectId}/tasks/${taskId}/checkpoint`,
+      { result }
+    )
+  },
+
+  /** List the current user's checkpoint snapshots for a task (newest first, metadata only). */
+  listCheckpoints: async (
+    projectId: string,
+    taskId: string
+  ): Promise<Array<{ id: string; created_at: string; size: number }>> => {
+    const res: { checkpoints?: Array<{ id: string; created_at: string; size: number }> } =
+      await apiClient.get(`/projects/${projectId}/tasks/${taskId}/checkpoints`)
+    return res.checkpoints || []
+  },
+
+  /** Fetch one checkpoint's full snapshot (the annotation result array). */
+  getCheckpoint: async (
+    projectId: string,
+    taskId: string,
+    checkpointId: string
+  ): Promise<{ id: string; created_at: string; result: any[] }> => {
+    return apiClient.get(
+      `/projects/${projectId}/tasks/${taskId}/checkpoints/${checkpointId}`
+    )
+  },
+
+  /**
    * Submit a post-annotation questionnaire response (Issue #1208)
    */
   submitQuestionnaireResponse: async (

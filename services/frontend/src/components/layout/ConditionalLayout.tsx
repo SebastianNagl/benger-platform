@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { Layout } from '@/components/layout/Layout'
 import { MinimalLayout } from '@/components/layout/MinimalLayout'
 import { type Section } from '@/components/layout/SectionProvider'
+import { StudentModeRedirect } from '@/components/student/StudentModeRedirect'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { usePathname } from 'next/navigation'
@@ -39,11 +40,13 @@ export function ConditionalLayout({
   // Pages that should NOT use the app layout (sidebar/navbar)
   const standalonePages = [
     '/', // Landing page
+    '/vertretbar', // Vertretbar student landing ("/" rewrites here on locked hosts)
     '/login', // Login page
     '/register', // Registration page
     '/reset-password', // Password reset (includes token routes)
     '/verify-email', // Email verification (includes token routes)
     '/accept-invitation', // Organization invitation (includes token routes)
+    '/shares', // Exam-share join page (includes token routes) — clean, chrome-less (Issue #35)
   ]
 
   // Pages that need minimal layout (with SectionProvider but no sidebar)
@@ -90,6 +93,9 @@ export function ConditionalLayout({
 
   return (
     <ProtectedRoute>
+      {/* Student-mode users are bounced from / and /dashboard to /student.
+          No-op in community / for expert users (Issue #35). */}
+      <StudentModeRedirect />
       {/* For basic standalone pages, render children directly without any layout */}
       {isStandalonePage ? (
         <div className="w-full">{children}</div>

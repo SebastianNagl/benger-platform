@@ -27,7 +27,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     // If user is not authenticated and trying to access a protected route
     // Only redirect when auth state is stable (not loading)
     if (!user && !isLoading) {
-      authRedirect.toLogin(router)
+      authRedirect.toLogin(router, pathname)
     }
   }, [user, isLoading, isPublicRoute, router, pathname])
 

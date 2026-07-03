@@ -275,6 +275,13 @@ class User(Base):
     # Research data use consent (extended-edition policy; NULL on community deployments)
     research_data_consent_accepted_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Preferred UI mode (extended-edition student experience). Persists the
+    # student/expert view choice server-side so it follows the user across
+    # devices. NULL = no stored preference (resolve from edition/role at render).
+    # This is a default HINT only — never an authorization input; expert-view
+    # gating is always recomputed from role/org membership on every render.
+    preferred_ui_mode = Column(String(16), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -418,6 +425,211 @@ class OrganizationApiKey(Base):
 
     def __repr__(self):
         return f"<OrganizationApiKey(id={self.id}, org_id={self.organization_id}, provider={self.provider})>"
+
+
+class StudentSubscription(Base):
+    """A student's paid subscription for AI exam grading (Vertretbar).
+
+    Persistence only — the proprietary subscription state machine, Stripe
+    orchestration and metering live in ``benger_extended``. One row per user
+    (a user has at most one subscription). ``status`` is provider-agnostic so a
+    Merchant-of-Record could replace Stripe without a schema change.
+    """
+
+    __tablename__ = "student_subscriptions"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(
+        String,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    provider = Column(String, nullable=False, default="stripe")
+    provider_customer_id = Column(String, nullable=True, index=True)
+    provider_subscription_id = Column(String, nullable=True, index=True)
+    # The metered subscription-item id usage records are reported against.
+    provider_metered_item_id = Column(String, nullable=True)
+    # incomplete | trialing | active | past_due | canceled | unpaid
+    status = Column(String, nullable=False, default="incomplete")
+    base_price_cents = Column(Integer, nullable=False, default=500)
+    per_grading_price_cents = Column(Integer, nullable=False, default=200)
+    currency = Column(String(3), nullable=False, default="eur")
+    current_period_start = Column(DateTime(timezone=True), nullable=True)
+    current_period_end = Column(DateTime(timezone=True), nullable=True)
+    cancel_at_period_end = Column(Boolean, nullable=False, default=False)
+    canceled_at = Column(DateTime(timezone=True), nullable=True)
+    # Raw provider snapshot for debugging / reconciliation.
+    provider_metadata = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    def __repr__(self):
+        return f"<StudentSubscription(id={self.id}, user_id={self.user_id}, status={self.status})>"
+
+
+class GradingUsageEvent(Base):
+    """Authoritative metered ledger of billable exam gradings (Vertretbar).
+
+    Drives bill export, Stripe usage reconciliation and free-trial counting.
+    Persistence only — the metering decisions live in ``benger_extended``.
+    ``evaluation_run_id`` is unique so a re-dispatched / re-polled grading can
+    never be double-billed.
+    """
+
+    __tablename__ = "grading_usage_events"
+
+    id = Column(String, primary_key=True, index=True)
+    user_id = Column(
+        String,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    subscription_id = Column(
+        String,
+        ForeignKey("student_subscriptions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    project_id = Column(
+        String,
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    # Idempotency key — the eval_record_id minted at dispatch time.
+    evaluation_run_id = Column(String, nullable=True, unique=True)
+    event_type = Column(String, nullable=False, default="exam_grading")
+    quantity = Column(Integer, nullable=False, default=1)
+    unit_price_cents = Column(Integer, nullable=False, default=200)
+    currency = Column(String(3), nullable=False, default="eur")
+    # pending | billable | reported | void | free
+    status = Column(String, nullable=False, default="pending")
+    provider_usage_record_id = Column(String, nullable=True)
+    occurred_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+    reported_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        Index("ix_grading_usage_events_user_occurred", "user_id", "occurred_at"),
+    )
+
+    def __repr__(self):
+        return f"<GradingUsageEvent(id={self.id}, user_id={self.user_id}, status={self.status})>"
+
+
+class VendorAccount(Base):
+    """A vendor's marketplace selling account (Stripe Connect).
+
+    A vendor is an existing :class:`Organization` flagged for selling. The row
+    is created by a platform superadmin (row existence == approval); only then
+    may the org's admins run Stripe Connect onboarding and publish paid
+    listings. Persistence only — the Connect orchestration (account links,
+    charges) lives in ``benger_extended``. ``charges_enabled`` (set from the
+    Stripe ``account.updated`` webhook) is the gate for publishing/selling.
+    """
+
+    __tablename__ = "vendor_accounts"
+
+    id = Column(String, primary_key=True, index=True)
+    organization_id = Column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    # Superadmin approval provenance (the row existing at all == approved).
+    approved_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    approved_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    provider = Column(String, nullable=False, default="stripe")
+    stripe_account_id = Column(String, nullable=True, index=True)
+    charges_enabled = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    payouts_enabled = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    details_submitted = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    # pending | active | restricted
+    onboarding_status = Column(
+        String, nullable=False, default="pending", server_default="pending"
+    )
+    # Per-vendor platform-fee override (basis points); NULL = use global default.
+    platform_fee_bps = Column(Integer, nullable=True)
+    # Raw provider snapshot for debugging / reconciliation.
+    provider_metadata = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    organization = relationship("Organization")
+    approver = relationship("User", foreign_keys=[approved_by])
+
+    def __repr__(self):
+        return (
+            f"<VendorAccount(id={self.id}, org_id={self.organization_id}, "
+            f"charges_enabled={self.charges_enabled})>"
+        )
+
+
+class MarketplaceOrder(Base):
+    """A student's one-time purchase of a vendor marketplace item.
+
+    Authoritative payment record for a Stripe Connect destination charge: the
+    buyer pays the vendor's price, ``platform_fee_cents`` is the platform's cut,
+    and the remainder transfers to the vendor's connected account. Persistence
+    only — the Connect checkout/webhook orchestration lives in
+    ``benger_extended``. ``stripe_checkout_session_id`` is unique so a replayed
+    ``checkout.session.completed`` webhook can never double-fulfil.
+    """
+
+    __tablename__ = "marketplace_orders"
+
+    id = Column(String, primary_key=True, index=True)
+    buyer_user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # SET NULL snapshots so the order survives listing/project/org deletion.
+    listing_id = Column(
+        String, ForeignKey("marketplace_listings.id", ondelete="SET NULL"), nullable=True
+    )
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    )
+    vendor_org_id = Column(
+        String, ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True
+    )
+    # exam_access (one-time access purchase) | human_grading (HG credit add-on).
+    product_type = Column(
+        String, nullable=False, default="exam_access", server_default="exam_access"
+    )
+    amount_cents = Column(Integer, nullable=False)
+    currency = Column(String(3), nullable=False, default="eur")
+    platform_fee_cents = Column(Integer, nullable=False, default=0)
+    vendor_stripe_account_id = Column(String, nullable=True)
+    # Webhook idempotency key.
+    stripe_checkout_session_id = Column(String, nullable=True, unique=True, index=True)
+    stripe_payment_intent_id = Column(String, nullable=True, index=True)
+    # pending | paid | failed | refunded
+    status = Column(String, nullable=False, default="pending", server_default="pending")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    buyer = relationship("User", foreign_keys=[buyer_user_id])
+
+    def __repr__(self):
+        return (
+            f"<MarketplaceOrder(id={self.id}, buyer={self.buyer_user_id}, "
+            f"status={self.status})>"
+        )
 
 
 class Invitation(Base):

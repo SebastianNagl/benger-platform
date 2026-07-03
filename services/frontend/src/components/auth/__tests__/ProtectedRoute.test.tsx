@@ -288,7 +288,8 @@ describe('ProtectedRoute Component', () => {
       )
 
       await waitFor(() => {
-        expect(mockToLogin).toHaveBeenCalledWith(mockRouter)
+        // Passes the current path so login can return the user here afterwards.
+        expect(mockToLogin).toHaveBeenCalledWith(mockRouter, '/dashboard')
       })
     })
 

@@ -1139,4 +1139,16 @@ describe('UIStore', () => {
       )
     })
   })
+
+  describe('View Mode', () => {
+    it('sets the UI mode (student / expert / null)', () => {
+      const { result } = renderHook(() => useUIStore())
+      act(() => result.current.setUiMode('expert'))
+      expect(result.current.uiMode).toBe('expert')
+      act(() => result.current.setUiMode('student'))
+      expect(result.current.uiMode).toBe('student')
+      act(() => result.current.setUiMode(null))
+      expect(result.current.uiMode).toBeNull()
+    })
+  })
 })

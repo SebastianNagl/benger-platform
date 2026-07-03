@@ -1,74 +1,31 @@
-'use client'
-// BenGER Frontend v3.0.1 - Force rebuild for latest changes
+import { headers } from 'next/headers'
 
-import { HeroSection } from '@/components/landing/HeroSection'
-import { InformationSection } from '@/components/landing/InformationSection'
-import { LicenseCitationSection } from '@/components/landing/LicenseCitationSection'
-import { LandingLayout } from '@/components/landing/LandingLayout'
-import { NewsSection } from '@/components/landing/NewsSection'
-import { PeopleSection } from '@/components/landing/PeopleSection'
-import { useAuth } from '@/contexts/AuthContext'
-import { useI18n } from '@/contexts/I18nContext'
-import { authRedirect } from '@/utils/authRedirect'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { isStudentLockedHost } from '@/lib/utils/subdomain'
 
-// Metadata is exported from the root layout.tsx to avoid client component conflicts
+import BengerLandingClient from './BengerLandingClient'
+import VertretbarLandingPage from './vertretbar/page'
 
-export default function LandingPage() {
-  const { user, isLoading } = useAuth()
-  const { t } = useI18n()
-  const router = useRouter()
+// Resolve the external host server-side (x-forwarded-host behind Traefik/k8s,
+// falling back to host). Lets us decide benger-vs-Vertretbar BEFORE render.
+async function resolveHost(): Promise<string> {
+  const h = await headers()
+  return h.get('x-forwarded-host') || h.get('host') || ''
+}
 
-  // SSR has no auth context — always render the landing layout server-side and
-  // wait for the client to mount before branching on isLoading / user. Without
-  // this, hydration sees the server's "not authenticated" tree but the client
-  // already knows the user is logged in (cookie present), causing a mismatch.
-  const [mounted, setMounted] = useState(false)
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setMounted(true) }, [])
+// (Tab title is set host-aware in the root layout's generateMetadata.)
 
-  // Redirect authenticated users to dashboard
-  // Only redirect when auth state is stable (not loading)
-  useEffect(() => {
-    if (mounted && !isLoading && user) {
-      authRedirect.toDashboard(router)
-    }
-  }, [mounted, user, isLoading, router])
-
-  // Prevent flash while redirecting
-  if (mounted && !isLoading && user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-zinc-900">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
-          <p className="text-zinc-600 dark:text-zinc-400">
-            {t('common.redirectingToDashboard')}
-          </p>
-        </div>
-      </div>
-    )
+/**
+ * Root landing. The host is resolved SERVER-SIDE so the correct tree renders on
+ * the first paint — no benger-branding flash on vertretbar.net.
+ * - Student-locked host (vertretbar.net) → the Vertretbar landing gate (a neutral
+ *   spinner SSR, then the branded VertretbarLanding after mount).
+ * - Otherwise → the benger marketing landing.
+ * (The old middleware "/"→"/vertretbar" rewrite never built into the image; this
+ * makes the routing robust without depending on it.)
+ */
+export default async function Page() {
+  if (isStudentLockedHost(await resolveHost())) {
+    return <VertretbarLandingPage />
   }
-
-  // Show loading state while auth is being checked (client-only)
-  if (mounted && isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-zinc-900">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
-          <p className="text-zinc-600 dark:text-zinc-400">{t('common.loading')}</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <LandingLayout>
-      <HeroSection />
-      <InformationSection />
-      <NewsSection />
-      <PeopleSection />
-      <LicenseCitationSection />
-    </LandingLayout>
-  )
+  return <BengerLandingClient />
 }

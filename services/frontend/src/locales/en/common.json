@@ -578,7 +578,10 @@
       "sortCreated": "Created date",
       "sortTaskCount": "Task count",
       "sortProgress": "Progress",
-      "showAllPrivate": "Show all private projects"
+      "showAllPrivate": "Show all private projects",
+      "windowUpcoming": "Opens {date}",
+      "windowClosed": "Closed",
+      "windowOpen": "Open"
     },
     "columns": {
       "label": "Columns",
@@ -1066,6 +1069,8 @@
         "randomizeTaskOrderHelp": "Each annotator sees tasks in a different random order for even annotation distribution",
         "annotatorFullVisibility": "Reveal all fields after submission",
         "annotatorFullVisibilityHelp": "When on, annotators reviewing their own submitted work see all task fields including the reference solution. When off, that view is filtered to only the fields they saw while labeling, keeping the reference hidden.",
+        "restorableCheckpoints": "Save restorable draft checkpoints",
+        "restorableCheckpointsHelp": "Keep periodic snapshots (every 5 min) of in-progress work so annotators can restore an earlier checkpoint. Snapshots are kept after submission.",
         "samplingMethod": "Task Sampling Method",
         "samplingMethodHelp": "How tasks are presented to annotators",
         "modes": {
@@ -1146,6 +1151,13 @@
         "highlightLabelsDescription": "Define colored labels for text highlighting in Correction",
         "labelName": "Label name",
         "addLabel": "Add Label"
+      },
+      "accessWindow": {
+        "title": "Timed access window",
+        "hint": "Open the project to its access group only during a set time. Before it opens, the project is listed but its data stays hidden; after it closes, the data is read-only. Owners and admins are never restricted.",
+        "opens": "Opens",
+        "closes": "Closes",
+        "invalid": "The close time must be after the open time."
       }
     },
     "quickActions": {
@@ -6408,6 +6420,12 @@
     }
   },
   "annotation": {
+    "checkpoints": {
+      "restoreTitle": "Restore checkpoint",
+      "pick": "Restore checkpoint…",
+      "refresh": "Refresh",
+      "restored": "Checkpoint restored."
+    },
     "taskLoadedFromUrl": "Loaded task {taskNumber} from URL",
     "taskNotFound": "Task {taskNumber} not found (max: {maxTasks}). Loading first task instead.",
     "viewTaskData": "View complete task data",
@@ -6672,6 +6690,11 @@
       "methodPending": "Evaluating…",
       "methodSkipped": "Skipped – no evaluable value was present for this field.",
       "progress": "Evaluation in progress ({done}/{total})…"
+    },
+    "window": {
+      "notOpenTitle": "Not open yet",
+      "notOpenDescription": "This project opens at {date}. Come back then to start.",
+      "closedReadOnly": "This project has closed — view only, no further changes."
     }
   },
   "annotationTab": {
@@ -7678,7 +7701,10 @@
         "auto": "Automatically assigned"
       },
       "ordering": "Ordering",
-      "orderings": { "sequential": "Sequential", "random": "Random per corrector" },
+      "orderings": {
+        "sequential": "Sequential",
+        "random": "Random per corrector"
+      },
       "maxCorrectorsPerItem": "Max correctors per item",
       "maxCorrectorsHelp": "0 = unlimited",
       "minCorrectorsPerItem": "Min correctors per item",
@@ -8400,5 +8426,27 @@
       "consentTitle": "Your consent",
       "consentText": "Ticking the consent box at signup grants this permission for as long as your data remains anonymized. Pre-existing accounts on this deployment have been treated as having consented; if you'd prefer otherwise, contact the operators."
     }
+  },
+  "student": {
+    "toggle": {
+      "toStudent": "Switch to student view",
+      "toExpert": "Switch to expert view",
+      "label": "View"
+    },
+    "view": {
+      "student": "Student view",
+      "expert": "Expert view"
+    },
+    "community": {
+      "unavailable": "This feature is not available in the community edition."
+    },
+    "nav": {
+      "dashboard": "Overview",
+      "exams": "Exams",
+      "decks": "Flashcards",
+      "leaderboard": "Leaderboard",
+      "profile": "Profile"
+    },
+    "loading": "Loading …"
   }
 }

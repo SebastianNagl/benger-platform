@@ -224,12 +224,32 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
 
             logger.info(f"User {user.username} added to organization via invitation")
 
+        # Extension hook: onboard a student who signed up via a student-locked
+        # host (vertretbar.net) — sets preferred_ui_mode + Vertretbar membership.
+        # The request origin is derived server-side (not a spoofable body field).
+        # No-op when extended is not loaded. Never let a hook failure break signup.
+        try:
+            from extensions import after_user_signup as _after_user_signup_ext
+
+            signup_context = {
+                "host": request.headers.get("x-forwarded-host")
+                or request.headers.get("host"),
+                "origin": request.headers.get("origin") or request.headers.get("referer"),
+            }
+            _after_user_signup_ext(db, user, signup_context)
+        except Exception as e:
+            logger.error(f"after_user_signup hook failed (non-fatal): {e}", exc_info=True)
+
         # Send verification email only for non-invitation signups
         if not invitation:
             try:
-                frontend_url = get_settings().frontend_url
+                # Brand the verification email from the signup host (Vertretbar on
+                # vertretbar.net, BenGER otherwise) — see resolve_email_brand.
+                signup_host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+                # No language= → send_verification_email defaults it from the host
+                # brand (Vertretbar signups get a German email, benger English).
                 success = await email_verification_service.send_verification_email(
-                    db=db, user=user, base_url=frontend_url, language="en"
+                    db=db, user=user, host=signup_host
                 )
                 if success:
                     logger.info(f"Verification email sent to new user: {user.email}")

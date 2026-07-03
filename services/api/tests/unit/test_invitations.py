@@ -210,6 +210,52 @@ class TestCreateInvitation:
         mock_db.commit.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_create_invitation_vertretbar_host_branding(
+        self, mock_db, mock_user, mock_organization
+    ):
+        """A vertretbar.net invite links to vertretbar + passes the host to the email task."""
+        from routers.invitations import InvitationCreate
+
+        mock_db.query.return_value.filter.return_value.first.side_effect = [
+            mock_organization,  # Organization exists
+            None,  # No existing user with email
+            None,  # No existing invitation
+            Mock(role=OrganizationRole.ORG_ADMIN),  # requester is org admin
+        ]
+
+        def mock_refresh(obj):
+            obj.created_at = datetime.now(timezone.utc)
+            obj.accepted_at = None
+
+        mock_db.refresh = mock_refresh
+
+        req = Mock()
+        req.headers.get.side_effect = (
+            lambda k, *a: "vertretbar.net" if k == "x-forwarded-host" else None
+        )
+        invitation_data = InvitationCreate(
+            email="stud@example.com", role=OrganizationRole.CONTRIBUTOR
+        )
+
+        with patch("routers.invitations.can_manage_organization", return_value=True):
+            with patch("routers.invitations.notify_organization_invitation_sent"):
+                with patch("routers.invitations.celery_app") as mock_celery:
+                    await create_invitation(
+                        organization_id="org-123",
+                        invitation_data=invitation_data,
+                        request=req,
+                        current_user=mock_user,
+                        db=mock_db,
+                    )
+
+        # The accept link points at vertretbar, and the host is forwarded to the
+        # Celery email task so it renders the Vertretbar sender/branding.
+        mock_celery.send_task.assert_called_once()
+        task_kwargs = mock_celery.send_task.call_args.kwargs
+        assert task_kwargs["args"][4].startswith("https://vertretbar.net/accept-invitation/")
+        assert task_kwargs["kwargs"]["host"] == "vertretbar.net"
+
+    @pytest.mark.asyncio
     async def test_create_invitation_organization_not_found(self, mock_db, mock_user):
         """Test invitation creation with non-existent organization"""
         from routers.invitations import InvitationCreate

@@ -557,6 +557,8 @@ export function ProjectCreationWizard() {
       updatePayload.annotation_time_limit_enabled = s.annotation_time_limit_enabled
       updatePayload.annotation_time_limit_seconds = s.annotation_time_limit_seconds
       updatePayload.strict_timer_enabled = s.strict_timer_enabled
+      updatePayload.window_start_at = s.window_start_at
+      updatePayload.window_end_at = s.window_end_at
 
       // Persist the wizard's feature checkboxes as project-level visibility
       // flags so the detail page knows which configuration cards to render.

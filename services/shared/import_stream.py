@@ -1526,6 +1526,10 @@ def _create_imported_project(
         # Korrektur (human-correction) feature.
         korrektur_enabled=project_data.get("korrektur_enabled", False),
         korrektur_config=project_data.get("korrektur_config"),
+        # Timed access window — persist across export/import (unlike is_archived,
+        # which resets, a window is intrinsic project config worth carrying over).
+        window_start_at=_parse_iso(project_data.get("window_start_at")),
+        window_end_at=_parse_iso(project_data.get("window_end_at")),
     )
 
     ctx.db.add(new_project)

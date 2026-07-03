@@ -15,8 +15,11 @@ import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { Separator } from '@/components/shared/Separator'
 import { useI18n } from '@/contexts/I18nContext'
+import { useServerDraftSync } from '@/hooks/useServerDraftSync'
 import { projectsAPI } from '@/lib/api/projects'
 import { useProjectStore } from '@/stores/projectStore'
+import { computeWindowState } from '@/utils/projectWindow'
+import { getEffectiveProjectRole } from '@/utils/permissions'
 import { AnnotationResult } from '@/types/labelStudio'
 import {
   ArrowLeftIcon,
@@ -45,6 +48,11 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   const { user, apiClient } = useAuth()
   const TimerSlot = useSlot('TimerIntegration')
   const ImmediateEvalSlot = useSlot('ImmediateEvaluation')
+  // Restorable draft checkpoints are an extended feature (exams). The periodic
+  // snapshot save + the restore dropdown both live in the extended
+  // DraftCheckpointPanel slot; null in the community edition, so the community
+  // labeling page carries no checkpoint save/restore logic.
+  const CheckpointPanel = useSlot('DraftCheckpointPanel')
   // Wraps the labeling interface so the Klausurlösung Angabe / Notizen /
   // Gliederung / Loesung input components see a real LegalMarkdownContext
   // (heading sync, modal navigation). Falls back to React.Fragment in
@@ -74,6 +82,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
   const [annotations, setAnnotations] = useState<AnnotationResult[]>([])
   const [loadedAnnotations, setLoadedAnnotations] = useState<AnnotationResult[]>([])
+  // Bumped when a checkpoint is restored, to force a clean remount of the
+  // annotation editor so the restored snapshot wins over current in-editor state.
+  const [restoreKey, setRestoreKey] = useState(0)
   const [startTime, setStartTime] = useState<number>(Date.now())
   const [initializationError, setInitializationError] = useState<string | null>(
     null
@@ -83,7 +94,6 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
   const [serverClockOffset, setServerClockOffset] = useState<number>(0)
   const hasSubmittedRef = useRef(false)
-  const lastSyncedAnnotationsRef = useRef<string>('[]')
 
   // Instructions modal state
   const [showInstructionsModal, setShowInstructionsModal] = useState(false)
@@ -396,42 +406,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     }
   }, [currentTaskPosition, currentTask?.id, TASK_POSITION_KEY, TASK_ID_KEY])
 
-  // Periodic server draft sync for all projects (every 30s, only when annotations changed)
-  useEffect(() => {
-    if (!currentProject || !currentTask) return
-
-    // Reset sync state when task changes
-    lastSyncedAnnotationsRef.current = '[]'
-
-    const SERVER_DRAFT_SYNC_MS = 30_000
-
-    const syncDraft = async () => {
-      const serialized = JSON.stringify(annotations)
-      if (serialized === lastSyncedAnnotationsRef.current) return
-      if (annotations.length === 0) return
-      try {
-        await projectsAPI.saveDraft(currentProject.id, currentTask.id, annotations)
-        lastSyncedAnnotationsRef.current = serialized
-      } catch {
-        // Silent failure — draft sync is best-effort
-      }
-    }
-
-    const interval = setInterval(syncDraft, SERVER_DRAFT_SYNC_MS)
-
-    // Save draft when tab becomes hidden (user switches tabs or is about to close)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        syncDraft()
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      clearInterval(interval)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [currentProject, currentTask, annotations])
+  // Periodic server draft sync for all projects (shared with the student exam
+  // attempt via useServerDraftSync — one implementation, no duplicate logic).
+  useServerDraftSync(currentProject?.id, currentTask?.id, annotations)
 
   // Reset state when label configuration changes
   useEffect(() => {
@@ -613,6 +590,55 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     currentProject?.immediate_evaluation_enabled,
     lastSubmittedAnnotationId,
   ])
+
+  // Timed access window (owner/admins exempt): a gated member sees "not open
+  // yet" before it opens (task reads are 403'd server-side) and a read-only view
+  // after it closes. The backend is authoritative; this mirrors it for UX.
+  const _winRole = currentProject
+    ? getEffectiveProjectRole(user as any, currentProject as any, (user as any)?.role)
+    : null
+  const _isWindowEditor =
+    !!(user as any)?.is_superadmin ||
+    _winRole === 'ORG_ADMIN' ||
+    _winRole === 'CONTRIBUTOR'
+  const _winState = computeWindowState(
+    (currentProject as any)?.window_start_at,
+    (currentProject as any)?.window_end_at,
+  )
+  const windowUpcoming = !_isWindowEditor && _winState === 'upcoming'
+  const windowReadOnly = !_isWindowEditor && _winState === 'closed'
+
+  if (windowUpcoming) {
+    const opensAt = (currentProject as any)?.window_start_at
+      ? new Date((currentProject as any).window_start_at).toLocaleString()
+      : ''
+    return (
+      <div className="bg-background flex min-h-screen flex-col" data-testid="project-window-upcoming">
+        <div className="border-b px-6 py-4">
+          <Button variant="text" onClick={() => router.push(`/projects/${projectId}`)}>
+            <ArrowLeftIcon className="mr-2 h-4 w-4" />
+            {t('annotation.backToProject', { defaultValue: 'Back to Project' })}
+          </Button>
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          <Card className="mx-auto max-w-lg text-center">
+            <div className="space-y-6 p-8">
+              <ClockIcon className="mx-auto h-16 w-16 text-emerald-600" />
+              <h2 className="text-2xl font-bold">
+                {t('annotation.window.notOpenTitle', { defaultValue: 'Not open yet' })}
+              </h2>
+              <p className="text-muted-foreground">
+                {t('annotation.window.notOpenDescription', {
+                  defaultValue: `This project opens at ${opensAt}. Come back then to start.`,
+                  date: opensAt,
+                })}
+              </p>
+            </div>
+          </Card>
+        </div>
+      </div>
+    )
+  }
 
   // Show initialization error if it occurred
   if (initializationError) {
@@ -833,6 +859,25 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   {t('annotation.instructions.showInstructions', { defaultValue: 'Instructions' })}
                 </Button>
               )}
+              {CheckpointPanel && currentProject && currentTask && (
+                <CheckpointPanel
+                  projectId={currentProject.id}
+                  taskId={currentTask.id}
+                  annotations={annotations}
+                  enabled={currentProject.restorable_checkpoints_enabled}
+                  intervalSeconds={currentProject.checkpoint_interval_seconds}
+                  onRestore={(snapshot: any[]) => {
+                    setLoadedAnnotations(snapshot)
+                    setRestoreKey((k) => k + 1)
+                    addToast(
+                      t('annotation.checkpoints.restored', {
+                        defaultValue: 'Checkpoint restored.',
+                      }),
+                      'success'
+                    )
+                  }}
+                />
+              )}
               {TimerSlot &&
               currentProject?.annotation_time_limit_enabled &&
               strictTimerPhase === 'annotating' ? (
@@ -911,15 +956,25 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
         {/* Task content */}
         <div className="flex-1 overflow-auto p-6">
           <div className="mx-auto max-w-4xl space-y-6">
+            {windowReadOnly && (
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300">
+                {t('annotation.window.closedReadOnly', {
+                  defaultValue: 'This project has closed — view only, no further changes.',
+                })}
+              </div>
+            )}
             {/* Dynamic annotation interface - label config is required */}
             {currentProject?.label_config ? (
               <AnnotationContextWrapper>
               <DynamicAnnotationInterface
+                key={restoreKey}
                 labelConfig={currentProject.label_config}
                 taskData={currentTask.data || {}}
                 taskId={currentTask.id} // Pass task ID for proper state clearing
                 initialValues={loadedAnnotations} // Load existing annotations (Issue #1082)
-                showSubmitButton={currentProject?.show_submit_button !== false}
+                // Timed access window closed: view-only, no submit (owner exempt).
+                readOnly={windowReadOnly}
+                showSubmitButton={currentProject?.show_submit_button !== false && !windowReadOnly}
                 requireConfirmBeforeSubmit={currentProject?.require_confirm_before_submit === true}
                 startTime={startTime} // Pass start time for auto-save lead_time tracking
                 onChange={(results) => setAnnotations(results)}

@@ -10,6 +10,8 @@ import { NextRequest } from 'next/server'
 // We must mock the subdomain module before importing middleware
 jest.mock('@/lib/utils/subdomain', () => ({
   BASE_DOMAINS: ['benger.localhost', 'what-a-benger.net'],
+  isStudentLockedHost: (host?: string | null) =>
+    !!host && /(^|\.)vertretbar\.(net|localhost)$/.test(host.split(':')[0]),
 }))
 
 import { middleware } from './middleware'

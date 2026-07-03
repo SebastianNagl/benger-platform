@@ -4,7 +4,7 @@ http:
   routers:
     # Auth proxy: route /api/auth through Next.js for cross-subdomain cookie handling
     auth-proxy:
-      rule: "(Host(`benger.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$`)) && PathPrefix(`/api/auth`)"
+      rule: "(Host(`benger.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$`) || Host(`vertretbar.localhost`) || HostRegexp(`^[a-z0-9-]+\\.vertretbar\\.localhost$`)) && PathPrefix(`/api/auth`)"
       service: frontend-dev-service
       entryPoints:
         - web
@@ -20,7 +20,7 @@ http:
 
     # API proxy from frontend domain to API service (with wildcard subdomain support)
     api-proxy:
-      rule: "(Host(`benger.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$`)) && PathPrefix(`/api`)"
+      rule: "(Host(`benger.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$`) || Host(`vertretbar.localhost`) || HostRegexp(`^[a-z0-9-]+\\.vertretbar\\.localhost$`)) && PathPrefix(`/api`)"
       service: benger-api-service
       entryPoints:
         - web
@@ -38,9 +38,9 @@ http:
         - gzip-compression
       priority: 300
 
-    # Frontend dev route (catch-all for benger.localhost + wildcard subdomains)
+    # Frontend dev route (catch-all for benger.localhost + vertretbar.localhost + wildcard subdomains)
     frontend-dev:
-      rule: "Host(`benger.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$`)"
+      rule: "Host(`benger.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$`) || Host(`vertretbar.localhost`) || HostRegexp(`^[a-z0-9-]+\\.vertretbar\\.localhost$`)"
       service: frontend-dev-service
       entryPoints:
         - web

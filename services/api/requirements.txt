@@ -39,6 +39,7 @@ mistralai>=1.2.0  # Mistral AI models
 cohere>=5.21.1  # Cohere models
 aiohttp==3.14.1
 jinja2>=3.1.0
+stripe>=11.0.0,<13.0.0  # Vertretbar student billing (extended-only; community installs but never imports)
 boto3>=1.35.0
 botocore>=1.43.11
 requests>=2.34.2
@@ -65,3 +66,16 @@ locust==2.44.3  # For load testing
 # Async testing dependencies
 aiosqlite==0.22.1  # For async SQLite database testing
 sse-starlette==2.4.1  # For Server-Sent Events streaming
+
+# Anki flashcard import (issue #35): decompresses the newest .apkg form
+# (collection.anki21b = zstd-compressed SQLite). Used by services/shared/anki,
+# imported by both api and workers. arm64 wheels published — normal pin is fine.
+# MUST be mirrored in pyproject.toml (prod api installs from there) and in
+# services/workers/requirements.txt.
+zstandard>=0.22,<1.0
+
+# Document text extraction for comfortable exam setup (issue #35): Word + PDF
+# uploads -> editable text. api-only (the workers don't parse documents).
+# Mirror in pyproject.toml.
+mammoth>=1.6,<2.0
+pdfplumber>=0.10,<1.0

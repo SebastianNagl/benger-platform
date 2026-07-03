@@ -29,3 +29,26 @@ spec:
   - "staging.what-a-benger.net"
   - "*.staging.what-a-benger.net"
 {{- end }}
+---
+{{- if .Values.vertretbar.enabled }}
+# Vertretbar branded apex served from this same release. Host is per-environment
+# (prod: vertretbar.net; staging: staging.vertretbar.net) via the values overlays.
+# Apex-only for the beta (HTTP-01 needs each dnsName's A record to resolve;
+# www/wildcard can be added later). Issued by the same server-local
+# letsencrypt-prod ClusterIssuer.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Release.Name }}-vertretbar-tls
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: {{ .Values.vertretbar.tlsSecretName }}
+  # HTTP-01 issuer, NOT the Cloudflare DNS-01 one used for the *.what-a-benger.net
+  # wildcard: vertretbar.net is a non-wildcard apex on external DNS (Namecheap),
+  # so it validates via HTTP-01 (A record + Traefik) — no Cloudflare/DNS-API.
+  issuerRef:
+    name: {{ .Values.vertretbar.certIssuer | default "letsencrypt-prod-http01" }}
+    kind: ClusterIssuer
+  dnsNames:
+  - {{ .Values.vertretbar.host | quote }}
+{{- end }}

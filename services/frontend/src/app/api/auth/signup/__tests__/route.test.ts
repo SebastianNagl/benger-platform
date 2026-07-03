@@ -73,9 +73,11 @@ describe('/api/auth/signup', () => {
         'http://localhost:8001/api/auth/signup',
         expect.objectContaining({
           method: 'POST',
-          headers: {
+          // The route also forwards x-forwarded-host so the backend can brand
+          // the verification email host-aware — allow extra headers.
+          headers: expect.objectContaining({
             'Content-Type': 'application/json',
-          },
+          }),
           body: JSON.stringify({
             email: 'newuser@example.com',
             password: 'SecurePass123!',

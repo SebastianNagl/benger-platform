@@ -167,6 +167,20 @@ class ProjectCreate(ProjectBase):
         None,
         description="Role public visitors are treated as for is_public projects. ANNOTATOR (view+annotate) or CONTRIBUTOR (also add tasks, run jobs). Required when is_public=True.",
     )
+    # Project kind / origin (extended-edition student experience). Free-form,
+    # length-capped nullable strings — NOT enums — so the community edition
+    # stays forward-compatible. Accepted ONLY at creation (write-once); there
+    # is intentionally no counterpart in ProjectUpdate, so a student project
+    # can never be silently un-flagged back into the public leaderboards.
+    kind: Optional[str] = Field(
+        None, max_length=32, description='Project kind, e.g. "exam" or "flashcard_deck" (extended).'
+    )
+    origin: Optional[str] = Field(
+        None, max_length=32, description='Project origin, e.g. "student" (extended).'
+    )
+    # Timed access window (optional; see ProjectUpdate for semantics).
+    window_start_at: Optional[datetime] = None
+    window_end_at: Optional[datetime] = None
 
     @model_validator(mode="after")
     def _validate_visibility(self):
@@ -176,6 +190,16 @@ class ProjectCreate(ProjectBase):
             self.public_role = "ANNOTATOR"
         if not self.is_public:
             self.public_role = None
+        return self
+
+    @model_validator(mode="after")
+    def _validate_window(self):
+        if (
+            self.window_start_at is not None
+            and self.window_end_at is not None
+            and self.window_end_at <= self.window_start_at
+        ):
+            raise ValueError("window_end_at must be after window_start_at")
         return self
 
 
@@ -228,6 +252,12 @@ class ProjectUpdate(BaseModel):
     annotation_time_limit_enabled: Optional[bool] = None
     annotation_time_limit_seconds: Optional[int] = None
     strict_timer_enabled: Optional[bool] = None
+    restorable_checkpoints_enabled: Optional[bool] = None
+    checkpoint_interval_seconds: Optional[int] = None
+    # Timed access window (annotate/generate/evaluate). Both null ⇒ no window.
+    # Gates the access group only; anyone who can edit the project is exempt.
+    window_start_at: Optional[datetime] = None
+    window_end_at: Optional[datetime] = None
     review_enabled: Optional[bool] = None
     review_mode: Optional[str] = None
     allow_self_review: Optional[bool] = None
@@ -294,6 +324,18 @@ class ProjectUpdate(BaseModel):
                 )
         return v
 
+    @model_validator(mode="after")
+    def _validate_window(self):
+        # Only enforceable when both bounds are present in the same payload; a
+        # partial update touching one bound is validated by the DB constraint.
+        if (
+            self.window_start_at is not None
+            and self.window_end_at is not None
+            and self.window_end_at <= self.window_start_at
+        ):
+            raise ValueError("window_end_at must be after window_start_at")
+        return self
+
 
 class ProjectResponse(ProjectBase):
     """Schema for project responses"""
@@ -316,6 +358,9 @@ class ProjectResponse(ProjectBase):
     is_private: bool = False
     is_public: bool = False
     public_role: Optional[str] = None
+    # Student-experience tags (extended). Null on plain benchmark projects.
+    kind: Optional[str] = None
+    origin: Optional[str] = None
     is_published: bool = False
     is_archived: bool = False
     created_at: datetime
@@ -347,6 +392,11 @@ class ProjectResponse(ProjectBase):
     annotation_time_limit_enabled: bool = False
     annotation_time_limit_seconds: Optional[int] = None
     strict_timer_enabled: bool = False
+    restorable_checkpoints_enabled: bool = False
+    checkpoint_interval_seconds: int = 300
+    # Timed access window (null ⇒ no window). Copied verbatim by from_orm.
+    window_start_at: Optional[datetime] = None
+    window_end_at: Optional[datetime] = None
     review_enabled: bool = False
     review_mode: Optional[str] = "in_place"
     allow_self_review: bool = False

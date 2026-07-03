@@ -173,6 +173,17 @@ async function proxyRequest(
       }
     })
 
+    // The browser's Host is stripped above, and the upstream API brands
+    // host-aware behavior (Vertretbar onboarding + verification/invitation
+    // emails) off x-forwarded-host. Forward the resolved external host
+    // explicitly so the API sees vertretbar.net / what-a-benger.net rather than
+    // the internal service host — in every environment, not just where an
+    // upstream proxy happens to set it.
+    const externalHost = getExternalHost(request)
+    if (externalHost) {
+      headers.set('x-forwarded-host', externalHost)
+    }
+
     // Ensure cookies are forwarded
     const cookies = request.headers.get('cookie')
     if (cookies) {

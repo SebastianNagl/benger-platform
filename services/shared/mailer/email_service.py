@@ -353,20 +353,35 @@ class EmailService:
         inviter_name: str,
         role: str,
         invitation_url: str,
+        brand_name: str = "BenGER",
+        brand_tagline: str = (
+            "BenGER is a comprehensive evaluation framework for Large Language "
+            "Models in the German legal domain."
+        ),
+        language: str = "en",
     ) -> tuple[str, str]:
         """Render the invitee org-invitation email -> (subject, html_body).
 
-        Single source of the invitee HTML: services/shared/email_templates/
-        email/invitation_recipient.html. Not to be confused with
-        organization_invite.html, which is the org-admin notification email.
+        Invitee HTML: services/shared/email_templates/email/invitation_recipient
+        (``_de`` for German). Not to be confused with organization_invite.html,
+        the org-admin notification email. ``brand_name``/``brand_tagline``/
+        ``language`` make the copy host-aware (German Vertretbar on
+        vertretbar.net); the defaults preserve the BenGER English wording.
         """
+        template = (
+            "invitation_recipient_de.html"
+            if language == "de"
+            else "invitation_recipient.html"
+        )
         return self._render_template(
-            "invitation_recipient.html",
+            template,
             {
                 "organization_name": organization_name,
                 "inviter_name": inviter_name,
                 "role": role,
                 "invitation_url": invitation_url,
+                "brand_name": brand_name,
+                "brand_tagline": brand_tagline,
             },
         )
 
@@ -424,6 +439,9 @@ class EmailService:
         user_name: str,
         verification_link: str,
         language: str = "en",
+        from_address: str = None,
+        from_name: str = None,
+        brand_name: str = "BenGER",
     ) -> bool:
         """
         Send email verification link
@@ -442,11 +460,11 @@ class EmailService:
             return False
 
         if language == "de":
-            subject = "Bestätigen Sie Ihre E-Mail-Adresse für BenGER"
+            subject = f"Bestätigen Sie Ihre E-Mail-Adresse für {brand_name}"
             html_body = f"""
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
-                <h2>Willkommen bei BenGER, {user_name}!</h2>
+                <h2>Willkommen bei {brand_name}, {user_name}!</h2>
                 <p>Bitte bestätigen Sie Ihre E-Mail-Adresse, um Ihr Konto zu aktivieren.</p>
                 <p style="margin: 30px 0;">
                     <a href="{verification_link}" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
@@ -462,11 +480,11 @@ class EmailService:
             </html>
             """
         else:
-            subject = "Verify your email address for BenGER"
+            subject = f"Verify your email address for {brand_name}"
             html_body = f"""
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
-                <h2>Welcome to BenGER, {user_name}!</h2>
+                <h2>Welcome to {brand_name}, {user_name}!</h2>
                 <p>Please verify your email address to activate your account.</p>
                 <p style="margin: 30px 0;">
                     <a href="{verification_link}" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
@@ -484,7 +502,12 @@ class EmailService:
 
         try:
             result = self.mail_client.send_message(
-                to=[to_email], subject=subject, html_body=html_body, disable_tracking=True
+                to=[to_email],
+                subject=subject,
+                html_body=html_body,
+                from_address=from_address,
+                from_name=from_name,
+                disable_tracking=True,
             )
 
             if result.get("status") == "success":

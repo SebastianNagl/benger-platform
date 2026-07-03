@@ -67,6 +67,21 @@ jest.mock('@/lib/utils/subdomain', () => ({
   parseSubdomain: jest.fn(() => ({ orgSlug: null, isPrivateMode: true })),
 }))
 
+// View-mode switch hook (issue #35). Controllable per test; defaults to
+// 'unavailable' so the account-dropdown switch item is hidden and the existing
+// AuthButton tests are unaffected. The switch logic itself is covered by the
+// ViewModeToggle component test.
+const mockViewSwitchTo = jest.fn()
+let mockViewModeState: any = {
+  status: 'unavailable',
+  resolved: 'expert',
+  pending: false,
+  switchTo: mockViewSwitchTo,
+}
+jest.mock('@/hooks/useViewModeSwitch', () => ({
+  useViewModeSwitch: () => mockViewModeState,
+}))
+
 // Mock Heroicons
 jest.mock('@heroicons/react/24/outline', () => {
   function ChevronDownIcon(props: any) {
@@ -109,6 +124,10 @@ jest.mock('@heroicons/react/24/outline', () => {
     return <svg data-testid="list-bullet-icon" {...props} />
   }
 
+  function AcademicCapIcon(props: any) {
+    return <svg data-testid="academic-cap-icon" {...props} />
+  }
+
   return {
     ChevronDownIcon,
     UserIcon,
@@ -120,6 +139,7 @@ jest.mock('@heroicons/react/24/outline', () => {
     BuildingOfficeIcon,
     CheckIcon,
     ListBulletIcon,
+    AcademicCapIcon,
   }
 })
 
@@ -151,6 +171,13 @@ describe('AuthButton', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    // Default the view-mode switch to hidden; the dedicated test below flips it.
+    mockViewModeState = {
+      status: 'unavailable',
+      resolved: 'expert',
+      pending: false,
+      switchTo: mockViewSwitchTo,
+    }
     mockUseI18n.mockReturnValue({ t: mockT })
     mockUseFeatureFlags.mockReturnValue({
       flags: {},
@@ -279,6 +306,37 @@ describe('AuthButton', () => {
       expect(screen.getByText('testuser')).toBeInTheDocument()
       expect(screen.getByText('(Test Org)')).toBeInTheDocument()
       expect(screen.getByTestId('chevron-down')).toBeInTheDocument()
+    })
+
+    it('offers the view-mode switch in the dropdown when capable (issue #35)', async () => {
+      const user = userEvent.setup()
+      // Capable user in the classic (expert) view → the account dropdown
+      // surfaces a "switch to student view" item.
+      mockViewModeState = {
+        status: 'ready',
+        resolved: 'expert',
+        pending: false,
+        switchTo: mockViewSwitchTo,
+      }
+      render(<AuthButton />)
+
+      // Hidden until the dropdown is opened.
+      expect(screen.queryByTestId('account-view-switch')).not.toBeInTheDocument()
+      await user.click(screen.getByRole('button'))
+
+      const switchItem = screen.getByTestId('account-view-switch')
+      expect(switchItem).toBeInTheDocument()
+      await user.click(switchItem)
+      // From expert view, switches to student.
+      expect(mockViewSwitchTo).toHaveBeenCalledWith('student')
+    })
+
+    it('hides the view-mode switch when not capable', async () => {
+      const user = userEvent.setup()
+      // Default mockViewModeState.status is 'unavailable'.
+      render(<AuthButton />)
+      await user.click(screen.getByRole('button'))
+      expect(screen.queryByTestId('account-view-switch')).not.toBeInTheDocument()
     })
 
     it('toggles dropdown when clicked', async () => {

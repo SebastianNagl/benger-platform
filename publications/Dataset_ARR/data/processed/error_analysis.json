@@ -8,7 +8,7 @@
       "open_reference": 103,
       "efficiency": 30
     },
-    "coupling_subsumtion_ergebnis_pearson": 0.8719087074493189,
+    "coupling_subsumtion_ergebnis_pearson": 0.871908707449319,
     "overlap_longshallow_wrongnorm": 0,
     "modes": {
       "long_but_shallow": {
@@ -1601,13 +1601,13 @@
     },
     "accuracy": 0.7578947368421053,
     "accuracy_by_tier": {
-      "open_reference": {
-        "n": 3180,
-        "accuracy": 0.7327044025157232
-      },
       "efficiency": {
         "n": 1062,
         "accuracy": 0.7306967984934086
+      },
+      "open_reference": {
+        "n": 3180,
+        "accuracy": 0.7327044025157232
       },
       "flagship": {
         "n": 2123,

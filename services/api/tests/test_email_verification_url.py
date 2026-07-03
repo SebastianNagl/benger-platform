@@ -230,3 +230,68 @@ class TestEmailVerificationURL:
 
             assert exc_info.value.status_code == 429  # Too Many Requests
             assert "Please wait" in str(exc_info.value.detail)
+
+    @pytest.mark.asyncio
+    async def test_vertretbar_host_uses_vertretbar_branding(
+        self, mock_db, mock_user, email_service
+    ):
+        """A vertretbar.net signup gets the Vertretbar sender, brand, and link."""
+        with patch.object(email_service, "_log_email_event"):
+            with patch.object(
+                email_service.email_service,
+                "send_verification_email",
+                new=AsyncMock(return_value=True),
+            ) as mock_send:
+                result = await email_service.send_verification_email(
+                    db=mock_db, user=mock_user, host="vertretbar.net"
+                )
+
+                assert result is True
+                kwargs = mock_send.call_args.kwargs
+                assert kwargs["verification_link"].startswith(
+                    "https://vertretbar.net/verify-email/"
+                )
+                assert kwargs["from_address"] == "noreply@vertretbar.net"
+                assert kwargs["from_name"] == "Vertretbar"
+                assert kwargs["brand_name"] == "Vertretbar"
+
+    @pytest.mark.asyncio
+    async def test_staging_vertretbar_host_links_to_staging(
+        self, mock_db, mock_user, email_service
+    ):
+        """A staging.vertretbar.net signup links back to staging, not prod."""
+        with patch.object(email_service, "_log_email_event"):
+            with patch.object(
+                email_service.email_service,
+                "send_verification_email",
+                new=AsyncMock(return_value=True),
+            ) as mock_send:
+                await email_service.send_verification_email(
+                    db=mock_db, user=mock_user, host="staging.vertretbar.net"
+                )
+
+                kwargs = mock_send.call_args.kwargs
+                assert kwargs["verification_link"].startswith(
+                    "https://staging.vertretbar.net/verify-email/"
+                )
+                assert kwargs["from_address"] == "noreply@vertretbar.net"
+
+    @pytest.mark.asyncio
+    async def test_benger_host_keeps_default_sender(self, mock_db, mock_user, email_service):
+        """A benger host uses the default sender (None → EMAIL_FROM_ADDRESS) + BenGER brand."""
+        with patch.dict(os.environ, {"FRONTEND_URL": "https://what-a-benger.net"}):
+            with patch.object(email_service, "_log_email_event"):
+                with patch.object(
+                    email_service.email_service,
+                    "send_verification_email",
+                    new=AsyncMock(return_value=True),
+                ) as mock_send:
+                    await email_service.send_verification_email(
+                        db=mock_db, user=mock_user, host="what-a-benger.net"
+                    )
+
+                    kwargs = mock_send.call_args.kwargs
+                    assert kwargs["verification_link"].startswith("https://what-a-benger.net/")
+                    assert kwargs["from_address"] is None
+                    assert kwargs["from_name"] is None
+                    assert kwargs["brand_name"] == "BenGER"

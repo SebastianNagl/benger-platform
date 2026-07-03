@@ -14,10 +14,41 @@ import {
   getLastOrgSlug,
   getOrgUrl,
   getPrivateUrl,
+  isStudentLockedHost,
   parseSubdomain,
   parseSubdomainFromHost,
   setLastOrgSlug,
 } from '../subdomain'
+
+describe('isStudentLockedHost (vertretbar)', () => {
+  it.each([
+    'vertretbar.net',
+    'www.vertretbar.net',
+    'staging.vertretbar.net',
+    'vertretbar.localhost',
+    'VERTRETBAR.NET',
+    'vertretbar.net:3000',
+    'app.vertretbar.localhost',
+  ])('locks %s to the student view', (host) => {
+    expect(isStudentLockedHost(host)).toBe(true)
+  })
+
+  it.each([
+    '',
+    'what-a-benger.net',
+    'staging.what-a-benger.net',
+    'benger.localhost',
+    'notvertretbar.net',
+    'vertretbar.net.evil.com',
+  ])('does not lock %s', (host) => {
+    expect(isStudentLockedHost(host)).toBe(false)
+  })
+
+  it('returns false for null/undefined', () => {
+    expect(isStudentLockedHost(null)).toBe(false)
+    expect(isStudentLockedHost(undefined)).toBe(false)
+  })
+})
 
 describe('getBaseDomainFromHost', () => {
   it('returns benger.localhost for bare domain', () => {
@@ -126,6 +157,27 @@ describe('getCookieDomainFromHost', () => {
 
   it('returns .what-a-benger.net for production org subdomain', () => {
     expect(getCookieDomainFromHost('tum.what-a-benger.net')).toBe('.what-a-benger.net')
+  })
+
+  // Vertretbar apex: this is what lets auth cookies work on vertretbar.net.
+  // The API's Set-Cookie Domain is stripped and re-scoped to the request host by
+  // the auth proxy routes (login/refresh/logout/signup + [...path]) via this fn,
+  // so a browser on vertretbar.net receives Domain=.vertretbar.net (which it
+  // accepts) instead of the backend's .what-a-benger.net (which it would reject).
+  it('returns .vertretbar.net for the vertretbar apex', () => {
+    expect(getCookieDomainFromHost('vertretbar.net')).toBe('.vertretbar.net')
+  })
+
+  it('returns .vertretbar.net for a vertretbar subdomain (www)', () => {
+    expect(getCookieDomainFromHost('www.vertretbar.net')).toBe('.vertretbar.net')
+  })
+
+  it('returns .staging.vertretbar.net for the vertretbar staging apex', () => {
+    expect(getCookieDomainFromHost('staging.vertretbar.net')).toBe('.staging.vertretbar.net')
+  })
+
+  it('returns .vertretbar.localhost for local vertretbar dev', () => {
+    expect(getCookieDomainFromHost('vertretbar.localhost')).toBe('.vertretbar.localhost')
   })
 
   it('returns empty string for plain localhost', () => {

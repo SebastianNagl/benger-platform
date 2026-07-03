@@ -155,6 +155,20 @@ async def list_projects(
     page_size: int = Query(100, ge=1, le=500),  # Default 100 like Label Studio
     search: Optional[str] = None,
     is_archived: Optional[bool] = None,
+    kind: Optional[str] = Query(
+        None,
+        description=(
+            'Filter by project kind, e.g. "exam" or "flashcard_deck" (extended '
+            "student experience). Omit to include every kind."
+        ),
+    ),
+    origin: Optional[str] = Query(
+        None,
+        description=(
+            'Filter by project origin, e.g. "student". Omit to include every '
+            "origin (the expert view stays able to surface student datasets)."
+        ),
+    ),
     include_all_private: bool = Query(
         False,
         description=(
@@ -206,6 +220,14 @@ async def list_projects(
         # boundaries / when the param was dropped by a caller).
         if is_archived is not None:
             base_filters.append(Project.is_archived.is_(is_archived))
+
+        # Student-experience tag filters (extended). Plain equality on the
+        # indexed columns; both default to None so existing callers are
+        # unaffected and the expert/benchmark view can still list everything.
+        if kind is not None:
+            base_filters.append(Project.kind == kind)
+        if origin is not None:
+            base_filters.append(Project.origin == origin)
 
         # Annotators never see archived projects in an org context: mirror the
         # annotator block in check_project_accessible_async so this list endpoint
@@ -415,6 +437,14 @@ async def create_project(
         is_private=is_private,
         is_public=is_public,
         public_role=public_role,
+        # Write-once student-experience tags (extended). Plain string passthrough
+        # — there is no ProjectUpdate counterpart, so these can only ever be set
+        # here at creation.
+        kind=project.kind,
+        origin=project.origin,
+        # Timed access window (optional at creation; also editable via ProjectUpdate).
+        window_start_at=project.window_start_at,
+        window_end_at=project.window_end_at,
     )
 
     db.add(db_project)

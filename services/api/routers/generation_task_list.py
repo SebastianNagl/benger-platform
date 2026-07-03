@@ -29,6 +29,7 @@ from routers.generation_revoke import (
 from routers.projects.helpers import (
     check_project_accessible_async,
     check_project_write_access_async,
+    enforce_project_write_window_async,
     get_org_context_from_request,
 )
 
@@ -579,6 +580,10 @@ async def start_generation(
             status_code=403,
             detail="Only contributors or admins can start generation for this project",
         )
+
+    # Timed access window: no generation runs outside [start, end] for the
+    # access group (editors exempt). No-op when the project has no window.
+    await enforce_project_write_window_async(db, current_user, project)
 
     # Extract organization context for API key resolution (Issue #1180).
     # The frontend sets X-Organization-Context when the user has an explicit

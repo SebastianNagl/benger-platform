@@ -7,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { hasSlot, useSlot } from '@/lib/extensions/slots'
+import { CheckBadgeIcon } from '@heroicons/react/24/solid'
+import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
+import { authRedirect } from '@/utils/authRedirect'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
@@ -83,6 +86,12 @@ export default function RegisterPage() {
   const [invitationToken, setInvitationToken] = useState<string | null>(null)
   const [isInvitedUser, setIsInvitedUser] = useState(false)
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null)
+  // Host-aware wordmark (Vertretbar on vertretbar.net); resolved after mount.
+  const [brandName, setBrandName] = useState('BenGER')
+  const [isVtr, setIsVtr] = useState(false)
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setBrandName(getHostBrandName()); setIsVtr(isStudentLockedHost()) }, [])
   const ResearchConsentSlot = useSlot('signup-step5-consent')
 
   // Options
@@ -158,7 +167,9 @@ export default function RegisterPage() {
     const params = new URLSearchParams(window.location.search)
     const token = params.get('invitation')
     const email = params.get('email')
-    const redirect = params.get('redirect')
+    // Accept `next` as an alias for the legacy `redirect` param so the exam
+    // share CTA can use a single param name across login + register (Issue #35).
+    const redirect = params.get('redirect') || params.get('next')
 
     if (token) {
       setInvitationToken(token)
@@ -176,7 +187,7 @@ export default function RegisterPage() {
   // Redirect authenticated users to appropriate page
   useEffect(() => {
     if (user) {
-      router.replace(redirectUrl || '/dashboard')
+      router.replace(redirectUrl || authRedirect.defaultAuthedPath())
     }
   }, [user, router, redirectUrl])
 
@@ -978,10 +989,14 @@ export default function RegisterPage() {
         >
           <div className="flex lg:flex-1">
             <Link href="/" className="-m-1.5 p-1.5">
-              <span className="sr-only">BenGER</span>
+              <span className="sr-only">{brandName}</span>
               <div className="flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-white">
-                <span className="text-2xl">🤘</span>
-                <span>BenGER</span>
+                {isVtr ? (
+                  <CheckBadgeIcon className="h-7 w-7 text-emerald-500" />
+                ) : (
+                  <span className="text-2xl">🤘</span>
+                )}
+                <span>{brandName}</span>
               </div>
             </Link>
           </div>

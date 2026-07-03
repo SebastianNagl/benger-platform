@@ -67,7 +67,17 @@ jest.mock('next/link', () => {
   return ({ children, href, onClick }: any) => <a href={href} onClick={onClick}>{children}</a>
 })
 
+jest.mock('@/hooks/useViewModeSwitch', () => ({
+  useViewModeSwitch: () => ({
+    status: 'unavailable',
+    resolved: 'expert',
+    pending: false,
+    switchTo: jest.fn(),
+  }),
+}))
+
 jest.mock('@heroicons/react/24/outline', () => ({
+  AcademicCapIcon: (props: any) => <svg {...props} />,
   ArrowRightOnRectangleIcon: (props: any) => <svg {...props} />,
   BeakerIcon: (props: any) => <svg {...props} />,
   BellIcon: (props: any) => <svg {...props} />,

@@ -80,6 +80,12 @@ export interface User {
   // Mandatory profile tracking (Issue #1206)
   mandatory_profile_completed?: boolean
   profile_confirmed_at?: string
+
+  // Student/expert view-mode preference (Issue #35).
+  // Server-persisted default for which shell the user lands in. The effective
+  // mode is resolved client-side by useResolvedUiMode() (edition + slot
+  // availability + local override take precedence over this).
+  preferred_ui_mode?: 'student' | 'expert' | null
 }
 
 export interface AuthResponse {

@@ -4,6 +4,9 @@ import { LanguageSwitcher, ThemeToggle } from '@/components/layout'
 import { Button } from '@/components/shared/Button'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { authRedirect } from '@/utils/authRedirect'
+import { CheckBadgeIcon } from '@heroicons/react/24/solid'
+import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -13,17 +16,33 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [nextUrl, setNextUrl] = useState<string | null>(null)
+  // Host-aware wordmark (Vertretbar on vertretbar.net). Resolved after mount so
+  // SSR stays neutral; the brief default is the BenGER name on benger hosts.
+  const [brandName, setBrandName] = useState('BenGER')
+  const [isVtr, setIsVtr] = useState(false)
   const { user, login } = useAuth()
   const { t } = useI18n()
   const router = useRouter()
 
-  // Redirect authenticated users to dashboard
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setBrandName(getHostBrandName()); setIsVtr(isStudentLockedHost()) }, [])
+
+  // Capture an optional ?next= return path (sanitized to an internal route).
+  // Read from window.location to avoid a useSearchParams Suspense boundary,
+  // matching the register page's convention (Issue #35).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setNextUrl(authRedirect.sanitizeNext(params.get('next')))
+  }, [])
+
+  // Redirect authenticated users to their intended destination (or dashboard).
   // (Dev auto-login is handled by the inline script in layout.tsx)
   useEffect(() => {
     if (user) {
-      router.replace('/dashboard')
+      router.replace(nextUrl || authRedirect.defaultAuthedPath())
     }
-  }, [user, router])
+  }, [user, router, nextUrl])
 
   // Prevent flash while redirecting
   if (user) {
@@ -64,10 +83,14 @@ export default function LoginPage() {
         >
           <div className="flex lg:flex-1">
             <Link href="/" className="-m-1.5 p-1.5">
-              <span className="sr-only">BenGER</span>
+              <span className="sr-only">{brandName}</span>
               <div className="flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-white">
-                <span className="text-2xl">🤘</span>
-                <span>BenGER</span>
+                {isVtr ? (
+                  <CheckBadgeIcon className="h-7 w-7 text-emerald-500" />
+                ) : (
+                  <span className="text-2xl">🤘</span>
+                )}
+                <span>{brandName}</span>
               </div>
             </Link>
           </div>
@@ -107,7 +130,7 @@ export default function LoginPage() {
               {t('login.title')}
             </h1>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-              {t('login.subtitle')}{' '}
+              {t('login.subtitle').replace(/BenGER/g, brandName)}{' '}
               <Link
                 href="/register"
                 className="font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"

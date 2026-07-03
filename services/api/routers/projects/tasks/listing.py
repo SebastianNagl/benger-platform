@@ -64,6 +64,10 @@ async def list_project_tasks(
     # reused below for assignment_mode / randomize_task_order / etc.
     project = access.project
 
+    # Timed access window: hide the task list from the access group before the
+    # window opens (editors exempt). No-op when the project has no window.
+    await enforce_project_read_window_async(db, current_user, project)
+
     # Check user's role and apply visibility rules
     user_with_memberships = await get_user_with_memberships_async(db, current_user.id)
 
@@ -442,6 +446,10 @@ async def get_next_task(
     if not await check_project_accessible_async(db, current_user, project_id, org_context):
         raise HTTPException(status_code=403, detail="Access denied")
 
+    # Timed access window: no next task to hand out before the window opens
+    # (editors exempt).
+    await enforce_project_read_window_async(db, current_user, project)
+
     # Find next task based on assignment mode
     if project.assignment_mode == "manual":
         # Manual mode: only return pre-assigned tasks
@@ -797,6 +805,11 @@ async def get_task(
         db, current_user, task_id, project
     ):
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # Timed access window: hide task data from the access group before the
+    # window opens (editors exempt). Serves task.data below.
+    if project is not None:
+        await enforce_project_read_window_async(db, current_user, project)
 
     # Get generation count for this task
     total_generations = (

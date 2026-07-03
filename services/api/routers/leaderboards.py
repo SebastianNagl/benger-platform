@@ -363,6 +363,15 @@ async def get_leaderboard_statistics(
     # Apply filters
     if project_ids:
         stmt = stmt.where(Annotation.project_id.in_(project_ids))
+    else:
+        # Default (no explicit project list): exclude student-generated
+        # projects (issue #35). Every student exam attempt is an Annotation;
+        # without this join their high-volume attempts would inflate the
+        # public annotation/annotator counts. Joins Project only on the
+        # default path so callers passing project_ids pay no extra join.
+        stmt = stmt.join(Project, Project.id == Annotation.project_id).where(
+            (Project.origin.is_(None)) | (Project.origin != "student")
+        )
 
     now = datetime.utcnow()
     if period == "monthly":

@@ -23,12 +23,14 @@ import {
   ArchiveBoxIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  ClockIcon,
   CloudArrowUpIcon,
   FolderIcon,
   GlobeAltIcon,
   PlusIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
+import { computeWindowState } from '@/utils/projectWindow'
 import { de } from 'date-fns/locale'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
@@ -821,6 +823,38 @@ export function ProjectListTable({
                                     )}
                               </span>
                             )}
+                            {(() => {
+                              const ws = computeWindowState(
+                                (project as any).window_start_at,
+                                (project as any).window_end_at
+                              )
+                              if (ws === 'none') return null
+                              const cls =
+                                ws === 'upcoming'
+                                  ? 'bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-400'
+                                  : ws === 'closed'
+                                    ? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300'
+                                    : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400'
+                              const label =
+                                ws === 'upcoming'
+                                  ? t('projects.list.windowUpcoming', 'Opens {date}', {
+                                      date: new Date(
+                                        (project as any).window_start_at
+                                      ).toLocaleDateString(),
+                                    })
+                                  : ws === 'closed'
+                                    ? t('projects.list.windowClosed', 'Closed')
+                                    : t('projects.list.windowOpen', 'Open')
+                              return (
+                                <span
+                                  className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium ${cls}`}
+                                  data-testid={`project-window-badge-${project.id}`}
+                                >
+                                  <ClockIcon className="h-3.5 w-3.5" />
+                                  {label}
+                                </span>
+                              )
+                            })()}
                           </div>
                           {project.description && (
                             <div className="max-w-md truncate text-sm text-zinc-500 dark:text-zinc-400">

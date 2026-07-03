@@ -578,7 +578,10 @@
       "sortCreated": "Erstellungsdatum",
       "sortTaskCount": "Aufgabenanzahl",
       "sortProgress": "Fortschritt",
-      "showAllPrivate": "Alle privaten Projekte anzeigen"
+      "showAllPrivate": "Alle privaten Projekte anzeigen",
+      "windowUpcoming": "Öffnet {date}",
+      "windowClosed": "Beendet",
+      "windowOpen": "Offen"
     },
     "columns": {
       "label": "Spalten",
@@ -1066,6 +1069,8 @@
         "randomizeTaskOrderHelp": "Jeder Annotator sieht Aufgaben in einer anderen zufälligen Reihenfolge für eine gleichmäßige Annotationsverteilung",
         "annotatorFullVisibility": "Alle Felder nach Abgabe anzeigen",
         "annotatorFullVisibilityHelp": "Wenn aktiviert, sehen Annotatoren beim Ansehen ihrer eigenen abgegebenen Arbeit alle Aufgabenfelder einschließlich der Musterlösung. Wenn deaktiviert, ist diese Ansicht auf die Felder beschränkt, die sie beim Annotieren gesehen haben – die Musterlösung bleibt verborgen.",
+        "restorableCheckpoints": "Wiederherstellbare Zwischenstände speichern",
+        "restorableCheckpointsHelp": "Speichert regelmäßig (alle 5 Minuten) Zwischenstände der laufenden Bearbeitung, sodass Annotatoren einen früheren Stand wiederherstellen können. Die Zwischenstände bleiben auch nach der Abgabe erhalten.",
         "samplingMethod": "Aufgaben-Sampling-Methode",
         "samplingMethodHelp": "Wie Aufgaben den Annotatoren präsentiert werden",
         "modes": {
@@ -1146,6 +1151,13 @@
         "highlightLabelsDescription": "Farbige Labels zur Texthervorhebung in der Korrektur definieren",
         "labelName": "Label-Name",
         "addLabel": "Label hinzufügen"
+      },
+      "accessWindow": {
+        "title": "Zeitfenster für den Zugriff",
+        "hint": "Öffnet das Projekt nur während eines festgelegten Zeitraums für die Zugriffsgruppe. Vor dem Öffnen ist das Projekt gelistet, aber die Daten bleiben verborgen; nach dem Schließen sind die Daten schreibgeschützt. Eigentümer und Admins sind nie eingeschränkt.",
+        "opens": "Öffnet",
+        "closes": "Schließt",
+        "invalid": "Das Schließdatum muss nach dem Öffnungsdatum liegen."
       }
     },
     "quickActions": {
@@ -6390,6 +6402,12 @@
     }
   },
   "annotation": {
+    "checkpoints": {
+      "restoreTitle": "Zwischenstand wiederherstellen",
+      "pick": "Stand wählen…",
+      "refresh": "Aktualisieren",
+      "restored": "Zwischenstand wiederhergestellt."
+    },
     "taskLoadedFromUrl": "Aufgabe {taskNumber} aus URL geladen",
     "taskNotFound": "Aufgabe {taskNumber} nicht gefunden (max: {maxTasks}). Erste Aufgabe wird stattdessen geladen.",
     "viewTaskData": "Vollständige Aufgabendaten anzeigen",
@@ -6654,6 +6672,11 @@
       "methodPending": "Wird ausgewertet …",
       "methodSkipped": "Übersprungen – für dieses Feld lag kein auswertbarer Wert vor.",
       "progress": "Auswertung läuft ({done}/{total}) …"
+    },
+    "window": {
+      "notOpenTitle": "Noch nicht geöffnet",
+      "notOpenDescription": "Dieses Projekt öffnet am {date}. Komm dann wieder, um zu starten.",
+      "closedReadOnly": "Dieses Projekt ist beendet – nur Ansicht, keine weiteren Änderungen."
     }
   },
   "annotationTab": {
@@ -7735,7 +7758,10 @@
         "auto": "Automatisch zugewiesen"
       },
       "ordering": "Reihenfolge",
-      "orderings": { "sequential": "Sequenziell", "random": "Zufällig pro Korrektor" },
+      "orderings": {
+        "sequential": "Sequenziell",
+        "random": "Zufällig pro Korrektor"
+      },
       "maxCorrectorsPerItem": "Maximale Korrektoren pro Element",
       "maxCorrectorsHelp": "0 = unbegrenzt",
       "minCorrectorsPerItem": "Mindestkorrektoren pro Element",
@@ -8390,5 +8416,27 @@
       "consentTitle": "Ihre Einwilligung",
       "consentText": "Mit dem Setzen des Häkchens bei der Registrierung erteilen Sie diese Erlaubnis, solange Ihre Daten anonymisiert bleiben. Bestehende Konten dieses Deployments wurden als einwilligend behandelt; wenn Sie das anders handhaben möchten, wenden Sie sich bitte an die Betreiber."
     }
+  },
+  "student": {
+    "toggle": {
+      "toStudent": "Zur Studierendenansicht wechseln",
+      "toExpert": "Zur Expertenansicht wechseln",
+      "label": "Ansicht"
+    },
+    "view": {
+      "student": "Studierendenansicht",
+      "expert": "Expertenansicht"
+    },
+    "community": {
+      "unavailable": "Diese Funktion ist in der Community-Edition nicht verfügbar."
+    },
+    "nav": {
+      "dashboard": "Übersicht",
+      "exams": "Klausuren",
+      "decks": "Karteikarten",
+      "leaderboard": "Bestenliste",
+      "profile": "Profil"
+    },
+    "loading": "Wird geladen …"
   }
 }
