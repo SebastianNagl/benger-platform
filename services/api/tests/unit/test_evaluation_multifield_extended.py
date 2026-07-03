@@ -144,6 +144,14 @@ async def _seed_eval_run(db, project, owner, *, eval_metadata, metrics=None, **k
 
 
 class TestRunEvaluation:
+    @pytest.fixture(autouse=True)
+    def _noop_write_window(self):
+        # Dev-body addition: run_evaluation now calls enforce_project_write_window
+        # before the config-validation branches. No-op it so these mock-db unit
+        # tests exercise the 400/403/404/200 logic they target.
+        with patch("routers.evaluations.multi_field.run.enforce_project_write_window"):
+            yield
+
     def test_project_not_found(self):
         client = TestClient(app)
         user = _make_user()

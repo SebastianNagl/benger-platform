@@ -45,7 +45,7 @@ async def verify_email_with_token(token: str, db: Session = Depends(get_db)):
 @router.post("/resend-verification")
 async def resend_verification_email(
     resend_request: ResendVerificationRequest,
-    request: Request,
+    request: Request = None,
     db: Session = Depends(get_db),
 ):
     """Resend email verification link"""
@@ -69,7 +69,11 @@ async def resend_verification_email(
         }
 
     try:
-        resend_host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+        resend_host = (
+            (request.headers.get("x-forwarded-host") or request.headers.get("host"))
+            if request
+            else None
+        )
         success = await email_verification_service.send_verification_email(
             db=db, user=user, language=resend_request.language, host=resend_host
         )

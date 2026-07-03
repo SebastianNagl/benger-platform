@@ -244,6 +244,7 @@ class TestBuildUserProfileResponse:
         mock_user.ki_experience_scores = {"item1": 4}
         mock_user.mandatory_profile_completed = True
         mock_user.profile_confirmed_at = datetime(2025, 6, 1, tzinfo=timezone.utc)
+        mock_user.preferred_ui_mode = None
 
         with patch("routers.auth.user.get_user_primary_role") as mock_role:
             mock_role.return_value = "CONTRIBUTOR"
@@ -269,6 +270,7 @@ class TestBuildUserProfileResponse:
         mock_user.updated_at = None
         mock_user.profile_confirmed_at = None
         # Set all optional fields to None to avoid Mock object validation errors
+        mock_user.preferred_ui_mode = None
         mock_user.pseudonym = None
         mock_user.use_pseudonym = True
         mock_user.age = None
