@@ -137,7 +137,7 @@ api:
     - name: BILLING_PROVIDER
       value: "stripe"
     - name: VERTRETBAR_ORG_ID
-      value: ""
+      value: "06620390-5817-4bc8-b94f-efa0798d5026"  # prod Vertretbar org (seed post-deploy with this id)
     - name: VERTRETBAR_FREE_GRADINGS
       value: "3"
     - name: VERTRETBAR_FLASHCARD_BILLABLE
@@ -579,7 +579,7 @@ middleware:
 # (values-staging.yaml for the staging beta; this file / values-extended.yaml for
 # the prod go-live).
 vertretbar:
-  enabled: false
+  enabled: true  # prod go-live (staging keeps its own host via values-staging.yaml)
   host: vertretbar.net
   # Own cert: the *.what-a-benger.net wildcard does not cover a different apex.
   # Issued via HTTP-01 (letsencrypt-prod-http01), NOT the Cloudflare DNS-01 issuer
@@ -597,5 +597,5 @@ vertretbar:
   #   htpasswd -nbB beta '<password>' | kubectl -n benger create secret generic \
   #     benger-beta-auth --from-file=users=/dev/stdin
   betaAuth:
-    enabled: false
+    enabled: true  # closed-beta password gate on vertretbar.net (benger-beta-auth secret)
     secretName: benger-beta-auth
