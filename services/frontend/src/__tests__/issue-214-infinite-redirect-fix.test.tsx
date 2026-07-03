@@ -2,7 +2,9 @@
  * @jest-environment jsdom
  */
 
-import LandingPage from '@/app/page'
+// app/page.tsx is now a server component; the benger landing behavior (incl. the
+// redirect logic this test covers) lives in BengerLandingClient.
+import LandingPage from '@/app/BengerLandingClient'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { useAuth } from '@/contexts/AuthContext'
 import { render, screen, waitFor } from '@testing-library/react'

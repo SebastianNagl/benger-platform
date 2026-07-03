@@ -6,7 +6,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { authRedirect } from '@/utils/authRedirect'
 import { render, screen, waitFor } from '@testing-library/react'
 import { useRouter } from 'next/navigation'
-import LandingPage from '../page'
+// The benger landing behavior (loading/redirect/unauthenticated) moved verbatim
+// to BengerLandingClient; app/page.tsx is now a server component that branches on
+// host and renders this. Server-side host branching is covered in page.server.test.tsx.
+import LandingPage from '../BengerLandingClient'
 
 // Mock dependencies
 jest.mock('next/navigation', () => ({

@@ -2,7 +2,9 @@
  * @jest-environment jsdom
  */
 
-import LandingPage from '@/app/page'
+// app/page.tsx is now a server component; the benger landing behavior lives in
+// BengerLandingClient (rendered by it on non-vertretbar hosts).
+import LandingPage from '@/app/BengerLandingClient'
 import { useAuth } from '@/contexts/AuthContext'
 import { render, screen, waitFor } from '@testing-library/react'
 import { useRouter } from 'next/navigation'

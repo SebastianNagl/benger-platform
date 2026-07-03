@@ -243,9 +243,13 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
         # Send verification email only for non-invitation signups
         if not invitation:
             try:
-                frontend_url = get_settings().frontend_url
+                # Brand the verification email from the signup host (Vertretbar on
+                # vertretbar.net, BenGER otherwise) — see resolve_email_brand.
+                signup_host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+                # No language= → send_verification_email defaults it from the host
+                # brand (Vertretbar signups get a German email, benger English).
                 success = await email_verification_service.send_verification_email(
-                    db=db, user=user, base_url=frontend_url, language="en"
+                    db=db, user=user, host=signup_host
                 )
                 if success:
                     logger.info(f"Verification email sent to new user: {user.email}")

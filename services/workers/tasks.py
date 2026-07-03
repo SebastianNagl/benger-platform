@@ -1085,6 +1085,7 @@ def send_invitation_email_task(
     organization_name: str,
     invitation_url: str,
     role: str,
+    host: str = None,
 ) -> Dict[str, Any]:
     """
     Send organization invitation email via Celery
@@ -1108,17 +1109,26 @@ def send_invitation_email_task(
 
         client = SendGridClient()
 
+        from mailer.branding import resolve_email_brand
+
+        brand = resolve_email_brand(host)
+
         subject, html_body = email_service.build_invitation_email(
             organization_name=organization_name,
             inviter_name=inviter_name,
             role=role,
             invitation_url=invitation_url,
+            brand_name=brand.name,
+            brand_tagline=brand.tagline,
+            language=brand.default_language,
         )
 
         result = client.send_message(
             to=[to_email],
             subject=subject,
             html_body=html_body,
+            from_address=brand.from_address,
+            from_name=brand.from_name,
             disable_tracking=True,
         )
 
@@ -1194,6 +1204,7 @@ def send_bulk_invitations_task(invitations_data: List[Dict]) -> Dict[str, Any]:
                     invitation.get('invitation_url'),
                     invitation.get('role'),
                 ],
+                kwargs={'host': invitation.get('host')},
                 countdown=idx * 2,  # 2 second delay between emails
             )
             sent += 1

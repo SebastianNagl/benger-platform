@@ -76,6 +76,33 @@ describe('authRedirect', () => {
       expect(mockRouter.back).not.toHaveBeenCalled()
       expect(mockRouter.forward).not.toHaveBeenCalled()
     })
+
+    it('preserves a safe returnTo as ?next=', () => {
+      authRedirect.toLogin(mockRouter, '/student/exams/1')
+      expect(mockRouter.replace).toHaveBeenCalledWith(
+        '/login?next=%2Fstudent%2Fexams%2F1'
+      )
+    })
+
+    it('drops an unsafe returnTo (open-redirect guard)', () => {
+      authRedirect.toLogin(mockRouter, '//evil.com')
+      expect(mockRouter.replace).toHaveBeenCalledWith('/login')
+    })
+  })
+
+  describe('sanitizeNext', () => {
+    it('returns null for missing, external, protocol-relative, or login paths', () => {
+      expect(authRedirect.sanitizeNext(null)).toBeNull()
+      expect(authRedirect.sanitizeNext(undefined)).toBeNull()
+      expect(authRedirect.sanitizeNext('https://evil.com')).toBeNull()
+      expect(authRedirect.sanitizeNext('//evil.com')).toBeNull()
+      expect(authRedirect.sanitizeNext('/login')).toBeNull()
+      expect(authRedirect.sanitizeNext('/login?next=%2Fx')).toBeNull()
+    })
+
+    it('returns a safe internal path unchanged', () => {
+      expect(authRedirect.sanitizeNext('/student/exams/1')).toBe('/student/exams/1')
+    })
   })
 
   describe('toDashboard', () => {

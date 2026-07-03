@@ -48,7 +48,7 @@ export async function generateMetadata(): Promise<Metadata> {
       ? ['Jura', 'Klausur', 'Falllösung', 'Karteikarten', 'KI-Korrektur', 'Examen']
       : ['Legal AI', 'LLM Evaluation', 'German Law', 'Legal Technology', 'AI Benchmarking'],
     icons: {
-      icon: '/icon.svg',
+      icon: vtr ? '/vertretbar-icon.svg' : '/icon.svg',
     },
     openGraph: {
       title,

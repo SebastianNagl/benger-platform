@@ -1,0 +1,18 @@
+Subject: Einladung zu {{ organization_name }} auf {{ brand_name }}
+<html>
+<body style="font-family: Arial, sans-serif; padding: 20px;">
+    <h2>Du wurdest zu {{ organization_name }} eingeladen</h2>
+    <p>{{ inviter_name }} hat dich eingeladen, {{ organization_name }} als {{ role }} auf {{ brand_name }} beizutreten.</p>
+    <p>{{ brand_tagline }}</p>
+    <p style="margin: 30px 0;">
+        <a href="{{ invitation_url }}" style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+            Einladung annehmen
+        </a>
+    </p>
+    <p>Oder kopiere diesen Link in deinen Browser:</p>
+    <p style="color: #059669;">{{ invitation_url }}</p>
+    <p style="color: #666; font-size: 12px; margin-top: 30px;">
+        Diese Einladung ist 7 Tage gültig. Falls du sie nicht erwartet hast, kannst du diese E-Mail ignorieren.
+    </p>
+</body>
+</html>

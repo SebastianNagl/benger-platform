@@ -452,7 +452,12 @@ class EmailVerificationService:
         return time_since_last.total_seconds() >= (RATE_LIMIT_MINUTES * 60)
 
     async def send_verification_email(
-        self, db: Session, user: User, base_url: str = None, language: str = "en"
+        self,
+        db: Session,
+        user: User,
+        base_url: str = None,
+        language: str = None,
+        host: str = None,
     ) -> bool:
         """
         Send verification email to user with comprehensive monitoring
@@ -495,9 +500,19 @@ class EmailVerificationService:
             user.email_verification_sent_at = datetime.now(timezone.utc)
             db.commit()
 
-            # Create verification link using FRONTEND_URL environment variable
-            # This ensures the link always points to the correct frontend, regardless of how the API is accessed
-            frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+            # Resolve email branding (verify-link host, From, brand name) from
+            # the signup/request host so vertretbar.net signups get a Vertretbar
+            # sender + a vertretbar.net link. Benger hosts are unchanged (brand
+            # falls back to FRONTEND_URL + the default sender).
+            from mailer.branding import resolve_email_brand
+
+            brand = resolve_email_brand(host)
+            # Language: honor an explicit caller choice (e.g. resend passes the
+            # user's UI language), else fall back to the brand default
+            # (Vertretbar → de, BenGER → en).
+            if language is None:
+                language = brand.default_language
+            frontend_url = brand.frontend_url
             verification_link = f"{frontend_url}/verify-email/{token}"
 
             # Log email send attempt
@@ -518,6 +533,9 @@ class EmailVerificationService:
                 user_name=user.name,
                 verification_link=verification_link,
                 language=language,
+                from_address=brand.from_address,
+                from_name=brand.from_name,
+                brand_name=brand.name,
             )
 
             # Calculate send duration

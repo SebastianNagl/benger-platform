@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { hasSlot, useSlot } from '@/lib/extensions/slots'
-import { getHostBrandName } from '@/lib/utils/subdomain'
+import { CheckBadgeIcon } from '@heroicons/react/24/solid'
+import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import { authRedirect } from '@/utils/authRedirect'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -87,9 +88,10 @@ export default function RegisterPage() {
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null)
   // Host-aware wordmark (Vertretbar on vertretbar.net); resolved after mount.
   const [brandName, setBrandName] = useState('BenGER')
+  const [isVtr, setIsVtr] = useState(false)
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setBrandName(getHostBrandName()) }, [])
+  useEffect(() => { setBrandName(getHostBrandName()); setIsVtr(isStudentLockedHost()) }, [])
   const ResearchConsentSlot = useSlot('signup-step5-consent')
 
   // Options
@@ -989,7 +991,11 @@ export default function RegisterPage() {
             <Link href="/" className="-m-1.5 p-1.5">
               <span className="sr-only">{brandName}</span>
               <div className="flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-white">
-                <span className="text-2xl">🤘</span>
+                {isVtr ? (
+                  <CheckBadgeIcon className="h-7 w-7 text-emerald-500" />
+                ) : (
+                  <span className="text-2xl">🤘</span>
+                )}
                 <span>{brandName}</span>
               </div>
             </Link>

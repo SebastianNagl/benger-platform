@@ -5,7 +5,8 @@ import { Button } from '@/components/shared/Button'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { authRedirect } from '@/utils/authRedirect'
-import { getHostBrandName } from '@/lib/utils/subdomain'
+import { CheckBadgeIcon } from '@heroicons/react/24/solid'
+import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -19,12 +20,13 @@ export default function LoginPage() {
   // Host-aware wordmark (Vertretbar on vertretbar.net). Resolved after mount so
   // SSR stays neutral; the brief default is the BenGER name on benger hosts.
   const [brandName, setBrandName] = useState('BenGER')
+  const [isVtr, setIsVtr] = useState(false)
   const { user, login } = useAuth()
   const { t } = useI18n()
   const router = useRouter()
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setBrandName(getHostBrandName()) }, [])
+  useEffect(() => { setBrandName(getHostBrandName()); setIsVtr(isStudentLockedHost()) }, [])
 
   // Capture an optional ?next= return path (sanitized to an internal route).
   // Read from window.location to avoid a useSearchParams Suspense boundary,
@@ -83,7 +85,11 @@ export default function LoginPage() {
             <Link href="/" className="-m-1.5 p-1.5">
               <span className="sr-only">{brandName}</span>
               <div className="flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-white">
-                <span className="text-2xl">🤘</span>
+                {isVtr ? (
+                  <CheckBadgeIcon className="h-7 w-7 text-emerald-500" />
+                ) : (
+                  <span className="text-2xl">🤘</span>
+                )}
                 <span>{brandName}</span>
               </div>
             </Link>

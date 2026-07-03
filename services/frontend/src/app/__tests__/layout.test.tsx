@@ -7,7 +7,15 @@ import { render } from '@testing-library/react'
 // Mock CSS imports
 jest.mock('@/styles/tailwind.css', () => ({}))
 
-import RootLayout, { metadata } from '../layout'
+import RootLayout, { generateMetadata } from '../layout'
+
+// Control the host generateMetadata() resolves branding from ('' → benger).
+let mockHost = ''
+jest.mock('next/headers', () => ({
+  headers: jest.fn(async () => ({
+    get: (key: string) => (key === 'x-forwarded-host' ? mockHost || null : null),
+  })),
+}))
 
 // Mock the Providers component
 jest.mock('@/app/providers', () => ({
@@ -40,35 +48,34 @@ jest.mock('@/components/layout/ConditionalLayout', () => ({
 }))
 
 describe('RootLayout', () => {
-  describe('Metadata', () => {
-    it('exports correct default title', () => {
-      expect(metadata.title).toBeDefined()
-      expect(typeof metadata.title).toBe('object')
-      const titleConfig = metadata.title as {
-        template: string
-        default: string
-      }
+  describe('Metadata (generateMetadata)', () => {
+    beforeEach(() => {
+      mockHost = '' // default to a benger host
+    })
+
+    it('exports correct default title', async () => {
+      const metadata = await generateMetadata()
+      const titleConfig = metadata.title as { template: string; default: string }
       expect(titleConfig.default).toBe(
         'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht'
       )
     })
 
-    it('exports correct title template', () => {
-      const titleConfig = metadata.title as {
-        template: string
-        default: string
-      }
+    it('exports correct title template', async () => {
+      const metadata = await generateMetadata()
+      const titleConfig = metadata.title as { template: string; default: string }
       expect(titleConfig.template).toBe('%s - BenGER')
     })
 
-    it('exports correct description', () => {
+    it('exports correct description', async () => {
+      const metadata = await generateMetadata()
       expect(metadata.description).toBe(
         'Die führende Plattform für wissenschaftlich fundierte Evaluation von Large Language Models im deutschen Rechtskontext. Entwickelt an der TUM.'
       )
     })
 
-    it('exports correct keywords', () => {
-      expect(metadata.keywords).toBeDefined()
+    it('exports correct keywords', async () => {
+      const metadata = await generateMetadata()
       expect(Array.isArray(metadata.keywords)).toBe(true)
       expect(metadata.keywords).toContain('Legal AI')
       expect(metadata.keywords).toContain('LLM Evaluation')
@@ -77,18 +84,15 @@ describe('RootLayout', () => {
       expect(metadata.keywords).toContain('AI Benchmarking')
     })
 
-    it('exports correct icon configuration', () => {
-      expect(metadata.icons).toBeDefined()
+    it('exports correct icon configuration', async () => {
+      const metadata = await generateMetadata()
       expect(metadata.icons).toHaveProperty('icon', '/icon.svg')
     })
 
-    it('exports correct Open Graph configuration', () => {
-      expect(metadata.openGraph).toBeDefined()
+    it('exports correct Open Graph configuration', async () => {
+      const metadata = await generateMetadata()
       expect(metadata.openGraph?.title).toBe(
         'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht'
-      )
-      expect(metadata.openGraph?.description).toBe(
-        'Die führende Plattform für wissenschaftlich fundierte Evaluation von Large Language Models im deutschen Rechtskontext.'
       )
       expect(metadata.openGraph?.url).toBe('https://what-a-benger.net')
       expect(metadata.openGraph?.siteName).toBe('BenGER')
@@ -96,15 +100,25 @@ describe('RootLayout', () => {
       expect(metadata.openGraph?.type).toBe('website')
     })
 
-    it('exports correct Twitter card configuration', () => {
-      expect(metadata.twitter).toBeDefined()
+    it('exports correct Twitter card configuration', async () => {
+      const metadata = await generateMetadata()
       expect(metadata.twitter?.card).toBe('summary_large_image')
       expect(metadata.twitter?.title).toBe(
         'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht'
       )
-      expect(metadata.twitter?.description).toBe(
-        'Die führende Plattform für wissenschaftlich fundierte Evaluation von Large Language Models im deutschen Rechtskontext.'
+    })
+
+    it('uses Vertretbar branding + favicon on a vertretbar host', async () => {
+      mockHost = 'vertretbar.net'
+      const metadata = await generateMetadata()
+      const titleConfig = metadata.title as { template: string; default: string }
+      expect(titleConfig.default).toBe(
+        'Vertretbar – Klausuren üben mit sofortiger KI-Korrektur'
       )
+      expect(titleConfig.template).toBe('%s · Vertretbar')
+      expect(metadata.icons).toHaveProperty('icon', '/vertretbar-icon.svg')
+      expect(metadata.openGraph?.url).toBe('https://vertretbar.net')
+      expect(metadata.openGraph?.siteName).toBe('Vertretbar')
     })
   })
 

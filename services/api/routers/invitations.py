@@ -9,13 +9,12 @@ from typing import List, Optional
 from uuid import uuid4
 
 
-from fastapi import APIRouter, Depends, HTTPException, status  # noqa: E402
+from fastapi import APIRouter, Depends, HTTPException, Request, status  # noqa: E402
 from pydantic import BaseModel, EmailStr, TypeAdapter, ValidationError  # noqa: E402
 from sqlalchemy import select  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
-from app.core.config import get_settings  # noqa: E402
 from auth_module import require_user  # noqa: E402
 from database import get_async_db, get_db  # noqa: E402
 from models import Invitation, Organization, OrganizationMembership, OrganizationRole, User  # noqa: E402
@@ -31,6 +30,7 @@ router = APIRouter(prefix="/api/invitations", tags=["invitations"])
 
 # Celery app
 from celery_client import get_celery_app  # noqa: E402
+from mailer.branding import resolve_email_brand  # noqa: E402
 
 
 logger = logging.getLogger(__name__)
@@ -106,6 +106,7 @@ def generate_invitation_token() -> str:
 async def create_invitation(
     organization_id: str,
     invitation_data: InvitationCreate,
+    request: Request = None,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -184,9 +185,16 @@ async def create_invitation(
     db.commit()
     db.refresh(invitation)
 
-    # Queue invitation email via Celery
-    frontend_url = get_settings().frontend_url
-    invitation_url = f"{frontend_url}/accept-invitation/{invitation.token}"
+    # Queue invitation email via Celery. Brand it from the request host so a
+    # vertretbar.net invite links to vertretbar + sends from the Vertretbar
+    # sender (resolve_email_brand); benger hosts are unchanged.
+    invite_host = (
+        (request.headers.get("x-forwarded-host") or request.headers.get("host"))
+        if request
+        else None
+    )
+    brand = resolve_email_brand(invite_host)
+    invitation_url = f"{brand.frontend_url}/accept-invitation/{invitation.token}"
 
     try:
         celery_app.send_task(
@@ -199,6 +207,7 @@ async def create_invitation(
                 invitation_url,
                 invitation.role.value,
             ],
+            kwargs={"host": invite_host},
             queue="emails",
             retry=True,
             retry_policy={
@@ -250,6 +259,7 @@ async def create_invitation(
 async def create_bulk_invitations(
     organization_id: str,
     bulk_data: BulkInvitationCreate,
+    request: Request = None,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -349,15 +359,21 @@ async def create_bulk_invitations(
         for invitation in created:
             db.refresh(invitation)
 
-        frontend_url = get_settings().frontend_url
+        invite_host = (
+            (request.headers.get("x-forwarded-host") or request.headers.get("host"))
+            if request
+            else None
+        )
+        brand = resolve_email_brand(invite_host)
         payload = [
             {
                 "invitation_id": inv.id,
                 "to_email": inv.email,
                 "inviter_name": current_user.name,
                 "organization_name": organization.name,
-                "invitation_url": f"{frontend_url}/accept-invitation/{inv.token}",
+                "invitation_url": f"{brand.frontend_url}/accept-invitation/{inv.token}",
                 "role": inv.role.value,
+                "host": invite_host,
             }
             for inv in created
         ]

@@ -18,6 +18,11 @@ api:
   env:
     - name: ENVIRONMENT
       value: "staging"  # Override to staging
+    # Vertretbar org (seeded in the staging DB) — onboarding + billing scope.
+    # Kept here (not just base values.yaml) because the staging api/workers env
+    # REPLACES base, so a redeploy would otherwise blank this out.
+    - name: VERTRETBAR_ORG_ID
+      value: "3a683698-b43f-4fc8-aad0-d8fec00ac0b5"
     - name: FRONTEND_URL
       value: "https://staging.what-a-benger.net"
     - name: DATABASE_URI
@@ -94,6 +99,11 @@ workers:
   env:
     - name: ENVIRONMENT
       value: "staging"  # Override to staging
+    # Vertretbar org (seeded in the staging DB) — onboarding + billing scope.
+    # Kept here (not just base values.yaml) because the staging api/workers env
+    # REPLACES base, so a redeploy would otherwise blank this out.
+    - name: VERTRETBAR_ORG_ID
+      value: "3a683698-b43f-4fc8-aad0-d8fec00ac0b5"
     - name: FRONTEND_URL
       value: "https://staging.what-a-benger.net"
     - name: DATABASE_URI
