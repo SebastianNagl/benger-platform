@@ -18,6 +18,7 @@ import {
   getMetricDefinitions,
   isMetricImmediateEligible,
 } from '@/lib/api/evaluation-types'
+import { computeDefaultEvalName } from '@/lib/evaluation/evalName'
 import { OutputField } from '@/lib/labelConfig/fieldExtractor'
 import { useModels } from '@/hooks/useModels'
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline'
@@ -97,7 +98,7 @@ export function StepEvaluationMethods({
         {
           id: generateEvaluationId(metricKey),
           metric: metricKey,
-          display_name: def.display_name,
+          display_name: computeDefaultEvalName(def, defaultParams, metricKey),
           prediction_fields: defaultPrediction ? [defaultPrediction] : [],
           reference_fields: defaultReference ? [defaultReference] : [],
           enabled: true,
@@ -270,6 +271,33 @@ export function StepEvaluationMethods({
                     {/* Field mapping (expanded) */}
                     {isSelected && isExpanded && config && hasFieldOptions && (
                       <div className="ml-4 mt-2 space-y-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+                        <div>
+                          <Label className="text-xs">
+                            {t('projects.creation.wizard.step7.name')}
+                          </Label>
+                          <input
+                            type="text"
+                            value={config.display_name || ''}
+                            placeholder={
+                              computeDefaultEvalName(
+                                def,
+                                config.metric_parameters,
+                                metricKey
+                              ) ||
+                              t('projects.creation.wizard.step7.namePlaceholder')
+                            }
+                            onChange={(e) =>
+                              updateConfig(
+                                metricKey,
+                                'display_name',
+                                e.target.value
+                              )
+                            }
+                            className="mt-1 w-full rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                            data-testid={`wizard-metric-name-${metricKey}`}
+                          />
+                        </div>
+
                         {predictionOptions.length > 0 && (
                           <div>
                             <Label className="text-xs">

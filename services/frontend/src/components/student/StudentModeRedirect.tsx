@@ -33,6 +33,7 @@ export function StudentModeRedirect() {
   useEffect(() => {
     if (!isHydrated || isLoading) return
     if (!isAuthenticated) return
+    if (!pathname) return
 
     const onStudentRoute = pathname === '/student' || pathname.startsWith('/student/')
 

@@ -426,6 +426,8 @@
           "points": "Pkt",
           "maxTokens": "Max Tokens",
           "allModelOutputs": "Alle Modellausgaben",
+          "name": "Name (optional)",
+          "namePlaceholder": "Name der Evaluierungsmethode",
           "predictionField": "Vorhersagefeld",
           "referenceField": "Referenzfeld",
           "judgeModel": "Judge-Modell",
@@ -2589,7 +2591,8 @@
     "unread": "ungelesen",
     "refresh": "Benachrichtigungen aktualisieren",
     "markAllRead": "Alle als gelesen markieren",
-    "markAllReadSuccess": "Alle Benachrichtigungen als gelesen markiert",
+    "markAllReadSuccess": "{count} Benachrichtigungen als gelesen markiert",
+    "markAllReadSuccessOne": "{count} Benachrichtigung als gelesen markiert",
     "markAllReadError": "Fehler beim Markieren aller Benachrichtigungen als gelesen",
     "markReadError": "Fehler beim Markieren der Benachrichtigung als gelesen",
     "bellAriaLabel": "Benachrichtigungen",
@@ -6278,6 +6281,11 @@
     "cancel": "Abbrechen",
     "next": "Weiter",
     "update": "Aktualisieren",
+    "name": {
+      "label": "Name (optional)",
+      "placeholder": "Name der Evaluierungsmethode",
+      "hint": "Leer lassen, um den vorgeschlagenen Namen zu verwenden."
+    },
     "steps": {
       "metric": {
         "title": "1. Evaluierungsmetrik auswählen",

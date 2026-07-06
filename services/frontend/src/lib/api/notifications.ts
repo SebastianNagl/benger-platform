@@ -108,7 +108,7 @@ export class NotificationsClient extends BaseApiClient {
   /**
    * Mark all notifications as read
    */
-  async markAllAsRead(): Promise<{ message: string }> {
+  async markAllAsRead(): Promise<{ message: string; count: number }> {
     return this.post('/notifications/mark-all-read')
   }
 

@@ -426,6 +426,8 @@
           "points": "Pts",
           "maxTokens": "Max Tokens",
           "allModelOutputs": "All model outputs",
+          "name": "Name (optional)",
+          "namePlaceholder": "Evaluation method name",
           "predictionField": "Prediction Field",
           "referenceField": "Reference Field",
           "judgeModel": "Judge Model",
@@ -2607,7 +2609,8 @@
     "unread": "unread",
     "refresh": "Refresh notifications",
     "markAllRead": "Mark all as read",
-    "markAllReadSuccess": "All notifications marked as read",
+    "markAllReadSuccess": "{count} notifications marked as read",
+    "markAllReadSuccessOne": "{count} notification marked as read",
     "markAllReadError": "Failed to mark all notifications as read",
     "markReadError": "Failed to mark notification as read",
     "bellAriaLabel": "Notifications",
@@ -6296,6 +6299,11 @@
     "cancel": "Cancel",
     "next": "Next",
     "update": "Update",
+    "name": {
+      "label": "Name (optional)",
+      "placeholder": "Evaluation method name",
+      "hint": "Leave blank to use the suggested name."
+    },
     "steps": {
       "metric": {
         "title": "1. Select Evaluation Metric",

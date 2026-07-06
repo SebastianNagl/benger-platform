@@ -331,8 +331,54 @@ describe('useNotifications - Branch Coverage', () => {
       expect(mockApiClient.markAllNotificationsAsRead).not.toHaveBeenCalled()
     })
 
-    it('uses fallback success message when response.message is falsy', async () => {
+    it('uses the plural success key when count is 0 or missing', async () => {
       mockApiClient.markAllNotificationsAsRead.mockResolvedValue({})
+      mockApiClient.getNotifications.mockResolvedValue([])
+      mockApiClient.getUnreadNotificationCount.mockResolvedValue({ count: 0 })
+
+      const { result } = renderHook(() => useNotifications(), { wrapper })
+
+      await waitFor(() => {
+        expect(mockApiClient.createNotificationStream).toHaveBeenCalled()
+      })
+
+      await act(async () => {
+        await result.current.markAllAsRead()
+      })
+
+      const toast = __mockToastSetup
+      expect(toast.success).toHaveBeenCalledWith('notifications.markAllReadSuccess')
+    })
+
+    it('uses the singular success key when exactly one notification is marked', async () => {
+      mockApiClient.markAllNotificationsAsRead.mockResolvedValue({
+        message: 'Marked 1 notifications as read',
+        count: 1,
+      })
+      mockApiClient.getNotifications.mockResolvedValue([])
+      mockApiClient.getUnreadNotificationCount.mockResolvedValue({ count: 0 })
+
+      const { result } = renderHook(() => useNotifications(), { wrapper })
+
+      await waitFor(() => {
+        expect(mockApiClient.createNotificationStream).toHaveBeenCalled()
+      })
+
+      await act(async () => {
+        await result.current.markAllAsRead()
+      })
+
+      const toast = __mockToastSetup
+      expect(toast.success).toHaveBeenCalledWith(
+        'notifications.markAllReadSuccessOne'
+      )
+    })
+
+    it('uses the plural success key when several notifications are marked', async () => {
+      mockApiClient.markAllNotificationsAsRead.mockResolvedValue({
+        message: 'Marked 5 notifications as read',
+        count: 5,
+      })
       mockApiClient.getNotifications.mockResolvedValue([])
       mockApiClient.getUnreadNotificationCount.mockResolvedValue({ count: 0 })
 

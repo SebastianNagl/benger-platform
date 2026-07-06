@@ -292,7 +292,8 @@ async def _make_generation(db, task, *, model_id="gpt-4", created_at=None,
 async def _make_task_evaluation(db, eval_run, task, *, metrics=None, generation=None,
                                 annotation=None, field_name="answer",
                                 ground_truth=None, prediction=None, passed=True,
-                                created_at=None, answer_type="choices", judge_run=None):
+                                created_at=None, answer_type="choices", judge_run=None,
+                                evaluation_config_id=None):
     """uq_task_evaluations_cell keys a row on its scored subject
     (generation_id / annotation_id / created_by), so a real row always has a
     generation OR an annotation. Synthesize a distinct generation when none is
@@ -312,6 +313,7 @@ async def _make_task_evaluation(db, eval_run, task, *, metrics=None, generation=
         passed=passed,
         ground_truth=ground_truth if ground_truth is not None else {"value": "Ja"},
         prediction=prediction if prediction is not None else {"value": "Ja"},
+        evaluation_config_id=evaluation_config_id,
     )
     # created_at is NOT NULL with a server_default; only set it when a caller
     # needs a specific ordering value, else let the DB default fire.
@@ -974,6 +976,135 @@ class TestProjectByTaskModelBranches:
         body2 = resp2.json()
         cell2 = next(t for t in body2["tasks"] if t["task_id"] == task.id)
         assert cell2["scores"] == {}
+
+    @pytest.mark.asyncio
+    async def test_evaluation_config_id_unions_gen_and_annotation(
+        self, async_test_client, async_test_db
+    ):
+        """`evaluation_config_id` scopes to ONE method and scans ALL runs,
+        unioning a generation-side cell (model column) with an annotation-side
+        cell (annotator column) even when they live on DIFFERENT runs (a model
+        run + an immediate KI-Votum run). This is the "one page per method,
+        all runs, no n/a" contract."""
+        owner = await _make_owner(async_test_db)
+        org = await _make_org(async_test_db)
+        await _make_llm_model(async_test_db, "gpt-union", "GPT Union")
+        p, tasks = await _setup_project(async_test_db, owner, org, num_tasks=1)
+        task = tasks[0]
+        CFG = "llm_judge_falloesung-cfgunion"
+        # Run 1: an LLM generation graded under CFG.
+        er_gen = await _make_eval_run(async_test_db, p, model_id="gpt-union")
+        gen, _ = await _make_generation(async_test_db, task, model_id="gpt-union")
+        await _make_task_evaluation(
+            async_test_db, er_gen, task, generation=gen,
+            metrics={"llm_judge_falloesung": {"value": 0.70}},
+            evaluation_config_id=CFG,
+        )
+        # Run 2: a human annotation graded under the SAME CFG, on another run.
+        er_ann = await _make_eval_run(async_test_db, p, model_id="immediate")
+        ann = await _make_annotation(async_test_db, task, p, owner.id)
+        await _make_task_evaluation(
+            async_test_db, er_ann, task, annotation=ann,
+            metrics={"llm_judge_falloesung": {"value": 0.55}},
+            evaluation_config_id=CFG,
+        )
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/projects/{p.id}/results/by-task-model"
+                f"?metric=llm_judge_falloesung&evaluation_config_id={CFG}"
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        cell = next(t for t in body["tasks"] if t["task_id"] == task.id)
+        # Both the model column and the annotator column are populated, from
+        # two different runs, under the one config id.
+        assert cell["scores"].get("gpt-union") == pytest.approx(0.70)
+        assert cell["scores"].get("annotator:Test Admin") == pytest.approx(0.55)
+
+    @pytest.mark.asyncio
+    async def test_evaluation_config_id_isolates_same_metric_configs(
+        self, async_test_client, async_test_db
+    ):
+        """Two configs sharing a metric key (issue #111) stay isolated: filtering
+        by one config's id returns only that config's rows, never the sibling's."""
+        owner = await _make_owner(async_test_db)
+        org = await _make_org(async_test_db)
+        await _make_llm_model(async_test_db, "gpt-iso", "GPT Iso")
+        p, tasks = await _setup_project(async_test_db, owner, org, num_tasks=2)
+        t1, t2 = tasks[0], tasks[1]
+        er = await _make_eval_run(async_test_db, p, model_id="gpt-iso")
+        g1, _ = await _make_generation(async_test_db, t1, model_id="gpt-iso")
+        g2, _ = await _make_generation(async_test_db, t2, model_id="gpt-iso")
+        await _make_task_evaluation(
+            async_test_db, er, t1, generation=g1,
+            metrics={"bleu": 0.2}, evaluation_config_id="cfg-a",
+        )
+        await _make_task_evaluation(
+            async_test_db, er, t2, generation=g2,
+            metrics={"bleu": 0.9}, evaluation_config_id="cfg-b",
+        )
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp_a = await async_test_client.get(
+                f"{BASE}/projects/{p.id}/results/by-task-model"
+                f"?metric=bleu&evaluation_config_id=cfg-a"
+            )
+            resp_b = await async_test_client.get(
+                f"{BASE}/projects/{p.id}/results/by-task-model"
+                f"?metric=bleu&evaluation_config_id=cfg-b"
+            )
+        assert resp_a.status_code == 200, resp_a.text
+        assert resp_b.status_code == 200, resp_b.text
+        a, b = resp_a.json(), resp_b.json()
+        a1 = next(t for t in a["tasks"] if t["task_id"] == t1.id)
+        assert a1["scores"].get("gpt-iso") == pytest.approx(0.2)
+        # cfg-a never surfaces t2's cfg-b row.
+        a2 = next((t for t in a["tasks"] if t["task_id"] == t2.id), None)
+        assert a2 is None or a2["scores"].get("gpt-iso") is None
+        b2 = next(t for t in b["tasks"] if t["task_id"] == t2.id)
+        assert b2["scores"].get("gpt-iso") == pytest.approx(0.9)
+
+    @pytest.mark.asyncio
+    async def test_evaluation_config_id_excludes_null_legacy_rows(
+        self, async_test_client, async_test_db
+    ):
+        """Legacy rows with a NULL evaluation_config_id are excluded by the
+        config-id filter (documented; scripts/backfill_immediate_eval_config_id
+        remediates). Without the filter the same row IS returned."""
+        owner = await _make_owner(async_test_db)
+        org = await _make_org(async_test_db)
+        await _make_llm_model(async_test_db, "gpt-null", "GPT Null")
+        p, tasks = await _setup_project(async_test_db, owner, org, num_tasks=1)
+        task = tasks[0]
+        er = await _make_eval_run(async_test_db, p, model_id="gpt-null")
+        gen, _ = await _make_generation(async_test_db, task, model_id="gpt-null")
+        await _make_task_evaluation(
+            async_test_db, er, task, generation=gen,
+            metrics={"bleu": 0.5}, evaluation_config_id=None,
+        )
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/projects/{p.id}/results/by-task-model"
+                f"?metric=bleu&evaluation_config_id=cfg-a"
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        cell = next((t for t in body["tasks"] if t["task_id"] == task.id), None)
+        assert cell is None or cell["scores"].get("gpt-null") is None
+
+        # Sanity: metric-only (no config filter) still returns the legacy row.
+        with _as_user(owner):
+            resp2 = await async_test_client.get(
+                f"{BASE}/projects/{p.id}/results/by-task-model?metric=bleu"
+            )
+        body2 = resp2.json()
+        cell2 = next(t for t in body2["tasks"] if t["task_id"] == task.id)
+        assert cell2["scores"].get("gpt-null") == pytest.approx(0.5)
 
     @pytest.mark.asyncio
     async def test_deduplication_summary_counts_suppressed(

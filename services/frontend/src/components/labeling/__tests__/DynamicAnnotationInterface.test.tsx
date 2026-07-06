@@ -301,6 +301,40 @@ describe('DynamicAnnotationInterface', () => {
       expect(submitButton).toBeInTheDocument()
     })
 
+    it('submits live component values even when their annotation was never flushed', async () => {
+      // Regression for the submission-truncation bug: content typed into a field
+      // lives in componentValues immediately, but its properly-shaped annotation
+      // may not have reached the annotations Map yet (a debounce/flush was
+      // outstanding). handleSubmit used to read only the annotations Map and drop
+      // that live content — the submitted result was staler/shorter than the
+      // autosaved draft. Submit must now merge componentValues so nothing is lost.
+      const mockOnSubmit = jest.fn()
+      render(
+        <DynamicAnnotationInterface {...defaultProps} onSubmit={mockOnSubmit} />
+      )
+
+      // Type into the field. The mock component fires onChange (-> componentValues)
+      // but does NOT fire onAnnotation here, so the annotations Map stays empty for
+      // this field — reproducing the pre-flush state at submit time.
+      const textarea = screen.getByTestId('textarea')
+      fireEvent.change(textarea, { target: { value: 'letzter Absatz' } })
+
+      const submitButton = screen
+        .getAllByRole('button', { name: /submit/i })
+        .find((btn) => btn.classList.contains('bg-emerald-600'))
+
+      // componentValues is non-empty, so the main submit is enabled.
+      expect(submitButton).not.toBeDisabled()
+      fireEvent.click(submitButton!)
+
+      await waitFor(() => expect(mockOnSubmit).toHaveBeenCalledTimes(1))
+      expect(mockOnSubmit).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ from_name: 'answer', value: 'letzter Absatz' }),
+        ])
+      )
+    })
+
     it('should display error when no annotations are provided', async () => {
       render(<DynamicAnnotationInterface {...defaultProps} />)
 

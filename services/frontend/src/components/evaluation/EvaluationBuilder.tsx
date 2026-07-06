@@ -26,6 +26,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
 import { TemperatureInput } from '@/lib/evaluation/TemperatureInput'
 import { MaxTokensInput } from '@/lib/evaluation/MaxTokensInput'
+import { computeDefaultEvalName } from '@/lib/evaluation/evalName'
 import { useJudgeModelHelpers } from '@/lib/evaluation/judgeModelHelpers'
 import { getMetricEditor } from '@/lib/extensions/metricEditors'
 import {
@@ -88,6 +89,8 @@ type WizardStep =
 
 interface NewEvaluationState {
   metric: string
+  /** Optional user-supplied custom name. Empty ⇒ use computed default. */
+  display_name?: string
   prediction_fields: string[]
   reference_fields: string[]
   metric_parameters: Record<string, any>
@@ -95,6 +98,7 @@ interface NewEvaluationState {
 
 const INITIAL_EVALUATION_STATE: NewEvaluationState = {
   metric: '',
+  display_name: '',
   prediction_fields: [],
   reference_fields: [],
   metric_parameters: {},
@@ -233,7 +237,13 @@ export function EvaluationBuilder({
     const newConfig: EvaluationConfig = {
       id: editingId || generateEvaluationId(newEvaluation.metric),
       metric: newEvaluation.metric,
-      display_name: metricDef?.display_name || newEvaluation.metric,
+      display_name:
+        newEvaluation.display_name?.trim() ||
+        computeDefaultEvalName(
+          metricDef,
+          newEvaluation.metric_parameters,
+          newEvaluation.metric
+        ),
       metric_parameters: newEvaluation.metric_parameters,
       prediction_fields: newEvaluation.prediction_fields,
       reference_fields: newEvaluation.reference_fields,
@@ -279,8 +289,29 @@ export function EvaluationBuilder({
   const handleEditEvaluation = useCallback(
     (evaluation: EvaluationConfig) => {
       setEditingId(evaluation.id)
+      // Distinguish a user-typed custom name from an auto-generated one so the
+      // edit never (a) clobbers a real custom name, nor (b) freezes a stale
+      // model into an auto-name when the judge model is changed during the edit.
+      // A stored name counts as auto — and is prefilled EMPTY so it recomputes
+      // on save — when it matches any name the system itself would have produced:
+      // the model-enriched default, the bare metric-definition default (configs
+      // that predate this feature / an un-backfilled row), or the raw metric key.
+      // Only a genuinely custom name is prefilled into the input.
+      const metricDef = getMetricDefinitions()[evaluation.metric]
+      const stored = evaluation.display_name || ''
+      const autoNames = new Set([
+        computeDefaultEvalName(
+          metricDef,
+          evaluation.metric_parameters || {},
+          evaluation.metric
+        ),
+        metricDef?.display_name || '',
+        evaluation.metric,
+      ])
+      const isCustomName = stored !== '' && !autoNames.has(stored)
       setNewEvaluation({
         metric: evaluation.metric,
+        display_name: isCustomName ? stored : '',
         prediction_fields: evaluation.prediction_fields,
         reference_fields: evaluation.reference_fields,
         metric_parameters: evaluation.metric_parameters || {},
@@ -1397,15 +1428,49 @@ export function EvaluationBuilder({
           </div>
         )
 
-      case 'review':
-        return (
-          <ReviewStep
-            metric={newEvaluation.metric}
-            predictionFields={newEvaluation.prediction_fields}
-            referenceFields={newEvaluation.reference_fields}
-            metricParameters={newEvaluation.metric_parameters}
-          />
+      case 'review': {
+        const reviewMetricDef = getMetricDefinitions()[newEvaluation.metric]
+        const computedDefaultName = computeDefaultEvalName(
+          reviewMetricDef,
+          newEvaluation.metric_parameters,
+          newEvaluation.metric
         )
+        return (
+          <div className="space-y-4">
+            {/* Optional custom name. Placeholder shows the computed default so
+                the user sees exactly what they'll get if they leave it blank. */}
+            <div>
+              <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                {t('evaluationBuilder.name.label')}
+              </label>
+              <input
+                type="text"
+                value={newEvaluation.display_name || ''}
+                placeholder={
+                  computedDefaultName || t('evaluationBuilder.name.placeholder')
+                }
+                onChange={(e) =>
+                  setNewEvaluation((prev) => ({
+                    ...prev,
+                    display_name: e.target.value,
+                  }))
+                }
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                data-testid="evaluation-name-input"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {t('evaluationBuilder.name.hint')}
+              </p>
+            </div>
+            <ReviewStep
+              metric={newEvaluation.metric}
+              predictionFields={newEvaluation.prediction_fields}
+              referenceFields={newEvaluation.reference_fields}
+              metricParameters={newEvaluation.metric_parameters}
+            />
+          </div>
+        )
+      }
     }
   }
 
@@ -1521,7 +1586,7 @@ export function EvaluationBuilder({
                 }`}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="mb-2 flex items-center gap-2">
                       <span className="font-medium text-gray-900 dark:text-gray-100">
                         {evaluation.display_name ||
@@ -1534,7 +1599,7 @@ export function EvaluationBuilder({
                         </Badge>
                       )}
                     </div>
-                    <div className="space-y-1 text-xs text-gray-500">
+                    <div className="space-y-1 text-xs text-gray-500 break-words">
                       <div>
                         <span className="font-medium">
                           {t('evaluationBuilder.list.predictions')}
