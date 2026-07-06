@@ -1521,7 +1521,7 @@ export function EvaluationBuilder({
                 }`}
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="mb-2 flex items-center gap-2">
                       <span className="font-medium text-gray-900 dark:text-gray-100">
                         {evaluation.display_name ||
@@ -1534,7 +1534,7 @@ export function EvaluationBuilder({
                         </Badge>
                       )}
                     </div>
-                    <div className="space-y-1 text-xs text-gray-500">
+                    <div className="space-y-1 text-xs text-gray-500 break-words">
                       <div>
                         <span className="font-medium">
                           {t('evaluationBuilder.list.predictions')}
