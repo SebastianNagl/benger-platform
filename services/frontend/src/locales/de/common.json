@@ -426,6 +426,8 @@
           "points": "Pkt",
           "maxTokens": "Max Tokens",
           "allModelOutputs": "Alle Modellausgaben",
+          "name": "Name (optional)",
+          "namePlaceholder": "Name der Evaluierungsmethode",
           "predictionField": "Vorhersagefeld",
           "referenceField": "Referenzfeld",
           "judgeModel": "Judge-Modell",
@@ -6279,6 +6281,11 @@
     "cancel": "Abbrechen",
     "next": "Weiter",
     "update": "Aktualisieren",
+    "name": {
+      "label": "Name (optional)",
+      "placeholder": "Name der Evaluierungsmethode",
+      "hint": "Leer lassen, um den vorgeschlagenen Namen zu verwenden."
+    },
     "steps": {
       "metric": {
         "title": "1. Evaluierungsmetrik auswählen",

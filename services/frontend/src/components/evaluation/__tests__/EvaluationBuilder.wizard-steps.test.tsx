@@ -739,6 +739,130 @@ describe('EvaluationBuilder wizard step rendering', () => {
     })
   })
 
+  // ==================== CUSTOM NAME ====================
+
+  describe('Custom evaluation name', () => {
+    it('stores a typed custom name on the review step', async () => {
+      const mockOnChange = jest.fn()
+      const user = userEvent.setup()
+      render(
+        <EvaluationBuilder {...defaultProps} onEvaluationsChange={mockOnChange} />
+      )
+
+      // Walk exact_match (no parameters) to the review step.
+      await user.click(screen.getByTestId('add-evaluation-button'))
+      await user.click(screen.getByTestId('metric-button-exact_match'))
+      await user.click(screen.getByTestId('wizard-next-button'))
+      await user.click(screen.getAllByRole('checkbox')[0])
+      await user.click(screen.getByTestId('wizard-next-button'))
+      await user.click(screen.getAllByRole('checkbox')[0])
+      await user.click(screen.getByTestId('wizard-next-button'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('evaluation-name-input')).toBeInTheDocument()
+      })
+
+      // Type a custom name.
+      await user.type(
+        screen.getByTestId('evaluation-name-input'),
+        'My Custom Name'
+      )
+
+      const addBtn = screen
+        .getAllByRole('button')
+        .find(
+          (b) =>
+            b.querySelector('[data-testid="check-icon"]') &&
+            b.textContent?.includes('evaluationBuilder.addEvaluation')
+        )
+      expect(addBtn).toBeTruthy()
+      await user.click(addBtn!)
+
+      expect(mockOnChange).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            metric: 'exact_match',
+            display_name: 'My Custom Name',
+          }),
+        ])
+      )
+    })
+
+    it('stores the computed default (model in parens) when the name is left blank', async () => {
+      const mockOnChange = jest.fn()
+      const user = userEvent.setup()
+      // Edit an existing llm_judge config that already carries a judge model,
+      // so the review-step default resolves to "<base> (<model>)".
+      const existingEvals = [
+        {
+          id: 'eval-1',
+          metric: 'llm_judge_classic',
+          display_name: 'Classic LLM Judge',
+          prediction_fields: ['model_answer'],
+          reference_fields: ['reference'],
+          metric_parameters: {
+            dimensions: ['accuracy'],
+            judges: [{ judge_model_id: 'gpt-4o', runs: 3 }],
+          },
+          enabled: true,
+          created_at: '2025-01-01',
+        },
+      ]
+
+      render(
+        <EvaluationBuilder
+          {...defaultProps}
+          evaluations={existingEvals}
+          onEvaluationsChange={mockOnChange}
+        />
+      )
+
+      // Open in edit mode.
+      const editBtn = screen
+        .getAllByRole('button')
+        .find((b) => b.querySelector('[data-testid="pencil-icon"]'))
+      await user.click(editBtn!)
+      await waitFor(() => {
+        expect(
+          screen.getByText('evaluationBuilder.editEvaluation')
+        ).toBeInTheDocument()
+      })
+
+      // Advance metric -> prediction -> reference -> parameters -> review
+      // (all fields are prefilled from the edited config).
+      await user.click(screen.getByTestId('wizard-next-button')) // -> prediction
+      await user.click(screen.getByTestId('wizard-next-button')) // -> reference
+      await user.click(screen.getByTestId('wizard-next-button')) // -> parameters
+      await user.click(screen.getByTestId('wizard-next-button')) // -> review
+
+      await waitFor(() => {
+        expect(screen.getByTestId('evaluation-name-input')).toBeInTheDocument()
+      })
+
+      // Clear the prefilled name so the computed default is used.
+      await user.clear(screen.getByTestId('evaluation-name-input'))
+
+      const updateBtn = screen
+        .getAllByRole('button')
+        .find(
+          (b) =>
+            b.querySelector('[data-testid="check-icon"]') &&
+            b.textContent?.includes('evaluationBuilder.update')
+        )
+      expect(updateBtn).toBeTruthy()
+      await user.click(updateBtn!)
+
+      expect(mockOnChange).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            metric: 'llm_judge_classic',
+            display_name: 'Classic LLM Judge (gpt-4o ×3)',
+          }),
+        ])
+      )
+    })
+  })
+
   // ==================== BACK NAVIGATION ====================
 
   describe('Back navigation', () => {

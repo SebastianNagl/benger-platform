@@ -26,6 +26,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
 import { TemperatureInput } from '@/lib/evaluation/TemperatureInput'
 import { MaxTokensInput } from '@/lib/evaluation/MaxTokensInput'
+import { computeDefaultEvalName } from '@/lib/evaluation/evalName'
 import { useJudgeModelHelpers } from '@/lib/evaluation/judgeModelHelpers'
 import { getMetricEditor } from '@/lib/extensions/metricEditors'
 import {
@@ -88,6 +89,8 @@ type WizardStep =
 
 interface NewEvaluationState {
   metric: string
+  /** Optional user-supplied custom name. Empty ⇒ use computed default. */
+  display_name?: string
   prediction_fields: string[]
   reference_fields: string[]
   metric_parameters: Record<string, any>
@@ -95,6 +98,7 @@ interface NewEvaluationState {
 
 const INITIAL_EVALUATION_STATE: NewEvaluationState = {
   metric: '',
+  display_name: '',
   prediction_fields: [],
   reference_fields: [],
   metric_parameters: {},
@@ -233,7 +237,13 @@ export function EvaluationBuilder({
     const newConfig: EvaluationConfig = {
       id: editingId || generateEvaluationId(newEvaluation.metric),
       metric: newEvaluation.metric,
-      display_name: metricDef?.display_name || newEvaluation.metric,
+      display_name:
+        newEvaluation.display_name?.trim() ||
+        computeDefaultEvalName(
+          metricDef,
+          newEvaluation.metric_parameters,
+          newEvaluation.metric
+        ),
       metric_parameters: newEvaluation.metric_parameters,
       prediction_fields: newEvaluation.prediction_fields,
       reference_fields: newEvaluation.reference_fields,
@@ -281,6 +291,9 @@ export function EvaluationBuilder({
       setEditingId(evaluation.id)
       setNewEvaluation({
         metric: evaluation.metric,
+        // Prefill the name input from the existing config so an edit never
+        // silently clobbers a user's custom name.
+        display_name: evaluation.display_name || '',
         prediction_fields: evaluation.prediction_fields,
         reference_fields: evaluation.reference_fields,
         metric_parameters: evaluation.metric_parameters || {},
@@ -1397,15 +1410,49 @@ export function EvaluationBuilder({
           </div>
         )
 
-      case 'review':
-        return (
-          <ReviewStep
-            metric={newEvaluation.metric}
-            predictionFields={newEvaluation.prediction_fields}
-            referenceFields={newEvaluation.reference_fields}
-            metricParameters={newEvaluation.metric_parameters}
-          />
+      case 'review': {
+        const reviewMetricDef = getMetricDefinitions()[newEvaluation.metric]
+        const computedDefaultName = computeDefaultEvalName(
+          reviewMetricDef,
+          newEvaluation.metric_parameters,
+          newEvaluation.metric
         )
+        return (
+          <div className="space-y-4">
+            {/* Optional custom name. Placeholder shows the computed default so
+                the user sees exactly what they'll get if they leave it blank. */}
+            <div>
+              <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                {t('evaluationBuilder.name.label')}
+              </label>
+              <input
+                type="text"
+                value={newEvaluation.display_name || ''}
+                placeholder={
+                  computedDefaultName || t('evaluationBuilder.name.placeholder')
+                }
+                onChange={(e) =>
+                  setNewEvaluation((prev) => ({
+                    ...prev,
+                    display_name: e.target.value,
+                  }))
+                }
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                data-testid="evaluation-name-input"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {t('evaluationBuilder.name.hint')}
+              </p>
+            </div>
+            <ReviewStep
+              metric={newEvaluation.metric}
+              predictionFields={newEvaluation.prediction_fields}
+              referenceFields={newEvaluation.reference_fields}
+              metricParameters={newEvaluation.metric_parameters}
+            />
+          </div>
+        )
+      }
     }
   }
 
