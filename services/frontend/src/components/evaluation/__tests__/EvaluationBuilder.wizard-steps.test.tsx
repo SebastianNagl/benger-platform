@@ -861,6 +861,74 @@ describe('EvaluationBuilder wizard step rendering', () => {
         ])
       )
     })
+
+    // Regression: editing must distinguish a user-typed name from an
+    // auto-generated one. Auto-names prefill EMPTY so they recompute on save
+    // (tracking a changed judge model instead of freezing a stale one);
+    // genuine custom names are prefilled and preserved.
+    async function openEditToReview(
+      user: ReturnType<typeof userEvent.setup>,
+      displayName: string,
+    ) {
+      render(
+        <EvaluationBuilder
+          {...defaultProps}
+          evaluations={[
+            {
+              id: 'eval-1',
+              metric: 'llm_judge_classic',
+              display_name: displayName,
+              prediction_fields: ['model_answer'],
+              reference_fields: ['reference'],
+              metric_parameters: {
+                dimensions: ['accuracy'],
+                judges: [{ judge_model_id: 'gpt-4o', runs: 3 }],
+              },
+              enabled: true,
+              created_at: '2025-01-01',
+            },
+          ]}
+          onEvaluationsChange={jest.fn()}
+        />
+      )
+      await user.click(
+        screen
+          .getAllByRole('button')
+          .find((b) => b.querySelector('[data-testid="pencil-icon"]'))!
+      )
+      await waitFor(() =>
+        expect(
+          screen.getByText('evaluationBuilder.editEvaluation')
+        ).toBeInTheDocument()
+      )
+      await user.click(screen.getByTestId('wizard-next-button')) // -> prediction
+      await user.click(screen.getByTestId('wizard-next-button')) // -> reference
+      await user.click(screen.getByTestId('wizard-next-button')) // -> parameters
+      await user.click(screen.getByTestId('wizard-next-button')) // -> review
+      await waitFor(() =>
+        expect(screen.getByTestId('evaluation-name-input')).toBeInTheDocument()
+      )
+      return screen.getByTestId('evaluation-name-input') as HTMLInputElement
+    }
+
+    it('edit prefills a genuine custom name into the input', async () => {
+      const user = userEvent.setup()
+      const input = await openEditToReview(user, 'My Special Judge')
+      expect(input.value).toBe('My Special Judge')
+    })
+
+    it('edit prefills EMPTY for an auto-generated model-enriched name (so it recomputes, not stale)', async () => {
+      const user = userEvent.setup()
+      // Matches computeDefaultEvalName for these params → treated as auto.
+      const input = await openEditToReview(user, 'Classic LLM Judge (gpt-4o ×3)')
+      expect(input.value).toBe('')
+    })
+
+    it('edit prefills EMPTY for a bare metric-default name (pre-feature / un-backfilled config)', async () => {
+      const user = userEvent.setup()
+      const input = await openEditToReview(user, 'Classic LLM Judge')
+      expect(input.value).toBe('')
+    })
   })
 
   // ==================== BACK NAVIGATION ====================

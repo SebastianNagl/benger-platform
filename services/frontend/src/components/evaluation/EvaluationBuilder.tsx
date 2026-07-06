@@ -289,11 +289,29 @@ export function EvaluationBuilder({
   const handleEditEvaluation = useCallback(
     (evaluation: EvaluationConfig) => {
       setEditingId(evaluation.id)
+      // Distinguish a user-typed custom name from an auto-generated one so the
+      // edit never (a) clobbers a real custom name, nor (b) freezes a stale
+      // model into an auto-name when the judge model is changed during the edit.
+      // A stored name counts as auto — and is prefilled EMPTY so it recomputes
+      // on save — when it matches any name the system itself would have produced:
+      // the model-enriched default, the bare metric-definition default (configs
+      // that predate this feature / an un-backfilled row), or the raw metric key.
+      // Only a genuinely custom name is prefilled into the input.
+      const metricDef = getMetricDefinitions()[evaluation.metric]
+      const stored = evaluation.display_name || ''
+      const autoNames = new Set([
+        computeDefaultEvalName(
+          metricDef,
+          evaluation.metric_parameters || {},
+          evaluation.metric
+        ),
+        metricDef?.display_name || '',
+        evaluation.metric,
+      ])
+      const isCustomName = stored !== '' && !autoNames.has(stored)
       setNewEvaluation({
         metric: evaluation.metric,
-        // Prefill the name input from the existing config so an edit never
-        // silently clobbers a user's custom name.
-        display_name: evaluation.display_name || '',
+        display_name: isCustomName ? stored : '',
         prediction_fields: evaluation.prediction_fields,
         reference_fields: evaluation.reference_fields,
         metric_parameters: evaluation.metric_parameters || {},
