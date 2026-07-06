@@ -120,8 +120,12 @@ export function useNotifications() {
       )
       setUnreadCount(0)
 
-      const message = response?.message || t('notifications.markAllReadSuccess')
-      toast(message, 'success')
+      const markedCount = response?.count ?? 0
+      const messageKey =
+        markedCount === 1
+          ? 'notifications.markAllReadSuccessOne'
+          : 'notifications.markAllReadSuccess'
+      toast(t(messageKey, { count: markedCount }), 'success')
 
       // Refetch to sync with server and prevent SSE race conditions
       const [fetchedNotifications, count] = await Promise.all([

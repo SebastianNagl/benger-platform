@@ -158,6 +158,7 @@ class TestNotificationsRouter:
                 data = response.json()
                 assert "message" in data
                 assert "3 notifications" in data["message"]
+                assert data["count"] == 3
             finally:
                 app.dependency_overrides.clear()
 

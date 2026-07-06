@@ -223,7 +223,7 @@ async def mark_all_notifications_read(
     """Mark all notifications as read for the current user"""
     try:
         count = NotificationService.mark_all_read(db=db, user_id=current_user.id)
-        return {"message": f"Marked {count} notifications as read"}
+        return {"message": f"Marked {count} notifications as read", "count": count}
     except Exception as e:
         logger.error(f"Error marking all notifications as read for user {current_user.id}: {e}")
         raise HTTPException(
