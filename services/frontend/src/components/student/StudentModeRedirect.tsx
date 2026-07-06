@@ -7,12 +7,15 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
 /**
- * Routes student-mode users away from the expert landing surfaces (Issue #35).
+ * Keeps each user on the surface that matches their resolved UI mode (Issue #35).
  *
- * ONLY acts on `/` and `/dashboard`: when the resolved UI mode is 'student',
- * it replaces the route with `/student`. Every other path is left alone so
- * deep links into expert pages still work (the toggle is how a student would
- * get there in the first place).
+ * - student mode → the expert landing surfaces (`/`, `/dashboard`) are pulled
+ *   into the student home (`/student`).
+ * - expert mode → the `/student/*` surface is a CLOSED BETA and unreachable
+ *   here (it only renders on student-locked hosts like vertretbar.net). Any
+ *   navigation onto a `/student` route is bounced back to `/dashboard`, so an
+ *   org admin/contributor can't land on the student pages via the view toggle
+ *   or a direct URL.
  *
  * It keys exclusively on the resolved UI mode — there is intentionally NO
  * profile-completion gate. Renders nothing.
@@ -30,11 +33,17 @@ export function StudentModeRedirect() {
   useEffect(() => {
     if (!isHydrated || isLoading) return
     if (!isAuthenticated) return
-    if (resolvedUiMode !== 'student') return
 
-    const onRedirectableRoute = pathname === '/' || pathname === '/dashboard'
-    if (onRedirectableRoute) {
-      router.replace('/student')
+    const onStudentRoute = pathname === '/student' || pathname.startsWith('/student/')
+
+    if (resolvedUiMode === 'student') {
+      if (pathname === '/' || pathname === '/dashboard') {
+        router.replace('/student')
+      }
+    } else if (onStudentRoute) {
+      // Closed beta: expert-mode users (i.e. everyone off a student-locked host)
+      // must never sit on the student surface. Bounce back to the classic home.
+      router.replace('/dashboard')
     }
   }, [isHydrated, isLoading, isAuthenticated, resolvedUiMode, pathname, router])
 
