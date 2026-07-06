@@ -286,25 +286,40 @@ export function DynamicAnnotationInterface({
   // Handle submit - simplified to prevent stack overflow
   const handleSubmit = useCallback(async () => {
     try {
-      const annotationResults = Array.from(annotations.values())
-
-      logger.debug('handleSubmit called, annotations:', annotationResults.length)
-
-      // If we have annotations, use them
-      let finalResults = annotationResults
-
-      // If no annotations but we have component values, build from those
-      if (annotationResults.length === 0 && componentValues.size > 0) {
-        logger.debug('Building from component values:', componentValues.size)
-        finalResults = Array.from(componentValues.entries()).map(
-          ([name, value]) => ({
+      // Assemble the submit payload the SAME way the draft/onChange effect does
+      // (see the componentValues effect above): for every field, prefer its
+      // properly-shaped annotation but fall back to the live componentValue.
+      //
+      // Reading only `annotations` here was a submission-truncation bug: content
+      // still sitting in the live componentValues (because a field's annotation
+      // flush was outstanding) was dropped, so the submitted result could be
+      // staler and shorter than the autosaved draft. Merging both sources
+      // guarantees submit and draft can never diverge. (The extended editors now
+      // also flush synchronously, so `annotations` is normally already current;
+      // this merge is the belt-and-suspenders backstop.)
+      const mergedResults = new Map<string, AnnotationResult>()
+      componentValues.forEach((value, name) => {
+        const existingAnnotation = annotations.get(name)
+        mergedResults.set(
+          name,
+          existingAnnotation ?? {
             from_name: name,
             to_name: 'text',
             type: 'textarea',
-            value: value,
-          })
+            value,
+          }
         )
-      }
+      })
+      // Include any annotation-only fields that never emitted a componentValue.
+      annotations.forEach((annotation, name) => {
+        if (!mergedResults.has(name)) {
+          mergedResults.set(name, annotation)
+        }
+      })
+
+      const finalResults = Array.from(mergedResults.values())
+
+      logger.debug('handleSubmit called, merged results:', finalResults.length)
 
       // Basic validation
       if (finalResults.length === 0) {
