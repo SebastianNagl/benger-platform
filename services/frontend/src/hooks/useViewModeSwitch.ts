@@ -38,21 +38,24 @@ export function useViewModeSwitch() {
   const mounted = useHydration()
   const [pending, setPending] = useState(false)
 
-  let status: 'unavailable' | 'loading' | 'ready'
-  if (!isExtendedEdition()) {
-    status = 'unavailable'
-  } else if (!mounted || isLoading) {
-    status = 'loading'
-  } else {
+  // Declared as the full union (incl. 'ready') via an annotated IIFE so TS does
+  // NOT narrow 'ready' away while the beta lock always resolves to
+  // 'unavailable' — that keeps the retained switch code below (and the account
+  // menu item in AuthButton, which reads this `status`) type-valid instead of
+  // erroring as an impossible comparison.
+  const status = ((): 'unavailable' | 'loading' | 'ready' => {
+    if (!isExtendedEdition()) return 'unavailable'
+    if (!mounted || isLoading) return 'loading'
     // Closed beta: the student shell renders ONLY on student-locked hosts
     // (vertretbar.net), and even there the expert⇄student toggle is not offered
     // (student-only surface). So the switch is never available while the lock is
     // in place — this matches useResolvedUiMode's hard lock and keeps the toggle
     // out of every org admin's / contributor's menu on the benchmark platform.
     // To reopen opt-in switching there, restore the isStudentLockedHost() guard +
-    // `canUseExpertView(user, organizations, parseSubdomain())` gate here.
-    status = 'unavailable'
-  }
+    // `canUseExpertView(user, organizations, parseSubdomain())` gate here and
+    // return 'ready'.
+    return 'unavailable'
+  })()
 
   // Warm both interface homes so the switch transition is fast — otherwise the
   // destination dashboard pays a first-load cost on click (especially under the
