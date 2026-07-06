@@ -3,6 +3,67 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 # ``_stdjson`` is underscore-prefixed so the ``import *`` above skips it;
 # the idempotency dispatch_hash in run_evaluation needs it explicitly.
 from ._common import _stdjson  # noqa: F401
+from models import User as DBUser
+
+
+def _translate_annotator_model_ids(db, project_id, model_ids, annotator_user_ids):
+    """Translate synthetic ``annotator:<display>`` model ids into annotator_user_ids.
+
+    Results grids identify human-annotator cells with a synthetic
+    ``annotator:<display>`` model id (see results/by_task_model.py); the per-cell
+    "Neuevaluierung" button forwards that id in ``model_ids``. Those aren't LLM
+    models, so the caller's model_ids scope check would 400 them. Resolve each
+    display back to the annotator's user id the same way the grid builds it
+    (pseudonym when ``use_pseudonym``, else name/username), fold them into
+    ``annotator_user_ids``, and strip them from ``model_ids``. Returns the
+    ``(model_ids, annotator_user_ids)`` pair (each ``None`` when it empties out).
+
+    Raises 400 if a supplied display matches no annotator on the project — better
+    a clear error than a silent unscoped re-eval of the whole project.
+    """
+    annotator_model_ids = [
+        m for m in (model_ids or []) if m.startswith("annotator:")
+    ]
+    if not annotator_model_ids:
+        return model_ids, annotator_user_ids
+
+    wanted_displays = {m.split(":", 1)[1] for m in annotator_model_ids}
+    annotator_rows = (
+        db.query(
+            DBUser.id,
+            DBUser.username,
+            DBUser.name,
+            DBUser.pseudonym,
+            DBUser.use_pseudonym,
+        )
+        .join(Annotation, Annotation.completed_by == DBUser.id)
+        .join(Task, Annotation.task_id == Task.id)
+        .filter(
+            Task.project_id == project_id,
+            Annotation.was_cancelled == False,  # noqa: E712
+        )
+        .distinct()
+    )
+    resolved_ids = {
+        r.id
+        for r in annotator_rows
+        if (
+            r.pseudonym if (r.use_pseudonym and r.pseudonym) else (r.name or r.username)
+        )
+        in wanted_displays
+    }
+    if not resolved_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "annotator display(s) not found on this project: "
+                f"{sorted(wanted_displays)}"
+            ),
+        )
+
+    new_annotator_ids = list({*(annotator_user_ids or []), *resolved_ids}) or None
+    new_model_ids = [m for m in model_ids if not m.startswith("annotator:")] or None
+    return new_model_ids, new_annotator_ids
 
 
 @router.post("/run", response_model=EvaluationRunResponse)
@@ -58,6 +119,14 @@ async def run_evaluation(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No enabled evaluation configurations",
             )
+
+        # The results grid forwards synthetic `annotator:<display>` model ids from
+        # the per-cell "Neuevaluierung" button; translate them into
+        # annotator_user_ids so the scope check below doesn't 400 them as unknown
+        # LLM models.
+        request.model_ids, request.annotator_user_ids = _translate_annotator_model_ids(
+            db, request.project_id, request.model_ids, request.annotator_user_ids
+        )
 
         # Scope-filter validation (issue #69). Reject silent no-ops where the
         # user supplies ids that don't correspond to anything on this project

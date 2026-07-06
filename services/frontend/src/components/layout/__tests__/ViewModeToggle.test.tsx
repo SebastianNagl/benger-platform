@@ -1,81 +1,40 @@
 /**
  * @jest-environment jsdom
  *
- * Tests for the student⇄expert view-mode toggle (Issue #35, platform shell).
+ * Tests for the student⇄expert view-mode toggle COMPONENT (Issue #35, platform
+ * shell).
  *
- * The toggle is a pure gate: it renders nothing in the community edition or for
- * users without expert-view capability, and only appears for capable users in
- * the extended edition. Switching persists server-side via the API client.
+ * The component is a pure view over useViewModeSwitch(): it renders nothing when
+ * the switch is unavailable (community edition OR the closed-beta lock), a
+ * neutral skeleton while loading, and the dropdown when ready. The hook's own
+ * gating (incl. the beta lock) + the switchTo action are covered in
+ * useViewModeSwitch.test.tsx.
  */
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
-
-const EDITION_KEY = 'NEXT_PUBLIC_BENGER_EDITION'
-const originalEdition = process.env[EDITION_KEY]
 
 // --- Mocks -----------------------------------------------------------------
 
-const mockSetUiMode = jest.fn()
-const mockUpdateUser = jest.fn()
-let mockResolved: 'student' | 'expert' = 'student'
-let mockHydrated = true
-let mockAuth: any = {
-  user: { id: 'u1', is_superadmin: true },
-  organizations: [],
-  isLoading: false,
-  updateUser: mockUpdateUser,
+const mockSwitchTo = jest.fn()
+let mockViewMode: {
+  status: 'unavailable' | 'loading' | 'ready'
+  resolved: 'student' | 'expert'
+  pending: boolean
+  switchTo: jest.Mock
+} = {
+  status: 'ready',
+  resolved: 'student',
+  pending: false,
+  switchTo: mockSwitchTo,
 }
 
-const mockPush = jest.fn()
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush, prefetch: jest.fn() }),
-}))
-
-jest.mock('@/stores', () => ({
-  useUIStore: (selector: any) => selector({ setUiMode: mockSetUiMode }),
-}))
-
-jest.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => mockAuth,
+jest.mock('@/hooks/useViewModeSwitch', () => ({
+  useViewModeSwitch: () => mockViewMode,
 }))
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({ t: (k: string) => k }),
-}))
-
-jest.mock('@/contexts/HydrationContext', () => ({
-  useHydration: () => mockHydrated,
-}))
-
-// Hoist-safe shared mock for the API client's setUiMode. The jest.mock
-// factories run before top-level consts initialize, so the fn is created
-// inside the factory and re-grabbed in the test body.
-jest.mock('@/contexts/ApiClientContext', () => {
-  const fn = jest.fn().mockResolvedValue({ preferred_ui_mode: 'expert' })
-  return {
-    __esModule: true,
-    useOptionalApiClient: () => ({ setUiMode: fn }),
-    __mockApiSetUiMode: fn,
-  }
-})
-
-jest.mock('@/lib/api', () => ({
-  __esModule: true,
-  default: { setUiMode: jest.fn().mockResolvedValue({ preferred_ui_mode: 'expert' }) },
-}))
-
-const mockApiSetUiMode = (require('@/contexts/ApiClientContext') as any)
-  .__mockApiSetUiMode as jest.Mock
-
-jest.mock('@/lib/utils/subdomain', () => ({
-  parseSubdomain: () => ({ isPrivateMode: true, orgSlug: null }),
-  isStudentLockedHost: () => false,
-}))
-
-jest.mock('@/hooks/useResolvedUiMode', () => ({
-  isExtendedEdition: () => process.env.NEXT_PUBLIC_BENGER_EDITION === 'extended',
-  useResolvedUiMode: () => mockResolved,
 }))
 
 import { ViewModeToggle } from '../ViewModeToggle'
@@ -83,93 +42,70 @@ import { ViewModeToggle } from '../ViewModeToggle'
 describe('ViewModeToggle', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockResolved = 'student'
-    mockHydrated = true
-    mockAuth = {
-      user: { id: 'u1', is_superadmin: true },
-      organizations: [],
-      isLoading: false,
-      updateUser: mockUpdateUser,
+    mockViewMode = {
+      status: 'ready',
+      resolved: 'student',
+      pending: false,
+      switchTo: mockSwitchTo,
     }
   })
 
-  afterEach(() => {
-    if (originalEdition === undefined) delete process.env[EDITION_KEY]
-    else process.env[EDITION_KEY] = originalEdition
-  })
-
-  it('renders nothing in the community edition', () => {
-    delete process.env[EDITION_KEY]
+  it('renders nothing when the switch is unavailable (community edition / beta lock)', () => {
+    mockViewMode = { ...mockViewMode, status: 'unavailable' }
     const { container } = render(<ViewModeToggle />)
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('renders nothing when the user lacks expert-view capability', () => {
-    process.env[EDITION_KEY] = 'extended'
-    // Non-superadmin, no qualifying org membership → canUseExpertView=false.
-    mockAuth = {
-      user: { id: 'u2', is_superadmin: false },
-      organizations: [],
-      isLoading: false,
-      updateUser: mockUpdateUser,
-    }
-    const { container } = render(<ViewModeToggle />)
-    expect(container).toBeEmptyDOMElement()
-  })
-
-  it('renders a neutral skeleton while auth is loading (no role flicker)', () => {
-    process.env[EDITION_KEY] = 'extended'
-    mockAuth = { ...mockAuth, isLoading: true }
+  it('renders a neutral skeleton while loading (no role flicker)', () => {
+    mockViewMode = { ...mockViewMode, status: 'loading' }
     render(<ViewModeToggle />)
     expect(screen.getByTestId('view-mode-toggle-skeleton')).toBeInTheDocument()
     expect(screen.queryByTestId('view-mode-toggle')).not.toBeInTheDocument()
   })
 
-  it('renders the dropdown trigger for a capable user in the extended edition', () => {
-    process.env[EDITION_KEY] = 'extended'
+  it('renders the dropdown trigger when the switch is ready', () => {
     render(<ViewModeToggle />)
-    expect(screen.getByTestId('view-mode-toggle')).toBeInTheDocument()
+    const trigger = screen.getByTestId('view-mode-toggle')
+    expect(trigger).toBeInTheDocument()
+    // The trigger reflects the current resolved mode.
+    expect(trigger).toHaveAttribute('data-ui-mode', 'student')
+  })
+
+  it('disables the trigger while a switch is pending', () => {
+    mockViewMode = { ...mockViewMode, pending: true }
+    render(<ViewModeToggle />)
+    expect(screen.getByTestId('view-mode-toggle')).toBeDisabled()
   })
 
   it('opening the dropdown does NOT switch — only selecting an option does', async () => {
-    process.env[EDITION_KEY] = 'extended'
-    mockResolved = 'student'
     render(<ViewModeToggle />)
     fireEvent.click(screen.getByTestId('view-mode-toggle')) // open menu
-    expect(mockSetUiMode).not.toHaveBeenCalled()
+    expect(mockSwitchTo).not.toHaveBeenCalled()
 
-    // Select the expert option.
+    // Select the expert option (unique text — the trigger shows the student label).
     const expertOption = await screen.findByText('student.view.expert')
     fireEvent.click(expertOption)
-    // Local optimistic switch happens immediately.
-    expect(mockSetUiMode).toHaveBeenCalledWith('expert')
-    // Navigates to the classic dashboard so the expert interface renders
-    // (staying on /student would keep showing the student dashboard).
-    expect(mockPush).toHaveBeenCalledWith('/dashboard')
-    // Server persistence + in-memory user sync.
-    await waitFor(() => expect(mockApiSetUiMode).toHaveBeenCalledWith('expert'))
-    expect(mockUpdateUser).toHaveBeenCalledWith({ preferred_ui_mode: 'expert' })
+    expect(mockSwitchTo).toHaveBeenCalledWith('expert')
   })
 
-  it('shows both modes; selecting the already-active mode is a no-op', async () => {
-    process.env[EDITION_KEY] = 'extended'
-    mockResolved = 'student'
+  it('shows both modes; selecting a mode calls switchTo with it', async () => {
     render(<ViewModeToggle />)
     fireEvent.click(screen.getByTestId('view-mode-toggle'))
-    // Both option buttons are offered in the menu (queried by their data attr
-    // so the trigger's current-mode label doesn't collide on text).
-    await waitFor(() =>
-      expect(
-        document.querySelector('[data-ui-mode-option="expert"]')
-      ).toBeInTheDocument()
-    )
+    await screen.findByText('student.view.expert')
     const studentOption = document.querySelector(
       '[data-ui-mode-option="student"]'
     ) as HTMLElement
+    const expertOption = document.querySelector(
+      '[data-ui-mode-option="expert"]'
+    ) as HTMLElement
     expect(studentOption).toBeInTheDocument()
-    // Re-selecting the current (student) mode does nothing.
+    expect(expertOption).toBeInTheDocument()
     fireEvent.click(studentOption)
-    expect(mockSetUiMode).not.toHaveBeenCalled()
-    expect(mockApiSetUiMode).not.toHaveBeenCalled()
+    expect(mockSwitchTo).toHaveBeenCalledWith('student')
+  })
+
+  it('renders the sidebar variant trigger', () => {
+    render(<ViewModeToggle variant="sidebar" />)
+    expect(screen.getByTestId('view-mode-toggle')).toBeInTheDocument()
   })
 })

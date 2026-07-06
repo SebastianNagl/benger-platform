@@ -9,8 +9,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useHydration } from '@/contexts/HydrationContext'
 import { isExtendedEdition, useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import { useUIStore } from '@/stores'
-import { isStudentLockedHost, parseSubdomain } from '@/lib/utils/subdomain'
-import { canUseExpertView } from '@/utils/permissions'
 
 export type UiMode = 'student' | 'expert'
 
@@ -23,16 +21,17 @@ export type UiMode = 'student' | 'expert'
  *  - the student shell's sidebar control
  *
  * ``status``:
- *  - ``'unavailable'`` — community edition, or the user can't use expert view
- *    (gating recomputed every render via canUseExpertView, never from the
- *    persisted preference). Render nothing.
+ *  - ``'unavailable'`` — community edition, OR the closed-beta lock: the student
+ *    shell renders only on student-locked hosts (vertretbar.net), so the switch
+ *    is never offered on the benchmark platform. Render nothing.
  *  - ``'loading'`` — extended edition but auth/hydration not settled yet
  *    (role-flicker guard; render a neutral skeleton where one fits).
- *  - ``'ready'`` — offer the switch.
+ *  - ``'ready'`` — offer the switch. (Unreachable while the beta lock is in
+ *    place; retained for when opt-in switching is reopened — see below.)
  */
 export function useViewModeSwitch() {
   const router = useRouter()
-  const { user, organizations, isLoading, updateUser } = useAuth()
+  const { isLoading, updateUser } = useAuth()
   const apiClient = useOptionalApiClient() ?? apiSingleton
   const setUiMode = useUIStore((s) => s.setUiMode)
   const resolved = useResolvedUiMode()
@@ -42,17 +41,17 @@ export function useViewModeSwitch() {
   let status: 'unavailable' | 'loading' | 'ready'
   if (!isExtendedEdition()) {
     status = 'unavailable'
-  } else if (mounted && isStudentLockedHost()) {
-    // Student-locked host (vertretbar.net): the expert toggle is never offered,
-    // even to superadmins/contributors — this is a student-only product surface.
-    status = 'unavailable'
   } else if (!mounted || isLoading) {
     status = 'loading'
   } else {
-    const { isPrivateMode, orgSlug } = parseSubdomain()
-    status = canUseExpertView(user, organizations, { isPrivateMode, orgSlug })
-      ? 'ready'
-      : 'unavailable'
+    // Closed beta: the student shell renders ONLY on student-locked hosts
+    // (vertretbar.net), and even there the expert⇄student toggle is not offered
+    // (student-only surface). So the switch is never available while the lock is
+    // in place — this matches useResolvedUiMode's hard lock and keeps the toggle
+    // out of every org admin's / contributor's menu on the benchmark platform.
+    // To reopen opt-in switching there, restore the isStudentLockedHost() guard +
+    // `canUseExpertView(user, organizations, parseSubdomain())` gate here.
+    status = 'unavailable'
   }
 
   // Warm both interface homes so the switch transition is fast — otherwise the
