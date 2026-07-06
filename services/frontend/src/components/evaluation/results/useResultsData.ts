@@ -104,8 +104,13 @@ interface UseTaskModelDataParams {
   projectId: string | number
   /** Include all runs in the per-task/model fetch (display filtering). */
   showHistory: boolean
-  /** Comma-joined run ids for the selected metric (stable primitive dep). */
-  selectedRunIdsKey: string
+  /**
+   * The selected method's stable `evaluation_config_id`. The backend scans
+   * ALL of the project's runs for this config and unions generation +
+   * annotation cells — so there is no run-id pinning and no n/a for scores
+   * that live on another run.
+   */
+  selectedConfigId: string
   /** Selected metric name sent to the per-task/model endpoint. */
   selectedMetricKey: string
   /** Whether the selected run is still pending/running (drives WS+poll). */
@@ -120,7 +125,7 @@ export interface UseTaskModelDataResult {
 export function useTaskModelData({
   projectId,
   showHistory,
-  selectedRunIdsKey,
+  selectedConfigId,
   selectedMetricKey,
   hasInflightSelectedRun,
 }: UseTaskModelDataParams): UseTaskModelDataResult {
@@ -141,12 +146,14 @@ export function useTaskModelData({
       // so the table doesn't visibly flash on each tick.
       if (!taskModelData) setTaskModelLoading(true)
       try {
-        const runIds = selectedRunIdsKey ? selectedRunIdsKey.split(',') : undefined
+        // No run-id pinning: the backend scans ALL runs for the selected
+        // config id and unions generation + annotation cells.
         const data = await apiClient.getProjectResultsByTaskModel(
           String(projectId),
-          runIds,
+          undefined,
           showHistory,
           selectedMetricKey || null,
+          selectedConfigId || null,
         )
         if (!cancelled) setTaskModelData(data)
       } catch (err) {
@@ -165,7 +172,7 @@ export function useTaskModelData({
 
     // intentionally excluded; otherwise the effect re-fires on every
     // setTaskModelData call and creates a fetch-loop.
-  }, [projectId, selectedRunIdsKey, selectedMetricKey, showHistory]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectId, selectedConfigId, selectedMetricKey, showHistory]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // WebSocket primary + 5 s polling fallback for live cell-by-cell updates.
   // Only opens while a selected run is in-flight; closes immediately when

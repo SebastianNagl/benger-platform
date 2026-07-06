@@ -1136,7 +1136,7 @@ export class EvaluationsClient extends BaseApiClient {
    * in multiple runs, uses the LATEST result.
    * @param projectId - The project ID to get aggregated results for
    */
-  async getProjectResultsByTaskModel(projectId: string, evaluationIds?: string[], includeHistory: boolean = false, metric?: string | null): Promise<{
+  async getProjectResultsByTaskModel(projectId: string, evaluationIds?: string[], includeHistory: boolean = false, metric?: string | null, evaluationConfigId?: string | null): Promise<{
     project_id: string
     models: string[]
     model_names: Record<string, string>
@@ -1164,6 +1164,12 @@ export class EvaluationsClient extends BaseApiClient {
     // metrics — without it, all metric rows for the same (task,model) cell
     // collapse into the last one written.
     if (metric) sp.set('metric', metric)
+    // When set, scope rows to a single evaluation method via
+    // evaluation_config_id (the stable per-config grouping key). The backend
+    // then scans ALL of the project's runs for that method and unions
+    // generation + annotation cells — so no run's scores are dropped and the
+    // grid never shows n/a for data that exists under another run.
+    if (evaluationConfigId) sp.set('evaluation_config_id', evaluationConfigId)
     const qs = sp.toString()
     return this.request(
       `/evaluations/projects/${projectId}/results/by-task-model${qs ? '?' + qs : ''}`

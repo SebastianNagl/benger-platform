@@ -579,6 +579,22 @@ async def get_project_results_by_task_model(
             "same number."
         ),
     ),
+    evaluation_config_id: Optional[str] = Query(
+        None,
+        description=(
+            "When set, restrict rows to this single evaluation method via "
+            "`task_evaluations.evaluation_config_id` — the stable per-config "
+            "grouping key (issue #111; same scoping as metadata/significance "
+            "and metadata/history). Scans ALL of the project's runs — immediate "
+            "KI-Votum, the hourly cron sweep, and manual batch/missing-only — "
+            "and unions generation-side (model columns) with annotation-side "
+            "(annotator columns) rows for the ONE method, so no run's scores "
+            "are dropped. Legacy rows whose config id IS NULL (pre-migration, "
+            "~0.6% on prod) are excluded; remediate with "
+            "scripts/backfill_immediate_eval_config_id.py. Combine with `metric` "
+            "for primary-score extraction."
+        ),
+    ),
     include_history: bool = Query(
         False,
         description=(
@@ -757,6 +773,13 @@ async def get_project_results_by_task_model(
             gen_query = gen_query.where(
                 cast(TaskEvaluation.metrics, JSONB).has_key(metric)
             )
+        # Issue #111: scope to a single method. Pre-filtering to one config id
+        # also makes the (generation_id, field_name) latest-wins partition below
+        # collision-free across two configs that share a metric key.
+        if evaluation_config_id:
+            gen_query = gen_query.where(
+                TaskEvaluation.evaluation_config_id == evaluation_config_id
+            )
         ranked_results = gen_query.subquery()
 
         # Filter to only the latest result per generation (rn = 1)
@@ -832,6 +855,11 @@ async def get_project_results_by_task_model(
             from sqlalchemy.dialects.postgresql import JSONB as _JSONB
             ann_query = ann_query.where(
                 _cast(TE2.metrics, _JSONB).has_key(metric)
+            )
+        # Issue #111: scope to a single method (same key as the gen branch).
+        if evaluation_config_id:
+            ann_query = ann_query.where(
+                TE2.evaluation_config_id == evaluation_config_id
             )
         annotation_eval_results = (await db.execute(ann_query)).all()
 

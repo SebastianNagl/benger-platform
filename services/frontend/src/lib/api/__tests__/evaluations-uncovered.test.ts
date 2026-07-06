@@ -284,6 +284,21 @@ describe('EvaluationsClient - uncovered methods', () => {
       expect(u).not.toContain('metric=')
       expect(u).not.toContain('include_history')
     })
+
+    it('appends evaluation_config_id and omits evaluation_ids for the config-scoped fetch', async () => {
+      // The results grid scopes by config id and lets the backend scan all runs
+      // (no run-id pinning) — so evaluation_ids must be absent.
+      await client.getProjectResultsByTaskModel('p1', undefined, false, 'bleu', 'cfg-xyz')
+      const u = url()
+      expect(u).toContain('metric=bleu')
+      expect(u).toContain('evaluation_config_id=cfg-xyz')
+      expect(u).not.toContain('evaluation_ids=')
+    })
+
+    it('omits evaluation_config_id when it is null', async () => {
+      await client.getProjectResultsByTaskModel('p1', undefined, false, 'bleu', null)
+      expect(url()).not.toContain('evaluation_config_id')
+    })
   })
 
   describe('getMetricDistribution', () => {
