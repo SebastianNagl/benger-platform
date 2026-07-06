@@ -144,92 +144,31 @@ export function EvaluationResults({
   // the same `metric` type but distinct `display_name`s render as
   // separate, independently-selectable entries — the page-level filter
   // in the parent component is keyed on `evaluation_config_id`, so this
-  // results-card-scoped dropdown mirrors that. Multiple EvaluationRuns
-  // of the same config (e.g. immediate-eval re-submissions) still
-  // collapse into one entry whose `runIds` list spans every matching
-  // run. Sorted by the evaluation config order from the project wizard
+  // results-card-scoped dropdown mirrors that. Every EvaluationRun of a
+  // config (immediate re-submissions, cron sweeps, batch/missing-only)
+  // is unioned server-side by the config-id fetch, so one method = one
+  // entry. Sorted by the evaluation config order from the project wizard
   // using `cfg.metric` for GROUPED_METRICS lookup (configs of the same
   // metric group together).
   const availableMetricRuns = useMemo(() => {
-    // Include in-flight runs (`pending`, `running`) alongside `completed`
-    // so the user can navigate to a metric the moment its run is
-    // dispatched and watch rows fill in live, instead of waiting for the
-    // whole run to finish before the dropdown surfaces it. Cells render
-    // from `task_evaluations` rows directly — every committed row is
-    // visible immediately, regardless of run status.
-    const visible = (results?.evaluations ?? [])
-      .filter((e) =>
-        e.status === 'completed' ||
-        e.status === 'running' ||
-        e.status === 'pending'
-      )
-      .filter((e) => {
-        if (!selectedConfigIds || selectedConfigIds.length === 0) return true
-        return e.evaluation_configs?.some((c: any) => selectedConfigIds.includes(c.id))
-      })
-
     type ConfigEntry = {
-      id: string             // evaluation_config.id — primary key for the dropdown
-      metric: string         // raw metric name, kept separate for METRIC_ORDER sort
+      id: string             // evaluation_config.id — primary key + fetch scope
+      metric: string         // raw metric name, kept for METRIC_ORDER sort + score extraction
       configId: string       // same as id (kept for backward-compat reading sites)
       displayName: string
       samplesEvaluated: number
-      runIds: string[]
+      running: boolean       // any run for this method is in-flight (cosmetic)
     }
 
     const byConfig = new Map<string, ConfigEntry>()
-    for (const e of visible) {
-      // A single EvaluationRun may bundle multiple configs (the API's
-      // /run endpoint accepts multi-config requests, and the worker
-      // dispatch accepts a list of configs). Walk EVERY config in the
-      // run, not just the first — otherwise configs 2..N silently
-      // disappear from the dropdown even though their rows live in the
-      // DB. The same run id then appears under each config it ran.
-      const cfgs =
-        Array.isArray(e.evaluation_configs) && e.evaluation_configs.length > 0
-          ? e.evaluation_configs
-          : [{ metric: 'unknown', id: '', display_name: undefined } as any]
-      // Per-annotation immediate ("KI-Votum") runs are one EvaluationRun per
-      // submitted annotation. The same metric's runs can carry INCONSISTENT
-      // config ids in eval_metadata (the worker stamps a bare metric id once
-      // graded; the dispatcher a full `<metric>-<hash>` id), which would split
-      // one metric into several dropdown entries — and pinning the
-      // by-task-model fetch to any single subset silently drops the rest
-      // (e.g. the all-empty-submission runs form their own group that renders
-      // all-N/A). Collapse them under the metric name with EMPTY runIds,
-      // exactly like the human-graded metrics in the loop below, so the
-      // by-task-model fetch sends only `?metric=` and the endpoint scans EVERY
-      // run for that metric (results.py) — surfacing every annotator's grade.
-      const isImmediate = e.model_id === 'immediate'
-      for (const cfg of cfgs) {
-        const metric = cfg?.metric || 'unknown'
-        const cfgId = isImmediate ? metric : (cfg?.id || cfg?.metric || 'unknown')
-        const existing = byConfig.get(cfgId)
-        if (existing) {
-          if (!isImmediate && !existing.runIds.includes(e.evaluation_id)) {
-            existing.runIds.push(e.evaluation_id)
-          }
-          existing.samplesEvaluated = Math.max(existing.samplesEvaluated, e.samples_evaluated || 0)
-        } else {
-          byConfig.set(cfgId, {
-            id: cfgId,
-            metric,
-            configId: cfgId,
-            displayName: cfg?.display_name || metric || 'Unknown',
-            samplesEvaluated: e.samples_evaluated || 0,
-            runIds: isImmediate ? [] : [e.evaluation_id],
-          })
-        }
-      }
-    }
 
-    // Surface EVERY enabled project eval config as its own selectable table —
-    // including human-graded methods (korrektur_*) whose grades are NOT emitted
-    // as a normal EvaluationRun in `results.evaluations`, so they'd otherwise be
-    // absent from the dropdown and leak into an automated metric's view. These
-    // get empty `runIds`: the by-task-model fetch then sends only `?metric=`,
-    // and the endpoint scans all of the project's runs filtered by that metric
-    // key (results.py), so the human grades still populate the table.
+    // The dropdown is ONE entry per evaluation METHOD — the project's enabled
+    // eval configs, keyed by their stable `evaluation_config.id` (issue #111).
+    // Per-cell scores come from the by-task-model fetch scoped to that config
+    // id, which scans ALL of the project's runs (immediate KI-Votum, the
+    // hourly cron sweep, manual batch/missing-only) and unions generation +
+    // annotation cells. So runs NEVER mint their own entries — that split was
+    // what pinned the grid to one (possibly empty) run and rendered all-N/A.
     for (const cfg of evaluationConfigs ?? []) {
       if (cfg?.enabled === false) continue
       const cfgId = cfg?.id || cfg?.metric
@@ -247,8 +186,60 @@ export function EvaluationResults({
         configId: cfgId,
         displayName: cfg?.display_name || cfg?.metric || 'Unknown',
         samplesEvaluated: 0,
-        runIds: [],
+        running: false,
       })
+    }
+
+    // Annotate metadata from runs (samplesEvaluated + in-flight status). A run
+    // is matched to an entry by config id (exact) else by metric — immediate
+    // runs carry inconsistent eval_metadata config ids, so metric is the
+    // reliable fallback; this attribution is COSMETIC since the data cells come
+    // from the DB `evaluation_config_id` filter, which stays isolated per
+    // method. Defensive: a run pinned to a full canonical config id (contains
+    // '-', not a bare metric name) that is NOT among the enabled configs — a
+    // wizard edit that changed an id, or a project whose config list failed to
+    // load — is surfaced as its own entry so its scores never silently vanish.
+    const visible = (results?.evaluations ?? []).filter(
+      (e) =>
+        e.status === 'completed' ||
+        e.status === 'running' ||
+        e.status === 'pending'
+    )
+    for (const e of visible) {
+      const inflight = e.status === 'running' || e.status === 'pending'
+      const cfgs = Array.isArray(e.evaluation_configs) ? e.evaluation_configs : []
+      for (const cfg of cfgs) {
+        const rawId = cfg?.id || ''
+        const metric = cfg?.metric || 'unknown'
+        if (
+          rawId &&
+          rawId.includes('-') &&
+          rawId !== metric &&
+          !byConfig.has(rawId) &&
+          (!selectedConfigIds ||
+            selectedConfigIds.length === 0 ||
+            selectedConfigIds.includes(rawId))
+        ) {
+          byConfig.set(rawId, {
+            id: rawId,
+            metric,
+            configId: rawId,
+            displayName: cfg?.display_name || metric || 'Unknown',
+            samplesEvaluated: 0,
+            running: false,
+          })
+        }
+        const targets = byConfig.has(rawId)
+          ? [byConfig.get(rawId)!]
+          : Array.from(byConfig.values()).filter((x) => x.metric === metric)
+        for (const entry of targets) {
+          entry.samplesEvaluated = Math.max(
+            entry.samplesEvaluated,
+            e.samples_evaluated || 0,
+          )
+          if (inflight) entry.running = true
+        }
+      }
     }
 
     // Sort by GROUPED_METRICS order (same as wizard) using cfg.metric
@@ -444,51 +435,32 @@ export function EvaluationResults({
     }
   }, [loading, results, onResultsLoaded])
 
-  // Per-task/model data is fetched by ALL EvaluationRun IDs that belong
-  // to the selected metric. The backend's row_number() OVER (PARTITION BY
-  // generation_id, field_name ORDER BY created_at DESC) collapses
-  // overlapping runs to the latest score per cell, so passing every run
-  // for the metric is the safe aggregation primitive.
-  //
-  // Use a comma-joined string as the dep (stable primitive) instead of
-  // the runIds array — array references would change on every render
-  // and re-trigger the fetch in an infinite loop.
-  const selectedRunIdsKey = availableMetricRuns
-    .find(r => r.id === selectedMetricRunId)
-    ?.runIds.join(',') ?? ''
+  // Per-task/model data is fetched by the selected method's stable
+  // `evaluation_config_id`. The backend scans ALL of the project's runs for
+  // that config and unions generation + annotation cells (its row_number()
+  // OVER (PARTITION BY generation_id|annotation_id, field_name ORDER BY
+  // created_at DESC) collapses overlapping runs to the latest score per cell),
+  // so a method's full result set is always shown regardless of which run
+  // produced each cell — no run-id pinning, no n/a for data that exists.
+  const selectedEntry = availableMetricRuns.find((r) => r.id === selectedMetricRunId)
+  const selectedConfigId = selectedEntry?.id ?? ''
 
-  // The selected metric name is sent to the API so the backend can filter
-  // rows when a run bundles multiple metrics. Without this, multiple
-  // metric rows for the same (task, model) collapse during the loop's
-  // dict assignment and only the last metric's score survives.
-  const selectedMetricKey = availableMetricRuns
-    .find(r => r.id === selectedMetricRunId)
-    ?.metric ?? ''
+  // The metric name is also sent so the backend can pick the primary score
+  // (`_extract_primary_score`) and guard multi-metric-per-row bundles.
+  const selectedMetricKey = selectedEntry?.metric ?? ''
 
-  // The worker commits each TaskEvaluation row to Postgres immediately
-  // after the evaluator returns (`db.commit()` per row), so an in-flight
-  // run already has queryable rows. We stream cell-by-cell updates via
-  // a WebSocket: the backend pushes a "tick" event when row counts or
-  // run statuses change, and the frontend re-fetches the per-cell
-  // view on each tick. WebSocket connection failures fall back to 5 s
-  // polling — same UX, slightly higher latency. Pattern mirrors the
-  // Generations page (`GenerationProgress.tsx:90-227`).
-  const hasInflightSelectedRun = useMemo(() => {
-    if (!results?.evaluations || !selectedRunIdsKey) return false
-    const selectedSet = new Set(selectedRunIdsKey.split(','))
-    return results.evaluations.some(
-      (e) =>
-        selectedSet.has(e.evaluation_id) &&
-        (e.status === 'running' || e.status === 'pending')
-    )
-  }, [results, selectedRunIdsKey])
+  // The worker commits each TaskEvaluation row to Postgres immediately after
+  // the evaluator returns, so an in-flight run already has queryable rows. We
+  // stream cell-by-cell updates via a WebSocket (5 s polling fallback) while
+  // the selected method has any run in flight — computed in the memo above.
+  const hasInflightSelectedRun = selectedEntry?.running ?? false
 
-  // Per-task/model fetch unit (selected-metric-scoped fetch + WebSocket /
+  // Per-task/model fetch unit (selected-config-scoped fetch + WebSocket /
   // polling live updates) lives in useTaskModelData.
   const { taskModelData, taskModelLoading } = useTaskModelData({
     projectId,
     showHistory,
-    selectedRunIdsKey,
+    selectedConfigId,
     selectedMetricKey,
     hasInflightSelectedRun,
   })
