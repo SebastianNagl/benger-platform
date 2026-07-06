@@ -105,8 +105,12 @@ class Project(Base):
     # and are NOT deleted on submit, so an annotator can restore an earlier
     # checkpoint. The interval is fixed at 5 min in the UI today but stored
     # here so it can be made configurable later without a schema change.
+    # Enabled by default for all new projects so timed exams get an automatic
+    # append-only recovery history out of the box (opt out via ProjectUpdate).
+    # Existing projects keep whatever they were set to; only the default for
+    # future inserts changes (see migration 075).
     restorable_checkpoints_enabled = Column(
-        Boolean, default=False, server_default="false", nullable=False
+        Boolean, default=True, server_default="true", nullable=False
     )
     checkpoint_interval_seconds = Column(
         Integer, default=300, server_default="300", nullable=False
