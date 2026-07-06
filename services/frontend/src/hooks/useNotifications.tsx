@@ -27,6 +27,15 @@ const MAX_RECONNECT_ATTEMPTS = 5
 export function useNotifications() {
   const { apiClient, user } = useAuth()
   const { t } = useI18n()
+  // Keep the latest `t` in a ref so the memoized callbacks below (whose deps
+  // intentionally omit `t` to avoid churn — the SSE effect never re-runs) always
+  // translate toasts with the current locale instead of the locale captured when
+  // the callback was created. Fixes German toasts leaking under an English UI
+  // (and vice-versa) after a live language switch without a page reload.
+  const tRef = useRef(t)
+  useEffect(() => {
+    tRef.current = t
+  }, [t])
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
@@ -101,7 +110,7 @@ export function useNotifications() {
         setUnreadCount((prev) => Math.max(0, prev - 1))
       } catch (error) {
         console.error('Error marking notification as read:', error)
-        toast(t('notifications.markReadError'), 'error')
+        toast(tRef.current('notifications.markReadError'), 'error')
       }
     },
     [apiClient, user]
@@ -125,7 +134,7 @@ export function useNotifications() {
         markedCount === 1
           ? 'notifications.markAllReadSuccessOne'
           : 'notifications.markAllReadSuccess'
-      toast(t(messageKey, { count: markedCount }), 'success')
+      toast(tRef.current(messageKey, { count: markedCount }), 'success')
 
       // Refetch to sync with server and prevent SSE race conditions
       const [fetchedNotifications, count] = await Promise.all([
@@ -136,7 +145,7 @@ export function useNotifications() {
       setUnreadCount(count)
     } catch (error) {
       console.error('Error marking all notifications as read:', error)
-      toast(t('notifications.markAllReadError'), 'error')
+      toast(tRef.current('notifications.markAllReadError'), 'error')
     }
   }, [apiClient, user, fetchNotifications, fetchUnreadCount])
 
@@ -161,11 +170,11 @@ export function useNotifications() {
         await apiClient.updateNotificationPreferences(newPreferences)
 
         setPreferences(newPreferences)
-        toast(t('notifications.preferencesUpdated'), 'success')
+        toast(tRef.current('notifications.preferencesUpdated'), 'success')
         return true
       } catch (error) {
         console.error('Error updating notification preferences:', error)
-        toast(t('notifications.preferencesUpdateFailed'), 'error')
+        toast(tRef.current('notifications.preferencesUpdateFailed'), 'error')
         return false
       }
     },
@@ -225,7 +234,7 @@ export function useNotifications() {
               setNotifications((prev) => [newNotification, ...prev])
               setUnreadCount((prev) => prev + 1)
               const { title: translatedToastTitle } =
-                getTranslatedNotification(t, newNotification)
+                getTranslatedNotification(tRef.current, newNotification)
               toast(translatedToastTitle, 'success')
               break
 
