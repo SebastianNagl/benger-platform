@@ -18,6 +18,7 @@ import {
   type ChartType,
 } from '@/components/evaluation/ChartTypeSelector'
 import { DynamicChartRenderer } from '@/components/evaluation/DynamicChartRenderer'
+import { useMultiConfigChartData } from '@/components/evaluation/results/useMultiConfigChartData'
 import { EvaluationResultsTable } from '@/components/evaluation/EvaluationResultsTable'
 import {
   EvaluationControlModal,
@@ -969,6 +970,55 @@ export default function EvaluationDashboard() {
     return sortModelsByScoreAsc(baseModels, selectedMetricNames)
   }, [filteredResults, evaluationChartData, statisticsData, selectedConfigIds, selectedMetricNames])
 
+  // One chart series per SELECTED evaluation config (not per metric name), so
+  // two configs of the same metric type (e.g. two llm_judge_falloesung
+  // judges) each get their own bar/radar series labeled by display_name.
+  // Resolve the selected configs (id + display_name + metric) from the
+  // project's evaluation_config metadata, memoized so the hook only refetches
+  // when the selection actually changes.
+  const chartConfigs = useMemo(() => {
+    const cfgs = projectEvalConfig?.evaluation_configs ?? []
+    return cfgs
+      .filter((c) => selectedConfigIds.includes(c.id))
+      .map((c) => ({
+        id: c.id,
+        displayName:
+          c.display_name && String(c.display_name).trim().length > 0
+            ? c.display_name
+            : c.metric,
+        metric: c.metric,
+      }))
+  }, [projectEvalConfig, selectedConfigIds])
+
+  const multiConfigChart = useMultiConfigChartData({
+    projectId: selectedProject?.id ?? '',
+    configs: chartConfigs,
+    enabled: chartType !== 'data' && chartConfigs.length > 0,
+  })
+
+  // Filter the merged per-config models by the model selection (mirrors the
+  // filteredResults predicate, incl. the llm-judge: prefix match) and apply
+  // the same ascending sort so Issue C's low->high ordering holds per config.
+  const multiConfigModels = useMemo(() => {
+    const filtered = multiConfigChart.models.filter(
+      (m) =>
+        selectedModels.length === 0 ||
+        selectedModels.includes(m.model_id) ||
+        selectedModels.some((sm) => m.model_id === `llm-judge:${sm}`)
+    )
+    return sortModelsByScoreAsc(filtered, multiConfigChart.seriesNames)
+  }, [multiConfigChart.models, multiConfigChart.seriesNames, selectedModels])
+
+  // Chart data source by type: bar/radar/heatmap/table read the per-config
+  // merged series (fixes same-metric-config collapse — Issue A). The box plot
+  // needs raw per-sample distributions (`scores[]`) that the by-task-model
+  // summary doesn't carry, so it keeps the raw-scores path (`modelsWithScores`)
+  // — unchanged behavior, no box-plot regression.
+  const chartModels =
+    chartType === 'box' ? modelsWithScores : multiConfigModels
+  const chartMetrics =
+    chartType === 'box' ? selectedMetricNames : multiConfigChart.seriesNames
+
   if (earlyReturn) {
     return earlyReturn
   }
@@ -1386,8 +1436,8 @@ export default function EvaluationDashboard() {
                   </div>
                   <DynamicChartRenderer
                     chartType={chartType}
-                    models={modelsWithScores}
-                    metrics={selectedMetricNames}
+                    models={chartModels}
+                    metrics={chartMetrics}
                     significanceData={significanceData}
                     height={400}
                     showErrorBars={true}
