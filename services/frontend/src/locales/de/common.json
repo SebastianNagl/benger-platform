@@ -5651,6 +5651,7 @@
     "modelComparison": {
       "missingData": "Fehlende Daten",
       "missingDataDetail": "{models} haben unvollständige Metriken (als 0 angezeigt)",
+      "missingDataSummary": "{count} Modelle haben unvollständige Metriken (als 0 angezeigt)",
       "score": "Score",
       "model": "Modell",
       "average": "Durchschnitt"

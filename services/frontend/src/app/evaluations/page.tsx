@@ -8,6 +8,7 @@
 'use client'
 
 import { METRIC_ORDER } from '@/lib/api/evaluation-types'
+import { sortModelsByScoreAsc } from '@/lib/evaluation/sortModelsByScoreAsc'
 import {
   AggregationLevel,
   AggregationSelector,
@@ -962,8 +963,11 @@ export default function EvaluationDashboard() {
       }
     }
 
-    return baseModels
-  }, [filteredResults, evaluationChartData, statisticsData, selectedConfigIds])
+    // Issue C: order bars lowest -> highest by average across the currently
+    // selected metrics (backend returns them DESCENDING by score). Also keeps
+    // box plots consistent (lowest -> highest).
+    return sortModelsByScoreAsc(baseModels, selectedMetricNames)
+  }, [filteredResults, evaluationChartData, statisticsData, selectedConfigIds, selectedMetricNames])
 
   if (earlyReturn) {
     return earlyReturn

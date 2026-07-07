@@ -5669,6 +5669,7 @@
     "modelComparison": {
       "missingData": "Missing data",
       "missingDataDetail": "{models} have incomplete metrics (shown as 0)",
+      "missingDataSummary": "{count} models have incomplete metrics (shown as 0)",
       "score": "Score",
       "model": "Model",
       "average": "Average"

@@ -14,6 +14,7 @@ jest.mock('@/contexts/I18nContext', () => ({
         'evaluation.modelComparison.average': 'Average',
         'evaluation.modelComparison.missingData': 'Missing Data',
         'evaluation.modelComparison.missingDataDetail': `Models with incomplete data: ${params?.models}`,
+        'evaluation.modelComparison.missingDataSummary': `${params?.count} models have incomplete metrics (shown as 0)`,
       }
       return translations[key] || key
     },
@@ -208,29 +209,58 @@ describe('ModelComparisonChart', () => {
   })
 
   describe('Missing data warning', () => {
-    it('shows warning when models have missing metric data', () => {
-      const models = [
-        { model_id: 'gpt-4', metrics: { accuracy: 0.9 } },
-        { model_id: 'claude-3', metrics: {} }, // Missing all metrics
-      ]
-      render(
+    const missingModels = [
+      { model_id: 'gpt-4', metrics: { accuracy: 0.9 } }, // missing f1
+      { model_id: 'claude-3', metrics: {} }, // missing all metrics
+    ]
+
+    it('collapses missing-data into a one-line count summary, not the full list', () => {
+      const { container } = render(
         <ModelComparisonChart
-          models={models}
+          models={missingModels}
           metrics={['accuracy', 'f1']}
           visualizationType="bar"
         />
       )
-      expect(screen.getByText(/Missing Data/)).toBeInTheDocument()
+
+      const details = container.querySelector('details')
+      expect(details).toBeInTheDocument()
+
+      const summary = details!.querySelector('summary')
+      expect(summary).toBeInTheDocument()
+      // The always-visible summary shows the COUNT (both models are incomplete).
+      expect(summary).toHaveTextContent('Missing Data')
+      expect(summary).toHaveTextContent('2 models have incomplete metrics')
+      // ...and NOT the full comma-joined list inline.
+      expect(summary).not.toHaveTextContent('gpt-4')
+      expect(summary).not.toHaveTextContent('claude-3')
+    })
+
+    it('keeps the full model-name list inside the expandable <details>', () => {
+      const { container } = render(
+        <ModelComparisonChart
+          models={missingModels}
+          metrics={['accuracy', 'f1']}
+          visualizationType="bar"
+        />
+      )
+
+      const details = container.querySelector('details')
+      expect(details).toBeInTheDocument()
+      // The names live in the details body (revealed on expand), not the summary.
+      expect(details).toHaveTextContent('gpt-4')
+      expect(details).toHaveTextContent('claude-3')
     })
 
     it('does not show warning when all models have all metrics', () => {
-      render(
+      const { container } = render(
         <ModelComparisonChart
           models={defaultModels}
           metrics={defaultMetrics}
           visualizationType="bar"
         />
       )
+      expect(container.querySelector('details')).not.toBeInTheDocument()
       expect(screen.queryByText(/Missing Data/)).not.toBeInTheDocument()
     })
   })
