@@ -120,12 +120,21 @@ export function ModelComparisonChart({
     return dataPoint
   })
 
-  // Missing data warning component
+  // Missing data warning component.
+  // Collapsed by default to a single-line count so a large number of models
+  // with incomplete metrics doesn't render as a giant amber wall; the full
+  // comma-joined list is revealed only when the <details> is expanded.
   const MissingDataWarning = () =>
     modelsWithMissingData.size > 0 ? (
-      <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
-        <strong>{t('evaluation.modelComparison.missingData')}:</strong> {t('evaluation.modelComparison.missingDataDetail', { models: Array.from(modelsWithMissingData).join(', ') })}
-      </div>
+      <details className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+        <summary className="cursor-pointer">
+          <strong>{t('evaluation.modelComparison.missingData')}:</strong>{' '}
+          {t('evaluation.modelComparison.missingDataSummary', { count: modelsWithMissingData.size })}
+        </summary>
+        <div className="mt-2 break-words">
+          {Array.from(modelsWithMissingData).join(', ')}
+        </div>
+      </details>
     ) : null
 
   if (visualizationType === 'radar') {
