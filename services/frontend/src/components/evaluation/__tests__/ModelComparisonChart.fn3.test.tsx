@@ -100,8 +100,11 @@ describe('ModelComparisonChart fn3', () => {
         visualizationType="bar"
       />
     )
-    // Both models should trigger missing data for 'nonexistent'
-    expect(screen.getByText(/Missing data for/)).toBeInTheDocument()
+    // Both models are missing 'nonexistent' → the (now collapsible) missing-data
+    // warning renders, with the incomplete model listed in its expandable body.
+    const details = document.querySelector('details')
+    expect(details).toBeInTheDocument()
+    expect(details).toHaveTextContent('claude-3')
   })
 
   it('handles MetricValue with confidenceInterval for error calculation', () => {
