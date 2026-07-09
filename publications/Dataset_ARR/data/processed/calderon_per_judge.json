@@ -68,7 +68,7 @@
       "avg_advantage_probability": 0.6168421052631579,
       "passes_alt_test": true,
       "n_instances_total": 30,
-      "pearson_judge_vs_mean_blind": 0.7574369599207644,
+      "pearson_judge_vs_mean_blind": 0.7574369599207643,
       "n_pearson": 30
     }
   },
@@ -141,7 +141,7 @@
       "avg_advantage_probability": 0.5411288402000476,
       "passes_alt_test": true,
       "n_instances_total": 28,
-      "pearson_judge_vs_mean_blind": 0.8072856753981583,
+      "pearson_judge_vs_mean_blind": 0.8072856753981587,
       "n_pearson": 28
     }
   },
@@ -214,7 +214,7 @@
       "avg_advantage_probability": 0.577844611528822,
       "passes_alt_test": false,
       "n_instances_total": 30,
-      "pearson_judge_vs_mean_blind": 0.8178924154479894,
+      "pearson_judge_vs_mean_blind": 0.8178924154479896,
       "n_pearson": 30
     }
   },
@@ -287,7 +287,7 @@
       "avg_advantage_probability": 0.5625563909774436,
       "passes_alt_test": false,
       "n_instances_total": 30,
-      "pearson_judge_vs_mean_blind": 0.8203221712466573,
+      "pearson_judge_vs_mean_blind": 0.8203221712466572,
       "n_pearson": 30
     }
   },
@@ -433,7 +433,7 @@
       "avg_advantage_probability": 0.571077694235589,
       "passes_alt_test": false,
       "n_instances_total": 30,
-      "pearson_judge_vs_mean_blind": 0.8123873309355696,
+      "pearson_judge_vs_mean_blind": 0.8123873309355694,
       "n_pearson": 30
     }
   },

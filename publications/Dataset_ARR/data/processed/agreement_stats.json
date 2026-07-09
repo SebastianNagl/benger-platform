@@ -14,7 +14,7 @@
     },
     "meteor": {
       "n": 208,
-      "pearson_vs_judge_raw": 0.6081556544520985,
+      "pearson_vs_judge_raw": 0.6081556544520986,
       "spearman_vs_judge_raw": 0.600882697492444
     },
     "semantic_similarity": {
@@ -24,12 +24,12 @@
     },
     "bertscore": {
       "n": 208,
-      "pearson_vs_judge_raw": 0.46517388748609517,
+      "pearson_vs_judge_raw": 0.4651738874860951,
       "spearman_vs_judge_raw": 0.44918661187132647
     },
     "moverscore": {
       "n": 208,
-      "pearson_vs_judge_raw": 0.5886302270375826,
+      "pearson_vs_judge_raw": 0.5886302270375825,
       "spearman_vs_judge_raw": 0.5640476026167985
     },
     "coherence": {
@@ -39,7 +39,7 @@
     },
     "bleu": {
       "n": 208,
-      "pearson_vs_judge_raw": 0.5817341842015933,
+      "pearson_vs_judge_raw": 0.5817341842015932,
       "spearman_vs_judge_raw": 0.6150108981378365
     }
   },
@@ -52,12 +52,12 @@
       },
       "meteor": {
         "n": 65,
-        "pearson_vs_judge_raw": 0.2722470310050027,
+        "pearson_vs_judge_raw": 0.27224703100500275,
         "spearman_vs_judge_raw": 0.31082619752185286
       },
       "semantic_similarity": {
         "n": 16,
-        "pearson_vs_judge_raw": 0.19785760908216893,
+        "pearson_vs_judge_raw": 0.19785760908216896,
         "spearman_vs_judge_raw": 0.07074430808138528
       },
       "rouge": {
@@ -67,19 +67,19 @@
       },
       "moverscore": {
         "n": 16,
-        "pearson_vs_judge_raw": 0.3751593119364544,
+        "pearson_vs_judge_raw": 0.37515931193645446,
         "spearman_vs_judge_raw": 0.40235825221287874
       },
       "coherence": {
         "n": 65,
-        "pearson_vs_judge_raw": -0.18005232454782483,
+        "pearson_vs_judge_raw": -0.1800523245478248,
         "spearman_vs_judge_raw": -0.17943421952949587
       }
     },
     "cocreation": {
       "coherence": {
         "n": 155,
-        "pearson_vs_judge_raw": -0.3048545549499518,
+        "pearson_vs_judge_raw": -0.30485455494995184,
         "spearman_vs_judge_raw": -0.2812565231458706
       },
       "bleu": {
@@ -89,12 +89,12 @@
       },
       "meteor": {
         "n": 155,
-        "pearson_vs_judge_raw": 0.3612718449467789,
+        "pearson_vs_judge_raw": 0.36127184494677905,
         "spearman_vs_judge_raw": 0.2782727667019056
       },
       "semantic_similarity": {
         "n": 29,
-        "pearson_vs_judge_raw": 0.3653778144307684,
+        "pearson_vs_judge_raw": 0.36537781443076855,
         "spearman_vs_judge_raw": 0.46438267564469826
       },
       "rouge": {
@@ -104,7 +104,7 @@
       },
       "moverscore": {
         "n": 28,
-        "pearson_vs_judge_raw": 0.6100223988983624,
+        "pearson_vs_judge_raw": 0.6100223988983625,
         "spearman_vs_judge_raw": 0.4488567394597655
       }
     }
@@ -127,8 +127,8 @@
     "ci95_hi_cluster_task": 20.50100388184904,
     "mean_diff_cluster_task": 15.719354838709677,
     "mean_diff_paired_within_participant": 13.130271660706443,
-    "ci95_lo_paired_within_participant": 8.053793133195306,
-    "ci95_hi_paired_within_participant": 18.47526507309116
+    "ci95_lo_paired_within_participant": 8.449442954388608,
+    "ci95_hi_paired_within_participant": 18.06685080619863
   },
   "rq4_cocreation_by_bereich": {
     "Zivilrecht": {
@@ -185,7 +185,7 @@
   },
   "rq5_judge_vs_human": {
     "n_annotations": 30,
-    "pearson_raw": 0.7574369599207644,
+    "pearson_raw": 0.7574369599207643,
     "spearman_raw": 0.7552885230020512,
     "mae_raw": 10.833333333333332,
     "mae_grade_points": 2.688888888888889,
@@ -251,7 +251,7 @@
     },
     "rechtsgrundlagen": {
       "n": 30,
-      "pearson_judge_vs_mean_human": 0.5888079535200341,
+      "pearson_judge_vs_mean_human": 0.5888079535200343,
       "mae_dim_points": 1.461111111111111
     },
     "rechtskenntnis": {
@@ -261,7 +261,7 @@
     },
     "subsumtion": {
       "n": 30,
-      "pearson_judge_vs_mean_human": 0.7424330717288581,
+      "pearson_judge_vs_mean_human": 0.7424330717288583,
       "mae_dim_points": 1.8944444444444446
     },
     "schwerpunktsetzung": {
@@ -276,12 +276,12 @@
     },
     "gliederung": {
       "n": 30,
-      "pearson_judge_vs_mean_human": 0.5676743624201415,
+      "pearson_judge_vs_mean_human": 0.5676743624201414,
       "mae_dim_points": 0.8611111111111112
     },
     "sprache": {
       "n": 30,
-      "pearson_judge_vs_mean_human": 0.1327770544557116,
+      "pearson_judge_vs_mean_human": 0.13277705445571164,
       "mae_dim_points": 0.6277777777777779
     },
     "formalia": {
@@ -515,7 +515,7 @@
   },
   "rq5_creator_vs_blind": {
     "n_solutions": 45,
-    "pearson_creator_vs_mean_blind_raw": 0.7630840140535469,
+    "pearson_creator_vs_mean_blind_raw": 0.7630840140535466,
     "spearman_creator_vs_mean_blind_raw": 0.6747948905915313,
     "mae_raw": 12.466666666666667,
     "mae_grade_points": 2.837037037037037,
@@ -539,12 +539,12 @@
   "rq5_dim_on_llm_solutions": {
     "ergebnisrichtigkeit": {
       "n": 15,
-      "pearson_judge_vs_mean_human": 0.6179684872818126,
+      "pearson_judge_vs_mean_human": 0.6179684872818125,
       "mae_dim_points": 3.122222222222222
     },
     "vollstaendigkeit": {
       "n": 15,
-      "pearson_judge_vs_mean_human": 0.5793813650573534,
+      "pearson_judge_vs_mean_human": 0.5793813650573533,
       "mae_dim_points": 1.3
     },
     "rechtsgrundlagen": {
@@ -559,12 +559,12 @@
     },
     "subsumtion": {
       "n": 15,
-      "pearson_judge_vs_mean_human": 0.6283125516281768,
+      "pearson_judge_vs_mean_human": 0.6283125516281769,
       "mae_dim_points": 2.422222222222222
     },
     "schwerpunktsetzung": {
       "n": 15,
-      "pearson_judge_vs_mean_human": 0.4790874842402641,
+      "pearson_judge_vs_mean_human": 0.4790874842402642,
       "mae_dim_points": 1.6444444444444448
     },
     "methodischer_stil": {
@@ -574,7 +574,7 @@
     },
     "gliederung": {
       "n": 15,
-      "pearson_judge_vs_mean_human": 0.6560831891104865,
+      "pearson_judge_vs_mean_human": 0.6560831891104864,
       "mae_dim_points": 1.088888888888889
     },
     "sprache": {
@@ -1101,12 +1101,12 @@
       "meteor": {
         "n_systems": 12,
         "spearman_metric_vs_judge": 0.6013986013986015,
-        "pearson_metric_vs_judge": 0.7121604735632685
+        "pearson_metric_vs_judge": 0.7121604735632687
       },
       "semantic_similarity": {
         "n_systems": 12,
         "spearman_metric_vs_judge": 0.7692307692307694,
-        "pearson_metric_vs_judge": 0.6959563860214267
+        "pearson_metric_vs_judge": 0.6959563860214265
       },
       "bertscore": {
         "n_systems": 12,
@@ -1116,12 +1116,12 @@
       "moverscore": {
         "n_systems": 12,
         "spearman_metric_vs_judge": 0.8111888111888113,
-        "pearson_metric_vs_judge": 0.8098054227102509
+        "pearson_metric_vs_judge": 0.8098054227102508
       },
       "coherence": {
         "n_systems": 12,
         "spearman_metric_vs_judge": -0.5734265734265735,
-        "pearson_metric_vs_judge": -0.5947931851753645
+        "pearson_metric_vs_judge": -0.5947931851753644
       },
       "bleu": {
         "n_systems": 12,
@@ -1133,7 +1133,7 @@
       "bertscore": {
         "n_systems": 12,
         "spearman_metric_vs_judge": 0.9510489510489512,
-        "pearson_metric_vs_judge": 0.9349489867021967
+        "pearson_metric_vs_judge": 0.9349489867021968
       },
       "bleu": {
         "n_systems": 12,
@@ -1143,7 +1143,7 @@
       "meteor": {
         "n_systems": 12,
         "spearman_metric_vs_judge": 0.7412587412587414,
-        "pearson_metric_vs_judge": 0.7186205825781409
+        "pearson_metric_vs_judge": 0.7186205825781408
       },
       "moverscore": {
         "n_systems": 12,
@@ -1153,12 +1153,12 @@
       "rouge": {
         "n_systems": 12,
         "spearman_metric_vs_judge": 0.8951048951048951,
-        "pearson_metric_vs_judge": 0.854836400033109
+        "pearson_metric_vs_judge": 0.8548364000331089
       },
       "semantic_similarity": {
         "n_systems": 12,
         "spearman_metric_vs_judge": 0.6993006993006995,
-        "pearson_metric_vs_judge": 0.7724125411320176
+        "pearson_metric_vs_judge": 0.7724125411320175
       }
     }
   }

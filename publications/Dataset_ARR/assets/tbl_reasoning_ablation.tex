@@ -1,0 +1,18 @@
+\begin{table*}[t]
+\centering\footnotesize
+\caption{Same-base-model reasoning toggle: Qwen3-235B-A22B Thinking-2507 (reasoning on; main evaluation) vs.\ Instruct-2507 (reasoning off; ablation) under identical prompts, decoding, provider, and primary judge. Pass = judge raw $\geq 50/100$. Latency, output length, and per-generation cost from logged per-call metadata.}
+\label{tbl-reasoning-ablation}
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccccc}
+\toprule
+Corpus & Variant & n & Judge raw & Pass & Trunc. & Latency s & Words & \$/gen \\
+\midrule
+Benchathon & Thinking-2507 & 28 & 41.3 & 18\% & 0 & 125.1 & 678 & \$0.014 \\
+ & Instruct-2507 & 30 & 37.8 & 10\% & 0 & 123.6 & 1356 & \$0.000 \\
+Doctr.\ Princ. & Thinking-2507 & 531 & 67.3 & 69\% & 0 & 46.1 & 72 & \$0.003 \\
+ & Instruct-2507 & 531 & 63.3 & 67\% & 0 & 8.7 & 78 & \$0.000 \\
+\bottomrule
+\end{tabular}
+}%  end \resizebox
+\end{table*}

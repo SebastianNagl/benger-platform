@@ -1,0 +1,330 @@
+{
+  "_meta": {
+    "description": "Robustness check: per-system leaderboard recomputed on the seven reasoning-core rubric dimensions only (90/100 points), rescaled to /100 as core_sum / 90 * 100, vs. the full-rubric raw score. One primary-judge score per generation.",
+    "rubric_weights": {
+      "ergebnisrichtigkeit": 20,
+      "vollstaendigkeit": 10,
+      "rechtsgrundlagen": 10,
+      "rechtskenntnis": 15,
+      "subsumtion": 15,
+      "schwerpunktsetzung": 10,
+      "methodischer_stil": 10,
+      "gliederung": 5,
+      "sprache": 3,
+      "formalia": 2
+    },
+    "core_dimensions": [
+      "ergebnisrichtigkeit",
+      "vollstaendigkeit",
+      "rechtsgrundlagen",
+      "rechtskenntnis",
+      "subsumtion",
+      "schwerpunktsetzung",
+      "methodischer_stil"
+    ],
+    "form_dimensions": [
+      "gliederung",
+      "sprache",
+      "formalia"
+    ],
+    "core_max_points": 90.0,
+    "rescale": "mean_core = mean over generations of core_sum / 90 * 100",
+    "exclusions": {
+      "grundprinzipien": "excluded — Doctrinal Principles uses a different 4-dimension rubric; the 7-core / 3-form split of the Falllösung rubric does not apply",
+      "benchathon_model_filter": "restricted to the canonical ZJS model set (zjs_model_summary.json), matching derive_paper_exports.py",
+      "generation_filter": "generations missing the raw score or any of the seven core dimensions are excluded from both means; see per-corpus counters"
+    },
+    "benchathon": {
+      "primary_judge_prefix": "llm_judge_falloesung-mptmfvee-sqyx",
+      "counters": {
+        "skipped_not_in_canonical_model_set": 51
+      },
+      "dimension_sanity": {
+        "ergebnisrichtigkeit": {
+          "weight": 20,
+          "declared_max": 20.0,
+          "observed_max": 19.5,
+          "observed_min": 1.5,
+          "n": 208
+        },
+        "vollstaendigkeit": {
+          "weight": 10,
+          "declared_max": 10.0,
+          "observed_max": 8.5,
+          "observed_min": 0.5,
+          "n": 208
+        },
+        "rechtsgrundlagen": {
+          "weight": 10,
+          "declared_max": 10.0,
+          "observed_max": 8.5,
+          "observed_min": 0.5,
+          "n": 208
+        },
+        "rechtskenntnis": {
+          "weight": 15,
+          "declared_max": 15.0,
+          "observed_max": 12.5,
+          "observed_min": 1.5,
+          "n": 208
+        },
+        "subsumtion": {
+          "weight": 15,
+          "declared_max": 15.0,
+          "observed_max": 12.5,
+          "observed_min": 0.5,
+          "n": 208
+        },
+        "schwerpunktsetzung": {
+          "weight": 10,
+          "declared_max": 10.0,
+          "observed_max": 8.5,
+          "observed_min": 0.5,
+          "n": 208
+        },
+        "methodischer_stil": {
+          "weight": 10,
+          "declared_max": 10.0,
+          "observed_max": 8.5,
+          "observed_min": 1.5,
+          "n": 208
+        },
+        "gliederung": {
+          "weight": 5,
+          "declared_max": 5.0,
+          "observed_max": 5.0,
+          "observed_min": 1.5,
+          "n": 208
+        },
+        "sprache": {
+          "weight": 3,
+          "declared_max": 3.0,
+          "observed_max": 2.5,
+          "observed_min": 1.5,
+          "n": 208
+        },
+        "formalia": {
+          "weight": 2,
+          "declared_max": 2.0,
+          "observed_max": 2.0,
+          "observed_min": 0.5,
+          "n": 208
+        }
+      },
+      "mean_abs_diff_dimsum_vs_raw_score": 0.0
+    },
+    "zjs": {
+      "primary_judge_prefix": "llm_judge_falloesung-mptrd45m",
+      "counters": {},
+      "dimension_sanity": {
+        "ergebnisrichtigkeit": {
+          "weight": 20,
+          "declared_max": 20.0,
+          "observed_max": 19.5,
+          "observed_min": 0.5,
+          "n": 8031
+        },
+        "vollstaendigkeit": {
+          "weight": 10,
+          "declared_max": 10.0,
+          "observed_max": 9.5,
+          "observed_min": 0.5,
+          "n": 8031
+        },
+        "rechtsgrundlagen": {
+          "weight": 10,
+          "declared_max": 10.0,
+          "observed_max": 9.5,
+          "observed_min": 0.5,
+          "n": 8031
+        },
+        "rechtskenntnis": {
+          "weight": 15,
+          "declared_max": 15.0,
+          "observed_max": 13.5,
+          "observed_min": 0.5,
+          "n": 8031
+        },
+        "subsumtion": {
+          "weight": 15,
+          "declared_max": 15.0,
+          "observed_max": 13.5,
+          "observed_min": 0.5,
+          "n": 8031
+        },
+        "schwerpunktsetzung": {
+          "weight": 10,
+          "declared_max": 10.0,
+          "observed_max": 9.5,
+          "observed_min": 0.5,
+          "n": 8031
+        },
+        "methodischer_stil": {
+          "weight": 10,
+          "declared_max": 10.0,
+          "observed_max": 9.5,
+          "observed_min": 0.5,
+          "n": 8031
+        },
+        "gliederung": {
+          "weight": 5,
+          "declared_max": 5.0,
+          "observed_max": 5.0,
+          "observed_min": 0.5,
+          "n": 8031
+        },
+        "sprache": {
+          "weight": 3,
+          "declared_max": 3.0,
+          "observed_max": 3.0,
+          "observed_min": 0.5,
+          "n": 8031
+        },
+        "formalia": {
+          "weight": 2,
+          "declared_max": 2.0,
+          "observed_max": 2.0,
+          "observed_min": 0.5,
+          "n": 8031
+        }
+      },
+      "mean_abs_diff_dimsum_vs_raw_score": 0.0
+    }
+  },
+  "benchathon": {
+    "claude-opus-4-7": {
+      "n": 15,
+      "mean_full": 69.33333333333333,
+      "mean_core": 67.5925925925926
+    },
+    "gemini-3.1-pro-preview": {
+      "n": 15,
+      "mean_full": 68.3,
+      "mean_core": 66.70370370370371
+    },
+    "gpt-5.4": {
+      "n": 30,
+      "mean_full": 68.2,
+      "mean_core": 66.29629629629632
+    },
+    "gemini-3.1-flash-lite-preview": {
+      "n": 15,
+      "mean_full": 63.53333333333333,
+      "mean_core": 61.296296296296305
+    },
+    "claude-sonnet-4-6": {
+      "n": 15,
+      "mean_full": 58.86666666666667,
+      "mean_core": 56.1111111111111
+    },
+    "gpt-5.4-mini": {
+      "n": 15,
+      "mean_full": 58.6,
+      "mean_core": 55.888888888888886
+    },
+    "deepseek-ai/DeepSeek-V4-Pro": {
+      "n": 15,
+      "mean_full": 56.06666666666667,
+      "mean_core": 53.222222222222214
+    },
+    "Qwen/Qwen3.5-122B-A10B": {
+      "n": 15,
+      "mean_full": 49.4,
+      "mean_core": 46.11111111111111
+    },
+    "deepseek-ai/DeepSeek-V4-Flash": {
+      "n": 15,
+      "mean_full": 49.333333333333336,
+      "mean_core": 45.74074074074075
+    },
+    "Qwen/Qwen3.6-35B-A3B": {
+      "n": 15,
+      "mean_full": 42.4,
+      "mean_core": 38.40740740740741
+    },
+    "Qwen/Qwen3-235B-A22B-Thinking-2507": {
+      "n": 28,
+      "mean_full": 41.285714285714285,
+      "mean_core": 37.53968253968254
+    },
+    "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": {
+      "n": 15,
+      "mean_full": 37.8,
+      "mean_core": 33.37037037037037
+    }
+  },
+  "zjs": {
+    "gpt-5.4": {
+      "n": 585,
+      "mean_full": 60.35726495726496,
+      "mean_core": 57.76543209876544
+    },
+    "gemini-3.1-pro-preview": {
+      "n": 739,
+      "mean_full": 58.84573748308525,
+      "mean_core": 56.24642910840471
+    },
+    "claude-opus-4-7": {
+      "n": 651,
+      "mean_full": 58.0284178187404,
+      "mean_core": 55.21505376344083
+    },
+    "claude-sonnet-4-6": {
+      "n": 781,
+      "mean_full": 49.93405889884763,
+      "mean_core": 46.43690425380566
+    },
+    "deepseek-ai/DeepSeek-V4-Pro": {
+      "n": 608,
+      "mean_full": 49.75657894736842,
+      "mean_core": 46.348684210526336
+    },
+    "gpt-5.4-mini": {
+      "n": 581,
+      "mean_full": 49.74268502581756,
+      "mean_core": 46.1895199847007
+    },
+    "deepseek-ai/DeepSeek-V4-Flash": {
+      "n": 580,
+      "mean_full": 45.88793103448276,
+      "mean_core": 42.065134099616806
+    },
+    "gemini-3.1-flash-lite-preview": {
+      "n": 578,
+      "mean_full": 44.56574394463668,
+      "mean_core": 40.816993464052295
+    },
+    "Qwen/Qwen3.5-122B-A10B": {
+      "n": 863,
+      "mean_full": 41.31981460023175,
+      "mean_core": 37.39732200334749
+    },
+    "Qwen/Qwen3.6-35B-A3B": {
+      "n": 828,
+      "mean_full": 37.91787439613527,
+      "mean_core": 33.76409017713366
+    },
+    "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": {
+      "n": 581,
+      "mean_full": 36.09552495697074,
+      "mean_core": 31.704914897686013
+    },
+    "Qwen/Qwen3-235B-A22B-Thinking-2507": {
+      "n": 656,
+      "mean_full": 35.329268292682926,
+      "mean_core": 30.984078590785906
+    }
+  },
+  "rank_agreement": {
+    "benchathon": {
+      "spearman_rho": 1.0,
+      "kendall_tau": 0.9999999999999998,
+      "n_systems": 12
+    },
+    "zjs": {
+      "spearman_rho": 1.0,
+      "kendall_tau": 0.9999999999999998,
+      "n_systems": 12
+    }
+  }
+}

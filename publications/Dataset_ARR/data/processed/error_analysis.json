@@ -1601,6 +1601,10 @@
     },
     "accuracy": 0.7578947368421053,
     "accuracy_by_tier": {
+      "flagship": {
+        "n": 2123,
+        "accuracy": 0.8092322185586435
+      },
       "efficiency": {
         "n": 1062,
         "accuracy": 0.7306967984934086
@@ -1608,10 +1612,6 @@
       "open_reference": {
         "n": 3180,
         "accuracy": 0.7327044025157232
-      },
-      "flagship": {
-        "n": 2123,
-        "accuracy": 0.8092322185586435
       }
     },
     "coupling_subsumption_result_pearson": 0.846602426393374,
