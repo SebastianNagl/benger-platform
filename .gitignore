@@ -320,6 +320,9 @@ publications/Dataset_ARR/.quarto/
 publications/Dataset_ARR/manuscript_files/
 publications/Dataset_ARR/manuscript.tex
 publications/Dataset_ARR/manuscript.fdb_latexmk
+# arXiv upload bundles are built locally via `make arxiv` and shipped to
+# arXiv directly - never committed (the repo tree IS the source).
+publications/Dataset_ARR/benger_arxiv_source*
 
 # The repo-wide `*.json` rule below hides every JSON in the project. The
 # Dataset_ARR publication needs its small derived JSONs tracked (the ones

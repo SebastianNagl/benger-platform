@@ -47,6 +47,16 @@ MODEL = "__MODEL__"
 PROJECTS = json.loads('__PROJECTS__')
 PREFIXES = json.loads('__PREFIXES__')
 
+def _scrub(obj):
+    """Recursively drop account/billing identifiers from nested payloads
+    (judge evaluations embed their own call metadata)."""
+    if isinstance(obj, dict):
+        return {k: _scrub(v) for k, v in obj.items()
+                if k not in ("billed_user_id", "billed_organization_id")}
+    if isinstance(obj, list):
+        return [_scrub(v) for v in obj]
+    return obj
+
 db = SessionLocal()
 out = {"model_id": MODEL, "corpora": {}}
 for corpus, pid in PROJECTS.items():
@@ -68,9 +78,11 @@ for corpus, pid in PROJECTS.items():
                 md = json.loads(md)
             except Exception:
                 md = {"_raw": md}
-        # Drop the bulky prompt copies; keep operational + provenance keys.
-        slim = {k: v for k, v in (md or {}).items()
-                if k not in ("system_prompt", "instruction_prompt")}
+        # Drop the bulky prompt copies and account/billing identifiers;
+        # keep operational + provenance keys.
+        _DROP_KEYS = ("system_prompt", "instruction_prompt",
+                      "billed_user_id", "billed_organization_id")
+        slim = {k: v for k, v in (md or {}).items() if k not in _DROP_KEYS}
         gen_rows.append({
             "generation_id": g["generation_id"],
             "task_id": g["task_id"],
@@ -100,7 +112,7 @@ for corpus, pid in PROJECTS.items():
         eval_rows.append({
             "generation_id": e["generation_id"],
             "field_name": e["field_name"],
-            "metrics": m,
+            "metrics": _scrub(m),
             "created_at": e["created_at"],
         })
     out["corpora"][corpus] = {"generations": gen_rows, "evaluations": eval_rows}

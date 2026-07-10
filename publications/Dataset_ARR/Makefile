@@ -1,4 +1,4 @@
-.PHONY: derive render clean
+.PHONY: derive render arxiv clean
 
 derive:
 	uv run python scripts/derive_zjs_summary.py
@@ -23,6 +23,11 @@ render:
 	# `uv run` puts the project venv's python (ipykernel) on PATH so Quarto
 	# can discover the `benger-dataset-arr` jupyter kernel on any machine.
 	uv run quarto render manuscript.qmd
+
+# Self-contained arXiv source bundle (requires a fresh `make render` so
+# manuscript.tex and manuscript_files/ exist). Output is gitignored.
+arxiv:
+	bash scripts/build_arxiv_bundle.sh
 
 clean:
 	rm -rf .quarto manuscript_files manuscript_executed_files \
