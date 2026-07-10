@@ -3,8 +3,7 @@
 \caption{Judge-swapped Benchathon leaderboard: per-system mean raw score under each judge on the identical generation subset, systems ordered by the primary judge. Strictness moves the level; the ordering is preserved (rank agreement in Table~\ref{tbl-judge-swap-agreement}).}
 \label{tbl-judge-swap}
 \setlength{\tabcolsep}{4pt}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lccccccc}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lccccccc@{}}
 \toprule
 System & n & GPT-5.4-mini (primary) & Opus-4.7 & Sonnet-4.6 & Gemini-3.1-Pro & DeepSeek-V4-Pro & Qwen3.5-397B \\
 \midrule
@@ -21,6 +20,5 @@ Qwen3.6-35B & 15 & 42.4 & 31.5 & 44.2 & 40.2 & 40.7 & 54.2 \\
 Qwen3-235B & 28 & 41.3 & 30.7 & 41.2 & 43.1 & 36.1 & 51.9 \\
 Llama-4 & 14 & 37.7 & 29.0 & 37.0 & 37.8 & 31.6 & 51.8 \\
 \bottomrule
-\end{tabular}
-}%  end \resizebox
+\end{tabular*}
 \end{table*}

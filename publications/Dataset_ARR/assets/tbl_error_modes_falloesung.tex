@@ -3,8 +3,7 @@
 \caption{Error-analysis mode counts on the two \emph{Falll\"osung} corpora under the primary judge: flagged instances per mode, corpus n, and per-tier flag rates.}
 \label{tbl-error-modes-falloesung}
 \setlength{\tabcolsep}{4pt}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lcccccc}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccccc@{}}
 \toprule
 Corpus & Mode & Count & n & Flagship & Efficiency & Open-weight \\
 \midrule
@@ -19,6 +18,5 @@ ZJS & Long but shallow & 1198 & 8031 & 23.7\% & 4.6\% & 12.0\% \\
  & Correct outcome, weak Subsumtion & 19 & 8031 & 0.1\% & 0.4\% & 0.3\% \\
  & Wrong outcome, sound Subsumtion & 19 & 8031 & 0.5\% & 0.1\% & 0.1\% \\
 \bottomrule
-\end{tabular}
-}%  end \resizebox
+\end{tabular*}
 \end{table*}

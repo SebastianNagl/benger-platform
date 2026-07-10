@@ -3,8 +3,7 @@
 \caption{Automatic metrics anchored to the mean blind-human raw grade on the 45-pick validation subset (Pearson $r$; 30 human-authored, 15 LLM-generated picks). The residual column correlates (judge $-$ mean blind grade) with the metric on the pooled picks; the uniformly negative values run opposite to a judge reference-style bias. chrF is not computed on Benchathon; BERTScore is unavailable for the human-authored sidecar. Small-$n$ cells are directional. Bootstrap CIs and per-split residuals in \texttt{metric\_vs\_human.json} of the released pipeline.}
 \label{tbl-metric-vs-human}
 \setlength{\tabcolsep}{4pt}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lcccc}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lcccc@{}}
 \toprule
 Metric & Human-auth. & LLM-gen. & Pooled & Residual (pooled) \\
 \midrule
@@ -15,6 +14,5 @@ BERTScore & — & +0.59 {\scriptsize (n=15)} & +0.59 {\scriptsize (n=15)} & — 
 MoverScore & +0.87 {\scriptsize (n=7)} & +0.85 {\scriptsize (n=15)} & +0.85 {\scriptsize (n=22)} & — \\
 Semantic sim. & +0.53 {\scriptsize (n=7)} & -0.01 {\scriptsize (n=15)} & +0.32 {\scriptsize (n=22)} & — \\
 \bottomrule
-\end{tabular}
-}%  end \resizebox
+\end{tabular*}
 \end{table*}
