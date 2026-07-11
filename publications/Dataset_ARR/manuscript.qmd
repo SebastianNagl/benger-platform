@@ -1501,9 +1501,10 @@ for _corpus, _clabel in (("benchathon", "Benchathon"), ("zjs", "ZJS")):
 
 _rc_ra = reasoning_core.get("rank_agreement") or {}
 _rc_cap = (
-    "Per-system mean judge score under the full 10-dimension rubric vs.\\ the "
-    "seven-dimension reasoning core (90/100 points, rescaled), primary judge. "
-    "System rank agreement full vs.\\ core: Spearman $\\rho$ = "
+    "Per-system mean judge score under the full 10-dimension rubric "
+    "(\\emph{Full}) vs.\\ the seven-dimension reasoning core rescaled to "
+    "/100 (\\emph{Core}), primary judge. System rank agreement full vs.\\ "
+    "core: Spearman $\\rho$ = "
     f"{fmt((_rc_ra.get('benchathon') or {}).get('spearman_rho'), 2)} "
     "(Benchathon), "
     f"{fmt((_rc_ra.get('zjs') or {}).get('spearman_rho'), 2)} (ZJS); "
@@ -1515,11 +1516,12 @@ _rc_cap = (
 emit_tex_table(
     "tbl-reasoning-core",
     _rc_cap,
-    ["Corpus", "System", "n", "Full rubric", "Reasoning core"],
+    ["Corpus", "System", "n", "Full", "Core"],
     _rc_rows,
     tex_escape=False,
     span_two_columns=False,
     fill_width=True,
+    tabcolsep_pt=3,
 )
 ```
 
@@ -3212,13 +3214,15 @@ emit_tex_table(
     "tbl-judge-swap",
     "Judge-swapped Benchathon leaderboard: per-system mean raw score under "
     "each judge on the identical generation subset, systems ordered by the "
-    "primary judge. Strictness moves the level; the ordering is preserved "
-    "(rank agreement in Table~\\ref{tbl-judge-swap-agreement}).",
-    ["System", "n"] + [l for _k, l in _js_judges],
+    "primary judge ($\\dagger$). Strictness moves the level; the ordering "
+    "is preserved (rank agreement in Table~\\ref{tbl-judge-swap-agreement}).",
+    ["System", "n"] + [l.replace(" (primary)", "$^\\dagger$")
+                       for _k, l in _js_judges],
     _js_rows,
     tex_escape=False,
     span_two_columns=True,
     fill_width=True,
+    tabcolsep_pt=3,
 )
 ```
 
