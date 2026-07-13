@@ -1587,11 +1587,37 @@ class TestLLMJudgeDeepCoverage:
     # ----- E2E test mock path -----
 
     def test_e2e_test_mode_returns_mock_score(self):
+        # The mock is emitted on the evaluator's CONFIGURED scale so the
+        # normalization ladder in evaluate() lands back in 0-1 — a bare 0-1
+        # mock under the default "1-5" scale normalized to (x-1)/4 ≈ NEGATIVE
+        # and poisoned aggregates (base range is [0.6, 1.0)).
         ev = self._make_evaluator(ai_service=None)
         with patch.dict(os.environ, {"E2E_TEST_MODE": "true"}):
             result = ev._evaluate_single_criterion("ctx", "gt", "pred", "helpfulness")
             assert result is not None
+            expected_lo, expected_hi = {
+                "0-1": (0.6, 1.0),
+                "0-100": (60.0, 100.0),
+            }.get(ev.score_scale, (1 + 0.6 * 4, 5.0))
+            assert expected_lo <= result["score"] <= expected_hi
+            assert "Mock" in result["justification"]
+
+    def test_e2e_test_mode_mock_respects_zero_one_scale(self):
+        ev = self._make_evaluator(ai_service=None)
+        ev.score_scale = "0-1"
+        with patch.dict(os.environ, {"E2E_TEST_MODE": "true"}):
+            result = ev._evaluate_single_criterion("ctx", "gt", "pred", "helpfulness")
+            assert result is not None
             assert 0.6 <= result["score"] <= 1.0
+
+    def test_e2e_test_mode_fires_even_with_ai_service(self):
+        # The service layer's own E2E mock answers with generic prose the
+        # judge parser can't score — the deterministic mock must win even
+        # when an ai_service was constructed.
+        ev = self._make_evaluator()  # default MagicMock ai_service
+        with patch.dict(os.environ, {"E2E_TEST_MODE": "true"}):
+            result = ev._evaluate_single_criterion("ctx", "gt", "pred", "helpfulness")
+            assert result is not None
             assert "Mock" in result["justification"]
 
     def test_no_e2e_no_service_returns_none(self):
