@@ -48,6 +48,29 @@ class LabelConfigParser:
     def _allowed_field_types(cls) -> set:
         return set(cls.SUPPORTED_FIELD_TYPES) | cls._EXTENSION_FIELD_TYPES
 
+    @classmethod
+    def bound_data_fields(cls, label_config) -> set:
+        """Task-data keys the label config actually binds (``value="$key"``).
+
+        These are the only ``task.data`` keys an annotator ever sees rendered
+        in the labeling UI. Everything else in ``task.data`` — most notably a
+        reference solution / Musterlösung / ground truth — is unbound and must
+        be withheld from annotator-facing task payloads (issue benger-extended
+        #56). On a malformed/empty config this FAILS CLOSED (returns an empty
+        set → nothing is considered visible). Mirrors the extended korrektur
+        blinding helper (``_annotator_visible_fields``); kept here so the
+        generic task-serving endpoints share one definition.
+        """
+        bound: set = set()
+        try:
+            for field in cls.extract_fields(label_config or "", sanitize=False):
+                value = (field.get("attributes") or {}).get("value")
+                if isinstance(value, str) and value.startswith("$"):
+                    bound.add(value[1:])
+        except Exception:  # pragma: no cover - defensive: never leak on parse error
+            return set()
+        return bound
+
     @staticmethod
     def extract_fields(label_config: str, sanitize: bool = True) -> List[Dict]:
         """

@@ -1,5 +1,10 @@
 """Read endpoints: list project tasks, next task, single task."""
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
+from .blinding import (
+    annotator_bound_fields_or_none_async,
+    blind_task_data,
+    revealed_task_ids_async,
+)
 from routers.projects.deps import ProjectAccess, require_project_access
 
 
@@ -349,13 +354,29 @@ async def list_project_tasks(
                 people.append({"id": uid, "name": resolved.name})
         return people
 
+    # Annotator blinding (extended #56): reduce task.data to the label-config-
+    # bound keys for annotator-tier users so unbound reference/gold keys
+    # (musterloesung, ground_truth, …) never ship in the payload. Editor-tier
+    # roles get the full data; reveal-enabled projects un-blind tasks the user
+    # has already submitted. See tasks/blinding.py for the policy.
+    _bound_fields = await annotator_bound_fields_or_none_async(db, current_user, project)
+    _revealed_ids = (
+        await revealed_task_ids_async(db, current_user, project, [t.id for t in tasks])
+        if _bound_fields is not None
+        else set()
+    )
+
     # Enrich tasks with assignment information
     result = []
     for task in tasks:
         task_dict = {
             "id": task.id,
             "inner_id": task.inner_id,
-            "data": task.data,
+            "data": (
+                task.data
+                if _bound_fields is None or task.id in _revealed_ids
+                else blind_task_data(task.data, _bound_fields)
+            ),
             "meta": task.meta,
             "created_at": task.created_at,
             "updated_at": task.updated_at,
@@ -752,10 +773,23 @@ async def get_next_task(
             select(func.count(Generation.id)).where(Generation.task_id == next_task.id)
         )
     ).scalar() or 0
+    # Annotator blinding (extended #56) — see tasks/blinding.py. get_next_task
+    # serves tasks the user has NOT yet annotated, but the reveal check stays
+    # for consistency (a no-op unless the project reveals after submit).
+    _bound_fields = await annotator_bound_fields_or_none_async(db, current_user, project)
+    _revealed_ids = (
+        await revealed_task_ids_async(db, current_user, project, [next_task.id])
+        if _bound_fields is not None
+        else set()
+    )
     task_dict = {
         "id": next_task.id,
         "inner_id": next_task.inner_id,
-        "data": next_task.data,
+        "data": (
+            next_task.data
+            if _bound_fields is None or next_task.id in _revealed_ids
+            else blind_task_data(next_task.data, _bound_fields)
+        ),
         "meta": next_task.meta,
         "created_at": next_task.created_at,
         "updated_at": next_task.updated_at,
@@ -818,10 +852,26 @@ async def get_task(
         )
     ).scalar() or 0
 
+    # Annotator blinding (extended #56) — see tasks/blinding.py.
+    _bound_fields = (
+        await annotator_bound_fields_or_none_async(db, current_user, project)
+        if project is not None
+        else None
+    )
+    _revealed_ids = (
+        await revealed_task_ids_async(db, current_user, project, [task.id])
+        if _bound_fields is not None
+        else set()
+    )
+
     # Return full task with meta field (Label Studio aligned)
     task_dict = {
         "id": task.id,
-        "data": task.data,
+        "data": (
+            task.data
+            if _bound_fields is None or task.id in _revealed_ids
+            else blind_task_data(task.data, _bound_fields)
+        ),
         "meta": task.meta,  # Full metadata, not just tags
         "created_at": task.created_at,
         "updated_at": task.updated_at,
