@@ -93,7 +93,10 @@ jest.mock('@headlessui/react', () => {
       React.createElement(Ctx.Provider, { value: { open, setOpen } }, children)
     )
   }
-  Menu.Button = ({ children, as: As, ...rest }: any) => {
+  // Named components (not `Menu.X = () => …`): rules-of-hooks only accepts
+  // hook calls inside capitalized function names, and react/display-name
+  // needs a name to infer.
+  const MenuButton = ({ children, as: As, ...rest }: any) => {
     const { open, setOpen } = React.useContext(Ctx)
     const Comp = As || 'button'
     return React.createElement(
@@ -102,11 +105,13 @@ jest.mock('@headlessui/react', () => {
       children
     )
   }
-  Menu.Items = ({ children }: any) => {
+  Menu.Button = MenuButton
+  const MenuItems = ({ children }: any) => {
     const { open } = React.useContext(Ctx)
     if (!open) return null
     return React.createElement('div', { role: 'menu' }, children)
   }
+  Menu.Items = MenuItems
   Menu.Item = ({ children }: any) =>
     typeof children === 'function' ? children({ active: false }) : children
 

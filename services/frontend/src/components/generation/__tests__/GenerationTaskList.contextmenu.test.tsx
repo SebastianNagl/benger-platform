@@ -152,7 +152,8 @@ jest.mock('@/components/shared/FilterToolbar', () => {
       {rightExtras}
     </div>
   )
-  FilterToolbar.Field = ({ children }: any) => <div>{children}</div>
+  const FilterToolbarField = ({ children }: any) => <div>{children}</div>
+  FilterToolbar.Field = FilterToolbarField
   return { FilterToolbar }
 })
 

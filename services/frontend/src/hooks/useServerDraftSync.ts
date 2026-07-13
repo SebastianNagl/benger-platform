@@ -34,7 +34,12 @@ export function useServerDraftSync(
   // churn many times per second, which would tear down and recreate the 30s
   // interval before it could ever fire (same failure + fix as TimerIntegration).
   const annotationsRef = useRef<any[]>(annotations)
-  annotationsRef.current = annotations
+  // Written from an effect rather than during render (react-hooks/refs):
+  // identical net effect here, since the only reader is the 30s interval
+  // below, which fires long after commit.
+  useEffect(() => {
+    annotationsRef.current = annotations
+  })
   const lastSyncedRef = useRef<string>('[]')
 
   // When the annotation set is cleared (most notably right after a submit

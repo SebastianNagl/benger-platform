@@ -402,7 +402,7 @@ describe('LabelingInterface - TimerSlot onAutoSubmit', () => {
   // Mount a TimerSlot that exposes a button to fire onAutoSubmit, and force
   // strictTimerPhase to 'annotating' by returning a running session.
   function mountTimerSlot() {
-    mockSlots.TimerIntegration = ({ onAutoSubmit }: any) => (
+    const TimerSlotMock = ({ onAutoSubmit }: any) => (
       <button
         data-testid="fire-auto-submit"
         onClick={() => onAutoSubmit([{ from_name: 'a', value: 'x' }])}
@@ -410,6 +410,7 @@ describe('LabelingInterface - TimerSlot onAutoSubmit', () => {
         AutoSubmit
       </button>
     )
+    mockSlots.TimerIntegration = TimerSlotMock
     mockApiGet.mockResolvedValue({
       server_time: new Date().toISOString(),
       session: { is_expired: false, completed_at: null },
@@ -474,9 +475,10 @@ describe('LabelingInterface - TimerSlot onAutoSubmit', () => {
 
   it('auto-submit mounts the immediate-eval slot when immediate eval is enabled', async () => {
     mountTimerSlot()
-    mockSlots.ImmediateEvaluation = ({ annotationId }: any) => (
+    const ImmediateEvalMock = ({ annotationId }: any) => (
       <div data-testid="immediate-eval">eval:{annotationId}</div>
     )
+    mockSlots.ImmediateEvaluation = ImmediateEvalMock
     setupMocks({
       currentProject: {
         ...strictProject,
@@ -533,11 +535,12 @@ describe('LabelingInterface - TimerSlot onAutoSubmit', () => {
 describe('LabelingInterface - ImmediateEvalSlot onClose', () => {
   it('advances to next task on close after a manual submit with immediate eval', async () => {
     const completeCurrentTask = jest.fn()
-    mockSlots.ImmediateEvaluation = ({ onClose }: any) => (
+    const ImmediateEvalCloseMock = ({ onClose }: any) => (
       <button data-testid="close-eval" onClick={onClose}>
         Close Eval
       </button>
     )
+    mockSlots.ImmediateEvaluation = ImmediateEvalCloseMock
     mockApiGet.mockResolvedValue({
       server_time: new Date().toISOString(),
       session: null,
@@ -848,7 +851,7 @@ describe('LabelingInterface - non-strict overtime (no auto-submit at 0)', () => 
   }
 
   function mountTimerSlot() {
-    mockSlots.TimerIntegration = ({ onAutoSubmit }: any) => (
+    const TimerSlotMock = ({ onAutoSubmit }: any) => (
       <button
         data-testid="fire-auto-submit"
         onClick={() => onAutoSubmit([{ from_name: 'a', value: 'x' }])}
@@ -856,6 +859,7 @@ describe('LabelingInterface - non-strict overtime (no auto-submit at 0)', () => 
         AutoSubmit
       </button>
     )
+    mockSlots.TimerIntegration = TimerSlotMock
     mockApiGet.mockResolvedValue({
       server_time: new Date().toISOString(),
       session: { is_expired: false, completed_at: null },

@@ -67,20 +67,20 @@ describe('ApiClientContext', () => {
 
     it('returns the same instance across multiple hook calls', () => {
       const client = makeFakeClient()
-      let a: any
-      let b: any
-      const Probe = () => {
-        a = useApiClient()
-        b = useApiClient()
-        return null
-      }
-      render(
-        <ApiClientContextProvider client={client}>
-          <Probe />
-        </ApiClientContextProvider>
+      // renderHook keeps the render pure (react-hooks/globals + immutability
+      // forbid writing to outer bindings/objects from inside a component).
+      const { result } = renderHook(
+        () => ({ a: useApiClient(), b: useApiClient() }),
+        {
+          wrapper: ({ children }) => (
+            <ApiClientContextProvider client={client}>
+              {children}
+            </ApiClientContextProvider>
+          ),
+        }
       )
-      expect(a).toBe(b)
-      expect(a).toBe(client)
+      expect(result.current.a).toBe(result.current.b)
+      expect(result.current.a).toBe(client)
     })
   })
 
