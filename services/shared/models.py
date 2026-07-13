@@ -644,6 +644,260 @@ class MarketplaceOrder(Base):
         )
 
 
+# ===================================================================
+# LTI 1.3 (Moodle integration) Models
+# ===================================================================
+# Persistence for the LTI 1.3 / Moodle integration. The schema is
+# platform-owned (split rule: ALL DB tables live in benger-platform);
+# the proprietary protocol logic — OIDC third-party login, id_token
+# validation, deep linking, AGS grade passback — lives in
+# ``benger_extended`` and only reads/writes these tables.
+
+
+class LtiPlatformRegistration(Base):
+    """A registered LTI 1.3 platform (one Moodle site) for an organization.
+
+    The tool-side half of an LTI 1.3 registration: one row per
+    ``(issuer, client_id)`` pair, carrying the platform's OIDC/JWKS endpoints
+    plus per-tenant policy knobs (``link_existing_users_by_email``,
+    ``instructor_org_role``). Persistence only — the login/launch flow that
+    consumes these values lives in ``benger_extended``. ``status='disabled'``
+    blocks launches without losing the wiring.
+    """
+
+    __tablename__ = "lti_platform_registrations"
+
+    id = Column(String, primary_key=True, index=True)
+    # RESTRICT: deleting an org with live LMS wiring must be an explicit,
+    # two-step act — silently cascading a tenant's Moodle integration away
+    # (and with it every resource/user link below) would be surprising.
+    organization_id = Column(
+        String,
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    name = Column(String(200), nullable=False)
+    issuer = Column(String(500), nullable=False)
+    client_id = Column(String(255), nullable=False)
+    auth_login_url = Column(String(500), nullable=False)
+    auth_token_url = Column(String(500), nullable=False)
+    jwks_uri = Column(String(500), nullable=False)
+    # Policy: link an LTI identity to an existing BenGER account by verified
+    # email match (else always provision a fresh account).
+    link_existing_users_by_email = Column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    # contributor | org_admin | none — org role granted to LMS instructors.
+    instructor_org_role = Column(
+        String(32), nullable=False, default="contributor", server_default="contributor"
+    )
+    # active | disabled
+    status = Column(
+        String(16), nullable=False, default="active", server_default="active", index=True
+    )
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    deployments = relationship(
+        "LtiDeployment",
+        back_populates="registration",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("issuer", "client_id", name="uq_lti_registration_issuer_client"),
+        Index("ix_lti_platform_registrations_issuer", "issuer"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<LtiPlatformRegistration(id={self.id}, issuer={self.issuer}, "
+            f"client_id={self.client_id}, status={self.status})>"
+        )
+
+
+class LtiDeployment(Base):
+    """A deployment id under a registered LTI platform.
+
+    Moodle mints one ``deployment_id`` per tool deployment (typically one per
+    site). Launches are only accepted for known, active deployments of the
+    registration — unknown deployment ids are rejected by the extended
+    launch validator.
+    """
+
+    __tablename__ = "lti_deployments"
+
+    id = Column(String, primary_key=True, index=True)
+    registration_id = Column(
+        String,
+        ForeignKey("lti_platform_registrations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    deployment_id = Column(String(255), nullable=False)
+    # active | disabled
+    status = Column(String(16), nullable=False, default="active", server_default="active")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    registration = relationship("LtiPlatformRegistration", back_populates="deployments")
+
+    __table_args__ = (
+        UniqueConstraint("registration_id", "deployment_id", name="uq_lti_deployment"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<LtiDeployment(id={self.id}, registration_id={self.registration_id}, "
+            f"deployment_id={self.deployment_id})>"
+        )
+
+
+class LtiResourceLink(Base):
+    """A placed LTI resource link (one Moodle activity) mapped to a project.
+
+    Upserted at launch / deep-linking time by the extended layer. ``project_id``
+    is the BenGER exam the activity opens (SET NULL keeps the row as an
+    audit/config record if the project is deleted). The AGS fields
+    (``lineitem_url`` / ``lineitems_url`` / ``ags_scopes``) cache the grade
+    passback endpoints and scopes advertised in the launch claims;
+    ``sync_ai_grades`` is the per-activity opt-out for automatic score sync.
+    """
+
+    __tablename__ = "lti_resource_links"
+
+    id = Column(String, primary_key=True, index=True)
+    registration_id = Column(
+        String,
+        ForeignKey("lti_platform_registrations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    deployment_id = Column(String(255), nullable=False)
+    resource_link_id = Column(String(255), nullable=False)
+    project_id = Column(
+        String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    )
+    context_id = Column(String(255), nullable=True)
+    context_title = Column(String(500), nullable=True)
+    resource_title = Column(String(500), nullable=True)
+    lineitem_url = Column(Text, nullable=True)
+    lineitems_url = Column(Text, nullable=True)
+    ags_scopes = Column(JSON, nullable=True)
+    sync_ai_grades = Column(Boolean, nullable=False, default=True, server_default="true")
+    linked_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    linked_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "registration_id",
+            "deployment_id",
+            "resource_link_id",
+            name="uq_lti_resource_link",
+        ),
+        Index("ix_lti_resource_links_project", "project_id"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<LtiResourceLink(id={self.id}, resource_link_id={self.resource_link_id}, "
+            f"project_id={self.project_id})>"
+        )
+
+
+class LtiUserLink(Base):
+    """Mapping from an LTI platform identity (``sub``) to a BenGER user.
+
+    Created on first launch — auto-provision or verified-email link, per the
+    registration's policy. ``claims`` caches a minimized ``{name, email,
+    roles}`` snapshot from the last launch (data minimization: never the full
+    id_token); the consent fields record the GDPR consent shown at account
+    linking. CASCADE on ``user_id``: right-to-erasure removes the link.
+    """
+
+    __tablename__ = "lti_user_links"
+
+    id = Column(String, primary_key=True, index=True)
+    registration_id = Column(
+        String,
+        ForeignKey("lti_platform_registrations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    sub = Column(String(255), nullable=False)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Minimized {name, email, roles} cache from the last launch.
+    claims = Column(JSON, nullable=True)
+    consent_at = Column(DateTime(timezone=True), nullable=True)
+    consent_version = Column(String(32), nullable=True)
+    last_launch_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("registration_id", "sub", name="uq_lti_user_link"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<LtiUserLink(id={self.id}, registration_id={self.registration_id}, "
+            f"user_id={self.user_id})>"
+        )
+
+
+class LtiGradeSync(Base):
+    """Grade-passback outbox: one row per (resource link, student).
+
+    The AGS score-sync worker (``benger_extended``) upserts a row when a
+    syncable grade appears and drives it pending → synced / failed with
+    bounded retries (``attempts`` / ``next_retry_at``). ``last_synced_hash``
+    dedupes — an unchanged score is never re-sent to the LMS.
+    ``ix_lti_grade_syncs_due`` serves the worker's due-scan
+    (``status='pending' AND next_retry_at <= now()``).
+    """
+
+    __tablename__ = "lti_grade_syncs"
+
+    id = Column(String, primary_key=True, index=True)
+    resource_link_id = Column(
+        String,
+        ForeignKey("lti_resource_links.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    # pending | synced | failed
+    status = Column(
+        String(16), nullable=False, default="pending", server_default="pending"
+    )
+    attempts = Column(Integer, nullable=False, default=0, server_default="0")
+    next_retry_at = Column(DateTime(timezone=True), nullable=True)
+    last_synced_at = Column(DateTime(timezone=True), nullable=True)
+    last_synced_score = Column(Float, nullable=True)
+    last_synced_hash = Column(String(64), nullable=True)
+    source_task_evaluation_id = Column(
+        String, ForeignKey("task_evaluations.id", ondelete="SET NULL"), nullable=True
+    )
+    last_error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("resource_link_id", "user_id", name="uq_lti_grade_sync"),
+        Index("ix_lti_grade_syncs_due", "status", "next_retry_at"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<LtiGradeSync(id={self.id}, resource_link_id={self.resource_link_id}, "
+            f"user_id={self.user_id}, status={self.status})>"
+        )
+
+
 class Invitation(Base):
     """Organization invitation system for user onboarding"""
 
