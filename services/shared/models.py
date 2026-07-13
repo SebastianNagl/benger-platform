@@ -1133,7 +1133,7 @@ class EvaluationRun(Base):
     eval_metadata = Column(JSON, nullable=True)
     status = Column(
         String, default="completed", nullable=False
-    )  # pending, running, completed, failed
+    )  # pending, running, paused, completed, failed, cancelled
     error_message = Column(Text, nullable=True)  # Error message if failed
     # Number of samples evaluated
     samples_evaluated = Column(Integer, nullable=True)
@@ -1142,6 +1142,9 @@ class EvaluationRun(Base):
     created_by = Column(String, nullable=False)  # User who ran the evaluation
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)
+    # Lifecycle (issue #198, migration 078): pause marker + retry counter.
+    paused_at = Column(DateTime(timezone=True), nullable=True)
+    retry_count = Column(Integer, default=0, server_default="0", nullable=False)
 
     # Relationships
     # task relationship removed - old task system cleanup

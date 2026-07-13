@@ -12,6 +12,7 @@ Submodule layout:
 - ``_common``  — shared imports, ``router``, all request/response models
 - ``run``      — POST /run                         (run_evaluation)
 - ``cancel``   — POST /run/{id}/cancel + cancel-all (_cancel_runs + handlers)
+- ``lifecycle``— POST /run/{id}/pause|resume|retry   (issue #198 parity)
 - ``fields``   — GET  /projects/{id}/available-fields
 - ``results``  — GET  /run/results/...             (+ _resolve_scope_block)
 """
@@ -24,12 +25,14 @@ from ._common import (  # noqa: F401
     EvaluationRunResponse,
     AvailableFieldsResponse,
     CancelEvaluationResponse,
+    EvaluationLifecycleResponse,
 )
 
 # Importing the submodules registers their handlers onto the shared
 # ``router`` (via the ``@router.<method>`` decorators) at import time.
 from . import run  # noqa: F401,E402
 from . import cancel  # noqa: F401,E402
+from . import lifecycle  # noqa: F401,E402
 from . import fields  # noqa: F401,E402
 from . import results  # noqa: F401,E402
 
@@ -39,6 +42,11 @@ from .cancel import (  # noqa: F401,E402
     _cancel_runs,
     cancel_evaluation_run,
     cancel_all_project_evaluations,
+)
+from .lifecycle import (  # noqa: F401,E402
+    pause_evaluation_run,
+    resume_evaluation_run,
+    retry_evaluation_run,
 )
 from .fields import get_available_fields  # noqa: F401,E402
 from .results import (  # noqa: F401,E402
@@ -55,10 +63,14 @@ __all__ = [
     "EvaluationRunResponse",
     "AvailableFieldsResponse",
     "CancelEvaluationResponse",
+    "EvaluationLifecycleResponse",
     "run_evaluation",
     "_cancel_runs",
     "cancel_evaluation_run",
     "cancel_all_project_evaluations",
+    "pause_evaluation_run",
+    "resume_evaluation_run",
+    "retry_evaluation_run",
     "get_available_fields",
     "_resolve_scope_block",
     "get_project_evaluation_results",

@@ -1430,6 +1430,23 @@ def run_evaluation(
                     "evaluation_id": evaluation_id,
                 }
 
+            # Entry guard (issue #198): never flip a terminal or paused run
+            # back to 'running'. Covers (a) a pause/cancel landing while the
+            # orchestrator message sat in the queue and (b) broker-level
+            # redelivery of the orchestrator after the run already finished.
+            # Resume/retry flip the run to 'pending' before re-dispatching,
+            # so legitimate re-runs pass this guard.
+            if evaluation.status in ("completed", "failed", "cancelled", "paused"):
+                logger.info(
+                    f"run_evaluation: eval {evaluation_id} is '{evaluation.status}' "
+                    "at orchestrator entry; skipping dispatch."
+                )
+                return {
+                    "status": "skipped",
+                    "reason": f"status_{evaluation.status}",
+                    "evaluation_id": evaluation_id,
+                }
+
             evaluation.status = "running"
             db.commit()
 
@@ -1566,7 +1583,12 @@ def run_evaluation(
                 metric = config.get("metric", "")
                 if metric.startswith("llm_judge_"):
                     config_id = config.get("id", "unknown")
-                    params = config.get("metric_parameters", {})
+                    # `or {}`: the key is often PRESENT with a null value
+                    # (EvaluationConfigItem.metric_parameters is Optional and
+                    # serializes as None) — a plain dict default only covers
+                    # the absent-key case and `_resolve_judges(None)` crashed
+                    # the whole orchestrator (AttributeError on .get).
+                    params = config.get("metric_parameters") or {}
                     judges_list = _resolve_judges(params)
 
                     triggered_by = (
@@ -1830,7 +1852,7 @@ def run_evaluation(
                     .filter(
                         TaskEvaluation.task_id.in_(task_id_list),
                         TaskEvaluation.generation_id.isnot(None),
-                        EvaluationRun.status.in_(("completed", "running", "pending", "cancelled")),
+                        EvaluationRun.status.in_(("completed", "running", "pending", "cancelled", "paused")),
                     )
                     .all()
                 )
@@ -1931,7 +1953,7 @@ def run_evaluation(
                         .filter(
                             TaskEvaluation.task_id.in_(task_id_list),
                             TaskEvaluation.annotation_id.isnot(None),
-                            EvaluationRun.status.in_(("completed", "running", "pending", "cancelled")),
+                            EvaluationRun.status.in_(("completed", "running", "pending", "cancelled", "paused")),
                         )
                         .all()
                     )
@@ -2078,9 +2100,9 @@ def run_evaluation(
             # parent-status check. Saves Celery message churn + worker
             # CPU for no useful work.
             db.refresh(evaluation)
-            if evaluation.status in ("cancelled", "failed", "completed"):
+            if evaluation.status in ("cancelled", "failed", "completed", "paused"):
                 logger.info(
-                    f"Eval {evaluation_id} reached terminal status "
+                    f"Eval {evaluation_id} reached status "
                     f"'{evaluation.status}' during orchestrator setup; "
                     "skipping chord dispatch."
                 )
@@ -2519,7 +2541,7 @@ def run_single_sample_evaluation(
             metric_type = eval_cfg.get("metric", "")
             pred_fields = eval_cfg.get("prediction_fields", [])
             ref_fields = eval_cfg.get("reference_fields", [])
-            metric_params = eval_cfg.get("metric_parameters", {})
+            metric_params = eval_cfg.get("metric_parameters") or {}
 
             prediction_value = None
             reference_value = None
@@ -2918,7 +2940,7 @@ def _build_sample_evaluator_for_cell(
     for config in configs_for_cell:
         config_id = config.get("id", "unknown")
         metric = config.get("metric", "")
-        params = config.get("metric_parameters", {})
+        params = config.get("metric_parameters") or {}
         for pred_field in config.get("prediction_fields", []):
             for ref_field in config.get("reference_fields", []):
                 field_key = f"{config_id}|{pred_field}|{ref_field}"
@@ -3289,6 +3311,20 @@ def finalize_evaluation_run(
             )
             return {"status": "noop", "reason": "already_terminal",
                     "evaluation_id": evaluation_id, "current_status": evaluation.status}
+
+        # Paused is NOT terminal but must also no-op (issue #198): when an
+        # operator pauses mid-run, the in-flight cells skip themselves and
+        # the chord still drains into this callback. Marking the run
+        # completed/failed here would silently end the pause. Leave the run
+        # 'paused' with its partial task_evaluations; the resume endpoint
+        # re-dispatches missing-only and THAT run's chord finalizes.
+        if evaluation.status == "paused":
+            logger.info(
+                f"finalize_evaluation_run: eval {evaluation_id} is paused; "
+                "leaving partial results for resume"
+            )
+            return {"status": "noop", "reason": "paused",
+                    "evaluation_id": evaluation_id, "current_status": "paused"}
 
         # Walk EvaluationJudgeRun children — lifted from ex-`tasks.py:3870-3893`.
         child_runs = db.query(EvaluationJudgeRun).filter(

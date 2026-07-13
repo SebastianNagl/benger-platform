@@ -25,6 +25,19 @@ import {
   UploadedDataResponse,
 } from './types'
 
+/** Result of a pause/resume/retry lifecycle action on a run (issue #198). */
+export interface EvaluationLifecycleResult {
+  evaluation_id: string
+  action: 'pause' | 'resume' | 'retry'
+  /** False when the run was not in a state the action applies to. */
+  changed: boolean
+  previous_status?: string | null
+  status: string
+  retry_count?: number | null
+  celery_task_id?: string | null
+  message: string
+}
+
 export class EvaluationsClient extends BaseApiClient {
   // Dashboard statistics
   async getDashboardStats(): Promise<{
@@ -999,6 +1012,36 @@ export class EvaluationsClient extends BaseApiClient {
     message: string
   }> {
     return this.request(`/evaluations/run/${evaluationId}/cancel`, {
+      method: 'POST',
+    })
+  }
+
+  /**
+   * Pause an in-flight evaluation run (issue #198). Cell sub-tasks skip
+   * while paused; completed scores survive. Resume continues missing-only.
+   */
+  async pauseEvaluationRun(evaluationId: string): Promise<EvaluationLifecycleResult> {
+    return this.request(`/evaluations/run/${evaluationId}/pause`, {
+      method: 'POST',
+    })
+  }
+
+  /**
+   * Resume a paused (or continue a cancelled) evaluation run: same run id,
+   * missing-only re-dispatch so completed cells are reused.
+   */
+  async resumeEvaluationRun(evaluationId: string): Promise<EvaluationLifecycleResult> {
+    return this.request(`/evaluations/run/${evaluationId}/resume`, {
+      method: 'POST',
+    })
+  }
+
+  /**
+   * Retry a failed evaluation run: same run id, missing-only re-dispatch,
+   * increments the server-side retry counter.
+   */
+  async retryEvaluationRun(evaluationId: string): Promise<EvaluationLifecycleResult> {
+    return this.request(`/evaluations/run/${evaluationId}/retry`, {
       method: 'POST',
     })
   }

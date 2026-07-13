@@ -83,7 +83,10 @@ def evaluate_generation_cell_impl(
         parent_status = db.query(EvaluationRun.status).filter(
             EvaluationRun.id == evaluation_id
         ).scalar()
-        if parent_status in ("cancelled", "failed", "completed"):
+        # 'paused' (issue #198) skips like the terminal states: cells drain
+        # without burning judge quota, the chord finalizer no-ops on paused,
+        # and resume re-dispatches whatever is still missing.
+        if parent_status in ("cancelled", "failed", "completed", "paused"):
             return {"status": "skipped", "reason": f"parent_{parent_status}",
                     "evaluation_id": evaluation_id, "generation_id": generation_id}
 
@@ -667,11 +670,12 @@ def evaluate_annotation_cell_impl(
         from annotation_utils import extract_all_field_values as _extract_all_fields
         from eval_field_classification import classify_pred_fields
 
-        # Parent-status short-circuit — mirror of evaluate_generation_cell.
+        # Parent-status short-circuit — mirror of evaluate_generation_cell
+        # (incl. 'paused', issue #198).
         parent_status = db.query(EvaluationRun.status).filter(
             EvaluationRun.id == evaluation_id
         ).scalar()
-        if parent_status in ("cancelled", "failed", "completed"):
+        if parent_status in ("cancelled", "failed", "completed", "paused"):
             return {"status": "skipped", "reason": f"parent_{parent_status}",
                     "evaluation_id": evaluation_id, "annotation_id": annotation_id}
 

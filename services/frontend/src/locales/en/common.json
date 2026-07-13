@@ -4659,6 +4659,19 @@
       "failuresLabel": "Failures by reason:",
       "failuresMore": "+{count} more"
     },
+    "lifecycle": {
+      "pause": "Pause",
+      "pausing": "Pausing …",
+      "pauseAria": "Pause this run",
+      "resume": "Resume",
+      "resuming": "Resuming …",
+      "resumeAria": "Resume this run",
+      "retry": "Retry",
+      "retrying": "Retrying …",
+      "retryAria": "Retry this run",
+      "latestFailedHeading": "Latest evaluation failed",
+      "errorWithDetail": "Action failed: {detail}"
+    },
     "cancel": {
       "cancel": "Cancel",
       "cancelling": "Cancelling…",

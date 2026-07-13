@@ -4641,6 +4641,19 @@
       "failuresLabel": "Fehlschläge nach Grund:",
       "failuresMore": "+{count} weitere"
     },
+    "lifecycle": {
+      "pause": "Pausieren",
+      "pausing": "Pausiere …",
+      "pauseAria": "Diesen Lauf pausieren",
+      "resume": "Fortsetzen",
+      "resuming": "Setze fort …",
+      "resumeAria": "Diesen Lauf fortsetzen",
+      "retry": "Erneut versuchen",
+      "retrying": "Starte neu …",
+      "retryAria": "Diesen Lauf erneut versuchen",
+      "latestFailedHeading": "Letzte Auswertung fehlgeschlagen",
+      "errorWithDetail": "Aktion fehlgeschlagen: {detail}"
+    },
     "cancel": {
       "cancel": "Abbrechen",
       "cancelling": "Breche ab …",
