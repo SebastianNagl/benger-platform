@@ -198,6 +198,10 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
       REDIS_URI: redis://test-redis:6379/0
+      # Lift the LLM leaderboard trust gate: it defaults to the PROD TUM
+      # org id, but seeded test orgs get random ids — every leaderboard
+      # e2e would 400 with "not in the trust scope" otherwise.
+      LLM_LEADERBOARD_ALLOWLISTED_ORG_IDS: ""
       REDIS_URL: redis://test-redis:6379/0
       # Celery
       CELERY_BROKER_URL: redis://test-redis:6379/0

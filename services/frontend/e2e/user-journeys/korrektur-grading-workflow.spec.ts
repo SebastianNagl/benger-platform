@@ -251,23 +251,27 @@ test.describe('Korrektur Falllösung Grading Workflow @extended', () => {
 
     // Open the item to grade: prefer the "Korrektur starten" CTA (jumps to the
     // first ungraded item); fall back to clicking the first queue row.
-    const startCta = page
-      .getByRole('button', { name: /Korrektur starten|Start grading/i })
-      .first()
-    if (await startCta.isVisible({ timeout: 10000 }).catch(() => false)) {
-      await startCta.click()
-    } else {
-      const firstRow = page.locator('table tbody tr').first()
-      await expect(firstRow).toBeVisible({ timeout: 15000 })
-      await firstRow.click()
-    }
-
-    // The grading modal (HeadlessUI Dialog) opens. Switch to the Falllösung
-    // grading tab.
+    //
+    // Retried via toPass: the queue page renders before hydration finishes
+    // (20-30s in the Docker test env), and a pre-hydration click lands on a
+    // button with no handler — the modal never opens. Same lost-click root
+    // cause as the two nightly specs fixed in #224.
     const falloesungTab = page
       .getByRole('button', { name: /Bewertung \(Standard Falllösung\)/i })
       .first()
-    await expect(falloesungTab).toBeVisible({ timeout: 15000 })
+    await expect(async () => {
+      if (!(await falloesungTab.isVisible().catch(() => false))) {
+        const startCta = page
+          .getByRole('button', { name: /Korrektur starten|Start grading/i })
+          .first()
+        if (await startCta.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await startCta.click()
+        } else {
+          await page.locator('table tbody tr').first().click({ timeout: 2000 })
+        }
+      }
+      await expect(falloesungTab).toBeVisible({ timeout: 3000 })
+    }).toPass({ timeout: 60000 })
     await falloesungTab.click()
 
     // Fill a dimension score. The input id pattern is `korrektur-falloesung-<dimkey>`.
@@ -282,7 +286,11 @@ test.describe('Korrektur Falllösung Grading Workflow @extended', () => {
     }
 
     // Live readout should reflect the entered score before submitting.
-    await expect(mainContent).toContainText(/Notenpunkte/i, { timeout: 5000 })
+    // The grading modal is a HeadlessUI Dialog PORTAL rendered outside
+    // <main> — assert at page level, not on mainContent.
+    await expect(
+      page.locator('text=/Notenpunkte/i').first()
+    ).toBeVisible({ timeout: 5000 })
 
     // Submit the grade.
     const submitButton = page

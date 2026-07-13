@@ -682,23 +682,39 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 "are not supported. See services/workers/tasks.py:3036 / :3441."
             )
 
-        # E2E test mock: return deterministic scores without real API call
+        # E2E test mock: return deterministic scores without a real API
+        # call. Fires on E2E_TEST_MODE regardless of whether an ai_service
+        # was constructed — the service layer's own E2E mock returns generic
+        # PROSE that the judge parser can't score, so letting the call
+        # through just yields "Failed to parse LLM judge response" and a
+        # scoreless judge_run (no llm_judge_* aggregate at all).
+        import os
+
+        if os.environ.get("E2E_TEST_MODE") == "true":
+            import hashlib
+
+            hash_input = f"{criterion}:{str(context)[:50]}:{str(prediction)[:50]}"
+            score_hash = int(
+                hashlib.md5(hash_input.encode()).hexdigest()[:8], 16
+            )
+            # Deterministic base in [0.6, 1.0) — expressed on the evaluator's
+            # configured scale so the normalization ladder in evaluate()
+            # lands back in 0-1. Emitting a bare 0-1 value under the default
+            # "1-5" scale would normalize to (x-1)/4 ≈ NEGATIVE and poison
+            # the aggregate.
+            base = 0.6 + (score_hash % 40) / 100
+            if self.score_scale == "0-100":
+                mock_score = base * 100
+            elif self.score_scale == "0-1":
+                mock_score = base
+            else:  # "1-5" default
+                mock_score = 1 + base * 4
+            return {
+                "score": mock_score,
+                "justification": "Mock evaluation (E2E test mode)",
+            }
+
         if self.ai_service == None:
-            import os
-
-            if os.environ.get("E2E_TEST_MODE") == "true":
-                import hashlib
-
-                hash_input = f"{criterion}:{str(context)[:50]}:{str(prediction)[:50]}"
-                score_hash = int(
-                    hashlib.md5(hash_input.encode()).hexdigest()[:8], 16
-                )
-                # Always return 0-1 range so raw_score doesn't inflate aggregation
-                mock_score = 0.6 + (score_hash % 40) / 100
-                return {
-                    "score": mock_score,
-                    "justification": "Mock evaluation (E2E test mode)",
-                }
             return None
 
         criterion_config = self.all_criteria.get(criterion, {})
