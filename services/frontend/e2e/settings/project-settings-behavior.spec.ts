@@ -274,80 +274,162 @@ test.describe('Project Settings Behavior', () => {
     console.log('Timer hidden with annotation_time_limit_enabled=false')
   })
 
-  test('min_annotations_per_task controls task completion status', async () => {
+  test('min_annotations_per_task controls task completion status', async ({
+    browser,
+  }) => {
     test.setTimeout(120000)
 
-    testProjectId = await helpers.createTestProject(
-      `Min Annotations Test ${Date.now()}`
+    // min_annotations_per_task counts annotations from DIFFERENT users: since
+    // the partial unique index uq_annotations_active_task_user (migration
+    // 064), a SECOND submit by the same user updates their annotation IN
+    // PLACE instead of adding a row. So the second annotation must come from
+    // a second user — TUM-org project + contributor context (same pattern as
+    // the skip_queue=requeue_for_others test below).
+
+    // Admin context
+    const adminContext = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const adminPage = await adminContext.newPage()
+    const adminHelpers = new TestHelpers(adminPage)
+    await adminHelpers.login('admin', 'admin')
+
+    // Get TUM org ID (both admin and contributor are members)
+    const orgId = await adminPage.evaluate(async () => {
+      const resp = await fetch('/api/organizations', { credentials: 'include' })
+      if (!resp.ok) return null
+      const data = await resp.json()
+      const orgs = data.organizations || data.items || data
+      const tum = (Array.isArray(orgs) ? orgs : []).find(
+        (o: any) => o.name === 'TUM' || o.slug === 'tum'
+      )
+      return tum?.id || null
+    })
+    expect(orgId).toBeTruthy()
+
+    // Create project via API in the TUM org so the contributor has access.
+    testProjectId = await adminPage.evaluate(
+      async ({ name, orgId, labelConfig }) => {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (orgId) headers['X-Organization-Context'] = orgId
+        const resp = await fetch('/api/projects', {
+          method: 'POST',
+          headers,
+          credentials: 'include',
+          body: JSON.stringify({
+            title: name,
+            description: 'min_annotations completion test',
+            label_config: labelConfig,
+          }),
+        })
+        if (!resp.ok) return null
+        const data = await resp.json()
+        return data.id
+      },
+      {
+        name: `Min Annotations Test ${Date.now()}`,
+        orgId,
+        labelConfig: SIMPLE_TEXT_CONFIG,
+      }
     )
     expect(testProjectId).toBeTruthy()
-    await fixtures.setLabelConfig(testProjectId!, SIMPLE_TEXT_CONFIG)
-    await fixtures.createTasks(testProjectId!, 1) // Single task for clarity
+
+    const adminFixtures = new TestFixtures(adminPage, adminHelpers)
+    await adminFixtures.createTasks(testProjectId!, 1) // Single task for clarity
 
     // Require 2 annotations for completion, allow up to 3
-    await updateProjectSettings(page, testProjectId!, {
+    await updateProjectSettings(adminPage, testProjectId!, {
       min_annotations_per_task: 2,
       maximum_annotations: 3,
     })
 
-    // Get task ID
-    const tasks = await fixtures.getTasks(testProjectId!)
+    const tasks = await adminFixtures.getTasks(testProjectId!)
     expect(tasks.length).toBeGreaterThan(0)
     const taskId = tasks[0].id
     console.log(`Testing task ID: ${taskId}`)
 
-    // Complete first annotation
-    await page.goto(`${BASE_URL}/projects/${testProjectId}/label`)
-    await waitForAnnotationUI(page)
+    // The project lives in the TUM org while the browser sessions sit in the
+    // default "Privat" context, so the /label UI would bounce to the
+    // dashboard. The semantics under test (annotation counting + completion)
+    // are server-side, so both annotations go through the API with the
+    // org-context header — same approach as the requeue_for_others test.
+    const annotate = async (actorPage: Page, text: string) =>
+      actorPage.evaluate(
+        async ({ taskId, orgId, text }) => {
+          const resp = await fetch(`/api/projects/tasks/${taskId}/annotations`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Organization-Context': orgId,
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              result: [
+                { from_name: 'answer', to_name: 'text', type: 'textarea',
+                  value: { text: [text] } },
+              ],
+              was_cancelled: false,
+            }),
+          })
+          return { ok: resp.ok, status: resp.status }
+        },
+        { taskId, orgId, text }
+      )
 
-    const textarea = page.locator('textarea').first()
-    await expect(textarea).toBeVisible({ timeout: 10000 })
-    await textarea.fill('First annotation - testing min annotations requirement')
+    const readStatus = async () =>
+      adminPage.evaluate(
+        async ({ taskId, orgId }) => {
+          const response = await fetch(`/api/projects/tasks/${taskId}`, {
+            headers: { 'X-Organization-Context': orgId },
+            credentials: 'include',
+          })
+          if (!response.ok) return { error: response.status }
+          const data = await response.json()
+          return { is_labeled: data.is_labeled, annotation_count: data.total_annotations || 0 }
+        },
+        { taskId, orgId }
+      )
 
-    const submitButton = page
-      .locator('button')
-      .filter({ hasText: /Absenden|Submit/i })
-      .first()
-    await submitButton.click()
-    await page.waitForTimeout(3000)
+    // First annotation — admin.
+    const first = await annotate(adminPage, 'First annotation - testing min annotations requirement')
+    expect(first.ok).toBe(true)
 
-    // Check task status via API - should NOT be fully labeled yet (only 1 of 2 annotations)
-    const taskStatus1 = await page.evaluate(async (taskId) => {
-      const response = await fetch(`/api/projects/tasks/${taskId}`, {
-        credentials: 'include',
-      })
-      if (!response.ok) return { error: response.status }
-      const data = await response.json()
-      return { is_labeled: data.is_labeled, annotation_count: data.total_annotations || 0 }
-    }, taskId)
+    // After 1 of 2 annotations: counted but NOT completed.
+    const taskStatus1 = await readStatus()
 
     console.log(`After first annotation: ${JSON.stringify(taskStatus1)}`)
     expect(taskStatus1.annotation_count).toBe(1)
+    expect(taskStatus1.is_labeled).toBe(false)
     console.log('Task has 1 annotation (requires 2 for completion)')
 
-    // Navigate back to same task for second annotation
-    await page.goto(`${BASE_URL}/projects/${testProjectId}/label?task=1`)
-    await waitForAnnotationUI(page)
+    // Regression pin for migration 064: a SECOND submit by the SAME user
+    // updates in place — the count must stay 1, not grow.
+    const sameUserResubmit = await annotate(adminPage, 'Same-user resubmit - must update in place')
+    expect(sameUserResubmit.ok).toBe(true)
+    const afterResubmit = await readStatus()
+    expect(afterResubmit.annotation_count).toBe(1)
+    console.log('Same-user resubmit updated in place (count still 1)')
 
-    // Complete second annotation
-    await expect(textarea).toBeVisible({ timeout: 10000 })
-    await textarea.fill('Second annotation - should trigger completion')
-    await submitButton.click()
-    await page.waitForTimeout(3000)
+    // Second annotation — CONTRIBUTOR in their own browser context (own
+    // cookie jar; Bearer headers inside page.evaluate would be overridden
+    // by the admin cookies, so a real second session is required).
+    const contribContext = await browser.newContext({ viewport: { width: 1920, height: 1080 } })
+    const contribPage = await contribContext.newPage()
+    const contribHelpers = new TestHelpers(contribPage)
+    await contribHelpers.login('contributor', 'admin')
+    await contribPage.goto(`${BASE_URL}/dashboard`)
 
-    // Check task status - should have 2 annotations now
-    const taskStatus2 = await page.evaluate(async (taskId) => {
-      const response = await fetch(`/api/projects/tasks/${taskId}`, {
-        credentials: 'include',
-      })
-      if (!response.ok) return { error: response.status }
-      const data = await response.json()
-      return { is_labeled: data.is_labeled, annotation_count: data.total_annotations || 0 }
-    }, taskId)
+    const second = await annotate(contribPage, 'Second annotation from second user - should trigger completion')
+    expect(second.ok).toBe(true)
+
+    // After 2 annotations from 2 users: count 2 and completion reached.
+    const taskStatus2 = await readStatus()
 
     console.log(`After second annotation: ${JSON.stringify(taskStatus2)}`)
     expect(taskStatus2.annotation_count).toBeGreaterThanOrEqual(2)
-    console.log('Task has 2+ annotations (min requirement met)')
+    expect(taskStatus2.is_labeled).toBe(true)
+    console.log('Task has 2+ annotations from distinct users (min requirement met)')
+
+    await adminContext.close()
+    await contribContext.close()
   })
 
   test('skip_queue=ignore_skipped removes task permanently after skip', async () => {

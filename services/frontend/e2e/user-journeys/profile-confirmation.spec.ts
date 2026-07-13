@@ -3,7 +3,8 @@
  *
  * Tests the mandatory profile re-confirmation mechanism:
  * - API endpoints return correct shapes (status, history, notifications)
- * - Confirmation banner appears when overdue and dismisses on confirm click
+ * - The nag banner stays REMOVED (2026-06-24 product decision): overdue
+ *   profiles render the profile page without any confirmation banner
  * - confirm-profile and save-as-confirm APIs work correctly
  *
  * Uses /api/test/force-profile-overdue to set confirmation_due=true.
@@ -157,59 +158,53 @@ test.describe('Profile Confirmation - UI Banner', () => {
     await helpers.login('admin', 'admin')
   })
 
-  test('confirmation banner appears when overdue and dismisses on confirm click', async () => {
+  test('no confirmation banner nags the user even when overdue (removed 2026-06-24)', async () => {
+    // The post-login/profile confirmation NAG BANNER was deliberately removed
+    // on 2026-06-24 (signup steps 2-5 made optional; issue #1206 backend left
+    // dormant). This pins the REMOVAL: an overdue profile must not surface
+    // the amber banner anywhere on the profile page — the backend endpoints
+    // (status/notification/confirm) stay covered by the API tests above.
     const token = await getAuthToken(page)
 
     // Force profile to be overdue via test seeding API
     const forced = await forceProfileOverdue(page, token)
     expect(forced).toBe(true)
 
-    // Navigate to profile
-    await page.goto(`${BASE_URL}/profile`, { timeout: 30000 })
+    // Sanity: the backend really is overdue right now.
+    const statusResp = await page.request.get(
+      `${BASE_URL}/api/auth/mandatory-profile-status`,
+      { headers: { Authorization: `Bearer ${token}` }, timeout: 30000 }
+    )
+    expect((await statusResp.json()).confirmation_due).toBe(true)
 
-    // Banner should be visible (amber background)
+    // Navigate to profile — page renders normally, WITHOUT the nag banner.
+    await page.goto(`${BASE_URL}/profile`, { timeout: 30000 })
+    const profileHeading = page
+      .locator('h1')
+      .filter({ hasText: /Profile|Profil/i })
+      .first()
+    await expect(profileHeading).toBeVisible({ timeout: 10000 })
+
     const banner = page
       .locator('[class*="amber"]')
       .filter({
         hasText: /Confirmation Required|Profilbestätigung erforderlich/i,
       })
       .first()
-    await expect(banner).toBeVisible({ timeout: 10000 })
+    await expect(banner).not.toBeVisible({ timeout: 3000 })
 
-    // Confirm button inside the banner
-    const confirmButton = banner
-      .locator('button')
-      .filter({ hasText: /Confirm|Bestätigen/i })
-      .first()
-    await expect(confirmButton).toBeVisible({ timeout: 5000 })
-
-    // Click and wait for the confirm-profile API response
-    await Promise.all([
-      page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/api/auth/confirm-profile') &&
-          resp.status() === 200,
-        { timeout: 30000 }
-      ),
-      confirmButton.click(),
-    ])
-
-    // Wait for the mandatory-profile-status refresh
-    await page.waitForResponse(
-      (resp) =>
-        resp.url().includes('/api/auth/mandatory-profile-status') &&
-        resp.status() === 200,
-      { timeout: 30000 }
+    // Cleanup: clear the overdue flag so it can't bleed into other specs.
+    const confirmResp = await page.request.post(
+      `${BASE_URL}/api/auth/confirm-profile`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000,
+      }
     )
-
-    // Banner should disappear
-    const bannerAfter = page
-      .locator('[class*="amber"]')
-      .filter({
-        hasText: /Confirmation Required|Profilbestätigung erforderlich/i,
-      })
-      .first()
-    await expect(bannerAfter).not.toBeVisible({ timeout: 5000 })
+    expect(confirmResp.ok()).toBe(true)
   })
 })
 
