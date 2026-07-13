@@ -14,9 +14,10 @@ All *platform-internal* callers were updated to the new path, but the top-level
   * The open-core metric-contract behavioral test imports ``AnswerType`` /
     ``get_metrics_for_answer_type`` from here.
 
-``CORE_API_VERSION`` is unchanged (2.2) — i.e. the contract did NOT change — so we
-keep this thin re-export rather than break the extended overlay. Remove only
-alongside a coordinated handshake bump + an extended import update.
+This import path is part of the stable contract (it predates the 2.x handshake
+bumps and has survived them unchanged), so we keep this thin re-export rather
+than break the extended overlay. Remove only alongside a coordinated handshake
+bump + an extended import update.
 """
 
 from services.evaluation.config import (  # noqa: F401  (re-export surface)

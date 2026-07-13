@@ -454,7 +454,7 @@ class StudentSubscription(Base):
     # incomplete | trialing | active | past_due | canceled | unpaid
     status = Column(String, nullable=False, default="incomplete")
     base_price_cents = Column(Integer, nullable=False, default=500)
-    per_grading_price_cents = Column(Integer, nullable=False, default=200)
+    per_grading_price_cents = Column(Integer, nullable=False, default=100)
     currency = Column(String(3), nullable=False, default="eur")
     current_period_start = Column(DateTime(timezone=True), nullable=True)
     current_period_end = Column(DateTime(timezone=True), nullable=True)
@@ -502,11 +502,20 @@ class GradingUsageEvent(Base):
     evaluation_run_id = Column(String, nullable=True, unique=True)
     event_type = Column(String, nullable=False, default="exam_grading")
     quantity = Column(Integer, nullable=False, default=1)
-    unit_price_cents = Column(Integer, nullable=False, default=200)
+    unit_price_cents = Column(Integer, nullable=False, default=100)
     currency = Column(String(3), nullable=False, default="eur")
-    # pending | billable | reported | void | free
+    # pending | billable | reported | void | free | included
     status = Column(String, nullable=False, default="pending")
     provider_usage_record_id = Column(String, nullable=True)
+    # Audit: which pricing tier ('free' | 'subscriber') and judge model
+    # actually priced/graded this event.
+    tier = Column(String, nullable=True)
+    judge_model = Column(String, nullable=True)
+    # Monday (Europe/Berlin local date) whose weekly free slot this event
+    # consumed; NULL otherwise. The unique index below makes the weekly claim
+    # race-safe (NULLs never collide), and voiding a failed grading clears it
+    # to release the slot.
+    free_week_start = Column(sa.Date, nullable=True)
     occurred_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
     )
@@ -516,6 +525,9 @@ class GradingUsageEvent(Base):
 
     __table_args__ = (
         Index("ix_grading_usage_events_user_occurred", "user_id", "occurred_at"),
+        Index(
+            "uq_grading_usage_weekly_free", "user_id", "free_week_start", unique=True
+        ),
     )
 
     def __repr__(self):

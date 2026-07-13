@@ -115,6 +115,11 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // pre_start | annotating | time_over (or stays 'annotating' on error /
   // community edition).
   const [strictTimerPhase, setStrictTimerPhase] = useState<StrictTimerPhase>('loading')
+  // Non-strict overtime: set once a non-strict countdown crosses 0. Purely
+  // informational — the editor stays open and submission stays manual (an
+  // auto-submitted snapshot would fire a KI-Votum grading on a half-finished
+  // draft). Strict mode never sets this; it has the 'time_over' phase instead.
+  const [nonStrictOvertime, setNonStrictOvertime] = useState(false)
   // True when the most recent submit was a strict-timer auto-submit. Read by
   // the ImmediateEvalSlot's onClose to decide whether closing the eval modal
   // should advance to the next task (auto-submit case) or just clear the
@@ -134,6 +139,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     lastSeenTaskIdRef.current = currentTask.id
     if (strictTimerPhase !== 'loading') {
       setStrictTimerPhase('loading')
+    }
+    if (nonStrictOvertime) {
+      setNonStrictOvertime(false)
     }
   }
 
@@ -195,6 +203,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
     const initPhase = async () => {
       setStrictTimerPhase('loading')
+      setNonStrictOvertime(false)
       try {
         const status = await apiClient.get(
           `/projects/${currentProject.id}/tasks/${currentTask.id}/timer-status`
@@ -887,6 +896,15 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   annotations={annotations}
                   paused={showQuestionnaireModal}
                   onAutoSubmit={async (result: any[]) => {
+                    if (!isStrictMode) {
+                      // Non-strict: 0:00 starts overtime. No auto-submit — a
+                      // half-finished snapshot would burn a KI-Votum grading
+                      // (and, for vertretbar subscribers, the weekly free
+                      // one). The student keeps writing and submits manually;
+                      // the timer keeps counting up.
+                      setNonStrictOvertime(true)
+                      return
+                    }
                     if (hasSubmittedRef.current) return
                     hasSubmittedRef.current = true
 
@@ -960,6 +978,16 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300">
                 {t('annotation.window.closedReadOnly', {
                   defaultValue: 'This project has closed — view only, no further changes.',
+                })}
+              </div>
+            )}
+            {nonStrictOvertime && !windowReadOnly && (
+              <div
+                className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
+                data-testid="timer-overtime-hint"
+              >
+                {t('annotation.timer.overtimeHint', {
+                  defaultValue: 'Time is up — you are now in overtime. Submit when you are done.',
                 })}
               </div>
             )}

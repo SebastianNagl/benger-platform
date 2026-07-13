@@ -6513,7 +6513,12 @@
     "timer": {
       "ariaLabel": "Time remaining: {time}",
       "expired": "Time expired",
-      "expiredToast": "Time limit reached"
+      "expiredToast": "Time limit reached",
+      "pause": "Pause",
+      "resume": "Resume",
+      "paused": "Paused",
+      "overtimeAriaLabel": "Overtime: {time}",
+      "overtimeHint": "Time is up — you are now in overtime. Submit when you are done."
     },
     "strictTimer": {
       "readyTitle": "Ready to Begin",

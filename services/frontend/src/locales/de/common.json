@@ -6495,7 +6495,12 @@
     "timer": {
       "ariaLabel": "Verbleibende Zeit: {time}",
       "expired": "Zeit abgelaufen",
-      "expiredToast": "Zeitlimit erreicht"
+      "expiredToast": "Zeitlimit erreicht",
+      "pause": "Pausieren",
+      "resume": "Fortsetzen",
+      "paused": "Pausiert",
+      "overtimeAriaLabel": "Überzogene Zeit: {time}",
+      "overtimeHint": "Zeit abgelaufen — Sie schreiben jetzt in der Nachspielzeit. Geben Sie ab, wenn Sie fertig sind."
     },
     "strictTimer": {
       "readyTitle": "Bereit zu beginnen",

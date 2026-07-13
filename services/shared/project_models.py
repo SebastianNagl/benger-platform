@@ -675,6 +675,13 @@ class TimerSession(Base):
     time_limit_seconds = Column(Integer, nullable=False)
     is_strict = Column(Boolean, default=False, nullable=False)
 
+    # Non-strict pause/resume (extended feature; strict sessions never pause).
+    # paused_at marks an OPEN pause; total_paused_seconds accumulates closed
+    # ones. Effective elapsed = (now - started_at) - total_paused_seconds
+    # - (now - paused_at when paused).
+    paused_at = Column(DateTime(timezone=True), nullable=True)
+    total_paused_seconds = Column(Integer, nullable=False, default=0, server_default="0")
+
     # Completion tracking
     completed_at = Column(DateTime(timezone=True), nullable=True)
     auto_submitted = Column(Boolean, default=False, nullable=False)
