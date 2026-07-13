@@ -30,7 +30,7 @@ MIGRATION_PATH = os.path.normpath(
         "..",
         "alembic",
         "versions",
-        "076_add_lti_tables.py",
+        "078_add_lti_tables.py",
     )
 )
 
@@ -72,8 +72,8 @@ def _op_context(connection):
 class TestMigration076Shape:
     def test_revision_chains_after_075(self):
         mig = _load_migration()
-        assert mig.revision == "076_add_lti_tables"
-        assert mig.down_revision == "075_default_checkpoints_enabled"
+        assert mig.revision == "078_add_lti_tables"
+        assert mig.down_revision == "077_grading_usage_weekly_tiering"
 
     def test_upgrade_is_idempotent_on_existing_schema(self, test_db: Session):
         conn = test_db.get_bind()
